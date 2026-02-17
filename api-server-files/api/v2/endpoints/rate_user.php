@@ -23,7 +23,7 @@ $rater_id = $wo['user']['user_id'] ?? 0;
 if (empty($rater_id) || $rater_id < 1) {
     $access_token = $_GET['access_token'] ?? $_POST['access_token'] ?? '';
     if (!empty($access_token) && isset($db)) {
-        $rater_id = validateAccessToken($pdo, $access_token);
+        $rater_id = validateAccessToken($db, $access_token);
         if ($rater_id) {
             $wo['user']['user_id'] = $rater_id;
             $wo['loggedin'] = true;
