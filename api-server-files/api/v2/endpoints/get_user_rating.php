@@ -23,7 +23,7 @@ $requester_id = $wo['user']['user_id'] ?? 0;
 if (empty($requester_id) || $requester_id < 1) {
     $access_token = $_GET['access_token'] ?? $_POST['access_token'] ?? '';
     if (!empty($access_token) && isset($db)) {
-        $requester_id = validateAccessToken($pdo, $access_token);
+        $requester_id = validateAccessToken($db, $access_token);
         if ($requester_id) {
             $wo['user']['user_id'] = $requester_id;
             $wo['loggedin'] = true;
