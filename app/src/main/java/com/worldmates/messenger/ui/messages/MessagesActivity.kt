@@ -46,9 +46,6 @@ class MessagesActivity : AppCompatActivity() {
     private var recipientName: String = ""
     private var recipientAvatar: String = ""
     private var isGroup: Boolean = false
-    private var isBot: Boolean = false      // Bot chat mode (Telegram-style)
-    private var botId: String = ""           // Bot identifier for API calls
-    private var botUsername: String = ""      // Bot @username
 
     // Permission request launcher
     private val audioPermissionLauncher = registerForActivityResult(
@@ -79,9 +76,6 @@ class MessagesActivity : AppCompatActivity() {
         recipientName = intent.getStringExtra("recipient_name") ?: "Unknown"
         recipientAvatar = intent.getStringExtra("recipient_avatar") ?: ""
         isGroup = intent.getBooleanExtra("is_group", false)
-        isBot = intent.getBooleanExtra("is_bot", false)
-        botId = intent.getStringExtra("bot_id") ?: ""
-        botUsername = intent.getStringExtra("bot_username") ?: ""
 
         // Ініціалізуємо утиліти
         fileManager = FileManager(this)
@@ -89,7 +83,6 @@ class MessagesActivity : AppCompatActivity() {
         voicePlayer = VoicePlayer(this)
 
         viewModel = ViewModelProvider(this).get(MessagesViewModel::class.java)
-        viewModel.setBotMode(isBot = isBot, botId = botId)
 
         // Завантажуємо повідомлення
         if (isGroup) {
@@ -97,10 +90,6 @@ class MessagesActivity : AppCompatActivity() {
         } else {
             viewModel.initialize(recipientId)
         }
-
-        // Track active chat so notification service doesn't show notifications for it
-        com.worldmates.messenger.services.MessageNotificationService.activeRecipientId = recipientId
-        com.worldmates.messenger.services.MessageNotificationService.activeGroupId = groupId
 
         // Ініціалізуємо ThemeManager
         ThemeManager.initialize(this)
@@ -148,20 +137,6 @@ class MessagesActivity : AppCompatActivity() {
                 false
             }
         }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        // Clear active chat tracking so notifications resume
-        com.worldmates.messenger.services.MessageNotificationService.activeRecipientId = 0
-        com.worldmates.messenger.services.MessageNotificationService.activeGroupId = 0
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Suppress notifications for the active chat
-        com.worldmates.messenger.services.MessageNotificationService.activeRecipientId = recipientId
-        com.worldmates.messenger.services.MessageNotificationService.activeGroupId = groupId
     }
 
     override fun onDestroy() {

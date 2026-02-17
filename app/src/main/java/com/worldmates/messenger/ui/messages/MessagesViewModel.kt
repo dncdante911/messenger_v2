@@ -24,7 +24,6 @@ import com.worldmates.messenger.data.repository.DraftRepository
 import com.worldmates.messenger.data.local.entity.Draft
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import org.json.JSONObject
 import java.io.File
 
@@ -119,8 +118,6 @@ class MessagesViewModel(application: Application) :
     private var recipientId: Long = 0
     private var groupId: Long = 0
     private var topicId: Long = 0 // 📁 Topic/Subgroup ID for topic-based filtering
-    private var isBotChat: Boolean = false
-    private var botId: String = ""
     private var socketManager: SocketManager? = null
     private var mediaUploader: MediaUploader? = null
     private var fileManager: FileManager? = null
@@ -130,12 +127,6 @@ class MessagesViewModel(application: Application) :
     fun getRecipientId(): Long = recipientId
     fun getGroupId(): Long = groupId
     fun getTopicId(): Long = topicId
-
-    fun setBotMode(isBot: Boolean, botId: String) {
-        this.isBotChat = isBot
-        this.botId = botId
-        Log.d(TAG, "Bot mode: $isBot, botId=$botId")
-    }
 
     fun initialize(recipientId: Long) {
         Log.d("MessagesViewModel", "🔧 initialize() викликано для користувача $recipientId")
@@ -213,20 +204,21 @@ class MessagesViewModel(application: Application) :
 
                     val currentMessages = _messages.value.toMutableList()
                     currentMessages.addAll(decryptedMessages)
+                    // Сортируем по времени (старые сверху, новые внизу)
                     _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
 
                     _error.value = null
-                    Log.d(TAG, "Завантажено ${decryptedMessages.size} повідомлень")
+                    Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень")
                 } else {
                     _error.value = response.errorMessage ?: "Помилка завантаження повідомлень"
-                    Log.e(TAG, "API Error: ${response.apiStatus}")
+                    Log.e("MessagesViewModel", "API Error: ${response.apiStatus}")
                 }
 
                 _isLoading.value = false
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
                 _isLoading.value = false
-                Log.e(TAG, "Помилка завантаження повідомлень", e)
+                Log.e("MessagesViewModel", "Помилка завантаження повідомлень", e)
             }
         }
     }
@@ -295,88 +287,75 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                // Основной путь: Socket.IO → Node.js сохраняет в БД + доставляет получателю
-                val socketConnected = socketManager?.isConnected() == true
+                val messageHashId = System.currentTimeMillis().toString()
 
-                if (socketConnected) {
-                    // ========== SOCKET.IO (Node.js) ==========
-                    // Node.js PrivateMessageController / GroupMessageController:
-                    // 1) Сохраняет в wo_messages
-                    // 2) Эмитит получателю через Socket.IO
-                    // 3) Возвращает callback с message_id
-                    if (groupId != 0L) {
-                        socketManager?.sendGroupMessage(groupId, text, replyToId)
-                        Log.d(TAG, "Socket.IO: Відправлено групове повідомлення (Node.js збереже в БД)")
+                val response = if (groupId != 0L) {
+                    // Використовуємо API для відправки в групу (з опціональним топіком)
+                    RetrofitClient.apiService.sendGroupMessage(
+                        accessToken = UserSession.accessToken!!,
+                        groupId = groupId,
+                        topicId = topicId, // Якщо є топік, повідомлення буде прив'язане до нього
+                        text = text,
+                        replyToId = replyToId
+                    )
+                } else {
+                    RetrofitClient.apiService.sendMessage(
+                        accessToken = UserSession.accessToken!!,
+                        recipientId = recipientId,
+                        text = text,
+                        messageHashId = messageHashId,
+                        replyToId = replyToId
+                    )
+                }
+
+                Log.d("MessagesViewModel", "API Response: status=${response.apiStatus}, messages=${response.messages?.size}, message=${response.message}, allMessages=${response.allMessages?.size}, errors=${response.errors}")
+
+                if (response.apiStatus == 200) {
+                    // Если API вернул сообщения, добавляем их в список
+                    val receivedMessages = response.allMessages
+                    Log.d("MessagesViewModel", "receivedMessages: $receivedMessages")
+                    if (receivedMessages != null && receivedMessages.isNotEmpty()) {
+                        val decryptedMessages = receivedMessages.map { msg ->
+                            decryptMessageFully(msg)
+                        }
+
+                        val currentMessages = _messages.value.toMutableList()
+                        currentMessages.addAll(decryptedMessages)
+                        // Сортируем по времени (старые сверху, новые внизу)
+                        _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                        Log.d("MessagesViewModel", "Додано ${decryptedMessages.size} нових повідомлень")
                     } else {
-                        socketManager?.sendMessage(recipientId, text, replyToId)
-                        Log.d(TAG, "Socket.IO: Відправлено приватне повідомлення (Node.js збереже в БД)")
+                        // Если API не вернул сообщения, перезагружаем весь список
+                        Log.d("MessagesViewModel", "API не повернув повідомлення, перезавантажуємо список")
+                        if (groupId != 0L) {
+                            fetchGroupMessages()
+                        } else {
+                            fetchMessages()
+                        }
                     }
 
-                    // Оптимістичне локальне повідомлення (показуємо одразу в UI)
-                    val localMessage = Message(
-                        id = System.currentTimeMillis(),
-                        fromId = UserSession.userId ?: 0,
-                        toId = if (groupId != 0L) 0 else recipientId,
-                        groupId = groupId,
-                        encryptedText = text,
-                        timeStamp = System.currentTimeMillis() / 1000,
-                        decryptedText = text,
-                        isLocalPending = true
-                    )
-
-                    val currentMessages = _messages.value.toMutableList()
-                    currentMessages.add(localMessage)
-                    _messages.value = currentMessages.sortedBy { it.timeStamp }
+                    // КРИТИЧНО: Эмитим Socket.IO событие для real-time доставки
+                    if (groupId != 0L) {
+                        socketManager?.sendGroupMessage(groupId, text)
+                        Log.d("MessagesViewModel", "Socket.IO: Відправлено групове повідомлення")
+                    } else {
+                        socketManager?.sendMessage(recipientId, text)
+                        Log.d("MessagesViewModel", "Socket.IO: Відправлено приватне повідомлення")
+                    }
 
                     _error.value = null
-                    deleteDraft()
-                    Log.d(TAG, "Повідомлення надіслано через Socket.IO (Node.js)")
+                    deleteDraft() // Удаляем черновик после успешной отправки
+                    Log.d("MessagesViewModel", "Повідомлення надіслано")
                 } else {
-                    // ========== FALLBACK: PHP API (коли Socket.IO недоступний) ==========
-                    Log.w(TAG, "Socket.IO не підключено, використовуємо PHP API")
-                    val messageHashId = System.currentTimeMillis().toString()
-
-                    val response = if (groupId != 0L) {
-                        RetrofitClient.apiService.sendGroupMessage(
-                            accessToken = UserSession.accessToken!!,
-                            groupId = groupId,
-                            topicId = topicId,
-                            text = text,
-                            replyToId = replyToId
-                        )
-                    } else {
-                        RetrofitClient.apiService.sendMessage(
-                            accessToken = UserSession.accessToken!!,
-                            recipientId = recipientId,
-                            text = text,
-                            messageHashId = messageHashId,
-                            replyToId = replyToId
-                        )
-                    }
-
-                    if (response.apiStatus == 200) {
-                        val receivedMessages = response.allMessages
-                        if (receivedMessages != null && receivedMessages.isNotEmpty()) {
-                            val decryptedMessages = receivedMessages.map { msg -> decryptMessageFully(msg) }
-                            val currentMessages = _messages.value.toMutableList()
-                            currentMessages.addAll(decryptedMessages)
-                            _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
-                        } else {
-                            if (groupId != 0L) fetchGroupMessages() else fetchMessages()
-                        }
-                        _error.value = null
-                        deleteDraft()
-                        Log.d(TAG, "Повідомлення надіслано через PHP API (fallback)")
-                    } else {
-                        _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати повідомлення"
-                    }
+                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати повідомлення"
+                    Log.e("MessagesViewModel", "Send Error: ${response.errors?.errorText ?: response.errorMessage}")
                 }
 
                 _isLoading.value = false
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
                 _isLoading.value = false
-                Log.e(TAG, "Помилка надсилання повідомлення", e)
+                Log.e("MessagesViewModel", "Помилка надсилання повідомлення", e)
             }
         }
     }
@@ -1793,11 +1772,11 @@ class MessagesViewModel(application: Application) :
         messagePollingJob?.cancel()
         messagePollingJob = viewModelScope.launch {
             while (isActive) {
-                kotlinx.coroutines.delay(15000) // Кожні 15 секунд (Socket.IO — основний транспорт)
+                kotlinx.coroutines.delay(5000) // Кожні 5 секунд
                 refreshLatestMessages()
             }
         }
-        Log.d(TAG, "🔄 Polling повідомлень запущено (кожні 15с, fallback)")
+        Log.d(TAG, "🔄 Polling повідомлень запущено (кожні 5с)")
     }
 
     /**
@@ -1830,6 +1809,7 @@ class MessagesViewModel(application: Application) :
                     val currentMessages = _messages.value
                     val currentIds = currentMessages.map { it.id }.toSet()
 
+                    // Додаємо тільки нові повідомлення яких ще немає
                     val trulyNew = newMessages.filter { it.id !in currentIds }
 
                     if (trulyNew.isNotEmpty()) {
@@ -1839,6 +1819,7 @@ class MessagesViewModel(application: Application) :
                     }
                 }
             } catch (e: Exception) {
+                // Тихо ігноруємо помилки polling - не турбуємо користувача
                 Log.w(TAG, "Polling error: ${e.message}")
             }
         }

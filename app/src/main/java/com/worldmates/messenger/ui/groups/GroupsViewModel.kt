@@ -56,41 +56,26 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Спробуємо кастомний API group_chat_v2.php
+                // Використовуємо API group_chat.php
                 val response = RetrofitClient.apiService.getGroups(
                     accessToken = UserSession.accessToken!!,
                     limit = 100
                 )
 
                 if (response.apiStatus == 200 && response.groups != null) {
+                    // Отримуємо готові Group об'єкти з нового API
                     _groupList.value = response.groups!!
                     _error.value = null
-                    Log.d("GroupsViewModel", "Завантажено ${response.groups!!.size} груп (v2)")
+                    Log.d("GroupsViewModel", "Завантажено ${response.groups!!.size} груп")
                 } else {
                     _error.value = response.errorMessage ?: "Помилка завантаження груп"
                 }
 
                 _isLoading.value = false
             } catch (e: Exception) {
-                Log.w("GroupsViewModel", "group_chat_v2.php failed, trying WoWonder fallback", e)
-                // Fallback: стандартний WoWonder endpoint (get-my-groups.php через index.php)
-                try {
-                    val fallbackResponse = RetrofitClient.apiService.getGroupsWoWonder(
-                        accessToken = UserSession.accessToken!!,
-                        limit = 100
-                    )
-                    if (fallbackResponse.apiStatus == 200 && fallbackResponse.groups != null) {
-                        _groupList.value = fallbackResponse.groups!!
-                        _error.value = null
-                        Log.d("GroupsViewModel", "Завантажено ${fallbackResponse.groups!!.size} груп (WoWonder fallback)")
-                    } else {
-                        _error.value = fallbackResponse.errorMessage ?: "Помилка завантаження груп"
-                    }
-                } catch (fallbackError: Exception) {
-                    _error.value = "Помилка: ${fallbackError.localizedMessage}"
-                    Log.e("GroupsViewModel", "Both group endpoints failed", fallbackError)
-                }
+                _error.value = "Помилка: ${e.localizedMessage}"
                 _isLoading.value = false
+                Log.e("GroupsViewModel", "Помилка завантаження груп", e)
             }
         }
     }

@@ -112,9 +112,6 @@ class ChatsActivity : AppCompatActivity() {
         callsViewModel = ViewModelProvider(this).get(com.worldmates.messenger.ui.calls.CallsViewModel::class.java)
         android.util.Log.d("ChatsActivity", "📞 CallsViewModel initialized for incoming calls")
 
-        // Start message notification service for push-like notifications via Socket.IO
-        com.worldmates.messenger.services.MessageNotificationService.start(this)
-
         setContent {
             WorldMatesThemedApp {
                 // Обробка необхідності перелогіну
@@ -162,9 +159,6 @@ class ChatsActivity : AppCompatActivity() {
                                     },
                                     onCreateChannelClick = {
                                         navigateToCreateChannel()
-                                    },
-                                    onBotStoreClick = {
-                                        navigateToBotStore()
                                     }
                                 )
                             }
@@ -193,8 +187,7 @@ class ChatsActivity : AppCompatActivity() {
                                     onGroupClick = { group -> navigateToGroupMessages(group) },
                                     onChannelClick = { channel -> navigateToChannelDetails(channel) },
                                     onSettingsClick = { navigateToSettings() },
-                                    onCreateChannelClick = { navigateToCreateChannel() },
-                                    onBotStoreClick = { navigateToBotStore() }
+                                    onCreateChannelClick = { navigateToCreateChannel() }
                                 )
                             }
                         }
@@ -270,20 +263,6 @@ class ChatsActivity : AppCompatActivity() {
 
     private fun navigateToCreateChannel() {
         startActivity(Intent(this, com.worldmates.messenger.ui.channels.CreateChannelActivity::class.java))
-    }
-
-    private fun navigateToBotStore() {
-        startActivity(Intent(this, com.worldmates.messenger.ui.bots.BotStoreActivity::class.java))
-    }
-
-    private fun navigateToBotChat(botId: String, botName: String, botAvatar: String?) {
-        startActivity(Intent(this, MessagesActivity::class.java).apply {
-            putExtra("recipient_id", botId.hashCode().toLong())
-            putExtra("recipient_name", botName)
-            putExtra("recipient_avatar", botAvatar ?: "")
-            putExtra("is_bot", true)
-            putExtra("bot_id", botId)
-        })
     }
 
     private fun navigateToLogin() {

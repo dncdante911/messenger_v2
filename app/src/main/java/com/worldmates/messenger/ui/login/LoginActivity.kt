@@ -7,7 +7,6 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,9 +67,7 @@ class LoginActivity : AppCompatActivity() {
                 LoginScreen(
                     viewModel = viewModel,
                     onLoginSuccess = { navigateToChats() },
-                    onNavigateToRegister = { navigateToRegister() },
-                    onNavigateToForgotPassword = { navigateToForgotPassword() },
-                    onNavigateToQuickRegister = { navigateToQuickRegister() }
+                    onNavigateToRegister = { navigateToRegister() }
                 )
             }
         }
@@ -107,14 +104,6 @@ class LoginActivity : AppCompatActivity() {
     private fun navigateToRegister() {
         startActivity(Intent(this, com.worldmates.messenger.ui.register.RegisterActivity::class.java))
     }
-
-    private fun navigateToForgotPassword() {
-        startActivity(Intent(this, ForgotPasswordActivity::class.java))
-    }
-
-    private fun navigateToQuickRegister() {
-        startActivity(Intent(this, QuickRegisterActivity::class.java))
-    }
 }
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -122,9 +111,7 @@ class LoginActivity : AppCompatActivity() {
 fun LoginScreen(
     viewModel: LoginViewModel,
     onLoginSuccess: () -> Unit,
-    onNavigateToRegister: () -> Unit,
-    onNavigateToForgotPassword: () -> Unit = {},
-    onNavigateToQuickRegister: () -> Unit = {}
+    onNavigateToRegister: () -> Unit
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -211,8 +198,7 @@ fun LoginScreen(
                             viewModel.login(username, password)
                         }
                     },
-                    loginState = loginState,
-                    onForgotPassword = onNavigateToForgotPassword
+                    loginState = loginState
                 )
             }
 
@@ -222,28 +208,9 @@ fun LoginScreen(
                 visible = visible,
                 enter = fadeIn(animationSpec = tween(1000, delayMillis = 400))
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Quick register button
-                    OutlinedButton(
-                        onClick = onNavigateToQuickRegister,
-                        modifier = Modifier.fillMaxWidth(0.8f),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color.White
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.7f))
-                    ) {
-                        Icon(Icons.Default.Phone, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Швидка реєстрація", fontWeight = FontWeight.SemiBold)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    RegisterPrompt(
-                        onNavigateToRegister = onNavigateToRegister
-                    )
-                }
+                RegisterPrompt(
+                    onNavigateToRegister = onNavigateToRegister
+                )
             }
         }
     }
@@ -318,8 +285,7 @@ fun LoginFormCard(
     onPasswordVisibilityToggle: () -> Unit,
     isLoading: Boolean,
     onLoginClick: () -> Unit,
-    loginState: LoginState,
-    onForgotPassword: () -> Unit = {}
+    loginState: LoginState
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var phoneNumber by remember { mutableStateOf("") }
@@ -491,7 +457,7 @@ fun LoginFormCard(
 
             // Forgot password
             TextButton(
-                onClick = onForgotPassword,
+                onClick = { /* TODO */ },
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text(
