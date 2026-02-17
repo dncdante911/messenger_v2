@@ -27,7 +27,7 @@ if (!$current_user_id) {
 
 try {
     // Delete messages between current user and target user (both directions)
-    $stmt = $db->prepare("
+    $stmt = $pdo->prepare("
         DELETE FROM Wo_Messages
         WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)
     ");

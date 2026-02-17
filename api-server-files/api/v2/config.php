@@ -43,7 +43,7 @@ date_default_timezone_set('Europe/Kyiv');
 // ============================================
 try {
     $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
-    $db = new PDO($dsn, DB_USER, DB_PASS, PDO_OPTIONS);
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, PDO_OPTIONS);
 } catch (PDOException $e) {
     error_log("Database connection failed: " . $e->getMessage());
     http_response_code(500);
@@ -111,6 +111,44 @@ if (!isset($mysqlMaria)) {
 }
 
 // ============================================
+// Initialize MysqliDb object (CRITICAL for WoWonder ORM functions)
+// ============================================
+// WoWonder endpoints and functions (Wo_UserData, etc.) use global $db
+// as a MysqliDb instance with chainable ->where()->getOne() API.
+// This replaces the PDO $db that was previously here (now renamed to $pdo).
+if (!isset($db) || !($db instanceof MysqliDb)) {
+    $mysqlidb_path = __DIR__ . '/../../assets/libraries/DB/vendor/joshcam/mysqli-database-class/MysqliDb.php';
+    if (file_exists($mysqlidb_path)) {
+        require_once($mysqlidb_path);
+        $db = new MysqliDb($sqlConnect);
+    } else {
+        error_log("MysqliDb.php not found at: $mysqlidb_path");
+    }
+}
+
+// ============================================
+// Load init.php for $non_allowed and other WoWonder globals
+// ============================================
+// $non_allowed is used by endpoints like get_chats.php, get-stories.php
+// to strip sensitive fields from user data responses
+if (!isset($non_allowed)) {
+    $init_path = __DIR__ . '/init.php';
+    if (file_exists($init_path)) {
+        require_once($init_path);
+    } else {
+        // Fallback: define $non_allowed inline
+        $non_allowed = array(
+            'password', 'background_image_status', 'email_code', 'type',
+            'start_up', 'start_up_info', 'startup_follow', 'startup_image',
+            'id', 'cover_full', 'cover_org', 'avatar_org', 'app_session',
+            'last_email_sent', 'sms_code', 'pro_time', 'css_file', 'src',
+            'followers_data', 'following_data', 'likes_data', 'album_data',
+            'groups_data', 'sidebar_data', 'showlastseen', 'joined', 'social_login',
+        );
+    }
+}
+
+// ============================================
 // Load WoWonder functions for avatar upload and other features
 // ============================================
 $assets_path = __DIR__ . '/../../assets/includes/';
@@ -158,14 +196,14 @@ if (function_exists('Wo_GetConfig')) {
  * @param string $access_token Access token from request
  * @return int|false User ID if valid, false otherwise
  */
-function validateAccessToken($db, $access_token) {
+function validateAccessToken($pdo, $access_token) {
     if (empty($access_token)) {
         return false;
     }
 
     try {
         // Query Wo_AppsSessions table for access token
-        $stmt = $db->prepare("
+        $stmt = $pdo->prepare("
             SELECT user_id, time
             FROM Wo_AppsSessions
             WHERE session_id = :access_token
