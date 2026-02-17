@@ -1,5 +1,17 @@
 <?php
 require_once(__DIR__ . '/../crypto_helper.php');
+
+// Load functions not included by config.php but required by this endpoint
+if (!function_exists('Wo_GetFilePosition')) {
+    require_once(__DIR__ . '/../functions.php');
+}
+if (!function_exists('Wo_CheckFroInCalls')) {
+    require_once(__DIR__ . '/../../../assets/includes/functions_two.php');
+}
+if (!function_exists('Wo_GetProduct')) {
+    require_once(__DIR__ . '/../../../assets/includes/functions_three.php');
+}
+
 $video_call = false;
 $video_call_user = array();
 
