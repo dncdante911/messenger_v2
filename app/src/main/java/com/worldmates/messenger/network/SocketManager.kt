@@ -101,12 +101,9 @@ class SocketManager(
                 }
             }
 
-            // Пріоритет WebSocket, але fallback на polling при поганому з'єднанні
-            opts.transports = if (currentQuality == NetworkQualityMonitor.ConnectionQuality.POOR) {
-                arrayOf("polling", "websocket") // Polling спочатку при поганому з'єднанні
-            } else {
-                arrayOf("websocket", "polling") // WebSocket спочатку при хорошому
-            }
+            // Polling first to avoid WebSocket upgrade error on proxied connections
+            // The server upgrades to WebSocket automatically after polling handshake
+            opts.transports = arrayOf("polling", "websocket")
 
             opts.query = "access_token=${UserSession.accessToken}&user_id=${UserSession.userId}"
 
