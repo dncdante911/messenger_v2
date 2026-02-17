@@ -35,7 +35,7 @@ if ($sql_result && mysqli_num_rows($sql_result) > 0) {
         $story_user_id = (int)$story_row['user_id'];
 
         $user_data = Wo_UserData($story_user_id);
-        if (!empty($user_data) && !empty($non_allowed)) {
+        if (!empty($user_data) && !empty($non_allowed) && is_array($non_allowed)) {
             foreach ($non_allowed as $key => $value) {
                 unset($user_data[$value]);
             }

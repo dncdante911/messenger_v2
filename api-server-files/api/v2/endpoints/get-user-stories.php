@@ -39,7 +39,7 @@ if (empty($error_code)) {
 
     if ($sql_result && mysqli_num_rows($sql_result) > 0) {
         $user_data = Wo_UserData($target_user_id);
-        if (!empty($user_data) && !empty($non_allowed)) {
+        if (!empty($user_data) && !empty($non_allowed) && is_array($non_allowed)) {
             foreach ($non_allowed as $key => $value) {
                 unset($user_data[$value]);
             }
