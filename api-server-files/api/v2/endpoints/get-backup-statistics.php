@@ -25,7 +25,7 @@ if (!$access_token) {
 }
 
 // Validate token
-$user_id = validateAccessToken($db, $access_token);
+$user_id = validateAccessToken($pdo, $access_token);
 if (!$user_id) {
     http_response_code(401);
     echo json_encode([
@@ -37,7 +37,7 @@ if (!$user_id) {
 
 try {
     // ==================== MESSAGE STATISTICS ====================
-    $stmt = $db->prepare("
+    $stmt = $pdo->prepare("
         SELECT COUNT(*) as total_messages,
                SUM(CASE WHEN from_id = ? THEN 1 ELSE 0 END) as messages_sent,
                SUM(CASE WHEN to_id = ? THEN 1 ELSE 0 END) as messages_received
@@ -48,7 +48,7 @@ try {
     $message_stats = $stmt->fetch();
 
     // ==================== MEDIA STATISTICS ====================
-    $stmt = $db->prepare("
+    $stmt = $pdo->prepare("
         SELECT COUNT(*) as media_files_count
         FROM Wo_Messages
         WHERE (from_id = ? OR to_id = ?)
@@ -58,7 +58,7 @@ try {
     $media_stats = $stmt->fetch();
 
     // ==================== GROUP & CHANNEL COUNTS ====================
-    $stmt = $db->prepare("
+    $stmt = $pdo->prepare("
         SELECT COUNT(*) as groups_count
         FROM Wo_Groups
         WHERE user_id = ? OR id IN (
@@ -71,7 +71,7 @@ try {
     // Channels (may not exist in all installations)
     $channels_count = 0;
     try {
-        $stmt = $db->prepare("
+        $stmt = $pdo->prepare("
             SELECT COUNT(*) as channels_count
             FROM Wo_Channels
             WHERE user_id = ? OR id IN (
