@@ -23,7 +23,7 @@ interface StoriesApiService {
      * @param cover Обкладинка для відео (опціонально)
      */
     @Multipart
-    @POST("/api/v2/endpoints/create-story.php")
+    @POST("index.php?type=create_story")
     suspend fun createStory(
         @Query("access_token") accessToken: String,
         @Part file: MultipartBody.Part,
