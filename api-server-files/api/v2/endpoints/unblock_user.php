@@ -26,7 +26,7 @@ if (!$current_user_id) {
 
 try {
     // Remove block
-    $stmt = $pdo->prepare("DELETE FROM Wo_Blocks WHERE user_id = ? AND blocked = ?");
+    $stmt = $db->prepare("DELETE FROM Wo_Blocks WHERE user_id = ? AND blocked = ?");
     $stmt->execute([$current_user_id, $target_user_id]);
 
     if ($stmt->rowCount() > 0) {
