@@ -14,10 +14,6 @@
 require_once(__DIR__ . '/config.php');
 require_once(__DIR__ . '/crypto_helper.php');
 
-// This standalone script uses PDO ($pdo from config.php) for all DB operations.
-// Reassign to $db for backward compatibility with existing code in this file.
-$db = $pdo;
-
 // Налаштування логування
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
