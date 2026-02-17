@@ -154,7 +154,7 @@ interface WorldMatesApi {
     @POST(Constants.GET_MESSAGES_ENDPOINT)
     suspend fun getMessages(
         @Query("access_token") accessToken: String,
-        @Field("recipient_id") recipientId: Long,
+        @Field("user_id") recipientId: Long,
         @Field("limit") limit: Int = 30,
         @Field("before_message_id") beforeMessageId: Long = 0
     ): MessageListResponse
@@ -164,7 +164,7 @@ interface WorldMatesApi {
     @POST(Constants.GET_MESSAGES_ENDPOINT)
     suspend fun getMessagesWithOptions(
         @Query("access_token") accessToken: String,
-        @Field("recipient_id") recipientId: Long,
+        @Field("user_id") recipientId: Long,
         @Field("limit") limit: Int = 30,
         @Field("before_message_id") beforeMessageId: Long = 0,
         @Field("full_history") fullHistory: String = "false", // "true" для загрузки всей истории
@@ -176,7 +176,7 @@ interface WorldMatesApi {
     @POST(Constants.GET_MESSAGES_ENDPOINT)
     suspend fun getMessageCount(
         @Query("access_token") accessToken: String,
-        @Field("recipient_id") recipientId: Long,
+        @Field("user_id") recipientId: Long,
         @Field("count_only") countOnly: String = "true"
     ): MessageCountResponse
 
@@ -185,7 +185,7 @@ interface WorldMatesApi {
     @POST(Constants.GET_MESSAGES_ENDPOINT)
     suspend fun getMessagesLightweight(
         @Query("access_token") accessToken: String,
-        @Field("recipient_id") recipientId: Long,
+        @Field("user_id") recipientId: Long,
         @Field("limit") limit: Int = 30,
         @Field("after_message_id") afterMessageId: Long = 0, // Получить сообщения ПОСЛЕ этого ID
         @Field("load_mode") loadMode: String = "text_only" // "text_only", "with_thumbnails", "full"

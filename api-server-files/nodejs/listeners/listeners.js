@@ -63,12 +63,17 @@ const { GetGroupDetailsController } = require('../controllers/GetGroupDetailsCon
 
 const redis = require("redis");
 let redisSubscribed = false;
-const sub = redis.createClient({ url: 'redis://127.0.0.1:6379' });
+let redisConnecting = false;
+const sub = redis.createClient({
+    socket: { host: '127.0.0.1', port: 6379 },
+    password: '3344Frz@q0607Dm$157'
+});
 
 sub.on('error', (err) => console.log('Redis Sub Error:', err));
 
 async function initRedisSub(io) {
-    if (redisSubscribed) return;
+    if (redisSubscribed || redisConnecting) return;
+    redisConnecting = true;
     try {
         console.log("=== Попытка подключения к Redis 127.0.0.1:6379... ===");
         await sub.connect();
@@ -119,7 +124,9 @@ async function initRedisSub(io) {
             }
         });
         redisSubscribed = true;
+        redisConnecting = false;
     } catch (e) {
+        redisConnecting = false;
         console.log("!!! Ошибка инициализации Redis Sub:", e.message);
     }
 }
