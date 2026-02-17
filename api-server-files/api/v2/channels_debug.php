@@ -47,7 +47,7 @@ debug_log("Step 4.3: \$wo = " . (isset($wo) ? 'SET' : 'NOT SET'));
 
 if (isset($db)) {
     try {
-        $stmt = $pdo->query("SELECT 1");
+        $stmt = $db->query("SELECT 1");
         debug_log("Step 4.4: PDO connection WORKING");
     } catch (Exception $e) {
         debug_log("Step 4.4: PDO connection FAILED: " . $e->getMessage());
@@ -74,7 +74,7 @@ debug_log("Step 6.3: T_USERS = " . (defined('T_USERS') ? T_USERS : 'NOT DEFINED'
 debug_log("Step 7: Testing database query...");
 try {
     if (isset($db)) {
-        $stmt = $pdo->query("SELECT COUNT(*) as cnt FROM Wo_Users");
+        $stmt = $db->query("SELECT COUNT(*) as cnt FROM Wo_Users");
         $result = $stmt->fetch();
         debug_log("Step 7.1: Users in database: " . $result['cnt']);
     }

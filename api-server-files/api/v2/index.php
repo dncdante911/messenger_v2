@@ -50,7 +50,7 @@ if (!in_array($type, $public_endpoints)) {
     }
 
     // Validate token using config.php's validateAccessToken function
-    $user_id = validateAccessToken($pdo, $access_token);
+    $user_id = validateAccessToken($db, $access_token);
 
     if (!$user_id) {
         http_response_code(401);
@@ -75,33 +75,6 @@ if (!in_array($type, $public_endpoints)) {
             'id' => $user_id
         ];
         $wo['loggedin'] = true;
-    }
-}
-
-// ============================================
-// Variables required by WoWonder endpoint files
-// (normally set by api-v2.php / init.php)
-// ============================================
-
-// $non_allowed: user fields that must not be exposed in API responses
-if (!isset($non_allowed)) {
-    $non_allowed = [
-        'password', 'background_image_status', 'email_code', 'type',
-        'start_up', 'start_up_info', 'startup_follow', 'startup_image',
-        'id', 'cover_full', 'cover_org', 'avatar_org', 'app_session',
-        'last_email_sent', 'sms_code', 'pro_time', 'css_file', 'src',
-        'followers_data', 'following_data', 'likes_data', 'album_data',
-        'groups_data', 'sidebar_data', 'showlastseen', 'joined', 'social_login',
-    ];
-}
-
-// $timezone: user's DateTimeZone object for time formatting in endpoint files
-if (!isset($timezone)) {
-    $tz_string = !empty($wo['user']['timezone']) ? $wo['user']['timezone'] : 'UTC';
-    try {
-        $timezone = new DateTimeZone($tz_string);
-    } catch (Exception $e) {
-        $timezone = new DateTimeZone('UTC');
     }
 }
 

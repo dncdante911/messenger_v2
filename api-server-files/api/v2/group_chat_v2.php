@@ -52,7 +52,7 @@ if (!$access_token) {
 }
 
 // Валідація токену та отримання user_id
-$user_id = validateAccessToken($pdo, $access_token);
+$user_id = validateAccessToken($db, $access_token);
 if (!$user_id) {
     logGroupMessage("Invalid access token attempt", 'WARNING');
     echo json_encode(['api_status' => 401, 'error_message' => 'Invalid access token']);
@@ -65,7 +65,7 @@ if (!file_exists($migration_flag)) {
     try {
         // Wo_GroupChat: додаємо колонки для налаштувань
         $gc_columns = [];
-        $result = $pdo->query("SHOW COLUMNS FROM Wo_GroupChat");
+        $result = $db->query("SHOW COLUMNS FROM Wo_GroupChat");
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $gc_columns[] = $row['Field'];
         }
@@ -85,23 +85,23 @@ if (!file_exists($migration_flag)) {
         ];
         foreach ($gc_migrations as $col => $sql) {
             if (!in_array($col, $gc_columns)) {
-                try { $pdo->exec($sql); logGroupMessage("Auto-migration: added $col to Wo_GroupChat"); } catch (Exception $e) {}
+                try { $db->exec($sql); logGroupMessage("Auto-migration: added $col to Wo_GroupChat"); } catch (Exception $e) {}
             }
         }
 
         // Wo_GroupChatUsers: додаємо колонку role
         $gcu_columns = [];
-        $result = $pdo->query("SHOW COLUMNS FROM Wo_GroupChatUsers");
+        $result = $db->query("SHOW COLUMNS FROM Wo_GroupChatUsers");
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $gcu_columns[] = $row['Field'];
         }
         if (!in_array('role', $gcu_columns)) {
-            try { $pdo->exec("ALTER TABLE Wo_GroupChatUsers ADD COLUMN `role` VARCHAR(20) DEFAULT 'member'"); logGroupMessage("Auto-migration: added role to Wo_GroupChatUsers"); } catch (Exception $e) {}
+            try { $db->exec("ALTER TABLE Wo_GroupChatUsers ADD COLUMN `role` VARCHAR(20) DEFAULT 'member'"); logGroupMessage("Auto-migration: added role to Wo_GroupChatUsers"); } catch (Exception $e) {}
         }
 
         // Wo_Messages: додаємо колонки для шифрування та reply
         $msg_columns = [];
-        $result = $pdo->query("SHOW COLUMNS FROM Wo_Messages");
+        $result = $db->query("SHOW COLUMNS FROM Wo_Messages");
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $msg_columns[] = $row['Field'];
         }
@@ -113,19 +113,19 @@ if (!file_exists($migration_flag)) {
         ];
         foreach ($msg_migrations as $col => $sql) {
             if (!in_array($col, $msg_columns)) {
-                try { $pdo->exec($sql); logGroupMessage("Auto-migration: added $col to Wo_Messages"); } catch (Exception $e) {}
+                try { $db->exec($sql); logGroupMessage("Auto-migration: added $col to Wo_Messages"); } catch (Exception $e) {}
             }
         }
 
         // Створюємо додаткові таблиці якщо відсутні
-        $pdo->exec("CREATE TABLE IF NOT EXISTS `Wo_GroupJoinRequests` (
+        $db->exec("CREATE TABLE IF NOT EXISTS `Wo_GroupJoinRequests` (
             `id` INT(11) NOT NULL AUTO_INCREMENT, `group_id` INT(11) NOT NULL, `user_id` INT(11) NOT NULL,
             `message` TEXT DEFAULT NULL, `status` ENUM('pending','approved','rejected') DEFAULT 'pending',
             `created_time` INT(11) NOT NULL, `reviewed_by` INT(11) DEFAULT NULL, `reviewed_time` INT(11) DEFAULT NULL,
             PRIMARY KEY (`id`), KEY `idx_group_status` (`group_id`,`status`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-        $pdo->exec("CREATE TABLE IF NOT EXISTS `Wo_ScheduledPosts` (
+        $db->exec("CREATE TABLE IF NOT EXISTS `Wo_ScheduledPosts` (
             `id` INT(11) NOT NULL AUTO_INCREMENT, `group_id` INT(11) NOT NULL, `author_id` INT(11) NOT NULL,
             `text` TEXT NOT NULL, `media_url` VARCHAR(500) DEFAULT NULL, `scheduled_time` INT(11) NOT NULL,
             `created_time` INT(11) NOT NULL, `status` ENUM('scheduled','published','cancelled') DEFAULT 'scheduled',
@@ -133,7 +133,7 @@ if (!file_exists($migration_flag)) {
             PRIMARY KEY (`id`), KEY `idx_group_status` (`group_id`,`status`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-        $pdo->exec("CREATE TABLE IF NOT EXISTS `Wo_Subgroups` (
+        $db->exec("CREATE TABLE IF NOT EXISTS `Wo_Subgroups` (
             `id` INT(11) NOT NULL AUTO_INCREMENT, `parent_group_id` INT(11) NOT NULL,
             `name` VARCHAR(255) NOT NULL, `description` TEXT DEFAULT NULL, `color` VARCHAR(20) DEFAULT '#2196F3',
             `is_private` TINYINT(1) DEFAULT 0, `is_closed` TINYINT(1) DEFAULT 0,
@@ -142,7 +142,7 @@ if (!file_exists($migration_flag)) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
         // Встановлюємо role='owner' для засновників груп
-        $pdo->exec("UPDATE Wo_GroupChatUsers gcu
+        $db->exec("UPDATE Wo_GroupChatUsers gcu
             INNER JOIN Wo_GroupChat gc ON gc.group_id = gcu.group_id AND gc.user_id = gcu.user_id
             SET gcu.role = 'owner'
             WHERE gcu.role = 'member' OR gcu.role IS NULL OR gcu.role = ''");
@@ -571,7 +571,7 @@ function getGroups($db, $user_id, $data) {
 
     // КРИТИЧНО: Додаємо фільтр type='group' або type IS NULL (для старих записів)
     // ВАЖЛИВО: Поля повертаються у snake_case для Android (admin_id, is_private, etc)
-    $stmt = $pdo->prepare("
+    $stmt = $db->prepare("
         SELECT
             g.group_id AS id,
             g.group_name AS name,
@@ -630,7 +630,7 @@ function getGroups($db, $user_id, $data) {
 function getGroupDetails($db, $user_id, $group_id) {
     global $wo;
     // ВАЖЛИВО: Поля повертаються у snake_case для Android
-    $stmt = $pdo->prepare("
+    $stmt = $db->prepare("
         SELECT
             g.group_id AS id,
             g.group_name AS name,
@@ -679,7 +679,7 @@ function getGroupDetails($db, $user_id, $group_id) {
 
     // Отримуємо закріплене повідомлення якщо є
     if (!empty($group['pinned_message_id'])) {
-        $stmt = $pdo->prepare("SELECT id, text, time FROM Wo_Messages WHERE id = ?");
+        $stmt = $db->prepare("SELECT id, text, time FROM Wo_Messages WHERE id = ?");
         $stmt->execute([$group['pinned_message_id']]);
         $pinnedMessage = $stmt->fetch(PDO::FETCH_ASSOC);
         $group['pinned_message'] = $pinnedMessage ?: null;
@@ -712,20 +712,20 @@ function createGroup($db, $user_id, $data) {
     $group_id = null;
 
     try {
-        $pdo->beginTransaction();
+        $db->beginTransaction();
 
         // Створюємо групу з type='group'
-        $stmt = $pdo->prepare("
+        $stmt = $db->prepare("
             INSERT INTO Wo_GroupChat
             (user_id, group_name, type, time)
             VALUES (?, ?, 'group', ?)
         ");
         $time = time();
         $stmt->execute([$user_id, $name, $time]);
-        $group_id = $pdo->lastInsertId();
+        $group_id = $db->lastInsertId();
 
         // Додаємо власника як owner
-        $stmt = $pdo->prepare("
+        $stmt = $db->prepare("
             INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen)
             VALUES (?, ?, 'owner', '1', ?)
         ");
@@ -736,7 +736,7 @@ function createGroup($db, $user_id, $data) {
             $member_ids = array_filter(array_map('intval', explode(',', $parts)));
             foreach ($member_ids as $member_id) {
                 if ($member_id != $user_id) {
-                    $stmt = $pdo->prepare("
+                    $stmt = $db->prepare("
                         INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen)
                         VALUES (?, ?, 'member', '1', ?)
                     ");
@@ -745,13 +745,13 @@ function createGroup($db, $user_id, $data) {
             }
         }
 
-        $pdo->commit();
+        $db->commit();
 
         logGroupMessage("User $user_id created group $group_id: $name (type=group)", 'INFO');
 
     } catch (Exception $e) {
         if ($db->inTransaction()) {
-            $pdo->rollBack();
+            $db->rollBack();
         }
         logGroupMessage("Failed to create group for user $user_id: " . $e->getMessage(), 'ERROR');
         return ['api_status' => 500, 'error_message' => 'Failed to create group: ' . $e->getMessage()];
@@ -781,7 +781,7 @@ function createGroup($db, $user_id, $data) {
  */
 function updateGroup($db, $user_id, $group_id, $data) {
     // Перевіряємо права
-    $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     $role = $stmt->fetchColumn();
 
@@ -790,7 +790,7 @@ function updateGroup($db, $user_id, $group_id, $data) {
     }
 
     // Перевіряємо що це група, не канал
-    $stmt = $pdo->prepare("SELECT type FROM Wo_GroupChat WHERE group_id = ?");
+    $stmt = $db->prepare("SELECT type FROM Wo_GroupChat WHERE group_id = ?");
     $stmt->execute([$group_id]);
     $type = $stmt->fetchColumn();
 
@@ -817,7 +817,7 @@ function updateGroup($db, $user_id, $group_id, $data) {
 
     $params[] = $group_id;
 
-    $stmt = $pdo->prepare("UPDATE Wo_GroupChat SET " . implode(', ', $updates) . " WHERE group_id = ?");
+    $stmt = $db->prepare("UPDATE Wo_GroupChat SET " . implode(', ', $updates) . " WHERE group_id = ?");
     $stmt->execute($params);
 
     logGroupMessage("User $user_id updated group $group_id", 'INFO');
@@ -831,7 +831,7 @@ function updateGroup($db, $user_id, $group_id, $data) {
  */
 function deleteGroup($db, $user_id, $group_id) {
     // Перевіряємо права (тільки owner)
-    $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     $role = $stmt->fetchColumn();
 
@@ -840,7 +840,7 @@ function deleteGroup($db, $user_id, $group_id) {
     }
 
     // КРИТИЧНО: Перевіряємо що це група, НЕ канал
-    $stmt = $pdo->prepare("SELECT type, group_name FROM Wo_GroupChat WHERE group_id = ?");
+    $stmt = $db->prepare("SELECT type, group_name FROM Wo_GroupChat WHERE group_id = ?");
     $stmt->execute([$group_id]);
     $group = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -854,27 +854,27 @@ function deleteGroup($db, $user_id, $group_id) {
     }
 
     try {
-        $pdo->beginTransaction();
+        $db->beginTransaction();
 
         // Видаляємо всі повідомлення
-        $stmt = $pdo->prepare("DELETE FROM Wo_Messages WHERE group_id = ?");
+        $stmt = $db->prepare("DELETE FROM Wo_Messages WHERE group_id = ?");
         $stmt->execute([$group_id]);
 
         // Видаляємо всіх учасників
-        $stmt = $pdo->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ?");
+        $stmt = $db->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ?");
         $stmt->execute([$group_id]);
 
         // Видаляємо групу (ТІЛЬКИ якщо type != 'channel')
-        $stmt = $pdo->prepare("DELETE FROM Wo_GroupChat WHERE group_id = ? AND (type = 'group' OR type IS NULL OR type = '')");
+        $stmt = $db->prepare("DELETE FROM Wo_GroupChat WHERE group_id = ? AND (type = 'group' OR type IS NULL OR type = '')");
         $stmt->execute([$group_id]);
 
-        $pdo->commit();
+        $db->commit();
 
         logGroupMessage("User $user_id deleted group $group_id: {$group['group_name']}", 'INFO');
 
         return ['api_status' => 200, 'message' => 'Group deleted successfully'];
     } catch (Exception $e) {
-        $pdo->rollBack();
+        $db->rollBack();
         return ['api_status' => 500, 'error_message' => 'Failed to delete group: ' . $e->getMessage()];
     }
 }
@@ -888,7 +888,7 @@ function getGroupMembers($db, $user_id, $group_id, $data) {
     $offset = isset($data['offset']) ? (int)$data['offset'] : 0;
 
     // ВАЖЛИВО: Поля повертаються у snake_case для Android
-    $stmt = $pdo->prepare("
+    $stmt = $db->prepare("
         SELECT
             gcu.user_id,
             u.username,
@@ -932,7 +932,7 @@ function getGroupMembers($db, $user_id, $group_id, $data) {
  */
 function addGroupMembers($db, $user_id, $group_id, $parts) {
     // Перевіряємо права
-    $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     $role = $stmt->fetchColumn();
 
@@ -946,11 +946,11 @@ function addGroupMembers($db, $user_id, $group_id, $parts) {
 
     foreach ($member_ids as $member_id) {
         // Перевіряємо чи вже є учасником
-        $stmt = $pdo->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+        $stmt = $db->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
         $stmt->execute([$group_id, $member_id]);
 
         if (!$stmt->fetch()) {
-            $stmt = $pdo->prepare("
+            $stmt = $db->prepare("
                 INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen)
                 VALUES (?, ?, 'member', '1', ?)
             ");
@@ -970,7 +970,7 @@ function addGroupMembers($db, $user_id, $group_id, $parts) {
  */
 function removeGroupMembers($db, $user_id, $group_id, $parts) {
     // Перевіряємо права
-    $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     $role = $stmt->fetchColumn();
 
@@ -983,12 +983,12 @@ function removeGroupMembers($db, $user_id, $group_id, $parts) {
 
     foreach ($member_ids as $member_id) {
         // Не можна видалити власника
-        $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+        $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
         $stmt->execute([$group_id, $member_id]);
         $target_role = $stmt->fetchColumn();
 
         if ($target_role !== 'owner') {
-            $stmt = $pdo->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+            $stmt = $db->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
             $stmt->execute([$group_id, $member_id]);
             $removed++;
         }
@@ -1002,7 +1002,7 @@ function removeGroupMembers($db, $user_id, $group_id, $parts) {
  */
 function setGroupRole($db, $user_id, $group_id, $target_user_id, $role) {
     // Перевіряємо права (тільки owner)
-    $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     $current_role = $stmt->fetchColumn();
 
@@ -1014,7 +1014,7 @@ function setGroupRole($db, $user_id, $group_id, $target_user_id, $role) {
         return ['api_status' => 400, 'error_message' => 'Invalid role'];
     }
 
-    $stmt = $pdo->prepare("
+    $stmt = $db->prepare("
         UPDATE Wo_GroupChatUsers
         SET role = ?
         WHERE group_id = ? AND user_id = ? AND role != 'owner'
@@ -1028,7 +1028,7 @@ function setGroupRole($db, $user_id, $group_id, $target_user_id, $role) {
  * Покинути групу
  */
 function leaveGroup($db, $user_id, $group_id) {
-    $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     $role = $stmt->fetchColumn();
 
@@ -1036,7 +1036,7 @@ function leaveGroup($db, $user_id, $group_id) {
         return ['api_status' => 400, 'error_message' => 'Owner cannot leave. Transfer ownership or delete the group.'];
     }
 
-    $stmt = $pdo->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
 
     return ['api_status' => 200, 'message' => 'Left group successfully'];
@@ -1050,7 +1050,7 @@ function getGroupMessages($db, $user_id, $group_id, $data) {
     $before_message_id = isset($data['before_message_id']) ? (int)$data['before_message_id'] : 0;
 
     // Перевіряємо чи користувач є учасником
-    $stmt = $pdo->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     if (!$stmt->fetch()) {
         return ['api_status' => 403, 'error_message' => 'You are not a member of this group'];
@@ -1061,7 +1061,7 @@ function getGroupMessages($db, $user_id, $group_id, $data) {
 
     // ВАЖЛИВО: Використовуємо m.* щоб запит працював незалежно від того які колонки є
     // Додаємо аліаси для Android (@SerializedName): sender_name, sender_avatar, reply_to_id
-    $stmt = $pdo->prepare("
+    $stmt = $db->prepare("
         SELECT
             m.*,
             COALESCE(m.to_id, 0) AS to_id,
@@ -1091,7 +1091,7 @@ function getGroupMessages($db, $user_id, $group_id, $data) {
  */
 function sendGroupMessage($db, $user_id, $group_id, $text, $data) {
     // Перевіряємо чи користувач є учасником
-    $stmt = $pdo->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     if (!$stmt->fetch()) {
         return ['api_status' => 403, 'error_message' => 'You are not a member of this group'];
@@ -1107,15 +1107,15 @@ function sendGroupMessage($db, $user_id, $group_id, $text, $data) {
     $reply_to = isset($data['reply_id']) && $data['reply_id'] > 0 ? $data['reply_id'] : (isset($data['message_reply_id']) && $data['message_reply_id'] > 0 ? $data['message_reply_id'] : 0);
 
     // ВАЖЛИВО: to_id = 0 для групових повідомлень (Android Long non-nullable)
-    $stmt = $pdo->prepare("
+    $stmt = $db->prepare("
         INSERT INTO Wo_Messages (from_id, group_id, to_id, text, time, seen, sent_push, reply_id)
         VALUES (?, ?, 0, ?, ?, 0, 0, ?)
     ");
     $stmt->execute([$user_id, $group_id, trim($text), $time, $reply_to]);
-    $message_id = $pdo->lastInsertId();
+    $message_id = $db->lastInsertId();
 
     // Повертаємо створене повідомлення (m.* для надійності)
-    $stmt = $pdo->prepare("
+    $stmt = $db->prepare("
         SELECT
             m.*,
             COALESCE(m.to_id, 0) AS to_id,
@@ -1148,7 +1148,7 @@ function uploadGroupAvatar($db, $user_id, $group_id, $files) {
         logGroupMessage("Upload avatar request: group_id=$group_id, user_id=$user_id", 'INFO');
 
         // Перевіряємо права
-        $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+        $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
         $stmt->execute([$group_id, $user_id]);
         $role = $stmt->fetchColumn();
 
@@ -1157,7 +1157,7 @@ function uploadGroupAvatar($db, $user_id, $group_id, $files) {
         }
 
         // Перевіряємо що це група, не канал
-        $stmt = $pdo->prepare("SELECT type FROM Wo_GroupChat WHERE group_id = ?");
+        $stmt = $db->prepare("SELECT type FROM Wo_GroupChat WHERE group_id = ?");
         $stmt->execute([$group_id]);
         $type = $stmt->fetchColumn();
 
@@ -1209,7 +1209,7 @@ function uploadGroupAvatar($db, $user_id, $group_id, $files) {
         $avatar_url = $upload['filename'];
 
         // Оновлюємо аватар в БД
-        $stmt = $pdo->prepare("UPDATE Wo_GroupChat SET avatar = ? WHERE group_id = ?");
+        $stmt = $db->prepare("UPDATE Wo_GroupChat SET avatar = ? WHERE group_id = ?");
         $stmt->execute([$avatar_url, $group_id]);
 
         logGroupMessage("User $user_id uploaded avatar for group $group_id: $avatar_url", 'INFO');
@@ -1238,7 +1238,7 @@ function uploadGroupAvatar($db, $user_id, $group_id, $files) {
 function isGroupAdminOrOwner($db, $group_id, $user_id) {
     // Перевіряємо роль в Wo_GroupChatUsers
     try {
-        $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+        $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
         $stmt->execute([$group_id, $user_id]);
         $role = $stmt->fetchColumn();
         if (in_array($role, ['owner', 'admin'])) {
@@ -1249,7 +1249,7 @@ function isGroupAdminOrOwner($db, $group_id, $user_id) {
     }
 
     // Фолбек: перевіряємо чи user_id є власником групи в Wo_GroupChat
-    $stmt = $pdo->prepare("SELECT user_id FROM Wo_GroupChat WHERE group_id = ?");
+    $stmt = $db->prepare("SELECT user_id FROM Wo_GroupChat WHERE group_id = ?");
     $stmt->execute([$group_id]);
     $owner_id = $stmt->fetchColumn();
     return (int)$owner_id === (int)$user_id;
@@ -1268,7 +1268,7 @@ function generateGroupQr($db, $user_id, $group_id) {
 
     // Сохраняем в БД (если колонка существует)
     try {
-        $stmt = $pdo->prepare("UPDATE Wo_GroupChat SET qr_code = ? WHERE group_id = ?");
+        $stmt = $db->prepare("UPDATE Wo_GroupChat SET qr_code = ? WHERE group_id = ?");
         $stmt->execute([$qr_code, $group_id]);
     } catch (Exception $e) {
         // Колонка может не существовать - игнорируем
@@ -1290,7 +1290,7 @@ function generateGroupQr($db, $user_id, $group_id) {
 function joinGroupByQr($db, $user_id, $qr_code) {
     // Ищем группу по QR коду
     try {
-        $stmt = $pdo->prepare("SELECT group_id FROM Wo_GroupChat WHERE qr_code = ? AND (type = 'group' OR type IS NULL OR type = '')");
+        $stmt = $db->prepare("SELECT group_id FROM Wo_GroupChat WHERE qr_code = ? AND (type = 'group' OR type IS NULL OR type = '')");
         $stmt->execute([$qr_code]);
         $group_id = $stmt->fetchColumn();
     } catch (Exception $e) {
@@ -1303,7 +1303,7 @@ function joinGroupByQr($db, $user_id, $qr_code) {
     }
 
     // Проверяем, не является ли уже членом
-    $stmt = $pdo->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     if ($stmt->fetch()) {
         return getGroupDetails($db, $user_id, $group_id);
@@ -1311,7 +1311,7 @@ function joinGroupByQr($db, $user_id, $qr_code) {
 
     // Добавляем пользователя
     $time = time();
-    $stmt = $pdo->prepare("INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen) VALUES (?, ?, 'member', '1', ?)");
+    $stmt = $db->prepare("INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen) VALUES (?, ?, 'member', '1', ?)");
     $stmt->execute([$user_id, $group_id, $time]);
 
     logGroupMessage("User $user_id joined group $group_id via QR", 'INFO');
@@ -1324,7 +1324,7 @@ function joinGroupByQr($db, $user_id, $qr_code) {
  */
 function joinGroup($db, $user_id, $group_id, $data) {
     // Проверяем группу
-    $stmt = $pdo->prepare("SELECT group_id, is_private FROM Wo_GroupChat WHERE group_id = ? AND (type = 'group' OR type IS NULL OR type = '')");
+    $stmt = $db->prepare("SELECT group_id, is_private FROM Wo_GroupChat WHERE group_id = ? AND (type = 'group' OR type IS NULL OR type = '')");
     $stmt->execute([$group_id]);
     $group = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1333,7 +1333,7 @@ function joinGroup($db, $user_id, $group_id, $data) {
     }
 
     // Проверяем, не является ли уже членом
-    $stmt = $pdo->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $user_id]);
     if ($stmt->fetch()) {
         return ['api_status' => 400, 'error_message' => 'Already a member'];
@@ -1342,7 +1342,7 @@ function joinGroup($db, $user_id, $group_id, $data) {
     if ($group['is_private']) {
         // Для приватных групп - создаем запрос
         try {
-            $stmt = $pdo->prepare("INSERT INTO Wo_GroupJoinRequests (group_id, user_id, message, created_time) VALUES (?, ?, ?, ?)");
+            $stmt = $db->prepare("INSERT INTO Wo_GroupJoinRequests (group_id, user_id, message, created_time) VALUES (?, ?, ?, ?)");
             $stmt->execute([$group_id, $user_id, $data['message'] ?? '', time()]);
             return ['api_status' => 200, 'message' => 'Join request sent', 'request_sent' => true];
         } catch (Exception $e) {
@@ -1353,7 +1353,7 @@ function joinGroup($db, $user_id, $group_id, $data) {
 
     // Публичная группа - добавляем сразу
     $time = time();
-    $stmt = $pdo->prepare("INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen) VALUES (?, ?, 'member', '1', ?)");
+    $stmt = $db->prepare("INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen) VALUES (?, ?, 'member', '1', ?)");
     $stmt->execute([$user_id, $group_id, $time]);
 
     return getGroupDetails($db, $user_id, $group_id);
@@ -1368,7 +1368,7 @@ function getJoinRequests($db, $user_id, $group_id) {
     }
 
     try {
-        $stmt = $pdo->prepare("
+        $stmt = $db->prepare("
             SELECT r.id, r.group_id, r.user_id, r.message, r.status, r.created_time,
                    u.username, u.avatar, CONCAT(u.first_name, ' ', u.last_name) AS name
             FROM Wo_GroupJoinRequests r
@@ -1390,7 +1390,7 @@ function getJoinRequests($db, $user_id, $group_id) {
  */
 function approveJoinRequest($db, $user_id, $request_id) {
     try {
-        $stmt = $pdo->prepare("SELECT group_id, user_id FROM Wo_GroupJoinRequests WHERE id = ? AND status = 'pending'");
+        $stmt = $db->prepare("SELECT group_id, user_id FROM Wo_GroupJoinRequests WHERE id = ? AND status = 'pending'");
         $stmt->execute([$request_id]);
         $request = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1403,12 +1403,12 @@ function approveJoinRequest($db, $user_id, $request_id) {
         }
 
         // Обновляем статус
-        $stmt = $pdo->prepare("UPDATE Wo_GroupJoinRequests SET status = 'approved', reviewed_by = ?, reviewed_time = ? WHERE id = ?");
+        $stmt = $db->prepare("UPDATE Wo_GroupJoinRequests SET status = 'approved', reviewed_by = ?, reviewed_time = ? WHERE id = ?");
         $stmt->execute([$user_id, time(), $request_id]);
 
         // Добавляем пользователя в группу
         $time = time();
-        $stmt = $pdo->prepare("INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen) VALUES (?, ?, 'member', '1', ?)");
+        $stmt = $db->prepare("INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen) VALUES (?, ?, 'member', '1', ?)");
         $stmt->execute([$request['user_id'], $request['group_id'], $time]);
 
         return ['api_status' => 200, 'message' => 'Request approved'];
@@ -1422,7 +1422,7 @@ function approveJoinRequest($db, $user_id, $request_id) {
  */
 function rejectJoinRequest($db, $user_id, $request_id) {
     try {
-        $stmt = $pdo->prepare("SELECT group_id FROM Wo_GroupJoinRequests WHERE id = ? AND status = 'pending'");
+        $stmt = $db->prepare("SELECT group_id FROM Wo_GroupJoinRequests WHERE id = ? AND status = 'pending'");
         $stmt->execute([$request_id]);
         $request = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1434,7 +1434,7 @@ function rejectJoinRequest($db, $user_id, $request_id) {
             return ['api_status' => 403, 'error_message' => 'Only admins can reject requests'];
         }
 
-        $stmt = $pdo->prepare("UPDATE Wo_GroupJoinRequests SET status = 'rejected', reviewed_by = ?, reviewed_time = ? WHERE id = ?");
+        $stmt = $db->prepare("UPDATE Wo_GroupJoinRequests SET status = 'rejected', reviewed_by = ?, reviewed_time = ? WHERE id = ?");
         $stmt->execute([$user_id, time(), $request_id]);
 
         return ['api_status' => 200, 'message' => 'Request rejected'];
@@ -1474,7 +1474,7 @@ function updateGroupSettings($db, $user_id, $group_id, $data) {
     // Отримуємо список існуючих колонок в таблиці
     $existing_columns = [];
     try {
-        $result = $pdo->query("SHOW COLUMNS FROM Wo_GroupChat");
+        $result = $db->query("SHOW COLUMNS FROM Wo_GroupChat");
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $existing_columns[] = $row['Field'];
         }
@@ -1507,7 +1507,7 @@ function updateGroupSettings($db, $user_id, $group_id, $data) {
 
     try {
         $sql = "UPDATE Wo_GroupChat SET " . implode(', ', $updates) . " WHERE group_id = ?";
-        $stmt = $pdo->prepare($sql);
+        $stmt = $db->prepare($sql);
         $stmt->execute($params);
         logGroupMessage("Updated settings for group $group_id: " . implode(', ', $updates), 'INFO');
         return ['api_status' => 200, 'message' => 'Settings updated'];
@@ -1522,7 +1522,7 @@ function updateGroupSettings($db, $user_id, $group_id, $data) {
  */
 function getGroupSettings($db, $user_id, $group_id) {
     try {
-        $stmt = $pdo->prepare("SELECT * FROM Wo_GroupChat WHERE group_id = ?");
+        $stmt = $db->prepare("SELECT * FROM Wo_GroupChat WHERE group_id = ?");
         $stmt->execute([$group_id]);
         $group = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1559,7 +1559,7 @@ function updateGroupPrivacy($db, $user_id, $group_id, $data) {
     $is_private = isset($data['is_private']) ? (int)$data['is_private'] : 0;
 
     try {
-        $stmt = $pdo->prepare("UPDATE Wo_GroupChat SET is_private = ? WHERE group_id = ?");
+        $stmt = $db->prepare("UPDATE Wo_GroupChat SET is_private = ? WHERE group_id = ?");
         $stmt->execute([$is_private, $group_id]);
         return ['api_status' => 200, 'message' => 'Privacy updated'];
     } catch (Exception $e) {
@@ -1573,29 +1573,29 @@ function updateGroupPrivacy($db, $user_id, $group_id, $data) {
 function getGroupStatistics($db, $user_id, $group_id) {
     try {
         // Количество участников
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM Wo_GroupChatUsers WHERE group_id = ?");
+        $stmt = $db->prepare("SELECT COUNT(*) FROM Wo_GroupChatUsers WHERE group_id = ?");
         $stmt->execute([$group_id]);
         $members_count = $stmt->fetchColumn();
 
         // Количество сообщений
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM Wo_Messages WHERE group_id = ?");
+        $stmt = $db->prepare("SELECT COUNT(*) FROM Wo_Messages WHERE group_id = ?");
         $stmt->execute([$group_id]);
         $messages_count = $stmt->fetchColumn();
 
         // Сообщения за сегодня
         $today_start = strtotime('today');
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM Wo_Messages WHERE group_id = ? AND time >= ?");
+        $stmt = $db->prepare("SELECT COUNT(*) FROM Wo_Messages WHERE group_id = ? AND time >= ?");
         $stmt->execute([$group_id, $today_start]);
         $messages_today = $stmt->fetchColumn();
 
         // Новые участники за неделю
         $week_ago = time() - 604800;
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM Wo_GroupChatUsers WHERE group_id = ? AND time >= ?");
+        $stmt = $db->prepare("SELECT COUNT(*) FROM Wo_GroupChatUsers WHERE group_id = ? AND time >= ?");
         $stmt->execute([$group_id, $week_ago]);
         $new_members_week = $stmt->fetchColumn();
 
         // Топ участники
-        $stmt = $pdo->prepare("
+        $stmt = $db->prepare("
             SELECT m.from_id as user_id, u.username, CONCAT(u.first_name, ' ', u.last_name) as name, u.avatar, COUNT(*) as messages_count
             FROM Wo_Messages m
             LEFT JOIN Wo_Users u ON u.user_id = m.from_id
@@ -1641,7 +1641,7 @@ function pinMessage($db, $user_id, $group_id, $message_id) {
     }
 
     try {
-        $stmt = $pdo->prepare("UPDATE Wo_GroupChat SET pinned_message_id = ? WHERE group_id = ?");
+        $stmt = $db->prepare("UPDATE Wo_GroupChat SET pinned_message_id = ? WHERE group_id = ?");
         $stmt->execute([$message_id, $group_id]);
         return ['api_status' => 200, 'message' => 'Message pinned'];
     } catch (Exception $e) {
@@ -1658,7 +1658,7 @@ function unpinMessage($db, $user_id, $group_id) {
     }
 
     try {
-        $stmt = $pdo->prepare("UPDATE Wo_GroupChat SET pinned_message_id = NULL WHERE group_id = ?");
+        $stmt = $db->prepare("UPDATE Wo_GroupChat SET pinned_message_id = NULL WHERE group_id = ?");
         $stmt->execute([$group_id]);
         return ['api_status' => 200, 'message' => 'Message unpinned'];
     } catch (Exception $e) {
@@ -1673,7 +1673,7 @@ function searchGroupMessages($db, $user_id, $group_id, $query, $data) {
     $limit = (int)($data['limit'] ?? 50);
     $offset = (int)($data['offset'] ?? 0);
 
-    $stmt = $pdo->prepare("
+    $stmt = $db->prepare("
         SELECT m.id, m.from_id as fromId, m.text, m.time, u.username,
                CONCAT(u.first_name, ' ', u.last_name) as senderName
         FROM Wo_Messages m
@@ -1710,7 +1710,7 @@ function generateInviteLink($db, $user_id, $group_id) {
  */
 function getScheduledPosts($db, $user_id, $group_id) {
     try {
-        $stmt = $pdo->prepare("
+        $stmt = $db->prepare("
             SELECT * FROM Wo_ScheduledPosts
             WHERE group_id = ? AND status = 'scheduled'
             ORDER BY scheduled_time ASC
@@ -1739,7 +1739,7 @@ function createScheduledPost($db, $user_id, $group_id, $data) {
     }
 
     try {
-        $stmt = $pdo->prepare("
+        $stmt = $db->prepare("
             INSERT INTO Wo_ScheduledPosts (group_id, author_id, text, media_url, scheduled_time, created_time, repeat_type, is_pinned, notify_members)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
@@ -1755,7 +1755,7 @@ function createScheduledPost($db, $user_id, $group_id, $data) {
             $data['notify_members'] ?? 1
         ]);
 
-        $post_id = $pdo->lastInsertId();
+        $post_id = $db->lastInsertId();
         return ['api_status' => 200, 'message' => 'Scheduled post created', 'post_id' => $post_id];
     } catch (Exception $e) {
         return ['api_status' => 500, 'error_message' => 'Could not create scheduled post'];
@@ -1767,7 +1767,7 @@ function createScheduledPost($db, $user_id, $group_id, $data) {
  */
 function deleteScheduledPost($db, $user_id, $post_id) {
     try {
-        $stmt = $pdo->prepare("SELECT group_id FROM Wo_ScheduledPosts WHERE id = ?");
+        $stmt = $db->prepare("SELECT group_id FROM Wo_ScheduledPosts WHERE id = ?");
         $stmt->execute([$post_id]);
         $group_id = $stmt->fetchColumn();
 
@@ -1775,7 +1775,7 @@ function deleteScheduledPost($db, $user_id, $post_id) {
             return ['api_status' => 403, 'error_message' => 'Permission denied'];
         }
 
-        $stmt = $pdo->prepare("DELETE FROM Wo_ScheduledPosts WHERE id = ?");
+        $stmt = $db->prepare("DELETE FROM Wo_ScheduledPosts WHERE id = ?");
         $stmt->execute([$post_id]);
         return ['api_status' => 200, 'message' => 'Scheduled post deleted'];
     } catch (Exception $e) {
@@ -1788,7 +1788,7 @@ function deleteScheduledPost($db, $user_id, $post_id) {
  */
 function publishScheduledPost($db, $user_id, $post_id) {
     try {
-        $stmt = $pdo->prepare("SELECT * FROM Wo_ScheduledPosts WHERE id = ?");
+        $stmt = $db->prepare("SELECT * FROM Wo_ScheduledPosts WHERE id = ?");
         $stmt->execute([$post_id]);
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1797,11 +1797,11 @@ function publishScheduledPost($db, $user_id, $post_id) {
         }
 
         // Создаем сообщение
-        $stmt = $pdo->prepare("INSERT INTO Wo_Messages (from_id, group_id, text, time, seen, sent_push) VALUES (?, ?, ?, ?, 0, 0)");
+        $stmt = $db->prepare("INSERT INTO Wo_Messages (from_id, group_id, text, time, seen, sent_push) VALUES (?, ?, ?, ?, 0, 0)");
         $stmt->execute([$post['author_id'], $post['group_id'], $post['text'], time()]);
 
         // Удаляем запланированный пост
-        $stmt = $pdo->prepare("DELETE FROM Wo_ScheduledPosts WHERE id = ?");
+        $stmt = $db->prepare("DELETE FROM Wo_ScheduledPosts WHERE id = ?");
         $stmt->execute([$post_id]);
 
         return ['api_status' => 200, 'message' => 'Post published'];
@@ -1815,7 +1815,7 @@ function publishScheduledPost($db, $user_id, $post_id) {
  */
 function getSubgroups($db, $user_id, $group_id) {
     try {
-        $stmt = $pdo->prepare("SELECT * FROM Wo_Subgroups WHERE parent_group_id = ? AND is_closed = 0");
+        $stmt = $db->prepare("SELECT * FROM Wo_Subgroups WHERE parent_group_id = ? AND is_closed = 0");
         $stmt->execute([$group_id]);
         $subgroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
         return ['api_status' => 200, 'subgroups' => $subgroups];
@@ -1838,7 +1838,7 @@ function createSubgroup($db, $user_id, $group_id, $data) {
     }
 
     try {
-        $stmt = $pdo->prepare("
+        $stmt = $db->prepare("
             INSERT INTO Wo_Subgroups (parent_group_id, name, description, color, is_private, created_by, created_time)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
@@ -1852,7 +1852,7 @@ function createSubgroup($db, $user_id, $group_id, $data) {
             time()
         ]);
 
-        $subgroup_id = $pdo->lastInsertId();
+        $subgroup_id = $db->lastInsertId();
         return ['api_status' => 200, 'message' => 'Subgroup created', 'subgroup_id' => $subgroup_id];
     } catch (Exception $e) {
         return ['api_status' => 500, 'error_message' => 'Could not create subgroup'];
@@ -1864,7 +1864,7 @@ function createSubgroup($db, $user_id, $group_id, $data) {
  */
 function deleteSubgroup($db, $user_id, $subgroup_id) {
     try {
-        $stmt = $pdo->prepare("SELECT parent_group_id FROM Wo_Subgroups WHERE id = ?");
+        $stmt = $db->prepare("SELECT parent_group_id FROM Wo_Subgroups WHERE id = ?");
         $stmt->execute([$subgroup_id]);
         $group_id = $stmt->fetchColumn();
 
@@ -1872,7 +1872,7 @@ function deleteSubgroup($db, $user_id, $subgroup_id) {
             return ['api_status' => 403, 'error_message' => 'Permission denied'];
         }
 
-        $stmt = $pdo->prepare("DELETE FROM Wo_Subgroups WHERE id = ?");
+        $stmt = $db->prepare("DELETE FROM Wo_Subgroups WHERE id = ?");
         $stmt->execute([$subgroup_id]);
         return ['api_status' => 200, 'message' => 'Subgroup deleted'];
     } catch (Exception $e) {
