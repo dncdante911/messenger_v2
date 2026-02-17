@@ -12,8 +12,8 @@ object Constants {
 
     // ==================== API QUERY PARAMETERS ====================
     const val AUTH_ENDPOINT = "?type=auth"
-    const val GET_CHATS_ENDPOINT = "?type=get_chats"
-    const val GET_MESSAGES_ENDPOINT = "?type=get_user_messages"
+    const val GET_CHATS_ENDPOINT = "index.php?type=get_chats"
+    const val GET_MESSAGES_ENDPOINT = "index.php?type=get_user_messages"
     
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH = "join"  // Изменено с register_socket на join

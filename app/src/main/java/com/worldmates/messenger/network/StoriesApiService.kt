@@ -23,7 +23,7 @@ interface StoriesApiService {
      * @param cover Обкладинка для відео (опціонально)
      */
     @Multipart
-    @POST("/api/v2/endpoints/create-story.php")
+    @POST("index.php?type=create_story")
     suspend fun createStory(
         @Query("access_token") accessToken: String,
         @Part file: MultipartBody.Part,
@@ -39,7 +39,7 @@ interface StoriesApiService {
      * @param limit Кількість stories (за замовчуванням 35, макс 50)
      */
     @FormUrlEncoded
-    @POST("/api/v2/endpoints/get-stories.php")
+    @POST("index.php?type=get_stories")
     suspend fun getStories(
         @Query("access_token") accessToken: String,
         @Field("limit") limit: Int = 35
@@ -50,7 +50,7 @@ interface StoriesApiService {
      * @param storyId ID story
      */
     @FormUrlEncoded
-    @POST("/api/v2/endpoints/get_story_by_id.php")
+    @POST("index.php?type=get_story_by_id")
     suspend fun getStoryById(
         @Query("access_token") accessToken: String,
         @Field("id") storyId: Long
@@ -62,7 +62,7 @@ interface StoriesApiService {
      * @param limit Кількість stories
      */
     @FormUrlEncoded
-    @POST("/api/v2/endpoints/get-user-stories.php")
+    @POST("index.php?type=get_user_stories")
     suspend fun getUserStories(
         @Query("access_token") accessToken: String,
         @Field("user_id") userId: Long,
@@ -106,7 +106,7 @@ interface StoriesApiService {
      * Повторний виклик з тією ж реакцією видалить її
      */
     @FormUrlEncoded
-    @POST("/api/v2/endpoints/react_story.php")
+    @POST("index.php?type=react_story")
     suspend fun reactToStory(
         @Query("access_token") accessToken: String,
         @Field("id") storyId: Long,

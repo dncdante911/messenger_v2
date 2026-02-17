@@ -149,6 +149,7 @@ $routes = [
     'get-group-data' => 'endpoints/get-group-data.php',
 
     // Stories
+    'create_story' => 'endpoints/create-story.php',
     'delete_story' => 'endpoints/delete-story.php',
     'get_story_views' => 'endpoints/get_story_views.php',
     'mute_story' => 'endpoints/mute_story.php',
@@ -156,6 +157,10 @@ $routes = [
     'get_story_comments' => 'endpoints/get_story_comments.php',
     'delete_story_comment' => 'endpoints/delete_story_comment.php',
     'get_story_reactions' => 'endpoints/get_story_reactions.php',
+    'get_stories' => 'endpoints/get-stories.php',
+    'get_user_stories' => 'endpoints/get-user-stories.php',
+    'get_story_by_id' => 'endpoints/get_story_by_id.php',
+    'react_story' => 'endpoints/react_story.php',
 
     // FCM Token
     'update_fcm_token' => 'endpoints/update_fcm_token.php',

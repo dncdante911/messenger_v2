@@ -1,5 +1,5 @@
 <?php
-require_once('api/v2/crypto_helper.php');
+require_once(__DIR__ . '/../crypto_helper.php');
 $video_call = false;
 $video_call_user = array();
 
