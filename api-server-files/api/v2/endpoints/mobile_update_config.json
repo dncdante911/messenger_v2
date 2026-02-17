@@ -1,35 +1,23 @@
 {
-  "latest_version": "2.11.0",
-  "version_code": 13,
+  "latest_version": "2.10.0",
+  "version_code": 12,
   "apk_url": "https://worldmates.club/sources-app/worldmates-latest.apk",
   "changelog": [
-    "АВТОРИЗАЦІЯ / РЕЄСТРАЦІЯ:",
-    "--- Швидка реєстрація: тільки email або телефон + код підтвердження (без логінів та паролів)",
-    "--- Відновлення паролю: кнопка 'Забули пароль?' тепер працює (email + SMS + 6-значний код)",
-    "--- Описові помилки реєстрації: 'логін зайнятий', 'email існує', 'номер зайнятий', 'слабкий пароль'",
-    "--- Підтримка реєстрації через телефон без email (автоактивація)",
-    "",
-    "ЧАТИ / ПОВІДОМЛЕННЯ:",
-    "--- Socket.IO — основний транспорт для реального часу (порт 449)",
-    "--- PHP API — REST запити для отримання/відправки повідомлень (/api/v2/)",
-    "--- HTTP polling кожні 15с як fallback якщо Socket.IO не підключено",
-    "",
-    "PUSH-СПОВІЩЕННЯ:",
-    "--- Фонова служба (Foreground Service) слухає Socket.IO і показує сповіщення зі звуком і вібрацією",
-    "--- Сповіщення не приходять якщо чат відкритий (розумне придушення)",
-    "--- Не сповіщує про свої повідомлення",
-    "--- Натискання на сповіщення відкриває потрібний чат",
-    "--- FCM токен тепер надсилається на сервер (підготовка до Firebase push)",
-    "",
-    "СЕРВЕР:",
-    "--- Socket.IO (порт 449) для реалтайм доставки повідомлень",
-    "--- PHP insert_new_message.php тепер публікує в Redis для Socket.IO доставки",
-    "--- Скидання паролю через SMS (6-значний код) та email",
-    "--- API quick_register + quick_verify для швидкої реєстрації",
-    "--- API update_fcm_token для збереження Firebase токенів"
+    "🤖 Bot API v1.0: повноцінна платформа для створення ботів (аналог Telegram Bot API)",
+    "🏪 Bot Store: каталог ботів з пошуком, категоріями та рейтингами",
+    "📡 Webhooks: доставка подій ботам через HTTPS callbacks з підписом HMAC-SHA256",
+    "🗳️ Polls: опитування та квізи через ботів з візуальними результатами",
+    "📰 RSS News Bot: агрегатор новин з 10+ джерелами (BBC, Reuters, TechCrunch, Pravda.ua)",
+    "🌤️ Weather Bot: погода та прогноз з OpenWeatherMap + inline кнопки",
+    "🎫 Support Bot: FAQ, тікет-система та зворотній зв'язок",
+    "📋 Task Tracker Bot: управління завданнями з пріоритетами, дедлайнами та нагадуваннями",
+    "📊 Poll Bot: створення опитувань та голосувань з анонімним/публічним режимом",
+    "⌨️ Inline Keyboards: інтерактивні кнопки під повідомленнями ботів",
+    "🔌 Bot SDK: PHP бібліотека для швидкої розробки ботів (WorldMatesBotSDK.php)",
+    "🔧 Bot Management: CRUD операції, токени, rate limiting, статистика"
   ],
   "is_mandatory": false,
-  "published_at": "2026-02-13T12:00:00Z",
+  "published_at": "2026-02-11T12:00:00Z",
   "features": {
     "animated_stickers": {
       "enabled": true,
@@ -175,109 +163,6 @@
       "admin_only": true,
       "sql_columns": ["theme_bubble_style", "theme_preset_background", "theme_accent_color", "theme_enabled_by_admin", "theme_updated_at", "theme_updated_by"]
     },
-    "quick_registration": {
-      "enabled": true,
-      "methods": ["email", "phone"],
-      "verification_code_length": 6,
-      "api_endpoints": {
-        "register": "POST /api/v2/?type=quick_register",
-        "verify": "POST /api/v2/?type=quick_verify"
-      },
-      "params_register": {
-        "email": "(optional) email адреса",
-        "phone_number": "(optional) номер телефону з кодом країни",
-        "device_type": "(optional) phone | windows, default: phone"
-      },
-      "params_verify": {
-        "email": "(optional) email що був при реєстрації",
-        "phone_number": "(optional) телефон що був при реєстрації",
-        "code": "(required) 6-значний код підтвердження"
-      },
-      "flow": "1) POST quick_register з email або phone_number → отримуєте user_id + username, код надсилається на пошту/SMS → 2) POST quick_verify з email/phone + code → отримуєте access_token, одразу авторизовані",
-      "notes": "Логін та пароль генеруються автоматично. Юзер може їх змінити пізніше в налаштуваннях."
-    },
-    "password_reset": {
-      "enabled": true,
-      "methods": ["email", "phone"],
-      "api_endpoints": {
-        "request_code": "POST /api/v2/?type=send-reset-password-email",
-        "reset": "POST /api/v2/?type=reset_password"
-      },
-      "params_request": {
-        "email": "(optional) email акаунту",
-        "phone_number": "(optional) телефон акаунту"
-      },
-      "params_reset": {
-        "email": "(optional) email",
-        "phone_number": "(optional) телефон",
-        "code": "(required) 6-значний код з SMS/email",
-        "new_password": "(required) новий пароль"
-      },
-      "flow": "1) Надішліть email або phone_number → сервер шле код → 2) Надішліть код + новий пароль → пароль змінено, всі сесії видалені"
-    },
-    "messaging_transport": {
-      "primary": "socket_io",
-      "url": "https://worldmates.club:449/",
-      "server_path": "nodejs/",
-      "flow": {
-        "send_private": "Socket.IO 'private_message' → Node.js PrivateMessageController → saves to wo_messages + delivers to recipient",
-        "send_group": "Socket.IO 'group_message' → Node.js GroupMessageController → saves to wo_messages + broadcasts to group",
-        "fetch_history": "PHP API /api/v2/?type=get_user_messages (початкове завантаження + пагінація)",
-        "fallback": "PHP API /api/v2/ якщо Socket.IO не підключено"
-      },
-      "critical_note": "from_id в Socket.IO payload = access_token (session hash), НЕ числовий userId! Node.js робить ctx.userHashUserId[from_id]",
-      "channels": "channels-listener.js: channel:subscribe, channel:new_post, channel:post_updated, channel:post_deleted, channel:new_comment"
-    },
-    "push_notifications": {
-      "method": "socket_io_foreground_service",
-      "service_class": "MessageNotificationService",
-      "foreground_service_type": "dataSync",
-      "features": {
-        "sound": true,
-        "vibration": true,
-        "notification_channel": "wm_message_notifications",
-        "smart_suppression": "Не показує сповіщення якщо чат відкритий",
-        "auto_start": "Запускається при вході в ChatsActivity",
-        "click_action": "Відкриває MessagesActivity з потрібним recipientId/groupId"
-      },
-      "firebase_ready": {
-        "fcm_token_upload": "POST /api/v2/?type=update_fcm_token",
-        "google_services_json": "ПОТРІБНО: завантажити з Firebase Console і покласти в app/",
-        "gradle_plugin": "ПОТРІБНО: розкоментувати 'com.google.gms.google-services' в build.gradle",
-        "status": "Підготовлено, але не активовано. Socket.IO service працює без Firebase."
-      }
-    },
-    "sms_email_setup": {
-      "sms": {
-        "function": "Wo_SendSMSMessage() — налаштовується в WoWonder Admin Panel",
-        "recommended_provider": "Twilio",
-        "twilio_setup": {
-          "1_register": "twilio.com → створити акаунт",
-          "2_get_credentials": "Account SID + Auth Token + Phone Number",
-          "3_configure": "WoWonder Admin → Settings → SMS → Provider: Twilio → вставити дані",
-          "price": "~$0.01 за SMS"
-        },
-        "alternative": "Vonage (Nexmo) — також підтримується WoWonder"
-      },
-      "email": {
-        "function": "Wo_SendMessage() — через PHPMailer (SMTP)",
-        "recommended": "Gmail SMTP або SendGrid",
-        "gmail_setup": {
-          "host": "smtp.gmail.com",
-          "port": 587,
-          "encryption": "tls",
-          "note": "ПОТРІБНО App Password (не звичайний пароль!) — Google Account → Security → 2FA → App Passwords"
-        },
-        "sendgrid_setup": {
-          "host": "smtp.sendgrid.net",
-          "port": 587,
-          "username": "apikey",
-          "password": "SG.xxxxxxxxx (API Key)",
-          "free_tier": "100 листів/день"
-        },
-        "configure_in": "WoWonder Admin Panel → Settings → SMTP Settings"
-      }
-    },
     "bot_api": {
       "enabled": true,
       "version": "1.0.0",
@@ -364,16 +249,6 @@
   "minimum_supported_version": "2.0.0",
   "force_update_below": "1.9.0",
   "new_files": [
-    "--- v2.11.0 (авторизація, чати, push) ---",
-    "ui/login/QuickRegisterActivity.kt",
-    "ui/login/ForgotPasswordActivity.kt",
-    "services/MessageNotificationService.kt",
-    "api-server-files/api/v2/endpoints/quick_register.php",
-    "api-server-files/api/v2/endpoints/quick_verify.php",
-    "api-server-files/api/v2/endpoints/update_fcm_token.php",
-    "api-server-files/api/v2/endpoints/get_messages.php",
-    "api-server-files/nodejs/routes/messaging.js",
-    "--- v2.10.0 (боти) ---",
     "ui/theme/ThemeOneClickPacks.kt",
     "ui/theme/ThemeBackgroundSection.kt",
     "ui/chats/ChatOrganizationManager.kt",
@@ -404,32 +279,18 @@
     "server/botSocketHandler.js"
   ],
   "modified_files": [
-    "--- v2.11.0 ---",
-    "ui/login/LoginActivity.kt — кнопка 'Забули пароль' працює + кнопка 'Швидка реєстрація'",
-    "ui/messages/MessagesViewModel.kt — PHP API + Socket.IO + polling fallback",
-    "ui/messages/MessagesActivity.kt — трекінг активного чату для push-сповіщень",
-    "ui/chats/ChatsActivity.kt — запуск MessageNotificationService",
-    "network/WorldMatesApi.kt — нові endpoint'и: quickRegister, quickVerify, resetPassword, updateFcmToken",
-    "services/MyFirebaseMessagingService.kt — відправка FCM токена на сервер",
-    "AndroidManifest.xml — нові Activity + MessageNotificationService + FOREGROUND_SERVICE_DATA_SYNC",
-    "api-server-files/api/v2/index.php — маршрути quick_register, quick_verify, update_fcm_token",
-    "api-server-files/api/v2/endpoints/create-account.php — телефон без email, описові помилки",
-    "api-server-files/api/phone/register_user.php — описові помилки",
-    "api-server-files/api/v2/endpoints/send-reset-password-email.php — SMS + email скидання",
-    "api-server-files/api/v2/endpoints/reset_password.php — 4 методи верифікації",
-    "api-server-files/api/phone/insert_new_message.php — Redis publish для Socket.IO",
-    "api-server-files/nodejs/main.js — messaging routes",
-    "--- v2.10.0 ---",
     "ui/theme/ThemeSettingsScreen.kt",
     "ui/theme/CustomizationManager.kt",
     "ui/preferences/BubbleStyle.kt",
     "ui/messages/BubbleStyles.kt",
     "update/AppUpdateManager.kt",
+    "ui/chats/ChatsActivity.kt",
     "ui/chats/ChatsScreenModern.kt",
     "ui/settings/SettingsActivity.kt",
     "ui/groups/GroupDetailsActivity.kt",
     "ui/profile/UserProfileActivity.kt",
     "ui/profile/UserProfileViewModel.kt",
+    "network/WorldMatesApi.kt",
     "network/RetrofitClient.kt",
     "server/server-example.js",
     "api-server-files/api/v2/endpoints/mobile_update_config.json"

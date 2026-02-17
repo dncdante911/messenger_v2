@@ -1,0 +1,547 @@
+[19-Dec-2025 11:43:00 UTC] === send-message.php START ===
+[19-Dec-2025 11:43:00 UTC] crypto_helper.php loaded
+[19-Dec-2025 11:43:00 UTC] === send-message.php END ===
+[19-Dec-2025 11:48:05 UTC] === send-message.php START ===
+[19-Dec-2025 11:48:05 UTC] crypto_helper.php loaded
+[19-Dec-2025 11:48:05 UTC] === send-message.php END ===
+[19-Dec-2025 11:52:57 UTC] === send-message.php START ===
+[19-Dec-2025 11:52:57 UTC] crypto_helper.php loaded
+[19-Dec-2025 11:52:57 UTC] === send-message.php END ===
+[19-Dec-2025 11:54:12 UTC] === send-message.php START ===
+[19-Dec-2025 11:54:12 UTC] crypto_helper.php loaded
+[19-Dec-2025 11:54:12 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 11:54:12 UTC] send-message: WorldMates request - has_gcm=1, has_ecb=1
+[19-Dec-2025 11:54:12 UTC] send-message: Keeping GCM for WorldMates
+[19-Dec-2025 11:54:12 UTC] === send-message.php END ===
+[19-Dec-2025 12:15:19 UTC] === send-message.php START ===
+[19-Dec-2025 12:15:19 UTC] crypto_helper.php loaded
+[19-Dec-2025 12:15:19 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 12:15:19 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 12:15:19 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 12:15:19 UTC] === send-message.php END ===
+[19-Dec-2025 12:16:08 UTC] === send-message.php START ===
+[19-Dec-2025 12:16:08 UTC] crypto_helper.php loaded
+[19-Dec-2025 12:16:08 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 12:16:08 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 12:16:08 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 12:16:08 UTC] === send-message.php END ===
+[19-Dec-2025 12:20:34 UTC] === send-message.php START ===
+[19-Dec-2025 12:20:34 UTC] crypto_helper.php loaded
+[19-Dec-2025 12:20:34 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 12:20:34 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 12:20:34 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 12:20:34 UTC] === send-message.php END ===
+[19-Dec-2025 12:25:34 UTC] === send-message.php START ===
+[19-Dec-2025 12:25:34 UTC] crypto_helper.php loaded
+[19-Dec-2025 12:25:34 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 12:25:34 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 12:25:34 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 12:25:34 UTC] === send-message.php END ===
+[19-Dec-2025 12:47:41 UTC] === send-message.php START ===
+[19-Dec-2025 12:47:41 UTC] crypto_helper.php loaded
+[19-Dec-2025 12:47:41 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 12:47:41 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 12:47:41 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 12:47:41 UTC] === send-message.php END ===
+[19-Dec-2025 12:51:52 UTC] === send-message.php START ===
+[19-Dec-2025 12:51:52 UTC] crypto_helper.php loaded
+[19-Dec-2025 12:51:52 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 12:51:52 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 12:51:52 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 12:51:52 UTC] === send-message.php END ===
+[19-Dec-2025 12:59:03 UTC] === send-message.php START ===
+[19-Dec-2025 12:59:03 UTC] crypto_helper.php loaded
+[19-Dec-2025 12:59:03 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 12:59:03 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 12:59:03 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 12:59:03 UTC] === send-message.php END ===
+[19-Dec-2025 13:02:50 UTC] === send-message.php START ===
+[19-Dec-2025 13:02:50 UTC] crypto_helper.php loaded
+[19-Dec-2025 13:02:50 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 13:02:50 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 13:02:50 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 13:02:50 UTC] === send-message.php END ===
+[19-Dec-2025 13:16:40 UTC] === send-message.php START ===
+[19-Dec-2025 13:16:40 UTC] crypto_helper.php loaded
+[19-Dec-2025 13:16:40 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 13:16:40 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 13:16:40 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 13:16:40 UTC] === send-message.php END ===
+[19-Dec-2025 13:28:26 UTC] === send-message.php START ===
+[19-Dec-2025 13:28:26 UTC] crypto_helper.php loaded
+[19-Dec-2025 13:28:26 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 13:28:26 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 13:28:26 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 13:28:26 UTC] === send-message.php END ===
+[19-Dec-2025 14:11:36 UTC] === send-message.php START ===
+[19-Dec-2025 14:11:36 UTC] crypto_helper.php loaded
+[19-Dec-2025 14:11:36 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 14:11:36 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 14:11:36 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 14:11:36 UTC] === send-message.php END ===
+[19-Dec-2025 14:12:17 UTC] === send-message.php START ===
+[19-Dec-2025 14:12:17 UTC] crypto_helper.php loaded
+[19-Dec-2025 14:12:17 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 14:12:17 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 14:12:17 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 14:12:17 UTC] === send-message.php END ===
+[19-Dec-2025 14:12:48 UTC] === send-message.php START ===
+[19-Dec-2025 14:12:48 UTC] crypto_helper.php loaded
+[19-Dec-2025 14:12:48 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 14:12:48 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 14:12:48 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 14:12:48 UTC] === send-message.php END ===
+[19-Dec-2025 14:13:41 UTC] === send-message.php START ===
+[19-Dec-2025 14:13:41 UTC] crypto_helper.php loaded
+[19-Dec-2025 14:13:41 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 14:13:41 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 14:13:41 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 14:13:41 UTC] === send-message.php END ===
+[19-Dec-2025 14:15:28 UTC] === send-message.php START ===
+[19-Dec-2025 14:15:28 UTC] crypto_helper.php loaded
+[19-Dec-2025 14:15:28 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 14:15:28 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 14:15:28 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 14:15:28 UTC] === send-message.php END ===
+[19-Dec-2025 14:34:17 UTC] === send-message.php START ===
+[19-Dec-2025 14:34:17 UTC] crypto_helper.php loaded
+[19-Dec-2025 14:34:17 UTC] send-message: Hybrid logic - is_worldmates=true
+[19-Dec-2025 14:34:17 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[19-Dec-2025 14:34:17 UTC] send-message: Returning GCM for WorldMates
+[19-Dec-2025 14:34:17 UTC] === send-message.php END ===
+[20-Dec-2025 06:27:49 UTC] === send-message.php START ===
+[20-Dec-2025 06:27:49 UTC] crypto_helper.php loaded
+[20-Dec-2025 06:27:49 UTC] send-message: Hybrid logic - is_worldmates=true
+[20-Dec-2025 06:27:49 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[20-Dec-2025 06:27:49 UTC] send-message: Returning GCM for WorldMates
+[20-Dec-2025 06:27:49 UTC] === send-message.php END ===
+[20-Dec-2025 10:21:31 UTC] === send-message.php START ===
+[20-Dec-2025 10:21:31 UTC] crypto_helper.php loaded
+[20-Dec-2025 10:21:31 UTC] send-message: Hybrid logic - is_worldmates=true
+[20-Dec-2025 10:21:31 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[20-Dec-2025 10:21:31 UTC] send-message: Returning GCM for WorldMates
+[20-Dec-2025 10:21:31 UTC] === send-message.php END ===
+[20-Dec-2025 10:41:06 UTC] === send-message.php START ===
+[20-Dec-2025 10:41:06 UTC] crypto_helper.php loaded
+[20-Dec-2025 10:41:06 UTC] send-message: Hybrid logic - is_worldmates=true
+[20-Dec-2025 10:41:06 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[20-Dec-2025 10:41:06 UTC] send-message: Returning GCM for WorldMates
+[20-Dec-2025 10:41:06 UTC] === send-message.php END ===
+[20-Dec-2025 10:52:15 UTC] === send-message.php START ===
+[20-Dec-2025 10:52:15 UTC] crypto_helper.php loaded
+[20-Dec-2025 10:52:15 UTC] send-message: Hybrid logic - is_worldmates=true
+[20-Dec-2025 10:52:15 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[20-Dec-2025 10:52:15 UTC] send-message: Returning GCM for WorldMates
+[20-Dec-2025 10:52:15 UTC] === send-message.php END ===
+[20-Dec-2025 10:54:40 UTC] === send-message.php START ===
+[20-Dec-2025 10:54:40 UTC] crypto_helper.php loaded
+[20-Dec-2025 10:54:40 UTC] send-message: Hybrid logic - is_worldmates=true
+[20-Dec-2025 10:54:40 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[20-Dec-2025 10:54:40 UTC] send-message: Returning GCM for WorldMates
+[20-Dec-2025 10:54:40 UTC] === send-message.php END ===
+[20-Dec-2025 11:02:40 UTC] === send-message.php START ===
+[20-Dec-2025 11:02:40 UTC] crypto_helper.php loaded
+[20-Dec-2025 11:02:40 UTC] send-message: Hybrid logic - is_worldmates=true
+[20-Dec-2025 11:02:40 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[20-Dec-2025 11:02:40 UTC] send-message: Returning GCM for WorldMates
+[20-Dec-2025 11:02:40 UTC] === send-message.php END ===
+[20-Dec-2025 11:10:00 UTC] === send-message.php START ===
+[20-Dec-2025 11:10:00 UTC] crypto_helper.php loaded
+[20-Dec-2025 11:10:01 UTC] send-message: Hybrid logic - is_worldmates=true
+[20-Dec-2025 11:10:01 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[20-Dec-2025 11:10:01 UTC] send-message: Returning GCM for WorldMates
+[20-Dec-2025 11:10:01 UTC] === send-message.php END ===
+[23-Dec-2025 08:08:04 UTC] === send-message.php START ===
+[23-Dec-2025 08:08:04 UTC] crypto_helper.php loaded
+[23-Dec-2025 08:08:04 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 08:08:04 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 08:08:04 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 08:08:04 UTC] === send-message.php END ===
+[23-Dec-2025 08:34:02 UTC] === send-message.php START ===
+[23-Dec-2025 08:34:02 UTC] crypto_helper.php loaded
+[23-Dec-2025 08:34:02 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 08:34:02 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 08:34:02 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 08:34:02 UTC] === send-message.php END ===
+[23-Dec-2025 10:02:29 UTC] === send-message.php START ===
+[23-Dec-2025 10:02:29 UTC] crypto_helper.php loaded
+[23-Dec-2025 10:02:29 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 10:02:29 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 10:02:29 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 10:02:29 UTC] === send-message.php END ===
+[23-Dec-2025 10:05:09 UTC] === send-message.php START ===
+[23-Dec-2025 10:05:09 UTC] crypto_helper.php loaded
+[23-Dec-2025 10:05:10 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 10:05:10 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 10:05:10 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 10:05:10 UTC] === send-message.php END ===
+[23-Dec-2025 10:23:10 UTC] === send-message.php START ===
+[23-Dec-2025 10:23:10 UTC] crypto_helper.php loaded
+[23-Dec-2025 10:23:10 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 10:23:10 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 10:23:10 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 10:23:10 UTC] === send-message.php END ===
+[23-Dec-2025 10:41:30 UTC] === send-message.php START ===
+[23-Dec-2025 10:41:30 UTC] crypto_helper.php loaded
+[23-Dec-2025 10:41:30 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 10:41:30 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 10:41:30 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 10:41:30 UTC] send-message: Redis PUBLISH success for ID: 561
+[23-Dec-2025 10:41:30 UTC] === send-message.php END ===
+[23-Dec-2025 10:47:32 UTC] === send-message.php START ===
+[23-Dec-2025 10:47:32 UTC] crypto_helper.php loaded
+[23-Dec-2025 10:47:32 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 10:47:32 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 10:47:32 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 10:47:32 UTC] Redis Success: Msg ID 564 sent to socket.
+[23-Dec-2025 10:47:32 UTC] === send-message.php END ===
+[23-Dec-2025 10:53:43 UTC] === send-message.php START ===
+[23-Dec-2025 10:53:43 UTC] crypto_helper.php loaded
+[23-Dec-2025 10:53:43 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 10:53:43 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 10:53:43 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 10:53:43 UTC] Redis Success: Msg ID 567 sent to socket.
+[23-Dec-2025 10:53:43 UTC] === send-message.php END ===
+[23-Dec-2025 11:05:17 UTC] === send-message.php START ===
+[23-Dec-2025 11:05:17 UTC] crypto_helper.php loaded
+[23-Dec-2025 11:05:17 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 11:05:17 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 11:05:17 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 11:05:17 UTC] Redis Success: Msg ID 568 sent to socket.
+[23-Dec-2025 11:05:17 UTC] === send-message.php END ===
+[23-Dec-2025 11:14:20 UTC] === send-message.php START ===
+[23-Dec-2025 11:14:20 UTC] crypto_helper.php loaded
+[23-Dec-2025 11:14:20 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 11:14:20 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 11:14:20 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 11:14:20 UTC] Redis Success: Msg ID 570 sent to socket.
+[23-Dec-2025 11:14:20 UTC] === send-message.php END ===
+[23-Dec-2025 11:23:36 UTC] === send-message.php START ===
+[23-Dec-2025 11:23:36 UTC] crypto_helper.php loaded
+[23-Dec-2025 11:23:36 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 11:23:36 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 11:23:36 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 11:23:36 UTC] Redis Success: Msg ID 581 sent to socket.
+[23-Dec-2025 11:23:36 UTC] === send-message.php END ===
+[23-Dec-2025 11:26:42 UTC] === send-message.php START ===
+[23-Dec-2025 11:26:42 UTC] crypto_helper.php loaded
+[23-Dec-2025 11:26:42 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 11:26:42 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 11:26:42 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 11:26:42 UTC] Redis Success: Msg ID 583 with UserData sent to socket.
+[23-Dec-2025 11:26:42 UTC] === send-message.php END ===
+[23-Dec-2025 11:27:27 UTC] === send-message.php START ===
+[23-Dec-2025 11:27:27 UTC] crypto_helper.php loaded
+[23-Dec-2025 11:27:27 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 11:27:27 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 11:27:27 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 11:27:27 UTC] Redis Success: Msg ID 586 with UserData sent to socket.
+[23-Dec-2025 11:27:27 UTC] === send-message.php END ===
+[23-Dec-2025 11:44:58 UTC] === send-message.php START ===
+[23-Dec-2025 11:44:58 UTC] crypto_helper.php loaded
+[23-Dec-2025 11:44:59 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 11:44:59 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 11:44:59 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 11:44:59 UTC] Redis Success: Msg ID 597 with UserData sent to socket.
+[23-Dec-2025 11:44:59 UTC] === send-message.php END ===
+[23-Dec-2025 17:58:45 UTC] === send-message.php START ===
+[23-Dec-2025 17:58:45 UTC] crypto_helper.php loaded
+[23-Dec-2025 17:58:45 UTC] send-message: Hybrid logic - is_worldmates=true
+[23-Dec-2025 17:58:45 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[23-Dec-2025 17:58:45 UTC] send-message: Returning GCM for WorldMates
+[23-Dec-2025 17:58:45 UTC] Redis Success: Msg ID 610 with UserData sent to socket.
+[23-Dec-2025 17:58:45 UTC] === send-message.php END ===
+[24-Dec-2025 20:27:16 UTC] === send-message.php START ===
+[24-Dec-2025 20:27:16 UTC] crypto_helper.php loaded
+[24-Dec-2025 20:27:16 UTC] send-message: Hybrid logic - is_worldmates=true
+[24-Dec-2025 20:27:16 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[24-Dec-2025 20:27:16 UTC] send-message: Returning GCM for WorldMates
+[24-Dec-2025 20:27:16 UTC] Redis Success: Msg ID 616 with UserData sent to socket.
+[24-Dec-2025 20:27:16 UTC] === send-message.php END ===
+[24-Dec-2025 20:27:23 UTC] === send-message.php START ===
+[24-Dec-2025 20:27:23 UTC] crypto_helper.php loaded
+[24-Dec-2025 20:27:23 UTC] send-message: Hybrid logic - is_worldmates=true
+[24-Dec-2025 20:27:23 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[24-Dec-2025 20:27:23 UTC] send-message: Returning GCM for WorldMates
+[24-Dec-2025 20:27:23 UTC] Redis Success: Msg ID 617 with UserData sent to socket.
+[24-Dec-2025 20:27:23 UTC] === send-message.php END ===
+[24-Dec-2025 20:27:31 UTC] === send-message.php START ===
+[24-Dec-2025 20:27:31 UTC] crypto_helper.php loaded
+[24-Dec-2025 20:27:31 UTC] send-message: Hybrid logic - is_worldmates=true
+[24-Dec-2025 20:27:31 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[24-Dec-2025 20:27:31 UTC] send-message: Returning GCM for WorldMates
+[24-Dec-2025 20:27:31 UTC] Redis Success: Msg ID 618 with UserData sent to socket.
+[24-Dec-2025 20:27:31 UTC] === send-message.php END ===
+[25-Dec-2025 06:27:07 UTC] === send-message.php START ===
+[25-Dec-2025 06:27:07 UTC] crypto_helper.php loaded
+[25-Dec-2025 06:27:07 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 06:27:07 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 06:27:07 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 06:27:07 UTC] Redis Success: Msg ID 619 with UserData sent to socket.
+[25-Dec-2025 06:27:07 UTC] === send-message.php END ===
+[25-Dec-2025 10:04:16 UTC] === send-message.php START ===
+[25-Dec-2025 10:04:16 UTC] crypto_helper.php loaded
+[25-Dec-2025 10:04:16 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 10:04:16 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 10:04:16 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 10:04:16 UTC] Redis Success: Msg ID 621 with UserData sent to socket.
+[25-Dec-2025 10:04:16 UTC] === send-message.php END ===
+[25-Dec-2025 10:11:36 UTC] === send-message.php START ===
+[25-Dec-2025 10:11:36 UTC] crypto_helper.php loaded
+[25-Dec-2025 10:11:36 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 10:11:36 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 10:11:36 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 10:11:36 UTC] Redis Success: Msg ID 623 with UserData sent to socket.
+[25-Dec-2025 10:11:36 UTC] === send-message.php END ===
+[25-Dec-2025 10:49:12 UTC] === send-message.php START ===
+[25-Dec-2025 10:49:12 UTC] crypto_helper.php loaded
+[25-Dec-2025 10:49:12 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 10:49:12 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 10:49:12 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 10:49:12 UTC] Redis Success: Msg ID 625 with UserData sent to socket.
+[25-Dec-2025 10:49:12 UTC] === send-message.php END ===
+[25-Dec-2025 11:38:05 UTC] === send-message.php START ===
+[25-Dec-2025 11:38:05 UTC] crypto_helper.php loaded
+[25-Dec-2025 11:38:05 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 11:38:05 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 11:38:05 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 11:38:05 UTC] Redis Success: Msg ID 627 with UserData sent to socket.
+[25-Dec-2025 11:38:05 UTC] === send-message.php END ===
+[25-Dec-2025 11:40:40 UTC] === send-message.php START ===
+[25-Dec-2025 11:40:40 UTC] crypto_helper.php loaded
+[25-Dec-2025 11:40:40 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 11:40:40 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 11:40:40 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 11:40:40 UTC] Redis Success: Msg ID 628 with UserData sent to socket.
+[25-Dec-2025 11:40:40 UTC] === send-message.php END ===
+[25-Dec-2025 11:41:06 UTC] === send-message.php START ===
+[25-Dec-2025 11:41:06 UTC] crypto_helper.php loaded
+[25-Dec-2025 11:41:06 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 11:41:06 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 11:41:06 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 11:41:06 UTC] Redis Success: Msg ID 629 with UserData sent to socket.
+[25-Dec-2025 11:41:06 UTC] === send-message.php END ===
+[25-Dec-2025 11:45:14 UTC] === send-message.php START ===
+[25-Dec-2025 11:45:14 UTC] crypto_helper.php loaded
+[25-Dec-2025 11:45:14 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 11:45:14 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 11:45:14 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 11:45:14 UTC] Redis Success: Msg ID 630 with UserData sent to socket.
+[25-Dec-2025 11:45:14 UTC] === send-message.php END ===
+[25-Dec-2025 12:01:56 UTC] === send-message.php START ===
+[25-Dec-2025 12:01:56 UTC] crypto_helper.php loaded
+[25-Dec-2025 12:01:56 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 12:01:56 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 12:01:56 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 12:01:56 UTC] Redis Success: Msg ID 632 with UserData sent to socket.
+[25-Dec-2025 12:01:56 UTC] === send-message.php END ===
+[25-Dec-2025 12:03:08 UTC] === send-message.php START ===
+[25-Dec-2025 12:03:08 UTC] crypto_helper.php loaded
+[25-Dec-2025 12:03:08 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 12:03:08 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 12:03:08 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 12:03:08 UTC] Redis Success: Msg ID 633 with UserData sent to socket.
+[25-Dec-2025 12:03:08 UTC] === send-message.php END ===
+[25-Dec-2025 12:03:16 UTC] === send-message.php START ===
+[25-Dec-2025 12:03:16 UTC] crypto_helper.php loaded
+[25-Dec-2025 12:03:16 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 12:03:16 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 12:03:16 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 12:03:16 UTC] Redis Success: Msg ID 634 with UserData sent to socket.
+[25-Dec-2025 12:03:16 UTC] === send-message.php END ===
+[25-Dec-2025 13:51:39 UTC] === send-message.php START ===
+[25-Dec-2025 13:51:39 UTC] crypto_helper.php loaded
+[25-Dec-2025 13:51:39 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 13:51:39 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 13:51:39 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 13:51:39 UTC] Redis Success: Msg ID 637 with UserData sent to socket.
+[25-Dec-2025 13:51:39 UTC] === send-message.php END ===
+[25-Dec-2025 13:53:56 UTC] === send-message.php START ===
+[25-Dec-2025 13:53:56 UTC] crypto_helper.php loaded
+[25-Dec-2025 13:53:56 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 13:53:56 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 13:53:56 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 13:53:56 UTC] Redis Success: Msg ID 639 with UserData sent to socket.
+[25-Dec-2025 13:53:56 UTC] === send-message.php END ===
+[25-Dec-2025 13:55:12 UTC] === send-message.php START ===
+[25-Dec-2025 13:55:12 UTC] crypto_helper.php loaded
+[25-Dec-2025 13:55:12 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 13:55:12 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 13:55:12 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 13:55:12 UTC] Redis Success: Msg ID 641 with UserData sent to socket.
+[25-Dec-2025 13:55:12 UTC] === send-message.php END ===
+[25-Dec-2025 14:36:33 UTC] === send-message.php START ===
+[25-Dec-2025 14:36:33 UTC] crypto_helper.php loaded
+[25-Dec-2025 14:36:33 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 14:36:33 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 14:36:33 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 14:36:33 UTC] Redis Success: Msg ID 642 with UserData sent to socket.
+[25-Dec-2025 14:36:33 UTC] === send-message.php END ===
+[25-Dec-2025 14:40:25 UTC] === send-message.php START ===
+[25-Dec-2025 14:40:25 UTC] crypto_helper.php loaded
+[25-Dec-2025 14:40:25 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 14:40:25 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 14:40:25 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 14:40:25 UTC] Redis Success: Msg ID 644 with UserData sent to socket.
+[25-Dec-2025 14:40:25 UTC] === send-message.php END ===
+[25-Dec-2025 15:01:07 UTC] === send-message.php START ===
+[25-Dec-2025 15:01:07 UTC] crypto_helper.php loaded
+[25-Dec-2025 15:01:07 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 15:01:07 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 15:01:07 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 15:01:07 UTC] Redis Success: Msg ID 645 with UserData sent to socket.
+[25-Dec-2025 15:01:07 UTC] === send-message.php END ===
+[25-Dec-2025 18:24:40 UTC] === send-message.php START ===
+[25-Dec-2025 18:24:40 UTC] crypto_helper.php loaded
+[25-Dec-2025 18:24:40 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 18:24:40 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 18:24:40 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 18:24:40 UTC] Redis Success: Msg ID 647 with UserData sent to socket.
+[25-Dec-2025 18:24:40 UTC] === send-message.php END ===
+[25-Dec-2025 19:53:58 UTC] === send-message.php START ===
+[25-Dec-2025 19:53:58 UTC] crypto_helper.php loaded
+[25-Dec-2025 19:53:58 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 19:53:58 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 19:53:58 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 19:53:58 UTC] Redis Success: Msg ID 649 with UserData sent to socket.
+[25-Dec-2025 19:53:58 UTC] === send-message.php END ===
+[25-Dec-2025 20:10:34 UTC] === send-message.php START ===
+[25-Dec-2025 20:10:34 UTC] crypto_helper.php loaded
+[25-Dec-2025 20:10:34 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 20:10:34 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 20:10:34 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 20:10:34 UTC] Redis Success: Msg ID 651 with UserData sent to socket.
+[25-Dec-2025 20:10:34 UTC] === send-message.php END ===
+[25-Dec-2025 20:34:53 UTC] === send-message.php START ===
+[25-Dec-2025 20:34:53 UTC] crypto_helper.php loaded
+[25-Dec-2025 20:34:53 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 20:34:53 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 20:34:53 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 20:34:53 UTC] Redis Success: Msg ID 653 with UserData sent to socket.
+[25-Dec-2025 20:34:53 UTC] === send-message.php END ===
+[25-Dec-2025 20:35:05 UTC] === send-message.php START ===
+[25-Dec-2025 20:35:05 UTC] crypto_helper.php loaded
+[25-Dec-2025 20:35:05 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 20:35:05 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 20:35:05 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 20:35:05 UTC] Redis Success: Msg ID 655 with UserData sent to socket.
+[25-Dec-2025 20:35:05 UTC] === send-message.php END ===
+[25-Dec-2025 20:35:17 UTC] === send-message.php START ===
+[25-Dec-2025 20:35:17 UTC] crypto_helper.php loaded
+[25-Dec-2025 20:35:17 UTC] send-message: Hybrid logic - is_worldmates=true
+[25-Dec-2025 20:35:17 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[25-Dec-2025 20:35:17 UTC] send-message: Returning GCM for WorldMates
+[25-Dec-2025 20:35:17 UTC] Redis Success: Msg ID 657 with UserData sent to socket.
+[25-Dec-2025 20:35:17 UTC] === send-message.php END ===
+[26-Dec-2025 07:23:51 UTC] === send-message.php START ===
+[26-Dec-2025 07:23:51 UTC] crypto_helper.php loaded
+[26-Dec-2025 07:23:51 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 07:23:51 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 07:23:51 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 07:23:51 UTC] Redis Success: Msg ID 659 with UserData sent to socket.
+[26-Dec-2025 07:23:51 UTC] === send-message.php END ===
+[26-Dec-2025 10:07:54 UTC] === send-message.php START ===
+[26-Dec-2025 10:07:54 UTC] crypto_helper.php loaded
+[26-Dec-2025 10:07:54 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 10:07:54 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 10:07:54 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 10:07:54 UTC] Redis Success: Msg ID 662 with UserData sent to socket.
+[26-Dec-2025 10:07:54 UTC] === send-message.php END ===
+[26-Dec-2025 10:12:02 UTC] === send-message.php START ===
+[26-Dec-2025 10:12:02 UTC] crypto_helper.php loaded
+[26-Dec-2025 10:12:02 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 10:12:02 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 10:12:02 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 10:12:02 UTC] Redis Success: Msg ID 664 with UserData sent to socket.
+[26-Dec-2025 10:12:02 UTC] === send-message.php END ===
+[26-Dec-2025 10:27:03 UTC] === send-message.php START ===
+[26-Dec-2025 10:27:03 UTC] crypto_helper.php loaded
+[26-Dec-2025 10:27:03 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 10:27:03 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 10:27:03 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 10:27:03 UTC] Redis Success: Msg ID 668 with UserData sent to socket.
+[26-Dec-2025 10:27:03 UTC] === send-message.php END ===
+[26-Dec-2025 10:30:41 UTC] === send-message.php START ===
+[26-Dec-2025 10:30:41 UTC] crypto_helper.php loaded
+[26-Dec-2025 10:30:41 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 10:30:41 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 10:30:41 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 10:30:41 UTC] Redis Success: Msg ID 670 with UserData sent to socket.
+[26-Dec-2025 10:30:41 UTC] === send-message.php END ===
+[26-Dec-2025 10:44:47 UTC] === send-message.php START ===
+[26-Dec-2025 10:44:47 UTC] crypto_helper.php loaded
+[26-Dec-2025 10:44:47 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 10:44:47 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 10:44:47 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 10:44:47 UTC] Redis Success: Msg ID 674 with UserData sent to socket.
+[26-Dec-2025 10:44:47 UTC] === send-message.php END ===
+[26-Dec-2025 10:47:05 UTC] === send-message.php START ===
+[26-Dec-2025 10:47:05 UTC] crypto_helper.php loaded
+[26-Dec-2025 10:47:05 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 10:47:05 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 10:47:05 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 10:47:05 UTC] Redis Success: Msg ID 676 with UserData sent to socket.
+[26-Dec-2025 10:47:05 UTC] === send-message.php END ===
+[26-Dec-2025 11:00:43 UTC] === send-message.php START ===
+[26-Dec-2025 11:00:43 UTC] crypto_helper.php loaded
+[26-Dec-2025 11:00:43 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 11:00:43 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 11:00:43 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 11:00:43 UTC] Redis Success: Msg ID 679 with UserData sent to socket.
+[26-Dec-2025 11:00:43 UTC] === send-message.php END ===
+[26-Dec-2025 11:00:59 UTC] === send-message.php START ===
+[26-Dec-2025 11:00:59 UTC] crypto_helper.php loaded
+[26-Dec-2025 11:00:59 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 11:00:59 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 11:00:59 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 11:00:59 UTC] Redis Success: Msg ID 682 with UserData sent to socket.
+[26-Dec-2025 11:00:59 UTC] === send-message.php END ===
+[26-Dec-2025 11:04:15 UTC] === send-message.php START ===
+[26-Dec-2025 11:04:15 UTC] crypto_helper.php loaded
+[26-Dec-2025 11:04:15 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 11:04:15 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 11:04:15 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 11:04:15 UTC] Redis Success: Msg ID 684 with UserData sent to socket.
+[26-Dec-2025 11:04:15 UTC] === send-message.php END ===
+[26-Dec-2025 11:04:40 UTC] === send-message.php START ===
+[26-Dec-2025 11:04:40 UTC] crypto_helper.php loaded
+[26-Dec-2025 11:04:40 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 11:04:40 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 11:04:40 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 11:04:40 UTC] Redis Success: Msg ID 687 with UserData sent to socket.
+[26-Dec-2025 11:04:40 UTC] === send-message.php END ===
+[26-Dec-2025 11:13:51 UTC] === send-message.php START ===
+[26-Dec-2025 11:13:51 UTC] crypto_helper.php loaded
+[26-Dec-2025 11:13:51 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 11:13:51 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 11:13:51 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 11:13:51 UTC] Redis Success: Msg ID 690 with UserData sent to socket.
+[26-Dec-2025 11:13:51 UTC] === send-message.php END ===
+[26-Dec-2025 11:14:13 UTC] === send-message.php START ===
+[26-Dec-2025 11:14:13 UTC] crypto_helper.php loaded
+[26-Dec-2025 11:14:13 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 11:14:13 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 11:14:13 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 11:14:13 UTC] Redis Success: Msg ID 692 with UserData sent to socket.
+[26-Dec-2025 11:14:13 UTC] === send-message.php END ===
+[26-Dec-2025 11:14:51 UTC] === send-message.php START ===
+[26-Dec-2025 11:14:51 UTC] crypto_helper.php loaded
+[26-Dec-2025 11:14:51 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 11:14:51 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 11:14:51 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 11:14:51 UTC] Redis Success: Msg ID 695 with UserData sent to socket.
+[26-Dec-2025 11:14:51 UTC] === send-message.php END ===
+[26-Dec-2025 11:27:24 UTC] === send-message.php START ===
+[26-Dec-2025 11:27:24 UTC] crypto_helper.php loaded
+[26-Dec-2025 11:27:24 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 11:27:24 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 11:27:24 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 11:27:24 UTC] Redis Success: Msg ID 697 with UserData sent to socket.
+[26-Dec-2025 11:27:24 UTC] === send-message.php END ===
+[26-Dec-2025 17:48:38 UTC] === send-message.php START ===
+[26-Dec-2025 17:48:38 UTC] crypto_helper.php loaded
+[26-Dec-2025 17:48:38 UTC] send-message: Hybrid logic - is_worldmates=true
+[26-Dec-2025 17:48:38 UTC] send-message: Message analysis - has_gcm=1, has_ecb=1, has_text=1
+[26-Dec-2025 17:48:38 UTC] send-message: Returning GCM for WorldMates
+[26-Dec-2025 17:48:38 UTC] Redis Success: Msg ID 700 with UserData sent to socket.
+[26-Dec-2025 17:48:38 UTC] === send-message.php END ===

@@ -20,7 +20,7 @@ if (!$access_token) {
 }
 
 // Validate token
-$user_id = validateAccessToken($pdo, $access_token);
+$user_id = validateAccessToken($db, $access_token);
 if (!$user_id) {
     http_response_code(401);
     echo json_encode([

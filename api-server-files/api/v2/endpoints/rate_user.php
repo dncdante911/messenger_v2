@@ -22,8 +22,8 @@ $rater_id = $wo['user']['user_id'] ?? 0;
 // If not set by router, validate access_token ourselves
 if (empty($rater_id) || $rater_id < 1) {
     $access_token = $_GET['access_token'] ?? $_POST['access_token'] ?? '';
-    if (!empty($access_token) && isset($pdo)) {
-        $rater_id = validateAccessToken($pdo, $access_token);
+    if (!empty($access_token) && isset($db)) {
+        $rater_id = validateAccessToken($db, $access_token);
         if ($rater_id) {
             $wo['user']['user_id'] = $rater_id;
             $wo['loggedin'] = true;
