@@ -117,7 +117,7 @@ try {
 // Отримуємо користувача з токену (session_id з Wo_AppsSessions)
 try {
     // Крок 1: Перевіряємо сесію в Wo_AppsSessions
-    $stmt = $db->prepare("
+    $stmt = $pdo->prepare("
         SELECT user_id, platform, time
         FROM Wo_AppsSessions
         WHERE session_id = ?
@@ -135,7 +135,7 @@ try {
     logMessage("Session found: user_id={$current_user_id}, platform={$session['platform']}");
 
     // Крок 2: Отримуємо дані користувача
-    $stmt = $db->prepare("
+    $stmt = $pdo->prepare("
         SELECT user_id, username, email, first_name, last_name, avatar, active
         FROM Wo_Users
         WHERE user_id = ? AND active = '1'
@@ -194,12 +194,12 @@ switch ($type) {
         try {
             // Створюємо групу
             $time = time();
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 INSERT INTO Wo_GroupChat (user_id, group_name, avatar, time, type)
                 VALUES (?, ?, 'upload/photos/d-group.jpg', ?, ?)
             ");
             $stmt->execute([$current_user_id, $group_name, $time, $group_type]);
-            $group_id = $db->lastInsertId();
+            $group_id = $pdo->lastInsertId();
 
             logMessage("Group created: ID=$group_id");
 
@@ -213,7 +213,7 @@ switch ($type) {
 
             logMessage("Adding members: " . implode(',', $member_ids));
 
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 INSERT INTO Wo_GroupChatUsers (user_id, group_id, active)
                 VALUES (?, ?, '1')
             ");
@@ -225,7 +225,7 @@ switch ($type) {
             }
 
             // Отримуємо створену групу
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 SELECT g.*, u.username as creator_username, u.avatar as creator_avatar
                 FROM Wo_GroupChat g
                 LEFT JOIN Wo_Users u ON g.user_id = u.user_id
@@ -235,7 +235,7 @@ switch ($type) {
             $group = $stmt->fetch();
 
             // Отримуємо учасників
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 SELECT u.user_id, u.username, u.avatar,
                        CONCAT(u.first_name, ' ', u.last_name) as name
                 FROM Wo_GroupChatUsers gcu
@@ -272,7 +272,7 @@ switch ($type) {
         $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
 
         try {
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 SELECT
                     g.group_id as id,
                     g.group_name as name,
@@ -333,7 +333,7 @@ switch ($type) {
 
         try {
             // Перевіряємо чи користувач є учасником
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 SELECT * FROM Wo_GroupChatUsers
                 WHERE group_id = ? AND user_id = ? AND active = '1'
             ");
@@ -343,7 +343,7 @@ switch ($type) {
             }
 
             // Отримуємо групу
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 SELECT g.*, u.username as creator_username, u.avatar as creator_avatar
                 FROM Wo_GroupChat g
                 LEFT JOIN Wo_Users u ON g.user_id = u.user_id
@@ -357,7 +357,7 @@ switch ($type) {
             }
 
             // Отримуємо учасників
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 SELECT u.user_id, u.username, u.avatar,
                        CONCAT(u.first_name, ' ', u.last_name) as name
                 FROM Wo_GroupChatUsers gcu
@@ -373,7 +373,7 @@ switch ($type) {
             // 📌 PINNED MESSAGE: Отримуємо закріплене повідомлення якщо є
             $group['pinned_message'] = null;
             if (!empty($group['pinned_message_id'])) {
-                $stmt = $db->prepare("
+                $stmt = $pdo->prepare("
                     SELECT m.id, m.from_id, m.text, m.time, m.media,
                            u.username as sender_username,
                            CONCAT(u.first_name, ' ', u.last_name) as sender_name,
@@ -422,7 +422,7 @@ switch ($type) {
 
         try {
             // Перевіряємо чи користувач є учасником
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 SELECT * FROM Wo_GroupChatUsers
                 WHERE group_id = ? AND user_id = ? AND active = '1'
             ");
@@ -463,12 +463,12 @@ switch ($type) {
                 }
             }
 
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 INSERT INTO Wo_Messages (from_id, group_id, to_id, text, media, time, seen, iv, tag, cipher_version)
                 VALUES (?, ?, 0, ?, ?, ?, 0, ?, ?, ?)
             ");
             $stmt->execute([$current_user_id, $group_id, $encrypted_text, $media, $time, $iv, $tag, $cipher_version]);
-            $message_id = $db->lastInsertId();
+            $message_id = $pdo->lastInsertId();
 
             logMessage("Message sent: ID=$message_id");
 
@@ -500,7 +500,7 @@ switch ($type) {
 
         try {
             // Перевіряємо чи користувач є учасником
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 SELECT * FROM Wo_GroupChatUsers
                 WHERE group_id = ? AND user_id = ? AND active = '1'
             ");
@@ -533,7 +533,7 @@ switch ($type) {
             $sql .= " ORDER BY m.id DESC LIMIT ?";
             $params[] = $limit;
 
-            $stmt = $db->prepare($sql);
+            $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             $messages = $stmt->fetchAll();
 
@@ -588,7 +588,7 @@ switch ($type) {
 
         try {
             // Перевіряємо чи користувач вже є учасником
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 SELECT * FROM Wo_GroupChatUsers
                 WHERE group_id = ? AND user_id = ?
             ");
@@ -596,7 +596,7 @@ switch ($type) {
 
             if ($stmt->fetch()) {
                 // Оновлюємо active якщо був деактивований
-                $stmt = $db->prepare("
+                $stmt = $pdo->prepare("
                     UPDATE Wo_GroupChatUsers
                     SET active = '1'
                     WHERE group_id = ? AND user_id = ?
@@ -604,7 +604,7 @@ switch ($type) {
                 $stmt->execute([$group_id, $new_user_id]);
             } else {
                 // Додаємо нового учасника
-                $stmt = $db->prepare("
+                $stmt = $pdo->prepare("
                     INSERT INTO Wo_GroupChatUsers (user_id, group_id, active, time)
                     VALUES (?, ?, '1', ?)
                 ");
@@ -659,7 +659,7 @@ switch ($type) {
 
         try {
             // Перевіряємо чи поточний користувач є створювачем групи
-            $stmt = $db->prepare("SELECT user_id FROM Wo_GroupChat WHERE group_id = ?");
+            $stmt = $pdo->prepare("SELECT user_id FROM Wo_GroupChat WHERE group_id = ?");
             $stmt->execute([$group_id]);
             $group = $stmt->fetch();
 
@@ -668,7 +668,7 @@ switch ($type) {
             }
 
             // Видаляємо учасника
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 UPDATE Wo_GroupChatUsers
                 SET active = '0'
                 WHERE group_id = ? AND user_id = ?
@@ -701,7 +701,7 @@ switch ($type) {
         $group_id = intval($_POST['id']);
 
         try {
-            $stmt = $db->prepare("
+            $stmt = $pdo->prepare("
                 UPDATE Wo_GroupChatUsers
                 SET active = '0'
                 WHERE group_id = ? AND user_id = ?
@@ -735,7 +735,7 @@ switch ($type) {
 
         try {
             // Перевіряємо чи користувач є створювачем
-            $stmt = $db->prepare("SELECT user_id FROM Wo_GroupChat WHERE group_id = ?");
+            $stmt = $pdo->prepare("SELECT user_id FROM Wo_GroupChat WHERE group_id = ?");
             $stmt->execute([$group_id]);
             $group = $stmt->fetch();
 
@@ -748,15 +748,15 @@ switch ($type) {
             }
 
             // Видаляємо групу
-            $stmt = $db->prepare("DELETE FROM Wo_GroupChat WHERE group_id = ?");
+            $stmt = $pdo->prepare("DELETE FROM Wo_GroupChat WHERE group_id = ?");
             $stmt->execute([$group_id]);
 
             // Видаляємо всіх учасників
-            $stmt = $db->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ?");
+            $stmt = $pdo->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ?");
             $stmt->execute([$group_id]);
 
             // Видаляємо повідомлення
-            $stmt = $db->prepare("DELETE FROM Wo_Messages WHERE group_id = ?");
+            $stmt = $pdo->prepare("DELETE FROM Wo_Messages WHERE group_id = ?");
             $stmt->execute([$group_id]);
 
             logMessage("Group deleted: group_id=$group_id");
@@ -786,7 +786,7 @@ switch ($type) {
 
         try {
             // Перевіряємо чи користувач є адміном
-            $stmt = $db->prepare("SELECT user_id FROM Wo_GroupChat WHERE group_id = ?");
+            $stmt = $pdo->prepare("SELECT user_id FROM Wo_GroupChat WHERE group_id = ?");
             $stmt->execute([$group_id]);
             $group = $stmt->fetch();
 
@@ -841,7 +841,7 @@ switch ($type) {
             }
 
             // Оновлюємо avatar в БД
-            $stmt = $db->prepare("UPDATE Wo_GroupChat SET avatar = ? WHERE group_id = ?");
+            $stmt = $pdo->prepare("UPDATE Wo_GroupChat SET avatar = ? WHERE group_id = ?");
             $stmt->execute([$relative_path, $group_id]);
 
             logMessage("Avatar uploaded: $relative_path");

@@ -40,10 +40,11 @@ date_default_timezone_set('Europe/Kyiv');
 
 // ============================================
 // PDO підключення (для channels.php та інших API v2)
+// Note: use $pdo (not $db) to avoid overwriting the WoWonder MysqlMaria ORM $db
 // ============================================
 try {
     $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
-    $db = new PDO($dsn, DB_USER, DB_PASS, PDO_OPTIONS);
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, PDO_OPTIONS);
 } catch (PDOException $e) {
     error_log("Database connection failed: " . $e->getMessage());
     http_response_code(500);

@@ -28,7 +28,7 @@ if (!isset($sqlConnect) || !$sqlConnect) {
             exit;
         }
 
-        $user_id = validateAccessToken($db, $access_token);
+        $user_id = validateAccessToken($pdo, $access_token);
         if (!$user_id) {
             header('Content-Type: application/json; charset=UTF-8');
             http_response_code(401);
