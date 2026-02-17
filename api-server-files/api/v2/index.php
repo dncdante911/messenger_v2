@@ -50,7 +50,7 @@ if (!in_array($type, $public_endpoints)) {
     }
 
     // Validate token using config.php's validateAccessToken function
-    $user_id = validateAccessToken($db, $access_token);
+    $user_id = validateAccessToken($pdo, $access_token);
 
     if (!$user_id) {
         http_response_code(401);

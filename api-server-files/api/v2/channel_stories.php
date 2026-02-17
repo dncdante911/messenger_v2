@@ -14,6 +14,10 @@
 
 require_once(__DIR__ . '/config.php');
 
+// This standalone script uses PDO ($pdo from config.php) for all DB operations.
+// Reassign to $db for backward compatibility with existing code in this file.
+$db = $pdo;
+
 header('Content-Type: application/json');
 
 // ============================================
