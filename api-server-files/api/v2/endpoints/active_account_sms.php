@@ -26,12 +26,9 @@ foreach ($required_fields as $key => $value)
 }
 if (empty($error_code))
 {
-    $confirm_code = Wo_Secure($_POST['code']);
-    $user_id = Wo_Secure($_POST['user_id']);
-
-    // Find user by sms_code or email_code
-    $user_query = mysqli_query($sqlConnect, "SELECT `user_id` FROM " . T_USERS . " WHERE (`sms_code` = '{$confirm_code}' OR `email_code` = '{$confirm_code}') LIMIT 1");
-    $user = ($user_query && mysqli_num_rows($user_query) > 0) ? mysqli_fetch_assoc($user_query) : null;
+    $confirm_code = $_POST['code'];
+    $user_id = $_POST['user_id'];
+    $user = $db->where("(`sms_code` = '{$confirm_code}' OR `email_code` = '{$confirm_code}')")->getOne(T_USERS);
 
     if (empty($user))
     {
@@ -40,8 +37,8 @@ if (empty($error_code))
     }
     else
     {
-        // Activate account and clear verification codes
-        mysqli_query($sqlConnect, "UPDATE " . T_USERS . " SET `sms_code` = '0', `email_code` = '', `active` = '1' WHERE `user_id` = " . (int)$user['user_id']);
+        $db->where('user_id', $user->user_id)
+            ->update(T_USERS, ['sms_code' => '', 'email_code' => '', 'active' => '1', ]);
         $time = time();
         $cookie = '';
         $access_token = sha1(rand(111111111, 999999999)) . md5(microtime()) . rand(11111111, 99999999) . md5(rand(5555, 9999));

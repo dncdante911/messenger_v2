@@ -26,7 +26,7 @@ if (!$current_user_id) {
 
 try {
     // Check if user is admin/owner of the group
-    $stmt = $pdo->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$group_id, $current_user_id]);
     $role = $stmt->fetchColumn();
 
@@ -39,7 +39,7 @@ try {
     }
 
     // Delete all messages in the group
-    $stmt = $pdo->prepare("DELETE FROM Wo_Messages WHERE group_id = ?");
+    $stmt = $db->prepare("DELETE FROM Wo_Messages WHERE group_id = ?");
     $stmt->execute([$group_id]);
 
     $deleted_count = $stmt->rowCount();

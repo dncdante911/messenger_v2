@@ -5,64 +5,6 @@
 // | All bot operations via POST ?type=<action>
 // +------------------------------------------------------------------------+
 
-// Self-bootstrap: load config if not already loaded (direct access without index.php router)
-if (!isset($sqlConnect) || !$sqlConnect) {
-    require_once(__DIR__ . '/../config.php');
-
-    $request_type = $_POST['type'] ?? $_GET['type'] ?? '';
-    $access_token = $_GET['access_token'] ?? $_POST['access_token'] ?? '';
-    $has_bot_token = !empty($_POST['bot_token']);
-
-    // Public discovery endpoints should not require user auth.
-    $public_types = array('search_bots', 'get_bot_info');
-    $requires_user_auth = !$has_bot_token && !in_array($request_type, $public_types, true);
-
-    if ($requires_user_auth) {
-        if (empty($access_token)) {
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(401);
-            echo json_encode(array(
-                'api_status' => 401,
-                'error_message' => 'access_token is required'
-            ));
-            exit;
-        }
-
-        $user_id = validateAccessToken($pdo, $access_token);
-        if (!$user_id) {
-            header('Content-Type: application/json; charset=UTF-8');
-            http_response_code(401);
-            echo json_encode(array(
-                'api_status' => 401,
-                'error_message' => 'Invalid or missing access_token'
-            ));
-            exit;
-        }
-
-        // Minimal user context is enough for bot owner checks.
-        $wo['user'] = array('user_id' => (int)$user_id, 'id' => (int)$user_id);
-        $wo['loggedin'] = true;
-
-        // Try to enrich user context, but never allow enrichment failures to crash endpoint.
-        if (function_exists('Wo_UserData')) {
-            try {
-                $user_data = Wo_UserData($user_id);
-                if (!empty($user_data)) {
-                    $wo['user'] = $user_data;
-                    $wo['loggedin'] = true;
-                }
-            } catch (Throwable $e) {
-                error_log('bot_api.php Wo_UserData failed: ' . $e->getMessage());
-            }
-        }
-    }
-}
-
-// Set Content-Type header (may already be set by index.php)
-if (!headers_sent()) {
-    header('Content-Type: application/json; charset=UTF-8');
-}
-
 $response_data = array('api_status' => 400);
 
 // ==================== BOT TOKEN AUTHENTICATION ====================
@@ -373,80 +315,6 @@ if (empty($error_code)) {
             break;
 
         // ==================== MESSAGING (Bot endpoints) ====================
-
-        case 'user_to_bot':
-            // User sends message to bot (bridges Messenger chat -> Bot update queue)
-            if (empty($wo['user']) || empty($wo['user']['user_id'])) {
-                $error_code = 401;
-                $error_message = 'User auth required';
-                break;
-            }
-
-            if (empty($_POST['bot_id'])) {
-                $error_code = 3;
-                $error_message = 'bot_id is required';
-                break;
-            }
-
-            $target_bot_id = Wo_Secure($_POST['bot_id']);
-            $text = isset($_POST['text']) ? trim($_POST['text']) : '';
-            $chat_type = !empty($_POST['chat_type']) ? Wo_Secure($_POST['chat_type']) : 'private';
-
-            if ($text === '' && empty($_POST['callback_data'])) {
-                $error_code = 10;
-                $error_message = 'text or callback_data is required';
-                break;
-            }
-
-            $bot_exists = mysqli_query($sqlConnect, "SELECT bot_id, status FROM Wo_Bots WHERE bot_id = '{$target_bot_id}' LIMIT 1");
-            $bot_row = $bot_exists ? mysqli_fetch_assoc($bot_exists) : null;
-            if (!$bot_row || $bot_row['status'] !== 'active') {
-                $error_code = 404;
-                $error_message = 'Bot not found or inactive';
-                break;
-            }
-
-            $user_id = (int)$wo['user']['user_id'];
-            $callback_data = !empty($_POST['callback_data']) ? Wo_Secure($_POST['callback_data']) : null;
-
-            // Auto-detect slash command if client didn't provide explicit flags
-            $is_command = 0;
-            $command_name = null;
-            $command_args = null;
-            if (preg_match('/^\/([a-zA-Z0-9_]+)(?:\s+(.*))?$/u', $text, $m)) {
-                $is_command = 1;
-                $command_name = strtolower($m[1]);
-                $command_args = isset($m[2]) ? trim($m[2]) : null;
-            }
-
-            $safe_text = Wo_Secure($text);
-            $safe_chat_type = Wo_Secure($chat_type);
-            $safe_callback = $callback_data ? "'" . Wo_Secure($callback_data) . "'" : 'NULL';
-            $safe_cmd_name = $command_name ? "'" . Wo_Secure($command_name) . "'" : 'NULL';
-            $safe_cmd_args = $command_args ? "'" . Wo_Secure($command_args) . "'" : 'NULL';
-
-            $insert = mysqli_query($sqlConnect, "INSERT INTO Wo_Bot_Messages
-                (bot_id, chat_id, chat_type, direction, text, callback_data, is_command, command_name, command_args, processed, created_at)
-                VALUES ('{$target_bot_id}', '{$user_id}', '{$safe_chat_type}', 'incoming', '{$safe_text}', {$safe_callback}, {$is_command}, {$safe_cmd_name}, {$safe_cmd_args}, 0, NOW())");
-
-            if (!$insert) {
-                $error_code = 500;
-                $error_message = 'Failed to queue message for bot: ' . mysqli_error($sqlConnect);
-                break;
-            }
-
-            mysqli_query($sqlConnect, "UPDATE Wo_Bots SET messages_received = messages_received + 1, last_active_at = NOW() WHERE bot_id = '{$target_bot_id}'");
-            updateBotUser($sqlConnect, $target_bot_id, $user_id);
-
-            $response_data = array(
-                'api_status' => 200,
-                'message' => 'Message queued for bot',
-                'bot_id' => $target_bot_id,
-                'is_command' => $is_command,
-                'command_name' => $command_name,
-                'command_args' => $command_args
-            );
-            break;
 
         case 'send_message':
             // Bot sends a message to a user or group
@@ -1028,12 +896,6 @@ if (empty($error_code)) {
                 ORDER BY total_users DESC, created_at DESC
                 LIMIT {$offset}, {$limit}");
 
-            if (!$result) {
-                $error_code = 500;
-                $error_message = 'search_bots query failed: ' . mysqli_error($sqlConnect);
-                break;
-            }
-
             $bots = array();
             while ($row = mysqli_fetch_assoc($result)) {
                 $bots[] = $row;
@@ -1043,13 +905,6 @@ if (empty($error_code)) {
             $cats_result = mysqli_query($sqlConnect, "SELECT DISTINCT category, COUNT(*) as count
                 FROM Wo_Bots WHERE status = 'active' AND is_public = 1 AND category IS NOT NULL
                 GROUP BY category ORDER BY count DESC");
-
-            if (!$cats_result) {
-                $error_code = 500;
-                $error_message = 'search_bots categories query failed: ' . mysqli_error($sqlConnect);
-                break;
-            }
-
             $categories = array();
             while ($cat = mysqli_fetch_assoc($cats_result)) {
                 $categories[] = $cat;
@@ -1151,7 +1006,7 @@ if (empty($error_code)) {
 
         default:
             $error_code = 1;
-            $error_message = 'Unknown type: ' . $type . '. Available types: create_bot, get_my_bots, update_bot, delete_bot, regenerate_token, set_commands, get_commands, user_to_bot, send_message, edit_message, delete_message, get_updates, answer_callback_query, set_webhook, delete_webhook, get_webhook_info, send_poll, stop_poll, get_bot_info, search_bots, get_chat_member, set_user_state, get_user_state';
+            $error_message = 'Unknown type: ' . $type . '. Available types: create_bot, get_my_bots, update_bot, delete_bot, regenerate_token, set_commands, get_commands, send_message, edit_message, delete_message, get_updates, answer_callback_query, set_webhook, delete_webhook, get_webhook_info, send_poll, stop_poll, get_bot_info, search_bots, get_chat_member, set_user_state, get_user_state';
             break;
     }
 }
@@ -1411,7 +1266,3 @@ function notifyViaBotSocket($bot_id, $chat_id, $text, $message_id, $reply_markup
         // Redis not available, Socket.IO will pick up on next poll
     }
 }
-
-// ==================== OUTPUT RESPONSE ====================
-// Output JSON response (works both for direct access and index.php router)
-echo json_encode($response_data);
