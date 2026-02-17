@@ -1,0 +1,32 @@
+// Top-level build file
+buildscript {
+    // Для AGP 8.13+ лучше всего использовать Kotlin 2.1.0 или 2.1.10
+    ext.kotlin_version = '2.1.0'
+    ext.compose_version = '1.7.6'
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // Убедитесь, что здесь версия совпадает с тем, что в plugins
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+plugins {
+    id 'com.android.application' version '8.13.0' apply false
+    id 'com.android.library' version '8.13.0' apply false
+    // Версия плагина Kotlin должна строго соответствовать версии языка
+    id 'org.jetbrains.kotlin.android' version '2.1.0' apply false
+    // В Kotlin 2.0+ плагин Compose поставляется вместе с Kotlin
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.1.0' apply false
+    // KSP для Room Database (версия должна соответствовать Kotlin 2.1.0)
+    id 'com.google.devtools.ksp' version '2.1.0-1.0.29' apply false
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

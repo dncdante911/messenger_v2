@@ -1,0 +1,1867 @@
+package com.worldmates.messenger.ui.messages
+
+import android.app.Application
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.data.Constants
+import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.data.model.Message
+import com.worldmates.messenger.data.model.MessageReaction
+import com.worldmates.messenger.data.model.ReactionGroup
+import com.worldmates.messenger.network.FileManager
+import com.worldmates.messenger.network.MediaUploader
+import com.worldmates.messenger.network.MediaLoadingManager
+import com.worldmates.messenger.network.NetworkQualityMonitor
+import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.SocketManager
+import com.worldmates.messenger.utils.DecryptionUtility
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import com.worldmates.messenger.ui.messages.selection.ForwardRecipient
+import com.worldmates.messenger.data.repository.DraftRepository
+import com.worldmates.messenger.data.local.entity.Draft
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import org.json.JSONObject
+import java.io.File
+
+class MessagesViewModel(application: Application) :
+    AndroidViewModel(application), SocketManager.ExtendedSocketListener {
+
+    private val context = application
+
+    companion object {
+        private const val TAG = "MessagesViewModel"
+        private const val DRAFT_AUTO_SAVE_DELAY = 5000L // 5 секунд
+    }
+
+    init {
+        Log.d(TAG, "🚀 MessagesViewModel створено!")
+        Log.d(TAG, "Access Token: ${UserSession.accessToken?.take(10)}...")
+        Log.d(TAG, "User ID: ${UserSession.userId}")
+    }
+
+    private val _messages = MutableStateFlow<List<Message>>(emptyList())
+    val messages: StateFlow<List<Message>> = _messages
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
+    private val _uploadProgress = MutableStateFlow(0)
+    val uploadProgress: StateFlow<Int> = _uploadProgress
+
+    private val _isTyping = MutableStateFlow(false)
+    val isTyping: StateFlow<Boolean> = _isTyping
+
+    private val _recipientOnlineStatus = MutableStateFlow(false)
+    val recipientOnlineStatus: StateFlow<Boolean> = _recipientOnlineStatus
+
+    private val _forwardContacts = MutableStateFlow<List<ForwardRecipient>>(emptyList())
+    val forwardContacts: StateFlow<List<ForwardRecipient>> = _forwardContacts
+
+    private val _forwardGroups = MutableStateFlow<List<ForwardRecipient>>(emptyList())
+    val forwardGroups: StateFlow<List<ForwardRecipient>> = _forwardGroups
+
+    // ==================== GROUPS ====================
+    private val _currentGroup = MutableStateFlow<com.worldmates.messenger.data.model.Group?>(null)
+    val currentGroup: StateFlow<com.worldmates.messenger.data.model.Group?> = _currentGroup
+    // ==================== END GROUPS ====================
+
+    // ==================== SEARCH ====================
+    private val _searchResults = MutableStateFlow<List<Message>>(emptyList())
+    val searchResults: StateFlow<List<Message>> = _searchResults
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
+    private val _searchTotalCount = MutableStateFlow(0)
+    val searchTotalCount: StateFlow<Int> = _searchTotalCount
+
+    private val _currentSearchIndex = MutableStateFlow(0)
+    val currentSearchIndex: StateFlow<Int> = _currentSearchIndex
+
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching
+    // ==================== END SEARCH ====================
+
+    // ==================== DRAFTS ====================
+    private val draftRepository = DraftRepository.getInstance(context)
+
+    private val _currentDraft = MutableStateFlow<String>("")
+    val currentDraft: StateFlow<String> = _currentDraft
+
+    private val _isDraftSaving = MutableStateFlow(false)
+    val isDraftSaving: StateFlow<Boolean> = _isDraftSaving
+
+    private var draftAutoSaveJob: Job? = null
+    // ==================== END DRAFTS ====================
+
+    // ==================== ADAPTIVE TRANSPORT ====================
+    private val _connectionQuality = MutableStateFlow(
+        NetworkQualityMonitor.ConnectionQuality.GOOD
+    )
+    val connectionQuality: StateFlow<NetworkQualityMonitor.ConnectionQuality> = _connectionQuality
+
+    // MediaLoadingManager для прогресивного завантаження медіа
+    private val mediaLoader by lazy {
+        MediaLoadingManager(context)
+    }
+
+    private var qualityMonitorJob: Job? = null
+    // ==================== END ADAPTIVE TRANSPORT ====================
+
+    private var recipientId: Long = 0
+    private var groupId: Long = 0
+    private var topicId: Long = 0 // 📁 Topic/Subgroup ID for topic-based filtering
+    private var isBotChat: Boolean = false
+    private var botId: String = ""
+    private var socketManager: SocketManager? = null
+    private var mediaUploader: MediaUploader? = null
+    private var fileManager: FileManager? = null
+    private var messagePollingJob: Job? = null
+
+    // 🎥 Публічні getters для відеодзвінків
+    fun getRecipientId(): Long = recipientId
+    fun getGroupId(): Long = groupId
+    fun getTopicId(): Long = topicId
+
+    fun setBotMode(isBot: Boolean, botId: String) {
+        this.isBotChat = isBot
+        this.botId = botId
+        Log.d(TAG, "Bot mode: $isBot, botId=$botId")
+    }
+
+    fun initialize(recipientId: Long) {
+        Log.d("MessagesViewModel", "🔧 initialize() викликано для користувача $recipientId")
+        this.recipientId = recipientId
+        this.groupId = 0
+        this.topicId = 0
+        fetchMessages()
+        setupSocket()
+        startMessagePolling()
+        loadDraft()
+        Log.d("MessagesViewModel", "✅ Ініціалізація завершена для користувача $recipientId")
+    }
+
+    fun initializeGroup(groupId: Long, topicId: Long = 0) {
+        this.groupId = groupId
+        this.recipientId = 0
+        this.topicId = topicId
+        fetchGroupDetails(groupId)
+        fetchGroupMessages()
+        setupSocket()
+        startMessagePolling()
+        loadDraft()
+        if (topicId != 0L) {
+            Log.d("MessagesViewModel", "Ініціалізація для групи $groupId, topic $topicId")
+        } else {
+            Log.d("MessagesViewModel", "Ініціалізація для групи $groupId")
+        }
+    }
+
+    /**
+     * 📌 Отримати деталі групи (включаючи закріплене повідомлення)
+     */
+    private fun fetchGroupDetails(groupId: Long) {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.getGroupDetails(
+                    accessToken = UserSession.accessToken!!,
+                    groupId = groupId
+                )
+
+                if (response.apiStatus == 200 && response.group != null) {
+                    _currentGroup.value = response.group
+                    Log.d(TAG, "📌 Group details loaded: ${response.group.name}, pinned: ${response.group.pinnedMessage != null}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error fetching group details", e)
+            }
+        }
+    }
+
+    /**
+     * Завантажує історію повідомлень для особистого чату
+     */
+    fun fetchMessages(beforeMessageId: Long = 0) {
+        if (UserSession.accessToken == null || recipientId == 0L) {
+            _error.value = "Помилка: не авторизовано або невірний ID"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.getMessages(
+                    accessToken = UserSession.accessToken!!,
+                    recipientId = recipientId,
+                    limit = Constants.MESSAGES_PAGE_SIZE,
+                    beforeMessageId = beforeMessageId
+                )
+
+                if (response.apiStatus == 200 && response.messages != null) {
+                    val decryptedMessages = response.messages!!.map { msg ->
+                        decryptMessageFully(msg)
+                    }
+
+                    val currentMessages = _messages.value.toMutableList()
+                    currentMessages.addAll(decryptedMessages)
+                    _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+
+                    _error.value = null
+                    Log.d(TAG, "Завантажено ${decryptedMessages.size} повідомлень")
+                } else {
+                    _error.value = response.errorMessage ?: "Помилка завантаження повідомлень"
+                    Log.e(TAG, "API Error: ${response.apiStatus}")
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                Log.e(TAG, "Помилка завантаження повідомлень", e)
+            }
+        }
+    }
+
+    /**
+     * Завантажує повідомлення групи
+     */
+    private fun fetchGroupMessages(beforeMessageId: Long = 0) {
+        if (UserSession.accessToken == null || groupId == 0L) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                // Використовуємо API для групових повідомлень (з опціональною фільтрацією по топіку)
+                val response = RetrofitClient.apiService.getGroupMessages(
+                    accessToken = UserSession.accessToken!!,
+                    groupId = groupId,
+                    topicId = topicId, // Фільтруємо по топіку якщо вказано
+                    limit = Constants.MESSAGES_PAGE_SIZE,
+                    beforeMessageId = beforeMessageId
+                )
+
+                if (response.apiStatus == 200 && response.messages != null) {
+                    val decryptedMessages = response.messages!!.map { msg ->
+                        decryptMessageFully(msg)
+                    }
+
+                    val currentMessages = _messages.value.toMutableList()
+                    currentMessages.addAll(decryptedMessages)
+                    // Сортируем по времени (старые сверху, новые внизу)
+                    _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+
+                    _error.value = null
+                    if (topicId != 0L) {
+                        Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень топіку $topicId")
+                    } else {
+                        Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень групи")
+                    }
+                } else {
+                    _error.value = response.errorMessage ?: "Помилка завантаження повідомлень"
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                Log.e("MessagesViewModel", "Помилка завантаження повідомлень групи", e)
+            }
+        }
+    }
+
+    /**
+     * Надсилает текстовое сообщение
+     */
+    fun sendMessage(text: String, replyToId: Long? = null) {
+        if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L) || text.isBlank()) {
+            _error.value = "Не можна надіслати порожнє повідомлення"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                // Основной путь: Socket.IO → Node.js сохраняет в БД + доставляет получателю
+                val socketConnected = socketManager?.isConnected() == true
+
+                if (socketConnected) {
+                    // ========== SOCKET.IO (Node.js) ==========
+                    // Node.js PrivateMessageController / GroupMessageController:
+                    // 1) Сохраняет в wo_messages
+                    // 2) Эмитит получателю через Socket.IO
+                    // 3) Возвращает callback с message_id
+                    if (groupId != 0L) {
+                        socketManager?.sendGroupMessage(groupId, text, replyToId)
+                        Log.d(TAG, "Socket.IO: Відправлено групове повідомлення (Node.js збереже в БД)")
+                    } else {
+                        socketManager?.sendMessage(recipientId, text, replyToId)
+                        Log.d(TAG, "Socket.IO: Відправлено приватне повідомлення (Node.js збереже в БД)")
+                    }
+
+                    // Оптимістичне локальне повідомлення (показуємо одразу в UI)
+                    val localMessage = Message(
+                        id = System.currentTimeMillis(),
+                        fromId = UserSession.userId ?: 0,
+                        toId = if (groupId != 0L) 0 else recipientId,
+                        groupId = groupId,
+                        encryptedText = text,
+                        timeStamp = System.currentTimeMillis() / 1000,
+                        decryptedText = text,
+                        isLocalPending = true
+                    )
+
+                    val currentMessages = _messages.value.toMutableList()
+                    currentMessages.add(localMessage)
+                    _messages.value = currentMessages.sortedBy { it.timeStamp }
+
+                    _error.value = null
+                    deleteDraft()
+                    Log.d(TAG, "Повідомлення надіслано через Socket.IO (Node.js)")
+                } else {
+                    // ========== FALLBACK: PHP API (коли Socket.IO недоступний) ==========
+                    Log.w(TAG, "Socket.IO не підключено, використовуємо PHP API")
+                    val messageHashId = System.currentTimeMillis().toString()
+
+                    val response = if (groupId != 0L) {
+                        RetrofitClient.apiService.sendGroupMessage(
+                            accessToken = UserSession.accessToken!!,
+                            groupId = groupId,
+                            topicId = topicId,
+                            text = text,
+                            replyToId = replyToId
+                        )
+                    } else {
+                        RetrofitClient.apiService.sendMessage(
+                            accessToken = UserSession.accessToken!!,
+                            recipientId = recipientId,
+                            text = text,
+                            messageHashId = messageHashId,
+                            replyToId = replyToId
+                        )
+                    }
+
+                    if (response.apiStatus == 200) {
+                        val receivedMessages = response.allMessages
+                        if (receivedMessages != null && receivedMessages.isNotEmpty()) {
+                            val decryptedMessages = receivedMessages.map { msg -> decryptMessageFully(msg) }
+                            val currentMessages = _messages.value.toMutableList()
+                            currentMessages.addAll(decryptedMessages)
+                            _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                        } else {
+                            if (groupId != 0L) fetchGroupMessages() else fetchMessages()
+                        }
+                        _error.value = null
+                        deleteDraft()
+                        Log.d(TAG, "Повідомлення надіслано через PHP API (fallback)")
+                    } else {
+                        _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати повідомлення"
+                    }
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                Log.e(TAG, "Помилка надсилання повідомлення", e)
+            }
+        }
+    }
+
+    /**
+     * Редагує повідомлення
+     */
+    fun editMessage(messageId: Long, newText: String) {
+        if (UserSession.accessToken == null || newText.isBlank()) {
+            _error.value = "Не можна зберегти порожнє повідомлення"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.editMessage(
+                    accessToken = UserSession.accessToken!!,
+                    messageId = messageId,
+                    newText = newText
+                )
+
+                if (response.apiStatus == 200) {
+                    // Оновлюємо повідомлення в локальному списку
+                    val currentMessages = _messages.value.toMutableList()
+                    val index = currentMessages.indexOfFirst { it.id == messageId }
+
+                    if (index != -1) {
+                        val updatedMessage = currentMessages[index].copy(
+                            encryptedText = newText,
+                            decryptedText = newText
+                        )
+                        currentMessages[index] = updatedMessage
+                        _messages.value = currentMessages
+                        Log.d("MessagesViewModel", "Повідомлення відредаговано: $messageId")
+                    }
+
+                    _error.value = null
+                } else {
+                    _error.value = response.errors?.errorText ?: "Не вдалося відредагувати повідомлення"
+                    Log.e("MessagesViewModel", "Edit Error: ${response.errors?.errorText}")
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                Log.e("MessagesViewModel", "Помилка редагування повідомлення", e)
+            }
+        }
+    }
+
+    /**
+     * Видаляє повідомлення
+     */
+    fun deleteMessage(messageId: Long) {
+        if (UserSession.accessToken == null) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.deleteMessage(
+                    accessToken = UserSession.accessToken!!,
+                    messageId = messageId
+                )
+
+                if (response.apiStatus == 200) {
+                    // Видаляємо повідомлення з локального списку
+                    val currentMessages = _messages.value.toMutableList()
+                    currentMessages.removeAll { it.id == messageId }
+                    _messages.value = currentMessages
+                    Log.d("MessagesViewModel", "Повідомлення видалено: $messageId")
+
+                    _error.value = null
+                } else {
+                    _error.value = response.errors?.errorText ?: "Не вдалося видалити повідомлення"
+                    Log.e("MessagesViewModel", "Delete Error: ${response.errors?.errorText}")
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                Log.e("MessagesViewModel", "Помилка видалення повідомлення", e)
+            }
+        }
+    }
+
+    // ==================== РЕАКЦІЇ ====================
+
+    /**
+     * Додає або видаляє реакцію на повідомлення (toggle)
+     */
+    fun toggleReaction(messageId: Long, emoji: String) {
+        if (UserSession.accessToken == null) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                // Перевіряємо, чи вже є реакція від поточного користувача
+                val message = _messages.value.find { it.id == messageId }
+                val existingReactions = message?.reactions ?: emptyList()
+                val hasMyReaction = existingReactions.any {
+                    it.userId == UserSession.userId && it.reaction == emoji
+                }
+
+                val response = if (hasMyReaction) {
+                    // Видаляємо реакцію
+                    RetrofitClient.apiService.removeReaction(
+                        accessToken = UserSession.accessToken!!,
+                        messageId = messageId,
+                        reaction = emoji
+                    )
+                } else {
+                    // Додаємо реакцію
+                    RetrofitClient.apiService.addReaction(
+                        accessToken = UserSession.accessToken!!,
+                        messageId = messageId,
+                        reaction = emoji
+                    )
+                }
+
+                if (response.apiStatus == 200) {
+                    // Оновлюємо реакції для повідомлення
+                    fetchReactionsForMessage(messageId)
+                    Log.d("MessagesViewModel", "Реакцію ${if (hasMyReaction) "видалено" else "додано"}")
+                } else {
+                    _error.value = response.errorMessage ?: "Не вдалося оновити реакцію"
+                    Log.e("MessagesViewModel", "Reaction Error: ${response.errorMessage}")
+                }
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                Log.e("MessagesViewModel", "Помилка оновлення реакції", e)
+            }
+        }
+    }
+
+    /**
+     * Завантажує реакції для конкретного повідомлення
+     */
+    private suspend fun fetchReactionsForMessage(messageId: Long) {
+        try {
+            val response = RetrofitClient.apiService.getReactions(
+                accessToken = UserSession.accessToken!!,
+                messageId = messageId
+            )
+
+            if (response.apiStatus == 200 && response.reactions != null) {
+                // Оновлюємо список повідомлень з новими реакціями
+                val currentMessages = _messages.value.toMutableList()
+                val messageIndex = currentMessages.indexOfFirst { it.id == messageId }
+
+                if (messageIndex != -1) {
+                    val updatedMessage = currentMessages[messageIndex].copy(
+                        reactions = response.reactions
+                    )
+                    currentMessages[messageIndex] = updatedMessage
+                    _messages.value = currentMessages
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MessagesViewModel", "Помилка завантаження реакцій", e)
+        }
+    }
+
+    /**
+     * Групує реакції по емоджі для відображення під повідомленням
+     */
+    fun getReactionGroups(reactions: List<MessageReaction>): List<ReactionGroup> {
+        return reactions.groupBy { it.reaction }
+            .map { (emoji, reactionList) ->
+                ReactionGroup(
+                    emoji = emoji,
+                    count = reactionList.size,
+                    userIds = reactionList.map { it.userId },
+                    hasMyReaction = reactionList.any { it.userId == UserSession.userId }
+                )
+            }
+    }
+
+    // ==================== СТІКЕРИ ====================
+
+    /**
+     * Надсилає стікер
+     */
+    fun sendSticker(stickerId: Long) {
+        if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                val messageHashId = java.util.UUID.randomUUID().toString()
+
+                val response = RetrofitClient.apiService.sendSticker(
+                    accessToken = UserSession.accessToken!!,
+                    recipientId = recipientId.takeIf { it != 0L },
+                    groupId = groupId.takeIf { it != 0L },
+                    stickerId = stickerId,
+                    messageHashId = messageHashId
+                )
+
+                if (response.apiStatus == 200) {
+                    // Перезавантажуємо повідомлення
+                    if (groupId != 0L) {
+                        fetchGroupMessages()
+                    } else {
+                        fetchMessages()
+                    }
+
+                    _error.value = null
+                    Log.d("MessagesViewModel", "Стікер надіслано")
+                } else {
+                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати стікер"
+                    Log.e("MessagesViewModel", "Send Sticker Error: ${response.errors?.errorText ?: response.errorMessage}")
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                Log.e("MessagesViewModel", "Помилка надсилання стікера", e)
+            }
+        }
+    }
+
+    /**
+     * 🎬 Надсилає GIF
+     */
+    fun sendGif(gifUrl: String) {
+        if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+
+        if (gifUrl.isBlank()) {
+            _error.value = "GIF URL не може бути порожнім"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                val messageHashId = java.util.UUID.randomUUID().toString()
+
+                // Відправляємо GIF як медіа-повідомлення (текст = GIF URL)
+                val response = RetrofitClient.apiService.sendMessage(
+                    accessToken = UserSession.accessToken!!,
+                    recipientId = recipientId,
+                    text = gifUrl,  // GIF URL як текст (сервер розпізнає це як GIF)
+                    messageHashId = messageHashId,
+                    replyToId = null
+                )
+
+                if (response.apiStatus == 200) {
+                    Log.d(TAG, "✅ GIF sent successfully: $gifUrl")
+
+                    // Перезавантажуємо повідомлення
+                    if (groupId != 0L) {
+                        fetchGroupMessages()
+                    } else {
+                        fetchMessages()
+                    }
+
+                    _error.value = null
+                    Log.d(TAG, "GIF надіслано")
+                } else {
+                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати GIF"
+                    Log.e(TAG, "Send GIF Error: ${response.errors?.errorText ?: response.errorMessage}")
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                Log.e(TAG, "Помилка надсилання GIF", e)
+            }
+        }
+    }
+
+    /**
+     * 📍 Надсилає геолокацію
+     */
+    fun sendLocation(locationData: com.worldmates.messenger.data.repository.LocationData) {
+        if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                val messageHashId = java.util.UUID.randomUUID().toString()
+
+                // Формуємо текст з координатами та адресою
+                val locationText = """
+                    📍 ${locationData.address}
+                    ${locationData.latLng.latitude},${locationData.latLng.longitude}
+                """.trimIndent()
+
+                // Відправляємо геолокацію як текстове повідомлення
+                // В майбутньому можна додати спеціальний тип повідомлення для геолокації
+                val response = RetrofitClient.apiService.sendMessage(
+                    accessToken = UserSession.accessToken!!,
+                    recipientId = recipientId,
+                    text = locationText,
+                    messageHashId = messageHashId,
+                    replyToId = null
+                )
+
+                if (response.apiStatus == 200) {
+                    Log.d(TAG, "✅ Location sent successfully: ${locationData.latLng}")
+
+                    // Перезавантажуємо повідомлення
+                    if (groupId != 0L) {
+                        fetchGroupMessages()
+                    } else {
+                        fetchMessages()
+                    }
+
+                    _error.value = null
+                    Log.d(TAG, "Геолокацію надіслано")
+                } else {
+                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати геолокацію"
+                    Log.e(TAG, "Send Location Error: ${response.errors?.errorText ?: response.errorMessage}")
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                Log.e(TAG, "Помилка надсилання геолокації", e)
+            }
+        }
+    }
+
+    /**
+     * Отправка контакта (vCard)
+     */
+    fun sendContact(contact: com.worldmates.messenger.data.model.Contact) {
+        if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                val messageHashId = java.util.UUID.randomUUID().toString()
+
+                // Генерируем vCard
+                val vCardString = contact.toVCard()
+
+                // Формируем текст сообщения с префиксом для идентификации контакта
+                val contactText = "📇 VCARD\n$vCardString"
+
+                val response = if (groupId != 0L) {
+                    RetrofitClient.apiService.sendGroupMessage(
+                        accessToken = UserSession.accessToken!!,
+                        groupId = groupId,
+                        text = contactText,
+                        replyToId = null
+                    )
+                } else {
+                    RetrofitClient.apiService.sendMessage(
+                        accessToken = UserSession.accessToken!!,
+                        recipientId = recipientId,
+                        text = contactText,
+                        messageHashId = messageHashId,
+                        replyToId = null
+                    )
+                }
+
+                if (response.apiStatus == 200) {
+                    Log.d(TAG, "✅ Contact sent successfully: ${contact.name}")
+
+                    // Если API вернул сообщения, добавляем их
+                    if (response.messages != null && response.messages.isNotEmpty()) {
+                        val decryptedMessages = response.messages.map { msg ->
+                            decryptMessageFully(msg)
+                        }
+                        val currentMessages = _messages.value.toMutableList()
+                        currentMessages.addAll(decryptedMessages)
+                        _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                    } else {
+                        // Перезагружаем сообщения
+                        if (groupId != 0L) {
+                            fetchGroupMessages()
+                        } else {
+                            fetchMessages()
+                        }
+                    }
+
+                    // Отправляем через Socket.IO
+                    if (groupId != 0L) {
+                        socketManager?.sendGroupMessage(groupId, contactText)
+                    } else {
+                        socketManager?.sendMessage(recipientId, contactText)
+                    }
+
+                    _error.value = null
+                    Log.d(TAG, "Контакт надіслано")
+                } else {
+                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати контакт"
+                    Log.e(TAG, "Send Contact Error: ${response.errors?.errorText ?: response.errorMessage}")
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                Log.e(TAG, "Помилка надсилання контакту", e)
+            }
+        }
+    }
+
+    // ==================== DRAFT METHODS ====================
+
+    /**
+     * 📝 Загрузить черновик при открытии чата
+     */
+    fun loadDraft() {
+        val chatId = if (groupId != 0L) groupId else recipientId
+        if (chatId == 0L) return
+
+        viewModelScope.launch {
+            try {
+                val draft = draftRepository.getDraft(chatId)
+                if (draft != null) {
+                    _currentDraft.value = draft.text
+                    Log.d(TAG, "✅ Draft loaded: ${draft.text.take(50)}...")
+                } else {
+                    _currentDraft.value = ""
+                    Log.d(TAG, "📭 No draft found for chat $chatId")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error loading draft", e)
+            }
+        }
+    }
+
+    /**
+     * 📝 Обновить текст черновика и запустить автосохранение
+     */
+    fun updateDraftText(text: String) {
+        _currentDraft.value = text
+
+        // Отменяем предыдущую задачу автосохранения
+        draftAutoSaveJob?.cancel()
+
+        // Запускаем новую задачу с задержкой 5 секунд
+        draftAutoSaveJob = viewModelScope.launch {
+            delay(DRAFT_AUTO_SAVE_DELAY)
+            saveDraft(text)
+        }
+    }
+
+    /**
+     * 📝 Сохранить черновик в БД
+     */
+    private suspend fun saveDraft(text: String) {
+        val chatId = if (groupId != 0L) groupId else recipientId
+        if (chatId == 0L) return
+
+        _isDraftSaving.value = true
+
+        try {
+            val chatType = if (groupId != 0L)
+                Draft.CHAT_TYPE_GROUP
+            else
+                Draft.CHAT_TYPE_USER
+
+            draftRepository.saveDraft(
+                chatId = chatId,
+                text = text,
+                chatType = chatType
+            )
+
+            Log.d(TAG, "💾 Draft auto-saved for chat $chatId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error saving draft", e)
+        } finally {
+            _isDraftSaving.value = false
+        }
+    }
+
+    /**
+     * 📝 Удалить черновик (при отправке сообщения)
+     */
+    fun deleteDraft() {
+        val chatId = if (groupId != 0L) groupId else recipientId
+        if (chatId == 0L) return
+
+        // Отменяем автосохранение
+        draftAutoSaveJob?.cancel()
+
+        viewModelScope.launch {
+            try {
+                draftRepository.deleteDraft(chatId)
+                _currentDraft.value = ""
+                Log.d(TAG, "🗑️ Draft deleted for chat $chatId")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error deleting draft", e)
+            }
+        }
+    }
+
+    // ==================== END DRAFT METHODS ====================
+
+    /**
+     * Загружает и отправляет медиа-файл
+     */
+    fun uploadAndSendMedia(file: File, mediaType: String) {
+        if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+
+        if (!file.exists()) {
+            _error.value = "Файл не знайдено"
+            return
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                if (mediaUploader == null) {
+                    mediaUploader = MediaUploader(context)
+                }
+
+                val result = mediaUploader!!.uploadMedia(
+                    accessToken = UserSession.accessToken!!,
+                    mediaType = mediaType,
+                    filePath = file.absolutePath,
+                    recipientId = recipientId.takeIf { it != 0L },
+                    groupId = groupId.takeIf { it != 0L },
+                    isPremium = false,
+                    onProgress = { progress ->
+                        _uploadProgress.value = progress
+                    }
+                )
+
+                when (result) {
+                    is MediaUploader.UploadResult.Success -> {
+                        _uploadProgress.value = 0
+                        _error.value = null
+                        Log.d("MessagesViewModel", "Медіа завантажено: ${result.url}")
+
+                        // Обновляем список сообщений для автообновления
+                        if (groupId != 0L) {
+                            fetchGroupMessages()
+                        } else {
+                            fetchMessages()
+                        }
+
+                        // Чистимо файл
+                        if (file.exists()) {
+                            file.delete()
+                        }
+                    }
+                    is MediaUploader.UploadResult.Error -> {
+                        _error.value = result.message
+                        _uploadProgress.value = 0
+                        Log.e("MessagesViewModel", "Помилка завантаження: ${result.message}")
+                    }
+                    is MediaUploader.UploadResult.Progress -> {
+                        _uploadProgress.value = result.percent
+                    }
+                }
+
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                _isLoading.value = false
+                _uploadProgress.value = 0
+                Log.e("MessagesViewModel", "Помилка завантаження медіа", e)
+            }
+        }
+    }
+
+    /**
+     * Отправляет сообщение с медиа-ссылкой
+     */
+    private fun sendMediaMessage(mediaUrl: String, mediaType: String, caption: String) {
+        if (UserSession.accessToken == null) return
+
+        // Для простоты отправляем как текстовое сообщение с URL
+        val messageText = if (caption.isNotEmpty()) "$caption\n$mediaUrl" else "📎 $mediaType"
+        sendMessage(messageText)
+    }
+
+    /**
+     * Налаштовує Socket.IO для получения сообщений в реальном времени
+     * + Адаптивний моніторинг якості з'єднання
+     */
+    private fun setupSocket() {
+        Log.d(TAG, "🔌 setupSocket() викликано")
+        try {
+            // Створюємо SocketManager з context для NetworkQualityMonitor
+            socketManager = SocketManager(this, context)
+            Log.d(TAG, "✅ SocketManager створено з адаптивним моніторингом")
+
+            socketManager?.connect()
+            Log.d(TAG, "✅ Socket.IO connect() викликано")
+
+            // Запускаємо моніторинг якості з'єднання для UI
+            startQualityMonitoring()
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Помилка Socket.IO", e)
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Моніторинг якості з'єднання для оновлення UI
+     */
+    private fun startQualityMonitoring() {
+        qualityMonitorJob?.cancel()
+        qualityMonitorJob = viewModelScope.launch {
+            while (true) {
+                try {
+                    val quality = socketManager?.getConnectionQuality()
+                        ?: NetworkQualityMonitor.ConnectionQuality.OFFLINE
+
+                    if (_connectionQuality.value != quality) {
+                        _connectionQuality.value = quality
+                        Log.d(TAG, "📊 Connection quality changed: $quality")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error monitoring quality", e)
+                }
+
+                delay(5000) // Перевіряємо кожні 5 секунд
+            }
+        }
+    }
+
+    override fun onNewMessage(messageJson: JSONObject) {
+        try {
+            Log.d("MessagesViewModel", "📨 Отримано Socket.IO повідомлення: $messageJson")
+
+            val timestamp = messageJson.getLong("time")
+            val encryptedText = messageJson.optString("text", null)
+            val mediaUrl = messageJson.optString("media", null)
+
+            // Поддержка AES-GCM (v2) - новые поля
+            val iv = messageJson.optString("iv", null)?.takeIf { it.isNotEmpty() }
+            val tag = messageJson.optString("tag", null)?.takeIf { it.isNotEmpty() }
+            val cipherVersion = if (messageJson.has("cipher_version")) {
+                messageJson.getInt("cipher_version")
+            } else null
+
+            // Дешифруем текст с поддержкой GCM
+            val decryptedText = DecryptionUtility.decryptMessageOrOriginal(
+                text = encryptedText,
+                timestamp = timestamp,
+                iv = iv,
+                tag = tag,
+                cipherVersion = cipherVersion
+            )
+
+            // Дешифруем URL медиа с поддержкой GCM
+            val decryptedMediaUrl = DecryptionUtility.decryptMediaUrl(
+                mediaUrl = mediaUrl,
+                timestamp = timestamp,
+                iv = iv,
+                tag = tag,
+                cipherVersion = cipherVersion
+            )
+
+            // Пытаемся извлечь URL медиа из текста, если mediaUrl пуст
+            val finalMediaUrl = decryptedMediaUrl
+                ?: DecryptionUtility.extractMediaUrlFromText(decryptedText)
+
+            val message = Message(
+                id = messageJson.getLong("id"),
+                fromId = messageJson.getLong("from_id"),
+                toId = messageJson.getLong("to_id"),
+                groupId = messageJson.optLong("group_id", 0).takeIf { it != 0L },
+                encryptedText = encryptedText,
+                timeStamp = timestamp,
+                mediaUrl = mediaUrl,
+                type = messageJson.optString("type", Constants.MESSAGE_TYPE_TEXT),
+                senderName = messageJson.optString("sender_name", null),
+                senderAvatar = messageJson.optString("sender_avatar", null),
+                // Поля для AES-GCM (v2)
+                iv = iv,
+                tag = tag,
+                cipherVersion = cipherVersion,
+                // Дешифрованные данные
+                decryptedText = decryptedText,
+                decryptedMediaUrl = finalMediaUrl
+            )
+
+            // Проверяем, принадлежит ли сообщение текущему диалогу
+            val isRelevant = if (groupId != 0L) {
+                message.groupId == groupId
+            } else {
+                (message.fromId == recipientId && message.toId == UserSession.userId) ||
+                        (message.fromId == UserSession.userId && message.toId == recipientId)
+            }
+
+            if (isRelevant) {
+                val currentMessages = _messages.value.toMutableList()
+                currentMessages.add(message)
+                // Сортируем по времени (старые сверху, новые внизу)
+                _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                Log.d("MessagesViewModel", "Додано нове повідомлення від Socket.IO: ${message.decryptedText}")
+                Log.d("MessagesViewModel", "Нове повідомлення додано")
+            }
+        } catch (e: Exception) {
+            Log.e("MessagesViewModel", "Помилка обробки повідомлення", e)
+        }
+    }
+
+    override fun onSocketConnected() {
+        Log.i("MessagesViewModel", "Socket підключено успішно")
+        _error.value = null
+    }
+
+    override fun onSocketDisconnected() {
+        Log.w("MessagesViewModel", "Socket відключено")
+        _error.value = "Втрачено з'єднання з сервером"
+    }
+
+    override fun onSocketError(error: String) {
+        Log.e("MessagesViewModel", "Помилка Socket: $error")
+        _error.value = error
+    }
+
+    override fun onTypingStatus(userId: Long?, isTyping: Boolean) {
+        if (userId == recipientId) {
+            _isTyping.value = isTyping
+            // ВАЖНО: Если пользователь печатает, значит он онлайн!
+            if (isTyping) {
+                _recipientOnlineStatus.value = true
+            }
+            Log.d("MessagesViewModel", "Користувач $userId ${if (isTyping) "набирає" else "зупинив набір"}")
+        }
+    }
+
+    override fun onUserOnline(userId: Long) {
+        if (userId == recipientId) {
+            _recipientOnlineStatus.value = true
+            Log.d("MessagesViewModel", "✅ Користувач $userId з'явився онлайн")
+        }
+    }
+
+    override fun onUserOffline(userId: Long) {
+        if (userId == recipientId) {
+            // ВАЖНО: Не сбрасываем статус, если пользователь печатает
+            if (!_isTyping.value) {
+                _recipientOnlineStatus.value = false
+                Log.d("MessagesViewModel", "❌ Користувач $userId з'явився офлайн")
+            } else {
+                Log.d("MessagesViewModel", "⚠️ Ігноруємо offline для $userId (друкує)")
+            }
+        }
+    }
+
+    /**
+     * Отправляет событие "набирает текст" через Socket.IO
+     */
+    fun sendTypingStatus(isTyping: Boolean) {
+        if (recipientId == 0L) return
+
+        socketManager?.emit(Constants.SOCKET_EVENT_TYPING, JSONObject().apply {
+            put("user_id", UserSession.userId)  // Кто печатает
+            put("recipient_id", recipientId)  // Кому отправляем
+            // Формат WoWonder: is_typing = 200 (печатает) или 300 (закончил)
+            put("is_typing", if (isTyping) 200 else 300)
+        })
+        Log.d("MessagesViewModel", "Відправлено статус 'печатає': $isTyping для користувача $recipientId")
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+
+    /**
+     * Полностью дешифрует сообщение: текст и URL медиа.
+     * Также пытается извлечь URL медиа из текста сообщения.
+     * Поддерживает AES-GCM (v2) и обратную совместимость с AES-ECB (v1).
+     */
+    private fun decryptMessageFully(msg: Message): Message {
+        // Дешифруем текст с поддержкой GCM
+        val decryptedText = DecryptionUtility.decryptMessageOrOriginal(
+            text = msg.encryptedText,
+            timestamp = msg.timeStamp,
+            iv = msg.iv,
+            tag = msg.tag,
+            cipherVersion = msg.cipherVersion
+        )
+
+        // Дешифруем URL медиа с поддержкой GCM
+        val decryptedMediaUrl = DecryptionUtility.decryptMediaUrl(
+            mediaUrl = msg.mediaUrl,
+            timestamp = msg.timeStamp,
+            iv = msg.iv,
+            tag = msg.tag,
+            cipherVersion = msg.cipherVersion
+        )
+
+        // Пытаемся извлечь URL медиа из текста, если mediaUrl пуст
+        val finalMediaUrl = decryptedMediaUrl
+            ?: DecryptionUtility.extractMediaUrlFromText(decryptedText)
+
+        return msg.copy(
+            decryptedText = decryptedText,
+            decryptedMediaUrl = finalMediaUrl
+        )
+    }
+
+    /**
+     * 📤 Завантажує список контактів для пересилання
+     */
+    fun loadForwardContacts() {
+        if (UserSession.accessToken == null) {
+            Log.e("MessagesViewModel", "Не авторизовано")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.getChats(
+                    accessToken = UserSession.accessToken!!,
+                    dataType = "users", // Тільки користувачі
+                    limit = 100
+                )
+
+                if (response.apiStatus == 200) {
+                    // Конвертуємо чати в ForwardRecipient
+                    val contacts = response.chats?.map { chat ->
+                        ForwardRecipient(
+                            id = chat.userId,
+                            name = chat.username ?: "Користувач",
+                            avatarUrl = chat.avatarUrl ?: "",
+                            isGroup = false
+                        )
+                    } ?: emptyList()
+
+                    _forwardContacts.value = contacts
+                    Log.d("MessagesViewModel", "Завантажено ${contacts.size} контактів для пересилання")
+                } else {
+                    Log.e("MessagesViewModel", "Помилка завантаження контактів: ${response.errorMessage}")
+                }
+            } catch (e: Exception) {
+                Log.e("MessagesViewModel", "Помилка завантаження контактів", e)
+            }
+        }
+    }
+
+    /**
+     * 📤 Завантажує список груп для пересилання
+     */
+    fun loadForwardGroups() {
+        if (UserSession.accessToken == null) {
+            Log.e("MessagesViewModel", "Не авторизовано")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.getGroups(
+                    accessToken = UserSession.accessToken!!,
+                    type = "get_list",
+                    limit = 100
+                )
+
+                if (response.apiStatus == 200) {
+                    // Конвертуємо групи в ForwardRecipient
+                    val groups = response.groups?.map { group ->
+                        ForwardRecipient(
+                            id = group.id,
+                            name = group.name,
+                            avatarUrl = group.avatarUrl,
+                            isGroup = true
+                        )
+                    } ?: emptyList()
+
+                    _forwardGroups.value = groups
+                    Log.d("MessagesViewModel", "Завантажено ${groups.size} груп для пересилання")
+                } else {
+                    Log.e("MessagesViewModel", "Помилка завантаження груп: ${response.errorMessage}")
+                }
+            } catch (e: Exception) {
+                Log.e("MessagesViewModel", "Помилка завантаження груп", e)
+            }
+        }
+    }
+
+    /**
+     * 📤 Пересилає повідомлення до вибраних отримувачів
+     */
+    fun forwardMessages(messageIds: Set<Long>, recipientIds: List<Long>) {
+        if (UserSession.accessToken == null) {
+            Log.e("MessagesViewModel", "Не авторизовано")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                messageIds.forEach { messageId ->
+                    // Знаходимо повідомлення
+                    val message = _messages.value.find { it.id == messageId }
+                    if (message != null) {
+                        recipientIds.forEach { recipientId ->
+                            // Визначаємо чи це група чи користувач
+                            val isGroup = _forwardGroups.value.any { it.id == recipientId }
+
+                            if (isGroup) {
+                                // Пересилаємо в групу
+                                RetrofitClient.apiService.sendGroupMessage(
+                                    accessToken = UserSession.accessToken!!,
+                                    type = "send_message",
+                                    groupId = recipientId,
+                                    text = message.decryptedText ?: ""
+                                )
+                                Log.d("MessagesViewModel", "Переслано повідомлення $messageId в групу $recipientId")
+                            } else {
+                                // Пересилаємо користувачу
+                                val messageHashId = "${System.currentTimeMillis()}_${(0..999999).random()}"
+                                RetrofitClient.apiService.sendMessage(
+                                    accessToken = UserSession.accessToken!!,
+                                    recipientId = recipientId,
+                                    text = message.decryptedText ?: "",
+                                    messageHashId = messageHashId
+                                )
+                                Log.d("MessagesViewModel", "Переслано повідомлення $messageId користувачу $recipientId")
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MessagesViewModel", "Помилка пересилання", e)
+            }
+        }
+    }
+
+    /**
+     * 📌 Закріпити повідомлення в групі
+     */
+    fun pinGroupMessage(
+        messageId: Long,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null || groupId == 0L) {
+            onError("Не авторизовано або це не група")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.pinGroupMessage(
+                    accessToken = UserSession.accessToken!!,
+                    groupId = groupId,
+                    messageId = messageId
+                )
+
+                if (response.apiStatus == 200) {
+                    // Оновлюємо дані групи
+                    fetchGroupDetails(groupId)
+                    onSuccess()
+                    Log.d(TAG, "📌 Message $messageId pinned in group $groupId")
+                } else {
+                    val errorMsg = response.message ?: "Не вдалося закріпити повідомлення"
+                    onError(errorMsg)
+                    Log.e(TAG, "❌ Failed to pin message: ${response.message}")
+                }
+            } catch (e: Exception) {
+                val errorMsg = "Помилка: ${e.localizedMessage}"
+                onError(errorMsg)
+                Log.e(TAG, "❌ Error pinning message", e)
+            }
+        }
+    }
+
+    /**
+     * 📌 Відкріпити повідомлення в групі
+     */
+    fun unpinGroupMessage(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null || groupId == 0L) {
+            onError("Не авторизовано або це не група")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.unpinGroupMessage(
+                    accessToken = UserSession.accessToken!!,
+                    groupId = groupId
+                )
+
+                if (response.apiStatus == 200) {
+                    // Оновлюємо дані групи
+                    fetchGroupDetails(groupId)
+                    onSuccess()
+                    Log.d(TAG, "📌 Message unpinned in group $groupId")
+                } else {
+                    val errorMsg = response.message ?: "Не вдалося відкріпити повідомлення"
+                    onError(errorMsg)
+                    Log.e(TAG, "❌ Failed to unpin message: ${response.message}")
+                }
+            } catch (e: Exception) {
+                val errorMsg = "Помилка: ${e.localizedMessage}"
+                onError(errorMsg)
+                Log.e(TAG, "❌ Error unpinning message", e)
+            }
+        }
+    }
+
+    /**
+     * 🔕 Вимкнути сповіщення для групи
+     */
+    fun muteGroup(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null || groupId == 0L) {
+            onError("Не авторизовано або це не група")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.muteGroup(
+                    accessToken = UserSession.accessToken!!,
+                    groupId = groupId
+                )
+
+                if (response.apiStatus == 200) {
+                    // Оновлюємо дані групи
+                    fetchGroupDetails(groupId)
+                    onSuccess()
+                    Log.d(TAG, "🔕 Group $groupId muted")
+                } else {
+                    val errorMsg = response.message ?: "Не вдалося вимкнути сповіщення"
+                    onError(errorMsg)
+                    Log.e(TAG, "❌ Failed to mute group: ${response.message}")
+                }
+            } catch (e: Exception) {
+                val errorMsg = "Помилка: ${e.localizedMessage}"
+                onError(errorMsg)
+                Log.e(TAG, "❌ Error muting group", e)
+            }
+        }
+    }
+
+    /**
+     * 🔔 Увімкнути сповіщення для групи
+     */
+    fun unmuteGroup(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null || groupId == 0L) {
+            onError("Не авторизовано або це не група")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.unmuteGroup(
+                    accessToken = UserSession.accessToken!!,
+                    groupId = groupId
+                )
+
+                if (response.apiStatus == 200) {
+                    // Оновлюємо дані групи
+                    fetchGroupDetails(groupId)
+                    onSuccess()
+                    Log.d(TAG, "🔔 Group $groupId unmuted")
+                } else {
+                    val errorMsg = response.message ?: "Не вдалося увімкнути сповіщення"
+                    onError(errorMsg)
+                    Log.e(TAG, "❌ Failed to unmute group: ${response.message}")
+                }
+            } catch (e: Exception) {
+                val errorMsg = "Помилка: ${e.localizedMessage}"
+                onError(errorMsg)
+                Log.e(TAG, "❌ Error unmuting group", e)
+            }
+        }
+    }
+
+    /**
+     * 🔍 Поиск сообщений в группе
+     */
+    fun searchGroupMessages(query: String) {
+        if (UserSession.accessToken == null || groupId == 0L) {
+            Log.e(TAG, "Cannot search: not authorized or not in group")
+            return
+        }
+
+        if (query.length < 2) {
+            // Очищаем результаты поиска
+            _searchResults.value = emptyList()
+            _searchQuery.value = ""
+            _searchTotalCount.value = 0
+            _currentSearchIndex.value = 0
+            return
+        }
+
+        _isSearching.value = true
+        _searchQuery.value = query
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.searchGroupMessages(
+                    accessToken = UserSession.accessToken!!,
+                    groupId = groupId,
+                    query = query,
+                    limit = 100
+                )
+
+                if (response.apiStatus == 200) {
+                    val messages = response.messages ?: emptyList()
+                    _searchResults.value = messages
+                    _searchTotalCount.value = response.totalCount
+                    _currentSearchIndex.value = if (messages.isNotEmpty()) 0 else -1
+                    Log.d(TAG, "🔍 Search completed: found ${response.totalCount} results for '$query'")
+                } else {
+                    Log.e(TAG, "❌ Search failed: ${response.message}")
+                    _searchResults.value = emptyList()
+                    _searchTotalCount.value = 0
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error searching messages", e)
+                _searchResults.value = emptyList()
+                _searchTotalCount.value = 0
+            } finally {
+                _isSearching.value = false
+            }
+        }
+    }
+
+    /**
+     * 🔍 Перейти к следующему результату поиска
+     */
+    fun nextSearchResult() {
+        val results = _searchResults.value
+        if (results.isEmpty()) return
+
+        val currentIndex = _currentSearchIndex.value
+        val nextIndex = (currentIndex + 1) % results.size
+        _currentSearchIndex.value = nextIndex
+        Log.d(TAG, "🔍 Next result: ${nextIndex + 1} of ${results.size}")
+    }
+
+    /**
+     * 🔍 Перейти к предыдущему результату поиска
+     */
+    fun previousSearchResult() {
+        val results = _searchResults.value
+        if (results.isEmpty()) return
+
+        val currentIndex = _currentSearchIndex.value
+        val prevIndex = if (currentIndex > 0) currentIndex - 1 else results.size - 1
+        _currentSearchIndex.value = prevIndex
+        Log.d(TAG, "🔍 Previous result: ${prevIndex + 1} of ${results.size}")
+    }
+
+    /**
+     * 🔍 Очистить результаты поиска
+     */
+    fun clearSearch() {
+        _searchResults.value = emptyList()
+        _searchQuery.value = ""
+        _searchTotalCount.value = 0
+        _currentSearchIndex.value = 0
+        _isSearching.value = false
+        Log.d(TAG, "🔍 Search cleared")
+    }
+
+    /**
+     * 🔍 Установить поисковый запрос
+     */
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+        Log.d(TAG, "🔍 Search query set to: $query")
+    }
+
+    // ==================== MEDIA LOADING ====================
+
+    /**
+     * 📥 Завантажити превью (thumbnail) для медіа-повідомлення
+     * Викликається автоматично при скролі до повідомлення з медіа
+     */
+    fun loadMessageThumbnail(message: Message) {
+        if (message.mediaUrl.isNullOrEmpty()) {
+            Log.d(TAG, "⚠️ Message ${message.id} has no media URL")
+            return
+        }
+
+        // Перевіряємо чи можна завантажувати медіа
+        if (!socketManager?.canAutoLoadMedia()!!) {
+            Log.d(TAG, "⚠️ Auto-loading disabled due to connection quality")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val progressFlow = mediaLoader.loadThumbnail(
+                    messageId = message.id,
+                    thumbnailUrl = message.mediaUrl,
+                    priority = 5
+                )
+
+                progressFlow.collect { state ->
+                    when (state.state) {
+                        MediaLoadingManager.LoadingState.THUMB_LOADED -> {
+                            Log.d(TAG, "✅ Thumbnail loaded for message ${message.id}")
+                            // UI автоматично оновиться через StateFlow
+                        }
+                        MediaLoadingManager.LoadingState.ERROR -> {
+                            Log.e(TAG, "❌ Failed to load thumbnail: ${state.error}")
+                        }
+                        else -> {
+                            // Loading...
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading thumbnail", e)
+            }
+        }
+    }
+
+    /**
+     * 📥 Завантажити повне медіа (при кліку користувача)
+     */
+    fun loadFullMedia(message: Message) {
+        if (message.mediaUrl.isNullOrEmpty()) {
+            Log.d(TAG, "⚠️ Message ${message.id} has no media URL")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val progressFlow = mediaLoader.loadFullMedia(
+                    messageId = message.id,
+                    mediaUrl = message.mediaUrl,
+                    priority = 10 // Вищий пріоритет для повного медіа
+                )
+
+                progressFlow.collect { state ->
+                    when (state.state) {
+                        MediaLoadingManager.LoadingState.LOADING_FULL -> {
+                            Log.d(TAG, "📥 Loading full media: ${state.progress}%")
+                        }
+                        MediaLoadingManager.LoadingState.FULL_LOADED -> {
+                            Log.d(TAG, "✅ Full media loaded for message ${message.id}")
+                            // UI автоматично оновиться
+                        }
+                        MediaLoadingManager.LoadingState.ERROR -> {
+                            Log.e(TAG, "❌ Failed to load full media: ${state.error}")
+                            _error.value = "Не вдалося завантажити медіа"
+                        }
+                        else -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading full media", e)
+                _error.value = "Помилка завантаження: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Чи можна завантажувати медіа автоматично?
+     * Залежить від якості з'єднання
+     */
+    fun shouldAutoLoadMedia(): Boolean {
+        return socketManager?.canAutoLoadMedia() ?: true
+    }
+
+    /**
+     * Отримати опис якості з'єднання для відображення в UI
+     */
+    fun getQualityDescription(): String {
+        return socketManager?.getQualityDescription() ?: "🔴 Немає з'єднання"
+    }
+
+    // ==================== END MEDIA LOADING ====================
+
+    // ==================== CHAT ACTIONS ====================
+
+    /**
+     * 🗑️ Очистити історію чату
+     */
+    fun clearChatHistory(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null) {
+            onError("Не авторизовано")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = if (groupId != 0L) {
+                    // Очищення для групи
+                    RetrofitClient.apiService.clearGroupChatHistory(
+                        accessToken = UserSession.accessToken!!,
+                        groupId = groupId
+                    )
+                } else {
+                    // Очищення для приватного чату
+                    RetrofitClient.apiService.clearChatHistory(
+                        accessToken = UserSession.accessToken!!,
+                        userId = recipientId
+                    )
+                }
+
+                if (response.apiStatus == 200) {
+                    // Очищаємо локальний список повідомлень
+                    _messages.value = emptyList()
+                    onSuccess()
+                    Log.d(TAG, "🗑️ Chat history cleared")
+                } else {
+                    val errorMsg = response.message ?: "Не вдалося очистити історію"
+                    onError(errorMsg)
+                    Log.e(TAG, "❌ Failed to clear chat history: $errorMsg")
+                }
+            } catch (e: Exception) {
+                val errorMsg = "Помилка: ${e.localizedMessage}"
+                onError(errorMsg)
+                Log.e(TAG, "❌ Error clearing chat history", e)
+            }
+        }
+    }
+
+    /**
+     * 🚫 Заблокувати користувача
+     */
+    fun blockUser(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null || recipientId == 0L) {
+            onError("Не авторизовано або невірний користувач")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.blockUser(
+                    accessToken = UserSession.accessToken!!,
+                    userId = recipientId
+                )
+
+                if (response.apiStatus == 200) {
+                    onSuccess()
+                    Log.d(TAG, "🚫 User $recipientId blocked")
+                } else {
+                    val errorMsg = response.message ?: "Не вдалося заблокувати користувача"
+                    onError(errorMsg)
+                    Log.e(TAG, "❌ Failed to block user: $errorMsg")
+                }
+            } catch (e: Exception) {
+                val errorMsg = "Помилка: ${e.localizedMessage}"
+                onError(errorMsg)
+                Log.e(TAG, "❌ Error blocking user", e)
+            }
+        }
+    }
+
+    // ==================== END CHAT ACTIONS ====================
+
+    // ==================== TEXT FORMATTING ====================
+
+    /**
+     * Застосовує форматування до тексту
+     * Обгортає весь текст у вказані маркери форматування
+     *
+     * @param text Текст для форматування
+     * @param prefix Маркер на початку (наприклад, "**" для жирного)
+     * @param suffix Маркер в кінці (наприклад, "**" для жирного)
+     * @return Відформатований текст
+     */
+    fun applyFormatting(text: String, prefix: String, suffix: String): String {
+        return if (text.isNotEmpty()) {
+            "$prefix$text$suffix"
+        } else {
+            "$prefix$suffix" // Повертаємо порожні маркери, щоб користувач міг друкувати між ними
+        }
+    }
+
+    // ==================== END TEXT FORMATTING ====================
+
+    /**
+     * Періодичне оновлення повідомлень (fallback якщо Socket.IO не працює)
+     */
+    private fun startMessagePolling() {
+        messagePollingJob?.cancel()
+        messagePollingJob = viewModelScope.launch {
+            while (isActive) {
+                kotlinx.coroutines.delay(15000) // Кожні 15 секунд (Socket.IO — основний транспорт)
+                refreshLatestMessages()
+            }
+        }
+        Log.d(TAG, "🔄 Polling повідомлень запущено (кожні 15с, fallback)")
+    }
+
+    /**
+     * Оновлює останні повідомлення з сервера (легкий запит)
+     */
+    private fun refreshLatestMessages() {
+        if (UserSession.accessToken == null) return
+
+        viewModelScope.launch {
+            try {
+                val response = if (groupId != 0L) {
+                    RetrofitClient.apiService.getGroupMessages(
+                        accessToken = UserSession.accessToken!!,
+                        groupId = groupId,
+                        topicId = topicId,
+                        limit = 15,
+                        beforeMessageId = 0
+                    )
+                } else if (recipientId != 0L) {
+                    RetrofitClient.apiService.getMessages(
+                        accessToken = UserSession.accessToken!!,
+                        recipientId = recipientId,
+                        limit = 15,
+                        beforeMessageId = 0
+                    )
+                } else return@launch
+
+                if (response.apiStatus == 200 && response.messages != null) {
+                    val newMessages = response.messages!!.map { msg -> decryptMessageFully(msg) }
+                    val currentMessages = _messages.value
+                    val currentIds = currentMessages.map { it.id }.toSet()
+
+                    val trulyNew = newMessages.filter { it.id !in currentIds }
+
+                    if (trulyNew.isNotEmpty()) {
+                        val updated = (currentMessages + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp }
+                        _messages.value = updated
+                        Log.d(TAG, "🔄 Polling: додано ${trulyNew.size} нових повідомлень")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Polling error: ${e.message}")
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+
+        // Зупиняємо polling
+        messagePollingJob?.cancel()
+
+        // Зупиняємо Socket.IO
+        socketManager?.disconnect()
+
+        // Зупиняємо моніторинг якості
+        qualityMonitorJob?.cancel()
+
+        // Зупиняємо автозбереження чернетки
+        draftAutoSaveJob?.cancel()
+
+        // Очищуємо MediaLoader
+        mediaLoader.cleanup()
+
+        Log.d(TAG, "🧹 ViewModel очищена")
+    }
+}

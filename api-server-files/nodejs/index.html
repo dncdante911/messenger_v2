@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorldMates WebSocket Server</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+        .status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #4ade80;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+        .label {
+            font-weight: bold;
+            opacity: 0.8;
+        }
+        .value {
+            font-family: monospace;
+        }
+        a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌍 WorldMates</h1>
+        <p><span class="status"></span>WebSocket Server Online</p>
+
+        <div class="info">
+            <h2>Server Information</h2>
+            <div class="info-item">
+                <span class="label">Protocol:</span>
+                <span class="value">Socket.IO v4</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Port:</span>
+                <span class="value" id="port">449</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Status:</span>
+                <span class="value">✅ Running</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Features:</span>
+                <span class="value">Messages, Calls, Groups</span>
+            </div>
+        </div>
+
+        <div class="info">
+            <h2>Available Endpoints</h2>
+            <div class="info-item">
+                <span class="label">Health Check:</span>
+                <span class="value"><a href="/api/health" target="_blank">/api/health</a></span>
+            </div>
+            <div class="info-item">
+                <span class="label">ICE Servers:</span>
+                <span class="value"><a href="/api/ice-servers/123" target="_blank">/api/ice-servers/:userId</a></span>
+            </div>
+            <div class="info-item">
+                <span class="label">TURN Credentials:</span>
+                <span class="value">/api/turn-credentials</span>
+            </div>
+        </div>
+
+        <p style="margin-top: 30px; opacity: 0.8; font-size: 0.9em;">
+            WorldMates WebSocket Server<br>
+            © 2024-2026 All rights reserved
+        </p>
+    </div>
+
+    <script>
+        // Display current timestamp
+        setInterval(() => {
+            const now = new Date().toLocaleTimeString();
+            document.title = `WorldMates Server - ${now}`;
+        }, 1000);
+    </script>
+</body>
+</html>

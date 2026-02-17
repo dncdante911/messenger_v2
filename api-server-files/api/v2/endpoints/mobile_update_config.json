@@ -1,0 +1,444 @@
+{
+  "latest_version": "2.11.0",
+  "version_code": 13,
+  "apk_url": "https://worldmates.club/sources-app/worldmates-latest.apk",
+  "changelog": [
+    "АВТОРИЗАЦІЯ / РЕЄСТРАЦІЯ:",
+    "--- Швидка реєстрація: тільки email або телефон + код підтвердження (без логінів та паролів)",
+    "--- Відновлення паролю: кнопка 'Забули пароль?' тепер працює (email + SMS + 6-значний код)",
+    "--- Описові помилки реєстрації: 'логін зайнятий', 'email існує', 'номер зайнятий', 'слабкий пароль'",
+    "--- Підтримка реєстрації через телефон без email (автоактивація)",
+    "",
+    "ЧАТИ / ПОВІДОМЛЕННЯ:",
+    "--- Socket.IO — основний транспорт для реального часу (порт 449)",
+    "--- PHP API — REST запити для отримання/відправки повідомлень (/api/v2/)",
+    "--- HTTP polling кожні 15с як fallback якщо Socket.IO не підключено",
+    "",
+    "PUSH-СПОВІЩЕННЯ:",
+    "--- Фонова служба (Foreground Service) слухає Socket.IO і показує сповіщення зі звуком і вібрацією",
+    "--- Сповіщення не приходять якщо чат відкритий (розумне придушення)",
+    "--- Не сповіщує про свої повідомлення",
+    "--- Натискання на сповіщення відкриває потрібний чат",
+    "--- FCM токен тепер надсилається на сервер (підготовка до Firebase push)",
+    "",
+    "СЕРВЕР:",
+    "--- Socket.IO (порт 449) для реалтайм доставки повідомлень",
+    "--- PHP insert_new_message.php тепер публікує в Redis для Socket.IO доставки",
+    "--- Скидання паролю через SMS (6-значний код) та email",
+    "--- API quick_register + quick_verify для швидкої реєстрації",
+    "--- API update_fcm_token для збереження Firebase токенів"
+  ],
+  "is_mandatory": false,
+  "published_at": "2026-02-13T12:00:00Z",
+  "features": {
+    "animated_stickers": {
+      "enabled": true,
+      "supported_formats": ["lottie", "tgs", "gif", "webp", "png"],
+      "embedded_packs": 5,
+      "embedded_stickers_count": 200,
+      "packs": [
+        { "id": -1, "name": "Емоції", "sticker_count": 40 },
+        { "id": -2, "name": "Тварини", "sticker_count": 40 },
+        { "id": -3, "name": "Святкування", "sticker_count": 40 },
+        { "id": -4, "name": "Жести", "sticker_count": 40 },
+        { "id": -5, "name": "Серця", "sticker_count": 40 }
+      ],
+      "cdn_integration": {
+        "enabled": true,
+        "base_url": "https://cdn.worldmates.club",
+        "strapi_endpoint": "/api/gifs-packs?populate=*",
+        "cache_duration_hours": 1
+      },
+      "tgs_decoder": {
+        "enabled": true,
+        "gzip_decompression": true
+      },
+      "lottie_version": "6.4.0"
+    },
+    "advanced_video_player": {
+      "enabled": true,
+      "supported_gestures": [
+        "horizontal_swipe_seek",
+        "vertical_left_brightness",
+        "vertical_right_volume",
+        "double_tap_seek"
+      ],
+      "playback_speeds": [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
+      "pip_support": true,
+      "min_android_version": 24
+    },
+    "advanced_music_player": {
+      "enabled": true,
+      "background_playback": true,
+      "notification_controls": true,
+      "lock_screen_controls": true,
+      "media_session": true,
+      "bluetooth_headset_support": true,
+      "auto_pause_on_headphones_disconnect": true,
+      "audio_focus_handling": true,
+      "audio_content_type": "MUSIC",
+      "playback_speeds": [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
+      "aes_256_gcm_decryption": true,
+      "seek_forward_seconds": 15,
+      "seek_backward_seconds": 15
+    },
+    "audio_quality_options": {
+      "enabled": true,
+      "voice_recording_qualities": {
+        "compressed": {"bitrate_kbps": 64, "sample_rate": 22050},
+        "standard": {"bitrate_kbps": 128, "sample_rate": 44100},
+        "high": {"bitrate_kbps": 256, "sample_rate": 48000}
+      },
+      "file_sending_options": ["original", "compressed"],
+      "telegram_style_dialog": true
+    },
+    "photo_editor": {
+      "enabled": true,
+      "available_in_chat": true,
+      "available_in_groups": true,
+      "tools": ["crop", "rotate", "filters", "draw", "text", "stickers"],
+      "filters": ["brightness", "contrast", "saturation"],
+      "undo_redo": true,
+      "async_image_loading": true
+    },
+    "photo_viewer": {
+      "enabled": true,
+      "fullscreen": true,
+      "zoom_range": "1x-5x",
+      "pinch_to_zoom": true,
+      "double_tap_zoom": true,
+      "swipe_gallery": true,
+      "edit_button": true
+    },
+    "media_encryption": {
+      "algorithm": "AES-256-GCM",
+      "supported_types": ["image", "video", "audio", "file"],
+      "iv_length_bytes": 12,
+      "tag_length_bits": 128,
+      "key_derivation": "timestamp-based"
+    },
+    "media_limits": {
+      "max_image_size_mb": 25,
+      "max_video_size_mb": 1024,
+      "max_audio_size_mb": 100,
+      "max_file_size_mb": 250
+    },
+    "group_messaging": {
+      "enabled": true,
+      "admin_settings_persist": true,
+      "fix_applied": true
+    },
+    "customization": {
+      "enabled": true,
+      "bubble_styles": 10,
+      "bubble_style_names": ["Standard", "Comic", "Telegram", "Minimal", "Modern", "Retro", "Glass", "Neon", "Gradient", "Neumorphism"],
+      "preset_backgrounds": 15,
+      "one_click_packs": 10,
+      "theme_variants": 10,
+      "ui_styles": ["WorldMates", "Telegram"]
+    },
+    "auto_update": {
+      "enabled": true,
+      "silent_download": true,
+      "wifi_only_default": true,
+      "progress_tracking": true,
+      "pending_install_detection": true,
+      "check_interval_minutes": 30
+    },
+    "chat_organization": {
+      "enabled": true,
+      "universal_folders": true,
+      "folders": {
+        "default_folders": ["all", "personal", "channels", "groups", "unread"],
+        "custom_folders": true,
+        "archive_folder": true,
+        "max_custom_free": 10,
+        "max_custom_pro": 50,
+        "content_types": ["chats", "channels", "groups"]
+      },
+      "tags": {
+        "preset_count": 8,
+        "custom_tags": true,
+        "max_tags_per_chat": 5
+      },
+      "archive": {
+        "local_only": true,
+        "todo_backend_sync": "POST /api/v2/endpoints/chat_archive.php"
+      }
+    },
+    "group_themes": {
+      "enabled": true,
+      "server_sync": true,
+      "api_endpoint": "POST /api/v2/endpoints/group_customization.php",
+      "preset_themes": 8,
+      "customizable_properties": ["bubble_style", "preset_background", "accent_color"],
+      "admin_only": true,
+      "sql_columns": ["theme_bubble_style", "theme_preset_background", "theme_accent_color", "theme_enabled_by_admin", "theme_updated_at", "theme_updated_by"]
+    },
+    "quick_registration": {
+      "enabled": true,
+      "methods": ["email", "phone"],
+      "verification_code_length": 6,
+      "api_endpoints": {
+        "register": "POST /api/v2/?type=quick_register",
+        "verify": "POST /api/v2/?type=quick_verify"
+      },
+      "params_register": {
+        "email": "(optional) email адреса",
+        "phone_number": "(optional) номер телефону з кодом країни",
+        "device_type": "(optional) phone | windows, default: phone"
+      },
+      "params_verify": {
+        "email": "(optional) email що був при реєстрації",
+        "phone_number": "(optional) телефон що був при реєстрації",
+        "code": "(required) 6-значний код підтвердження"
+      },
+      "flow": "1) POST quick_register з email або phone_number → отримуєте user_id + username, код надсилається на пошту/SMS → 2) POST quick_verify з email/phone + code → отримуєте access_token, одразу авторизовані",
+      "notes": "Логін та пароль генеруються автоматично. Юзер може їх змінити пізніше в налаштуваннях."
+    },
+    "password_reset": {
+      "enabled": true,
+      "methods": ["email", "phone"],
+      "api_endpoints": {
+        "request_code": "POST /api/v2/?type=send-reset-password-email",
+        "reset": "POST /api/v2/?type=reset_password"
+      },
+      "params_request": {
+        "email": "(optional) email акаунту",
+        "phone_number": "(optional) телефон акаунту"
+      },
+      "params_reset": {
+        "email": "(optional) email",
+        "phone_number": "(optional) телефон",
+        "code": "(required) 6-значний код з SMS/email",
+        "new_password": "(required) новий пароль"
+      },
+      "flow": "1) Надішліть email або phone_number → сервер шле код → 2) Надішліть код + новий пароль → пароль змінено, всі сесії видалені"
+    },
+    "messaging_transport": {
+      "primary": "socket_io",
+      "url": "https://worldmates.club:449/",
+      "server_path": "nodejs/",
+      "flow": {
+        "send_private": "Socket.IO 'private_message' → Node.js PrivateMessageController → saves to wo_messages + delivers to recipient",
+        "send_group": "Socket.IO 'group_message' → Node.js GroupMessageController → saves to wo_messages + broadcasts to group",
+        "fetch_history": "PHP API /api/v2/?type=get_user_messages (початкове завантаження + пагінація)",
+        "fallback": "PHP API /api/v2/ якщо Socket.IO не підключено"
+      },
+      "critical_note": "from_id в Socket.IO payload = access_token (session hash), НЕ числовий userId! Node.js робить ctx.userHashUserId[from_id]",
+      "channels": "channels-listener.js: channel:subscribe, channel:new_post, channel:post_updated, channel:post_deleted, channel:new_comment"
+    },
+    "push_notifications": {
+      "method": "socket_io_foreground_service",
+      "service_class": "MessageNotificationService",
+      "foreground_service_type": "dataSync",
+      "features": {
+        "sound": true,
+        "vibration": true,
+        "notification_channel": "wm_message_notifications",
+        "smart_suppression": "Не показує сповіщення якщо чат відкритий",
+        "auto_start": "Запускається при вході в ChatsActivity",
+        "click_action": "Відкриває MessagesActivity з потрібним recipientId/groupId"
+      },
+      "firebase_ready": {
+        "fcm_token_upload": "POST /api/v2/?type=update_fcm_token",
+        "google_services_json": "ПОТРІБНО: завантажити з Firebase Console і покласти в app/",
+        "gradle_plugin": "ПОТРІБНО: розкоментувати 'com.google.gms.google-services' в build.gradle",
+        "status": "Підготовлено, але не активовано. Socket.IO service працює без Firebase."
+      }
+    },
+    "sms_email_setup": {
+      "sms": {
+        "function": "Wo_SendSMSMessage() — налаштовується в WoWonder Admin Panel",
+        "recommended_provider": "Twilio",
+        "twilio_setup": {
+          "1_register": "twilio.com → створити акаунт",
+          "2_get_credentials": "Account SID + Auth Token + Phone Number",
+          "3_configure": "WoWonder Admin → Settings → SMS → Provider: Twilio → вставити дані",
+          "price": "~$0.01 за SMS"
+        },
+        "alternative": "Vonage (Nexmo) — також підтримується WoWonder"
+      },
+      "email": {
+        "function": "Wo_SendMessage() — через PHPMailer (SMTP)",
+        "recommended": "Gmail SMTP або SendGrid",
+        "gmail_setup": {
+          "host": "smtp.gmail.com",
+          "port": 587,
+          "encryption": "tls",
+          "note": "ПОТРІБНО App Password (не звичайний пароль!) — Google Account → Security → 2FA → App Passwords"
+        },
+        "sendgrid_setup": {
+          "host": "smtp.sendgrid.net",
+          "port": 587,
+          "username": "apikey",
+          "password": "SG.xxxxxxxxx (API Key)",
+          "free_tier": "100 листів/день"
+        },
+        "configure_in": "WoWonder Admin Panel → Settings → SMTP Settings"
+      }
+    },
+    "bot_api": {
+      "enabled": true,
+      "version": "1.0.0",
+      "api_endpoint": "POST /api/v2/endpoints/bot_api.php",
+      "webhook_processor": "POST /api/v2/endpoints/bot_webhook_processor.php",
+      "socket_namespace": "/bots",
+      "features": {
+        "bot_management": true,
+        "slash_commands": true,
+        "inline_keyboards": true,
+        "reply_keyboards": true,
+        "callback_queries": true,
+        "webhooks": true,
+        "long_polling": true,
+        "file_upload": true,
+        "polls": true,
+        "message_editing": true,
+        "user_state_fsm": true,
+        "rate_limiting": true,
+        "bot_store": true,
+        "bot_categories": true,
+        "media_messages": true
+      },
+      "authentication": {
+        "user_auth": "access_token (query param)",
+        "bot_auth": "bot_token (POST field)",
+        "webhook_signature": "HMAC-SHA256 (X-WorldMates-Bot-Signature header)"
+      },
+      "rate_limits": {
+        "default_per_second": 30,
+        "default_per_minute": 1500,
+        "max_bots_per_user": 20,
+        "max_commands_per_bot": 100,
+        "max_webhook_connections": 100
+      },
+      "bot_types": ["standard", "system", "verified"],
+      "available_actions": [
+        "create_bot", "get_my_bots", "update_bot", "delete_bot", "regenerate_token",
+        "set_commands", "get_commands", "send_message", "edit_message", "delete_message",
+        "get_updates", "answer_callback_query", "set_webhook", "delete_webhook",
+        "get_webhook_info", "send_poll", "stop_poll", "get_bot_info", "search_bots",
+        "get_chat_member", "set_user_state", "get_user_state"
+      ],
+      "example_bots": {
+        "rss_news_bot": {
+          "file": "bot-examples/RSSNewsBot.php",
+          "description": "RSS feed aggregator with 10+ pre-configured sources",
+          "commands": ["start", "help", "add", "remove", "list", "latest", "sources", "settings"]
+        },
+        "weather_bot": {
+          "file": "bot-examples/WeatherBot.php",
+          "description": "Weather forecasts with OpenWeatherMap integration",
+          "commands": ["start", "help", "weather", "forecast", "setcity", "alerts"]
+        },
+        "support_bot": {
+          "file": "bot-examples/SupportBot.php",
+          "description": "Customer support with FAQ, tickets, and feedback",
+          "commands": ["start", "help", "ticket", "status", "feedback", "contact"]
+        },
+        "task_tracker_bot": {
+          "file": "bot-examples/TaskTrackerBot.php",
+          "description": "Task management with priorities, due dates, and reminders",
+          "commands": ["start", "help", "add", "list", "done", "edit", "delete", "priority", "due", "remind", "stats"]
+        },
+        "poll_bot": {
+          "file": "bot-examples/PollBot.php",
+          "description": "Polls and quizzes with anonymous/public voting",
+          "commands": ["start", "help", "poll", "quiz", "results", "close", "mypolls"]
+        }
+      },
+      "sdk": {
+        "php": "bot-sdk/WorldMatesBotSDK.php",
+        "features": ["long_polling", "webhook_handling", "inline_keyboards", "state_machine", "command_routing"]
+      },
+      "database_tables": [
+        "Wo_Bots", "Wo_Bot_Commands", "Wo_Bot_Messages", "Wo_Bot_Webhook_Log",
+        "Wo_Bot_Users", "Wo_Bot_Keyboards", "Wo_Bot_Callbacks", "Wo_Bot_Polls",
+        "Wo_Bot_Poll_Options", "Wo_Bot_Poll_Votes", "Wo_Bot_Tasks",
+        "Wo_Bot_RSS_Feeds", "Wo_Bot_RSS_Items", "Wo_Bot_Rate_Limits", "Wo_Bot_Api_Keys"
+      ],
+      "sql_migration": "sql-DB-newver/add_bot_api_tables.sql"
+    }
+  },
+  "minimum_supported_version": "2.0.0",
+  "force_update_below": "1.9.0",
+  "new_files": [
+    "--- v2.11.0 (авторизація, чати, push) ---",
+    "ui/login/QuickRegisterActivity.kt",
+    "ui/login/ForgotPasswordActivity.kt",
+    "services/MessageNotificationService.kt",
+    "api-server-files/api/v2/endpoints/quick_register.php",
+    "api-server-files/api/v2/endpoints/quick_verify.php",
+    "api-server-files/api/v2/endpoints/update_fcm_token.php",
+    "api-server-files/api/v2/endpoints/get_messages.php",
+    "api-server-files/nodejs/routes/messaging.js",
+    "--- v2.10.0 (боти) ---",
+    "ui/theme/ThemeOneClickPacks.kt",
+    "ui/theme/ThemeBackgroundSection.kt",
+    "ui/chats/ChatOrganizationManager.kt",
+    "ui/chats/ChatOrganizationUI.kt",
+    "ui/chats/ChatContactMenu.kt",
+    "ui/chats/BottomNavBar.kt",
+    "ui/groups/GroupThemeManager.kt",
+    "ui/groups/GroupThemeEditor.kt",
+    "ui/profile/MyProfileScreen.kt",
+    "api-server-files/api/v2/endpoints/group_customization.php",
+    "api-server-files/sql-DB-newver/add_group_customization_columns.sql",
+    "data/model/Bot.kt",
+    "network/BotApi.kt",
+    "network/BotRepository.kt",
+    "ui/bots/BotViewModel.kt",
+    "ui/bots/BotCatalogScreen.kt",
+    "ui/bots/BotManagementScreen.kt",
+    "ui/bots/BotChatComponents.kt",
+    "api-server-files/api/v2/endpoints/bot_api.php",
+    "api-server-files/api/v2/endpoints/bot_webhook_processor.php",
+    "api-server-files/api/v2/bot-sdk/WorldMatesBotSDK.php",
+    "api-server-files/api/v2/bot-examples/RSSNewsBot.php",
+    "api-server-files/api/v2/bot-examples/WeatherBot.php",
+    "api-server-files/api/v2/bot-examples/SupportBot.php",
+    "api-server-files/api/v2/bot-examples/TaskTrackerBot.php",
+    "api-server-files/api/v2/bot-examples/PollBot.php",
+    "api-server-files/sql-DB-newver/add_bot_api_tables.sql",
+    "server/botSocketHandler.js"
+  ],
+  "modified_files": [
+    "--- v2.11.0 ---",
+    "ui/login/LoginActivity.kt — кнопка 'Забули пароль' працює + кнопка 'Швидка реєстрація'",
+    "ui/messages/MessagesViewModel.kt — PHP API + Socket.IO + polling fallback",
+    "ui/messages/MessagesActivity.kt — трекінг активного чату для push-сповіщень",
+    "ui/chats/ChatsActivity.kt — запуск MessageNotificationService",
+    "network/WorldMatesApi.kt — нові endpoint'и: quickRegister, quickVerify, resetPassword, updateFcmToken",
+    "services/MyFirebaseMessagingService.kt — відправка FCM токена на сервер",
+    "AndroidManifest.xml — нові Activity + MessageNotificationService + FOREGROUND_SERVICE_DATA_SYNC",
+    "api-server-files/api/v2/index.php — маршрути quick_register, quick_verify, update_fcm_token",
+    "api-server-files/api/v2/endpoints/create-account.php — телефон без email, описові помилки",
+    "api-server-files/api/phone/register_user.php — описові помилки",
+    "api-server-files/api/v2/endpoints/send-reset-password-email.php — SMS + email скидання",
+    "api-server-files/api/v2/endpoints/reset_password.php — 4 методи верифікації",
+    "api-server-files/api/phone/insert_new_message.php — Redis publish для Socket.IO",
+    "api-server-files/nodejs/main.js — messaging routes",
+    "--- v2.10.0 ---",
+    "ui/theme/ThemeSettingsScreen.kt",
+    "ui/theme/CustomizationManager.kt",
+    "ui/preferences/BubbleStyle.kt",
+    "ui/messages/BubbleStyles.kt",
+    "update/AppUpdateManager.kt",
+    "ui/chats/ChatsScreenModern.kt",
+    "ui/settings/SettingsActivity.kt",
+    "ui/groups/GroupDetailsActivity.kt",
+    "ui/profile/UserProfileActivity.kt",
+    "ui/profile/UserProfileViewModel.kt",
+    "network/RetrofitClient.kt",
+    "server/server-example.js",
+    "api-server-files/api/v2/endpoints/mobile_update_config.json"
+  ],
+  "dependencies": {
+    "lottie": "6.4.0",
+    "lottie-compose": "6.4.0",
+    "coil-gif": "2.7.0",
+    "media3-session": "1.2.0",
+    "media3-exoplayer": "1.2.0"
+  }
+}

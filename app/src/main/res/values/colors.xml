@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors -->
+    <color name="primary">#0084FF</color>
+    <color name="primary_dark">#0066CC</color>
+    <color name="primary_light">#4DA6FF</color>
+    
+    <!-- Secondary Colors -->
+    <color name="secondary">#03DAC6</color>
+    <color name="secondary_dark">#018786</color>
+    
+    <!-- Backgrounds -->
+    <color name="background">#F5F5F5</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_dark">#F0F0F0</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#000000</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_tertiary">#BDBDBD</color>
+    <color name="text_inverse">#FFFFFF</color>
+    
+    <!-- Message Bubbles -->
+    <color name="message_sent">#0084FF</color>
+    <color name="message_received">#E5E5EA</color>
+    <color name="message_text_sent">#FFFFFF</color>
+    <color name="message_text_received">#000000</color>
+    
+    <!-- Status -->
+    <color name="success">#4CAF50</color>
+    <color name="error">#F44336</color>
+    <color name="warning">#FF9800</color>
+    <color name="info">#2196F3</color>
+    
+    <!-- Borders -->
+    <color name="divider">#EEEEEE</color>
+    <color name="border">#CCCCCC</color>
+    
+    <!-- System -->
+    <color name="transparent">#00000000</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+</resources>

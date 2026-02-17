@@ -1,0 +1,95 @@
+<?php
+// +------------------------------------------------------------------------+
+// | 📌 GROUPS: Открепление сообщения в группе
+// +------------------------------------------------------------------------+
+
+if (empty($_POST['access_token'])) {
+    $error_code    = 3;
+    $error_message = 'access_token is missing';
+    http_response_code(400);
+}
+
+if ($error_code == 0) {
+    $user_id = Wo_UserIdFromAccessToken($_POST['access_token']);
+    if (empty($user_id) || !is_numeric($user_id) || $user_id < 1) {
+        $error_code    = 4;
+        $error_message = 'Invalid access_token';
+        http_response_code(400);
+    } else {
+        // Получить параметр
+        $group_id = (!empty($_POST['group_id']) && is_numeric($_POST['group_id'])) ? (int)$_POST['group_id'] : 0;
+
+        if ($group_id < 1) {
+            $error_code    = 5;
+            $error_message = 'group_id is required';
+            http_response_code(400);
+        } else {
+            // Проверить существует ли группа
+            $group_query = mysqli_query($sqlConnect, "
+                SELECT group_id, user_id, pinned_message_id
+                FROM " . T_GROUPS . "
+                WHERE group_id = {$group_id}
+            ");
+
+            if (mysqli_num_rows($group_query) == 0) {
+                $error_code    = 7;
+                $error_message = 'Group not found';
+                http_response_code(404);
+            } else {
+                $group_data = mysqli_fetch_assoc($group_query);
+
+                // Проверить есть ли вообще закрепленное сообщение
+                if (empty($group_data['pinned_message_id'])) {
+                    $error_code    = 11;
+                    $error_message = 'No pinned message in this group';
+                    http_response_code(400);
+                } else {
+                    // Проверить права: только админ/модератор может откреплять
+                    $is_admin = ($group_data['user_id'] == $user_id);
+                    $is_moderator = false;
+
+                    if (!$is_admin) {
+                        // Проверить является ли модератором
+                        $mod_query = mysqli_query($sqlConnect, "
+                            SELECT COUNT(*) as count
+                            FROM " . T_GROUP_MEMBERS . "
+                            WHERE group_id = {$group_id}
+                            AND user_id = {$user_id}
+                            AND (role = 'admin' OR role = 'moderator')
+                        ");
+                        $mod_data = mysqli_fetch_assoc($mod_query);
+                        $is_moderator = ($mod_data['count'] > 0);
+                    }
+
+                    if (!$is_admin && !$is_moderator) {
+                        $error_code    = 8;
+                        $error_message = 'Only admins and moderators can unpin messages';
+                        http_response_code(403);
+                    } else {
+                        // Открепить сообщение (установить NULL)
+                        $update_query = mysqli_query($sqlConnect, "
+                            UPDATE " . T_GROUPS . "
+                            SET pinned_message_id = NULL
+                            WHERE group_id = {$group_id}
+                        ");
+
+                        if ($update_query) {
+                            $data = array(
+                                'api_status' => 200,
+                                'message' => 'Message unpinned successfully'
+                            );
+
+                            // Логирование
+                            error_log("📌 Group {$group_id}: User {$user_id} unpinned message {$group_data['pinned_message_id']}");
+                        } else {
+                            $error_code    = 10;
+                            $error_message = 'Failed to unpin message: ' . mysqli_error($sqlConnect);
+                            http_response_code(500);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+?>

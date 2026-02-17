@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WorldMates NEW v2.0</string>
+
+    <!-- Login & Register -->
+    <string name="login">Вхід</string>
+    <string name="register">Реєстрація</string>
+    <string name="username">Ім\'я користувача</string>
+    <string name="email">Email</string>
+    <string name="password">Пароль</string>
+    <string name="confirm_password">Підтвердіть пароль</string>
+    <string name="forgot_password">Забули пароль?</string>
+    <string name="no_account">Немаєте облікового запису?</string>
+    <string name="already_have_account">Вже маєте акаунт?</string>
+    <string name="sign_in">Увійти</string>
+    <string name="sign_up">Зареєструватися</string>
+
+    <!-- Chats -->
+    <string name="chats">Чати</string>
+    <string name="messages">Повідомлення</string>
+    <string name="groups">Групи</string>
+    <string name="calls">Дзвінки</string>
+    <string name="contacts">Контакти</string>
+
+    <!-- Messages -->
+    <string name="type_message">Напишіть повідомлення...</string>
+    <string name="send">Надіслати</string>
+    <string name="photo">Фото</string>
+    <string name="video">Відео</string>
+    <string name="voice">Голосове</string>
+    <string name="file">Файл</string>
+
+    <!-- Common -->
+    <string name="cancel">Скасувати</string>
+    <string name="ok">ОК</string>
+    <string name="delete">Видалити</string>
+    <string name="edit">Редагувати</string>
+    <string name="save">Зберегти</string>
+    <string name="loading">Завантаження...</string>
+    <string name="error">Помилка</string>
+    <string name="retry">Спробувати ще раз</string>
+
+    <!-- Errors -->
+    <string name="error_network">Помилка мережі</string>
+    <string name="error_login">Помилка входу</string>
+    <string name="error_register">Помилка реєстрації</string>
+    <string name="error_no_internet">Немає з\'єднання з інтернетом</string>
+    <string name="error_server">Помилка сервера. Спробуйте пізніше</string>
+    <string name="error_something_wrong">Щось пішло не так</string>
+</resources>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Внутреннее хранилище -->
+    <files-path name="internal_files" path="." />
+
+    <!-- Кэш -->
+    <cache-path name="cache" path="." />
+
+    <!-- Внешнее хранилище -->
+    <external-path name="external_files" path="." />
+
+    <!-- Внешний кэш -->
+    <external-cache-path name="external_cache" path="." />
+
+    <!-- Медиа файлы -->
+    <external-files-path name="media" path="Media" />
+    <external-files-path name="images" path="Pictures" />
+    <external-files-path name="videos" path="Movies" />
+    <external-files-path name="audio" path="Music" />
+</paths>
