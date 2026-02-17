@@ -74,53 +74,6 @@ interface WorldMatesApi {
         @Field("username") username: String?
     ): SendCodeResponse
 
-    // ==================== QUICK REGISTRATION ====================
-
-    @FormUrlEncoded
-    @POST("/api/v2/?type=quick_register")
-    suspend fun quickRegister(
-        @Field("email") email: String? = null,
-        @Field("phone_number") phoneNumber: String? = null,
-        @Field("device_type") deviceType: String = "phone"
-    ): QuickRegisterResponse
-
-    @FormUrlEncoded
-    @POST("/api/v2/?type=quick_verify")
-    suspend fun quickVerify(
-        @Field("email") email: String? = null,
-        @Field("phone_number") phoneNumber: String? = null,
-        @Field("code") code: String,
-        @Field("device_type") deviceType: String = "phone"
-    ): QuickVerifyResponse
-
-    // ==================== PASSWORD RESET ====================
-
-    @FormUrlEncoded
-    @POST("/api/v2/?type=send-reset-password-email")
-    suspend fun requestPasswordReset(
-        @Field("email") email: String? = null,
-        @Field("phone_number") phoneNumber: String? = null
-    ): PasswordResetResponse
-
-    @FormUrlEncoded
-    @POST("/api/v2/?type=reset_password")
-    suspend fun resetPassword(
-        @Field("email") email: String? = null,
-        @Field("phone_number") phoneNumber: String? = null,
-        @Field("code") code: String,
-        @Field("new_password") newPassword: String
-    ): PasswordResetResponse
-
-    // ==================== FCM TOKEN ====================
-
-    @FormUrlEncoded
-    @POST("/api/v2/?type=update_fcm_token")
-    suspend fun updateFcmToken(
-        @Query("access_token") accessToken: String,
-        @Field("fcm_token") fcmToken: String,
-        @Field("device_type") deviceType: String = "android"
-    ): GenericResponse
-
     @FormUrlEncoded
     @POST("/api/v2/sync_session.php")
     suspend fun syncSession(
@@ -154,7 +107,7 @@ interface WorldMatesApi {
     @POST(Constants.GET_MESSAGES_ENDPOINT)
     suspend fun getMessages(
         @Query("access_token") accessToken: String,
-        @Field("user_id") recipientId: Long,
+        @Field("recipient_id") recipientId: Long,
         @Field("limit") limit: Int = 30,
         @Field("before_message_id") beforeMessageId: Long = 0
     ): MessageListResponse
@@ -164,7 +117,7 @@ interface WorldMatesApi {
     @POST(Constants.GET_MESSAGES_ENDPOINT)
     suspend fun getMessagesWithOptions(
         @Query("access_token") accessToken: String,
-        @Field("user_id") recipientId: Long,
+        @Field("recipient_id") recipientId: Long,
         @Field("limit") limit: Int = 30,
         @Field("before_message_id") beforeMessageId: Long = 0,
         @Field("full_history") fullHistory: String = "false", // "true" для загрузки всей истории
@@ -176,7 +129,7 @@ interface WorldMatesApi {
     @POST(Constants.GET_MESSAGES_ENDPOINT)
     suspend fun getMessageCount(
         @Query("access_token") accessToken: String,
-        @Field("user_id") recipientId: Long,
+        @Field("recipient_id") recipientId: Long,
         @Field("count_only") countOnly: String = "true"
     ): MessageCountResponse
 
@@ -185,7 +138,7 @@ interface WorldMatesApi {
     @POST(Constants.GET_MESSAGES_ENDPOINT)
     suspend fun getMessagesLightweight(
         @Query("access_token") accessToken: String,
-        @Field("user_id") recipientId: Long,
+        @Field("recipient_id") recipientId: Long,
         @Field("limit") limit: Int = 30,
         @Field("after_message_id") afterMessageId: Long = 0, // Получить сообщения ПОСЛЕ этого ID
         @Field("load_mode") loadMode: String = "text_only" // "text_only", "with_thumbnails", "full"
@@ -295,17 +248,6 @@ interface WorldMatesApi {
     suspend fun getGroups(
         @Query("access_token") accessToken: String,
         @Field("type") type: String = "get_list",
-        @Field("limit") limit: Int = 50,
-        @Field("offset") offset: Int = 0
-    ): GroupListResponse
-
-    // Fallback: стандартний WoWonder endpoint для груп (через index.php router)
-    @FormUrlEncoded
-    @POST("/api/v2/")
-    suspend fun getGroupsWoWonder(
-        @Query("access_token") accessToken: String,
-        @Query("type") routeType: String = "get-my-groups",
-        @Field("type") type: String = "my_groups",
         @Field("limit") limit: Int = 50,
         @Field("offset") offset: Int = 0
     ): GroupListResponse
@@ -1845,56 +1787,4 @@ data class InviteLinkResponse(
     @SerializedName("message") val message: String? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
-
-// ==================== QUICK REGISTRATION RESPONSES ====================
-
-data class QuickRegisterResponse(
-    @SerializedName("api_status") private val _apiStatus: Any?,
-    @SerializedName("message") val message: String? = null,
-    @SerializedName("user_id") val userId: Long? = null,
-    @SerializedName("username") val username: String? = null,
-    @SerializedName("verification_method") val verificationMethod: String? = null,
-    @SerializedName("code_sent") val codeSent: Boolean? = null,
-    @SerializedName("error_code") val errorCode: Int? = null,
-    @SerializedName("error_message") val errorMessage: String? = null
-) {
-    val apiStatus: Int
-        get() = when (_apiStatus) {
-            is Number -> _apiStatus.toInt()
-            is String -> _apiStatus.toIntOrNull() ?: 400
-            else -> 400
-        }
-}
-
-data class QuickVerifyResponse(
-    @SerializedName("api_status") private val _apiStatus: Any?,
-    @SerializedName("message") val message: String? = null,
-    @SerializedName("access_token") val accessToken: String? = null,
-    @SerializedName("user_id") val userId: Long? = null,
-    @SerializedName("username") val username: String? = null,
-    @SerializedName("user_platform") val userPlatform: String? = null,
-    @SerializedName("error_code") val errorCode: Int? = null,
-    @SerializedName("error_message") val errorMessage: String? = null
-) {
-    val apiStatus: Int
-        get() = when (_apiStatus) {
-            is Number -> _apiStatus.toInt()
-            is String -> _apiStatus.toIntOrNull() ?: 400
-            else -> 400
-        }
-}
-
-data class PasswordResetResponse(
-    @SerializedName("api_status") private val _apiStatus: Any?,
-    @SerializedName("message") val message: String? = null,
-    @SerializedName("error_code") val errorCode: Int? = null,
-    @SerializedName("error_message") val errorMessage: String? = null
-) {
-    val apiStatus: Int
-        get() = when (_apiStatus) {
-            is Number -> _apiStatus.toInt()
-            is String -> _apiStatus.toIntOrNull() ?: 400
-            else -> 400
-        }
-}
 

@@ -101,9 +101,12 @@ class SocketManager(
                 }
             }
 
-            // Polling first to avoid WebSocket upgrade error on proxied connections
-            // The server upgrades to WebSocket automatically after polling handshake
-            opts.transports = arrayOf("polling", "websocket")
+            // Пріоритет WebSocket, але fallback на polling при поганому з'єднанні
+            opts.transports = if (currentQuality == NetworkQualityMonitor.ConnectionQuality.POOR) {
+                arrayOf("polling", "websocket") // Polling спочатку при поганому з'єднанні
+            } else {
+                arrayOf("websocket", "polling") // WebSocket спочатку при хорошому
+            }
 
             opts.query = "access_token=${UserSession.accessToken}&user_id=${UserSession.userId}"
 
@@ -236,17 +239,6 @@ class SocketManager(
                 }
             }
 
-            // 11a. Bot message via bots-listener (Socket.IO)
-            socket?.on("bot_message") { args ->
-                if (args.isNotEmpty() && args[0] is JSONObject) {
-                    val data = args[0] as JSONObject
-                    Log.d("SocketManager", "Bot message received: $data")
-                    if (listener is ExtendedSocketListener) {
-                        listener.onBotMessage(data)
-                    }
-                }
-            }
-
             // 12. Обработка статуса "онлайн"
             socket?.on(Constants.SOCKET_EVENT_USER_ONLINE) { args ->
                 Log.d("SocketManager", "Received ${Constants.SOCKET_EVENT_USER_ONLINE} event with ${args.size} args")
@@ -365,66 +357,21 @@ class SocketManager(
         }
     }
 
-    fun sendMessage(recipientId: Long, text: String, replyToId: Long? = null) {
+    fun sendMessage(recipientId: Long, text: String) {
         if (socket?.connected() == true && UserSession.accessToken != null) {
             val messagePayload = JSONObject().apply {
-                // Сервер ожидает: from_id = access_token (session hash)!
-                // PrivateMessageController.js делает ctx.userHashUserId[data.from_id]
-                put("msg", text)
-                put("from_id", UserSession.accessToken)  // КРИТИЧНО: access_token, НЕ userId!
-                put("to_id", recipientId)
-                if (replyToId != null && replyToId > 0) {
-                    put("message_reply_id", replyToId)
-                }
+                // Сервер ожидает именно эти поля (см. PrivateMessageController.js)
+                put("msg", text)  // НЕ "text"!
+                put("from_id", UserSession.userId)  // НЕ "user_id"!
+                put("to_id", recipientId)  // НЕ "recipient_id"!
+                // TODO: Добавить поля для медиа, стикеров и т.д.
+                // mediaId, mediaFilename, record, message_reply_id, story_id, lng, lat, contact, color, isSticker
             }
             socket?.emit(Constants.SOCKET_EVENT_SEND_MESSAGE, messagePayload)
             Log.d("SocketManager", "Emitted private_message to user $recipientId: $text")
         } else {
+            // Fallback: Если Socket не подключен, можно использовать REST API для отправки (send-message.php)
             Log.w("SocketManager", "Socket not connected. Message not sent via socket.")
-        }
-    }
-
-    /**
-     * Проверяет, подключён ли Socket.IO
-     */
-    fun isConnected(): Boolean = socket?.connected() == true
-
-    fun subscribeBot(botId: String) {
-        if (socket?.connected() == true && botId.isNotBlank()) {
-            val payload = JSONObject().apply {
-                put("user_id", UserSession.accessToken ?: "")
-                put("bot_id", botId)
-            }
-            socket?.emit("subscribe_bot", payload)
-            Log.d(TAG, "Subscribed to bot room: $botId")
-        }
-    }
-
-    fun unsubscribeBot(botId: String) {
-        if (socket?.connected() == true && botId.isNotBlank()) {
-            val payload = JSONObject().apply {
-                put("user_id", UserSession.accessToken ?: "")
-                put("bot_id", botId)
-            }
-            socket?.emit("unsubscribe_bot", payload)
-            Log.d(TAG, "Unsubscribed from bot room: $botId")
-        }
-    }
-
-    fun sendUserToBot(botId: String, text: String) {
-        if (socket?.connected() == true && botId.isNotBlank()) {
-            val trimmed = text.trim()
-            val commandMatch = Regex("^/([a-zA-Z0-9_]+)(?:\\s+(.*))?$").find(trimmed)
-            val payload = JSONObject().apply {
-                put("user_id", UserSession.accessToken ?: "")
-                put("bot_id", botId)
-                put("text", text)
-                put("is_command", commandMatch != null)
-                put("command_name", commandMatch?.groupValues?.getOrNull(1) ?: JSONObject.NULL)
-                put("command_args", commandMatch?.groupValues?.getOrNull(2) ?: JSONObject.NULL)
-            }
-            socket?.emit("user_to_bot", payload)
-            Log.d(TAG, "Emitted user_to_bot: botId=$botId text=${text.take(40)}")
         }
     }
 
@@ -648,17 +595,14 @@ class SocketManager(
     /**
      * Отправляет групповое сообщение
      */
-    fun sendGroupMessage(groupId: Long, text: String, replyToId: Long? = null) {
+    fun sendGroupMessage(groupId: Long, text: String) {
         if (socket?.connected() == true && UserSession.accessToken != null) {
             val messagePayload = JSONObject().apply {
-                // Сервер ожидает: from_id = access_token (session hash)!
-                // GroupMessageController.js делает ctx.userHashUserId[data.from_id]
-                put("msg", text)
-                put("from_id", UserSession.accessToken)  // КРИТИЧНО: access_token, НЕ userId!
+                // Сервер ожидает именно эти поля (см. GroupMessageController.js)
+                put("msg", text)  // НЕ "text"!
+                put("from_id", UserSession.userId)  // НЕ "user_id"!
                 put("group_id", groupId)
-                if (replyToId != null && replyToId > 0) {
-                    put("message_reply_id", replyToId)
-                }
+                // TODO: mediaId, message_reply_id, color, isSticker
             }
             socket?.emit(Constants.SOCKET_EVENT_GROUP_MESSAGE, messagePayload)
             Log.d("SocketManager", "Emitted group_message to group $groupId: $text")
@@ -906,6 +850,5 @@ class SocketManager(
         fun onGroupMessage(messageJson: JSONObject) {}
         fun onUserOnline(userId: Long) {}
         fun onUserOffline(userId: Long) {}
-        fun onBotMessage(messageJson: JSONObject) {}
     }
 }

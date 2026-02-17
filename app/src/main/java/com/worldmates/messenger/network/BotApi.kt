@@ -90,17 +90,6 @@ interface BotApi {
         @Field("offset") offset: Int = 0
     ): BotSearchResponse
 
-
-    @FormUrlEncoded
-    @POST("/api/v2/endpoints/bot_api.php")
-    suspend fun sendUserMessageToBot(
-        @Query("access_token") accessToken: String,
-        @Field("type") type: String = "user_to_bot",
-        @Field("bot_id") botId: String,
-        @Field("text") text: String,
-        @Field("chat_type") chatType: String = "private"
-    ): BotGenericResponse
-
     // ==================== COMMANDS ====================
 
     @FormUrlEncoded
