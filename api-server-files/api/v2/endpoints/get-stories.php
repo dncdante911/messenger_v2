@@ -3,7 +3,38 @@
 // | Get Stories Endpoint (V2 API)
 // | Returns active stories from the current user and their contacts
 // | Called via index.php router: ?type=get_stories
+// | OR called directly: /api/v2/endpoints/get-stories.php?access_token=...
 // +------------------------------------------------------------------------+
+
+// Standalone mode: Android calls this endpoint directly, bypassing the router.
+// The router normally loads config.php (DB connection, table constants, WoWonder
+// functions, and the shutdown handler that outputs $response_data).
+// When called directly we must bootstrap everything ourselves.
+$_stories_standalone = !isset($sqlConnect);
+if ($_stories_standalone) {
+    header('Content-Type: application/json; charset=UTF-8');
+    require_once(__DIR__ . '/../config.php');
+
+    $access_token = $_GET['access_token'] ?? $_POST['access_token'] ?? '';
+    if (empty($access_token)) {
+        echo json_encode(['api_status' => 401, 'error_message' => 'access_token is required']);
+        exit;
+    }
+    $auth_user_id = validateAccessToken($db, $access_token);
+    if (!$auth_user_id) {
+        echo json_encode(['api_status' => 401, 'error_message' => 'Invalid or expired access_token']);
+        exit;
+    }
+    if (function_exists('Wo_UserData')) {
+        $auth_user_data = Wo_UserData($auth_user_id);
+        if (!empty($auth_user_data)) {
+            $wo['user'] = $auth_user_data;
+        }
+    }
+    if (empty($wo['user']['user_id'])) {
+        $wo['user']['user_id'] = $auth_user_id;
+    }
+}
 
 $response_data = array('api_status' => 400);
 $error_code    = 0;
@@ -65,3 +96,9 @@ $response_data = array(
     'api_status' => 200,
     'stories'    => $stories,
 );
+
+// In standalone mode the WoWonder shutdown handler is not registered,
+// so we must output the JSON response ourselves.
+if ($_stories_standalone) {
+    echo json_encode($response_data);
+}

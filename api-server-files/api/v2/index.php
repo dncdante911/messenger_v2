@@ -127,6 +127,9 @@ $routes = [
     'get-group-data' => 'endpoints/get-group-data.php',
 
     // Stories
+    'get_stories' => 'endpoints/get-stories.php',
+    'get_user_stories' => 'endpoints/get-user-stories.php',
+    'create_story' => 'endpoints/create-story.php',
     'delete_story' => 'endpoints/delete-story.php',
     'get_story_views' => 'endpoints/get_story_views.php',
     'mute_story' => 'endpoints/mute_story.php',
