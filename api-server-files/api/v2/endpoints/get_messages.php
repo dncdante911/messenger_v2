@@ -10,7 +10,10 @@ $response_data = array(
 );
 
 // Required: recipient user_id
-$recipient_id = !empty($_POST['user_id']) ? $_POST['user_id'] : (!empty($_GET['user_id']) ? $_GET['user_id'] : '');
+// Android sends 'recipient_id', legacy clients send 'user_id'
+$recipient_id = !empty($_POST['recipient_id']) ? $_POST['recipient_id'] :
+                (!empty($_POST['user_id']) ? $_POST['user_id'] :
+                (!empty($_GET['user_id']) ? $_GET['user_id'] : ''));
 
 if (empty($recipient_id) || !is_numeric($recipient_id)) {
     $error_code    = 3;
