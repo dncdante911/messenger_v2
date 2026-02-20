@@ -87,8 +87,8 @@ class VerificationViewModel : ViewModel() {
                     response.apiStatus == 200 && response.accessToken != null && response.userId != null -> {
                         // Успешная верификация - сохраняем сессию
                         UserSession.saveSession(
-                            response.accessToken,
-                            response.userId,
+                            response.accessToken!!,
+                            response.userId!!.toLong(),
                             username,
                             null
                         )
