@@ -3,10 +3,7 @@ package com.worldmates.messenger.network
 import com.google.gson.annotations.SerializedName
 import com.worldmates.messenger.data.Constants
 import com.worldmates.messenger.data.model.Chat
-import com.worldmates.messenger.data.model.ChatListResponse
 import com.worldmates.messenger.data.model.Message
-import com.worldmates.messenger.data.model.MessageListResponse
-import com.worldmates.messenger.data.model.MessageResponse
 import retrofit2.http.*
 
 /**

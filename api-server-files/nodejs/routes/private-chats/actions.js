@@ -15,7 +15,7 @@ const { Op } = require('sequelize');
 
 // ─── DELETE message ──────────────────────────────────────────────────────────
 
-async function deleteMessage(ctx, io) {
+function deleteMessage(ctx, io) {
     return async (req, res) => {
         try {
             const userId    = req.userId;
@@ -62,7 +62,7 @@ async function deleteMessage(ctx, io) {
 // Uses wo_reactions table: user_id, message_id, reaction
 // Toggle: same reaction = remove; different = replace
 
-async function reactMessage(ctx, io) {
+function reactMessage(ctx, io) {
     return async (req, res) => {
         try {
             const userId    = req.userId;
@@ -116,7 +116,7 @@ async function reactMessage(ctx, io) {
 // ─── PIN / UNPIN message ─────────────────────────────────────────────────────
 // Uses wo_mute table as WoWonder stores pins there: pin = 'yes'|'no'
 
-async function pinMessage(ctx, io) {
+function pinMessage(ctx, io) {
     return async (req, res) => {
         try {
             const userId    = req.userId;
@@ -163,7 +163,7 @@ async function pinMessage(ctx, io) {
 
 // ─── GET PINNED messages ─────────────────────────────────────────────────────
 
-async function getPinnedMessages(ctx, io) {
+function getPinnedMessages(ctx, io) {
     return async (req, res) => {
         try {
             const userId  = req.userId;
@@ -226,7 +226,7 @@ function resolveType(msg, userId) {
 // ─── FORWARD message ─────────────────────────────────────────────────────────
 // Forward a message to one or multiple recipients
 
-async function forwardMessage(ctx, io) {
+function forwardMessage(ctx, io) {
     return async (req, res) => {
         try {
             const userId    = req.userId;

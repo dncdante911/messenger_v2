@@ -129,7 +129,7 @@ async function buildMessage(ctx, msg, userId) {
 
 // ─── GET messages ─────────────────────────────────────────────────────────────
 
-async function getMessages(ctx, io) {
+function getMessages(ctx, io) {
     return async (req, res) => {
         try {
             const userId      = req.userId;
@@ -176,7 +176,7 @@ async function getMessages(ctx, io) {
 
 // ─── SEND message ─────────────────────────────────────────────────────────────
 
-async function sendMessage(ctx, io) {
+function sendMessage(ctx, io) {
     return async (req, res) => {
         try {
             const userId      = req.userId;
@@ -265,7 +265,7 @@ async function sendMessage(ctx, io) {
 
 // ─── LOADMORE (older messages) ────────────────────────────────────────────────
 
-async function loadMore(ctx, io) {
+function loadMore(ctx, io) {
     return async (req, res) => {
         try {
             const userId          = req.userId;
@@ -307,7 +307,7 @@ async function loadMore(ctx, io) {
 
 // ─── EDIT message ─────────────────────────────────────────────────────────────
 
-async function editMessage(ctx, io) {
+function editMessage(ctx, io) {
     return async (req, res) => {
         try {
             const userId    = req.userId;
@@ -365,7 +365,7 @@ async function editMessage(ctx, io) {
 // ─── SEARCH messages ──────────────────────────────────────────────────────────
 // Поиск по text_preview (plaintext[:100]), а не по зашифрованному text.
 
-async function searchMessages(ctx, io) {
+function searchMessages(ctx, io) {
     return async (req, res) => {
         try {
             const userId      = req.userId;
@@ -410,7 +410,7 @@ async function searchMessages(ctx, io) {
 
 // ─── SEEN messages ────────────────────────────────────────────────────────────
 
-async function seenMessages(ctx, io) {
+function seenMessages(ctx, io) {
     return async (req, res) => {
         try {
             const userId      = req.userId;
@@ -437,7 +437,7 @@ async function seenMessages(ctx, io) {
 
 // ─── TYPING ───────────────────────────────────────────────────────────────────
 
-async function typing(ctx, io) {
+function typing(ctx, io) {
     return async (req, res) => {
         try {
             const userId      = req.userId;

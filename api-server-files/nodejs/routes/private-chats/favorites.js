@@ -16,7 +16,7 @@ const { Op } = require('sequelize');
 
 // ─── FAV / UNFAV message ─────────────────────────────────────────────────────
 
-async function favMessage(ctx, io) {
+function favMessage(ctx, io) {
     return async (req, res) => {
         try {
             const userId    = req.userId;
@@ -60,7 +60,7 @@ async function favMessage(ctx, io) {
 
 // ─── GET FAV messages list ────────────────────────────────────────────────────
 
-async function getFavMessages(ctx, io) {
+function getFavMessages(ctx, io) {
     return async (req, res) => {
         try {
             const userId = req.userId;
