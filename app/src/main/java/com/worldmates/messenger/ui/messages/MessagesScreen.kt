@@ -3154,8 +3154,6 @@ fun MessageInputBar(
             )
         }
     }
-
-@Composable
 /**
  * Діалог вибору якості аудіо при відправці (як в Telegram)
  */
@@ -4078,4 +4076,5 @@ fun ConnectionQualityBanner(quality: NetworkQualityMonitor.ConnectionQuality) {
         }
     }
 }
+
 
