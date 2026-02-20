@@ -13,6 +13,7 @@ import com.worldmates.messenger.network.FileManager
 import com.worldmates.messenger.network.MediaUploader
 import com.worldmates.messenger.network.MediaLoadingManager
 import com.worldmates.messenger.network.NetworkQualityMonitor
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.utils.DecryptionUtility
@@ -31,6 +32,7 @@ class MessagesViewModel(application: Application) :
     AndroidViewModel(application), SocketManager.ExtendedSocketListener {
 
     private val context = application
+    private val nodeApi = NodeRetrofitClient.api
 
     companion object {
         private const val TAG = "MessagesViewModel"
@@ -190,15 +192,14 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getMessages(
-                    accessToken = UserSession.accessToken!!,
+                val response = nodeApi.getMessages(
                     recipientId = recipientId,
                     limit = Constants.MESSAGES_PAGE_SIZE,
                     beforeMessageId = beforeMessageId
                 )
 
                 if (response.apiStatus == 200 && response.messages != null) {
-                    val decryptedMessages = response.messages!!.map { msg ->
+                    val decryptedMessages = response.messages.map { msg ->
                         decryptMessageFully(msg)
                     }
 
@@ -208,10 +209,10 @@ class MessagesViewModel(application: Application) :
                     _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
 
                     _error.value = null
-                    Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень")
+                    Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень (Node.js)")
                 } else {
                     _error.value = response.errorMessage ?: "Помилка завантаження повідомлень"
-                    Log.e("MessagesViewModel", "API Error: ${response.apiStatus}")
+                    Log.e("MessagesViewModel", "Node.js Error: ${response.apiStatus}")
                 }
 
                 _isLoading.value = false
@@ -287,6 +288,36 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
+                // ── Private chat → Node.js ────────────────────────────────────────
+                if (groupId == 0L) {
+                    val resp = nodeApi.sendMessage(
+                        recipientId = recipientId,
+                        text = text,
+                        replyId = replyToId
+                    )
+                    if (resp.apiStatus == 200) {
+                        val newMsg = resp.messageData?.let { decryptMessageFully(it) }
+                        if (newMsg != null) {
+                            val curr = _messages.value
+                            if (!curr.any { it.id == newMsg.id }) {
+                                _messages.value = (curr + newMsg).sortedBy { it.timeStamp }
+                            }
+                        } else {
+                            _messages.value = emptyList()
+                            fetchMessages()
+                        }
+                        _error.value = null
+                        deleteDraft()
+                        Log.d("MessagesViewModel", "Повідомлення надіслано через Node.js")
+                    } else {
+                        _error.value = resp.errorMessage ?: "Не вдалося надіслати повідомлення"
+                        Log.e("MessagesViewModel", "Node.js send error: ${resp.errorMessage}")
+                    }
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                // ── Group chat → PHP ──────────────────────────────────────────────
                 val messageHashId = System.currentTimeMillis().toString()
 
                 val response = if (groupId != 0L) {
@@ -373,6 +404,29 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
+                // Private chat → Node.js
+                if (groupId == 0L && recipientId != 0L) {
+                    val resp = nodeApi.editMessage(messageId, newText)
+                    if (resp.apiStatus == 200) {
+                        val currentMessages = _messages.value.toMutableList()
+                        val index = currentMessages.indexOfFirst { it.id == messageId }
+                        if (index != -1) {
+                            currentMessages[index] = currentMessages[index].copy(
+                                encryptedText = newText,
+                                decryptedText = newText
+                            )
+                            _messages.value = currentMessages
+                        }
+                        _error.value = null
+                        Log.d("MessagesViewModel", "Повідомлення відредаговано (Node.js): $messageId")
+                    } else {
+                        _error.value = resp.errorMessage ?: "Не вдалося відредагувати повідомлення"
+                    }
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                // Group/PHP path
                 val response = RetrofitClient.apiService.editMessage(
                     accessToken = UserSession.accessToken!!,
                     messageId = messageId,
@@ -422,6 +476,21 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
+                // Private chat → Node.js
+                if (groupId == 0L && recipientId != 0L) {
+                    val resp = nodeApi.deleteMessage(messageId, "just_me")
+                    if (resp.apiStatus == 200) {
+                        _messages.value = _messages.value.filter { it.id != messageId }
+                        _error.value = null
+                        Log.d("MessagesViewModel", "Повідомлення видалено (Node.js): $messageId")
+                    } else {
+                        _error.value = resp.errorMessage ?: "Не вдалося видалити повідомлення"
+                    }
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                // Group/PHP path
                 val response = RetrofitClient.apiService.deleteMessage(
                     accessToken = UserSession.accessToken!!,
                     messageId = messageId
@@ -462,6 +531,19 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
+                // Private chat → Node.js (toggle handled server-side)
+                if (groupId == 0L && recipientId != 0L) {
+                    val resp = nodeApi.reactToMessage(messageId, emoji)
+                    if (resp.apiStatus == 200) {
+                        fetchReactionsForMessage(messageId)
+                        Log.d("MessagesViewModel", "Реакцію оновлено (Node.js)")
+                    } else {
+                        _error.value = resp.errorMessage ?: "Не вдалося оновити реакцію"
+                    }
+                    return@launch
+                }
+
+                // Group/PHP path
                 // Перевіряємо, чи вже є реакція від поточного користувача
                 val message = _messages.value.find { it.id == messageId }
                 val existingReactions = message?.reactions ?: emptyList()
@@ -1787,34 +1869,40 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = if (groupId != 0L) {
-                    RetrofitClient.apiService.getGroupMessages(
-                        accessToken = UserSession.accessToken!!,
-                        groupId = groupId,
-                        topicId = topicId,
-                        limit = 15,
-                        beforeMessageId = 0
-                    )
-                } else if (recipientId != 0L) {
-                    RetrofitClient.apiService.getMessages(
-                        accessToken = UserSession.accessToken!!,
+                if (recipientId != 0L && groupId == 0L) {
+                    // ── Private chat → Node.js ────────────────────────────────
+                    val response = nodeApi.getMessages(
                         recipientId = recipientId,
                         limit = 15,
                         beforeMessageId = 0
                     )
-                } else return@launch
+                    if (response.apiStatus == 200 && response.messages != null) {
+                        val newMessages = response.messages.map { msg -> decryptMessageFully(msg) }
+                        val currentIds = _messages.value.map { it.id }.toSet()
+                        val trulyNew = newMessages.filter { it.id !in currentIds }
+                        if (trulyNew.isNotEmpty()) {
+                            _messages.value = (_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp }
+                            Log.d(TAG, "🔄 Polling (Node.js): +${trulyNew.size} нових")
+                        }
+                    }
+                    return@launch
+                }
 
+                // ── Group chat → PHP ──────────────────────────────────────────
+                if (groupId == 0L) return@launch
+                val response = RetrofitClient.apiService.getGroupMessages(
+                    accessToken = UserSession.accessToken!!,
+                    groupId = groupId,
+                    topicId = topicId,
+                    limit = 15,
+                    beforeMessageId = 0
+                )
                 if (response.apiStatus == 200 && response.messages != null) {
                     val newMessages = response.messages!!.map { msg -> decryptMessageFully(msg) }
-                    val currentMessages = _messages.value
-                    val currentIds = currentMessages.map { it.id }.toSet()
-
-                    // Додаємо тільки нові повідомлення яких ще немає
+                    val currentIds = _messages.value.map { it.id }.toSet()
                     val trulyNew = newMessages.filter { it.id !in currentIds }
-
                     if (trulyNew.isNotEmpty()) {
-                        val updated = (currentMessages + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp }
-                        _messages.value = updated
+                        _messages.value = (_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp }
                         Log.d(TAG, "🔄 Polling: додано ${trulyNew.size} нових повідомлень")
                     }
                 }
