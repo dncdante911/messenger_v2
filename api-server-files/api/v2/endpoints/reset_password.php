@@ -46,3 +46,8 @@ else{
 	$error_code    = 8;
     $error_message = 'new_password , email , code can not be empty';
 }
+
+if (!empty($error_code)) {
+    $response_data = array('api_status' => 400, 'error_message' => $error_message);
+}
+echo json_encode($response_data);

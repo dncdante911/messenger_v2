@@ -24,7 +24,11 @@ $public_endpoints = [
     'get_site_settings',
     'get-site-settings',
     'test_init',
-    'check_mobile_update'
+    'check_mobile_update',
+    'quick_register',          // New user — no token yet
+    'quick_verify',            // New user — no token yet
+    'request_password_reset',  // Forgot password — no token
+    'reset_password',          // Forgot password — no token
 ];
 
 // Validate access_token for protected endpoints
@@ -94,6 +98,14 @@ $routes = [
     'auth' => 'endpoints/auth.php',
     'get_chats' => 'endpoints/get_chats.php',
     'get_user_messages' => 'endpoints/get_messages.php',
+
+    // Quick Registration (email/phone → code → account)
+    'quick_register' => 'endpoints/quick_register.php',
+    'quick_verify'   => 'endpoints/quick_verify.php',
+
+    // Password Reset
+    'request_password_reset' => 'endpoints/send-reset-password-email.php',
+    'reset_password'         => 'endpoints/reset_password.php',
 
     // Verification
     'send_verification_code' => 'endpoints/send_verification_code.php',

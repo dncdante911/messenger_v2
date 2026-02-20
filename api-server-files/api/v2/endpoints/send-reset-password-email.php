@@ -46,3 +46,8 @@ if (empty($error_code)) {
         }
     }
 }
+
+if (!empty($error_code)) {
+    $response_data = array('api_status' => 400, 'error_message' => $error_message);
+}
+echo json_encode($response_data);

@@ -82,6 +82,41 @@ interface WorldMatesApi {
         @Field("platform") platform: String = "phone"
     ): SyncSessionResponse
 
+    // ==================== QUICK REGISTRATION ====================
+
+    @FormUrlEncoded
+    @POST("?type=quick_register")
+    suspend fun quickRegister(
+        @Field("email") email: String? = null,
+        @Field("phone_number") phoneNumber: String? = null
+    ): QuickRegisterResponse
+
+    @FormUrlEncoded
+    @POST("?type=quick_verify")
+    suspend fun quickVerify(
+        @Field("email") email: String? = null,
+        @Field("phone_number") phoneNumber: String? = null,
+        @Field("code") code: String
+    ): QuickVerifyResponse
+
+    // ==================== PASSWORD RESET ====================
+
+    @FormUrlEncoded
+    @POST("?type=request_password_reset")
+    suspend fun requestPasswordReset(
+        @Field("email") email: String? = null,
+        @Field("phone_number") phoneNumber: String? = null
+    ): PasswordResetRequestResponse
+
+    @FormUrlEncoded
+    @POST("?type=reset_password")
+    suspend fun resetPassword(
+        @Field("email") email: String? = null,
+        @Field("phone_number") phoneNumber: String? = null,
+        @Field("code") code: String,
+        @Field("new_password") newPassword: String
+    ): PasswordResetResponse
+
     // ==================== CHATS ====================
 
     @FormUrlEncoded
@@ -1784,6 +1819,35 @@ data class SubgroupData(
 data class InviteLinkResponse(
     @SerializedName("api_status") val apiStatus: Int,
     @SerializedName("invite_link") val inviteLink: String? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class QuickRegisterResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("user_id") val userId: Long? = null,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class QuickVerifyResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("access_token") val accessToken: String? = null,
+    @SerializedName("user_id") val userId: Long? = null,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class PasswordResetRequestResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class PasswordResetResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
     @SerializedName("message") val message: String? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
