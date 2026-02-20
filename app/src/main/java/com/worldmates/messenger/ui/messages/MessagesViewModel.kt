@@ -25,6 +25,7 @@ import com.worldmates.messenger.data.repository.DraftRepository
 import com.worldmates.messenger.data.local.entity.Draft
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import org.json.JSONObject
 import java.io.File
 
