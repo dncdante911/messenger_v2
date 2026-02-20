@@ -91,7 +91,7 @@ interface WorldMatesApi {
         @Field("user_limit") limit: Int = 50,
         @Field("data_type") dataType: String = "all", // "all", "users", "groups", "channels"
         @Field("SetOnline") setOnline: Int = 1,
-        @Field("offset") offset: Int = 0
+        @Field("user_offset") offset: Int = 0
     ): ChatListResponse
 
     @FormUrlEncoded

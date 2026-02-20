@@ -239,38 +239,6 @@ class SocketManager(
                 }
             }
 
-            // 12. Обработка статуса "онлайн"
-            socket?.on(Constants.SOCKET_EVENT_USER_ONLINE) { args ->
-                Log.d("SocketManager", "Received ${Constants.SOCKET_EVENT_USER_ONLINE} event with ${args.size} args")
-                if (args.isNotEmpty()) {
-                    Log.d("SocketManager", "Event data: ${args[0]}")
-                    if (args[0] is JSONObject) {
-                        val data = args[0] as JSONObject
-                        val userId = data.optLong("user_id", 0)
-                        Log.d("SocketManager", "✅ User $userId is ONLINE")
-                        if (listener is ExtendedSocketListener) {
-                            listener.onUserOnline(userId)
-                        }
-                    }
-                }
-            }
-
-            // 13. Обработка статуса "оффлайн"
-            socket?.on(Constants.SOCKET_EVENT_USER_OFFLINE) { args ->
-                Log.d("SocketManager", "Received ${Constants.SOCKET_EVENT_USER_OFFLINE} event with ${args.size} args")
-                if (args.isNotEmpty()) {
-                    Log.d("SocketManager", "Event data: ${args[0]}")
-                    if (args[0] is JSONObject) {
-                        val data = args[0] as JSONObject
-                        val userId = data.optLong("user_id", 0)
-                        Log.d("SocketManager", "❌ User $userId is OFFLINE")
-                        if (listener is ExtendedSocketListener) {
-                            listener.onUserOffline(userId)
-                        }
-                    }
-                }
-            }
-
             // 14. КРИТИЧНО: Обработка события "user_status_change" от WoWonder сервера
             // WoWonder отправляет HTML, нужно парсить онлайн пользователей из разметки
             socket?.on("user_status_change") { args ->
