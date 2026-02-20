@@ -144,7 +144,8 @@ interface WorldMatesApi {
         @Query("access_token") accessToken: String,
         @Field("recipient_id") recipientId: Long,
         @Field("limit") limit: Int = 30,
-        @Field("before_message_id") beforeMessageId: Long = 0
+        @Field("before_message_id") beforeMessageId: Long = 0,
+        @Field("use_gcm") useGcm: String = "true"
     ): MessageListResponse
 
     // 📦 CLOUD BACKUP: Получение сообщений с расширенными параметрами
@@ -691,18 +692,19 @@ interface WorldMatesApi {
     // ==================== MESSAGES ====================
 
     @FormUrlEncoded
-    @POST("?type=send-message")
+    @POST(Constants.SEND_MESSAGE_ENDPOINT)
     suspend fun sendMessage(
         @Query("access_token") accessToken: String,
         @Field("user_id") recipientId: Long,
         @Field("text") text: String,
         @Field("message_hash_id") messageHashId: String,
-        @Field("reply_id") replyToId: Long? = null
+        @Field("reply_id") replyToId: Long? = null,
+        @Field("use_gcm") useGcm: String = "true"
     ): MessageResponse
 
     // Отправка сообщения с медиа-файлом
     @Multipart
-    @POST("?type=send-message")
+    @POST(Constants.SEND_MESSAGE_ENDPOINT)
     suspend fun sendMessageWithMedia(
         @Query("access_token") accessToken: String,
         @Part("user_id") recipientId: RequestBody,
