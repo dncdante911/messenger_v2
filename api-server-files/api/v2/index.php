@@ -112,7 +112,8 @@ $routes = [
     'verify_code' => 'endpoints/verify_code.php',
 
     // Messaging
-    'send_message' => 'endpoints/send-message.php',
+    'send_message'  => 'endpoints/send-message.php', // underscore variant
+    'send-message'  => 'endpoints/send-message.php', // hyphen variant (legacy)
     'delete_message' => 'endpoints/delete_message.php',
     'read_chats' => 'endpoints/read_chats.php',
     'delete_chat' => 'endpoints/delete_chat.php',
