@@ -9,6 +9,9 @@ import retrofit2.Converter
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.lang.reflect.Type
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -145,6 +148,33 @@ class NullOnEmptyConverterFactory : Converter.Factory() {
     }
 }
 
+/**
+ * Кастомний DNS-резолвер, що віддає перевагу IPv4-адресам.
+ *
+ * Причина: на деяких пристроях/мережах Android системний DNS спочатку
+ * намагається отримати AAAA-запис (IPv6). Якщо мережа або DNS-сервер
+ * повертає NODATA для IPv6 — виникає UnknownHostException, навіть якщо
+ * домен нормально відкривається у браузері (браузер сам перемикається на IPv4).
+ * OkHttp цього не робить за замовчуванням, тому ставимо IPv4 першим.
+ */
+private val ipv4PreferringDns = Dns { hostname ->
+    try {
+        val addresses = Dns.SYSTEM.lookup(hostname)
+        // Ставимо IPv4 (Inet4Address) першими, IPv6 — після
+        addresses.sortedBy { if (it is Inet4Address) 0 else 1 }
+    } catch (firstAttempt: UnknownHostException) {
+        Log.w("DNS", "Перша спроба DNS не вдалася для $hostname, повторна спроба...")
+        Thread.sleep(500)
+        try {
+            val addresses = Dns.SYSTEM.lookup(hostname)
+            addresses.sortedBy { if (it is Inet4Address) 0 else 1 }
+        } catch (secondAttempt: UnknownHostException) {
+            Log.e("DNS", "DNS повторна спроба також не вдалася для $hostname")
+            throw secondAttempt
+        }
+    }
+}
+
 object RetrofitClient {
 
     // Логирование HTTP запросов
@@ -155,6 +185,7 @@ object RetrofitClient {
     }
 
     private val client = OkHttpClient.Builder()
+        .dns(ipv4PreferringDns) // Вирішення UnknownHostException на IPv6-мережах
         .cookieJar(MemoryCookieJar()) // Сохраняем cookies між запитами
         .addInterceptor(ApiKeyInterceptor()) // Додаємо server_key першим
         .addInterceptor(loggingInterceptor) // Логуємо після модифікації запиту
