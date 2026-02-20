@@ -16,6 +16,7 @@ const { Sequelize, Op, DataTypes } = require("sequelize");
 const listeners = require('./listeners/listeners')
 const { initializeBotNamespace, getBotStats } = require('./listeners/bots-listener')
 const { registerMessagingRoutes } = require('./routes/messaging')
+const { registerPrivateChatRoutes } = require('./routes/private-chats/index')
 
 let serverPort
 let server
@@ -268,6 +269,7 @@ async function main() {
 
   // Register REST API endpoints for messaging (replaces PHP polling)
   registerMessagingRoutes(app, ctx, io);
+  registerPrivateChatRoutes(app, ctx, io);
 
   io.on('connection', async (socket, query) => {
     await listeners.registerListeners(socket, io, ctx)

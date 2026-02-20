@@ -17,6 +17,40 @@ object Constants {
     const val GET_MESSAGES_ENDPOINT = "/api/v2/index.php?type=get_user_messages"
     const val SEND_MESSAGE_ENDPOINT = "/api/v2/index.php?type=send_message"
     
+    // ==================== NODE.JS REST API (приватні чати) ====================
+    // Node.js сервер — прямі REST-ендпоінти для особистих чатів
+    // Базовий URL збігається з SOCKET_URL (той самий Node.js сервер)
+    const val NODE_BASE_URL = "https://worldmates.club:449/"
+
+    // Messages
+    const val NODE_CHAT_GET      = "api/node/chat/get"       // GET history
+    const val NODE_CHAT_SEND     = "api/node/chat/send"      // send text
+    const val NODE_CHAT_LOADMORE = "api/node/chat/loadmore"  // older messages
+    const val NODE_CHAT_EDIT     = "api/node/chat/edit"      // edit message
+    const val NODE_CHAT_SEARCH   = "api/node/chat/search"    // search in chat
+    const val NODE_CHAT_SEEN     = "api/node/chat/seen"      // mark as seen
+    const val NODE_CHAT_TYPING   = "api/node/chat/typing"    // typing indicator
+
+    // Actions
+    const val NODE_CHAT_DELETE  = "api/node/chat/delete"   // delete message
+    const val NODE_CHAT_REACT   = "api/node/chat/react"    // react to message
+    const val NODE_CHAT_PIN     = "api/node/chat/pin"      // pin message
+    const val NODE_CHAT_PINNED  = "api/node/chat/pinned"   // get pinned messages
+    const val NODE_CHAT_FORWARD = "api/node/chat/forward"  // forward message
+
+    // Chats list & settings
+    const val NODE_CHATS_LIST    = "api/node/chat/chats"               // conversations list
+    const val NODE_CHAT_DEL_CONV = "api/node/chat/delete-conversation" // delete conversation
+    const val NODE_CHAT_ARCHIVE  = "api/node/chat/archive"             // archive/unarchive
+    const val NODE_CHAT_MUTE     = "api/node/chat/mute"                // mute/unmute
+    const val NODE_CHAT_PIN_CHAT = "api/node/chat/pin-chat"            // pin/unpin chat
+    const val NODE_CHAT_COLOR    = "api/node/chat/color"               // change color
+    const val NODE_CHAT_READ     = "api/node/chat/read"                // mark all as read
+
+    // Favorites
+    const val NODE_CHAT_FAV      = "api/node/chat/fav"                 // fav/unfav message
+    const val NODE_CHAT_FAV_LIST = "api/node/chat/fav-list"            // get favorites
+
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH = "join"  // Изменено с register_socket на join
     const val SOCKET_EVENT_PRIVATE_MESSAGE = "private_message"  // Событие личного сообщения от сервера
