@@ -28,6 +28,18 @@ if (empty($error_code)) {
     }
 }
 
+if (!empty($error_code)) {
+    $response_data = array(
+        'api_status' => 400,
+        'errors' => array(
+            'error_id'   => (string)$error_code,
+            'error_text' => $error_message,
+        ),
+    );
+    echo json_encode($response_data);
+    exit;
+}
+
 if (empty($error_code)) {
     $logged_user_id = $wo['user']['user_id'];
 
@@ -179,3 +191,5 @@ if (empty($error_code)) {
         'messages' => $messages,
     );
 }
+
+echo json_encode($response_data);

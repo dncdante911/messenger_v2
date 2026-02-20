@@ -157,20 +157,22 @@ class NullOnEmptyConverterFactory : Converter.Factory() {
  * домен нормально відкривається у браузері (браузер сам перемикається на IPv4).
  * OkHttp цього не робить за замовчуванням, тому ставимо IPv4 першим.
  */
-private val ipv4PreferringDns = Dns { hostname ->
-    try {
-        val addresses = Dns.SYSTEM.lookup(hostname)
-        // Ставимо IPv4 (Inet4Address) першими, IPv6 — після
-        addresses.sortedBy { if (it is Inet4Address) 0 else 1 }
-    } catch (firstAttempt: UnknownHostException) {
-        Log.w("DNS", "Перша спроба DNS не вдалася для $hostname, повторна спроба...")
-        Thread.sleep(500)
-        try {
+private val ipv4PreferringDns = object : Dns {
+    override fun lookup(hostname: String): List<InetAddress> {
+        return try {
             val addresses = Dns.SYSTEM.lookup(hostname)
+            // Ставимо IPv4 (Inet4Address) першими, IPv6 — після
             addresses.sortedBy { if (it is Inet4Address) 0 else 1 }
-        } catch (secondAttempt: UnknownHostException) {
-            Log.e("DNS", "DNS повторна спроба також не вдалася для $hostname")
-            throw secondAttempt
+        } catch (firstAttempt: UnknownHostException) {
+            Log.w("DNS", "Перша спроба DNS не вдалася для $hostname, повторна спроба...")
+            Thread.sleep(500)
+            try {
+                val addresses = Dns.SYSTEM.lookup(hostname)
+                addresses.sortedBy { if (it is Inet4Address) 0 else 1 }
+            } catch (secondAttempt: UnknownHostException) {
+                Log.e("DNS", "DNS повторна спроба також не вдалася для $hostname")
+                throw secondAttempt
+            }
         }
     }
 }
