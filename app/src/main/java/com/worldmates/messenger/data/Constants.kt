@@ -13,7 +13,9 @@ object Constants {
     // ==================== API QUERY PARAMETERS ====================
     const val AUTH_ENDPOINT = "?type=auth"
     const val GET_CHATS_ENDPOINT = "?type=get_chats"
-    const val GET_MESSAGES_ENDPOINT = "?type=get_user_messages"
+    // Standalone files — bypass WoWonder api-v2.php router (same pattern as group_chat_v2.php)
+    const val GET_MESSAGES_ENDPOINT = "/api/v2/get_user_messages.php"
+    const val SEND_MESSAGE_ENDPOINT = "/api/v2/send_message.php"
     
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH = "join"  // Изменено с register_socket на join
