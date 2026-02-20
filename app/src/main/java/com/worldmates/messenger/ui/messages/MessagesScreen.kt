@@ -129,8 +129,10 @@ fun MessagesScreen(
     val recordingState by voiceRecorder.recordingState.collectAsState()
     val recordingDuration by voiceRecorder.recordingDuration.collectAsState()
     val isTyping by viewModel.isTyping.collectAsState()
+    val isRecording by viewModel.isRecording.collectAsState()
     val isOnline by viewModel.recipientOnlineStatus.collectAsState()
     val connectionQuality by viewModel.connectionQuality.collectAsState()
+    val pinnedPrivateMessage by viewModel.pinnedPrivateMessage.collectAsState()
 
     // 📝 Draft state
     val currentDraft by viewModel.currentDraft.collectAsState()
@@ -178,6 +180,10 @@ fun MessagesScreen(
     var showContextMenu by remember { mutableStateOf(false) }
     var replyToMessage by remember { mutableStateOf<Message?>(null) }
     var editingMessage by remember { mutableStateOf<Message?>(null) }
+
+    // 🗑️ Діалог підтвердження видалення (тільки для себе / для всіх)
+    var messageToDelete by remember { mutableStateOf<Message?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // ✅ Режим множественного выбора
     var isSelectionMode by remember { mutableStateOf(false) }
@@ -525,6 +531,7 @@ fun MessagesScreen(
                 recipientAvatar = recipientAvatar,
                 isOnline = isOnline,
                 isTyping = isTyping,
+                isRecording = isRecording,
                 onBackPressed = onBackPressed,
                 onUserProfileClick = {
                     Log.d("MessagesScreen", "Відкриваю профіль користувача: $recipientName")
@@ -655,7 +662,10 @@ fun MessagesScreen(
                 selectedCount = selectedMessages.size,
                 totalCount = messages.size,
                 canEdit = selectedMessages.size == 1 && messages.find { it.id == selectedMessages.first() }?.fromId == UserSession.userId,
-                canPin = isGroup && selectedMessages.size == 1 && (currentGroup?.isAdmin == true || currentGroup?.isModerator == true),
+                canPin = selectedMessages.size == 1 && (
+                    (isGroup && (currentGroup?.isAdmin == true || currentGroup?.isModerator == true)) ||
+                    !isGroup  // В особистих чатах будь-хто може закріпити повідомлення
+                ),
                 onSelectAll = {
                     // Вибираємо всі повідомлення
                     selectedMessages = messages.map { it.id }.toSet()
@@ -675,19 +685,26 @@ fun MessagesScreen(
                 },
                 onPinSelected = {
                     // Закріплюємо вибране повідомлення
-                    if (isGroup && selectedMessages.size == 1) {
+                    if (selectedMessages.size == 1) {
                         val messageId = selectedMessages.first()
-                        viewModel.pinGroupMessage(
-                            messageId = messageId,
-                            onSuccess = {
-                                android.widget.Toast.makeText(context, "Повідомлення закріплено", android.widget.Toast.LENGTH_SHORT).show()
-                                isSelectionMode = false
-                                selectedMessages = emptySet()
-                            },
-                            onError = { error ->
-                                android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        )
+                        if (isGroup) {
+                            viewModel.pinGroupMessage(
+                                messageId = messageId,
+                                onSuccess = {
+                                    android.widget.Toast.makeText(context, "Повідомлення закріплено", android.widget.Toast.LENGTH_SHORT).show()
+                                    isSelectionMode = false
+                                    selectedMessages = emptySet()
+                                },
+                                onError = { error ->
+                                    android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        } else {
+                            viewModel.pinPrivateMessage(messageId, true)
+                            android.widget.Toast.makeText(context, "Повідомлення закріплено", android.widget.Toast.LENGTH_SHORT).show()
+                            isSelectionMode = false
+                            selectedMessages = emptySet()
+                        }
                     }
                 },
                 onDeleteSelected = {
@@ -764,14 +781,39 @@ fun MessagesScreen(
                 )
             }
 
-            // 🔍 Search Bar (for groups only)
-            if (isGroup) {
-                GroupSearchBar(
-                    visible = showSearchBar,
-                    query = searchQuery,
-                    onQueryChange = { query ->
-                        viewModel.searchGroupMessages(query)
+            // 📌 Pinned Message Banner для особистих чатів
+            if (!isGroup && pinnedPrivateMessage != null) {
+                val pinnedMsg = pinnedPrivateMessage!!
+                val pinnedText = pinnedMsg.decryptedText ?: pinnedMsg.encryptedText ?: ""
+                PinnedMessageBanner(
+                    pinnedMessage = pinnedMsg,
+                    decryptedText = pinnedText,
+                    onBannerClick = {
+                        val messageIndex = messages.indexOfFirst { it.id == pinnedMsg.id }
+                        if (messageIndex != -1) {
+                            val reversedIndex = messages.size - messageIndex - 1
+                            scope.launch { listState.animateScrollToItem(reversedIndex) }
+                        }
                     },
+                    onUnpinClick = {
+                        viewModel.pinPrivateMessage(pinnedMsg.id, false)
+                        android.widget.Toast.makeText(context, "Повідомлення відкріплено", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    canUnpin = true
+                )
+            }
+
+            // 🔍 Search Bar (for both groups and private chats)
+            GroupSearchBar(
+                visible = showSearchBar,
+                query = searchQuery,
+                onQueryChange = { query ->
+                    if (isGroup) {
+                        viewModel.searchGroupMessages(query)
+                    } else {
+                        viewModel.searchPrivateMessages(query)
+                    }
+                },
                     searchResultsCount = searchTotalCount,
                     currentResultIndex = currentSearchIndex,
                     onNextResult = {
@@ -807,18 +849,17 @@ fun MessagesScreen(
                         viewModel.clearSearch()
                     }
                 )
-            }
 
             // 🔍 Search Type Dialog
             if (showSearchTypeDialog) {
                 AlertDialog(
                     onDismissRequest = { showSearchTypeDialog = false },
-                    title = { Text("Выберите тип поиска") },
+                    title = { Text("Виберіть тип пошуку") },
                     text = {
                         Column {
-                            Text("Текстовый поиск - поиск по содержимому сообщений")
+                            Text("Текстовий пошук — пошук за вмістом повідомлень")
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Медиа поиск - поиск файлов (фото, видео, аудио)")
+                            Text("Медіа пошук — пошук файлів (фото, відео, аудіо)")
                         }
                     },
                     confirmButton = {
@@ -828,26 +869,17 @@ fun MessagesScreen(
                                 showMediaSearch = true
                             }
                         ) {
-                            Text("Медиа поиск")
+                            Text("Медіа пошук")
                         }
                     },
                     dismissButton = {
                         TextButton(
                             onClick = {
                                 showSearchTypeDialog = false
-                                if (isGroup) {
-                                    showSearchBar = true
-                                } else {
-                                    // For personal chats, enable text search
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "Текстовый поиск в личных чатах - в разработке",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
+                                showSearchBar = true
                             }
                         ) {
-                            Text("Текстовый поиск")
+                            Text("Текстовий пошук")
                         }
                     }
                 )
@@ -1120,10 +1152,23 @@ fun MessagesScreen(
                         selectedMessage = null
                     },
                     onDelete = { message ->
-                        viewModel.deleteMessage(message.id)
                         showContextMenu = false
                         selectedMessage = null
+                        // Для своїх повідомлень у приватному чаті — питаємо "для мене" чи "для всіх"
+                        if (!isGroup && message.fromId == UserSession.userId) {
+                            messageToDelete = message
+                            showDeleteDialog = true
+                        } else {
+                            viewModel.deleteMessage(message.id, "just_me")
+                        }
                     },
+                    onPin = { message ->
+                        viewModel.pinPrivateMessage(message.id, true)
+                        showContextMenu = false
+                        selectedMessage = null
+                        android.widget.Toast.makeText(context, "Повідомлення закріплено", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    isPrivateChat = !isGroup,
                     onCopy = { message ->
                         message.decryptedText?.let {
                             clipboardManager.setText(AnnotatedString(it))
@@ -1135,6 +1180,40 @@ fun MessagesScreen(
                         }
                         showContextMenu = false
                         selectedMessage = null
+                    }
+                )
+            }
+
+            // 🗑️ Діалог підтвердження видалення повідомлення
+            if (showDeleteDialog && messageToDelete != null) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showDeleteDialog = false
+                        messageToDelete = null
+                    },
+                    title = { Text("Видалити повідомлення") },
+                    text = { Text("Видалити повідомлення для всіх учасників чату або тільки для себе?") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.deleteMessage(messageToDelete!!.id, "everyone")
+                                showDeleteDialog = false
+                                messageToDelete = null
+                            }
+                        ) {
+                            Text("Видалити для всіх", color = Color(0xFFD32F2F))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.deleteMessage(messageToDelete!!.id, "just_me")
+                                showDeleteDialog = false
+                                messageToDelete = null
+                            }
+                        ) {
+                            Text("Видалити для мене")
+                        }
                     }
                 )
             }
@@ -1335,6 +1414,8 @@ fun MessagesScreen(
                         if (onRequestAudioPermission()) {
                             scope.launch {
                                 voiceRecorder.startRecording()
+                                // Повідомляємо співрозмовника що ми записуємо голосове
+                                if (!isGroup) viewModel.sendRecordingStatus()
                             }
                         }
                     },
@@ -1516,6 +1597,7 @@ fun MessagesHeaderBar(
     recipientAvatar: String,
     isOnline: Boolean,
     isTyping: Boolean,
+    isRecording: Boolean = false,
     onBackPressed: () -> Unit,
     onUserProfileClick: () -> Unit = {},
     onCallClick: () -> Unit = {},
@@ -1589,17 +1671,21 @@ fun MessagesHeaderBar(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    // Имя и статус "печатает"
+                    // Ім'я та статус ("печатає", "записує голосове" тощо)
                     Column {
                         Text(recipientName, color = colorScheme.onPrimary)
-                        if (isTyping) {
-                            Text(
+                        when {
+                            isRecording -> Text(
+                                text = "пише голосове...",
+                                fontSize = 12.sp,
+                                color = colorScheme.onPrimary.copy(alpha = 0.8f)
+                            )
+                            isTyping -> Text(
                                 text = "печатає...",
                                 fontSize = 12.sp,
                                 color = colorScheme.onPrimary.copy(alpha = 0.8f)
                             )
-                        } else if (isOnline) {
-                            Text(
+                            isOnline -> Text(
                                 text = "онлайн",
                                 fontSize = 12.sp,
                                 color = colorScheme.onPrimary.copy(alpha = 0.8f)
@@ -3463,7 +3549,9 @@ fun MessageContextMenu(
     onEdit: (Message) -> Unit,
     onForward: (Message) -> Unit,
     onDelete: (Message) -> Unit,
-    onCopy: (Message) -> Unit
+    onCopy: (Message) -> Unit,
+    onPin: (Message) -> Unit = {},
+    isPrivateChat: Boolean = false
 ) {
     val sheetState = rememberModalBottomSheetState()
     val colorScheme = MaterialTheme.colorScheme
@@ -3519,6 +3607,15 @@ fun MessageContextMenu(
                 text = "Переслати",
                 onClick = { onForward(message) }
             )
+
+            // Pin (для приватних чатів)
+            if (isPrivateChat) {
+                ContextMenuItem(
+                    icon = Icons.Default.PushPin,
+                    text = "Закріпити",
+                    onClick = { onPin(message) }
+                )
+            }
 
             // Copy (якщо є текст і це не просто URL медіа)
             if (!message.decryptedText.isNullOrEmpty() && !isMediaMessage && !textIsMediaUrl) {

@@ -187,17 +187,55 @@ class SocketManager(
                 }
             }
 
-            // 8. Обработка индикатора печатания
+            // 8. Обробка індикатора набору тексту
+            // REST API path: емітить {from_id, to_id} без is_typing
+            // Socket.IO TypingController: емітить {sender_id, is_typing:200/300, ...}
             socket?.on(Constants.SOCKET_EVENT_TYPING) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     val data = args[0] as? org.json.JSONObject
-                    // Сервер отправляет sender_id (НЕ user_id!) и is_typing: 200 (печатает) или 300 (закончил)
-                    val senderId = data?.optLong("sender_id", 0)
-                    val isTypingCode = data?.optInt("is_typing", 0)
-                    val isTyping = isTypingCode == 200  // 200 = печатает, 300 = закончил
+                    val senderId = data?.let {
+                        it.optLong("sender_id", 0L).takeIf { id -> id > 0L }
+                            ?: it.optLong("from_id", 0L)
+                    }
+                    val isTypingCode = data?.optInt("is_typing", -1) ?: -1
+                    // REST API path не надсилає is_typing → сама подія означає "почав набирати"
+                    val isTyping = if (isTypingCode >= 0) isTypingCode == 200 else true
                     Log.d("SocketManager", "User $senderId is typing: $isTyping (code: $isTypingCode)")
                     if (listener is ExtendedSocketListener) {
                         listener.onTypingStatus(senderId, isTyping)
+                    }
+                }
+            }
+
+            // 8a. Обробка зупинки набору (REST API path → typing_done подія)
+            socket?.on(Constants.SOCKET_EVENT_TYPING_DONE) { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data = args[0] as? org.json.JSONObject
+                    val senderId = data?.let {
+                        it.optLong("sender_id", 0L).takeIf { id -> id > 0L }
+                            ?: it.optLong("from_id", 0L)
+                    }
+                    Log.d("SocketManager", "User $senderId stopped typing")
+                    if (listener is ExtendedSocketListener) {
+                        listener.onTypingStatus(senderId, false)
+                    }
+                }
+            }
+
+            // 8b. Обробка запису голосового повідомлення
+            // is_recording: 200 = розпочав запис, 300 = завершив
+            socket?.on("recording") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data = args[0] as? org.json.JSONObject
+                    val senderId = data?.let {
+                        it.optLong("sender_id", 0L).takeIf { id -> id > 0L }
+                            ?: it.optLong("from_id", 0L)
+                    }
+                    val isRecordingCode = data?.optInt("is_recording", 200) ?: 200
+                    val isRecording = isRecordingCode == 200
+                    Log.d("SocketManager", "User $senderId recording: $isRecording")
+                    if (listener is ExtendedSocketListener) {
+                        listener.onRecordingStatus(senderId, isRecording)
                     }
                 }
             }
@@ -297,6 +335,65 @@ class SocketManager(
                         }
                     } catch (e: Exception) {
                         Log.e("SocketManager", "Error parsing on_user_loggedoff", e)
+                    }
+                }
+            }
+
+            // 16. Обробка редагування повідомлення в реальному часі
+            // Payload: {message_id, text (encrypted), iv, tag, cipher_version, ...}
+            socket?.on("message_edited") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data = args[0] as? org.json.JSONObject
+                    val messageId = data?.optLong("message_id", 0L) ?: 0L
+                    val newText = data?.optString("text", "") ?: ""
+                    val iv = data?.optString("iv", null)
+                    val tag = data?.optString("tag", null)
+                    val cipherVersion = data?.optString("cipher_version", null)
+                    Log.d("SocketManager", "Message $messageId edited via socket")
+                    if (messageId > 0 && listener is ExtendedSocketListener) {
+                        listener.onMessageEdited(messageId, newText, iv, tag, cipherVersion)
+                    }
+                }
+            }
+
+            // 17. Обробка видалення повідомлення в реальному часі
+            socket?.on("message_deleted") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data = args[0] as? org.json.JSONObject
+                    val messageId = data?.optLong("message_id", 0L) ?: 0L
+                    val deleteType = data?.optString("delete_type", "just_me") ?: "just_me"
+                    Log.d("SocketManager", "Message $messageId deleted ($deleteType) via socket")
+                    if (messageId > 0 && listener is ExtendedSocketListener) {
+                        listener.onMessageDeleted(messageId, deleteType)
+                    }
+                }
+            }
+
+            // 18. Обробка реакції на повідомлення в реальному часі
+            socket?.on("message_reaction") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data = args[0] as? org.json.JSONObject
+                    val messageId = data?.optLong("message_id", 0L) ?: 0L
+                    val userId = data?.optLong("user_id", 0L) ?: 0L
+                    val reaction = data?.optString("reaction", "") ?: ""
+                    val action = data?.optString("action", "added") ?: "added"
+                    Log.d("SocketManager", "Reaction '$reaction' ($action) on message $messageId by user $userId")
+                    if (messageId > 0 && listener is ExtendedSocketListener) {
+                        listener.onMessageReaction(messageId, userId, reaction, action)
+                    }
+                }
+            }
+
+            // 19. Обробка закріплення/відкріплення повідомлення в реальному часі
+            socket?.on("message_pinned") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data = args[0] as? org.json.JSONObject
+                    val messageId = data?.optLong("message_id", 0L) ?: 0L
+                    val pin = data?.optString("pin", "yes") ?: "yes"
+                    val chatId = data?.optLong("chat_id", 0L) ?: 0L
+                    Log.d("SocketManager", "Message $messageId pin=$pin chatId=$chatId via socket")
+                    if (listener is ExtendedSocketListener) {
+                        listener.onMessagePinned(messageId, pin == "yes", chatId)
                     }
                 }
             }
@@ -542,6 +639,22 @@ class SocketManager(
                 put("is_typing", isTyping)
             }
             socket?.emit(Constants.SOCKET_EVENT_TYPING, typingPayload)
+        }
+    }
+
+    /**
+     * Надсилає індикатор запису голосового повідомлення через Socket.IO
+     * user_id має бути session hash (access_token) для коректного розпізнавання на сервері
+     */
+    fun sendRecordingStatus(recipientId: Long) {
+        if (!canSendTypingIndicators()) return
+        if (socket?.connected() == true && UserSession.accessToken != null) {
+            val payload = JSONObject().apply {
+                put("user_id", UserSession.accessToken)   // session hash, not numeric ID
+                put("recipient_id", recipientId.toString())
+            }
+            socket?.emit("recording", payload)
+            Log.d(TAG, "Emitted 'recording' for recipient $recipientId")
         }
     }
 
@@ -813,10 +926,15 @@ class SocketManager(
      */
     interface ExtendedSocketListener : SocketListener {
         fun onTypingStatus(userId: Long?, isTyping: Boolean) {}
+        fun onRecordingStatus(userId: Long?, isRecording: Boolean) {}
         fun onLastSeen(userId: Long, lastSeen: Long) {}
         fun onMessageSeen(messageId: Long, userId: Long) {}
         fun onGroupMessage(messageJson: JSONObject) {}
         fun onUserOnline(userId: Long) {}
         fun onUserOffline(userId: Long) {}
+        fun onMessageEdited(messageId: Long, newText: String, iv: String? = null, tag: String? = null, cipherVersion: String? = null) {}
+        fun onMessageDeleted(messageId: Long, deleteType: String) {}
+        fun onMessageReaction(messageId: Long, userId: Long, reaction: String, action: String) {}
+        fun onMessagePinned(messageId: Long, isPinned: Boolean, chatId: Long) {}
     }
 }
