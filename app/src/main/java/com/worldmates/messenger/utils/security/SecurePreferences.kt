@@ -36,17 +36,17 @@ object SecurePreferences {
 
     /**
      * Створює EncryptedSharedPreferences з обробкою помилок.
-     * Якщо Android Keystore пошкоджений (AEADBadTagException),
-     * видаляє старі дані та створює нові.
+     * Якщо Android Keystore пошкоджений (AEADBadTagException після перевстановлення),
+     * видаляє запис Keystore І файл prefs, потім створює нові.
      * У крайньому випадку використовує звичайні SharedPreferences.
      */
     private fun createEncryptedPrefs(): SharedPreferences {
         val context = WMApplication.instance
-        try {
+        return try {
             val masterKey = MasterKey.Builder(context)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
-            return EncryptedSharedPreferences.create(
+            EncryptedSharedPreferences.create(
                 context,
                 PREFS_NAME,
                 masterKey,
@@ -54,21 +54,13 @@ object SecurePreferences {
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create EncryptedSharedPreferences, clearing and retrying: ${e.message}")
-            // Видаляємо пошкоджений файл
-            try {
-                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
-                val prefsFile = java.io.File(context.filesDir.parent, "shared_prefs/${PREFS_NAME}.xml")
-                if (prefsFile.exists()) prefsFile.delete()
-            } catch (cleanupError: Exception) {
-                Log.e(TAG, "Cleanup error: ${cleanupError.message}")
-            }
-            // Спробуємо ще раз з новим ключем
+            Log.e(TAG, "Failed to create EncryptedSharedPreferences, nuking state and retrying: ${e.message}")
+            nukeCorruptedState(context)
             try {
                 val masterKey = MasterKey.Builder(context)
                     .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                     .build()
-                return EncryptedSharedPreferences.create(
+                EncryptedSharedPreferences.create(
                     context,
                     PREFS_NAME,
                     masterKey,
@@ -77,9 +69,38 @@ object SecurePreferences {
                 )
             } catch (e2: Exception) {
                 Log.e(TAG, "Second attempt failed, falling back to regular SharedPreferences: ${e2.message}")
-                // Крайній випадок: звичайні SharedPreferences (без шифрування)
-                return context.getSharedPreferences("${PREFS_NAME}_fallback", Context.MODE_PRIVATE)
+                context.getSharedPreferences("${PREFS_NAME}_fallback", Context.MODE_PRIVATE)
             }
+        }
+    }
+
+    /**
+     * Видаляє запис Android Keystore І файл SharedPreferences,
+     * щоб наступний виклик MasterKey.Builder().build() створив чистий ключ.
+     * Використовує commit() (синхронно) перед видаленням файлу.
+     */
+    private fun nukeCorruptedState(context: Context) {
+        // 1. Видаляємо запис з Android Keystore — без цього новий MasterKey.Builder
+        //    поверне той самий пошкоджений ключ і EncryptedSharedPreferences знову впаде.
+        try {
+            val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
+            keyStore.load(null)
+            if (keyStore.containsAlias(MasterKey.DEFAULT_MASTER_KEY_ALIAS)) {
+                keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                Log.d(TAG, "Deleted stale Keystore entry")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not delete Keystore entry: ${e.message}")
+        }
+        // 2. Синхронно очищаємо SharedPreferences і видаляємо XML-файл
+        try {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().clear().commit()  // commit() — синхронний, щоб файл був чистим до видалення
+            val prefsFile = java.io.File(context.filesDir.parent, "shared_prefs/${PREFS_NAME}.xml")
+            if (prefsFile.exists()) prefsFile.delete()
+            Log.d(TAG, "Cleared corrupted prefs file")
+        } catch (e: Exception) {
+            Log.e(TAG, "Cleanup error: ${e.message}")
         }
     }
 
