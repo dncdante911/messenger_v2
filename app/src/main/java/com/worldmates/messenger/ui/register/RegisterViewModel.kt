@@ -63,8 +63,8 @@ class RegisterViewModel : ViewModel() {
                     response.apiStatus == 200 && response.accessToken != null && response.userId != null -> {
                         // Успішна регистрация з автоматичним логіном
                         UserSession.saveSession(
-                            response.accessToken,
-                            response.userId,
+                            response.accessToken!!,
+                            response.userId!!.toLong(),
                             response.username,
                             response.avatar
                         )
@@ -170,8 +170,8 @@ class RegisterViewModel : ViewModel() {
                         // Успішна регистрация (може бути як auto-login так і verification)
                         // Зберігаємо сесію в обох випадках
                         UserSession.saveSession(
-                            response.accessToken,
-                            response.userId,
+                            response.accessToken!!,
+                            response.userId!!.toLong(),
                             response.username,
                             response.avatar
                         )
@@ -179,7 +179,7 @@ class RegisterViewModel : ViewModel() {
                         if (response.successType == "verification") {
                             // Email верифікація потрібна, але сесія вже збережена
                             _registerState.value = RegisterState.VerificationRequired(
-                                userId = response.userId,
+                                userId = response.userId!!.toLong(),
                                 username = response.username ?: username,
                                 verificationType = "email",
                                 contactInfo = email
@@ -280,8 +280,8 @@ class RegisterViewModel : ViewModel() {
                         // Успішна регистрация
                         // Phone registration should auto-activate (no verification needed)
                         UserSession.saveSession(
-                            response.accessToken,
-                            response.userId,
+                            response.accessToken!!,
+                            response.userId!!.toLong(),
                             response.username,
                             response.avatar
                         )
