@@ -170,7 +170,7 @@ module.exports = function(sequelize, DataTypes) {
   }, {
     sequelize,
     timestamps: false,
-    tableName: 'Wo_Messages'
+    tableName: 'wo_messages'
   });
 
   Wo_Messages.prototype.getChatData = async function(from_id = this.from_id,to_id = this.to_id) {
