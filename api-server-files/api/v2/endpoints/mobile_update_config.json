@@ -1,24 +1,65 @@
 {
-  "latest_version": "2.10.0",
-  "version_code": 12,
+  "latest_version": "2.11.0",
+  "version_code": 13,
   "apk_url": "https://worldmates.club/sources-app/worldmates-latest.apk",
   "changelog": [
+    "Node.js: особисті чати тепер працюють через Node.js REST API — швидше і стабільніше",
+    "Node.js: get/send/edit/delete повідомлень через /api/node/chat/*",
+    "Node.js: пошук, пін, реакції, пересилання — без PHP",
+    "Node.js: список чатів, архів, заглушення, кольори — без PHP",
+    "Node.js: улюблені повідомлення та закріплені через Node.js",
+    "Android: NodeApi.kt + NodeRetrofitClient.kt — окремий клієнт для Node.js",
+    "Android: MessagesViewModelNode.kt + ChatsViewModelNode.kt — нові ViewModel без розширення великих файлів",
+    "Рефактор: файли > 1500 рядків НЕ розширюються — новий код в окремих файлах",
     "🤖 Bot API v1.0: повноцінна платформа для створення ботів (аналог Telegram Bot API)",
     "🏪 Bot Store: каталог ботів з пошуком, категоріями та рейтингами",
     "📡 Webhooks: доставка подій ботам через HTTPS callbacks з підписом HMAC-SHA256",
     "🗳️ Polls: опитування та квізи через ботів з візуальними результатами",
-    "📰 RSS News Bot: агрегатор новин з 10+ джерелами (BBC, Reuters, TechCrunch, Pravda.ua)",
-    "🌤️ Weather Bot: погода та прогноз з OpenWeatherMap + inline кнопки",
-    "🎫 Support Bot: FAQ, тікет-система та зворотній зв'язок",
-    "📋 Task Tracker Bot: управління завданнями з пріоритетами, дедлайнами та нагадуваннями",
-    "📊 Poll Bot: створення опитувань та голосувань з анонімним/публічним режимом",
-    "⌨️ Inline Keyboards: інтерактивні кнопки під повідомленнями ботів",
-    "🔌 Bot SDK: PHP бібліотека для швидкої розробки ботів (WorldMatesBotSDK.php)",
-    "🔧 Bot Management: CRUD операції, токени, rate limiting, статистика"
+    "📰 RSS News Bot: агрегатор новин з 10+ джерелами (BBC, Reuters, TechCrunch, Pravda.ua)"
   ],
   "is_mandatory": false,
-  "published_at": "2026-02-11T12:00:00Z",
+  "published_at": "2026-02-20T12:00:00Z",
   "features": {
+    "private_chats_node": {
+      "enabled": true,
+      "description": "Особисті чати тепер працюють через Node.js REST API замість PHP polling",
+      "node_base_url": "https://worldmates.club:449",
+      "phase": 1,
+      "endpoints": {
+        "get_messages":        "/api/node/chat/get",
+        "send_message":        "/api/node/chat/send",
+        "loadmore":            "/api/node/chat/loadmore",
+        "edit_message":        "/api/node/chat/edit",
+        "search":              "/api/node/chat/search",
+        "seen":                "/api/node/chat/seen",
+        "typing":              "/api/node/chat/typing",
+        "delete_message":      "/api/node/chat/delete",
+        "react":               "/api/node/chat/react",
+        "pin_message":         "/api/node/chat/pin",
+        "pinned_messages":     "/api/node/chat/pinned",
+        "forward":             "/api/node/chat/forward",
+        "chats_list":          "/api/node/chat/chats",
+        "delete_conversation": "/api/node/chat/delete-conversation",
+        "archive":             "/api/node/chat/archive",
+        "mute":                "/api/node/chat/mute",
+        "pin_chat":            "/api/node/chat/pin-chat",
+        "color":               "/api/node/chat/color",
+        "read":                "/api/node/chat/read",
+        "fav":                 "/api/node/chat/fav",
+        "fav_list":            "/api/node/chat/fav-list"
+      },
+      "php_fallback": {
+        "enabled": true,
+        "note": "Media upload (send-message.php) and FCM push remain on PHP"
+      },
+      "android_classes": {
+        "api_interface":      "NodeApi.kt",
+        "retrofit_client":    "NodeRetrofitClient.kt",
+        "messages_viewmodel": "MessagesViewModelNode.kt",
+        "chats_viewmodel":    "ChatsViewModelNode.kt"
+      },
+      "next_phases": ["group_chats", "channels"]
+    },
     "animated_stickers": {
       "enabled": true,
       "supported_formats": ["lottie", "tgs", "gif", "webp", "png"],
