@@ -6,7 +6,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { Op } = require('sequelize');
+const { Op }   = require('sequelize');
+const crypto   = require('../helpers/crypto');
 
 /**
  * Middleware: Validate access_token and resolve user_id
@@ -172,25 +173,28 @@ function getMessagesRoute(ctx, io) {
                 const senderData = await getUserBasicData(ctx, msg.from_id);
 
                 processedMessages.push({
-                    id: msg.id,
-                    from_id: msg.from_id,
-                    to_id: msg.to_id,
-                    text: msg.text || '',
-                    media: msg.media || '',
-                    mediaFileName: msg.mediaFileName || '',
-                    stickers: msg.stickers || '',
-                    time: msg.time,
-                    time_text: timeText,
-                    seen: msg.seen,
-                    position: position,
-                    type: type,
-                    type_two: msg.type_two || '',
-                    lat: msg.lat || '0',
-                    lng: msg.lng || '0',
-                    reply_id: msg.reply_id || 0,
-                    story_id: msg.story_id || 0,
-                    product_id: msg.product_id || 0,
-                    user_data: senderData
+                    id:             msg.id,
+                    from_id:        msg.from_id,
+                    to_id:          msg.to_id,
+                    text:           msg.text           || '',
+                    iv:             msg.iv             || null,
+                    tag:            msg.tag            || null,
+                    cipher_version: msg.cipher_version != null ? Number(msg.cipher_version) : 1,
+                    media:          msg.media          || '',
+                    mediaFileName:  msg.mediaFileName  || '',
+                    stickers:       msg.stickers       || '',
+                    time:           msg.time,
+                    time_text:      timeText,
+                    seen:           msg.seen,
+                    position:       position,
+                    type:           type,
+                    type_two:       msg.type_two       || '',
+                    lat:            msg.lat            || '0',
+                    lng:            msg.lng            || '0',
+                    reply_id:       msg.reply_id       || 0,
+                    story_id:       msg.story_id       || 0,
+                    product_id:     msg.product_id     || 0,
+                    user_data:      senderData
                 });
             }
 
@@ -259,20 +263,30 @@ function sendMessageRoute(ctx, io) {
 
             const now = Math.floor(Date.now() / 1000);
 
+            // Шифруем текст (AES-256-GCM + AES-128-ECB для WoWonder)
+            const enc = text
+                ? crypto.encryptForStorage(text, now)
+                : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: 1 };
+
             // Create message in database
             const newMessage = await ctx.wo_messages.create({
-                from_id: userId,
-                to_id: recipientId,
-                text: text,
-                media: '',
-                mediaFileName: '',
-                time: now,
-                seen: 0,
-                reply_id: replyId,
-                story_id: storyId,
-                lat: lat,
-                lng: lng,
-                type_two: (req.body.contact ? 'contact' : '')
+                from_id:        userId,
+                to_id:          recipientId,
+                text:           enc.text,
+                text_ecb:       enc.text_ecb,
+                text_preview:   enc.text_preview,
+                iv:             enc.iv,
+                tag:            enc.tag,
+                cipher_version: enc.cipher_version,
+                media:          '',
+                mediaFileName:  '',
+                time:           now,
+                seen:           0,
+                reply_id:       replyId,
+                story_id:       storyId,
+                lat:            lat,
+                lng:            lng,
+                type_two:       (req.body.contact ? 'contact' : '')
             });
 
             // Update chat metadata (conversation)
@@ -298,21 +312,24 @@ function sendMessageRoute(ctx, io) {
             const senderData = await getUserBasicData(ctx, userId);
 
             const messageData = {
-                id: newMessage.id,
-                from_id: userId,
-                to_id: recipientId,
-                text: text,
-                media: '',
-                mediaFileName: '',
-                stickers: '',
-                time: now,
-                seen: 0,
-                reply_id: replyId,
-                story_id: storyId,
-                lat: lat,
-                lng: lng,
-                type_two: newMessage.type_two || '',
-                user_data: senderData
+                id:             newMessage.id,
+                from_id:        userId,
+                to_id:          recipientId,
+                text:           enc.text,
+                iv:             enc.iv,
+                tag:            enc.tag,
+                cipher_version: enc.cipher_version,
+                media:          '',
+                mediaFileName:  '',
+                stickers:       '',
+                time:           now,
+                seen:           0,
+                reply_id:       replyId,
+                story_id:       storyId,
+                lat:            lat,
+                lng:            lng,
+                type_two:       newMessage.type_two || '',
+                user_data:      senderData
             };
 
             // Emit via Socket.IO to recipient (real-time delivery)

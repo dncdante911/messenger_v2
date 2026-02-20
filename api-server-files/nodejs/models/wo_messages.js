@@ -110,6 +110,62 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
+    },
+    broadcast_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    forward: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    edited: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    listening: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    remove_at: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    topic_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: null
+    },
+    // ── Encryption fields (AES-256-GCM / AES-128-ECB hybrid) ─────────────────
+    text_ecb: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null
+    },
+    text_preview: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      defaultValue: null
+    },
+    iv: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      defaultValue: null
+    },
+    tag: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      defaultValue: null
+    },
+    cipher_version: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 1
     }
   }, {
     sequelize,

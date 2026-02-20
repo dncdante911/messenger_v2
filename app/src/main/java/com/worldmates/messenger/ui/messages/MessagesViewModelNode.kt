@@ -9,6 +9,7 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.data.model.Message
 import com.worldmates.messenger.network.NodeRetrofitClient
+import com.worldmates.messenger.utils.EncryptionUtility
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,6 +84,45 @@ class MessagesViewModelNode(application: Application) : AndroidViewModel(applica
         fetchMessages()
     }
 
+    // ── Decryption ────────────────────────────────────────────────────────────
+
+    /**
+     * Дешифрует список сообщений от Node.js сервера.
+     * Сервер возвращает text=GCM_encrypted + iv + tag + cipher_version.
+     * Расшифрованный текст кладётся в decryptedText, UI должен использовать
+     * msg.decryptedText ?: msg.encryptedText для отображения.
+     */
+    private fun decryptMessages(messages: List<Message>): List<Message> =
+        messages.map { decryptSingleMessage(it) }
+
+    private fun decryptSingleMessage(msg: Message): Message {
+        val raw = msg.encryptedText
+        if (raw.isNullOrEmpty()) return msg
+
+        return when (msg.cipherVersion) {
+            EncryptionUtility.CIPHER_VERSION_GCM -> {
+                if (msg.iv != null && msg.tag != null) {
+                    val encData = EncryptionUtility.EncryptedData(
+                        encryptedText = raw,
+                        iv  = msg.iv,
+                        tag = msg.tag,
+                    )
+                    val plain = EncryptionUtility.decryptMessage(encData, msg.timeStamp)
+                    if (plain != null) msg.copy(decryptedText = plain)
+                    else {
+                        Log.w(TAG, "GCM decrypt failed for msg=${msg.id}, showing raw")
+                        msg
+                    }
+                } else msg
+            }
+            EncryptionUtility.CIPHER_VERSION_ECB -> {
+                val plain = EncryptionUtility.decryptECB(raw, msg.timeStamp)
+                if (plain != null) msg.copy(decryptedText = plain) else msg
+            }
+            else -> msg // plaintext или неизвестная версия
+        }
+    }
+
     // ── Messages ──────────────────────────────────────────────────────────────
 
     fun fetchMessages(beforeMessageId: Long = 0) {
@@ -99,13 +139,14 @@ class MessagesViewModelNode(application: Application) : AndroidViewModel(applica
                 )
 
                 if (resp.apiStatus == 200 && resp.messages != null) {
+                    val decrypted = decryptMessages(resp.messages)
                     if (beforeMessageId == 0L) {
-                        _messages.value = resp.messages
+                        _messages.value = decrypted
                     } else {
                         // prepend older messages
-                        _messages.value = resp.messages + _messages.value
+                        _messages.value = decrypted + _messages.value
                     }
-                    Log.d(TAG, "Loaded ${resp.messages.size} messages")
+                    Log.d(TAG, "Loaded ${resp.messages.size} messages (decrypted)")
                 } else {
                     _error.value = resp.errorMessage ?: "Failed to load messages"
                     Log.w(TAG, "getMessages failed: ${resp.errorMessage}")
@@ -132,8 +173,9 @@ class MessagesViewModelNode(application: Application) : AndroidViewModel(applica
                     limit            = 15
                 )
                 if (resp.apiStatus == 200 && !resp.messages.isNullOrEmpty()) {
-                    _messages.value = resp.messages + _messages.value
-                    Log.d(TAG, "LoadMore: +${resp.messages.size} messages")
+                    val decrypted = decryptMessages(resp.messages)
+                    _messages.value = decrypted + _messages.value
+                    Log.d(TAG, "LoadMore: +${resp.messages.size} messages (decrypted)")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "loadMore error", e)
@@ -155,13 +197,15 @@ class MessagesViewModelNode(application: Application) : AndroidViewModel(applica
                     replyId     = replyToId
                 )
                 if (resp.apiStatus == 200 && resp.messageData != null) {
+                    // Дешифруем полученное сообщение
+                    val decrypted = decryptSingleMessage(resp.messageData)
                     // append optimistically if Socket.IO doesn't push it back fast enough
-                    val exists = _messages.value.any { it.id == resp.messageData.id }
+                    val exists = _messages.value.any { it.id == decrypted.id }
                     if (!exists) {
-                        _messages.value = _messages.value + resp.messageData
+                        _messages.value = _messages.value + decrypted
                     }
-                    _sendResult.value = SendResult.Success(resp.messageData)
-                    Log.d(TAG, "Message sent id=${resp.messageData.id}")
+                    _sendResult.value = SendResult.Success(decrypted)
+                    Log.d(TAG, "Message sent id=${decrypted.id} (decrypted)")
                 } else {
                     _sendResult.value = SendResult.Error(resp.errorMessage ?: "Send failed")
                 }

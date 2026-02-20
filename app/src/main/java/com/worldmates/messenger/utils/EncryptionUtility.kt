@@ -176,6 +176,40 @@ object EncryptionUtility {
     }
 
     /**
+     * Дешифрует текст, зашифрованный AES-128-ECB (WoWonder legacy).
+     * Ключ = timestamp строка, дополненная нулями до 16 байт.
+     *
+     * @param ciphertext Base64 зашифрованный текст
+     * @param timestamp  Unix timestamp сообщения
+     * @return Расшифрованный текст или null при ошибке
+     */
+    fun decryptECB(ciphertext: String, timestamp: Long): String? {
+        return try {
+            val ciphertextBytes = Base64.decode(ciphertext, Base64.NO_WRAP)
+            val key = ecbKeyFromTimestamp(timestamp)
+            val cipher = Cipher.getInstance("AES/ECB/PKCS5Padding")
+            cipher.init(Cipher.DECRYPT_MODE, key)
+            val decryptedBytes = cipher.doFinal(ciphertextBytes)
+            String(decryptedBytes, Charsets.UTF_8).trim()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error decrypting message with ECB", e)
+            null
+        }
+    }
+
+    /**
+     * Создает 128-битный ключ из timestamp для AES-128-ECB.
+     * Timestamp-строка дополняется нулями до 16 байт.
+     * Совместимо с PHP: openssl_encrypt($text, "AES-128-ECB", $timestamp).
+     */
+    private fun ecbKeyFromTimestamp(timestamp: Long): SecretKey {
+        val ts       = timestamp.toString().toByteArray(Charsets.UTF_8)
+        val keyBytes = ByteArray(16) // 128 бит, инициализирован нулями
+        ts.copyInto(keyBytes, 0, 0, minOf(ts.size, 16))
+        return SecretKeySpec(keyBytes, ALGORITHM)
+    }
+
+    /**
      * Класс данных для хранения зашифрованного сообщения.
      */
     data class EncryptedData(
