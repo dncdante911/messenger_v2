@@ -145,7 +145,10 @@ async function initBotRedisSub(io, ctx) {
 
     try {
         const redis = require("redis");
-        const sub = redis.createClient({ url: 'redis://127.0.0.1:6379' });
+        const sub = redis.createClient({
+            socket: { host: '127.0.0.1', port: 6379 },
+            password: '3344Frz@q0607Dm$157'
+        });
 
         sub.on('error', (err) => {
             // Silently ignore Redis errors - bot messages will fall back to polling

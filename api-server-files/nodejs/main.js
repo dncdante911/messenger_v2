@@ -43,7 +43,7 @@ async function loadConfig(ctx) {
 
    if (ctx.globalconfig["redis"] === "Y") {
      const redisAdapter = require('socket.io-redis');
-     io.adapter(redisAdapter({ host: 'localhost', port: ctx.globalconfig["redis_port"] }));
+     io.adapter(redisAdapter({ host: '127.0.0.1', port: ctx.globalconfig["redis_port"], auth_pass: '3344Frz@q0607Dm$157' }));
    }
 
 
