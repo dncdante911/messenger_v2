@@ -60,6 +60,10 @@ class MessagesViewModel(application: Application) :
     private val _isTyping = MutableStateFlow(false)
     val isTyping: StateFlow<Boolean> = _isTyping
 
+    // true = співрозмовник зараз записує голосове повідомлення
+    private val _isRecording = MutableStateFlow(false)
+    val isRecording: StateFlow<Boolean> = _isRecording
+
     private val _recipientOnlineStatus = MutableStateFlow(false)
     val recipientOnlineStatus: StateFlow<Boolean> = _recipientOnlineStatus
 
@@ -73,6 +77,11 @@ class MessagesViewModel(application: Application) :
     private val _currentGroup = MutableStateFlow<com.worldmates.messenger.data.model.Group?>(null)
     val currentGroup: StateFlow<com.worldmates.messenger.data.model.Group?> = _currentGroup
     // ==================== END GROUPS ====================
+
+    // ==================== PRIVATE CHAT PIN ====================
+    private val _pinnedPrivateMessage = MutableStateFlow<Message?>(null)
+    val pinnedPrivateMessage: StateFlow<Message?> = _pinnedPrivateMessage
+    // ==================== END PRIVATE CHAT PIN ====================
 
     // ==================== SEARCH ====================
     private val _searchResults = MutableStateFlow<List<Message>>(emptyList())
@@ -465,8 +474,9 @@ class MessagesViewModel(application: Application) :
 
     /**
      * Видаляє повідомлення
+     * deleteType: "just_me" — лише для себе, "everyone" — для обох учасників
      */
-    fun deleteMessage(messageId: Long) {
+    fun deleteMessage(messageId: Long, deleteType: String = "just_me") {
         if (UserSession.accessToken == null) {
             _error.value = "Помилка: не авторизовано"
             return
@@ -478,11 +488,13 @@ class MessagesViewModel(application: Application) :
             try {
                 // Private chat → Node.js
                 if (groupId == 0L && recipientId != 0L) {
-                    val resp = nodeApi.deleteMessage(messageId, "just_me")
+                    val resp = nodeApi.deleteMessage(messageId, deleteType)
                     if (resp.apiStatus == 200) {
+                        // For "everyone" the socket event will delete on recipient side.
+                        // For "just_me" remove locally right away.
                         _messages.value = _messages.value.filter { it.id != messageId }
                         _error.value = null
-                        Log.d("MessagesViewModel", "Повідомлення видалено (Node.js): $messageId")
+                        Log.d("MessagesViewModel", "Повідомлення видалено (Node.js, $deleteType): $messageId")
                     } else {
                         _error.value = resp.errorMessage ?: "Не вдалося видалити повідомлення"
                     }
@@ -532,11 +544,16 @@ class MessagesViewModel(application: Application) :
         viewModelScope.launch {
             try {
                 // Private chat → Node.js (toggle handled server-side)
+                // The server will emit message_reaction socket event to both parties,
+                // which will update the UI via onMessageReaction callback.
                 if (groupId == 0L && recipientId != 0L) {
                     val resp = nodeApi.reactToMessage(messageId, emoji)
                     if (resp.apiStatus == 200) {
-                        fetchReactionsForMessage(messageId)
-                        Log.d("MessagesViewModel", "Реакцію оновлено (Node.js)")
+                        // Update local state optimistically based on server response
+                        val action = resp.action ?: "added"
+                        val finalReaction = resp.reaction ?: emoji
+                        updateLocalReaction(messageId, UserSession.userId, finalReaction, action)
+                        Log.d("MessagesViewModel", "Реакцію оновлено (Node.js): $action $finalReaction")
                     } else {
                         _error.value = resp.errorMessage ?: "Не вдалося оновити реакцію"
                     }
@@ -1212,19 +1229,116 @@ class MessagesViewModel(application: Application) :
         }
     }
 
+    override fun onRecordingStatus(userId: Long?, isRecording: Boolean) {
+        if (userId == recipientId) {
+            _isRecording.value = isRecording
+            if (isRecording) _recipientOnlineStatus.value = true
+            Log.d(TAG, "Користувач $userId recording: $isRecording")
+        }
+    }
+
+    override fun onMessageEdited(messageId: Long, newText: String, iv: String?, tag: String?, cipherVersion: String?) {
+        val current = _messages.value.toMutableList()
+        val idx = current.indexOfFirst { it.id == messageId }
+        if (idx != -1) {
+            val msg = current[idx]
+            // Use new encryption metadata from socket event if provided; fall back to existing
+            val effectiveIv = iv ?: msg.iv
+            val effectiveTag = tag ?: msg.tag
+            // cipherVersion from socket is String (e.g. "2"); Message model needs Int?
+            val effectiveCipherVersion = cipherVersion?.toIntOrNull() ?: msg.cipherVersion
+            val decrypted = DecryptionUtility.decryptMessageOrOriginal(
+                text = newText,
+                timestamp = msg.timeStamp,
+                iv = effectiveIv,
+                tag = effectiveTag,
+                cipherVersion = effectiveCipherVersion
+            )
+            current[idx] = msg.copy(
+                encryptedText = newText,
+                decryptedText = decrypted,
+                iv = effectiveIv,
+                tag = effectiveTag,
+                cipherVersion = effectiveCipherVersion
+            )
+            _messages.value = current
+            Log.d(TAG, "Socket: повідомлення $messageId відредаговано")
+        }
+    }
+
+    override fun onMessageDeleted(messageId: Long, deleteType: String) {
+        _messages.value = _messages.value.filter { it.id != messageId }
+        Log.d(TAG, "Socket: повідомлення $messageId видалено ($deleteType)")
+    }
+
+    override fun onMessageReaction(messageId: Long, userId: Long, reaction: String, action: String) {
+        updateLocalReaction(messageId, userId, reaction, action)
+        Log.d(TAG, "Socket: реакція '$reaction' ($action) на повідомлення $messageId від $userId")
+    }
+
+    override fun onMessagePinned(messageId: Long, isPinned: Boolean, chatId: Long) {
+        if (recipientId != 0L && (chatId == recipientId || chatId == UserSession.userId)) {
+            if (isPinned) {
+                val pinnedMsg = _messages.value.find { it.id == messageId }
+                _pinnedPrivateMessage.value = pinnedMsg
+            } else {
+                if (_pinnedPrivateMessage.value?.id == messageId) {
+                    _pinnedPrivateMessage.value = null
+                }
+            }
+            Log.d(TAG, "Socket: повідомлення $messageId ${if (isPinned) "закріплено" else "відкріплено"}")
+        }
+    }
+
     /**
-     * Отправляет событие "набирает текст" через Socket.IO
+     * Оновлює реакції конкретного повідомлення в локальному списку.
+     * action: "added" | "updated" | "removed"
+     */
+    private fun updateLocalReaction(messageId: Long, userId: Long, reaction: String, action: String) {
+        val current = _messages.value.toMutableList()
+        val idx = current.indexOfFirst { it.id == messageId }
+        if (idx != -1) {
+            val msg = current[idx]
+            val reactions = msg.reactions?.toMutableList() ?: mutableListOf()
+            when (action) {
+                "removed" -> reactions.removeAll { it.userId == userId }
+                else -> {
+                    reactions.removeAll { it.userId == userId }
+                    reactions.add(MessageReaction(id = null, messageId = messageId, userId = userId, reaction = reaction))
+                }
+            }
+            current[idx] = msg.copy(reactions = reactions)
+            _messages.value = current
+        }
+    }
+
+    /**
+     * Надсилає статус "набирає текст" через REST API Node.js
+     * REST API (не Socket.IO) використовується тому що auth через header access-token,
+     * а не session hash — так простіше та надійніше.
      */
     fun sendTypingStatus(isTyping: Boolean) {
-        if (recipientId == 0L) return
+        if (recipientId == 0L || groupId != 0L) return
+        if (socketManager?.canSendTypingIndicators() == false) return
 
-        socketManager?.emit(Constants.SOCKET_EVENT_TYPING, JSONObject().apply {
-            put("user_id", UserSession.userId)  // Кто печатает
-            put("recipient_id", recipientId)  // Кому отправляем
-            // Формат WoWonder: is_typing = 200 (печатает) или 300 (закончил)
-            put("is_typing", if (isTyping) 200 else 300)
-        })
-        Log.d("MessagesViewModel", "Відправлено статус 'печатає': $isTyping для користувача $recipientId")
+        viewModelScope.launch {
+            try {
+                nodeApi.sendTyping(recipientId, if (isTyping) "true" else "false")
+                Log.d(TAG, "Typing status sent via REST: $isTyping → recipient $recipientId")
+            } catch (e: Exception) {
+                Log.w(TAG, "sendTypingStatus failed: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Надсилає статус "записує голосове" через Socket.IO
+     * Сервер RecordingController очікує session hash у полі user_id
+     */
+    fun sendRecordingStatus() {
+        if (recipientId == 0L || groupId != 0L) return
+        socketManager?.sendRecordingStatus(recipientId)
+        Log.d(TAG, "Recording status emitted for recipient $recipientId")
     }
 
     fun clearError() {
@@ -1588,6 +1702,84 @@ class MessagesViewModel(application: Application) :
                 _searchTotalCount.value = 0
             } finally {
                 _isSearching.value = false
+            }
+        }
+    }
+
+    /**
+     * 🔍 Пошук повідомлень у приватному чаті (Node.js)
+     */
+    fun searchPrivateMessages(query: String) {
+        if (recipientId == 0L || groupId != 0L) return
+
+        if (query.length < 2) {
+            _searchResults.value = emptyList()
+            _searchQuery.value = ""
+            _searchTotalCount.value = 0
+            _currentSearchIndex.value = 0
+            return
+        }
+
+        _isSearching.value = true
+        _searchQuery.value = query
+
+        viewModelScope.launch {
+            try {
+                val response = nodeApi.searchMessages(
+                    recipientId = recipientId,
+                    query = query,
+                    limit = 100
+                )
+                if (response.apiStatus == 200) {
+                    val messages = response.messages?.map { decryptMessageFully(it) } ?: emptyList()
+                    _searchResults.value = messages
+                    _searchTotalCount.value = messages.size
+                    _currentSearchIndex.value = if (messages.isNotEmpty()) 0 else -1
+                    Log.d(TAG, "🔍 Private search: ${messages.size} results for '$query'")
+                } else {
+                    _searchResults.value = emptyList()
+                    _searchTotalCount.value = 0
+                    Log.e(TAG, "Private search failed: ${response.errorMessage}")
+                }
+            } catch (e: Exception) {
+                _searchResults.value = emptyList()
+                _searchTotalCount.value = 0
+                Log.e(TAG, "searchPrivateMessages error", e)
+            } finally {
+                _isSearching.value = false
+            }
+        }
+    }
+
+    /**
+     * 📌 Закріпити / відкріпити повідомлення в приватному чаті
+     */
+    fun pinPrivateMessage(messageId: Long, pin: Boolean = true) {
+        if (recipientId == 0L || groupId != 0L) return
+
+        viewModelScope.launch {
+            try {
+                val resp = nodeApi.pinMessage(
+                    messageId = messageId,
+                    chatId = recipientId,
+                    pin = if (pin) "yes" else "no"
+                )
+                if (resp.apiStatus == 200) {
+                    if (pin) {
+                        val pinnedMsg = _messages.value.find { it.id == messageId }
+                        _pinnedPrivateMessage.value = pinnedMsg
+                    } else {
+                        if (_pinnedPrivateMessage.value?.id == messageId) {
+                            _pinnedPrivateMessage.value = null
+                        }
+                    }
+                    Log.d(TAG, "📌 Message $messageId ${if (pin) "pinned" else "unpinned"} in private chat")
+                } else {
+                    _error.value = resp.errorMessage ?: "Не вдалося закріпити повідомлення"
+                }
+            } catch (e: Exception) {
+                _error.value = "Помилка: ${e.localizedMessage}"
+                Log.e(TAG, "pinPrivateMessage error", e)
             }
         }
     }
