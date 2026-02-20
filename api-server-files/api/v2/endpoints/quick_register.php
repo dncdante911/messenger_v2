@@ -16,6 +16,12 @@ if (empty($email) && empty($phone_number)) {
     $error_message = 'email or phone_number is required';
 }
 
+if (!empty($error_code)) {
+    $response_data = array('api_status' => 400, 'error_message' => $error_message);
+    echo json_encode($response_data);
+    exit;
+}
+
 if (empty($error_code)) {
     // Validate email format
     if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -152,3 +158,8 @@ if (empty($error_code)) {
         }
     }
 }
+
+if (!empty($error_code)) {
+    $response_data = array('api_status' => 400, 'error_message' => $error_message);
+}
+echo json_encode($response_data);
