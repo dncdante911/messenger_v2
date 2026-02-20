@@ -159,6 +159,8 @@ async function main() {
 
   // Middleware для парсинга JSON
   app.use(express.json());
+  // Middleware для парсинга application/x-www-form-urlencoded (Retrofit @FormUrlEncoded)
+  app.use(express.urlencoded({ extended: true }));
 
   // GET /api/ice-servers/:userId - получить ICE серверы с TURN credentials
   app.get('/api/ice-servers/:userId', (req, res) => {
