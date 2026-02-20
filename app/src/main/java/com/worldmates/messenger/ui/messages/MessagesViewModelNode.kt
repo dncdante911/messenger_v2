@@ -226,7 +226,8 @@ class MessagesViewModelNode(application: Application) : AndroidViewModel(applica
                 val resp = api.editMessage(messageId, newText)
                 if (resp.apiStatus == 200) {
                     _messages.value = _messages.value.map { msg ->
-                        if (msg.id == messageId) msg.copy(text = newText) else msg
+                        // newText — plaintext введённый пользователем; кладём в decryptedText
+                        if (msg.id == messageId) msg.copy(decryptedText = newText, isEdited = true) else msg
                     }
                     _actionResult.value = ActionResult.Success("edited")
                     Log.d(TAG, "Message $messageId edited")

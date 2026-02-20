@@ -59,7 +59,7 @@ async function getMuteSettings(ctx, userId, chatId) {
 
 // ─── GET CHATS (conversation list) ───────────────────────────────────────────
 
-async function getChats(ctx, io) {
+function getChats(ctx, io) {
     return async (req, res) => {
         try {
             const userId    = req.userId;
@@ -159,7 +159,7 @@ async function getChats(ctx, io) {
 
 // ─── DELETE CONVERSATION ─────────────────────────────────────────────────────
 
-async function deleteConversation(ctx, io) {
+function deleteConversation(ctx, io) {
     return async (req, res) => {
         try {
             const userId      = req.userId;
@@ -209,7 +209,7 @@ async function deleteConversation(ctx, io) {
 
 // ─── ARCHIVE / UNARCHIVE ─────────────────────────────────────────────────────
 
-async function archiveChat(ctx, io) {
+function archiveChat(ctx, io) {
     return async (req, res) => {
         try {
             const userId  = req.userId;
@@ -231,7 +231,7 @@ async function archiveChat(ctx, io) {
 
 // ─── MUTE notifications ──────────────────────────────────────────────────────
 
-async function muteChat(ctx, io) {
+function muteChat(ctx, io) {
     return async (req, res) => {
         try {
             const userId  = req.userId;
@@ -254,7 +254,7 @@ async function muteChat(ctx, io) {
 
 // ─── PIN / UNPIN chat ─────────────────────────────────────────────────────────
 
-async function pinChat(ctx, io) {
+function pinChat(ctx, io) {
     return async (req, res) => {
         try {
             const userId = req.userId;
@@ -277,7 +277,7 @@ async function pinChat(ctx, io) {
 // ─── CHANGE chat color ────────────────────────────────────────────────────────
 // Stores in wo_userschat.color
 
-async function changeChatColor(ctx, io) {
+function changeChatColor(ctx, io) {
     return async (req, res) => {
         try {
             const userId      = req.userId;
@@ -313,7 +313,7 @@ async function changeChatColor(ctx, io) {
 
 // ─── READ ALL (mark chat as fully read) ──────────────────────────────────────
 
-async function readChats(ctx, io) {
+function readChats(ctx, io) {
     return async (req, res) => {
         try {
             const userId      = req.userId;
