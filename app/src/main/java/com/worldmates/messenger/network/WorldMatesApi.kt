@@ -702,7 +702,7 @@ interface WorldMatesApi {
         @Field("use_gcm") useGcm: String = "true"
     ): MessageResponse
 
-    // Отправка сообщения с медиа-файлом
+    // Отправка сообщения с медиа-файлом (multipart)
     @Multipart
     @POST(Constants.SEND_MESSAGE_ENDPOINT)
     suspend fun sendMessageWithMedia(
@@ -711,6 +711,48 @@ interface WorldMatesApi {
         @Part("text") text: RequestBody,
         @Part("message_hash_id") messageHashId: RequestBody,
         @Part file: MultipartBody.Part
+    ): MessageResponse
+
+    // Отправка голосового сообщения через PHP (audio URL → поле "audio")
+    @FormUrlEncoded
+    @POST(Constants.SEND_MESSAGE_ENDPOINT)
+    suspend fun sendVoiceMessage(
+        @Query("access_token") accessToken: String,
+        @Field("user_id") recipientId: Long,
+        @Field("audio") audioUrl: String,
+        @Field("message_hash_id") messageHashId: String,
+        @Field("use_gcm") useGcm: String = "true"
+    ): MessageResponse
+
+    // Отправка видео-сообщения через PHP (video URL → поле "video")
+    @FormUrlEncoded
+    @POST(Constants.SEND_MESSAGE_ENDPOINT)
+    suspend fun sendVideoMessage(
+        @Query("access_token") accessToken: String,
+        @Field("user_id") recipientId: Long,
+        @Field("video") videoUrl: String,
+        @Field("message_hash_id") messageHashId: String,
+        @Field("use_gcm") useGcm: String = "true"
+    ): MessageResponse
+
+    // Отправка голосового сообщения в группу через PHP
+    @FormUrlEncoded
+    @POST("/api/v2/index.php?type=send_group_message")
+    suspend fun sendGroupVoiceMessage(
+        @Query("access_token") accessToken: String,
+        @Field("group_id") groupId: Long,
+        @Field("audio") audioUrl: String,
+        @Field("message_hash_id") messageHashId: String
+    ): MessageResponse
+
+    // Отправка видео-сообщения в группу через PHP
+    @FormUrlEncoded
+    @POST("/api/v2/index.php?type=send_group_message")
+    suspend fun sendGroupVideoMessage(
+        @Query("access_token") accessToken: String,
+        @Field("group_id") groupId: Long,
+        @Field("video") videoUrl: String,
+        @Field("message_hash_id") messageHashId: String
     ): MessageResponse
 
     @FormUrlEncoded
