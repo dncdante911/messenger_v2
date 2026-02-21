@@ -1,13 +1,4 @@
 <?php
-// +------------------------------------------------------------------------+
-// | @author Deen Doughouz (DoughouzForest)
-// | @author_url 1: http://www.wowonder.com
-// | @author_url 2: http://codecanyon.net/user/doughouzforest
-// | @author_email: wowondersocial@gmail.com
-// +------------------------------------------------------------------------+
-// | WoWonder - The Ultimate Social Networking Platform
-// | Copyright (c) 2018 WoWonder. All rights reserved.
-// +------------------------------------------------------------------------+
 
 // ВКЛЮЧАЕМ ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
 error_reporting(E_ALL);
@@ -118,6 +109,20 @@ if (empty($error_code)) {
                 $lat = Wo_Secure($_POST['lat']);
             }
 
+// --- КАСТОМНЫЙ ХАК ДЛЯ WM MESSENGER (ЗАШИФРОВАННЫЕ МЕДИА) ---
+            if (!empty($_POST['custom_media_path'])) {
+                // Подставляем относительный путь в переменные, которые уйдут в БД
+                $mediaFilename = Wo_Secure($_POST['custom_media_path']);
+                $mediaName = basename($mediaFilename);
+                
+                // Убиваем текст-заглушку, чтобы избежать 500 ошибки от парсера ссылок WoWonder
+                // и чтобы заглушка не зашифровалась и не вывелась на экран
+                if (isset($_POST['text']) && $_POST['text'] === 'WM_MEDIA_FILE') {
+                    $_POST['text'] = ''; 
+                }
+            }
+            // -----------------------------------------------------------
+            
             $message_data = array(
                 'from_id' => Wo_Secure($wo['user']['user_id']),
                 'to_id' => Wo_Secure($recipient_id),
