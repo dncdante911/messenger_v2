@@ -22,7 +22,7 @@ $migration_flag = '/tmp/wm_call_history_migration_v1_done';
 if (!file_exists($migration_flag)) {
     try {
         // wo_calls table (1-on-1 calls)
-        $db->exec("
+        $pdoDb->exec("
             CREATE TABLE IF NOT EXISTS wo_calls (
                 id INT(11) NOT NULL AUTO_INCREMENT,
                 from_id INT(11) NOT NULL COMMENT 'Caller user ID',
@@ -46,7 +46,7 @@ if (!file_exists($migration_flag)) {
         ");
 
         // wo_group_calls table
-        $db->exec("
+        $pdoDb->exec("
             CREATE TABLE IF NOT EXISTS wo_group_calls (
                 id INT(11) NOT NULL AUTO_INCREMENT,
                 group_id INT(11) NOT NULL,
@@ -68,7 +68,7 @@ if (!file_exists($migration_flag)) {
         ");
 
         // wo_group_call_participants table
-        $db->exec("
+        $pdoDb->exec("
             CREATE TABLE IF NOT EXISTS wo_group_call_participants (
                 id INT(11) NOT NULL AUTO_INCREMENT,
                 call_id INT(11) NOT NULL,
@@ -86,8 +86,8 @@ if (!file_exists($migration_flag)) {
 
         // Add deleted_by_from and deleted_by_to columns for soft delete
         try {
-            $db->exec("ALTER TABLE wo_calls ADD COLUMN deleted_by_from TINYINT(1) DEFAULT 0 AFTER duration");
-            $db->exec("ALTER TABLE wo_calls ADD COLUMN deleted_by_to TINYINT(1) DEFAULT 0 AFTER deleted_by_from");
+            $pdoDb->exec("ALTER TABLE wo_calls ADD COLUMN deleted_by_from TINYINT(1) DEFAULT 0 AFTER duration");
+            $pdoDb->exec("ALTER TABLE wo_calls ADD COLUMN deleted_by_to TINYINT(1) DEFAULT 0 AFTER deleted_by_from");
         } catch (Exception $e) {
             // columns may already exist
         }
@@ -103,7 +103,7 @@ if (!file_exists($migration_flag)) {
 // AUTHENTICATION
 // ============================================
 $access_token = $_POST['access_token'] ?? $_GET['access_token'] ?? '';
-$user_id = validateAccessToken($db, $access_token);
+$user_id = validateAccessToken($pdoDb, $access_token);
 
 if (!$user_id) {
     sendError('Invalid access token', 401);
@@ -116,13 +116,13 @@ $type = $_POST['type'] ?? $_GET['type'] ?? '';
 
 switch ($type) {
     case 'get_history':
-        getCallHistory($db, $user_id);
+        getCallHistory($pdoDb, $user_id);
         break;
     case 'delete_call':
-        deleteCallFromHistory($db, $user_id);
+        deleteCallFromHistory($pdoDb, $user_id);
         break;
     case 'clear_history':
-        clearCallHistory($db, $user_id);
+        clearCallHistory($pdoDb, $user_id);
         break;
     default:
         sendError('Invalid type. Use: get_history, delete_call, clear_history');
@@ -135,7 +135,7 @@ switch ($type) {
 /**
  * Get call history for user (both 1-on-1 and group calls)
  */
-function getCallHistory($db, $user_id) {
+function getCallHistory($pdoDb, $user_id) {
     $limit = min((int)($_POST['limit'] ?? 50), 100);
     $offset = max((int)($_POST['offset'] ?? 0), 0);
     $filter = $_POST['filter'] ?? 'all'; // all, missed, incoming, outgoing
@@ -233,7 +233,7 @@ function getCallHistory($db, $user_id) {
             'user_id_7' => $user_id,
         ];
 
-        $stmt = $db->prepare($sql);
+        $stmt = $pdoDb->prepare($sql);
         foreach ($params as $key => $val) {
             $stmt->bindValue($key, $val, PDO::PARAM_INT);
         }
@@ -268,7 +268,7 @@ function getCallHistory($db, $user_id) {
             LIMIT :g_limit OFFSET :g_offset
         ";
 
-        $stmt2 = $db->prepare($group_sql);
+        $stmt2 = $pdoDb->prepare($group_sql);
         $stmt2->bindValue('user_id_g1', $user_id, PDO::PARAM_INT);
         $stmt2->bindValue('user_id_g2', $user_id, PDO::PARAM_INT);
         $stmt2->bindValue('g_limit', $limit, PDO::PARAM_INT);
@@ -328,7 +328,7 @@ function getCallHistory($db, $user_id) {
             AND NOT (c.from_id = :uid3 AND c.deleted_by_from = 1)
             AND NOT (c.to_id = :uid4 AND c.deleted_by_to = 1)
         ";
-        $stmt3 = $db->prepare($count_sql);
+        $stmt3 = $pdoDb->prepare($count_sql);
         $stmt3->execute(['uid1' => $user_id, 'uid2' => $user_id, 'uid3' => $user_id, 'uid4' => $user_id]);
         $total = (int)$stmt3->fetch()['total'];
 
@@ -348,7 +348,7 @@ function getCallHistory($db, $user_id) {
 /**
  * Delete single call from history (soft delete)
  */
-function deleteCallFromHistory($db, $user_id) {
+function deleteCallFromHistory($pdoDb, $user_id) {
     $call_id = (int)($_POST['call_id'] ?? 0);
     if ($call_id <= 0) {
         sendError('call_id is required');
@@ -356,7 +356,7 @@ function deleteCallFromHistory($db, $user_id) {
 
     try {
         // Check if user is participant
-        $stmt = $db->prepare("SELECT from_id, to_id FROM wo_calls WHERE id = :call_id LIMIT 1");
+        $stmt = $pdoDb->prepare("SELECT from_id, to_id FROM wo_calls WHERE id = :call_id LIMIT 1");
         $stmt->execute(['call_id' => $call_id]);
         $call = $stmt->fetch();
 
@@ -365,10 +365,10 @@ function deleteCallFromHistory($db, $user_id) {
         }
 
         if ((int)$call['from_id'] === $user_id) {
-            $db->prepare("UPDATE wo_calls SET deleted_by_from = 1 WHERE id = :call_id")
+            $pdoDb->prepare("UPDATE wo_calls SET deleted_by_from = 1 WHERE id = :call_id")
                ->execute(['call_id' => $call_id]);
         } elseif ((int)$call['to_id'] === $user_id) {
-            $db->prepare("UPDATE wo_calls SET deleted_by_to = 1 WHERE id = :call_id")
+            $pdoDb->prepare("UPDATE wo_calls SET deleted_by_to = 1 WHERE id = :call_id")
                ->execute(['call_id' => $call_id]);
         } else {
             sendError('Not authorized', 403);
@@ -385,11 +385,11 @@ function deleteCallFromHistory($db, $user_id) {
 /**
  * Clear entire call history for user (soft delete all)
  */
-function clearCallHistory($db, $user_id) {
+function clearCallHistory($pdoDb, $user_id) {
     try {
-        $db->prepare("UPDATE wo_calls SET deleted_by_from = 1 WHERE from_id = :uid")
+        $pdoDb->prepare("UPDATE wo_calls SET deleted_by_from = 1 WHERE from_id = :uid")
            ->execute(['uid' => $user_id]);
-        $db->prepare("UPDATE wo_calls SET deleted_by_to = 1 WHERE to_id = :uid")
+        $pdoDb->prepare("UPDATE wo_calls SET deleted_by_to = 1 WHERE to_id = :uid")
            ->execute(['uid' => $user_id]);
 
         sendSuccess(['message' => 'Call history cleared']);

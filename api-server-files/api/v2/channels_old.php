@@ -15,8 +15,8 @@ require_once(__DIR__ . '/config.php');
 require_once(__DIR__ . '/crypto_helper.php');
 
 // This standalone script uses PDO ($pdo from config.php) for all DB operations.
-// Reassign to $db for backward compatibility with existing code in this file.
-$db = $pdo;
+// Reassign to $pdoDb for backward compatibility with existing code in this file.
+$pdoDb = $pdo;
 
 // Налаштування логування
 error_reporting(E_ALL);
@@ -58,7 +58,7 @@ if (!$access_token) {
 }
 
 // Валідація токену та отримання user_id
-$user_id = validateAccessToken($db, $access_token);
+$user_id = validateAccessToken($pdoDb, $access_token);
 if (!$user_id) {
     logChannelMessage("Invalid access token attempt", 'WARNING');
     echo json_encode(['api_status' => 401, 'error_message' => 'Invalid access token']);
@@ -94,12 +94,12 @@ try {
         // CRUD операції з каналами
         // ============================================
         case 'get_channels':
-            echo json_encode(getChannels($db, $user_id, $data));
+            echo json_encode(getChannels($pdoDb, $user_id, $data));
             break;
 
         case 'search':
             // Пошук каналів за назвою/описом
-            echo json_encode(searchChannels($db, $user_id, $data));
+            echo json_encode(searchChannels($pdoDb, $user_id, $data));
             break;
 
         case 'get_channel_details':
@@ -108,11 +108,11 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(getChannelDetails($db, $user_id, $channel_id));
+            echo json_encode(getChannelDetails($pdoDb, $user_id, $channel_id));
             break;
 
         case 'create_channel':
-            echo json_encode(createChannel($db, $user_id, $data));
+            echo json_encode(createChannel($pdoDb, $user_id, $data));
             break;
 
         case 'update_channel':
@@ -121,7 +121,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(updateChannel($db, $user_id, $channel_id, $data));
+            echo json_encode(updateChannel($pdoDb, $user_id, $channel_id, $data));
             break;
 
         case 'delete_channel':
@@ -130,7 +130,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(deleteChannel($db, $user_id, $channel_id));
+            echo json_encode(deleteChannel($pdoDb, $user_id, $channel_id));
             break;
 
         // ============================================
@@ -142,7 +142,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(subscribeChannel($db, $user_id, $channel_id));
+            echo json_encode(subscribeChannel($pdoDb, $user_id, $channel_id));
             break;
 
         case 'unsubscribe_channel':
@@ -151,7 +151,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(unsubscribeChannel($db, $user_id, $channel_id));
+            echo json_encode(unsubscribeChannel($pdoDb, $user_id, $channel_id));
             break;
 
         case 'get_channel_subscribers':
@@ -160,7 +160,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(getChannelSubscribers($db, $user_id, $channel_id));
+            echo json_encode(getChannelSubscribers($pdoDb, $user_id, $channel_id));
             break;
 
         // ============================================
@@ -172,11 +172,11 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(getChannelPosts($db, $user_id, $channel_id, $data));
+            echo json_encode(getChannelPosts($pdoDb, $user_id, $channel_id, $data));
             break;
 
         case 'create_post':
-            echo json_encode(createPost($db, $user_id, $data));
+            echo json_encode(createPost($pdoDb, $user_id, $data));
             break;
 
         case 'update_post':
@@ -185,7 +185,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'post_id is required']);
                 exit;
             }
-            echo json_encode(updatePost($db, $user_id, $post_id, $data));
+            echo json_encode(updatePost($pdoDb, $user_id, $post_id, $data));
             break;
 
         case 'delete_post':
@@ -194,7 +194,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'post_id is required']);
                 exit;
             }
-            echo json_encode(deletePost($db, $user_id, $post_id));
+            echo json_encode(deletePost($pdoDb, $user_id, $post_id));
             break;
 
         case 'pin_post':
@@ -203,7 +203,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'post_id is required']);
                 exit;
             }
-            echo json_encode(pinPost($db, $user_id, $post_id, true));
+            echo json_encode(pinPost($pdoDb, $user_id, $post_id, true));
             break;
 
         case 'unpin_post':
@@ -212,7 +212,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'post_id is required']);
                 exit;
             }
-            echo json_encode(pinPost($db, $user_id, $post_id, false));
+            echo json_encode(pinPost($pdoDb, $user_id, $post_id, false));
             break;
 
         // ============================================
@@ -224,11 +224,11 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'post_id is required']);
                 exit;
             }
-            echo json_encode(getComments($db, $user_id, $post_id));
+            echo json_encode(getComments($pdoDb, $user_id, $post_id));
             break;
 
         case 'add_comment':
-            echo json_encode(addComment($db, $user_id, $data));
+            echo json_encode(addComment($pdoDb, $user_id, $data));
             break;
 
         case 'delete_comment':
@@ -237,22 +237,22 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'comment_id is required']);
                 exit;
             }
-            echo json_encode(deleteComment($db, $user_id, $comment_id));
+            echo json_encode(deleteComment($pdoDb, $user_id, $comment_id));
             break;
 
         // ============================================
         // Реакції
         // ============================================
         case 'add_post_reaction':
-            echo json_encode(addPostReaction($db, $user_id, $data));
+            echo json_encode(addPostReaction($pdoDb, $user_id, $data));
             break;
 
         case 'remove_post_reaction':
-            echo json_encode(removePostReaction($db, $user_id, $data));
+            echo json_encode(removePostReaction($pdoDb, $user_id, $data));
             break;
 
         case 'add_comment_reaction':
-            echo json_encode(addCommentReaction($db, $user_id, $data));
+            echo json_encode(addCommentReaction($pdoDb, $user_id, $data));
             break;
 
         case 'register_post_view':
@@ -261,18 +261,18 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'post_id is required']);
                 exit;
             }
-            echo json_encode(registerPostView($db, $user_id, $post_id));
+            echo json_encode(registerPostView($pdoDb, $user_id, $post_id));
             break;
 
         // ============================================
         // Адміністрування
         // ============================================
         case 'add_channel_admin':
-            echo json_encode(addChannelAdmin($db, $user_id, $data));
+            echo json_encode(addChannelAdmin($pdoDb, $user_id, $data));
             break;
 
         case 'remove_channel_admin':
-            echo json_encode(removeChannelAdmin($db, $user_id, $data));
+            echo json_encode(removeChannelAdmin($pdoDb, $user_id, $data));
             break;
 
         case 'add_channel_member':
@@ -285,7 +285,7 @@ try {
                 exit;
             }
 
-            echo json_encode(addChannelMember($db, $user_id, $channel_id, $target_user_id));
+            echo json_encode(addChannelMember($pdoDb, $user_id, $channel_id, $target_user_id));
             break;
 
         // ============================================
@@ -297,7 +297,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(updateChannelSettings($db, $user_id, $channel_id, $data));
+            echo json_encode(updateChannelSettings($pdoDb, $user_id, $channel_id, $data));
             break;
 
         case 'get_channel_statistics':
@@ -306,7 +306,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(getChannelStatistics($db, $user_id, $channel_id));
+            echo json_encode(getChannelStatistics($pdoDb, $user_id, $channel_id));
             break;
 
         case 'upload_channel_avatar':
@@ -316,7 +316,7 @@ try {
                 echo json_encode(['api_status' => 400, 'error_message' => 'channel_id is required']);
                 exit;
             }
-            echo json_encode(uploadChannelAvatar($db, $user_id, $channel_id, $_FILES));
+            echo json_encode(uploadChannelAvatar($pdoDb, $user_id, $channel_id, $_FILES));
             break;
 
         default:
@@ -337,7 +337,7 @@ try {
 /**
  * Отримати список каналів
  */
-function getChannels($db, $user_id, $data) {
+function getChannels($pdoDb, $user_id, $data) {
     $filter = $data['filter'] ?? 'all'; // 'all', 'subscribed', 'owned'
     $limit = isset($data['limit']) ? (int)$data['limit'] : 20;
     $offset = isset($data['offset']) ? (int)$data['offset'] : 0;
@@ -363,7 +363,7 @@ function getChannels($db, $user_id, $data) {
         $params[] = $searchTerm;
     }
 
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT
             g.group_id AS id,
             g.group_name AS name,
@@ -410,17 +410,17 @@ function getChannels($db, $user_id, $data) {
  * Пошук каналів за назвою/описом
  * Обгортка над getChannels() для сумісності з Android
  */
-function searchChannels($db, $user_id, $data) {
+function searchChannels($pdoDb, $user_id, $data) {
     // Просто викликаємо getChannels() з параметром query
     // getChannels() вже має логіку пошуку (lines 354-360)
-    return getChannels($db, $user_id, $data);
+    return getChannels($pdoDb, $user_id, $data);
 }
 
 /**
  * Отримати деталі каналу
  */
-function getChannelDetails($db, $user_id, $channel_id) {
-    $stmt = $db->prepare("
+function getChannelDetails($pdoDb, $user_id, $channel_id) {
+    $stmt = $pdoDb->prepare("
         SELECT
             g.group_id AS id,
             g.group_name AS name,
@@ -463,7 +463,7 @@ function getChannelDetails($db, $user_id, $channel_id) {
 /**
  * Створити новий канал
  */
-function createChannel($db, $user_id, $data) {
+function createChannel($pdoDb, $user_id, $data) {
     $name = trim($data['name'] ?? '');
     $username = trim($data['username'] ?? '');
     $description = trim($data['description'] ?? '');
@@ -485,7 +485,7 @@ function createChannel($db, $user_id, $data) {
             return ['api_status' => 400, 'error_message' => 'Username can only contain letters, numbers and underscore'];
         }
 
-        $stmt = $db->prepare("SELECT group_id FROM Wo_GroupChat WHERE username = ?");
+        $stmt = $pdoDb->prepare("SELECT group_id FROM Wo_GroupChat WHERE username = ?");
         $stmt->execute([$username]);
         if ($stmt->fetch()) {
             return ['api_status' => 400, 'error_message' => 'Username already taken'];
@@ -506,10 +506,10 @@ function createChannel($db, $user_id, $data) {
     ]);
 
     try {
-        $db->beginTransaction();
+        $pdoDb->beginTransaction();
 
         // Створюємо канал
-        $stmt = $db->prepare("
+        $stmt = $pdoDb->prepare("
             INSERT INTO Wo_GroupChat
             (user_id, group_name, username, description, is_private, category, type, settings, time, subscribers_count, posts_count, is_verified)
             VALUES (?, ?, ?, ?, ?, ?, 'channel', ?, ?, 0, 0, 0)
@@ -527,24 +527,24 @@ function createChannel($db, $user_id, $data) {
             $time
         ]);
 
-        $channel_id = $db->lastInsertId();
+        $channel_id = $pdoDb->lastInsertId();
 
         // Автоматично підписуємо власника як owner
-        $stmt_sub = $db->prepare("
+        $stmt_sub = $pdoDb->prepare("
             INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen)
             VALUES (?, ?, 'owner', '1', ?)
         ");
         $stmt_sub->execute([$user_id, $channel_id, $time]);
 
-        $db->commit();
+        $pdoDb->commit();
 
         logChannelMessage("User $user_id created channel $channel_id: $name (private=$is_private)", 'INFO');
 
         // Повертаємо створений канал
-        return getChannelDetails($db, $user_id, $channel_id);
+        return getChannelDetails($pdoDb, $user_id, $channel_id);
 
     } catch (Exception $e) {
-        $db->rollBack();
+        $pdoDb->rollBack();
         logChannelMessage("Failed to create channel for user $user_id: " . $e->getMessage(), 'ERROR');
         return ['api_status' => 500, 'error_message' => 'Failed to create channel: ' . $e->getMessage()];
     }
@@ -553,9 +553,9 @@ function createChannel($db, $user_id, $data) {
 /**
  * Оновити канал
  */
-function updateChannel($db, $user_id, $channel_id, $data) {
+function updateChannel($pdoDb, $user_id, $channel_id, $data) {
     // Перевіряємо права
-    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$channel_id, $user_id]);
     $role = $stmt->fetchColumn();
 
@@ -583,7 +583,7 @@ function updateChannel($db, $user_id, $channel_id, $data) {
         }
 
         // Перевіряємо унікальність
-        $stmt = $db->prepare("SELECT group_id FROM Wo_GroupChat WHERE username = ? AND group_id != ?");
+        $stmt = $pdoDb->prepare("SELECT group_id FROM Wo_GroupChat WHERE username = ? AND group_id != ?");
         $stmt->execute([$username, $channel_id]);
         if ($stmt->fetch()) {
             return ['api_status' => 400, 'error_message' => 'Username already taken'];
@@ -604,18 +604,18 @@ function updateChannel($db, $user_id, $channel_id, $data) {
 
     $params[] = $channel_id;
 
-    $stmt = $db->prepare("UPDATE Wo_GroupChat SET " . implode(', ', $updates) . " WHERE group_id = ? AND type = 'channel'");
+    $stmt = $pdoDb->prepare("UPDATE Wo_GroupChat SET " . implode(', ', $updates) . " WHERE group_id = ? AND type = 'channel'");
     $stmt->execute($params);
 
-    return getChannelDetails($db, $user_id, $channel_id);
+    return getChannelDetails($pdoDb, $user_id, $channel_id);
 }
 
 /**
  * Видалити канал
  */
-function deleteChannel($db, $user_id, $channel_id) {
+function deleteChannel($pdoDb, $user_id, $channel_id) {
     // Перевіряємо права (тільки owner)
-    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$channel_id, $user_id]);
     $role = $stmt->fetchColumn();
 
@@ -624,25 +624,25 @@ function deleteChannel($db, $user_id, $channel_id) {
     }
 
     try {
-        $db->beginTransaction();
+        $pdoDb->beginTransaction();
 
         // Видаляємо всі повідомлення
-        $stmt = $db->prepare("DELETE FROM Wo_Messages WHERE group_id = ?");
+        $stmt = $pdoDb->prepare("DELETE FROM Wo_Messages WHERE group_id = ?");
         $stmt->execute([$channel_id]);
 
         // Видаляємо всіх підписників
-        $stmt = $db->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ?");
+        $stmt = $pdoDb->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ?");
         $stmt->execute([$channel_id]);
 
         // Видаляємо канал
-        $stmt = $db->prepare("DELETE FROM Wo_GroupChat WHERE group_id = ? AND type = 'channel'");
+        $stmt = $pdoDb->prepare("DELETE FROM Wo_GroupChat WHERE group_id = ? AND type = 'channel'");
         $stmt->execute([$channel_id]);
 
-        $db->commit();
+        $pdoDb->commit();
 
         return ['api_status' => 200, 'message' => 'Channel deleted successfully'];
     } catch (Exception $e) {
-        $db->rollBack();
+        $pdoDb->rollBack();
         return ['api_status' => 500, 'error_message' => 'Failed to delete channel: ' . $e->getMessage()];
     }
 }
@@ -650,9 +650,9 @@ function deleteChannel($db, $user_id, $channel_id) {
 /**
  * Підписатися на канал
  */
-function subscribeChannel($db, $user_id, $channel_id) {
+function subscribeChannel($pdoDb, $user_id, $channel_id) {
     // Перевіряємо чи існує канал
-    $stmt = $db->prepare("SELECT group_id, is_private FROM Wo_GroupChat WHERE group_id = ? AND type = 'channel'");
+    $stmt = $pdoDb->prepare("SELECT group_id, is_private FROM Wo_GroupChat WHERE group_id = ? AND type = 'channel'");
     $stmt->execute([$channel_id]);
     $channel = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -661,14 +661,14 @@ function subscribeChannel($db, $user_id, $channel_id) {
     }
 
     // Перевіряємо чи вже підписаний
-    $stmt = $db->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$channel_id, $user_id]);
     if ($stmt->fetch()) {
         return ['api_status' => 400, 'error_message' => 'Already subscribed'];
     }
 
     // Підписуємося
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen)
         VALUES (?, ?, 'member', '1', ?)
     ");
@@ -680,8 +680,8 @@ function subscribeChannel($db, $user_id, $channel_id) {
 /**
  * Відписатися від каналу
  */
-function unsubscribeChannel($db, $user_id, $channel_id) {
-    $stmt = $db->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ? AND role != 'owner'");
+function unsubscribeChannel($pdoDb, $user_id, $channel_id) {
+    $stmt = $pdoDb->prepare("DELETE FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ? AND role != 'owner'");
     $stmt->execute([$channel_id, $user_id]);
 
     if ($stmt->rowCount() === 0) {
@@ -694,9 +694,9 @@ function unsubscribeChannel($db, $user_id, $channel_id) {
 /**
  * Отримати підписників каналу
  */
-function getChannelSubscribers($db, $user_id, $channel_id) {
+function getChannelSubscribers($pdoDb, $user_id, $channel_id) {
     // Перевіряємо чи є адміном
-    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$channel_id, $user_id]);
     $role = $stmt->fetchColumn();
 
@@ -704,7 +704,7 @@ function getChannelSubscribers($db, $user_id, $channel_id) {
         return ['api_status' => 403, 'error_message' => 'Only admins can view subscribers'];
     }
 
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT
             gcu.user_id AS id,
             u.username,
@@ -737,12 +737,12 @@ function getChannelSubscribers($db, $user_id, $channel_id) {
 /**
  * Отримати пости каналу
  */
-function getChannelPosts($db, $user_id, $channel_id, $data) {
+function getChannelPosts($pdoDb, $user_id, $channel_id, $data) {
     $limit = isset($data['limit']) ? (int)$data['limit'] : 20;
     $offset = isset($data['offset']) ? (int)$data['offset'] : 0;
 
     // Перевіряємо чи підписаний на канал або це публічний канал
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT is_private,
                (SELECT COUNT(*) FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?) AS is_subscribed
         FROM Wo_GroupChat
@@ -760,7 +760,7 @@ function getChannelPosts($db, $user_id, $channel_id, $data) {
     }
 
     // Отримуємо пости з інформацією про автора
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT
             m.id,
             m.from_id AS author_id,
@@ -822,7 +822,7 @@ function getChannelPosts($db, $user_id, $channel_id, $data) {
         unset($post['mediaFileName']);
 
         // Отримуємо реакції до поста з інформацією про користувачів
-        $stmt = $db->prepare("
+        $stmt = $pdoDb->prepare("
             SELECT
                 r.reaction AS emoji,
                 r.user_id,
@@ -878,7 +878,7 @@ function getChannelPosts($db, $user_id, $channel_id, $data) {
 /**
  * Створити пост у каналі
  */
-function createPost($db, $user_id, $data) {
+function createPost($pdoDb, $user_id, $data) {
     $channel_id = $data['channel_id'] ?? null;
     $text = trim($data['text'] ?? '');
     $media_url = trim($data['media_url'] ?? '');
@@ -892,7 +892,7 @@ function createPost($db, $user_id, $data) {
     }
 
     // Перевіряємо права на публікацію та чи канал приватний
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT gcu.role, gc.is_private
         FROM Wo_GroupChatUsers gcu
         JOIN Wo_GroupChat gc ON gc.group_id = gcu.group_id
@@ -923,7 +923,7 @@ function createPost($db, $user_id, $data) {
     }
 
     // Створюємо пост
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         INSERT INTO Wo_Messages
         (from_id, group_id, text, media, mediaFileName, time, seen, sent_push, iv, tag)
         VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
@@ -944,14 +944,14 @@ function createPost($db, $user_id, $data) {
 
     logChannelMessage("User $user_id created post in channel $channel_id (private=" . $channel_info['is_private'] . ")", 'INFO');
 
-    $post_id = $db->lastInsertId();
+    $post_id = $pdoDb->lastInsertId();
 
     // Оновлюємо лічильник постів в каналі
-    $stmt = $db->prepare("UPDATE Wo_GroupChat SET posts_count = posts_count + 1 WHERE group_id = ?");
+    $stmt = $pdoDb->prepare("UPDATE Wo_GroupChat SET posts_count = posts_count + 1 WHERE group_id = ?");
     $stmt->execute([$channel_id]);
 
     // Повертаємо створений пост з повними даними
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT
             m.id,
             m.from_id AS author_id,
@@ -1001,9 +1001,9 @@ function createPost($db, $user_id, $data) {
 /**
  * Оновити пост
  */
-function updatePost($db, $user_id, $post_id, $data) {
+function updatePost($pdoDb, $user_id, $post_id, $data) {
     // Перевіряємо права
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT m.from_id, m.group_id, gcu.role
         FROM Wo_Messages m
         LEFT JOIN Wo_GroupChatUsers gcu ON gcu.group_id = m.group_id AND gcu.user_id = ?
@@ -1034,7 +1034,7 @@ function updatePost($db, $user_id, $post_id, $data) {
 
     $params[] = $post_id;
 
-    $stmt = $db->prepare("UPDATE Wo_Messages SET " . implode(', ', $updates) . " WHERE id = ?");
+    $stmt = $pdoDb->prepare("UPDATE Wo_Messages SET " . implode(', ', $updates) . " WHERE id = ?");
     $stmt->execute($params);
 
     return ['api_status' => 200, 'message' => 'Post updated successfully'];
@@ -1043,9 +1043,9 @@ function updatePost($db, $user_id, $post_id, $data) {
 /**
  * Видалити пост
  */
-function deletePost($db, $user_id, $post_id) {
+function deletePost($pdoDb, $user_id, $post_id) {
     // Перевіряємо права
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT m.from_id, m.group_id, gcu.role
         FROM Wo_Messages m
         LEFT JOIN Wo_GroupChatUsers gcu ON gcu.group_id = m.group_id AND gcu.user_id = ?
@@ -1062,7 +1062,7 @@ function deletePost($db, $user_id, $post_id) {
         return ['api_status' => 403, 'error_message' => 'You do not have permission to delete this post'];
     }
 
-    $stmt = $db->prepare("DELETE FROM Wo_Messages WHERE id = ?");
+    $stmt = $pdoDb->prepare("DELETE FROM Wo_Messages WHERE id = ?");
     $stmt->execute([$post_id]);
 
     return ['api_status' => 200, 'message' => 'Post deleted successfully'];
@@ -1071,9 +1071,9 @@ function deletePost($db, $user_id, $post_id) {
 /**
  * Закріпити/відкріпити пост
  */
-function pinPost($db, $user_id, $post_id, $pin = true) {
+function pinPost($pdoDb, $user_id, $post_id, $pin = true) {
     // Перевіряємо права
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT m.group_id, gcu.role
         FROM Wo_Messages m
         LEFT JOIN Wo_GroupChatUsers gcu ON gcu.group_id = m.group_id AND gcu.user_id = ?
@@ -1092,7 +1092,7 @@ function pinPost($db, $user_id, $post_id, $pin = true) {
 
     $type_two = $pin ? 'pinned' : '';
 
-    $stmt = $db->prepare("UPDATE Wo_Messages SET type_two = ? WHERE id = ?");
+    $stmt = $pdoDb->prepare("UPDATE Wo_Messages SET type_two = ? WHERE id = ?");
     $stmt->execute([$type_two, $post_id]);
 
     return [
@@ -1104,8 +1104,8 @@ function pinPost($db, $user_id, $post_id, $pin = true) {
 /**
  * Отримати коментарі до поста
  */
-function getComments($db, $user_id, $post_id) {
-    $stmt = $db->prepare("
+function getComments($pdoDb, $user_id, $post_id) {
+    $stmt = $pdoDb->prepare("
         SELECT
             mc.id,
             mc.user_id,
@@ -1135,7 +1135,7 @@ function getComments($db, $user_id, $post_id) {
 /**
  * Додати коментар до поста
  */
-function addComment($db, $user_id, $data) {
+function addComment($pdoDb, $user_id, $data) {
     $post_id = $data['post_id'] ?? null;
     $text = trim($data['text'] ?? '');
     $reply_to = $data['reply_to_comment_id'] ?? null;
@@ -1145,7 +1145,7 @@ function addComment($db, $user_id, $data) {
     }
 
     // Перевіряємо чи існує пост і чи дозволені коментарі
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT m.group_id, g.settings
         FROM Wo_Messages m
         JOIN Wo_GroupChat g ON g.group_id = m.group_id
@@ -1164,7 +1164,7 @@ function addComment($db, $user_id, $data) {
     }
 
     // Додаємо коментар
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         INSERT INTO Wo_MessageComments (message_id, user_id, text, time, reply_to_comment_id)
         VALUES (?, ?, ?, ?, ?)
     ");
@@ -1173,16 +1173,16 @@ function addComment($db, $user_id, $data) {
     return [
         'api_status' => 200,
         'message' => 'Comment added successfully',
-        'comment_id' => $db->lastInsertId()
+        'comment_id' => $pdoDb->lastInsertId()
     ];
 }
 
 /**
  * Видалити коментар
  */
-function deleteComment($db, $user_id, $comment_id) {
+function deleteComment($pdoDb, $user_id, $comment_id) {
     // Перевіряємо права
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT mc.user_id, m.group_id, gcu.role
         FROM Wo_MessageComments mc
         JOIN Wo_Messages m ON m.id = mc.message_id
@@ -1200,7 +1200,7 @@ function deleteComment($db, $user_id, $comment_id) {
         return ['api_status' => 403, 'error_message' => 'You do not have permission to delete this comment'];
     }
 
-    $stmt = $db->prepare("DELETE FROM Wo_MessageComments WHERE id = ?");
+    $stmt = $pdoDb->prepare("DELETE FROM Wo_MessageComments WHERE id = ?");
     $stmt->execute([$comment_id]);
 
     return ['api_status' => 200, 'message' => 'Comment deleted successfully'];
@@ -1209,7 +1209,7 @@ function deleteComment($db, $user_id, $comment_id) {
 /**
  * Додати реакцію на пост
  */
-function addPostReaction($db, $user_id, $data) {
+function addPostReaction($pdoDb, $user_id, $data) {
     $post_id = $data['post_id'] ?? null;
     $reaction = trim($data['reaction'] ?? '');
 
@@ -1218,7 +1218,7 @@ function addPostReaction($db, $user_id, $data) {
     }
 
     // Перевіряємо чи дозволені реакції
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT g.settings
         FROM Wo_Messages m
         JOIN Wo_GroupChat g ON g.group_id = m.group_id
@@ -1237,11 +1237,11 @@ function addPostReaction($db, $user_id, $data) {
     }
 
     // Видаляємо попередню реакцію цього користувача
-    $stmt = $db->prepare("DELETE FROM wo_reactions WHERE message_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("DELETE FROM wo_reactions WHERE message_id = ? AND user_id = ?");
     $stmt->execute([$post_id, $user_id]);
 
     // Додаємо нову реакцію
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         INSERT INTO wo_reactions (user_id, message_id, reaction)
         VALUES (?, ?, ?)
     ");
@@ -1253,14 +1253,14 @@ function addPostReaction($db, $user_id, $data) {
 /**
  * Видалити реакцію з поста
  */
-function removePostReaction($db, $user_id, $data) {
+function removePostReaction($pdoDb, $user_id, $data) {
     $post_id = $data['post_id'] ?? null;
 
     if (!$post_id) {
         return ['api_status' => 400, 'error_message' => 'post_id is required'];
     }
 
-    $stmt = $db->prepare("DELETE FROM wo_reactions WHERE message_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("DELETE FROM wo_reactions WHERE message_id = ? AND user_id = ?");
     $stmt->execute([$post_id, $user_id]);
 
     return ['api_status' => 200, 'message' => 'Reaction removed successfully'];
@@ -1269,7 +1269,7 @@ function removePostReaction($db, $user_id, $data) {
 /**
  * Додати реакцію на коментар
  */
-function addCommentReaction($db, $user_id, $data) {
+function addCommentReaction($pdoDb, $user_id, $data) {
     $comment_id = $data['comment_id'] ?? null;
     $reaction = trim($data['reaction'] ?? '');
 
@@ -1278,11 +1278,11 @@ function addCommentReaction($db, $user_id, $data) {
     }
 
     // Видаляємо попередню реакцію
-    $stmt = $db->prepare("DELETE FROM Wo_MessageCommentReactions WHERE comment_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("DELETE FROM Wo_MessageCommentReactions WHERE comment_id = ? AND user_id = ?");
     $stmt->execute([$comment_id, $user_id]);
 
     // Додаємо нову
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         INSERT INTO Wo_MessageCommentReactions (comment_id, user_id, reaction, time)
         VALUES (?, ?, ?, ?)
     ");
@@ -1294,21 +1294,21 @@ function addCommentReaction($db, $user_id, $data) {
 /**
  * Зареєструвати перегляд поста
  */
-function registerPostView($db, $user_id, $post_id) {
+function registerPostView($pdoDb, $user_id, $post_id) {
     // Перевіряємо чи існує пост
-    $stmt = $db->prepare("SELECT id FROM Wo_Messages WHERE id = ?");
+    $stmt = $pdoDb->prepare("SELECT id FROM Wo_Messages WHERE id = ?");
     $stmt->execute([$post_id]);
     if (!$stmt->fetch()) {
         return ['api_status' => 404, 'error_message' => 'Post not found'];
     }
 
     // Перевіряємо чи вже є запис про перегляд від цього користувача
-    $stmt = $db->prepare("SELECT id FROM Wo_MessageViews WHERE message_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT id FROM Wo_MessageViews WHERE message_id = ? AND user_id = ?");
     $stmt->execute([$post_id, $user_id]);
 
     if (!$stmt->fetch()) {
         // Додаємо новий перегляд
-        $stmt = $db->prepare("
+        $stmt = $pdoDb->prepare("
             INSERT INTO Wo_MessageViews (message_id, user_id, time)
             VALUES (?, ?, ?)
         ");
@@ -1318,7 +1318,7 @@ function registerPostView($db, $user_id, $post_id) {
     }
 
     // Повертаємо оновлену кількість переглядів
-    $stmt = $db->prepare("SELECT COUNT(*) as views_count FROM Wo_MessageViews WHERE message_id = ?");
+    $stmt = $pdoDb->prepare("SELECT COUNT(*) as views_count FROM Wo_MessageViews WHERE message_id = ?");
     $stmt->execute([$post_id]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1332,7 +1332,7 @@ function registerPostView($db, $user_id, $post_id) {
 /**
  * Додати адміністратора каналу
  */
-function addChannelAdmin($db, $user_id, $data) {
+function addChannelAdmin($pdoDb, $user_id, $data) {
     $channel_id = $data['channel_id'] ?? null;
     $admin_user_id = $data['user_id'] ?? null;
     $user_search = $data['user_search'] ?? null; // ID, username або ім'я
@@ -1348,7 +1348,7 @@ function addChannelAdmin($db, $user_id, $data) {
 
         // Спочатку пробуємо як ID
         if (is_numeric($search_term)) {
-            $stmt = $db->prepare("SELECT user_id FROM Wo_Users WHERE user_id = ?");
+            $stmt = $pdoDb->prepare("SELECT user_id FROM Wo_Users WHERE user_id = ?");
             $stmt->execute([$search_term]);
             $admin_user_id = $stmt->fetchColumn();
         }
@@ -1357,14 +1357,14 @@ function addChannelAdmin($db, $user_id, $data) {
         if (!$admin_user_id) {
             // Видаляємо @ якщо є
             $username = ltrim($search_term, '@');
-            $stmt = $db->prepare("SELECT user_id FROM Wo_Users WHERE username = ?");
+            $stmt = $pdoDb->prepare("SELECT user_id FROM Wo_Users WHERE username = ?");
             $stmt->execute([$username]);
             $admin_user_id = $stmt->fetchColumn();
         }
 
         // Якщо не знайдено, шукаємо по імені
         if (!$admin_user_id) {
-            $stmt = $db->prepare("
+            $stmt = $pdoDb->prepare("
                 SELECT user_id FROM Wo_Users
                 WHERE CONCAT(first_name, ' ', last_name) LIKE ?
                    OR first_name LIKE ?
@@ -1390,7 +1390,7 @@ function addChannelAdmin($db, $user_id, $data) {
     }
 
     // Перевіряємо права (тільки owner)
-    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$channel_id, $user_id]);
     $current_role = $stmt->fetchColumn();
 
@@ -1399,7 +1399,7 @@ function addChannelAdmin($db, $user_id, $data) {
     }
 
     // Оновлюємо роль користувача
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         UPDATE Wo_GroupChatUsers
         SET role = ?
         WHERE group_id = ? AND user_id = ?
@@ -1416,9 +1416,9 @@ function addChannelAdmin($db, $user_id, $data) {
 /**
  * Додати учасника до каналу (для адмінів/модераторів)
  */
-function addChannelMember($db, $admin_user_id, $channel_id, $target_user_id) {
+function addChannelMember($pdoDb, $admin_user_id, $channel_id, $target_user_id) {
     // Перевіряємо чи існує канал
-    $stmt = $db->prepare("SELECT group_id, is_private FROM Wo_GroupChat WHERE group_id = ? AND type = 'channel'");
+    $stmt = $pdoDb->prepare("SELECT group_id, is_private FROM Wo_GroupChat WHERE group_id = ? AND type = 'channel'");
     $stmt->execute([$channel_id]);
     $channel = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1427,7 +1427,7 @@ function addChannelMember($db, $admin_user_id, $channel_id, $target_user_id) {
     }
 
     // Перевіряємо права поточного користувача (admin, moderator, або owner)
-    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$channel_id, $admin_user_id]);
     $admin_role = $stmt->fetchColumn();
 
@@ -1436,7 +1436,7 @@ function addChannelMember($db, $admin_user_id, $channel_id, $target_user_id) {
     }
 
     // Перевіряємо чи користувач існує
-    $stmt = $db->prepare("SELECT user_id, username FROM Wo_Users WHERE user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT user_id, username FROM Wo_Users WHERE user_id = ?");
     $stmt->execute([$target_user_id]);
     $target_user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1445,14 +1445,14 @@ function addChannelMember($db, $admin_user_id, $channel_id, $target_user_id) {
     }
 
     // Перевіряємо чи вже є учасником
-    $stmt = $db->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$channel_id, $target_user_id]);
     if ($stmt->fetch()) {
         return ['api_status' => 400, 'error_message' => 'User is already a member of this channel'];
     }
 
     // Додаємо користувача як member
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         INSERT INTO Wo_GroupChatUsers (user_id, group_id, role, active, last_seen)
         VALUES (?, ?, 'member', '1', ?)
     ");
@@ -1473,7 +1473,7 @@ function addChannelMember($db, $admin_user_id, $channel_id, $target_user_id) {
 /**
  * Видалити адміністратора каналу
  */
-function removeChannelAdmin($db, $user_id, $data) {
+function removeChannelAdmin($pdoDb, $user_id, $data) {
     $channel_id = $data['channel_id'] ?? null;
     $admin_user_id = $data['user_id'] ?? null;
 
@@ -1482,7 +1482,7 @@ function removeChannelAdmin($db, $user_id, $data) {
     }
 
     // Перевіряємо права (тільки owner)
-    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$channel_id, $user_id]);
     $current_role = $stmt->fetchColumn();
 
@@ -1491,7 +1491,7 @@ function removeChannelAdmin($db, $user_id, $data) {
     }
 
     // Змінюємо роль на member
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         UPDATE Wo_GroupChatUsers
         SET role = 'member'
         WHERE group_id = ? AND user_id = ? AND role != 'owner'
@@ -1508,9 +1508,9 @@ function removeChannelAdmin($db, $user_id, $data) {
 /**
  * Оновити налаштування каналу
  */
-function updateChannelSettings($db, $user_id, $channel_id, $data) {
+function updateChannelSettings($pdoDb, $user_id, $channel_id, $data) {
     // Перевіряємо права
-    $stmt = $db->prepare("SELECT role, settings FROM Wo_GroupChatUsers gcu JOIN Wo_GroupChat g ON g.group_id = gcu.group_id WHERE gcu.group_id = ? AND gcu.user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT role, settings FROM Wo_GroupChatUsers gcu JOIN Wo_GroupChat g ON g.group_id = gcu.group_id WHERE gcu.group_id = ? AND gcu.user_id = ?");
     $stmt->execute([$channel_id, $user_id]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1549,7 +1549,7 @@ function updateChannelSettings($db, $user_id, $channel_id, $data) {
         }
     }
 
-    $stmt = $db->prepare("UPDATE Wo_GroupChat SET settings = ? WHERE group_id = ?");
+    $stmt = $pdoDb->prepare("UPDATE Wo_GroupChat SET settings = ? WHERE group_id = ?");
     $stmt->execute([json_encode($current_settings), $channel_id]);
 
     return ['api_status' => 200, 'message' => 'Settings updated successfully'];
@@ -1558,9 +1558,9 @@ function updateChannelSettings($db, $user_id, $channel_id, $data) {
 /**
  * Отримати статистику каналу
  */
-function getChannelStatistics($db, $user_id, $channel_id) {
+function getChannelStatistics($pdoDb, $user_id, $channel_id) {
     // Перевіряємо права
-    $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+    $stmt = $pdoDb->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
     $stmt->execute([$channel_id, $user_id]);
     $role = $stmt->fetchColumn();
 
@@ -1569,7 +1569,7 @@ function getChannelStatistics($db, $user_id, $channel_id) {
     }
 
     // Загальна статистика
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT
             subscribers_count,
             posts_count,
@@ -1582,7 +1582,7 @@ function getChannelStatistics($db, $user_id, $channel_id) {
     $stats = $stmt->fetch(PDO::FETCH_ASSOC);
 
     // Топ-3 поста за переглядами
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT
             m.id,
             m.text,
@@ -1610,14 +1610,14 @@ function getChannelStatistics($db, $user_id, $channel_id) {
 /**
  * Завантажити аватар каналу
  */
-function uploadChannelAvatar($db, $user_id, $channel_id, $files) {
+function uploadChannelAvatar($pdoDb, $user_id, $channel_id, $files) {
     global $sqlConnect, $wo;
 
     try {
         logChannelMessage("Upload avatar request: channel_id=$channel_id, user_id=$user_id", 'INFO');
 
         // Перевіряємо права
-        $stmt = $db->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
+        $stmt = $pdoDb->prepare("SELECT role FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ?");
         $stmt->execute([$channel_id, $user_id]);
         $role = $stmt->fetchColumn();
 
@@ -1742,7 +1742,7 @@ function uploadChannelAvatar($db, $user_id, $channel_id, $files) {
 
         // Оновлюємо аватар в БД
         // NOTE: Wo_GroupChat uses 'group_id' as PRIMARY KEY, not 'id'
-        $stmt = $db->prepare("UPDATE Wo_GroupChat SET avatar = ? WHERE group_id = ?");
+        $stmt = $pdoDb->prepare("UPDATE Wo_GroupChat SET avatar = ? WHERE group_id = ?");
         if (!$stmt->execute([$avatar_url, $channel_id])) {
             logChannelMessage("Database update failed", 'ERROR');
             return ['api_status' => 500, 'error_message' => 'Failed to update avatar in database'];

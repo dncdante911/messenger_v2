@@ -21,7 +21,7 @@ if (!$access_token) {
 }
 
 // Validate token
-$user_id = validateAccessToken($db, $access_token);
+$user_id = validateAccessToken($pdoDb, $access_token);
 if (!$user_id) {
     http_response_code(401);
     echo json_encode([
@@ -65,7 +65,7 @@ try {
 
     // ==================== IMPORT MESSAGES ====================
     if (isset($backup['messages']) && is_array($backup['messages'])) {
-        $stmt = $db->prepare("
+        $stmt = $pdoDb->prepare("
             INSERT IGNORE INTO Wo_Messages
             (from_id, to_id, text, media, media_file_names, time, seen, deleted_fs1, deleted_fs2)
             VALUES (:from_id, :to_id, :text, :media, :media_file_names, :time, :seen, :deleted_fs1, :deleted_fs2)

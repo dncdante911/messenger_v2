@@ -21,7 +21,7 @@ if (!$access_token) {
 }
 
 // Validate token
-$user_id = validateAccessToken($db, $access_token);
+$user_id = validateAccessToken($pdoDb, $access_token);
 if (!$user_id) {
     http_response_code(401);
     echo json_encode([
@@ -45,7 +45,7 @@ try {
     ];
 
     // ==================== USER ====================
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT user_id, username, first_name, last_name, email, phone_number,
                avatar, cover, about, gender, birthday, country_id, city, zip
         FROM Wo_Users
@@ -55,7 +55,7 @@ try {
     $export_data['user'] = $stmt->fetch();
 
     // ==================== MESSAGES ====================
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT id, from_id, to_id, text, media, mediaFileNames,
                time, seen, deleted_one, deleted_two,
                product_id, lat, lng, reply_id, story_id
@@ -69,7 +69,7 @@ try {
     $export_data['manifest']['total_messages'] = count($messages);
 
     // ==================== CONTACTS ====================
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT user_id, username, first_name, last_name, avatar, verified
         FROM Wo_Users
         WHERE user_id IN (
@@ -80,7 +80,7 @@ try {
     $export_data['contacts'] = $stmt->fetchAll();
 
     // ==================== GROUPS ====================
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT id, user_id, group_name, group_title, avatar, cover, about, category
         FROM Wo_Groups
         WHERE user_id = ? OR id IN (
@@ -94,7 +94,7 @@ try {
     // Channels table may not exist in all installations
     $export_data['channels'] = [];
     try {
-        $stmt = $db->prepare("
+        $stmt = $pdoDb->prepare("
             SELECT id, user_id, channel_name, channel_username as channel_title,
                    avatar, cover, channel_description as description
             FROM Wo_Channels
@@ -115,7 +115,7 @@ try {
     $export_data['settings'] = [];
 
     // ==================== BLOCKED USERS ====================
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT blocked FROM Wo_Blocks WHERE blocker = ?
     ");
     $stmt->execute([$user_id]);

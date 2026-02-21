@@ -41,13 +41,13 @@ try {
 }
 
 debug_log("Step 4: Checking variables...");
-debug_log("Step 4.1: \$db (PDO) = " . (isset($db) ? 'SET' : 'NOT SET'));
+debug_log("Step 4.1: \$pdoDb (PDO) = " . (isset($pdoDb) ? 'SET' : 'NOT SET'));
 debug_log("Step 4.2: \$sqlConnect (MySQLi) = " . (isset($sqlConnect) ? 'SET' : 'NOT SET'));
 debug_log("Step 4.3: \$wo = " . (isset($wo) ? 'SET' : 'NOT SET'));
 
-if (isset($db)) {
+if (isset($pdoDb)) {
     try {
-        $stmt = $db->query("SELECT 1");
+        $stmt = $pdoDb->query("SELECT 1");
         debug_log("Step 4.4: PDO connection WORKING");
     } catch (Exception $e) {
         debug_log("Step 4.4: PDO connection FAILED: " . $e->getMessage());
@@ -73,8 +73,8 @@ debug_log("Step 6.3: T_USERS = " . (defined('T_USERS') ? T_USERS : 'NOT DEFINED'
 // Тест запиту до БД
 debug_log("Step 7: Testing database query...");
 try {
-    if (isset($db)) {
-        $stmt = $db->query("SELECT COUNT(*) as cnt FROM Wo_Users");
+    if (isset($pdoDb)) {
+        $stmt = $pdoDb->query("SELECT COUNT(*) as cnt FROM Wo_Users");
         $result = $stmt->fetch();
         debug_log("Step 7.1: Users in database: " . $result['cnt']);
     }
@@ -119,7 +119,7 @@ echo json_encode([
     'message' => 'Debug successful! Check /tmp/channels_debug.log for details',
     'checks' => [
         'config_loaded' => true,
-        'db_pdo' => isset($db),
+        'db_pdo' => isset($pdoDb),
         'db_mysqli' => isset($sqlConnect),
         'wo_array' => isset($wo),
         'Wo_ShareFile' => function_exists('Wo_ShareFile'),
