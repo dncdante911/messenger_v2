@@ -94,7 +94,7 @@ class MediaUploader(private val context: Context) {
 
             // Проверяем размер файла
             val fileSize = file.length()
-            Log.d(TAG, "Розмір файлу: ${fileSize / 1024 / 1024}MB для типу $mediaType")
+            Log.d(TAG, "Розмір файлу: ${"%.2f".format(fileSize / 1024.0 / 1024.0)}MB (${fileSize / 1024}KB) для типу $mediaType")
 
             if (!validateFileSize(file, mediaType, isPremium)) {
                 return@withContext UploadResult.Error("Файл занадто великий для типу: $mediaType")
@@ -375,7 +375,7 @@ class MediaUploader(private val context: Context) {
             Constants.MESSAGE_TYPE_FILE -> Constants.MAX_FILE_SIZE // 500MB для любых файлов
             else -> Constants.MAX_FILE_SIZE // 500MB по умолчанию
         }
-        Log.d(TAG, "Валідація розміру: ${fileSize / 1024 / 1024}MB / ${maxSize / 1024 / 1024}MB для типу $mediaType")
+        Log.d(TAG, "Валідація розміру: ${"%.2f".format(fileSize / 1024.0 / 1024.0)}MB / ${maxSize / 1024 / 1024}MB для типу $mediaType")
         return fileSize <= maxSize
     }
 
