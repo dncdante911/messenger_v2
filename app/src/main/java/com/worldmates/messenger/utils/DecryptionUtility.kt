@@ -89,11 +89,16 @@ object DecryptionUtility {
         Log.d(TAG, "ECB Decryption: timestamp=$timestamp")
 
         try {
+            val encryptedBytes = Base64.decode(encryptedText, Base64.DEFAULT)
+            if (encryptedBytes.size % 16 != 0) {
+                Log.d(TAG, "ECB skip: length ${encryptedBytes.size} is not a multiple of 16 (not ECB-encrypted)")
+                return null
+            }
+
             val keySpec = SecretKeySpec(keyBytes, ALGORITHM)
             val cipher = Cipher.getInstance(TRANSFORMATION_ECB)
             cipher.init(Cipher.DECRYPT_MODE, keySpec)
 
-            val encryptedBytes = Base64.decode(encryptedText, Base64.DEFAULT)
             val decryptedBytes = cipher.doFinal(encryptedBytes)
 
             val result = String(decryptedBytes, Charsets.UTF_8).trim()
