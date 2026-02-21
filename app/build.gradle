@@ -109,7 +109,7 @@ dependencies {
     implementation 'io.coil-kt:coil-compose:2.7.0'  // Последняя версия
     implementation 'io.coil-kt:coil-gif:2.7.0'  // GIF support for animated stickers
     implementation 'io.coil-kt:coil-svg:2.7.0'  // SVG support
-    implementation 'io.coil-kt:coil-video:2.7.0'  // Video thumbnail extraction
+    // coil-video removed — thumbnail extracted via MediaMetadataRetriever
 
     // ==================== LOTTIE ANIMATIONS ====================
     // Для Telegram стікерів (.tgs) та анімованих емодзі

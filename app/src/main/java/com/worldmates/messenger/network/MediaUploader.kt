@@ -144,15 +144,37 @@ class MediaUploader(private val context: Context) {
             }
 
             // Шаг 2: Отправляем сообщение с URL загруженного файла
+            // Голос и видео-сообщения — PHP API с правильными полями (audio/video).
+            // Остальные типы (image, file, audio-музыка) — sendMessage с текстом.
+            val hashId = System.currentTimeMillis().toString()
             if (recipientId != null) {
-                Log.d(TAG, "Крок 2: Відправка повідомлення з медіа...")
-                val messageHashId = System.currentTimeMillis().toString()
-                val messageResponse = RetrofitClient.apiService.sendMessage(
-                    accessToken = accessToken,
-                    recipientId = recipientId,
-                    text = mediaUrl, // Отправляем URL как текст сообщения
-                    messageHashId = messageHashId
-                )
+                Log.d(TAG, "Крок 2: Відправка повідомлення з медіа (тип=$mediaType)...")
+                val messageResponse = when (mediaType) {
+                    Constants.MESSAGE_TYPE_VOICE -> {
+                        RetrofitClient.apiService.sendVoiceMessage(
+                            accessToken = accessToken,
+                            recipientId = recipientId,
+                            audioUrl = mediaUrl,
+                            messageHashId = hashId
+                        )
+                    }
+                    Constants.MESSAGE_TYPE_VIDEO -> {
+                        RetrofitClient.apiService.sendVideoMessage(
+                            accessToken = accessToken,
+                            recipientId = recipientId,
+                            videoUrl = mediaUrl,
+                            messageHashId = hashId
+                        )
+                    }
+                    else -> {
+                        RetrofitClient.apiService.sendMessage(
+                            accessToken = accessToken,
+                            recipientId = recipientId,
+                            text = mediaUrl,
+                            messageHashId = hashId
+                        )
+                    }
+                }
 
                 when (messageResponse.apiStatus) {
                     200 -> {
@@ -175,12 +197,32 @@ class MediaUploader(private val context: Context) {
                     }
                 }
             } else if (groupId != null) {
-                Log.d(TAG, "Крок 2: Відправка повідомлення в групу...")
-                val messageResponse = RetrofitClient.apiService.sendGroupMessage(
-                    accessToken = accessToken,
-                    groupId = groupId,
-                    text = mediaUrl
-                )
+                Log.d(TAG, "Крок 2: Відправка повідомлення в групу (тип=$mediaType)...")
+                val messageResponse = when (mediaType) {
+                    Constants.MESSAGE_TYPE_VOICE -> {
+                        RetrofitClient.apiService.sendGroupVoiceMessage(
+                            accessToken = accessToken,
+                            groupId = groupId,
+                            audioUrl = mediaUrl,
+                            messageHashId = hashId
+                        )
+                    }
+                    Constants.MESSAGE_TYPE_VIDEO -> {
+                        RetrofitClient.apiService.sendGroupVideoMessage(
+                            accessToken = accessToken,
+                            groupId = groupId,
+                            videoUrl = mediaUrl,
+                            messageHashId = hashId
+                        )
+                    }
+                    else -> {
+                        RetrofitClient.apiService.sendGroupMessage(
+                            accessToken = accessToken,
+                            groupId = groupId,
+                            text = mediaUrl
+                        )
+                    }
+                }
 
                 when (messageResponse.apiStatus) {
                     200 -> {

@@ -36,10 +36,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import coil.ImageLoader
-import coil.compose.AsyncImage
-import coil.decode.VideoFrameDecoder
-import coil.request.ImageRequest
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -575,16 +577,23 @@ fun VideoMessageBubble(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val shape = when (frameStyle) {
         VideoMessageFrameStyle.CIRCLE -> CircleShape
         else -> RoundedCornerShape(16.dp)
     }
 
-    val videoImageLoader = remember(context) {
-        ImageLoader.Builder(context)
-            .components { add(VideoFrameDecoder.Factory()) }
-            .build()
+    val thumbnail by produceState<Bitmap?>(initialValue = null, videoUrl) {
+        value = withContext(Dispatchers.IO) {
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(videoUrl, HashMap())
+                val bmp = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                retriever.release()
+                bmp
+            } catch (e: Exception) {
+                null
+            }
+        }
     }
 
     Box(
@@ -595,16 +604,15 @@ fun VideoMessageBubble(
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        // Thumbnail відео — витягуємо перший кадр з відео URL
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(videoUrl)
-                .build(),
-            imageLoader = videoImageLoader,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
+        // Thumbnail відео — перший кадр через MediaMetadataRetriever
+        thumbnail?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         // Кнопка play
         Icon(
