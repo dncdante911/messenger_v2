@@ -62,6 +62,29 @@ class MessagesActivity : AppCompatActivity() {
         }
     }
 
+    private val videoPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val cameraGranted = permissions[Manifest.permission.CAMERA] == true
+        val micGranted = permissions[Manifest.permission.RECORD_AUDIO] == true
+
+        if (cameraGranted) {
+            if (!micGranted) {
+                Toast.makeText(
+                    this,
+                    "⚠️ Камера дозволена, але без мікрофона відео буде без звуку",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        } else {
+            Toast.makeText(
+                this,
+                "⚠️ Для відеоповідомлень потрібен доступ до камери",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -114,7 +137,8 @@ class MessagesActivity : AppCompatActivity() {
             recipientAvatar = recipientAvatar,
             isGroup = isGroup,
             onBackPressed = { finish() },
-            onRequestAudioPermission = { requestAudioPermission() }
+            onRequestAudioPermission = { requestAudioPermission() },
+            onRequestVideoPermissions = { requestVideoPermissions() }
         )
     }
 
@@ -137,6 +161,37 @@ class MessagesActivity : AppCompatActivity() {
                 false
             }
         }
+    }
+
+    /**
+     * Перевіряє та запитує дозволи для відеоповідомлень.
+     * Для старту потрібна камера; мікрофон — опційно (для запису звуку).
+     */
+    private fun requestVideoPermissions(): Boolean {
+        val cameraGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val micGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (cameraGranted) {
+            if (!micGranted) {
+                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+            return true
+        }
+
+        videoPermissionsLauncher.launch(
+            arrayOf(
+                Manifest.permission.CAMERA,
+                Manifest.permission.RECORD_AUDIO
+            )
+        )
+        return false
     }
 
     override fun onDestroy() {
