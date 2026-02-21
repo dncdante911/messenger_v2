@@ -48,13 +48,14 @@ function registerPrivateChatRoutes(app, ctx, io) {
     const auth = (req, res, next) => authMiddleware(ctx, req, res, next);
 
     // ── messages ────────────────────────────────────────────────────────────
-    app.post('/api/node/chat/get',      auth, msgs.getMessages(ctx, io));
-    app.post('/api/node/chat/send',     auth, msgs.sendMessage(ctx, io));
-    app.post('/api/node/chat/loadmore', auth, msgs.loadMore(ctx, io));
-    app.post('/api/node/chat/edit',     auth, msgs.editMessage(ctx, io));
-    app.post('/api/node/chat/search',   auth, msgs.searchMessages(ctx, io));
-    app.post('/api/node/chat/seen',     auth, msgs.seenMessages(ctx, io));
-    app.post('/api/node/chat/typing',   auth, msgs.typing(ctx, io));
+    app.post('/api/node/chat/get',           auth, msgs.getMessages(ctx, io));
+    app.post('/api/node/chat/send',          auth, msgs.sendMessage(ctx, io));
+    app.post('/api/node/chat/loadmore',      auth, msgs.loadMore(ctx, io));
+    app.post('/api/node/chat/edit',          auth, msgs.editMessage(ctx, io));
+    app.post('/api/node/chat/search',        auth, msgs.searchMessages(ctx, io));
+    app.post('/api/node/chat/seen',          auth, msgs.seenMessages(ctx, io));
+    app.post('/api/node/chat/typing',        auth, msgs.typing(ctx, io));
+    app.post('/api/node/chat/notify-media',  auth, msgs.notifyMediaMessage(ctx, io));
 
     // ── actions ─────────────────────────────────────────────────────────────
     app.post('/api/node/chat/delete',    auth, actions.deleteMessage(ctx, io));
@@ -77,7 +78,7 @@ function registerPrivateChatRoutes(app, ctx, io) {
     app.post('/api/node/chat/fav-list', auth, favs.getFavMessages(ctx, io));
 
     console.log('[Private Chat API] Endpoints registered under /api/node/chat/*');
-    console.log('  Messages : get, send, loadmore, edit, search, seen, typing');
+    console.log('  Messages : get, send, loadmore, edit, search, seen, typing, notify-media');
     console.log('  Actions  : delete, react, pin, pinned, forward');
     console.log('  Chats    : chats, delete-conversation, archive, mute, pin-chat, color, read');
     console.log('  Favorites: fav, fav-list');

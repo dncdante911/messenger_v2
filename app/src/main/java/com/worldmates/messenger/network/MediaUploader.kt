@@ -144,13 +144,13 @@ class MediaUploader(private val context: Context) {
             }
 
             // Шаг 2: Отправляем сообщение с URL загруженного файла
-            // Голос и видео-сообщения — PHP API с правильными полями (audio/video).
-            // Остальные типы (image, file, audio-музыка) — sendMessage с текстом.
+            // Голос, аудио и видео-сообщения — PHP API с правильными полями (audio/video).
+            // Остальные типы (image, file) — sendMessage с текстом.
             val hashId = System.currentTimeMillis().toString()
             if (recipientId != null) {
                 Log.d(TAG, "Крок 2: Відправка повідомлення з медіа (тип=$mediaType)...")
                 val messageResponse = when (mediaType) {
-                    Constants.MESSAGE_TYPE_VOICE -> {
+                    Constants.MESSAGE_TYPE_VOICE, Constants.MESSAGE_TYPE_AUDIO -> {
                         RetrofitClient.apiService.sendVoiceMessage(
                             accessToken = accessToken,
                             recipientId = recipientId,
@@ -178,18 +178,14 @@ class MediaUploader(private val context: Context) {
 
                 when (messageResponse.apiStatus) {
                     200 -> {
-                        val firstMessage = messageResponse.allMessages?.firstOrNull()
-                        if (firstMessage != null) {
-                            Log.d(TAG, "Повідомлення з медіа відправлено успішно")
-                            UploadResult.Success(
-                                mediaId = firstMessage.id.toString(),
-                                url = finalMediaUrl,
-                                thumbnail = null
-                            )
-                        } else {
-                            Log.e(TAG, "API повернув 200, але список повідомлень пустий")
-                            UploadResult.Error("Повідомлення відправлено, але не отримано відповідь")
-                        }
+                        // PHP returned 200 — message was saved regardless of response parsing
+                        val savedId = messageResponse.allMessages?.firstOrNull()?.id ?: 0L
+                        Log.d(TAG, "Повідомлення з медіа відправлено успішно (id=$savedId)")
+                        UploadResult.Success(
+                            mediaId = savedId.toString(),
+                            url = finalMediaUrl,
+                            thumbnail = null
+                        )
                     }
                     else -> {
                         Log.e(TAG, "Помилка відправки повідомлення: ${messageResponse.errorMessage}")
@@ -199,7 +195,7 @@ class MediaUploader(private val context: Context) {
             } else if (groupId != null) {
                 Log.d(TAG, "Крок 2: Відправка повідомлення в групу (тип=$mediaType)...")
                 val messageResponse = when (mediaType) {
-                    Constants.MESSAGE_TYPE_VOICE -> {
+                    Constants.MESSAGE_TYPE_VOICE, Constants.MESSAGE_TYPE_AUDIO -> {
                         RetrofitClient.apiService.sendGroupVoiceMessage(
                             accessToken = accessToken,
                             groupId = groupId,

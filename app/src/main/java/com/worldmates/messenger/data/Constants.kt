@@ -28,8 +28,9 @@ object Constants {
     const val NODE_CHAT_LOADMORE = "api/node/chat/loadmore"  // older messages
     const val NODE_CHAT_EDIT     = "api/node/chat/edit"      // edit message
     const val NODE_CHAT_SEARCH   = "api/node/chat/search"    // search in chat
-    const val NODE_CHAT_SEEN     = "api/node/chat/seen"      // mark as seen
-    const val NODE_CHAT_TYPING   = "api/node/chat/typing"    // typing indicator
+    const val NODE_CHAT_SEEN         = "api/node/chat/seen"         // mark as seen
+    const val NODE_CHAT_TYPING       = "api/node/chat/typing"       // typing indicator
+    const val NODE_CHAT_NOTIFY_MEDIA = "api/node/chat/notify-media" // notify after PHP media save
 
     // Actions
     const val NODE_CHAT_DELETE  = "api/node/chat/delete"   // delete message
