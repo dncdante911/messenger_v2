@@ -34,7 +34,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import coil.decode.VideoFrameDecoder
+import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -570,9 +575,16 @@ fun VideoMessageBubble(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val shape = when (frameStyle) {
         VideoMessageFrameStyle.CIRCLE -> CircleShape
         else -> RoundedCornerShape(16.dp)
+    }
+
+    val videoImageLoader = remember(context) {
+        ImageLoader.Builder(context)
+            .components { add(VideoFrameDecoder.Factory()) }
+            .build()
     }
 
     Box(
@@ -583,11 +595,15 @@ fun VideoMessageBubble(
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        // Thumbnail відео (placeholder)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.DarkGray)
+        // Thumbnail відео — витягуємо перший кадр з відео URL
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(videoUrl)
+                .build(),
+            imageLoader = videoImageLoader,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
         )
 
         // Кнопка play
