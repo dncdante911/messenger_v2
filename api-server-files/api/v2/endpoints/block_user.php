@@ -34,7 +34,7 @@ if ($current_user_id == $target_user_id) {
 
 try {
     // Check if already blocked
-    $stmt = $db->prepare("SELECT id FROM Wo_Blocks WHERE user_id = ? AND blocked = ?");
+    $stmt = $pdoDb->prepare("SELECT id FROM Wo_Blocks WHERE user_id = ? AND blocked = ?");
     $stmt->execute([$current_user_id, $target_user_id]);
 
     if ($stmt->fetch()) {
@@ -46,12 +46,12 @@ try {
     }
 
     // Add block
-    $stmt = $db->prepare("INSERT INTO Wo_Blocks (user_id, blocked, time) VALUES (?, ?, ?)");
+    $stmt = $pdoDb->prepare("INSERT INTO Wo_Blocks (user_id, blocked, time) VALUES (?, ?, ?)");
     $stmt->execute([$current_user_id, $target_user_id, time()]);
 
     // Also remove from followers/following if exists
-    $db->prepare("DELETE FROM Wo_Followers WHERE follower_id = ? AND following_id = ?")->execute([$current_user_id, $target_user_id]);
-    $db->prepare("DELETE FROM Wo_Followers WHERE follower_id = ? AND following_id = ?")->execute([$target_user_id, $current_user_id]);
+    $pdoDb->prepare("DELETE FROM Wo_Followers WHERE follower_id = ? AND following_id = ?")->execute([$current_user_id, $target_user_id]);
+    $pdoDb->prepare("DELETE FROM Wo_Followers WHERE follower_id = ? AND following_id = ?")->execute([$target_user_id, $current_user_id]);
 
     echo json_encode([
         'api_status' => 200,

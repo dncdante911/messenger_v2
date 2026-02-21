@@ -23,13 +23,13 @@ $cs_migration_flag = sys_get_temp_dir() . '/wm_channel_stories_migration_v1_done
 if (!file_exists($cs_migration_flag)) {
     try {
         $cols = [];
-        $result = $db->query("SHOW COLUMNS FROM Wo_UserStory");
+        $result = $pdoDb->query("SHOW COLUMNS FROM Wo_UserStory");
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $cols[] = $row['Field'];
         }
         if (!in_array('page_id', $cols)) {
-            $db->exec("ALTER TABLE Wo_UserStory ADD COLUMN `page_id` INT(11) DEFAULT NULL AFTER `user_id`");
-            $db->exec("ALTER TABLE Wo_UserStory ADD INDEX `idx_page_id` (`page_id`)");
+            $pdoDb->exec("ALTER TABLE Wo_UserStory ADD COLUMN `page_id` INT(11) DEFAULT NULL AFTER `user_id`");
+            $pdoDb->exec("ALTER TABLE Wo_UserStory ADD INDEX `idx_page_id` (`page_id`)");
             error_log("[channel_stories] Migration: added page_id to Wo_UserStory");
         }
         @file_put_contents($cs_migration_flag, date('Y-m-d H:i:s'));
@@ -47,7 +47,7 @@ if (!$access_token) {
     exit;
 }
 
-$user_id = validateAccessToken($db, $access_token);
+$user_id = validateAccessToken($pdoDb, $access_token);
 if (!$user_id) {
     echo json_encode(['api_status' => 401, 'error_message' => 'Invalid access token']);
     exit;
@@ -73,9 +73,9 @@ if (!$type) {
 /**
  * Проверить, является ли пользователь админом канала
  */
-function isChannelAdmin($db, $channel_id, $user_id) {
+function isChannelAdmin($pdoDb, $channel_id, $user_id) {
     // Проверяем: owner канала (user_id в Wo_GroupChat) или role='admin' в Wo_GroupChatUsers
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT 1 FROM Wo_GroupChat
         WHERE group_id = :channel_id AND user_id = :user_id AND type = 'channel'
         UNION
@@ -93,8 +93,8 @@ function isChannelAdmin($db, $channel_id, $user_id) {
 /**
  * Получить данные канала (для ответа)
  */
-function getChannelData($db, $channel_id) {
-    $stmt = $db->prepare("
+function getChannelData($pdoDb, $channel_id) {
+    $stmt = $pdoDb->prepare("
         SELECT group_id, group_name, avatar, user_id as owner_id
         FROM Wo_GroupChat
         WHERE group_id = :id AND type = 'channel'
@@ -107,9 +107,9 @@ function getChannelData($db, $channel_id) {
 /**
  * Форматировать story для ответа API
  */
-function formatStory($db, $story, $site_url) {
+function formatStory($pdoDb, $story, $site_url) {
     // Получаем медиа
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         SELECT id, story_id, type, filename, expire
         FROM Wo_UserStoryMedia
         WHERE story_id = :story_id
@@ -127,14 +127,14 @@ function formatStory($db, $story, $site_url) {
     // Получаем данные канала
     $channel_data = null;
     if (!empty($story['page_id'])) {
-        $channel_data = getChannelData($db, $story['page_id']);
+        $channel_data = getChannelData($pdoDb, $story['page_id']);
         if ($channel_data && !empty($channel_data['avatar']) && strpos($channel_data['avatar'], 'http') !== 0) {
             $channel_data['avatar'] = rtrim($site_url, '/') . '/' . ltrim($channel_data['avatar'], '/');
         }
     }
 
     // Получаем user_data автора
-    $stmt2 = $db->prepare("
+    $stmt2 = $pdoDb->prepare("
         SELECT user_id, username, first_name, last_name, avatar, avatar_org, is_pro, verified
         FROM Wo_Users WHERE user_id = :uid LIMIT 1
     ");
@@ -145,7 +145,7 @@ function formatStory($db, $story, $site_url) {
     }
 
     // Количество просмотров
-    $stmt3 = $db->prepare("SELECT COUNT(*) as cnt FROM Wo_Story_Seen WHERE story_id = :sid");
+    $stmt3 = $pdoDb->prepare("SELECT COUNT(*) as cnt FROM Wo_Story_Seen WHERE story_id = :sid");
     $stmt3->execute(['sid' => $story['id']]);
     $view_count = (int)$stmt3->fetchColumn();
 
@@ -189,7 +189,7 @@ switch ($type) {
         }
 
         // Проверка прав
-        if (!isChannelAdmin($db, $channel_id, $user_id)) {
+        if (!isChannelAdmin($pdoDb, $channel_id, $user_id)) {
             echo json_encode(['api_status' => 403, 'error_message' => 'Only channel admins can create stories']);
             exit;
         }
@@ -248,7 +248,7 @@ switch ($type) {
             }
 
             // Вставляем story
-            $stmt = $db->prepare("
+            $stmt = $pdoDb->prepare("
                 INSERT INTO Wo_UserStory (user_id, page_id, title, description, posted, expire, thumbnail)
                 VALUES (:user_id, :page_id, :title, :description, :posted, :expire, :thumbnail)
             ");
@@ -261,10 +261,10 @@ switch ($type) {
                 'expire' => $expire,
                 'thumbnail' => $filename
             ]);
-            $story_id = $db->lastInsertId();
+            $story_id = $pdoDb->lastInsertId();
 
             // Вставляем медиа
-            $stmt2 = $db->prepare("
+            $stmt2 = $pdoDb->prepare("
                 INSERT INTO Wo_UserStoryMedia (story_id, type, filename, expire)
                 VALUES (:story_id, :type, :filename, :expire)
             ");
@@ -299,7 +299,7 @@ switch ($type) {
 
         try {
             $now = time();
-            $stmt = $db->prepare("
+            $stmt = $pdoDb->prepare("
                 SELECT * FROM Wo_UserStory
                 WHERE page_id = :page_id AND expire > :now
                 ORDER BY posted DESC
@@ -313,7 +313,7 @@ switch ($type) {
 
             $formatted = [];
             foreach ($stories as $story) {
-                $formatted[] = formatStory($db, $story, $wo['site_url']);
+                $formatted[] = formatStory($pdoDb, $story, $wo['site_url']);
             }
 
             echo json_encode([
@@ -333,7 +333,7 @@ switch ($type) {
         try {
             $now = time();
             // Находим все каналы, на которые подписан пользователь
-            $stmt = $db->prepare("
+            $stmt = $pdoDb->prepare("
                 SELECT s.* FROM Wo_UserStory s
                 INNER JOIN Wo_GroupChatUsers gcu ON s.page_id = gcu.group_id
                 INNER JOIN Wo_GroupChat gc ON gc.group_id = s.page_id AND gc.type = 'channel'
@@ -351,9 +351,9 @@ switch ($type) {
 
             $formatted = [];
             foreach ($stories as $story) {
-                $f = formatStory($db, $story, $wo['site_url']);
+                $f = formatStory($pdoDb, $story, $wo['site_url']);
                 // Помечаем как "свои" если пользователь — админ
-                $f['is_owner'] = isChannelAdmin($db, $story['page_id'], $user_id);
+                $f['is_owner'] = isChannelAdmin($pdoDb, $story['page_id'], $user_id);
                 $formatted[] = $f;
             }
 
@@ -377,7 +377,7 @@ switch ($type) {
 
         try {
             // Проверяем story и права
-            $stmt = $db->prepare("SELECT * FROM Wo_UserStory WHERE id = :id LIMIT 1");
+            $stmt = $pdoDb->prepare("SELECT * FROM Wo_UserStory WHERE id = :id LIMIT 1");
             $stmt->execute(['id' => $story_id]);
             $story = $stmt->fetch();
 
@@ -391,15 +391,15 @@ switch ($type) {
                 exit;
             }
 
-            if (!isChannelAdmin($db, $story['page_id'], $user_id)) {
+            if (!isChannelAdmin($pdoDb, $story['page_id'], $user_id)) {
                 echo json_encode(['api_status' => 403, 'error_message' => 'Only channel admins can delete stories']);
                 exit;
             }
 
             // Удаляем медиа и story
-            $db->prepare("DELETE FROM Wo_UserStoryMedia WHERE story_id = :sid")->execute(['sid' => $story_id]);
-            $db->prepare("DELETE FROM Wo_Story_Seen WHERE story_id = :sid")->execute(['sid' => $story_id]);
-            $db->prepare("DELETE FROM Wo_UserStory WHERE id = :id")->execute(['id' => $story_id]);
+            $pdoDb->prepare("DELETE FROM Wo_UserStoryMedia WHERE story_id = :sid")->execute(['sid' => $story_id]);
+            $pdoDb->prepare("DELETE FROM Wo_Story_Seen WHERE story_id = :sid")->execute(['sid' => $story_id]);
+            $pdoDb->prepare("DELETE FROM Wo_UserStory WHERE id = :id")->execute(['id' => $story_id]);
 
             echo json_encode([
                 'api_status' => 200,

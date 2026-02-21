@@ -52,7 +52,7 @@ logMessage("Platform: $platform");
 
 // Підключення до БД
 try {
-    $db = new PDO(
+    $pdoDb = new PDO(
         "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
         DB_USER,
         DB_PASS,
@@ -70,7 +70,7 @@ try {
 
 try {
     // Перевіряємо чи користувач існує та активний
-    $stmt = $db->prepare("SELECT user_id, username FROM Wo_Users WHERE user_id = ? AND active = '1' LIMIT 1");
+    $stmt = $pdoDb->prepare("SELECT user_id, username FROM Wo_Users WHERE user_id = ? AND active = '1' LIMIT 1");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch();
 
@@ -82,7 +82,7 @@ try {
     logMessage("User found: {$user['username']}");
 
     // Перевіряємо чи вже існує сесія з таким токеном
-    $stmt = $db->prepare("SELECT id FROM wo_appssessions WHERE session_id = ? LIMIT 1");
+    $stmt = $pdoDb->prepare("SELECT id FROM wo_appssessions WHERE session_id = ? LIMIT 1");
     $stmt->execute([$access_token]);
     $existing = $stmt->fetch();
 
@@ -98,12 +98,12 @@ try {
 
     // Створюємо новий запис в wo_appssessions
     $time = time();
-    $stmt = $db->prepare("
+    $stmt = $pdoDb->prepare("
         INSERT INTO wo_appssessions (user_id, session_id, platform, time)
         VALUES (?, ?, ?, ?)
     ");
     $stmt->execute([$user_id, $access_token, $platform, $time]);
-    $session_id = $db->lastInsertId();
+    $session_id = $pdoDb->lastInsertId();
 
     logMessage("SUCCESS: Session created: ID=$session_id, user_id=$user_id, platform=$platform");
 
