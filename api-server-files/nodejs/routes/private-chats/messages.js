@@ -460,6 +460,57 @@ function typing(ctx, io) {
     };
 }
 
+// ─── NOTIFY MEDIA (called by Android after PHP saves voice/video/audio) ───────
+// Android sends this after a successful PHP send_message for media types.
+// Node.js fetches the saved message from DB and broadcasts it via Socket.IO
+// so both sender and recipient see it in real-time without polling.
+
+function notifyMediaMessage(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId      = req.userId;
+            const recipientId = parseInt(req.body.recipient_id);
+            const messageId   = parseInt(req.body.message_id) || 0;
+
+            if (!recipientId || isNaN(recipientId))
+                return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
+
+            let msg = null;
+            if (messageId > 0) {
+                msg = await ctx.wo_messages.findOne({ where: { id: messageId }, raw: true });
+            }
+            // Fallback: fetch the latest message between these two users
+            if (!msg) {
+                const { Op } = require('sequelize');
+                msg = await ctx.wo_messages.findOne({
+                    where: {
+                        page_id: 0,
+                        [Op.or]: [
+                            { from_id: userId,      to_id: recipientId },
+                            { from_id: recipientId, to_id: userId },
+                        ],
+                    },
+                    order: [['id', 'DESC']],
+                    raw: true,
+                });
+            }
+
+            if (msg) {
+                const msgData = await buildMessage(ctx, msg, userId);
+                io.to(String(recipientId)).emit('new_message',     msgData);
+                io.to(String(recipientId)).emit('private_message', msgData);
+                io.to(String(userId)).emit('new_message', { ...msgData, self: true });
+                console.log(`[Node/chat/notify-media] ${userId} -> ${recipientId} msg=${msg.id}`);
+            }
+
+            res.json({ api_status: 200 });
+        } catch (err) {
+            console.error('[Node/chat/notify-media]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to notify' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
-module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing };
+module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing, notifyMediaMessage };

@@ -1018,7 +1018,24 @@ class MessagesViewModel(application: Application) :
                         _error.value = null
                         Log.d("MessagesViewModel", "Медіа завантажено: ${result.url}")
 
-                        // Обновляем список сообщений для автообновления
+                        // Notify Node.js to broadcast the PHP-saved message via Socket.IO
+                        // so both sender and recipient see it in real-time
+                        val savedMsgId = result.mediaId.toLongOrNull() ?: 0L
+                        if (recipientId != 0L) {
+                            viewModelScope.launch {
+                                try {
+                                    nodeApi.notifyMediaMessage(
+                                        recipientId = recipientId,
+                                        messageId = savedMsgId
+                                    )
+                                    Log.d("MessagesViewModel", "notify-media відправлено (id=$savedMsgId)")
+                                } catch (e: Exception) {
+                                    Log.w("MessagesViewModel", "notify-media не вдалося: ${e.message}")
+                                }
+                            }
+                        }
+
+                        // Refresh message list
                         if (groupId != 0L) {
                             fetchGroupMessages()
                         } else {

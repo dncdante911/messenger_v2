@@ -53,6 +53,18 @@ interface NodeApi {
     ): NodeMessageResponse
 
     /**
+     * NOTIFY-MEDIA — called after PHP saves a voice/video/audio message.
+     * Node.js fetches the saved message and broadcasts it via Socket.IO to
+     * both sender and recipient for real-time delivery.
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHAT_NOTIFY_MEDIA)
+    suspend fun notifyMediaMessage(
+        @Field("recipient_id") recipientId: Long,
+        @Field("message_id")   messageId: Long = 0
+    ): NodeSimpleResponse
+
+    /**
      * LOADMORE — older messages (pagination).
      */
     @FormUrlEncoded
