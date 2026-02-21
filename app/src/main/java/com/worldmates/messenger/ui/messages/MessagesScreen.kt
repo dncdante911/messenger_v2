@@ -121,7 +121,8 @@ fun MessagesScreen(
     recipientAvatar: String,
     isGroup: Boolean,
     onBackPressed: () -> Unit,
-    onRequestAudioPermission: () -> Boolean = { true }  // Default для preview
+    onRequestAudioPermission: () -> Boolean = { true },  // Default для preview
+    onRequestVideoPermissions: () -> Boolean = { true }  // Default для preview
 ) {
     val messages by viewModel.messages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -1439,7 +1440,7 @@ fun MessagesScreen(
                     onPickAudio = { audioPickerLauncher.launch("audio/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
                     onCameraClick = { imagePickerLauncher.launch("image/*") },  // Поки що також галерея
-                    onVideoCameraClick = { showVideoMessageRecorder = true },
+                    onVideoCameraClick = { if (onRequestVideoPermissions()) showVideoMessageRecorder = true },
                     showMediaOptions = showMediaOptions,
                     showEmojiPicker = showEmojiPicker,
                     onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
