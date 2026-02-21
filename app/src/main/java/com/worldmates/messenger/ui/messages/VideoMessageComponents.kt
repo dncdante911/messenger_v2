@@ -256,15 +256,11 @@ fun VideoMessageRecorder(
         }
     }
 
-    // ✅ Ініціалізація камери при mount
-    DisposableEffect(lifecycleOwner, isFrontCamera) {
+    // ✅ Ініціалізація камери при mount — тільки отримуємо provider
+    DisposableEffect(lifecycleOwner) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
-            cameraProvider = provider
-            previewView?.let { pv ->
-                bindCameraUseCases(provider, lifecycleOwner, pv, isFrontCamera)
-            }
+            cameraProvider = cameraProviderFuture.get()
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
@@ -272,6 +268,13 @@ fun VideoMessageRecorder(
             recording?.stop()
             cameraProvider?.unbindAll()
         }
+    }
+
+    // ✅ Прив'язуємо камеру коли і provider, і previewView готові
+    LaunchedEffect(cameraProvider, previewView, isFrontCamera) {
+        val provider = cameraProvider ?: return@LaunchedEffect
+        val pv = previewView ?: return@LaunchedEffect
+        bindCameraUseCases(provider, lifecycleOwner, pv, isFrontCamera)
     }
 
     Box(
@@ -288,12 +291,10 @@ fun VideoMessageRecorder(
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                     scaleType = PreviewView.ScaleType.FILL_CENTER
+                    // COMPATIBLE використовує TextureView — коректно рендерить
+                    // всередині Compose overlay (SurfaceView в PERFORMANCE ховається за canvas)
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                     previewView = this
-
-                    // Bind camera коли PreviewView готовий
-                    cameraProvider?.let { provider ->
-                        bindCameraUseCases(provider, lifecycleOwner, this, isFrontCamera)
-                    }
                 }
             },
             modifier = Modifier.fillMaxSize()

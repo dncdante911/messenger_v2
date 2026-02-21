@@ -36,7 +36,7 @@ $required_fields = array(
 
 if (empty($_POST['product_id'])) {
     if (empty($_POST['text']) && $_POST['text'] != '0' && empty($_POST['lat']) && empty($_POST['lng'])) {   
-        if (empty($_FILES['file']['name']) && empty($_POST['image_url']) && empty($_POST['gif'])) {
+        if (empty($_FILES['file']['name']) && empty($_POST['image_url']) && empty($_POST['gif']) && empty($_POST['audio']) && empty($_POST['video'])) {
             $error_code    = 3;
             $error_message = 'file (STREAM FILE) AND text (POST) AND image_url AND gif (POST) are missing, at least one is required';
         }
@@ -95,6 +95,18 @@ if (empty($error_code)) {
                     $mediaName     = $media['name'];
                 }
             }
+            else if (!empty($_POST['audio'])) {
+                // Голосовое / аудио сообщение — URL уже загружен через upload_audio.php
+                $audio_url     = Wo_Secure($_POST['audio']);
+                $mediaFilename = $audio_url;
+                $mediaName     = basename(parse_url($audio_url, PHP_URL_PATH));
+            }
+            else if (!empty($_POST['video'])) {
+                // Видео-сообщение — URL уже загружен через upload_video.php
+                $video_url     = Wo_Secure($_POST['video']);
+                $mediaFilename = $video_url;
+                $mediaName     = basename(parse_url($video_url, PHP_URL_PATH));
+            }
             $gif = '';
             if (!empty($_POST['gif'])) {
                 $gif = Wo_Secure($_POST['gif']);
@@ -148,13 +160,21 @@ if (empty($error_code)) {
                 }
             }
             else{
-                if (empty($lng) && empty($lat) && empty($_FILES['file']['name']) && empty($_POST['image_url']) && empty($_POST['gif'])) {
+                if (empty($lng) && empty($lat) && empty($_FILES['file']['name']) && empty($_POST['image_url']) && empty($_POST['gif']) && empty($_POST['audio']) && empty($_POST['video'])) {
                     $error_code    = 5;
                     $error_message = 'Please check your details.';
                 }
             }
             if (!empty($_POST['message_type'])) {
                 $message_data['type_two'] = Wo_Secure($_POST['message_type']);
+            }
+            // Авто-тип для медиа когда message_type не передан
+            if (empty($message_data['type_two'])) {
+                if (!empty($_POST['audio'])) {
+                    $message_data['type_two'] = 'audio';
+                } elseif (!empty($_POST['video'])) {
+                    $message_data['type_two'] = 'video';
+                }
             }
 
             if (empty($error_message)) {
