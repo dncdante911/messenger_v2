@@ -66,6 +66,8 @@ import com.worldmates.messenger.ui.preferences.rememberQuickReaction
 import com.worldmates.messenger.ui.preferences.rememberUIStyle
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.style.TextOverflow
+import com.worldmates.messenger.ui.components.AnimatedStickerView
 import com.worldmates.messenger.utils.VoiceRecorder
 import com.worldmates.messenger.utils.VoicePlayer
 import kotlinx.coroutines.launch
@@ -121,7 +123,8 @@ fun MessagesScreen(
     recipientAvatar: String,
     isGroup: Boolean,
     onBackPressed: () -> Unit,
-    onRequestAudioPermission: () -> Boolean = { true }  // Default для preview
+    onRequestAudioPermission: () -> Boolean = { true },  // Default для preview
+    onRequestVideoPermissions: () -> Boolean = { true }
 ) {
     val messages by viewModel.messages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -663,9 +666,9 @@ fun MessagesScreen(
                 totalCount = messages.size,
                 canEdit = selectedMessages.size == 1 && messages.find { it.id == selectedMessages.first() }?.fromId == UserSession.userId,
                 canPin = selectedMessages.size == 1 && (
-                    (isGroup && (currentGroup?.isAdmin == true || currentGroup?.isModerator == true)) ||
-                    !isGroup  // В особистих чатах будь-хто може закріпити повідомлення
-                ),
+                        (isGroup && (currentGroup?.isAdmin == true || currentGroup?.isModerator == true)) ||
+                                !isGroup  // В особистих чатах будь-хто може закріпити повідомлення
+                        ),
                 onSelectAll = {
                     // Вибираємо всі повідомлення
                     selectedMessages = messages.map { it.id }.toSet()
@@ -814,41 +817,41 @@ fun MessagesScreen(
                         viewModel.searchPrivateMessages(query)
                     }
                 },
-                    searchResultsCount = searchTotalCount,
-                    currentResultIndex = currentSearchIndex,
-                    onNextResult = {
-                        viewModel.nextSearchResult()
-                        // Scroll to next result
-                        if (searchResults.isNotEmpty() && currentSearchIndex >= 0) {
-                            val nextMessage = searchResults[currentSearchIndex]
-                            val messageIndex = messages.indexOfFirst { it.id == nextMessage.id }
-                            if (messageIndex != -1) {
-                                val reversedIndex = messages.size - messageIndex - 1
-                                scope.launch {
-                                    listState.animateScrollToItem(reversedIndex)
-                                }
+                searchResultsCount = searchTotalCount,
+                currentResultIndex = currentSearchIndex,
+                onNextResult = {
+                    viewModel.nextSearchResult()
+                    // Scroll to next result
+                    if (searchResults.isNotEmpty() && currentSearchIndex >= 0) {
+                        val nextMessage = searchResults[currentSearchIndex]
+                        val messageIndex = messages.indexOfFirst { it.id == nextMessage.id }
+                        if (messageIndex != -1) {
+                            val reversedIndex = messages.size - messageIndex - 1
+                            scope.launch {
+                                listState.animateScrollToItem(reversedIndex)
                             }
                         }
-                    },
-                    onPreviousResult = {
-                        viewModel.previousSearchResult()
-                        // Scroll to previous result
-                        if (searchResults.isNotEmpty() && currentSearchIndex >= 0) {
-                            val prevMessage = searchResults[currentSearchIndex]
-                            val messageIndex = messages.indexOfFirst { it.id == prevMessage.id }
-                            if (messageIndex != -1) {
-                                val reversedIndex = messages.size - messageIndex - 1
-                                scope.launch {
-                                    listState.animateScrollToItem(reversedIndex)
-                                }
-                            }
-                        }
-                    },
-                    onClose = {
-                        showSearchBar = false
-                        viewModel.clearSearch()
                     }
-                )
+                },
+                onPreviousResult = {
+                    viewModel.previousSearchResult()
+                    // Scroll to previous result
+                    if (searchResults.isNotEmpty() && currentSearchIndex >= 0) {
+                        val prevMessage = searchResults[currentSearchIndex]
+                        val messageIndex = messages.indexOfFirst { it.id == prevMessage.id }
+                        if (messageIndex != -1) {
+                            val reversedIndex = messages.size - messageIndex - 1
+                            scope.launch {
+                                listState.animateScrollToItem(reversedIndex)
+                            }
+                        }
+                    }
+                },
+                onClose = {
+                    showSearchBar = false
+                    viewModel.clearSearch()
+                }
+            )
 
             // 🔍 Search Type Dialog
             if (showSearchTypeDialog) {
@@ -1439,7 +1442,11 @@ fun MessagesScreen(
                     onPickAudio = { audioPickerLauncher.launch("audio/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
                     onCameraClick = { imagePickerLauncher.launch("image/*") },  // Поки що також галерея
-                    onVideoCameraClick = { showVideoMessageRecorder = true },
+                    onVideoCameraClick = {
+                        if (onRequestVideoPermissions()) {
+                            showVideoMessageRecorder = true
+                        }
+                    },
                     showMediaOptions = showMediaOptions,
                     showEmojiPicker = showEmojiPicker,
                     onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
@@ -1454,6 +1461,7 @@ fun MessagesScreen(
                     showStrapiPicker = showStrapiPicker,
                     onToggleStrapiPicker = { showStrapiPicker = !showStrapiPicker },
                     onRequestAudioPermission = onRequestAudioPermission,
+                    onRequestVideoPermissions = onRequestVideoPermissions,
                     viewModel = viewModel,
                     formattingSettings = formattingSettings
                 )
@@ -2408,10 +2416,10 @@ fun MessageBubbleComposable(
                         action = android.content.Intent.ACTION_SEND
                         type = when {
                             mediaUrl.contains(".jpg", ignoreCase = true) ||
-                            mediaUrl.contains(".png", ignoreCase = true) ||
-                            mediaUrl.contains(".jpeg", ignoreCase = true) -> "image/*"
+                                    mediaUrl.contains(".png", ignoreCase = true) ||
+                                    mediaUrl.contains(".jpeg", ignoreCase = true) -> "image/*"
                             mediaUrl.contains(".mp4", ignoreCase = true) ||
-                            mediaUrl.contains(".mov", ignoreCase = true) -> "video/*"
+                                    mediaUrl.contains(".mov", ignoreCase = true) -> "video/*"
                             else -> "*/*"
                         }
                         putExtra(android.content.Intent.EXTRA_TEXT, mediaUrl)
@@ -2639,6 +2647,7 @@ fun MessageInputBar(
     showStrapiPicker: Boolean,  // Додано
     onToggleStrapiPicker: () -> Unit,  // Додано
     onRequestAudioPermission: () -> Boolean = { true },
+    onRequestVideoPermissions: () -> Boolean = { true },
     viewModel: MessagesViewModel? = null,
     formattingSettings: FormattingSettings = FormattingSettings()
 ) {
@@ -2674,486 +2683,486 @@ fun MessageInputBar(
             onEmojiClick = { onToggleEmojiPicker() },
             onStrapiClick = { onToggleStrapiPicker() }
         )
-        }
+    }
 
-        // Voice Recording UI
-        if (recordingState is VoiceRecorder.RecordingState.Recording ||
-            recordingState is VoiceRecorder.RecordingState.Paused) {
-            VoiceRecordingBar(
-                duration = recordingDuration,
-                voiceRecorder = voiceRecorder,
-                onCancel = onCancelVoiceRecord,
-                onStop = onStopVoiceRecord,
-                isRecording = recordingState is VoiceRecorder.RecordingState.Recording
+    // Voice Recording UI
+    if (recordingState is VoiceRecorder.RecordingState.Recording ||
+        recordingState is VoiceRecorder.RecordingState.Paused) {
+        VoiceRecordingBar(
+            duration = recordingDuration,
+            voiceRecorder = voiceRecorder,
+            onCancel = onCancelVoiceRecord,
+            onStop = onStopVoiceRecord,
+            isRecording = recordingState is VoiceRecorder.RecordingState.Recording
+        )
+    }
+
+    // Message Input - Telegram/Viber Style з swipeable tabs
+    if (recordingState !is VoiceRecorder.RecordingState.Recording &&
+        recordingState !is VoiceRecorder.RecordingState.Paused) {
+
+        Column {
+            // 🎯 Swipeable tabs для швидкого перемикання режимів
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Text mode
+                InputModeTab(
+                    icon = Icons.Default.Chat,
+                    label = "Текст",
+                    isSelected = currentInputMode == InputMode.TEXT,
+                    onClick = { onInputModeChange(InputMode.TEXT) }
+                )
+
+                // Voice mode
+                InputModeTab(
+                    icon = Icons.Default.Mic,
+                    label = "Голос",
+                    isSelected = currentInputMode == InputMode.VOICE,
+                    onClick = { onInputModeChange(InputMode.VOICE) }
+                )
+
+                // Video mode (майбутнє)
+                InputModeTab(
+                    icon = Icons.Default.Videocam,
+                    label = "Відео",
+                    isSelected = currentInputMode == InputMode.VIDEO,
+                    onClick = { onInputModeChange(InputMode.VIDEO) }
+                )
+
+                // Emoji mode
+                InputModeTab(
+                    icon = Icons.Default.EmojiEmotions,
+                    label = "Емодзі",
+                    isSelected = currentInputMode == InputMode.EMOJI,
+                    onClick = { onInputModeChange(InputMode.EMOJI) }
+                )
+
+                // Sticker mode
+                InputModeTab(
+                    icon = Icons.Default.StickyNote2,
+                    label = "Стікери",
+                    isSelected = currentInputMode == InputMode.STICKER,
+                    onClick = { onInputModeChange(InputMode.STICKER) }
+                )
+
+                // GIF mode
+                InputModeTab(
+                    icon = Icons.Default.Gif,
+                    label = "GIF",
+                    isSelected = currentInputMode == InputMode.GIF,
+                    onClick = { onInputModeChange(InputMode.GIF) }
+                )
+            }
+
+            // 📝 Панель форматування тексту (показується при фокусі на текстове поле)
+            FormattingToolbar(
+                isVisible = showFormattingToolbar && currentInputMode == InputMode.TEXT,
+                hasSelection = messageText.isNotEmpty(),
+                settings = formattingSettings,
+                onBoldClick = {
+                    viewModel?.applyFormatting(messageText, "**", "**")?.let { formatted ->
+                        onMessageChange(formatted)
+                    }
+                },
+                onItalicClick = {
+                    viewModel?.applyFormatting(messageText, "*", "*")?.let { formatted ->
+                        onMessageChange(formatted)
+                    }
+                },
+                onStrikethroughClick = {
+                    viewModel?.applyFormatting(messageText, "~~", "~~")?.let { formatted ->
+                        onMessageChange(formatted)
+                    }
+                },
+                onUnderlineClick = {
+                    viewModel?.applyFormatting(messageText, "<u>", "</u>")?.let { formatted ->
+                        onMessageChange(formatted)
+                    }
+                },
+                onCodeClick = {
+                    viewModel?.applyFormatting(messageText, "`", "`")?.let { formatted ->
+                        onMessageChange(formatted)
+                    }
+                },
+                onSpoilerClick = {
+                    viewModel?.applyFormatting(messageText, "||", "||")?.let { formatted ->
+                        onMessageChange(formatted)
+                    }
+                },
+                onQuoteClick = {
+                    // Додаємо > на початку тексту
+                    if (messageText.isNotEmpty()) {
+                        val lines = messageText.lines()
+                        val quoted = lines.joinToString("\n") { "> $it" }
+                        onMessageChange(quoted)
+                    }
+                },
+                onLinkClick = {
+                    showLinkInsertDialog = true
+                },
+                onMentionClick = {
+                    // Додаємо @ для початку згадки
+                    onMessageChange(messageText + "@")
+                },
+                onHashtagClick = {
+                    // Додаємо # для початку хештегу
+                    onMessageChange(messageText + "#")
+                }
             )
-        }
 
-        // Message Input - Telegram/Viber Style з swipeable tabs
-        if (recordingState !is VoiceRecorder.RecordingState.Recording &&
-            recordingState !is VoiceRecorder.RecordingState.Paused) {
-
-            Column {
-                // 🎯 Swipeable tabs для швидкого перемикання режимів
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+            // Main input row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                // Кнопка "+" - показує опції (файли, локація, контакт)
+                IconButton(
+                    onClick = onShowMediaOptions,
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    // Text mode
-                    InputModeTab(
-                        icon = Icons.Default.Chat,
-                        label = "Текст",
-                        isSelected = currentInputMode == InputMode.TEXT,
-                        onClick = { onInputModeChange(InputMode.TEXT) }
-                    )
-
-                    // Voice mode
-                    InputModeTab(
-                        icon = Icons.Default.Mic,
-                        label = "Голос",
-                        isSelected = currentInputMode == InputMode.VOICE,
-                        onClick = { onInputModeChange(InputMode.VOICE) }
-                    )
-
-                    // Video mode (майбутнє)
-                    InputModeTab(
-                        icon = Icons.Default.Videocam,
-                        label = "Відео",
-                        isSelected = currentInputMode == InputMode.VIDEO,
-                        onClick = { onInputModeChange(InputMode.VIDEO) }
-                    )
-
-                    // Emoji mode
-                    InputModeTab(
-                        icon = Icons.Default.EmojiEmotions,
-                        label = "Емодзі",
-                        isSelected = currentInputMode == InputMode.EMOJI,
-                        onClick = { onInputModeChange(InputMode.EMOJI) }
-                    )
-
-                    // Sticker mode
-                    InputModeTab(
-                        icon = Icons.Default.StickyNote2,
-                        label = "Стікери",
-                        isSelected = currentInputMode == InputMode.STICKER,
-                        onClick = { onInputModeChange(InputMode.STICKER) }
-                    )
-
-                    // GIF mode
-                    InputModeTab(
-                        icon = Icons.Default.Gif,
-                        label = "GIF",
-                        isSelected = currentInputMode == InputMode.GIF,
-                        onClick = { onInputModeChange(InputMode.GIF) }
+                    Icon(
+                        imageVector = if (showMediaOptions) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = "Опції",
+                        tint = if (showMediaOptions) colorScheme.primary else colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-                // 📝 Панель форматування тексту (показується при фокусі на текстове поле)
-                FormattingToolbar(
-                    isVisible = showFormattingToolbar && currentInputMode == InputMode.TEXT,
-                    hasSelection = messageText.isNotEmpty(),
-                    settings = formattingSettings,
-                    onBoldClick = {
-                        viewModel?.applyFormatting(messageText, "**", "**")?.let { formatted ->
-                            onMessageChange(formatted)
-                        }
-                    },
-                    onItalicClick = {
-                        viewModel?.applyFormatting(messageText, "*", "*")?.let { formatted ->
-                            onMessageChange(formatted)
-                        }
-                    },
-                    onStrikethroughClick = {
-                        viewModel?.applyFormatting(messageText, "~~", "~~")?.let { formatted ->
-                            onMessageChange(formatted)
-                        }
-                    },
-                    onUnderlineClick = {
-                        viewModel?.applyFormatting(messageText, "<u>", "</u>")?.let { formatted ->
-                            onMessageChange(formatted)
-                        }
-                    },
-                    onCodeClick = {
-                        viewModel?.applyFormatting(messageText, "`", "`")?.let { formatted ->
-                            onMessageChange(formatted)
-                        }
-                    },
-                    onSpoilerClick = {
-                        viewModel?.applyFormatting(messageText, "||", "||")?.let { formatted ->
-                            onMessageChange(formatted)
-                        }
-                    },
-                    onQuoteClick = {
-                        // Додаємо > на початку тексту
-                        if (messageText.isNotEmpty()) {
-                            val lines = messageText.lines()
-                            val quoted = lines.joinToString("\n") { "> $it" }
-                            onMessageChange(quoted)
-                        }
-                    },
-                    onLinkClick = {
-                        showLinkInsertDialog = true
-                    },
-                    onMentionClick = {
-                        // Додаємо @ для початку згадки
-                        onMessageChange(messageText + "@")
-                    },
-                    onHashtagClick = {
-                        // Додаємо # для початку хештегу
-                        onMessageChange(messageText + "#")
-                    }
-                )
-
-                // Main input row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    // Кнопка "+" - показує опції (файли, локація, контакт)
-                    IconButton(
-                        onClick = onShowMediaOptions,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (showMediaOptions) Icons.Default.Close else Icons.Default.Add,
-                            contentDescription = "Опції",
-                            tint = if (showMediaOptions) colorScheme.primary else colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    // Різний контент залежно від режиму
-                    when (currentInputMode) {
-                        InputMode.TEXT -> {
-                            // 📝 Кнопка форматування
-                            IconButton(
-                                onClick = { showFormattingToolbar = !showFormattingToolbar },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.TextFormat,
-                                    contentDescription = "Форматування",
-                                    tint = if (showFormattingToolbar) colorScheme.primary else colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            // Звичайне поле введення
-                            TextField(
-                                value = messageText,
-                                onValueChange = onMessageChange,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 40.dp, max = 120.dp)
-                                    .background(colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
-                                placeholder = {
-                                    Text(
-                                        "Повідомлення",
-                                        color = colorScheme.onSurfaceVariant,
-                                        fontSize = 16.sp
-                                    )
-                                },
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    focusedTextColor = colorScheme.onSurface,
-                                    unfocusedTextColor = colorScheme.onSurface
-                                ),
-                                textStyle = MaterialTheme.typography.bodyLarge,
-                                maxLines = 4
+                // Різний контент залежно від режиму
+                when (currentInputMode) {
+                    InputMode.TEXT -> {
+                        // 📝 Кнопка форматування
+                        IconButton(
+                            onClick = { showFormattingToolbar = !showFormattingToolbar },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TextFormat,
+                                contentDescription = "Форматування",
+                                tint = if (showFormattingToolbar) colorScheme.primary else colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
-                        InputMode.VOICE -> {
-                            // Підказка для голосового повідомлення
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                                    .background(colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(20.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Mic,
-                                        contentDescription = null,
-                                        tint = colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Натисни і утримуй для запису →",
-                                        color = colorScheme.onSurfaceVariant,
-                                        fontSize = 14.sp
-                                    )
-                                }
-                            }
-                        }
+                        // Звичайне поле введення
+                        TextField(
+                            value = messageText,
+                            onValueChange = onMessageChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 40.dp, max = 120.dp)
+                                .background(colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
+                            placeholder = {
+                                Text(
+                                    "Повідомлення",
+                                    color = colorScheme.onSurfaceVariant,
+                                    fontSize = 16.sp
+                                )
+                            },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedTextColor = colorScheme.onSurface,
+                                unfocusedTextColor = colorScheme.onSurface
+                            ),
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            maxLines = 4
+                        )
+                    }
 
-                        InputMode.VIDEO -> {
-                            // 📹 Відеоповідомлення - кнопка запису
+                    InputMode.VOICE -> {
+                        // Підказка для голосового повідомлення
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .background(colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(20.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                                    .background(colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Videocam,
+                                    imageVector = Icons.Default.Mic,
                                     contentDescription = null,
-                                    tint = Color.Red,
+                                    tint = colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Натисніть 📹 справа для запису",
+                                    text = "Натисни і утримуй для запису →",
                                     color = colorScheme.onSurfaceVariant,
                                     fontSize = 14.sp
                                 )
                             }
                         }
+                    }
 
-                        InputMode.EMOJI, InputMode.STICKER, InputMode.GIF -> {
-                            // Показуємо текстове поле для коментаря
-                            TextField(
-                                value = messageText,
-                                onValueChange = onMessageChange,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 40.dp, max = 120.dp)
-                                    .background(colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
-                                placeholder = {
-                                    Text(
-                                        "Додати коментар...",
-                                        color = colorScheme.onSurfaceVariant,
-                                        fontSize = 16.sp
-                                    )
-                                },
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    focusedTextColor = colorScheme.onSurface,
-                                    unfocusedTextColor = colorScheme.onSurface
-                                ),
-                                textStyle = MaterialTheme.typography.bodyLarge,
-                                maxLines = 4
+                    InputMode.VIDEO -> {
+                        // 📹 Відеоповідомлення - кнопка запису
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .background(colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Videocam,
+                                contentDescription = null,
+                                tint = Color.Red,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Натисніть 📹 справа для запису",
+                                color = colorScheme.onSurfaceVariant,
+                                fontSize = 14.sp
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    // Права кнопка залежить від режиму
-                    when (currentInputMode) {
-                        InputMode.TEXT -> {
-                            if (messageText.isNotBlank()) {
-                                // Кнопка відправки
-                                IconButton(
-                                    onClick = onSendClick,
-                                    enabled = !isLoading,
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Send,
-                                        contentDescription = "Відправити",
-                                        tint = colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            } else {
-                                // Кнопка голосового запису (для швидкого доступу)
-                                IconButton(
-                                    onClick = onStartVoiceRecord,
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Mic,
-                                        contentDescription = "Голосове повідомлення",
-                                        tint = colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        InputMode.VOICE -> {
-                            // Велика кнопка для запису зі swipe gesture (як в Telegram)
-                            var isRecordingLocked by remember { mutableStateOf(false) }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .background(colorScheme.primary, CircleShape)
-                                    .pointerInput(Unit) {
-                                        var startY = 0f
-                                        detectDragGestures(
-                                            onDragStart = { offset ->
-                                                startY = offset.y
-                                                // Починаємо запис при натисканні
-                                                if (onRequestAudioPermission()) {
-                                                    scope.launch {
-                                                        voiceRecorder.startRecording()
-                                                    }
-                                                }
-                                            },
-                                            onDrag = { change, dragAmount ->
-                                                change.consume()
-                                                val currentOffsetY = change.position.y - startY
-
-                                                // Swipe вгору для lock (> 100px вгору)
-                                                if (currentOffsetY < -100f && !isRecordingLocked) {
-                                                    isRecordingLocked = true
-                                                    // Вібрація
-                                                    try {
-                                                        @Suppress("DEPRECATION")
-                                                        val vibrator = context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-                                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                                            vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                                                        } else {
-                                                            @Suppress("DEPRECATION")
-                                                            vibrator?.vibrate(50)
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        // Ignore vibration errors
-                                                    }
-                                                }
-                                            },
-                                            onDragEnd = {
-                                                if (!isRecordingLocked) {
-                                                    // Якщо не locked - зупиняємо запис і надсилаємо
-                                                    scope.launch {
-                                                        val stopped = voiceRecorder.stopRecording()
-                                                        if (stopped && voiceRecorder.recordingState.value is VoiceRecorder.RecordingState.Completed) {
-                                                            val filePath = (voiceRecorder.recordingState.value as VoiceRecorder.RecordingState.Completed).filePath
-                                                            viewModel?.uploadAndSendMedia(java.io.File(filePath), "voice")
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            onDragCancel = {
-                                                // Скасування
-                                                if (!isRecordingLocked) {
-                                                    scope.launch {
-                                                        voiceRecorder.cancelRecording()
-                                                    }
-                                                }
-                                                isRecordingLocked = false
-                                            }
-                                        )
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (isRecordingLocked) Icons.Default.Lock else Icons.Default.Mic,
-                                    contentDescription = "Записати",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(32.dp)
+                    InputMode.EMOJI, InputMode.STICKER, InputMode.GIF -> {
+                        // Показуємо текстове поле для коментаря
+                        TextField(
+                            value = messageText,
+                            onValueChange = onMessageChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 40.dp, max = 120.dp)
+                                .background(colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
+                            placeholder = {
+                                Text(
+                                    "Додати коментар...",
+                                    color = colorScheme.onSurfaceVariant,
+                                    fontSize = 16.sp
                                 )
+                            },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedTextColor = colorScheme.onSurface,
+                                unfocusedTextColor = colorScheme.onSurface
+                            ),
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            maxLines = 4
+                        )
+                    }
+                }
 
-                                // Підказка при записі
-                                if (recordingState is VoiceRecorder.RecordingState.Recording && !isRecordingLocked) {
-                                    Text(
-                                        text = "⬆️ Свайп вгору",
-                                        fontSize = 10.sp,
-                                        color = Color.White,
-                                        modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .offset(y = (-60).dp)
-                                    )
-                                }
-                            }
+                Spacer(modifier = Modifier.width(4.dp))
 
-                            // Кнопка Stop коли locked
-                            if (isRecordingLocked && recordingState is VoiceRecorder.RecordingState.Recording) {
-                                IconButton(
-                                    onClick = {
-                                        scope.launch {
-                                            val stopped = voiceRecorder.stopRecording()
-                                            if (stopped && voiceRecorder.recordingState.value is VoiceRecorder.RecordingState.Completed) {
-                                                val filePath = (voiceRecorder.recordingState.value as VoiceRecorder.RecordingState.Completed).filePath
-                                                viewModel?.uploadAndSendMedia(java.io.File(filePath), "voice")
-                                            }
-                                            isRecordingLocked = false
-                                        }
-                                    },
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Stop,
-                                        contentDescription = "Зупинити",
-                                        tint = colorScheme.error,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        InputMode.VIDEO -> {
-                            // 📹 Кнопка запису відеоповідомлення - відкриває камеру
+                // Права кнопка залежить від режиму
+                when (currentInputMode) {
+                    InputMode.TEXT -> {
+                        if (messageText.isNotBlank()) {
+                            // Кнопка відправки
                             IconButton(
-                                onClick = onPickVideo,  // ✅ Відкриває VideoMessageRecorder для запису через камеру
+                                onClick = onSendClick,
+                                enabled = !isLoading,
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Videocam,
-                                    contentDescription = "Записати відео",
-                                    tint = Color.Red,
+                                    imageVector = Icons.Default.Send,
+                                    contentDescription = "Відправити",
+                                    tint = colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else {
+                            // Кнопка голосового запису (для швидкого доступу)
+                            IconButton(
+                                onClick = onStartVoiceRecord,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = "Голосове повідомлення",
+                                    tint = colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
+                    }
 
-                        InputMode.EMOJI, InputMode.STICKER, InputMode.GIF -> {
-                            // Відкрито пікер - кнопка Send якщо є текст
-                            if (messageText.isNotBlank()) {
-                                IconButton(
-                                    onClick = onSendClick,
-                                    enabled = !isLoading,
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Send,
-                                        contentDescription = "Відправити",
-                                        tint = colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
+                    InputMode.VOICE -> {
+                        // Велика кнопка для запису зі swipe gesture (як в Telegram)
+                        var isRecordingLocked by remember { mutableStateOf(false) }
+
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(colorScheme.primary, CircleShape)
+                                .pointerInput(Unit) {
+                                    var startY = 0f
+                                    detectDragGestures(
+                                        onDragStart = { offset ->
+                                            startY = offset.y
+                                            // Починаємо запис при натисканні
+                                            if (onRequestAudioPermission()) {
+                                                scope.launch {
+                                                    voiceRecorder.startRecording()
+                                                }
+                                            }
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            val currentOffsetY = change.position.y - startY
+
+                                            // Swipe вгору для lock (> 100px вгору)
+                                            if (currentOffsetY < -100f && !isRecordingLocked) {
+                                                isRecordingLocked = true
+                                                // Вібрація
+                                                try {
+                                                    @Suppress("DEPRECATION")
+                                                    val vibrator = context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                                        vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                                                    } else {
+                                                        @Suppress("DEPRECATION")
+                                                        vibrator?.vibrate(50)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    // Ignore vibration errors
+                                                }
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            if (!isRecordingLocked) {
+                                                // Якщо не locked - зупиняємо запис і надсилаємо
+                                                scope.launch {
+                                                    val stopped = voiceRecorder.stopRecording()
+                                                    if (stopped && voiceRecorder.recordingState.value is VoiceRecorder.RecordingState.Completed) {
+                                                        val filePath = (voiceRecorder.recordingState.value as VoiceRecorder.RecordingState.Completed).filePath
+                                                        viewModel?.uploadAndSendMedia(java.io.File(filePath), "voice")
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        onDragCancel = {
+                                            // Скасування
+                                            if (!isRecordingLocked) {
+                                                scope.launch {
+                                                    voiceRecorder.cancelRecording()
+                                                }
+                                            }
+                                            isRecordingLocked = false
+                                        }
                                     )
-                                }
-                            } else {
-                                // Просто placeholder
-                                Spacer(modifier = Modifier.size(40.dp))
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isRecordingLocked) Icons.Default.Lock else Icons.Default.Mic,
+                                contentDescription = "Записати",
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+
+                            // Підказка при записі
+                            if (recordingState is VoiceRecorder.RecordingState.Recording && !isRecordingLocked) {
+                                Text(
+                                    text = "⬆️ Свайп вгору",
+                                    fontSize = 10.sp,
+                                    color = Color.White,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .offset(y = (-60).dp)
+                                )
                             }
+                        }
+
+                        // Кнопка Stop коли locked
+                        if (isRecordingLocked && recordingState is VoiceRecorder.RecordingState.Recording) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        val stopped = voiceRecorder.stopRecording()
+                                        if (stopped && voiceRecorder.recordingState.value is VoiceRecorder.RecordingState.Completed) {
+                                            val filePath = (voiceRecorder.recordingState.value as VoiceRecorder.RecordingState.Completed).filePath
+                                            viewModel?.uploadAndSendMedia(java.io.File(filePath), "voice")
+                                        }
+                                        isRecordingLocked = false
+                                    }
+                                },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Stop,
+                                    contentDescription = "Зупинити",
+                                    tint = colorScheme.error,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    InputMode.VIDEO -> {
+                        // 📹 Кнопка запису відеоповідомлення - відкриває камеру
+                        IconButton(
+                            onClick = onVideoCameraClick,  // ✅ Відкриває VideoMessageRecorder для запису через камеру
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Videocam,
+                                contentDescription = "Записати відео",
+                                tint = Color.Red,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    InputMode.EMOJI, InputMode.STICKER, InputMode.GIF -> {
+                        // Відкрито пікер - кнопка Send якщо є текст
+                        if (messageText.isNotBlank()) {
+                            IconButton(
+                                onClick = onSendClick,
+                                enabled = !isLoading,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Send,
+                                    contentDescription = "Відправити",
+                                    tint = colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else {
+                            // Просто placeholder
+                            Spacer(modifier = Modifier.size(40.dp))
                         }
                     }
                 }
             }
         }
-
-        // 🔗 Діалог вставки посилання
-        if (showLinkInsertDialog) {
-            com.worldmates.messenger.ui.components.formatting.LinkInsertDialog(
-                selectedText = "", // Empty or selected text
-                onDismiss = { showLinkInsertDialog = false },
-                onConfirm = { url ->
-                    val linkMarkdown = "[$url]($url)" // If no selectedText, use URL as text
-                    onMessageChange(messageText + linkMarkdown)
-                    showLinkInsertDialog = false
-                }
-            )
-        }
     }
+
+    // 🔗 Діалог вставки посилання
+    if (showLinkInsertDialog) {
+        com.worldmates.messenger.ui.components.formatting.LinkInsertDialog(
+            selectedText = "", // Empty or selected text
+            onDismiss = { showLinkInsertDialog = false },
+            onConfirm = { url ->
+                val linkMarkdown = "[$url]($url)" // If no selectedText, use URL as text
+                onMessageChange(messageText + linkMarkdown)
+                showLinkInsertDialog = false
+            }
+        )
+    }
+}
 /**
  * Діалог вибору якості аудіо при відправці (як в Telegram)
  */
@@ -4076,5 +4085,3 @@ fun ConnectionQualityBanner(quality: NetworkQualityMonitor.ConnectionQuality) {
         }
     }
 }
-
-
