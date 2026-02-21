@@ -211,7 +211,14 @@ if (empty($error_code)) {
                     }
                     
                     if (!empty($update_fields)) {
-                        $db->where('id', $last_id)->update(T_MESSAGES, $update_fields);
+                        $set_clauses = [];
+                        $params = [];
+                        foreach ($update_fields as $col => $val) {
+                            $set_clauses[] = "`{$col}` = ?";
+                            $params[] = $val;
+                        }
+                        $params[] = $last_id;
+                        $pdoDb->prepare("UPDATE `" . T_MESSAGES . "` SET " . implode(', ', $set_clauses) . " WHERE id = ?")->execute($params);
                     }
                 }
             }
@@ -229,11 +236,11 @@ if (empty($error_code)) {
         if (!empty($last_id)) {
             if (!empty($_POST['reply_id']) && is_numeric($_POST['reply_id']) && $_POST['reply_id'] > 0) {
                 $reply_id = Wo_Secure($_POST['reply_id']);
-                $db->where('id',$last_id)->update(T_MESSAGES,array('reply_id' => $reply_id));
+                $pdoDb->prepare("UPDATE `" . T_MESSAGES . "` SET reply_id = ? WHERE id = ?")->execute([$reply_id, $last_id]);
             }
             if (!empty($_POST['story_id']) && is_numeric($_POST['story_id']) && $_POST['story_id'] > 0) {
                 $story_id = Wo_Secure($_POST['story_id']);
-                $db->where('id',$last_id)->update(T_MESSAGES,array('story_id' => $story_id));
+                $pdoDb->prepare("UPDATE `" . T_MESSAGES . "` SET story_id = ? WHERE id = ?")->execute([$story_id, $last_id]);
             }
 
             // Notifier только для WoWonder
@@ -264,7 +271,9 @@ if (empty($error_code)) {
                 
                 if (empty($error_code)) {
                     // Получаем дополнительные поля
-                    $extra_fields = $db->where('id', $last_id)->getOne(T_MESSAGES, 'iv, tag, cipher_version, text_ecb, text_preview');
+                    $stmt_extra = $pdoDb->prepare("SELECT iv, tag, cipher_version, text_ecb, text_preview FROM `" . T_MESSAGES . "` WHERE id = ? LIMIT 1");
+                    $stmt_extra->execute([$last_id]);
+                    $extra_fields = $stmt_extra->fetch(PDO::FETCH_ASSOC);
                     if ($extra_fields) {
                         $extra_fields = (array) $extra_fields;
                         $message = array_merge($message, $extra_fields);
@@ -280,10 +289,12 @@ if (empty($message['text'])) {
 
 // Получаем дополнительные поля из БД
 $message_id = $last_id;
-$db_fields = $db->where('id', $message_id)->getOne(T_MESSAGES, 'text, iv, tag, cipher_version, text_ecb, text_preview');
+$stmt_db = $pdoDb->prepare("SELECT `text`, iv, tag, cipher_version, text_ecb, text_preview FROM `" . T_MESSAGES . "` WHERE id = ? LIMIT 1");
+$stmt_db->execute([$message_id]);
+$db_fields = $stmt_db->fetch(PDO::FETCH_ASSOC);
 if ($db_fields) {
     $db_fields = (array) $db_fields;
-    
+
     // Объединяем с данными сообщения
     $message = array_merge($message, $db_fields);
 }
@@ -378,9 +389,7 @@ if ($is_worldmates) {
                 
                 // Сохраняем ECB версию в БД для будущих запросов
                 if (!empty($last_id)) {
-                    $db->where('id', $last_id)->update(T_MESSAGES, array(
-                        'text_ecb' => $encrypted_ecb
-                    ));
+                    $pdoDb->prepare("UPDATE `" . T_MESSAGES . "` SET text_ecb = ? WHERE id = ?")->execute([$encrypted_ecb, $last_id]);
                 }
             } else {
                 // Если не удалось расшифровать GCM, возможно поврежденные данные

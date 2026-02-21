@@ -43,7 +43,7 @@ date_default_timezone_set('Europe/Kyiv');
 // ============================================
 try {
     $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
-    $db = new PDO($dsn, DB_USER, DB_PASS, PDO_OPTIONS);
+    $pdoDb = new PDO($dsn, DB_USER, DB_PASS, PDO_OPTIONS);
 } catch (PDOException $e) {
     error_log("Database connection failed: " . $e->getMessage());
     http_response_code(500);
@@ -158,14 +158,14 @@ if (function_exists('Wo_GetConfig')) {
  * @param string $access_token Access token from request
  * @return int|false User ID if valid, false otherwise
  */
-function validateAccessToken($db, $access_token) {
+function validateAccessToken($pdoDb, $access_token) {
     if (empty($access_token)) {
         return false;
     }
 
     try {
         // Query Wo_AppsSessions table for access token
-        $stmt = $db->prepare("
+        $stmt = $pdoDb->prepare("
             SELECT user_id, time
             FROM Wo_AppsSessions
             WHERE session_id = :access_token
