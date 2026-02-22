@@ -155,6 +155,7 @@ class MediaUploader(private val context: Context) {
                     recipientId = recipientId,
                     mediaUrl = finalMediaUrl,
                     mediaType = mediaType,
+                    mediaFileName = file.name, // Оригінальне ім'я файлу (Artist - Title.mp3)
                     messageHashId = hashId
                 )
 
@@ -179,6 +180,7 @@ class MediaUploader(private val context: Context) {
                     groupId = groupId,
                     mediaUrl = finalMediaUrl,
                     mediaType = mediaType,
+                    mediaFileName = file.name, // Оригінальне ім'я файлу
                     messageHashId = hashId
                 )
 

@@ -66,6 +66,7 @@ interface NodeApi {
         @Field("group_id")        groupId: Long = 0,
         @Field("media_url")       mediaUrl: String,
         @Field("media_type")      mediaType: String,
+        @Field("media_file_name") mediaFileName: String = "",
         @Field("message_hash_id") messageHashId: String = "",
         @Field("reply_id")        replyId: Long = 0
     ): NodeMessageResponse
