@@ -627,8 +627,10 @@ fun VoiceMessagePlayer(
     // Стан для відображення повноекранного плеєра
     var showAdvancedPlayer by remember { mutableStateOf(false) }
 
-    // Витягуємо інформацію про трек з URL
-    val trackInfo = remember(mediaUrl) { extractAudioTrackInfo(mediaUrl) }
+    // Витягуємо інформацію про трек з URL або оригінального імені файлу
+    val trackInfo = remember(mediaUrl, message.mediaFileName) {
+        extractAudioTrackInfo(mediaUrl, message.mediaFileName)
+    }
     val displayTitle = trackInfo.title
     val displayArtist = trackInfo.artist
     val isVoiceMessage = message.type?.lowercase() == "voice"

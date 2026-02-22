@@ -258,22 +258,27 @@ data class AudioTrackInfo(
  * Витягує інформацію про трек з URL/імені файлу.
  * Парсить формат "Artist - Title.ext" з імені файлу.
  * Якщо не вдається розпарсити — повертає "Unknown Track.ext".
+ *
+ * @param mediaUrl URL медіа-файлу (може містити зашифроване ім'я)
+ * @param originalFileName Оригінальне ім'я файлу з поля mediaFileName (до шифрування)
  */
-fun extractAudioTrackInfo(mediaUrl: String?): AudioTrackInfo {
+fun extractAudioTrackInfo(mediaUrl: String?, originalFileName: String? = null): AudioTrackInfo {
     if (mediaUrl.isNullOrEmpty()) {
         return AudioTrackInfo(title = "Unknown Track", artist = "", extension = "")
     }
 
-    // Отримуємо ім'я файлу з URL
-    val fileName = mediaUrl
-        .substringAfterLast("/")
-        .substringBefore("?") // Видаляємо query параметри
+    // Використовуємо оригінальне ім'я файлу (якщо є), інакше беремо з URL
+    val rawFileName = if (!originalFileName.isNullOrBlank()) {
+        originalFileName
+    } else {
+        mediaUrl.substringAfterLast("/").substringBefore("?")
+    }
 
     // Декодуємо URL-encoded символи
     val decodedName = try {
-        java.net.URLDecoder.decode(fileName, "UTF-8")
+        java.net.URLDecoder.decode(rawFileName, "UTF-8")
     } catch (e: Exception) {
-        fileName
+        rawFileName
     }
 
     // Розширення файлу
@@ -301,9 +306,10 @@ fun extractAudioTrackInfo(mediaUrl: String?): AudioTrackInfo {
         }
     }
 
-    // Якщо ім'я файлу виглядає осмислено (не хеш/uuid) — використовуємо як назву
-    val isHashOrUuid = nameWithoutExt.matches(Regex("[a-f0-9]{8,}[-_]?[a-f0-9]*"))
-    return if (!isHashOrUuid && nameWithoutExt.length > 2) {
+    // Якщо ім'я файлу виглядає осмислено (не хеш/uuid/encrypted_audio_*) — використовуємо як назву
+    val isHashOrEncrypted = nameWithoutExt.matches(Regex("[a-f0-9]{8,}[-_]?[a-f0-9]*")) ||
+        nameWithoutExt.matches(Regex("encrypted_\\w+_\\d+_[a-f0-9]+"))
+    return if (!isHashOrEncrypted && nameWithoutExt.length > 2) {
         AudioTrackInfo(
             title = nameWithoutExt.trim(),
             artist = "",

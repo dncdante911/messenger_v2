@@ -221,6 +221,7 @@ class BackupRepository(private val context: Context) {
                 decryptedText = decryptedText,
                 timestamp = message.timeStamp,
                 mediaUrl = message.mediaUrl,
+                mediaFileName = message.mediaFileName,
                 type = message.type ?: "text",
                 mediaType = message.mediaType,
                 mediaDuration = message.mediaDuration,

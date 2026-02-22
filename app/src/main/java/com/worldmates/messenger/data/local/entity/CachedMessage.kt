@@ -89,6 +89,11 @@ data class CachedMessage(
     val mediaUrl: String? = null,
 
     /**
+     * Оригінальне ім'я файлу (до шифрування на сервері)
+     */
+    val mediaFileName: String? = null,
+
+    /**
      * Тип сообщения: "text", "image", "video", "audio", "voice", "file", "call"
      */
     val type: String = "text",
