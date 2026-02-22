@@ -627,6 +627,12 @@ fun VoiceMessagePlayer(
     // Стан для відображення повноекранного плеєра
     var showAdvancedPlayer by remember { mutableStateOf(false) }
 
+    // Витягуємо інформацію про трек з URL
+    val trackInfo = remember(mediaUrl) { extractAudioTrackInfo(mediaUrl) }
+    val displayTitle = trackInfo.title
+    val displayArtist = trackInfo.artist
+    val isVoiceMessage = message.type?.lowercase() == "voice"
+
     // Компактний аудіо плеєр
     Surface(
         modifier = Modifier
@@ -635,94 +641,133 @@ fun VoiceMessagePlayer(
         shape = RoundedCornerShape(18.dp),
         color = textColor.copy(alpha = 0.1f)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
         ) {
-            // Кнопка відтворення
-            Surface(
-                modifier = Modifier.size(36.dp),
-                shape = CircleShape,
-                color = colorScheme.primary
-            ) {
-                IconButton(
-                    onClick = {
-                        if (isThisTrackPlaying) {
-                            com.worldmates.messenger.services.MusicPlaybackService.pausePlayback(context)
-                        } else if (isThisTrackLoaded) {
-                            com.worldmates.messenger.services.MusicPlaybackService.resumePlayback(context)
-                        } else {
-                            // Запускаємо через MusicPlaybackService для фонового відтворення
-                            com.worldmates.messenger.services.MusicPlaybackService.startPlayback(
-                                context = context,
-                                audioUrl = mediaUrl,
-                                title = message.senderName ?: "Аудіо",
-                                artist = "",
-                                timestamp = message.timeStamp,
-                                iv = message.iv,
-                                tag = message.tag
-                            )
-                        }
-                    },
-                    modifier = Modifier.size(36.dp)
+            // Назва треку та виконавець (тільки для аудіо, не для голосових)
+            if (!isVoiceMessage) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 4.dp, start = 4.dp, end = 4.dp)
                 ) {
                     Icon(
-                        imageVector = if (isThisTrackPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (trackInfo.extension.isNotEmpty() && displayTitle == "Unknown Track")
+                                "$displayTitle.${trackInfo.extension}" else displayTitle,
+                            color = textColor,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        if (displayArtist.isNotEmpty()) {
+                            Text(
+                                text = displayArtist,
+                                color = textColor.copy(alpha = 0.6f),
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Прогрес + час
-            Column(modifier = Modifier.weight(1f)) {
-                Slider(
-                    value = if (isThisTrackLoaded && servicePlaybackState.duration > 0)
-                        servicePlaybackState.currentPosition.toFloat() else 0f,
-                    onValueChange = { newPos ->
-                        if (isThisTrackLoaded) {
-                            com.worldmates.messenger.services.MusicPlaybackService.seekTo(context, newPos.toLong())
-                        }
-                    },
-                    valueRange = 0f..(if (isThisTrackLoaded) servicePlaybackState.duration.toFloat().coerceAtLeast(1f) else 1f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(24.dp),
-                    colors = SliderDefaults.colors(
-                        thumbColor = colorScheme.primary,
-                        activeTrackColor = colorScheme.primary,
-                        inactiveTrackColor = textColor.copy(alpha = 0.2f)
-                    )
-                )
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Час
-            Text(
-                text = if (isThisTrackLoaded)
-                    formatAudioTime(servicePlaybackState.currentPosition)
-                else
-                    "0:00",
-                color = textColor,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            // Кнопка розгортання плеєра
-            IconButton(
-                onClick = { showAdvancedPlayer = true },
-                modifier = Modifier.size(28.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Fullscreen,
-                    contentDescription = "Відкрити плеєр",
-                    tint = textColor.copy(alpha = 0.5f),
-                    modifier = Modifier.size(14.dp)
+                // Кнопка відтворення
+                Surface(
+                    modifier = Modifier.size(36.dp),
+                    shape = CircleShape,
+                    color = colorScheme.primary
+                ) {
+                    IconButton(
+                        onClick = {
+                            if (isThisTrackPlaying) {
+                                com.worldmates.messenger.services.MusicPlaybackService.pausePlayback(context)
+                            } else if (isThisTrackLoaded) {
+                                com.worldmates.messenger.services.MusicPlaybackService.resumePlayback(context)
+                            } else {
+                                // Запускаємо через MusicPlaybackService для фонового відтворення
+                                com.worldmates.messenger.services.MusicPlaybackService.startPlayback(
+                                    context = context,
+                                    audioUrl = mediaUrl,
+                                    title = if (!isVoiceMessage) displayTitle else "Голосове повідомлення",
+                                    artist = displayArtist,
+                                    timestamp = message.timeStamp,
+                                    iv = message.iv,
+                                    tag = message.tag
+                                )
+                            }
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isThisTrackPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Прогрес + час
+                Column(modifier = Modifier.weight(1f)) {
+                    Slider(
+                        value = if (isThisTrackLoaded && servicePlaybackState.duration > 0)
+                            servicePlaybackState.currentPosition.toFloat() else 0f,
+                        onValueChange = { newPos ->
+                            if (isThisTrackLoaded) {
+                                com.worldmates.messenger.services.MusicPlaybackService.seekTo(context, newPos.toLong())
+                            }
+                        },
+                        valueRange = 0f..(if (isThisTrackLoaded) servicePlaybackState.duration.toFloat().coerceAtLeast(1f) else 1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(24.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = colorScheme.primary,
+                            activeTrackColor = colorScheme.primary,
+                            inactiveTrackColor = textColor.copy(alpha = 0.2f)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Час
+                Text(
+                    text = if (isThisTrackLoaded)
+                        formatAudioTime(servicePlaybackState.currentPosition)
+                    else
+                        "0:00",
+                    color = textColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
                 )
+
+                // Кнопка розгортання плеєра
+                IconButton(
+                    onClick = { showAdvancedPlayer = true },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fullscreen,
+                        contentDescription = "Відкрити плеєр",
+                        tint = textColor.copy(alpha = 0.5f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
     }
@@ -731,8 +776,8 @@ fun VoiceMessagePlayer(
     if (showAdvancedPlayer) {
         com.worldmates.messenger.ui.music.AdvancedMusicPlayer(
             audioUrl = mediaUrl,
-            title = message.senderName ?: "Аудіо",
-            artist = "",
+            title = if (!isVoiceMessage) displayTitle else "Голосове повідомлення",
+            artist = displayArtist,
             timestamp = message.timeStamp,
             iv = message.iv,
             tag = message.tag,

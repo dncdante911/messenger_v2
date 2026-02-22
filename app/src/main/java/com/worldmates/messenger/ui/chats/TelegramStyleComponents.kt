@@ -91,8 +91,9 @@ fun TelegramChatItem(
 
             // Останнє повідомлення
             if (chat.lastMessage != null) {
+                val previewText = com.worldmates.messenger.ui.messages.getLastMessagePreview(chat.lastMessage)
                 Text(
-                    text = chat.lastMessage.decryptedText ?: chat.lastMessage.encryptedText ?: "",
+                    text = previewText.ifEmpty { "" },
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 14.sp,
                         fontWeight = if (chat.unreadCount > 0) FontWeight.Medium else FontWeight.Normal

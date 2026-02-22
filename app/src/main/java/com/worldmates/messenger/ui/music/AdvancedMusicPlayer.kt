@@ -514,6 +514,22 @@ fun MusicMiniBar(
                                     .background(Color(0xFF4CAF50).copy(alpha = pulseAlpha))
                             )
                         }
+                        // Виконавець, якщо є
+                        if (trackInfo.artist.isNotEmpty()) {
+                            Text(
+                                text = trackInfo.artist,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Text(
+                                text = " \u2022 ",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Text(
                             text = "${formatTime(playbackState.currentPosition)} / ${formatTime(playbackState.duration)}",
                             style = MaterialTheme.typography.bodySmall,
