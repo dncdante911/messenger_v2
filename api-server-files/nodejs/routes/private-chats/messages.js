@@ -514,6 +514,154 @@ function notifyMediaMessage(ctx, io) {
     };
 }
 
+// ─── SEND MEDIA MESSAGE ──────────────────────────────────────────────────────
+// Creates a message in DB with the media URL (already uploaded via PHP xhr).
+// Replaces the broken PHP send_message endpoint for media types.
+//
+// Supports both private chats (recipient_id) and group chats (group_id).
+//
+// Body params:
+//   - recipient_id: (required for private) recipient user ID
+//   - group_id:     (required for group) group chat ID
+//   - media_url:    (required) URL of the uploaded media file
+//   - media_type:   (required) one of: voice, audio, video, image, file
+//   - message_hash_id: (optional) client-side dedup hash
+//   - reply_id:     (optional) ID of message being replied to
+
+function sendMediaMessage(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId   = req.userId;
+            const recipientId = parseInt(req.body.recipient_id) || 0;
+            const groupId     = parseInt(req.body.group_id)     || 0;
+            const mediaUrl    = (req.body.media_url || '').trim();
+            const mediaType   = (req.body.media_type || '').trim();
+            const hashId      = req.body.message_hash_id || '';
+            const replyId     = parseInt(req.body.reply_id) || 0;
+
+            if (!recipientId && !groupId)
+                return res.status(400).json({ api_status: 400, error_message: 'recipient_id or group_id is required' });
+            if (!mediaUrl)
+                return res.status(400).json({ api_status: 400, error_message: 'media_url is required' });
+            if (!mediaType)
+                return res.status(400).json({ api_status: 400, error_message: 'media_type is required' });
+
+            // Map media_type to type_two (DB column that indicates the media kind)
+            const typeTwoMap = {
+                'voice': 'voice',
+                'audio': 'audio',
+                'video': 'video',
+                'image': 'image',
+                'file':  'file',
+            };
+            const typeTwo = typeTwoMap[mediaType] || '';
+
+            const now = Math.floor(Date.now() / 1000);
+
+            // Create message in database
+            const row = await ctx.wo_messages.create({
+                from_id:        userId,
+                to_id:          recipientId,
+                group_id:       groupId,
+                page_id:        0,
+                text:           '',
+                text_ecb:       '',
+                text_preview:   '',
+                iv:             null,
+                tag:            null,
+                cipher_version: 1,
+                stickers:       '',
+                media:          mediaUrl,
+                mediaFileName:  '',
+                time:           now,
+                seen:           0,
+                reply_id:       replyId,
+                lat:            '0',
+                lng:            '0',
+                type_two:       typeTwo,
+                forward:        0,
+                edited:         0,
+            });
+
+            const sender = await getUserBasicData(ctx, userId);
+
+            if (recipientId > 0) {
+                // ── Private chat ──────────────────────────────────────────────
+                await funcs.updateOrCreate(ctx.wo_userschat,
+                    { user_id: userId, conversation_user_id: recipientId },
+                    { time: now, user_id: userId, conversation_user_id: recipientId });
+                await funcs.updateOrCreate(ctx.wo_userschat,
+                    { user_id: recipientId, conversation_user_id: userId },
+                    { time: now, user_id: recipientId, conversation_user_id: userId });
+
+                const msgData = await buildMessage(ctx, row.toJSON ? row.toJSON() : row, userId);
+
+                // Real-time delivery via Socket.IO
+                io.to(String(recipientId)).emit('new_message',     msgData);
+                io.to(String(recipientId)).emit('private_message', msgData);
+                io.to(String(userId)).emit('new_message', { ...msgData, self: true });
+
+                io.to(String(recipientId)).emit('notification', {
+                    id:       String(recipientId),
+                    username: sender ? sender.name   : 'User',
+                    avatar:   sender ? sender.avatar : '',
+                    message:  `[${mediaType}]`,
+                    status:   200,
+                });
+
+                console.log(`[Node/chat/send-media] ${userId} -> ${recipientId} msg=${row.id} type=${mediaType}`);
+                res.json({ api_status: 200, message_data: msgData });
+
+            } else if (groupId > 0) {
+                // ── Group chat ────────────────────────────────────────────────
+                const rawMsg = row.toJSON ? row.toJSON() : row;
+                const { position, type } = resolveType(rawMsg, userId);
+
+                const msgData = {
+                    id:            rawMsg.id,
+                    from_id:       userId,
+                    group_id:      groupId,
+                    to_id:         0,
+                    text:          '',
+                    media:         mediaUrl,
+                    mediaFileName: '',
+                    stickers:      '',
+                    time:          now,
+                    time_text:     fmtTime(now),
+                    seen:          0,
+                    position,
+                    type,
+                    type_two:      typeTwo,
+                    lat:           '0',
+                    lng:           '0',
+                    reply_id:      replyId,
+                    reply:         null,
+                    story_id:      0,
+                    product_id:    0,
+                    forward:       0,
+                    edited:        0,
+                    user_data:     sender,
+                    messageUser:   sender,
+                };
+
+                // Broadcast to the group room (Socket.IO group room = "group_<id>")
+                io.to('group_' + groupId).emit('group_message', msgData);
+
+                console.log(`[Node/chat/send-media] ${userId} -> group ${groupId} msg=${row.id} type=${mediaType}`);
+                res.json({
+                    api_status: 200,
+                    message_data: msgData,
+                    message_id:  rawMsg.id,
+                });
+            }
+
+        } catch (err) {
+            console.error('[Node/chat/send-media]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to send media message' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
-module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing, notifyMediaMessage };
+module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing, notifyMediaMessage, sendMediaMessage };

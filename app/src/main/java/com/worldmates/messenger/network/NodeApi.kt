@@ -53,6 +53,24 @@ interface NodeApi {
     ): NodeMessageResponse
 
     /**
+     * SEND MEDIA MESSAGE — creates a message with the uploaded media URL.
+     * Replaces the broken PHP send_message endpoint for media types.
+     * Supports both private chats (recipient_id) and group chats (group_id).
+     *
+     * media_type: "voice", "audio", "video", "image", "file"
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHAT_SEND_MEDIA)
+    suspend fun sendMediaMessage(
+        @Field("recipient_id")    recipientId: Long = 0,
+        @Field("group_id")        groupId: Long = 0,
+        @Field("media_url")       mediaUrl: String,
+        @Field("media_type")      mediaType: String,
+        @Field("message_hash_id") messageHashId: String = "",
+        @Field("reply_id")        replyId: Long = 0
+    ): NodeMessageResponse
+
+    /**
      * NOTIFY-MEDIA — called after PHP saves a voice/video/audio message.
      * Node.js fetches the saved message and broadcasts it via Socket.IO to
      * both sender and recipient for real-time delivery.

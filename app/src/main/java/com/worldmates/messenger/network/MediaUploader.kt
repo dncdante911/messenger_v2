@@ -143,44 +143,25 @@ class MediaUploader(private val context: Context) {
                 mediaUrl
             }
 
-            // Шаг 2: Отправляем сообщение с URL загруженного файла
-            // Голос, аудио и видео-сообщения — PHP API с правильными полями (audio/video).
-            // Остальные типы (image, file) — sendMessage с текстом.
+            // Шаг 2: Отправляем сообщение с URL загруженного файла через Node.js
+            // Все типы медиа (voice, audio, video, image, file) отправляются через
+            // единый Node.js endpoint send-media, который сохраняет в БД и рассылает через Socket.IO.
             val hashId = System.currentTimeMillis().toString()
+            val nodeApi = NodeRetrofitClient.api
+
             if (recipientId != null) {
                 Log.d(TAG, "Крок 2: Відправка повідомлення з медіа (тип=$mediaType)...")
-                val messageResponse = when (mediaType) {
-                    Constants.MESSAGE_TYPE_VOICE, Constants.MESSAGE_TYPE_AUDIO -> {
-                        RetrofitClient.apiService.sendVoiceMessage(
-                            accessToken = accessToken,
-                            recipientId = recipientId,
-                            audioUrl = mediaUrl,
-                            messageHashId = hashId
-                        )
-                    }
-                    Constants.MESSAGE_TYPE_VIDEO -> {
-                        RetrofitClient.apiService.sendVideoMessage(
-                            accessToken = accessToken,
-                            recipientId = recipientId,
-                            videoUrl = mediaUrl,
-                            messageHashId = hashId
-                        )
-                    }
-                    else -> {
-                        RetrofitClient.apiService.sendMessage(
-                            accessToken = accessToken,
-                            recipientId = recipientId,
-                            text = mediaUrl,
-                            messageHashId = hashId
-                        )
-                    }
-                }
+                val nodeResponse = nodeApi.sendMediaMessage(
+                    recipientId = recipientId,
+                    mediaUrl = finalMediaUrl,
+                    mediaType = mediaType,
+                    messageHashId = hashId
+                )
 
-                when (messageResponse.apiStatus) {
+                when (nodeResponse.apiStatus) {
                     200 -> {
-                        // PHP returned 200 — message was saved regardless of response parsing
-                        val savedId = messageResponse.allMessages?.firstOrNull()?.id ?: 0L
-                        Log.d(TAG, "Повідомлення з медіа відправлено успішно (id=$savedId)")
+                        val savedId = nodeResponse.messageData?.id ?: nodeResponse.messageId ?: 0L
+                        Log.d(TAG, "Повідомлення з медіа відправлено успішно через Node.js (id=$savedId)")
                         UploadResult.Success(
                             mediaId = savedId.toString(),
                             url = finalMediaUrl,
@@ -188,50 +169,31 @@ class MediaUploader(private val context: Context) {
                         )
                     }
                     else -> {
-                        Log.e(TAG, "Помилка відправки повідомлення: ${messageResponse.errorMessage}")
-                        UploadResult.Error(messageResponse.errorMessage ?: "Помилка відправки повідомлення")
+                        Log.e(TAG, "Помилка відправки повідомлення: ${nodeResponse.errorMessage}")
+                        UploadResult.Error(nodeResponse.errorMessage ?: "Помилка відправки повідомлення")
                     }
                 }
             } else if (groupId != null) {
                 Log.d(TAG, "Крок 2: Відправка повідомлення в групу (тип=$mediaType)...")
-                val messageResponse = when (mediaType) {
-                    Constants.MESSAGE_TYPE_VOICE, Constants.MESSAGE_TYPE_AUDIO -> {
-                        RetrofitClient.apiService.sendGroupVoiceMessage(
-                            accessToken = accessToken,
-                            groupId = groupId,
-                            audioUrl = mediaUrl,
-                            messageHashId = hashId
-                        )
-                    }
-                    Constants.MESSAGE_TYPE_VIDEO -> {
-                        RetrofitClient.apiService.sendGroupVideoMessage(
-                            accessToken = accessToken,
-                            groupId = groupId,
-                            videoUrl = mediaUrl,
-                            messageHashId = hashId
-                        )
-                    }
-                    else -> {
-                        RetrofitClient.apiService.sendGroupMessage(
-                            accessToken = accessToken,
-                            groupId = groupId,
-                            text = mediaUrl
-                        )
-                    }
-                }
+                val nodeResponse = nodeApi.sendMediaMessage(
+                    groupId = groupId,
+                    mediaUrl = finalMediaUrl,
+                    mediaType = mediaType,
+                    messageHashId = hashId
+                )
 
-                when (messageResponse.apiStatus) {
+                when (nodeResponse.apiStatus) {
                     200 -> {
-                        Log.d(TAG, "Повідомлення з медіа в групу відправлено успішно")
+                        Log.d(TAG, "Повідомлення з медіа в групу відправлено успішно через Node.js")
                         UploadResult.Success(
-                            mediaId = messageResponse.messageId?.toString() ?: "",
+                            mediaId = nodeResponse.messageId?.toString() ?: "",
                             url = finalMediaUrl,
                             thumbnail = null
                         )
                     }
                     else -> {
-                        Log.e(TAG, "Помилка відправки повідомлення в групу: ${messageResponse.errorMessage}")
-                        UploadResult.Error(messageResponse.errorMessage ?: "Помилка відправки в групу")
+                        Log.e(TAG, "Помилка відправки повідомлення в групу: ${nodeResponse.errorMessage}")
+                        UploadResult.Error(nodeResponse.errorMessage ?: "Помилка відправки в групу")
                     }
                 }
             } else {
