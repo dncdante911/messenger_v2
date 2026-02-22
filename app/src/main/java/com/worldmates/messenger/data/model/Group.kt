@@ -57,6 +57,7 @@ data class Message(
     @SerializedName("text") val encryptedText: String?,
     @SerializedName("time") val timeStamp: Long,
     @SerializedName("media") val mediaUrl: String? = null,
+    @SerializedName("mediaFileName") val mediaFileName: String? = null, // Оригінальне ім'я файлу (до шифрування)
     @SerializedName("type") val type: String? = "text", // "text", "image", "video", "audio", "voice", "file", "call"
     @SerializedName("media_type") val mediaType: String? = null,
     @SerializedName("media_duration") val mediaDuration: Long? = null,

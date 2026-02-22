@@ -1,13 +1,18 @@
 package com.worldmates.messenger.services
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -37,7 +42,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * Архітектура:
  * - Extends MediaSessionService (Media3) — це забезпечує автоматичну
  *   нотифікацію з кнопками керування та lock screen controls.
- * - Немає потреби в ручному BuildNotification — Media3 робить це сам.
+ * - Стартує через startForegroundService() з негайним foreground notification,
+ *   який Media3 потім замінює на повноцінний плеєр з кнопками.
  */
 @OptIn(UnstableApi::class)
 class MusicPlaybackService : MediaSessionService() {
@@ -49,7 +55,7 @@ class MusicPlaybackService : MediaSessionService() {
     companion object {
         private const val TAG = "MusicPlaybackService"
 
-        // Канал нотифікації (Media3 сам управляє нотифікацією всередині цього каналу)
+        // Канал нотифікації
         const val CHANNEL_ID      = "worldmates_music_playback"
         const val NOTIFICATION_ID = 2001
 
@@ -80,6 +86,7 @@ class MusicPlaybackService : MediaSessionService() {
 
         /**
          * Запуск відтворення треку.
+         * Використовує startForegroundService для коректної роботи на Android 8+.
          */
         fun startPlayback(
             context: Context,
@@ -90,29 +97,30 @@ class MusicPlaybackService : MediaSessionService() {
             iv: String? = null,
             tag: String? = null
         ) {
-            context.startService(
-                Intent(context, MusicPlaybackService::class.java).apply {
-                    action = ACTION_PLAY
-                    putExtra(EXTRA_AUDIO_URL, audioUrl)
-                    putExtra(EXTRA_TITLE, title)
-                    putExtra(EXTRA_ARTIST, artist)
-                    putExtra(EXTRA_TIMESTAMP, timestamp)
-                    putExtra(EXTRA_IV, iv)
-                    putExtra(EXTRA_TAG, tag)
-                }
-            )
+            val intent = Intent(context, MusicPlaybackService::class.java).apply {
+                action = ACTION_PLAY
+                putExtra(EXTRA_AUDIO_URL, audioUrl)
+                putExtra(EXTRA_TITLE, title)
+                putExtra(EXTRA_ARTIST, artist)
+                putExtra(EXTRA_TIMESTAMP, timestamp)
+                putExtra(EXTRA_IV, iv)
+                putExtra(EXTRA_TAG, tag)
+            }
+            ContextCompat.startForegroundService(context, intent)
         }
 
         fun pausePlayback(context: Context) {
             serviceInstance?.player?.pause()
-                ?: context.startService(
+                ?: ContextCompat.startForegroundService(
+                    context,
                     Intent(context, MusicPlaybackService::class.java).apply { action = ACTION_PAUSE }
                 )
         }
 
         fun resumePlayback(context: Context) {
             serviceInstance?.player?.play()
-                ?: context.startService(
+                ?: ContextCompat.startForegroundService(
+                    context,
                     Intent(context, MusicPlaybackService::class.java).apply { action = ACTION_RESUME }
                 )
         }
@@ -228,6 +236,11 @@ class MusicPlaybackService : MediaSessionService() {
                 val iv        = intent.getStringExtra(EXTRA_IV)
                 val tag       = intent.getStringExtra(EXTRA_TAG)
 
+                // Негайно виводимо foreground notification, щоб сервіс не був знищений
+                // поки йде асинхронна розшифровка. Media3 потім замінить цю нотифікацію
+                // на повноцінний плеєр з кнопками керування.
+                promoteToForeground(title, artist)
+
                 _currentTrackInfo.value = TrackInfo(url = audioUrl, title = title, artist = artist)
 
                 serviceScope.launch {
@@ -246,6 +259,41 @@ class MusicPlaybackService : MediaSessionService() {
         }
 
         return START_NOT_STICKY
+    }
+
+    /**
+     * Негайно переводить сервіс у foreground з тимчасовою нотифікацією.
+     * Це дозволяє уникнути ForegroundServiceDidNotStartInTimeException
+     * під час асинхронної розшифровки аудіо.
+     */
+    private fun promoteToForeground(title: String, artist: String) {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val pendingIntent = launchIntent?.let {
+            PendingIntent.getActivity(
+                this, 0, it,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+        }
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_service)
+            .setContentTitle(title)
+            .setContentText(if (artist.isNotEmpty()) artist else "Завантаження...")
+            .setOngoing(true)
+            .setSilent(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+
+        ServiceCompat.startForeground(
+            this,
+            NOTIFICATION_ID,
+            notification,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            else 0
+        )
     }
 
     /**
@@ -298,13 +346,6 @@ class MusicPlaybackService : MediaSessionService() {
                     .setTitle(title)
                     .setArtist(artist.ifEmpty { "WorldMates" })
                     .setDisplayTitle(title)
-                    // Передаємо загальну іконку сповіщень як обкладинку
-                    .setArtworkData(
-                        bitmapToByteArray(
-                            BitmapFactory.decodeResource(resources, android.R.drawable.ic_media_play)
-                        ),
-                        MediaMetadata.PICTURE_TYPE_FRONT_COVER
-                    )
                     .build()
 
                 val mediaItem = MediaItem.Builder()
@@ -324,15 +365,6 @@ class MusicPlaybackService : MediaSessionService() {
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
-
-    private fun bitmapToByteArray(bitmap: android.graphics.Bitmap?): ByteArray? {
-        if (bitmap == null) return null
-        return try {
-            val stream = java.io.ByteArrayOutputStream()
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
-            stream.toByteArray()
-        } catch (e: Exception) { null }
-    }
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
