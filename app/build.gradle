@@ -123,6 +123,8 @@ dependencies {
     implementation 'androidx.media3:media3-common:1.2.0'
     implementation 'androidx.media3:media3-session:1.2.0'  // MediaSession for background playback & notification controls
     implementation 'androidx.media3:media3-datasource-okhttp:1.2.0' // HTTP/HTTPS video streaming
+    // Legacy media compat — provides MediaButtonReceiver for hardware/BT button routing
+    implementation 'androidx.media:media:1.7.0'
 
     // ==================== COROUTINES ====================
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'

@@ -1,10 +1,16 @@
 package com.worldmates.messenger.ui.chats
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import com.worldmates.messenger.services.MessageNotificationService
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -80,6 +86,14 @@ class ChatsActivity : AppCompatActivity() {
     private lateinit var storyViewModel: com.worldmates.messenger.ui.stories.StoryViewModel
     private lateinit var callsViewModel: com.worldmates.messenger.ui.calls.CallsViewModel
 
+    // Android 13+ runtime permission launcher for POST_NOTIFICATIONS
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            // Start the service regardless — on older Android it works without permission,
+            // on Android 13+ the user's choice is respected by the system automatically.
+            MessageNotificationService.start(this)
+        }
+
     // Factory для створення ChatsViewModel з параметром context
     private class ChatsViewModelFactory(private val context: android.content.Context) : Factory {
         @Suppress("UNCHECKED_CAST")
@@ -96,6 +110,9 @@ class ChatsActivity : AppCompatActivity() {
 
         // Инициализируем ThemeManager
         ThemeManager.initialize(this)
+
+        // Запускаємо сервіс Socket.IO-сповіщень (без Firebase)
+        startMessageNotificationService()
 
         // Ініціалізуємо UI Style Preferences
         com.worldmates.messenger.ui.preferences.UIStylePreferences.init(this)
@@ -269,6 +286,29 @@ class ChatsActivity : AppCompatActivity() {
         startActivity(Intent(this, com.worldmates.messenger.ui.login.LoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         })
+    }
+
+    /**
+     * Запитує дозвіл POST_NOTIFICATIONS (Android 13+) і запускає
+     * фоновий сервіс Socket.IO-сповіщень.
+     * На Android ≤ 12 дозвіл не потрібен — сервіс стартує одразу.
+     */
+    private fun startMessageNotificationService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    MessageNotificationService.start(this)
+                }
+                else -> {
+                    // Launcher показує системний діалог; сервіс стартує в колбеку
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        } else {
+            MessageNotificationService.start(this)
+        }
     }
 }
 

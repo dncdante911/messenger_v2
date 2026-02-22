@@ -17,6 +17,7 @@ import com.worldmates.messenger.network.FileManager
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.VoicePlayer
+import com.worldmates.messenger.services.MessageNotificationService
 import com.worldmates.messenger.utils.VoiceRecorder
 
 /**
@@ -41,11 +42,13 @@ class MessagesActivity : AppCompatActivity() {
 
     private var recipientId: Long = 0
     private var groupId: Long = 0
+    private var channelId: Long = 0
     private var topicId: Long = 0 // Subgroup/Topic ID for topic-based chats
     private var topicName: String = "" // Topic name to show in header
     private var recipientName: String = ""
     private var recipientAvatar: String = ""
     private var isGroup: Boolean = false
+    private var isChannel: Boolean = false
 
     // Permission request launcher
     private val audioPermissionLauncher = registerForActivityResult(
@@ -94,11 +97,13 @@ class MessagesActivity : AppCompatActivity() {
         // Отримуємо параметри з Intent
         recipientId = intent.getLongExtra("recipient_id", 0)
         groupId = intent.getLongExtra("group_id", 0)
+        channelId = intent.getLongExtra("channel_id", 0)
         topicId = intent.getLongExtra("topic_id", 0)
         topicName = intent.getStringExtra("topic_name") ?: ""
         recipientName = intent.getStringExtra("recipient_name") ?: "Unknown"
         recipientAvatar = intent.getStringExtra("recipient_avatar") ?: ""
         isGroup = intent.getBooleanExtra("is_group", false)
+        isChannel = intent.getBooleanExtra("is_channel", false)
 
         // Ініціалізуємо утиліти
         fileManager = FileManager(this)
@@ -192,6 +197,30 @@ class MessagesActivity : AppCompatActivity() {
             )
         )
         return false
+    }
+
+    /**
+     * Повідомляємо сервіс сповіщень, який чат відкрито,
+     * щоб не показувати дублюючі нотифікації.
+     */
+    override fun onResume() {
+        super.onResume()
+        when {
+            isChannel  -> MessageNotificationService.activeChannelId   = channelId
+            isGroup    -> MessageNotificationService.activeGroupId      = groupId
+            else       -> MessageNotificationService.activeRecipientId  = recipientId
+        }
+    }
+
+    /**
+     * Скидаємо фільтр, щоб сповіщення знову показувались коли
+     * користувач іде з чату.
+     */
+    override fun onPause() {
+        super.onPause()
+        MessageNotificationService.activeRecipientId = 0
+        MessageNotificationService.activeGroupId     = 0
+        MessageNotificationService.activeChannelId   = 0
     }
 
     override fun onDestroy() {

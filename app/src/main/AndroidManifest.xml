@@ -291,14 +291,29 @@
         </service>
 
         <!-- Music Playback Service (background audio, notification controls, lock screen) -->
+        <!-- exported=true is required so the system media controller (lock screen, Bluetooth) can bind to it -->
         <service
             android:name=".services.MusicPlaybackService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
+            <!-- Media3 MediaSessionService discovery -->
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
+            <!-- Legacy MediaBrowserService discovery (lock screen on older launchers) -->
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
         </service>
+
+        <!-- MediaButtonReceiver — forwards hardware/Bluetooth media button events to the player -->
+        <receiver
+            android:name="androidx.media.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
 
         <!-- FileProvider for sharing files -->
         <provider
