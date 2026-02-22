@@ -31,6 +31,7 @@ object Constants {
     const val NODE_CHAT_SEEN         = "api/node/chat/seen"         // mark as seen
     const val NODE_CHAT_TYPING       = "api/node/chat/typing"       // typing indicator
     const val NODE_CHAT_NOTIFY_MEDIA = "api/node/chat/notify-media" // notify after PHP media save
+    const val NODE_CHAT_SEND_MEDIA   = "api/node/chat/send-media"   // send media message (replaces PHP send_message for media)
 
     // Actions
     const val NODE_CHAT_DELETE  = "api/node/chat/delete"   // delete message
