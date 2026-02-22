@@ -44,10 +44,13 @@ function resolveType(msg, userId) {
     const pos = msg.from_id === userId ? 'right' : 'left';
     let type = '';
     if (msg.media)                                                 type = 'file';
-    if (msg.stickers && msg.stickers.includes('.gif'))            type = 'gif';
-    if (msg.type_two === 'contact')                               type = 'contact';
+    // type_two overrides generic 'file' for specific media types
+    if (msg.type_two === 'audio' || msg.type_two === 'voice')      type = msg.type_two;
+    if (msg.type_two === 'video')                                   type = 'video';
+    if (msg.stickers && msg.stickers.includes('.gif'))             type = 'gif';
+    if (msg.type_two === 'contact')                                type = 'contact';
     if (msg.lng && msg.lat && msg.lng !== '0' && msg.lat !== '0') type = 'map';
-    if (msg.product_id && msg.product_id > 0)                    type = 'product';
+    if (msg.product_id && msg.product_id > 0)                     type = 'product';
     return { position: pos, type: pos + '_' + type };
 }
 
