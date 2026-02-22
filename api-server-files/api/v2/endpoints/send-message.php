@@ -413,10 +413,11 @@ if (empty($message['text_preview']) && isset($plaintext)) {
 }
                     
                     // Формируем ответ
+                    $is_typing = function_exists('Wo_IsTyping') ? (Wo_IsTyping($recipient_id) ? 1 : 0) : 0;
                     $response_data = array(
                         'api_status' => 200,
                         'message_data' => array($message),
-                        'typing' => Wo_IsTyping($recipient_id) ? 1 : 0
+                        'typing' => $is_typing
                     );
                 }
             }
