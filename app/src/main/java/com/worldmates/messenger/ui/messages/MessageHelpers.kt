@@ -202,3 +202,118 @@ fun formatAudioTime(millis: Long): String {
     val seconds = totalSeconds % 60
     return String.format("%d:%02d", minutes, seconds)
 }
+
+/**
+ * Повертає текст превью останнього повідомлення для списку чатів.
+ * Якщо повідомлення містить медіа без тексту - показує тип медіа з іконкою.
+ */
+fun getLastMessagePreview(message: com.worldmates.messenger.data.model.Message): String {
+    val text = message.decryptedText ?: message.encryptedText
+
+    // Визначаємо тип медіа
+    val mediaUrl = message.decryptedMediaUrl ?: message.mediaUrl
+    val effectiveMediaUrl = if (!mediaUrl.isNullOrEmpty()) mediaUrl
+        else if (!text.isNullOrEmpty()) extractMediaUrlFromText(text) else null
+    val mediaType = detectMediaType(effectiveMediaUrl, message.type)
+
+    // Якщо є осмислений текст (не просто URL) — повертаємо його
+    if (!text.isNullOrEmpty() && !isOnlyMediaUrl(text)) {
+        // Якщо є і текст і медіа — додаємо іконку типу перед текстом
+        val prefix = when (mediaType) {
+            "image" -> "\uD83D\uDCF7 "  // 📷
+            "video" -> "\uD83C\uDFA5 "  // 🎥
+            "audio" -> "\uD83C\uDFB5 "  // 🎵
+            "voice" -> "\uD83C\uDF99 "  // 🎙
+            "file" -> "\uD83D\uDCCE "   // 📎
+            "sticker" -> "\uD83C\uDFAD " // 🎭
+            else -> ""
+        }
+        return if (prefix.isNotEmpty() && effectiveMediaUrl != null) "$prefix$text" else text
+    }
+
+    // Якщо тексту немає або він тільки URL — показуємо тип медіа
+    return when (mediaType) {
+        "image" -> "\uD83D\uDCF7 Фото"
+        "video" -> "\uD83C\uDFA5 Відео"
+        "audio" -> "\uD83C\uDFB5 Аудіо"
+        "voice" -> "\uD83C\uDF99 Голосове повідомлення"
+        "file" -> "\uD83D\uDCCE Файл"
+        "sticker" -> "\uD83C\uDFAD Стікер"
+        "location" -> "\uD83D\uDCCD Локація"
+        "call" -> "\uD83D\uDCDE Дзвінок"
+        else -> text ?: ""
+    }
+}
+
+/**
+ * Інформація про аудіо трек: виконавець та назва.
+ */
+data class AudioTrackInfo(
+    val title: String,
+    val artist: String,
+    val extension: String
+)
+
+/**
+ * Витягує інформацію про трек з URL/імені файлу.
+ * Парсить формат "Artist - Title.ext" з імені файлу.
+ * Якщо не вдається розпарсити — повертає "Unknown Track.ext".
+ */
+fun extractAudioTrackInfo(mediaUrl: String?): AudioTrackInfo {
+    if (mediaUrl.isNullOrEmpty()) {
+        return AudioTrackInfo(title = "Unknown Track", artist = "", extension = "")
+    }
+
+    // Отримуємо ім'я файлу з URL
+    val fileName = mediaUrl
+        .substringAfterLast("/")
+        .substringBefore("?") // Видаляємо query параметри
+
+    // Декодуємо URL-encoded символи
+    val decodedName = try {
+        java.net.URLDecoder.decode(fileName, "UTF-8")
+    } catch (e: Exception) {
+        fileName
+    }
+
+    // Розширення файлу
+    val extension = if (decodedName.contains(".")) {
+        decodedName.substringAfterLast(".")
+    } else ""
+
+    // Ім'я файлу без розширення
+    val nameWithoutExt = if (extension.isNotEmpty()) {
+        decodedName.substringBeforeLast(".")
+    } else decodedName
+
+    // Пробуємо розпарсити "Artist - Title"
+    val separators = listOf(" - ", " — ", " – ")
+    for (sep in separators) {
+        if (nameWithoutExt.contains(sep)) {
+            val parts = nameWithoutExt.split(sep, limit = 2)
+            if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) {
+                return AudioTrackInfo(
+                    title = parts[1].trim(),
+                    artist = parts[0].trim(),
+                    extension = extension
+                )
+            }
+        }
+    }
+
+    // Якщо ім'я файлу виглядає осмислено (не хеш/uuid) — використовуємо як назву
+    val isHashOrUuid = nameWithoutExt.matches(Regex("[a-f0-9]{8,}[-_]?[a-f0-9]*"))
+    return if (!isHashOrUuid && nameWithoutExt.length > 2) {
+        AudioTrackInfo(
+            title = nameWithoutExt.trim(),
+            artist = "",
+            extension = extension
+        )
+    } else {
+        AudioTrackInfo(
+            title = "Unknown Track",
+            artist = "",
+            extension = extension
+        )
+    }
+}

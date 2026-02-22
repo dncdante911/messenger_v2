@@ -1070,7 +1070,9 @@ fun ChatItemRow(
             }
 
             Text(
-                text = chat.lastMessage?.decryptedText ?: "Немає повідомлень",
+                text = chat.lastMessage?.let {
+                    com.worldmates.messenger.ui.messages.getLastMessagePreview(it)
+                } ?: "Немає повідомлень",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
