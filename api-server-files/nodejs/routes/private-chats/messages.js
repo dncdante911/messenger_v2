@@ -534,10 +534,11 @@ function sendMediaMessage(ctx, io) {
             const userId   = req.userId;
             const recipientId = parseInt(req.body.recipient_id) || 0;
             const groupId     = parseInt(req.body.group_id)     || 0;
-            const mediaUrl    = (req.body.media_url || '').trim();
-            const mediaType   = (req.body.media_type || '').trim();
-            const hashId      = req.body.message_hash_id || '';
-            const replyId     = parseInt(req.body.reply_id) || 0;
+            const mediaUrl      = (req.body.media_url || '').trim();
+            const mediaType     = (req.body.media_type || '').trim();
+            const mediaFileName = (req.body.media_file_name || '').trim();
+            const hashId        = req.body.message_hash_id || '';
+            const replyId       = parseInt(req.body.reply_id) || 0;
 
             if (!recipientId && !groupId)
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id or group_id is required' });
@@ -572,7 +573,7 @@ function sendMediaMessage(ctx, io) {
                 cipher_version: 1,
                 stickers:       '',
                 media:          mediaUrl,
-                mediaFileName:  '',
+                mediaFileName:  mediaFileName || (mediaUrl.split('/').pop() || '').split('?')[0],
                 time:           now,
                 seen:           0,
                 reply_id:       replyId,
