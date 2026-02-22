@@ -149,6 +149,7 @@ class MessagesViewModel(application: Application) :
         setupSocket()
         startMessagePolling()
         loadDraft()
+        markSeen() // Позначаємо повідомлення як прочитані при відкритті чату
         Log.d("MessagesViewModel", "✅ Ініціалізація завершена для користувача $recipientId")
     }
 
@@ -1181,7 +1182,11 @@ class MessagesViewModel(application: Application) :
                 // Сортируем по времени (старые сверху, новые внизу)
                 _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
                 Log.d("MessagesViewModel", "Додано нове повідомлення від Socket.IO: ${message.decryptedText}")
-                Log.d("MessagesViewModel", "Нове повідомлення додано")
+
+                // Відразу позначаємо як прочитане — чат відкритий
+                if (message.fromId == recipientId) {
+                    markSeen()
+                }
             }
         } catch (e: Exception) {
             Log.e("MessagesViewModel", "Помилка обробки повідомлення", e)
@@ -2128,5 +2133,23 @@ class MessagesViewModel(application: Application) :
         mediaLoader.cleanup()
 
         Log.d(TAG, "🧹 ViewModel очищена")
+    }
+
+    // ── Mark messages as seen ─────────────────────────────────────────────
+
+    /**
+     * Позначає всі повідомлення від співрозмовника як прочитані на сервері.
+     * Викликається при відкритті чату та при отриманні нових повідомлень.
+     */
+    fun markSeen() {
+        if (recipientId == 0L) return
+        viewModelScope.launch {
+            try {
+                nodeApi.markSeen(recipientId)
+                Log.d(TAG, "Marked messages as seen from user $recipientId")
+            } catch (e: Exception) {
+                Log.e(TAG, "markSeen error", e)
+            }
+        }
     }
 }
