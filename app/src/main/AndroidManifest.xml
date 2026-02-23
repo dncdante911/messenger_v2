@@ -72,6 +72,14 @@
             </intent-filter>
         </activity>
 
+        <!-- UI Style Onboarding (shown once on first login) -->
+        <activity
+            android:name=".ui.onboarding.UIStyleOnboardingActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Quick Register Activity -->
         <activity
             android:name=".ui.login.QuickRegisterActivity"

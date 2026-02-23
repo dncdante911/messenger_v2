@@ -23,6 +23,7 @@ object UIStylePreferences {
     private const val KEY_UI_STYLE = "ui_style"
     private const val KEY_BUBBLE_STYLE = "bubble_style"
     private const val KEY_QUICK_REACTION = "quick_reaction"
+    private const val KEY_ONBOARDING_SEEN = "ui_onboarding_seen"
 
     private var _currentStyle = MutableStateFlow(UIStyle.WORLDMATES)
     val currentStyle: StateFlow<UIStyle> = _currentStyle
@@ -106,6 +107,18 @@ object UIStylePreferences {
      */
     fun getQuickReaction(): String {
         return _quickReaction.value
+    }
+
+    // ── UI Style onboarding (shown once on first login) ──────────────────────
+
+    fun hasSeenOnboarding(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_ONBOARDING_SEEN, false)
+    }
+
+    fun markOnboardingSeen(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_ONBOARDING_SEEN, true).apply()
     }
 }
 

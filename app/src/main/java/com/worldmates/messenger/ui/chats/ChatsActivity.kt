@@ -108,6 +108,9 @@ class ChatsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Edge-to-edge: app renders under system bars; each composable adds its own inset padding
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+
         // Инициализируем ThemeManager
         ThemeManager.initialize(this)
 

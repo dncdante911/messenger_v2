@@ -57,7 +57,7 @@ fun GenderSelectionCard(
 
     Surface(
         modifier = modifier
-            .size(120.dp, 140.dp)
+            .size(90.dp, 106.dp)
             .clickable { onSelect() },
         shape = RoundedCornerShape(16.dp),
         color = cardColor,
@@ -78,7 +78,7 @@ fun GenderSelectionCard(
                 Image(
                     painter = painterResource(avatarRes),
                     contentDescription = label,
-                    modifier = Modifier.size(70.dp),
+                    modifier = Modifier.size(36.dp),
                     contentScale = ContentScale.Fit
                 )
             } else if (icon != null) {
@@ -86,7 +86,7 @@ fun GenderSelectionCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
-                    modifier = Modifier.size(70.dp),
+                    modifier = Modifier.size(36.dp),
                     tint = when {
                         isSelected && gender == "male" -> Color(0xFF2196F3)
                         isSelected && gender == "female" -> Color(0xFFE91E63)
