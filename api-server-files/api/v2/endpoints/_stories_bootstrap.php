@@ -18,26 +18,6 @@ if (!isset($sqlConnect)) {
     // We are in standalone mode — Android called the endpoint directly
     header('Content-Type: application/json; charset=UTF-8');
 
-    // Capture fatal errors so we get JSON output instead of empty 500
-    error_reporting(E_ALL);
-    ini_set('display_errors', 0);
-    ini_set('log_errors', 1);
-    register_shutdown_function(function() {
-        $error = error_get_last();
-        if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
-            if (!headers_sent()) {
-                http_response_code(500);
-                header('Content-Type: application/json; charset=UTF-8');
-            }
-            echo json_encode([
-                'api_status' => 500,
-                'error_message' => 'Fatal: ' . $error['message'],
-                'error_file' => basename($error['file']),
-                'error_line' => $error['line']
-            ]);
-        }
-    });
-
     require_once(__DIR__ . '/../config.php');
 
     $access_token = $_GET['access_token'] ?? $_POST['access_token'] ?? '';
