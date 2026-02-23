@@ -17,7 +17,7 @@ const listeners = require('./listeners/listeners')
 const { initializeBotNamespace, getBotStats } = require('./listeners/bots-listener')
 const { registerMessagingRoutes } = require('./routes/messaging')
 const { registerPrivateChatRoutes } = require('./routes/private-chats/index')
-const { registerAuthRoutes } = require('./routes/auth')
+const { registerStoryRoutes } = require('./routes/stories/index')
 
 let serverPort
 let server
@@ -107,6 +107,10 @@ async function init() {
   ctx.wo_groups = require("./models/wo_groups")(sequelize, DataTypes)
   ctx.wo_events = require("./models/wo_events")(sequelize, DataTypes)
   ctx.wo_userstory = require("./models/wo_userstory")(sequelize, DataTypes)
+  ctx.wo_userstorymedia = require("./models/wo_userstorymedia")(sequelize, DataTypes)
+  ctx.wo_storyreactions = require("./models/wo_storyreactions")(sequelize, DataTypes)
+  ctx.wo_story_seen = require("./models/wo_story_seen")(sequelize, DataTypes)
+  ctx.wo_mute_story = require("./models/wo_mute_story")(sequelize, DataTypes)
   ctx.wo_reactions_types = require("./models/wo_reactions_types")(sequelize, DataTypes)
   ctx.wo_reactions = require("./models/wo_reactions")(sequelize, DataTypes)
   ctx.wo_blog_reaction = require("./models/wo_blog_reaction")(sequelize, DataTypes)
@@ -273,8 +277,7 @@ async function main() {
   // Register REST API endpoints for messaging (replaces PHP polling)
   registerMessagingRoutes(app, ctx, io);
   registerPrivateChatRoutes(app, ctx, io);
-  // Auth: password reset + quick register/login (no access-token required)
-  registerAuthRoutes(app, ctx);
+  registerStoryRoutes(app, ctx, io);
 
   io.on('connection', async (socket, query) => {
     await listeners.registerListeners(socket, io, ctx)
