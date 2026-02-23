@@ -7,15 +7,21 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -28,6 +34,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -196,12 +203,14 @@ fun LoginScreen(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .systemBarsPadding()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(36.dp))
+
             AnimatedVisibility(
                 visible = visible,
                 enter = fadeIn(animationSpec = tween(1000)) +
@@ -216,7 +225,7 @@ fun LoginScreen(
                 LogoSection()
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             AnimatedVisibility(
                 visible = visible,
@@ -255,7 +264,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             AnimatedVisibility(
                 visible = visible,
@@ -266,6 +275,8 @@ fun LoginScreen(
                     onNavigateToQuickRegister = onNavigateToQuickRegister
                 )
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -575,36 +586,138 @@ fun LoginFormCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterPrompt(
     onNavigateToRegister: () -> Unit,
     onNavigateToQuickRegister: () -> Unit = {}
 ) {
+    var showSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "Немаєте облікового запису? ",
-                color = Color.White.copy(alpha = 0.9f),
-                fontSize = 14.sp
+        Text(
+            "Немаєте облікового запису?",
+            color = Color.White.copy(alpha = 0.80f),
+            fontSize = 14.sp
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedButton(
+            onClick = { showSheet = true },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.55f)),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.White.copy(alpha = 0.09f),
+                contentColor = Color.White
             )
-            TextButton(onClick = onNavigateToRegister) {
+        ) {
+            Icon(Icons.Default.PersonAdd, null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Реєстрація", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+
+    if (showSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showSheet = false },
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 28.dp)
+            ) {
                 Text(
-                    "Зареєструйтеся",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
+                    "Оберіть тип реєстрації",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Ви зможете налаштувати акаунт після входу",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.50f)
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+
+                RegOptionCard(
+                    icon = Icons.Default.Person,
+                    title = "Стандартна реєстрація",
+                    desc = "Ім'я, email або телефон, пароль — повний контроль над акаунтом",
+                    gradient = listOf(Color(0xFF1565C0), Color(0xFF1E88E5)),
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            showSheet = false
+                            onNavigateToRegister()
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                RegOptionCard(
+                    icon = Icons.Default.Email,
+                    title = "Швидка реєстрація",
+                    desc = "Лише email або телефон — вхід через код підтвердження, без паролю",
+                    gradient = listOf(Color(0xFF6A1B9A), Color(0xFF8E24AA)),
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            showSheet = false
+                            onNavigateToQuickRegister()
+                        }
+                    }
                 )
             }
         }
-        TextButton(onClick = onNavigateToQuickRegister) {
-            Text(
-                "Швидка реєстрація (email або телефон)",
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 13.sp
-            )
+    }
+}
+
+@Composable
+private fun RegOptionCard(
+    icon: ImageVector,
+    title: String,
+    desc: String,
+    gradient: List<Color>,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(Brush.linearGradient(gradient), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = Color.White, modifier = Modifier.size(26.dp))
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface)
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(desc, fontSize = 12.sp, lineHeight = 17.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f))
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(Icons.Default.ChevronRight, null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f),
+                modifier = Modifier.size(20.dp))
         }
     }
 }
