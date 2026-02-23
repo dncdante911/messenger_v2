@@ -19,7 +19,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -105,15 +107,32 @@ fun AccessRecoveryScreen(
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(GradientStart, GradientEnd, WMPrimary),
-                    startY = gradientOffset,
-                    endY = gradientOffset + 1000f
+                    colors = listOf(Color(0xFF090D1A), Color(0xFF121539), Color(0xFF0A0F24)),
+                    startY = gradientOffset * 0.05f,
+                    endY   = gradientOffset * 0.05f + 2000f
                 )
             )
+            .drawBehind {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        listOf(Color(0xFF1565C0).copy(alpha = 0.28f), Color.Transparent),
+                        center = Offset(size.width * 0.85f, size.height * 0.06f), radius = 320f
+                    ),
+                    radius = 320f, center = Offset(size.width * 0.85f, size.height * 0.06f)
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        listOf(Color(0xFF6A1B9A).copy(alpha = 0.18f), Color.Transparent),
+                        center = Offset(size.width * 0.12f, size.height * 0.78f), radius = 260f
+                    ),
+                    radius = 260f, center = Offset(size.width * 0.12f, size.height * 0.78f)
+                )
+            }
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .systemBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp)
         ) {
@@ -168,8 +187,9 @@ fun ChooseModeCard(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(16.dp, RoundedCornerShape(24.dp)),
-        shape = RoundedCornerShape(24.dp),
-        color = colorScheme.surface.copy(alpha = 0.95f)
+        shape = RoundedCornerShape(28.dp),
+        color = colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
@@ -278,8 +298,9 @@ fun ForgotPasswordFlow(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(16.dp, RoundedCornerShape(24.dp)),
-        shape = RoundedCornerShape(24.dp),
-        color = colorScheme.surface.copy(alpha = 0.95f)
+        shape = RoundedCornerShape(28.dp),
+        color = colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             when (step) {
@@ -558,8 +579,9 @@ fun ForgotEmailFlow(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(16.dp, RoundedCornerShape(24.dp)),
-        shape = RoundedCornerShape(24.dp),
-        color = colorScheme.surface.copy(alpha = 0.95f)
+        shape = RoundedCornerShape(28.dp),
+        color = colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
 

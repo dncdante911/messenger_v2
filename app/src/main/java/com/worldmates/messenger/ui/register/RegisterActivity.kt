@@ -7,7 +7,9 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,7 +22,9 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -142,39 +146,38 @@ fun RegisterScreen(
 
     // Убрано дублирование - состояние обрабатывается в lifecycleScope.launch
 
-    // Анимация фона
-    val infiniteTransition = rememberInfiniteTransition()
-    val gradientOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        GradientStart,
-                        GradientEnd,
-                        WMPrimary
-                    ),
-                    startY = gradientOffset,
-                    endY = gradientOffset + 1000f
+                        Color(0xFF090D1A),
+                        Color(0xFF121539),
+                        Color(0xFF0A0F24)
+                    )
                 )
             )
+            .drawBehind {
+                drawCircle(
+                    color = Color(0xFF1565C0).copy(alpha = 0.22f),
+                    radius = size.width * 0.55f,
+                    center = Offset(size.width * 0.85f, size.height * 0.12f)
+                )
+                drawCircle(
+                    color = Color(0xFF6A1B9A).copy(alpha = 0.18f),
+                    radius = size.width * 0.50f,
+                    center = Offset(size.width * 0.10f, size.height * 0.72f)
+                )
+            }
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .systemBarsPadding()
                 .padding(24.dp)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Заголовок
             Text(
@@ -298,11 +301,16 @@ fun RegisterFormCard(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 16.dp,
-                shape = RoundedCornerShape(24.dp),
-                ambientColor = Color.Black.copy(alpha = 0.2f)
+                elevation = 20.dp,
+                shape = RoundedCornerShape(28.dp),
+                ambientColor = Color.Black.copy(alpha = 0.30f)
+            )
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.06f),
+                shape = RoundedCornerShape(28.dp)
             ),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         color = colorScheme.surface.copy(alpha = 0.95f)
     ) {
         Column(
