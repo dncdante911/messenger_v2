@@ -250,11 +250,32 @@ function resetPassword(ctx) {
         }
 
         try {
-            await ctx.wo_users.update(
+            // Use .unscoped() so the defaultScope (which may exclude 'password')
+            // does not silently skip the column in the UPDATE statement.
+            const [affectedRows] = await ctx.wo_users.unscoped().update(
                 { password: hashPassword(newPass) },
                 { where: { user_id: result.entry.userId } }
             );
-            console.log(`[Auth] Password changed for user ${result.entry.userId}`);
+
+            if (affectedRows === 0) {
+                console.error(`[Auth] Password update affected 0 rows for user ${result.entry.userId}`);
+                return res.json({ api_status: 500, error_message: 'Не вдалося оновити пароль. Спробуйте ще раз.' });
+            }
+
+            console.log(`[Auth] Password changed for user ${result.entry.userId} (${affectedRows} row updated)`);
+
+            // Invalidate all existing sessions so old tokens stop working immediately.
+            // This is standard security practice after a password change.
+            try {
+                const deletedSessions = await ctx.wo_appssessions.destroy({
+                    where: { user_id: result.entry.userId }
+                });
+                console.log(`[Auth] Invalidated ${deletedSessions} session(s) for user ${result.entry.userId}`);
+            } catch (sessionErr) {
+                // Non-fatal: old sessions will expire naturally; log but don't fail the reset.
+                console.warn(`[Auth] Could not invalidate sessions: ${sessionErr.message}`);
+            }
+
             return res.json({ api_status: 200, message: 'Пароль успішно змінено' });
 
         } catch (err) {
