@@ -527,6 +527,198 @@ function getUserStories(ctx) {
     };
 }
 
+// ─── POST /api/node/stories/mark-viewed ─────────────────────────────────────
+
+function markStoryViewed(ctx) {
+    return async (req, res) => {
+        try {
+            const loggedUserId = req.userId;
+            const storyId = parseInt(req.body.story_id);
+
+            if (!storyId) {
+                return res.status(400).json({ api_status: 400, error_message: 'story_id is required' });
+            }
+
+            // Don't record own views
+            const story = await ctx.wo_userstory.findOne({
+                where: { id: storyId }, attributes: ['user_id'], raw: true,
+            });
+            if (!story) return res.json({ api_status: 200, message: 'not_found' });
+            if (story.user_id === loggedUserId) return res.json({ api_status: 200, message: 'own_story' });
+
+            // Prevent duplicate views
+            const existing = await ctx.wo_story_seen.findOne({
+                where: { story_id: storyId, user_id: loggedUserId },
+            });
+
+            if (!existing) {
+                await ctx.wo_story_seen.create({
+                    story_id: storyId,
+                    user_id: loggedUserId,
+                    time: String(Math.floor(Date.now() / 1000)),
+                });
+            }
+
+            res.json({ api_status: 200, message: 'viewed' });
+        } catch (err) {
+            console.error('[Stories/mark-viewed]', err.message);
+            res.status(500).json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/react ───────────────────────────────────────────
+
+function reactToStory(ctx) {
+    return async (req, res) => {
+        try {
+            const loggedUserId = req.userId;
+            const storyId = parseInt(req.body.story_id);
+            const reaction = (req.body.reaction || '').toLowerCase().trim();
+
+            const validReactions = ['like', 'love', 'haha', 'wow', 'sad', 'angry'];
+            if (!storyId || !validReactions.includes(reaction)) {
+                return res.status(400).json({
+                    api_status: 400,
+                    error_message: 'story_id and valid reaction required',
+                });
+            }
+
+            const existing = await ctx.wo_storyreactions.findOne({
+                where: { story_id: storyId, user_id: loggedUserId },
+            });
+
+            let action;
+            if (existing) {
+                if (existing.reaction === reaction) {
+                    await existing.destroy();
+                    action = 'removed';
+                } else {
+                    existing.reaction = reaction;
+                    existing.time = Math.floor(Date.now() / 1000);
+                    await existing.save();
+                    action = 'updated';
+                }
+            } else {
+                await ctx.wo_storyreactions.create({
+                    story_id: storyId,
+                    user_id: loggedUserId,
+                    reaction: reaction,
+                    time: Math.floor(Date.now() / 1000),
+                });
+                action = 'added';
+            }
+
+            console.log(`[Stories/react] User ${loggedUserId} ${action} ${reaction} on story ${storyId}`);
+            res.json({ api_status: 200, action, reaction: action === 'removed' ? null : reaction });
+        } catch (err) {
+            console.error('[Stories/react]', err.message);
+            res.status(500).json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/get-comments ────────────────────────────────────
+
+function getStoryComments(ctx) {
+    return async (req, res) => {
+        try {
+            const storyId = parseInt(req.body.story_id);
+            let limit = parseInt(req.body.limit) || 20;
+            const offset = parseInt(req.body.offset) || 0;
+
+            if (!storyId) {
+                return res.status(400).json({ api_status: 400, error_message: 'story_id is required' });
+            }
+            if (limit > 50) limit = 50;
+
+            const whereClause = { story_id: storyId };
+            if (offset > 0) {
+                whereClause.id = { [Op.lt]: offset };
+            }
+
+            const comments = await ctx.wo_storycomments.findAll({
+                where: whereClause,
+                order: [['time', 'DESC']],
+                limit,
+                raw: true,
+            });
+
+            const result = [];
+            for (const c of comments) {
+                const userData = await getUserBasicData(ctx, c.user_id);
+                result.push({
+                    id: c.id,
+                    story_id: c.story_id,
+                    user_id: c.user_id,
+                    text: c.text || '',
+                    time: c.time ? parseInt(c.time) : 0,
+                    user_data: userData,
+                    offset_id: c.id,
+                });
+            }
+
+            const total = await ctx.wo_storycomments.count({ where: { story_id: storyId } });
+
+            res.json({ api_status: 200, comments: result, total });
+        } catch (err) {
+            console.error('[Stories/get-comments]', err.message);
+            res.status(500).json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/create-comment ──────────────────────────────────
+
+function createStoryComment(ctx) {
+    return async (req, res) => {
+        try {
+            const loggedUserId = req.userId;
+            const storyId = parseInt(req.body.story_id);
+            const text = (req.body.text || '').trim();
+
+            if (!storyId || !text) {
+                return res.status(400).json({ api_status: 400, error_message: 'story_id and text are required' });
+            }
+
+            const story = await ctx.wo_userstory.findOne({ where: { id: storyId }, raw: true });
+            if (!story) {
+                return res.status(404).json({ api_status: 404, error_message: 'Story not found' });
+            }
+
+            const now = Math.floor(Date.now() / 1000);
+            const comment = await ctx.wo_storycomments.create({
+                story_id: storyId,
+                user_id: loggedUserId,
+                text: text,
+                time: now,
+            });
+
+            // Increment comment_count
+            await ctx.wo_userstory.increment('comment_count', { where: { id: storyId } });
+
+            const userData = await getUserBasicData(ctx, loggedUserId);
+
+            console.log(`[Stories/comment] User ${loggedUserId} commented on story ${storyId}`);
+            res.json({
+                api_status: 200,
+                comment: {
+                    id: comment.id,
+                    story_id: storyId,
+                    user_id: loggedUserId,
+                    text: text,
+                    time: now,
+                    user_data: userData,
+                    offset_id: comment.id,
+                },
+            });
+        } catch (err) {
+            console.error('[Stories/create-comment]', err.message);
+            res.status(500).json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
 // ─── register routes ────────────────────────────────────────────────────────
 
 function registerStoryRoutes(app, ctx, io) {
@@ -557,12 +749,16 @@ function registerStoryRoutes(app, ctx, io) {
         });
     };
 
-    app.post('/api/node/stories/create',          auth, handleUpload, createStory(ctx, io));
-    app.post('/api/node/stories/get',             auth, getStories(ctx));
+    app.post('/api/node/stories/create',           auth, handleUpload, createStory(ctx, io));
+    app.post('/api/node/stories/get',              auth, getStories(ctx));
     app.post('/api/node/stories/get-user-stories', auth, getUserStories(ctx));
+    app.post('/api/node/stories/mark-viewed',      auth, markStoryViewed(ctx));
+    app.post('/api/node/stories/react',            auth, reactToStory(ctx));
+    app.post('/api/node/stories/get-comments',     auth, getStoryComments(ctx));
+    app.post('/api/node/stories/create-comment',   auth, createStoryComment(ctx));
 
     console.log('[Stories API] Endpoints registered under /api/node/stories/*');
-    console.log('  Stories: create, get, get-user-stories');
+    console.log('  Stories: create, get, get-user-stories, mark-viewed, react, get-comments, create-comment');
 }
 
 module.exports = { registerStoryRoutes };

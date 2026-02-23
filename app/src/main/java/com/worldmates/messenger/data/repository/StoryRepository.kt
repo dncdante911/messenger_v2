@@ -292,6 +292,19 @@ class StoryRepository(private val context: Context) {
     }
 
     /**
+     * Mark story as viewed (fire-and-forget)
+     */
+    suspend fun markStoryViewed(storyId: Long) {
+        try {
+            if (UserSession.accessToken == null) return
+            nodeStoriesApi.markStoryViewed(storyId)
+            Log.d(TAG, "Story $storyId marked as viewed")
+        } catch (e: Exception) {
+            Log.e(TAG, "markStoryViewed error: ${e.message}")
+        }
+    }
+
+    /**
      * Встановити поточну story
      */
     fun setCurrentStory(story: Story) {
@@ -372,8 +385,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.reactToStory(
-                accessToken = UserSession.accessToken!!,
+            val response = nodeStoriesApi.reactToStory(
                 storyId = storyId,
                 reaction = reactionType.value
             )
@@ -437,8 +449,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.createStoryComment(
-                accessToken = UserSession.accessToken!!,
+            val response = nodeStoriesApi.createStoryComment(
                 storyId = storyId,
                 text = text
             )
@@ -472,8 +483,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.getStoryComments(
-                accessToken = UserSession.accessToken!!,
+            val response = nodeStoriesApi.getStoryComments(
                 storyId = storyId,
                 limit = limit,
                 offset = offset

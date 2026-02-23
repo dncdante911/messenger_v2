@@ -13,9 +13,7 @@ import retrofit2.http.*
  */
 interface NodeStoriesApi {
 
-    /**
-     * Create a new story with file upload
-     */
+    /** Create a new story with file upload */
     @Multipart
     @POST("api/node/stories/create")
     suspend fun createStory(
@@ -27,22 +25,50 @@ interface NodeStoriesApi {
         @Part cover: MultipartBody.Part? = null
     ): CreateStoryResponse
 
-    /**
-     * Get active stories list
-     */
+    /** Get active stories list */
     @FormUrlEncoded
     @POST("api/node/stories/get")
     suspend fun getStories(
         @Field("limit") limit: Int = 35
     ): GetStoriesResponse
 
-    /**
-     * Get stories for a specific user
-     */
+    /** Get stories for a specific user */
     @FormUrlEncoded
     @POST("api/node/stories/get-user-stories")
     suspend fun getUserStories(
         @Field("user_id") userId: Long,
         @Field("limit") limit: Int = 35
     ): GetStoriesResponse
+
+    /** Mark story as viewed (inserts into Wo_Story_Seen) */
+    @FormUrlEncoded
+    @POST("api/node/stories/mark-viewed")
+    suspend fun markStoryViewed(
+        @Field("story_id") storyId: Long
+    ): NodeSimpleResponse
+
+    /** React to story (toggle: same reaction removes, different replaces) */
+    @FormUrlEncoded
+    @POST("api/node/stories/react")
+    suspend fun reactToStory(
+        @Field("story_id") storyId: Long,
+        @Field("reaction") reaction: String
+    ): ReactStoryResponse
+
+    /** Get comments for a story */
+    @FormUrlEncoded
+    @POST("api/node/stories/get-comments")
+    suspend fun getStoryComments(
+        @Field("story_id") storyId: Long,
+        @Field("limit") limit: Int = 20,
+        @Field("offset") offset: Int = 0
+    ): GetStoryCommentsResponse
+
+    /** Create a comment on a story */
+    @FormUrlEncoded
+    @POST("api/node/stories/create-comment")
+    suspend fun createStoryComment(
+        @Field("story_id") storyId: Long,
+        @Field("text") text: String
+    ): CreateStoryCommentResponse
 }
