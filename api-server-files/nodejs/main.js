@@ -17,6 +17,7 @@ const listeners = require('./listeners/listeners')
 const { initializeBotNamespace, getBotStats } = require('./listeners/bots-listener')
 const { registerMessagingRoutes } = require('./routes/messaging')
 const { registerPrivateChatRoutes } = require('./routes/private-chats/index')
+const { registerAuthRoutes } = require('./routes/auth')
 
 let serverPort
 let server
@@ -272,6 +273,8 @@ async function main() {
   // Register REST API endpoints for messaging (replaces PHP polling)
   registerMessagingRoutes(app, ctx, io);
   registerPrivateChatRoutes(app, ctx, io);
+  // Auth: password reset + quick register/login (no access-token required)
+  registerAuthRoutes(app, ctx);
 
   io.on('connection', async (socket, query) => {
     await listeners.registerListeners(socket, io, ctx)
