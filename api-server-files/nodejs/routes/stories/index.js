@@ -462,6 +462,71 @@ function getStories(ctx) {
     };
 }
 
+// ─── POST /api/node/stories/get-user-stories ────────────────────────────────
+
+function getUserStories(ctx) {
+    return async (req, res) => {
+        try {
+            const loggedUserId = req.userId;
+            const targetUserId = parseInt(req.body.user_id);
+            let limit = parseInt(req.body.limit) || 35;
+            if (limit < 1) limit = 1;
+            if (limit > 50) limit = 50;
+
+            if (!targetUserId || isNaN(targetUserId)) {
+                return res.status(400).json({
+                    api_status: 400, error_code: 3,
+                    error_message: 'user_id is required'
+                });
+            }
+
+            const now = Math.floor(Date.now() / 1000);
+            const expireThreshold = now - STORY_TTL;
+
+            const whereClause = {
+                user_id: targetUserId,
+                [Op.and]: [
+                    {
+                        [Op.or]: [
+                            { expire: null },
+                            { expire: '' },
+                            ctx.wo_userstory.sequelize.literal(`CAST(\`expire\` AS UNSIGNED) > ${now}`)
+                        ]
+                    },
+                    ctx.wo_userstory.sequelize.literal(`CAST(\`posted\` AS UNSIGNED) > ${expireThreshold}`)
+                ]
+            };
+
+            const stories = await ctx.wo_userstory.findAll({
+                where: whereClause,
+                order: [['id', 'DESC']],
+                limit: limit,
+                raw: true,
+            });
+
+            const result = [];
+            for (const story of stories) {
+                const storyData = await buildStoryResponse(ctx, story, loggedUserId);
+                result.push(storyData);
+            }
+
+            console.log(`[Stories/get-user] User ${loggedUserId} fetched ${result.length} stories for user ${targetUserId}`);
+
+            res.json({
+                api_status: 200,
+                stories:    result,
+            });
+
+        } catch (err) {
+            console.error('[Stories/get-user] Error:', err.message, err.stack);
+            res.status(500).json({
+                api_status: 500,
+                error_message: 'Failed to fetch user stories: ' + err.message
+            });
+        }
+    };
+}
+
 // ─── register routes ────────────────────────────────────────────────────────
 
 function registerStoryRoutes(app, ctx, io) {
@@ -492,11 +557,12 @@ function registerStoryRoutes(app, ctx, io) {
         });
     };
 
-    app.post('/api/node/stories/create', auth, handleUpload, createStory(ctx, io));
-    app.post('/api/node/stories/get',    auth, getStories(ctx));
+    app.post('/api/node/stories/create',          auth, handleUpload, createStory(ctx, io));
+    app.post('/api/node/stories/get',             auth, getStories(ctx));
+    app.post('/api/node/stories/get-user-stories', auth, getUserStories(ctx));
 
     console.log('[Stories API] Endpoints registered under /api/node/stories/*');
-    console.log('  Stories: create, get');
+    console.log('  Stories: create, get, get-user-stories');
 }
 
 module.exports = { registerStoryRoutes };

@@ -251,8 +251,7 @@ class StoryRepository(private val context: Context) {
 
             Log.d(TAG, "getUserStories: userId=$userId, limit=$limit")
 
-            val response = storiesApi.getUserStories(
-                accessToken = UserSession.accessToken!!,
+            val response = nodeStoriesApi.getUserStories(
                 userId = userId,
                 limit = limit
             )
