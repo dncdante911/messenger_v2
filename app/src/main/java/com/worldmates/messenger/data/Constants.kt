@@ -68,8 +68,7 @@ object Constants {
     const val SOCKET_EVENT_USER_OFFLINE = "on_user_loggedoff"  // ИСПРАВЛЕНО: было user_status_change
     
     // ==================== PUSH NOTIFICATIONS ====================
-    const val FCM_TOPIC_MESSAGES = "worldmates_messages"
-    const val FCM_TOPIC_CALLS = "worldmates_calls"
+    // Firebase видалений — використовуємо Socket.IO ForegroundService + keep-alive
     
     // ==================== MEDIA UPLOAD ====================
     const val MAX_IMAGE_SIZE = 25 * 1024 * 1024L // 25MB (увеличено с 15MB)

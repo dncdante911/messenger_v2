@@ -88,6 +88,7 @@ class SettingsActivity : AppCompatActivity() {
                             onBackPressed = { finish() },
                             onNavigate = { screen -> currentScreen = screen },
                             onLogout = {
+                                com.worldmates.messenger.services.NotificationKeepAliveManager.shutdown(this)
                                 UserSession.clearSession()
                                 startActivity(Intent(this, LoginActivity::class.java))
                                 finishAffinity()

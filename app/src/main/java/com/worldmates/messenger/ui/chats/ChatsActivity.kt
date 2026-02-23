@@ -312,6 +312,26 @@ class ChatsActivity : AppCompatActivity() {
         } else {
             MessageNotificationService.start(this)
         }
+
+        // Запитуємо вимкнення оптимізації батареї для надійної доставки повідомлень
+        requestBatteryOptimizationExemption()
+    }
+
+    /**
+     * Запитує у користувача дозвіл на вимкнення оптимізації батареї,
+     * щоб система не вбивала фоновий сервіс сповіщень.
+     * Показується тільки один раз (якщо ще не вимкнено).
+     */
+    private fun requestBatteryOptimizationExemption() {
+        if (!com.worldmates.messenger.services.NotificationKeepAliveManager.isBatteryOptimizationDisabled(this)) {
+            try {
+                val intent = com.worldmates.messenger.services.NotificationKeepAliveManager
+                    .getBatteryOptimizationIntent(this)
+                startActivity(intent)
+            } catch (e: Exception) {
+                android.util.Log.w("ChatsActivity", "Cannot request battery optimization exemption", e)
+            }
+        }
     }
 }
 
