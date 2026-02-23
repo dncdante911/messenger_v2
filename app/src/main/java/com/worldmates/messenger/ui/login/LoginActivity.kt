@@ -9,6 +9,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -23,8 +24,10 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -99,7 +102,13 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun navigateToChats() {
-        startActivity(Intent(this, ChatsActivity::class.java))
+        val dest = if (!com.worldmates.messenger.ui.preferences.UIStylePreferences.hasSeenOnboarding(this)) {
+            // First login — show UI-style picker before the main screen
+            Intent(this, com.worldmates.messenger.ui.onboarding.UIStyleOnboardingActivity::class.java)
+        } else {
+            Intent(this, ChatsActivity::class.java)
+        }
+        startActivity(dest)
         finish()
     }
 
@@ -148,24 +157,47 @@ fun LoginScreen(
         )
     )
 
+    // Deep dark premium background colors
+    val bgStart = Color(0xFF090D1A)   // deep night navy
+    val bgMid   = Color(0xFF121539)   // deep indigo
+    val bgEnd   = Color(0xFF0A0F24)   // dark slate
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(
-                        GradientStart,
-                        GradientEnd,
-                        WMPrimary
-                    ),
-                    startY = gradientOffset,
-                    endY = gradientOffset + 1000f
+                    colors = listOf(bgStart, bgMid, bgEnd),
+                    startY = gradientOffset * 0.05f,
+                    endY   = gradientOffset * 0.05f + 2000f
                 )
             )
+            // Decorative radial glow blobs — purely visual, no extra imports needed
+            .drawBehind {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF1565C0).copy(alpha = 0.30f), Color.Transparent),
+                        center = Offset(size.width * 0.85f, size.height * 0.08f),
+                        radius = 320f
+                    ),
+                    radius = 320f,
+                    center = Offset(size.width * 0.85f, size.height * 0.08f)
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF6A1B9A).copy(alpha = 0.20f), Color.Transparent),
+                        center = Offset(size.width * 0.12f, size.height * 0.72f),
+                        radius = 280f
+                    ),
+                    radius = 280f,
+                    center = Offset(size.width * 0.12f, size.height * 0.72f)
+                )
+            }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .systemBarsPadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -253,29 +285,30 @@ fun LogoSection() {
             )
         )
 
-        Surface(
+        Box(
             modifier = Modifier
-                .size(100.dp)
+                .size(112.dp)
                 .scale(scale)
                 .shadow(
-                    elevation = 20.dp,
-                    shape = RoundedCornerShape(32.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.3f)
-                ),
-            shape = RoundedCornerShape(32.dp),
-            color = Color.White
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Text(
-                    "WM",
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WMPrimary
+                    elevation = 28.dp,
+                    shape = CircleShape,
+                    ambientColor = WMPrimary.copy(alpha = 0.55f),
+                    spotColor = WMPrimary.copy(alpha = 0.35f)
                 )
-            }
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(Color(0xFF1565C0), Color(0xFF6A1B9A))
+                    ),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "WM",
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -321,12 +354,15 @@ fun LoginFormCard(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 16.dp,
-                shape = RoundedCornerShape(24.dp),
-                ambientColor = Color.Black.copy(alpha = 0.2f)
+                elevation = 24.dp,
+                shape = RoundedCornerShape(28.dp),
+                ambientColor = Color(0xFF1565C0).copy(alpha = 0.18f)
             ),
-        shape = RoundedCornerShape(24.dp),
-        color = colorScheme.surface.copy(alpha = 0.95f)
+        shape = RoundedCornerShape(28.dp),
+        color = colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp, Color.White.copy(alpha = 0.06f)
+        )
     ) {
         Column(
             modifier = Modifier.padding(24.dp)
