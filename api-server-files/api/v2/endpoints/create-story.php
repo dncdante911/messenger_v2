@@ -2,8 +2,11 @@
 // +------------------------------------------------------------------------+
 // | Create Story Endpoint (V2 API)
 // | Creates a new story (image or video) for the authenticated user
-// | Called via index.php router: ?type=create_story
+// | Called directly by Android: /api/v2/endpoints/create-story.php
+// | OR via router: ?type=create_story
 // +------------------------------------------------------------------------+
+
+require_once(__DIR__ . '/_stories_bootstrap.php');
 
 $response_data = array('api_status' => 400);
 $error_code    = 0;
@@ -75,6 +78,12 @@ if (empty($error_code)) {
                 'filename' => $filename,
                 'expire'   => time() + 86400,
             );
+
+            // Store video duration if provided
+            if ($file_type === 'video' && !empty($_POST['video_duration'])) {
+                $source_data['duration'] = (int)$_POST['video_duration'];
+            }
+
             Wo_InsertUserStoryMedia($source_data);
 
             $thumb = '';
@@ -102,21 +111,24 @@ if (empty($error_code)) {
                 mysqli_query($sqlConnect, "UPDATE " . T_USER_STORY . " SET thumbnail = '$thumb_secure' WHERE id = $last_id");
             }
 
-            $story_data = $db->where('id', $last_id)->getOne(T_USER_STORY);
-            $response_data = array(
-                'api_status' => 200,
-                'message'    => 'Story created successfully',
-                'story_id'   => $last_id,
-                'story'      => array(
-                    'id'          => $last_id,
-                    'user_id'     => $logged_user_id,
-                    'title'       => $story_data->title ?? '',
-                    'description' => $story_data->description ?? '',
-                    'posted'      => (int)$story_data->posted,
-                    'expire'      => (int)$story_data->expire,
-                    'thumbnail'   => $story_data->thumbnail ?? '',
-                ),
-            );
+            // Re-fetch the story from DB to return accurate data
+            $story_q = mysqli_query($sqlConnect, "SELECT * FROM " . T_USER_STORY . " WHERE id = {$last_id} LIMIT 1");
+            $story_row = ($story_q && mysqli_num_rows($story_q) > 0) ? mysqli_fetch_assoc($story_q) : null;
+
+            if ($story_row) {
+                $response_data = array(
+                    'api_status' => 200,
+                    'message'    => 'Story created successfully',
+                    'story_id'   => $last_id,
+                    'story'      => stories_build_story($sqlConnect, $story_row, $logged_user_id),
+                );
+            } else {
+                $response_data = array(
+                    'api_status' => 200,
+                    'message'    => 'Story created successfully',
+                    'story_id'   => $last_id,
+                );
+            }
         }
     }
 }
@@ -128,3 +140,5 @@ if ($error_code > 0) {
         'error_message' => $error_message,
     );
 }
+
+stories_output($response_data);

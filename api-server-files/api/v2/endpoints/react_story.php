@@ -2,8 +2,11 @@
 // +------------------------------------------------------------------------+
 // | React Story Endpoint (V2 API)
 // | Add or remove a reaction on a story (toggle)
-// | Called via index.php router: ?type=react_story
+// | Called directly by Android: /api/v2/endpoints/react_story.php
+// | OR via router: ?type=react_story
 // +------------------------------------------------------------------------+
+
+require_once(__DIR__ . '/_stories_bootstrap.php');
 
 $response_data = array('api_status' => 400);
 $error_code    = 0;
@@ -22,30 +25,26 @@ if (empty($error_code) && (empty($_POST['reaction']) || !in_array($_POST['reacti
 
 if (empty($error_code)) {
     $story_id       = (int)$_POST['id'];
-    $reaction_type  = Wo_Secure($_POST['reaction']);
+    $reaction_type  = mysqli_real_escape_string($sqlConnect, $_POST['reaction']);
     $logged_user_id = (int)$wo['user']['user_id'];
 
     // Check if story exists
-    $story = $db->where('id', $story_id)->getOne(T_USER_STORY);
-    if (empty($story)) {
+    $story_q = mysqli_query($sqlConnect, "SELECT id FROM " . T_USER_STORY . " WHERE id = {$story_id} LIMIT 1");
+    if (!$story_q || mysqli_num_rows($story_q) == 0) {
         $error_code    = 5;
         $error_message = 'Story not found';
     }
 }
 
 if (empty($error_code)) {
-    // Check if reaction already exists (using T_STORY_REACTIONS if available, else a simple approach)
-    $existing_query = "SELECT * FROM `Wo_StoryReactions`
-                       WHERE `story_id` = {$story_id} AND `user_id` = {$logged_user_id} LIMIT 1";
-    $existing_result = mysqli_query($sqlConnect, $existing_query);
+    // Check if reaction already exists
+    $existing_result = mysqli_query($sqlConnect, "SELECT * FROM `Wo_StoryReactions` WHERE `story_id` = {$story_id} AND `user_id` = {$logged_user_id} LIMIT 1");
 
     if ($existing_result && mysqli_num_rows($existing_result) > 0) {
         $existing = mysqli_fetch_assoc($existing_result);
         if ($existing['reaction'] === $reaction_type) {
             // Same reaction — remove it (toggle off)
-            $del_query = "DELETE FROM `Wo_StoryReactions`
-                          WHERE `story_id` = {$story_id} AND `user_id` = {$logged_user_id}";
-            mysqli_query($sqlConnect, $del_query);
+            mysqli_query($sqlConnect, "DELETE FROM `Wo_StoryReactions` WHERE `story_id` = {$story_id} AND `user_id` = {$logged_user_id}");
             $response_data = array(
                 'api_status' => 200,
                 'message'    => 'Reaction removed',
@@ -53,10 +52,7 @@ if (empty($error_code)) {
             );
         } else {
             // Different reaction — update it
-            $upd_query = "UPDATE `Wo_StoryReactions`
-                          SET `reaction` = '" . $reaction_type . "'
-                          WHERE `story_id` = {$story_id} AND `user_id` = {$logged_user_id}";
-            mysqli_query($sqlConnect, $upd_query);
+            mysqli_query($sqlConnect, "UPDATE `Wo_StoryReactions` SET `reaction` = '{$reaction_type}' WHERE `story_id` = {$story_id} AND `user_id` = {$logged_user_id}");
             $response_data = array(
                 'api_status' => 200,
                 'message'    => 'Reaction updated',
@@ -66,9 +62,7 @@ if (empty($error_code)) {
         }
     } else {
         // Insert new reaction
-        $ins_query = "INSERT INTO `Wo_StoryReactions` (`story_id`, `user_id`, `reaction`, `time`)
-                      VALUES ({$story_id}, {$logged_user_id}, '{$reaction_type}', " . time() . ")";
-        mysqli_query($sqlConnect, $ins_query);
+        mysqli_query($sqlConnect, "INSERT INTO `Wo_StoryReactions` (`story_id`, `user_id`, `reaction`, `time`) VALUES ({$story_id}, {$logged_user_id}, '{$reaction_type}', " . time() . ")");
         $response_data = array(
             'api_status' => 200,
             'message'    => 'Reaction added',
@@ -85,3 +79,5 @@ if ($error_code > 0) {
         'error_message' => $error_message,
     );
 }
+
+stories_output($response_data);

@@ -1,9 +1,12 @@
 <?php
 // +------------------------------------------------------------------------+
 // | Get Story By ID Endpoint (V2 API)
-// | Returns a single story by its ID
-// | Called via index.php router: ?type=get_story_by_id
+// | Returns a single story by its ID with full media, views, reactions
+// | Called directly by Android: /api/v2/endpoints/get_story_by_id.php
+// | OR via router: ?type=get_story_by_id
 // +------------------------------------------------------------------------+
+
+require_once(__DIR__ . '/_stories_bootstrap.php');
 
 $response_data = array('api_status' => 400);
 $error_code    = 0;
@@ -18,39 +21,23 @@ if (empty($error_code)) {
     $story_id       = (int)$_POST['id'];
     $logged_user_id = (int)$wo['user']['user_id'];
 
-    $story_row = $db->where('id', $story_id)->getOne(T_USER_STORY);
+    $q = mysqli_query($sqlConnect, "SELECT * FROM " . T_USER_STORY . " WHERE id = {$story_id} LIMIT 1");
+    $story_row = ($q && mysqli_num_rows($q) > 0) ? mysqli_fetch_assoc($q) : null;
 
     if (empty($story_row)) {
         $error_code    = 4;
         $error_message = 'Story not found';
     } else {
-        $story_user_id = (int)$story_row->user_id;
-
-        $user_data = Wo_UserData($story_user_id);
-        if (!empty($user_data) && !empty($non_allowed)) {
-            foreach ($non_allowed as $key => $value) {
-                unset($user_data[$value]);
+        // Mark story as viewed
+        $story_uid = (int)$story_row['user_id'];
+        if ($story_uid !== $logged_user_id) {
+            $seen_check = mysqli_query($sqlConnect, "SELECT id FROM " . T_STORY_SEEN . " WHERE story_id = {$story_id} AND user_id = {$logged_user_id} LIMIT 1");
+            if (!$seen_check || mysqli_num_rows($seen_check) == 0) {
+                mysqli_query($sqlConnect, "INSERT INTO " . T_STORY_SEEN . " (story_id, user_id, `time`) VALUES ({$story_id}, {$logged_user_id}, '" . time() . "')");
             }
         }
 
-        $current_time = time();
-        $posted_ts = !empty($story_row->posted) ? (int)$story_row->posted : $current_time;
-        $expire_ts = !empty($story_row->expire) ? (int)$story_row->expire : ($posted_ts + 86400);
-
-        $story = array(
-            'id'            => (int)$story_row->id,
-            'user_id'       => $story_user_id,
-            'title'         => $story_row->title ?? '',
-            'description'   => $story_row->description ?? '',
-            'posted'        => $posted_ts,
-            'expire'        => $expire_ts,
-            'thumbnail'     => $story_row->thumbnail ?? '',
-            'user_data'     => $user_data,
-            'is_owner'      => ($story_user_id === $logged_user_id),
-            'is_viewed'     => 0,
-            'view_count'    => 0,
-            'comment_count' => 0,
-        );
+        $story = stories_build_story($sqlConnect, $story_row, $logged_user_id);
 
         $response_data = array(
             'api_status' => 200,
@@ -66,3 +53,5 @@ if ($error_code > 0) {
         'error_message' => $error_message,
     );
 }
+
+stories_output($response_data);
