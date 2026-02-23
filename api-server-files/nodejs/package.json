@@ -21,7 +21,8 @@
     "sequelize": "^6.3.5",
     "socket.io": "^4.8.1",
     "socket.io-redis": "^5.2.0",
-    "striptags": "^3.1.1"
+    "striptags": "^3.1.1",
+    "nodemailer": "^6.9.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

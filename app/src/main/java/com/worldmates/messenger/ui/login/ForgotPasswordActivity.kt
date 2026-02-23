@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.ui.chats.ChatsActivity
 import com.worldmates.messenger.ui.components.*
@@ -336,7 +337,7 @@ fun ForgotPasswordFlow(
                             isLoading = true
                             scope.launch {
                                 try {
-                                    val response = RetrofitClient.apiService.requestPasswordReset(
+                                    val response = NodeRetrofitClient.api.requestPasswordReset(
                                         email = if (selectedTab == 0) contact else null,
                                         phoneNumber = if (selectedTab == 1) contact else null
                                     )
@@ -410,7 +411,7 @@ fun ForgotPasswordFlow(
                         isLoading = true
                         scope.launch {
                             try {
-                                RetrofitClient.apiService.requestPasswordReset(
+                                NodeRetrofitClient.api.requestPasswordReset(
                                     email = if (selectedTab == 0) contact else null,
                                     phoneNumber = if (selectedTab == 1) contact else null
                                 )
@@ -489,7 +490,7 @@ fun ForgotPasswordFlow(
                                     isLoading = true
                                     scope.launch {
                                         try {
-                                            val response = RetrofitClient.apiService.resetPassword(
+                                            val response = NodeRetrofitClient.api.resetPassword(
                                                 email = if (selectedTab == 0) contact else null,
                                                 phoneNumber = if (selectedTab == 1) contact else null,
                                                 code = code,
@@ -609,7 +610,7 @@ fun ForgotEmailFlow(
                             isLoading = true
                             scope.launch {
                                 try {
-                                    val response = RetrofitClient.apiService.requestPasswordReset(
+                                    val response = NodeRetrofitClient.api.requestPasswordReset(
                                         phoneNumber = fullPhone
                                     )
                                     if (response.apiStatus == 200) {
@@ -664,7 +665,7 @@ fun ForgotEmailFlow(
                                 val generated = generateTempPassword(8)
                                 scope.launch {
                                     try {
-                                        val response = RetrofitClient.apiService.resetPassword(
+                                        val response = NodeRetrofitClient.api.resetPassword(
                                             phoneNumber = fullPhone,
                                             code = code,
                                             newPassword = generated

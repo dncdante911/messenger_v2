@@ -291,6 +291,43 @@ interface NodeApi {
         @Field("limit")   limit: Int = 50,
         @Field("offset")  offset: Int = 0
     ): NodeMessageListResponse
+
+    // ═══════════════════════ AUTH (no access-token required) ═════════════════
+
+    /** Send 6-digit OTP code for password reset. */
+    @FormUrlEncoded
+    @POST("api/node/auth/request-password-reset")
+    suspend fun requestPasswordReset(
+        @Field("email")        email: String? = null,
+        @Field("phone_number") phoneNumber: String? = null
+    ): PasswordResetRequestResponse
+
+    /** Verify OTP + set new password. */
+    @FormUrlEncoded
+    @POST("api/node/auth/reset-password")
+    suspend fun resetPassword(
+        @Field("email")        email: String? = null,
+        @Field("phone_number") phoneNumber: String? = null,
+        @Field("code")         code: String,
+        @Field("new_password") newPassword: String
+    ): PasswordResetResponse
+
+    /** Send 6-digit OTP for quick registration/login (no password). */
+    @FormUrlEncoded
+    @POST("api/node/auth/quick-register")
+    suspend fun quickRegister(
+        @Field("email")        email: String? = null,
+        @Field("phone_number") phoneNumber: String? = null
+    ): QuickRegisterResponse
+
+    /** Verify OTP code and return session token. */
+    @FormUrlEncoded
+    @POST("api/node/auth/quick-verify")
+    suspend fun quickVerify(
+        @Field("email")        email: String? = null,
+        @Field("phone_number") phoneNumber: String? = null,
+        @Field("code")         code: String
+    ): QuickVerifyResponse
 }
 
 // ═══════════════════════ RESPONSE MODELS ═════════════════════════════════════
