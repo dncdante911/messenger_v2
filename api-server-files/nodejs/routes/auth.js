@@ -9,35 +9,71 @@
  *   POST /api/node/auth/quick-register           { email?, phone_number? }
  *   POST /api/node/auth/quick-verify             { email?, phone_number?, code }
  *
- * Email: SMTP via mail.sthost.pro:465 SSL (support@worldmates.club)
- * OTP:   6-digit, 10-minute TTL, stored in-memory Map
+ * Email: SMTP support@worldmates.club, port 465 SSL.
+ * mail.sthost.pro resolves to the server's own external IPs on this host,
+ * so we attempt a cascade of SMTP endpoints (localhost first).
+ * OTP:  6-digit, 10-minute TTL, in-memory Map (replace with Redis for HA).
  */
 
 const nodemailer = require('nodemailer');
 const md5        = require('md5');
 const crypto     = require('crypto');
 
-// ─── SMTP ─────────────────────────────────────────────────────────────────────
+// ─── SMTP — cascading hosts ────────────────────────────────────────────────────
+// mail.sthost.pro DNS resolves to the server's own external IPs (195.22.131.11,
+// 46.232.232.38). Hairpin NAT is blocked ⇒ we try localhost/127.0.0.1 first,
+// then fall back to the external hostname if the mail daemon is reachable.
 
-const SMTP = {
-    host: 'mail.sthost.pro',
-    port: 465,
-    secure: true,
-    auth: {
-        user: 'support@worldmates.club',
-        pass: '3344Frz@q0607'
-    },
-    tls: { rejectUnauthorized: false }
+const SMTP_AUTH = {
+    user: 'support@worldmates.club',
+    pass: '3344Frz@q0607'
 };
 
+const SMTP_CANDIDATES = [
+    // Same machine: connect directly to the local SMTP daemon
+    { host: 'localhost',       port: 465, secure: true  },
+    { host: '127.0.0.1',      port: 465, secure: true  },
+    // Some servers expose STARTTLS on 587 from localhost
+    { host: 'localhost',       port: 587, secure: false },
+    { host: '127.0.0.1',      port: 587, secure: false },
+    // External hostname last — works if hairpin NAT is allowed
+    { host: 'mail.sthost.pro', port: 465, secure: true  },
+];
+
 async function sendEmail(to, subject, html) {
-    const transporter = nodemailer.createTransport(SMTP);
-    await transporter.sendMail({
-        from: '"WorldMates" <support@worldmates.club>',
-        to,
-        subject,
-        html
-    });
+    let lastError;
+
+    for (const candidate of SMTP_CANDIDATES) {
+        try {
+            const transporter = nodemailer.createTransport({
+                ...candidate,
+                auth: SMTP_AUTH,
+                tls:  { rejectUnauthorized: false },
+                connectionTimeout: 8000,
+                greetingTimeout:   8000,
+                socketTimeout:     10000
+            });
+
+            // Quick SMTP handshake verification before sending
+            await transporter.verify();
+
+            await transporter.sendMail({
+                from:    '"WorldMates" <support@worldmates.club>',
+                to,
+                subject,
+                html
+            });
+
+            console.log(`[SMTP] Sent to ${to} via ${candidate.host}:${candidate.port}`);
+            return; // success — exit cascade
+        } catch (err) {
+            console.warn(`[SMTP] ${candidate.host}:${candidate.port} failed: ${err.message}`);
+            lastError = err;
+        }
+    }
+
+    // All candidates failed
+    throw new Error(`SMTP delivery failed after ${SMTP_CANDIDATES.length} attempts. Last: ${lastError.message}`);
 }
 
 function emailTemplate(title, content) {
