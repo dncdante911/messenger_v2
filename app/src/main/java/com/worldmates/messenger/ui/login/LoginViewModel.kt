@@ -35,7 +35,12 @@ class LoginViewModel : ViewModel() {
                 when {
                     response.apiStatus == 200 && response.accessToken != null && response.userId != null -> {
                         // Успішний вхід
-                        UserSession.saveSession(response.accessToken!!, response.userId!!.toLong())
+                        UserSession.saveSession(
+                            token    = response.accessToken!!,
+                            id       = response.userId!!.toLong(),
+                            username = response.username,
+                            avatar   = response.avatar
+                        )
 
                         // Синхронізуємо токен з сервером
                         try {

@@ -210,6 +210,14 @@ fun LoginScreen(
                             viewModel.login(username, password)
                         }
                     },
+                    onPhoneLoginClick = { phone ->
+                        // Phone login: pass phone number directly without going through
+                        // username state (Compose state update is async — using it
+                        // in the same click handler would send the old username value)
+                        if (phone.isNotEmpty() && password.isNotEmpty()) {
+                            viewModel.login(phone, password)
+                        }
+                    },
                     loginState = loginState,
                     onForgotPassword = onNavigateToForgotPassword
                 )
@@ -299,6 +307,7 @@ fun LoginFormCard(
     onPasswordVisibilityToggle: () -> Unit,
     isLoading: Boolean,
     onLoginClick: () -> Unit,
+    onPhoneLoginClick: (String) -> Unit = {},
     loginState: LoginState,
     onForgotPassword: () -> Unit = {}
 ) {
@@ -497,10 +506,12 @@ fun LoginFormCard(
                     if (selectedTab == 0) {
                         onLoginClick()
                     } else {
-                        // Логин через телефон
+                        // Phone login: build the phone string here and pass it directly.
+                        // Do NOT call onUsernameChange first — Compose state updates are
+                        // deferred to the next recomposition, so onLoginClick() would still
+                        // read the old username value from the email tab.
                         val fullPhone = getFullPhoneNumber(selectedCountry.dialCode, phoneNumber)
-                        onUsernameChange(fullPhone)  // Передаем телефон как username
-                        onLoginClick()
+                        onPhoneLoginClick(fullPhone)
                     }
                 },
                 enabled = loginEnabled,
