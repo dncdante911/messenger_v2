@@ -84,4 +84,19 @@ object NodeRetrofitClient {
 
     /** Singleton NodeApi сервіс. Використовуй скрізь у проекті. */
     val api: NodeApi = retrofit.create(NodeApi::class.java)
+
+    // ── Upload client with longer timeouts for file uploads ────────────────
+    private val uploadClient = client.newBuilder()
+        .writeTimeout(Constants.MEDIA_UPLOAD_TIMEOUT.toLong(), TimeUnit.SECONDS)
+        .readTimeout(Constants.MEDIA_UPLOAD_TIMEOUT.toLong(), TimeUnit.SECONDS)
+        .build()
+
+    private val uploadRetrofit: Retrofit = Retrofit.Builder()
+        .baseUrl(Constants.NODE_BASE_URL)
+        .client(uploadClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    /** Stories API with longer upload timeouts. */
+    val storiesApi: NodeStoriesApi = uploadRetrofit.create(NodeStoriesApi::class.java)
 }

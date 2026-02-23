@@ -1,7 +1,7 @@
 /* jshint indent: 2 */
 
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('Wo_Story_Seen', {
+  return sequelize.define('Wo_Mute_Story', {
     id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
@@ -13,19 +13,19 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       defaultValue: 0
     },
-    story_id: {
+    story_user_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
     },
     time: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: "0"
+      defaultValue: 0
     }
   }, {
     sequelize,
     timestamps: false,
-    tableName: 'Wo_Story_Seen'
+    tableName: 'Wo_Mute_Story'
   });
 };

@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.*
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.StoriesApiService
 import com.worldmates.messenger.network.StoryReactionType
@@ -26,10 +27,13 @@ class StoryRepository(private val context: Context) {
 
     private val TAG = "StoryRepository"
 
-    // API сервіс для stories
+    // PHP API for secondary story endpoints (delete, views, reactions, comments, channels)
     private val storiesApi: StoriesApiService by lazy {
         RetrofitClient.retrofit.create(StoriesApiService::class.java)
     }
+
+    // Node.js API for primary story endpoints (create, get) — replaces broken PHP
+    private val nodeStoriesApi by lazy { NodeRetrofitClient.storiesApi }
 
     // Поточний список stories
     private val _stories = MutableStateFlow<List<Story>>(emptyList())
@@ -138,8 +142,7 @@ class StoryRepository(private val context: Context) {
                 }
             }
 
-            val response = storiesApi.createStory(
-                accessToken = UserSession.accessToken!!,
+            val response = nodeStoriesApi.createStory(
                 file = filePart,
                 fileType = fileTypeBody,
                 storyTitle = titleBody,
@@ -178,8 +181,7 @@ class StoryRepository(private val context: Context) {
 
             Log.d(TAG, "Fetching stories with limit=$limit, access_token=${UserSession.accessToken?.take(10)}...")
 
-            val response = storiesApi.getStories(
-                accessToken = UserSession.accessToken!!,
+            val response = nodeStoriesApi.getStories(
                 limit = limit
             )
 
