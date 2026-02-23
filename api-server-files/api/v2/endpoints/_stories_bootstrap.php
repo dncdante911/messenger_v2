@@ -17,6 +17,7 @@
 if (!isset($sqlConnect)) {
     // We are in standalone mode — Android called the endpoint directly
     header('Content-Type: application/json; charset=UTF-8');
+
     require_once(__DIR__ . '/../config.php');
 
     $access_token = $_GET['access_token'] ?? $_POST['access_token'] ?? '';
@@ -34,9 +35,14 @@ if (!isset($sqlConnect)) {
     }
 
     if (function_exists('Wo_UserData')) {
-        $auth_user_data = Wo_UserData($auth_user_id);
-        if (!empty($auth_user_data)) {
-            $wo['user'] = $auth_user_data;
+        try {
+            $auth_user_data = Wo_UserData($auth_user_id);
+            if (!empty($auth_user_data)) {
+                $wo['user'] = $auth_user_data;
+            }
+        } catch (Exception $e) {
+            // Wo_UserData failed — fall back to minimal user data
+            error_log("Stories bootstrap: Wo_UserData failed: " . $e->getMessage());
         }
     }
     if (empty($wo['user']['user_id'])) {

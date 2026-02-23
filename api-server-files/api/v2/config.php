@@ -136,6 +136,12 @@ foreach ($required_functions as $func_file) {
     }
 }
 
+// Instantiate Cache object required by cache() function in functions_general.php
+// WoWonder functions like Wo_UserData() call cache() which needs $cache->read()/write()
+if (class_exists('Cache') && !isset($cache)) {
+    $cache = new Cache();
+}
+
 // Load site configuration from database if possible
 if (function_exists('Wo_GetConfig')) {
     try {
