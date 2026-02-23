@@ -5,8 +5,6 @@ plugins {
     id 'kotlin-android'
     id 'org.jetbrains.kotlin.plugin.compose'  // КРИТИЧНО для Kotlin 2.0+ и Compose
     id 'com.google.devtools.ksp'  // KSP для Room Database
-    // Временно отключен до настройки Firebase
-    // id 'com.google.gms.google-services'
 }
 
 android {
@@ -129,11 +127,6 @@ dependencies {
     // ==================== COROUTINES ====================
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-
-    // ==================== FIREBASE ====================
-    implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation 'com.google.firebase:firebase-messaging-ktx'
-    implementation 'com.google.firebase:firebase-analytics-ktx'
 
     // ==================== DATA STORAGE ====================
     implementation 'androidx.datastore:datastore-preferences:1.0.0'

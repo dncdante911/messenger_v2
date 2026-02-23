@@ -7,6 +7,7 @@ import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
@@ -25,6 +26,13 @@ import org.json.JSONObject
  *
  * Не використовує Firebase — повністю self-hosted через Node.js.
  * Запускається як ForegroundService після успішного входу.
+ *
+ * Механізми виживання (без Firebase):
+ * - START_STICKY: ОС перезапускає сервіс після вбивства
+ * - onTaskRemoved(): перезапуск при свайпі з "Недавніх"
+ * - AlarmManager: страховочний таймер перезапуску
+ * - BootReceiver: запуск після перезавантаження пристрою
+ * - WorkManager: періодична перевірка що сервіс живий
  */
 class MessageNotificationService : Service() {
 
@@ -42,6 +50,12 @@ class MessageNotificationService : Service() {
         // ID постійного (foreground) сповіщення сервісу
         private const val FOREGROUND_NOTIF_ID = 9001
 
+        // AlarmManager request code для перезапуску
+        private const val RESTART_ALARM_REQUEST_CODE = 9002
+
+        // Інтервал страховочного AlarmManager (5 хвилин)
+        private const val RESTART_ALARM_INTERVAL_MS = 5 * 60 * 1000L
+
         var isRunning = false
             private set
 
@@ -57,7 +71,21 @@ class MessageNotificationService : Service() {
         }
 
         fun stop(context: Context) {
+            cancelRestartAlarm(context)
             context.stopService(Intent(context, MessageNotificationService::class.java))
+        }
+
+        /**
+         * Скасувати страховочний alarm (при логауті)
+         */
+        private fun cancelRestartAlarm(context: Context) {
+            val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(context, ServiceRestartReceiver::class.java)
+            val pi = PendingIntent.getBroadcast(
+                context, RESTART_ALARM_REQUEST_CODE, intent,
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )
+            pi?.let { am.cancel(it) }
         }
     }
 
@@ -73,6 +101,7 @@ class MessageNotificationService : Service() {
         createNotificationChannels()
         startForeground(FOREGROUND_NOTIF_ID, buildServiceNotification())
         connectSocket()
+        scheduleRestartAlarm()
         Log.d(TAG, "MessageNotificationService started")
     }
 
@@ -87,7 +116,46 @@ class MessageNotificationService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Якщо сокет не підключений (перезапуск після вбивства) — підключаємо
+        if (socket == null || socket?.connected() != true) {
+            connectSocket()
+        }
+        scheduleRestartAlarm()
+        return START_STICKY
+    }
+
+    /**
+     * Викликається коли користувач свайпає додаток з "Недавніх".
+     * Плануємо перезапуск сервісу через AlarmManager.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.w(TAG, "App removed from recents — scheduling restart")
+        scheduleRestartAlarm()
+    }
+
+    /**
+     * Страховочний AlarmManager: якщо сервіс вбито, BroadcastReceiver його перезапустить.
+     */
+    private fun scheduleRestartAlarm() {
+        if (!UserSession.isLoggedIn) return
+
+        val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(this, ServiceRestartReceiver::class.java)
+        val pi = PendingIntent.getBroadcast(
+            this, RESTART_ALARM_REQUEST_CODE, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // setAndAllowWhileIdle працює навіть у Doze mode
+        am.setAndAllowWhileIdle(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            SystemClock.elapsedRealtime() + RESTART_ALARM_INTERVAL_MS,
+            pi
+        )
+        Log.d(TAG, "Restart alarm scheduled in ${RESTART_ALARM_INTERVAL_MS / 1000}s")
+    }
 
     // ------------------------------------------------------------------
     // Socket connection

@@ -1,15 +1,14 @@
 package com.worldmates.messenger
 
-import android.app.Application
 import android.util.Log
 import androidx.multidex.MultiDexApplication
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
-import com.google.firebase.FirebaseApp
 import timber.log.Timber
 import com.worldmates.messenger.update.AppUpdateManager
+import com.worldmates.messenger.services.NotificationKeepAliveManager
 
 /**
  * Главный Application класс WorldMates Messenger
@@ -31,13 +30,9 @@ class WMApplication : MultiDexApplication(), ImageLoaderFactory {
             Timber.plant(Timber.DebugTree())
         }
 
-        // Initialize Firebase
-        try {
-            FirebaseApp.initializeApp(this)
-            Log.d(TAG, "Firebase initialized successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize Firebase", e)
-        }
+        // Ініціалізація keep-alive механізмів для push-сповіщень (без Firebase)
+        // Перезапускає MessageNotificationService якщо користувач залогінений
+        NotificationKeepAliveManager.initialize(this)
 
         AppUpdateManager.startPeriodicChecks(intervalMinutes = 30)
 

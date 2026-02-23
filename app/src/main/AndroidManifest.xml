@@ -38,6 +38,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- App updates: allow installing APK from within the app -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Keep-alive: перезапуск після ребуту -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Keep-alive: вимкнення оптимізації батареї -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Keep-alive: точні аларми для перезапуску сервісу (Android 12+) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <!-- Features -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -283,20 +289,29 @@
             </intent-filter>
         </activity>
 
-        <!-- Message Notification Service (Socket.IO push notifications) -->
+        <!-- Message Notification Service (Socket.IO push notifications, no Firebase) -->
         <service
             android:name=".services.MessageNotificationService"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
 
-        <!-- Firebase Messaging Service -->
-        <service
-            android:name=".services.MyFirebaseMessagingService"
-            android:exported="false">
+        <!-- Boot Receiver: перезапуск сервісу після ребуту та оновлення додатку -->
+        <receiver
+            android:name=".services.BootReceiver"
+            android:exported="true"
+            android:enabled="true">
             <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
-        </service>
+        </receiver>
+
+        <!-- Service Restart Receiver: перезапуск через AlarmManager -->
+        <receiver
+            android:name=".services.ServiceRestartReceiver"
+            android:exported="false" />
 
         <!-- Music Playback Service (background audio, notification controls, lock screen) -->
         <!-- exported=true is required so the system media controller (lock screen, Bluetooth) can bind to it -->
