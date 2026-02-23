@@ -129,12 +129,18 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                         _chatList.value = emptyList()
                         _error.value = null // Не помилка, просто порожньо
                     }
+                } else if (response.apiStatus == 404) {
+                    // WoWonder повертає 404 коли чатів просто немає — це нормально, не помилка авторизації
+                    authErrorCount = 0
+                    _chatList.value = emptyList()
+                    _error.value = null
+                    Log.d("ChatsViewModel", "ℹ️ Чатів ще немає (api_status=404 = no data)")
                 } else {
-                    // Auth errors: 401/403 = invalid token, 404 = session not found on server.
-                    // Require 3 consecutive failures before forcing re-login — a single transient
-                    // error (slow session commit after fresh login, network blip) must not
-                    // immediately kick the user out.
-                    if (response.apiStatus == 401 || response.apiStatus == 403 || response.apiStatus == 404) {
+                    // Auth errors: api_status 0 = "Access is not allowed" (WoWonder),
+                    // 401/403 = invalid/expired token.
+                    // WoWonder НІКОЛИ не повертає 404 для auth-помилок — він повертає 0 або 400.
+                    // 404 тут означає "немає даних" і вже оброблено вище.
+                    if (response.apiStatus == 0 || response.apiStatus == 401 || response.apiStatus == 403) {
                         authErrorCount++
                         Log.e("ChatsViewModel", "❌ Auth error #$authErrorCount (status=${response.apiStatus})")
                         if (authErrorCount >= 3) {
