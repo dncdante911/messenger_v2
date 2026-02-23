@@ -35,4 +35,14 @@ interface NodeStoriesApi {
     suspend fun getStories(
         @Field("limit") limit: Int = 35
     ): GetStoriesResponse
+
+    /**
+     * Get stories for a specific user
+     */
+    @FormUrlEncoded
+    @POST("api/node/stories/get-user-stories")
+    suspend fun getUserStories(
+        @Field("user_id") userId: Long,
+        @Field("limit") limit: Int = 35
+    ): GetStoriesResponse
 }
