@@ -15,6 +15,7 @@ const { Sequelize, Op, DataTypes } = require("sequelize");
 
 const listeners = require('./listeners/listeners')
 const { initializeBotNamespace, getBotStats } = require('./listeners/bots-listener')
+const { registerAuthRoutes } = require('./routes/auth')
 const { registerMessagingRoutes } = require('./routes/messaging')
 const { registerPrivateChatRoutes } = require('./routes/private-chats/index')
 const { registerStoryRoutes } = require('./routes/stories/index')
@@ -276,6 +277,7 @@ async function main() {
   initializeBotNamespace(io, ctx);
 
   // Register REST API endpoints for messaging (replaces PHP polling)
+  registerAuthRoutes(app, ctx);
   registerMessagingRoutes(app, ctx, io);
   registerPrivateChatRoutes(app, ctx, io);
   registerStoryRoutes(app, ctx, io);
