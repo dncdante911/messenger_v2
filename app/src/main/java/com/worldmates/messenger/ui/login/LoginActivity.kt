@@ -67,7 +67,9 @@ class LoginActivity : AppCompatActivity() {
                 LoginScreen(
                     viewModel = viewModel,
                     onLoginSuccess = { navigateToChats() },
-                    onNavigateToRegister = { navigateToRegister() }
+                    onNavigateToRegister = { navigateToRegister() },
+                    onNavigateToForgotPassword = { navigateToForgotPassword() },
+                    onNavigateToQuickRegister = { navigateToQuickRegister() }
                 )
             }
         }
@@ -104,6 +106,14 @@ class LoginActivity : AppCompatActivity() {
     private fun navigateToRegister() {
         startActivity(Intent(this, com.worldmates.messenger.ui.register.RegisterActivity::class.java))
     }
+
+    private fun navigateToForgotPassword() {
+        startActivity(Intent(this, ForgotPasswordActivity::class.java))
+    }
+
+    private fun navigateToQuickRegister() {
+        startActivity(Intent(this, QuickRegisterActivity::class.java))
+    }
 }
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -111,7 +121,9 @@ class LoginActivity : AppCompatActivity() {
 fun LoginScreen(
     viewModel: LoginViewModel,
     onLoginSuccess: () -> Unit,
-    onNavigateToRegister: () -> Unit
+    onNavigateToRegister: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit = {},
+    onNavigateToQuickRegister: () -> Unit = {}
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -198,7 +210,8 @@ fun LoginScreen(
                             viewModel.login(username, password)
                         }
                     },
-                    loginState = loginState
+                    loginState = loginState,
+                    onForgotPassword = onNavigateToForgotPassword
                 )
             }
 
@@ -209,7 +222,8 @@ fun LoginScreen(
                 enter = fadeIn(animationSpec = tween(1000, delayMillis = 400))
             ) {
                 RegisterPrompt(
-                    onNavigateToRegister = onNavigateToRegister
+                    onNavigateToRegister = onNavigateToRegister,
+                    onNavigateToQuickRegister = onNavigateToQuickRegister
                 )
             }
         }
@@ -285,7 +299,8 @@ fun LoginFormCard(
     onPasswordVisibilityToggle: () -> Unit,
     isLoading: Boolean,
     onLoginClick: () -> Unit,
-    loginState: LoginState
+    loginState: LoginState,
+    onForgotPassword: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var phoneNumber by remember { mutableStateOf("") }
@@ -455,13 +470,13 @@ fun LoginFormCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Forgot password
+            // Forgot password / recovery
             TextButton(
-                onClick = { /* TODO */ },
+                onClick = onForgotPassword,
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text(
-                    "Забули пароль?",
+                    "Відновлення доступу",
                     color = colorScheme.primary,
                     fontSize = 13.sp
                 )
@@ -514,24 +529,34 @@ fun LoginFormCard(
 }
 
 @Composable
-fun RegisterPrompt(onNavigateToRegister: () -> Unit) {
-    Row(
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            "Немаєте облікового запису? ",
-            color = Color.White.copy(alpha = 0.9f),
-            fontSize = 14.sp
-        )
-        TextButton(
-            onClick = onNavigateToRegister
+fun RegisterPrompt(
+    onNavigateToRegister: () -> Unit,
+    onNavigateToQuickRegister: () -> Unit = {}
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Зареєструйтеся",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
+                "Немаєте облікового запису? ",
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 14.sp
+            )
+            TextButton(onClick = onNavigateToRegister) {
+                Text(
+                    "Зареєструйтеся",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        TextButton(onClick = onNavigateToQuickRegister) {
+            Text(
+                "Швидка реєстрація (email або телефон)",
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 13.sp
             )
         }
     }

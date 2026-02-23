@@ -77,23 +77,13 @@ class RegisterActivity : AppCompatActivity() {
                         navigateToChats()
                     }
                     is RegisterState.VerificationRequired -> {
-                        // ТИМЧАСОВО: Оскільки ми вже зберегли access_token під час реєстрації,
-                        // користувач може користуватися додатком навіть без email верифікації
-                        // Пропускаємо екран верифікації і відразу переходимо до чатів
-                        Toast.makeText(
-                            this@RegisterActivity,
-                            "Реєстрація успішна! Перевірте email для активації акаунту.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        navigateToChats()
-
-                        // TODO: Верифікація буде додана пізніше
-                        // navigateToVerification(
-                        //     state.verificationType,
-                        //     state.contactInfo,
-                        //     state.username,
-                        //     ""
-                        // )
+                        // Переходимо до екрану верифікації
+                        navigateToVerification(
+                            state.verificationType,
+                            state.contactInfo,
+                            state.username,
+                            ""
+                        )
                     }
                     is RegisterState.Error -> {
                         Toast.makeText(
