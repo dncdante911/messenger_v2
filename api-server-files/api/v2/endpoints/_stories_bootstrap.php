@@ -20,6 +20,12 @@ if (!isset($sqlConnect)) {
 
     require_once(__DIR__ . '/../config.php');
 
+    // Stub functions from functions_two.php that Wo_UserData() calls
+    // but are not loaded in standalone mode (not critical for stories)
+    if (!function_exists('Wo_IsVerificationRequests')) {
+        function Wo_IsVerificationRequests($id = '', $type = '') { return false; }
+    }
+
     $access_token = $_GET['access_token'] ?? $_POST['access_token'] ?? '';
     if (empty($access_token)) {
         http_response_code(401);
