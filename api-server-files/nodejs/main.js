@@ -109,6 +109,7 @@ async function init() {
   ctx.wo_userstory = require("./models/wo_userstory")(sequelize, DataTypes)
   ctx.wo_userstorymedia = require("./models/wo_userstorymedia")(sequelize, DataTypes)
   ctx.wo_storyreactions = require("./models/wo_storyreactions")(sequelize, DataTypes)
+  ctx.wo_storycomments = require("./models/wo_storycomments")(sequelize, DataTypes)
   ctx.wo_story_seen = require("./models/wo_story_seen")(sequelize, DataTypes)
   ctx.wo_mute_story = require("./models/wo_mute_story")(sequelize, DataTypes)
   ctx.wo_reactions_types = require("./models/wo_reactions_types")(sequelize, DataTypes)

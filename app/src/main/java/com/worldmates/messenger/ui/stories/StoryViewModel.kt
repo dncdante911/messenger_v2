@@ -196,8 +196,15 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun setCurrentStory(story: Story) {
         repository.setCurrentStory(story)
-        // Не загружаем комментарии автоматически - только когда пользователь откроет комментарии
-        // loadComments(story.id)
+    }
+
+    /**
+     * Зареєструвати перегляд story
+     */
+    fun markStoryViewed(storyId: Long) {
+        viewModelScope.launch {
+            repository.markStoryViewed(storyId)
+        }
     }
 
     /**
