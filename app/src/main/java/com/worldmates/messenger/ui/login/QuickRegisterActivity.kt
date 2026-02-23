@@ -289,7 +289,8 @@ fun QuickRegisterScreen(
                                                 UserSession.saveSession(
                                                     token = response.accessToken,
                                                     id = response.userId ?: 0,
-                                                    username = response.username
+                                                    username = response.username,
+                                                    avatar = response.avatar
                                                 )
                                                 onSuccess()
                                             } else {
