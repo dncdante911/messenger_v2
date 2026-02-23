@@ -2,8 +2,11 @@
 // +------------------------------------------------------------------------+
 // | Get User Stories Endpoint (V2 API)
 // | Returns active stories for a specific user
-// | Called via index.php router: ?type=get_user_stories
+// | Called directly by Android: /api/v2/endpoints/get-user-stories.php
+// | OR via router: ?type=get_user_stories
 // +------------------------------------------------------------------------+
+
+require_once(__DIR__ . '/_stories_bootstrap.php');
 
 $response_data = array('api_status' => 400);
 $error_code    = 0;
@@ -38,31 +41,10 @@ if (empty($error_code)) {
     $stories = array();
 
     if ($sql_result && mysqli_num_rows($sql_result) > 0) {
-        $user_data = Wo_UserData($target_user_id);
-        if (!empty($user_data) && !empty($non_allowed) && is_array($non_allowed)) {
-            foreach ($non_allowed as $key => $value) {
-                unset($user_data[$value]);
-            }
-        }
+        $user_data = stories_build_user_data($target_user_id);
 
         while ($story_row = mysqli_fetch_assoc($sql_result)) {
-            $posted_ts = !empty($story_row['posted']) ? (int)$story_row['posted'] : $current_time;
-            $expire_ts = !empty($story_row['expire']) ? (int)$story_row['expire'] : ($posted_ts + 86400);
-
-            $stories[] = array(
-                'id'            => (int)$story_row['id'],
-                'user_id'       => $target_user_id,
-                'title'         => $story_row['title'] ?? '',
-                'description'   => $story_row['description'] ?? '',
-                'posted'        => $posted_ts,
-                'expire'        => $expire_ts,
-                'thumbnail'     => $story_row['thumbnail'] ?? '',
-                'user_data'     => $user_data,
-                'is_owner'      => ($target_user_id === $logged_user_id),
-                'is_viewed'     => 0,
-                'view_count'    => 0,
-                'comment_count' => 0,
-            );
+            $stories[] = stories_build_story($sqlConnect, $story_row, $logged_user_id, $user_data);
         }
     }
 
@@ -79,3 +61,5 @@ if ($error_code > 0) {
         'error_message' => $error_message,
     );
 }
+
+stories_output($response_data);
