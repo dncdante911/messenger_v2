@@ -269,9 +269,9 @@ fun ForgotPasswordFlow(
     val colorScheme = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
 
-    val contact: String
-        get() = if (selectedTab == 0) email
-        else getFullPhoneNumber(selectedCountry.dialCode, phoneNumber)
+    // Computed on every recomposition via state reads
+    val contact = if (selectedTab == 0) email
+                  else getFullPhoneNumber(selectedCountry.dialCode, phoneNumber)
 
     Surface(
         modifier = Modifier
@@ -550,8 +550,8 @@ fun ForgotEmailFlow(
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
 
-    val fullPhone: String
-        get() = getFullPhoneNumber(selectedCountry.dialCode, phoneNumber)
+    // Computed on every recomposition via state reads
+    val fullPhone = getFullPhoneNumber(selectedCountry.dialCode, phoneNumber)
 
     Surface(
         modifier = Modifier
