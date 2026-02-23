@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.ui.chats.ChatsActivity
 import com.worldmates.messenger.ui.components.*
 import com.worldmates.messenger.ui.theme.*
@@ -209,7 +209,7 @@ fun QuickRegisterScreen(
                                     isLoading = true
                                     scope.launch {
                                         try {
-                                            val response = RetrofitClient.apiService.quickRegister(
+                                            val response = NodeRetrofitClient.api.quickRegister(
                                                 email = if (selectedTab == 0) email else null,
                                                 phoneNumber = if (selectedTab == 1)
                                                     getFullPhoneNumber(selectedCountry.dialCode, phoneNumber)
@@ -278,7 +278,7 @@ fun QuickRegisterScreen(
                                             val contact = if (selectedTab == 0) email
                                                 else getFullPhoneNumber(selectedCountry.dialCode, phoneNumber)
 
-                                            val response = RetrofitClient.apiService.quickVerify(
+                                            val response = NodeRetrofitClient.api.quickVerify(
                                                 email = if (selectedTab == 0) contact else null,
                                                 phoneNumber = if (selectedTab == 1) contact else null,
                                                 code = code
@@ -289,7 +289,8 @@ fun QuickRegisterScreen(
                                                 UserSession.saveSession(
                                                     token = response.accessToken,
                                                     id = response.userId ?: 0,
-                                                    username = response.username
+                                                    username = response.username,
+                                                    avatar = response.avatar
                                                 )
                                                 onSuccess()
                                             } else {
@@ -315,7 +316,7 @@ fun QuickRegisterScreen(
                                 errorMessage = null
                                 scope.launch {
                                     try {
-                                        val response = RetrofitClient.apiService.quickRegister(
+                                        val response = NodeRetrofitClient.api.quickRegister(
                                             email = if (selectedTab == 0) email else null,
                                             phoneNumber = if (selectedTab == 1)
                                                 getFullPhoneNumber(selectedCountry.dialCode, phoneNumber)

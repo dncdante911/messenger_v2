@@ -75,6 +75,7 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                 Log.d("ChatsViewModel", "Error message: ${response.errorMessage}")
 
                 if (response.apiStatus == 200) {
+                    authErrorCount = 0  // Reset on success
                     if (response.chats != null && response.chats.isNotEmpty()) {
                         Log.d("ChatsViewModel", "Отримано ${response.chats.size} особистих чатів")
 
@@ -129,13 +130,23 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                         _error.value = null // Не помилка, просто порожньо
                     }
                 } else {
-                    // Якщо отримали 404 або помилку авторизації - очищаємо сесію і вимагаємо перелогін
-                    if (response.apiStatus == 404 || response.apiStatus == 401 || response.apiStatus == 403) {
-                        Log.e("ChatsViewModel", "❌ Токен недійсний або застарілий. Потрібен перелогін")
-                        UserSession.clearSession()
-                        _needsRelogin.value = true
-                        _error.value = "Сесія застаріла. Будь ласка, увійдіть знову"
+                    // Auth errors: 401/403 = invalid token, 404 = session not found on server.
+                    // Require 3 consecutive failures before forcing re-login — a single transient
+                    // error (slow session commit after fresh login, network blip) must not
+                    // immediately kick the user out.
+                    if (response.apiStatus == 401 || response.apiStatus == 403 || response.apiStatus == 404) {
+                        authErrorCount++
+                        Log.e("ChatsViewModel", "❌ Auth error #$authErrorCount (status=${response.apiStatus})")
+                        if (authErrorCount >= 3) {
+                            Log.e("ChatsViewModel", "❌ 3 consecutive auth errors — forcing re-login")
+                            UserSession.clearSession()
+                            _needsRelogin.value = true
+                            _error.value = "Сесія застаріла. Будь ласка, увійдіть знову"
+                        } else {
+                            _error.value = response.errorMessage ?: "Помилка авторизації. Повторна спроба..."
+                        }
                     } else {
+                        authErrorCount = 0
                         val errorMsg = response.errorMessage ?: "Невідома помилка (${response.apiStatus})"
                         _error.value = errorMsg
                         Log.e("ChatsViewModel", "❌ Помилка API: ${response.apiStatus} - $errorMsg")

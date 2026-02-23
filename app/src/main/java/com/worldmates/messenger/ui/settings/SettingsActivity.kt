@@ -53,6 +53,9 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Edge-to-edge so Compose controls insets
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+
         // Инициализируем ThemeManager
         ThemeManager.initialize(this)
 
@@ -275,7 +278,9 @@ fun SettingsScreen(
                 }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
         ) {
             // Success Message
             if (successMessage != null) {

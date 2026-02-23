@@ -1881,6 +1881,7 @@ data class QuickVerifyResponse(
     @SerializedName("access_token") val accessToken: String? = null,
     @SerializedName("user_id") val userId: Long? = null,
     @SerializedName("username") val username: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 
