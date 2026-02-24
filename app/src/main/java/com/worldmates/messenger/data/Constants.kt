@@ -53,6 +53,41 @@ object Constants {
     const val NODE_CHAT_FAV      = "api/node/chat/fav"                 // fav/unfav message
     const val NODE_CHAT_FAV_LIST = "api/node/chat/fav-list"            // get favorites
 
+    // ==================== NODE.JS REST API (channels) ====================
+    // Node.js сервер — REST-ендпоінти для каналів
+    const val NODE_CHANNEL_LIST         = "api/node/channel/list"
+    const val NODE_CHANNEL_DETAILS      = "api/node/channel/details"
+    const val NODE_CHANNEL_CREATE       = "api/node/channel/create"
+    const val NODE_CHANNEL_UPDATE       = "api/node/channel/update"
+    const val NODE_CHANNEL_DELETE       = "api/node/channel/delete"
+    const val NODE_CHANNEL_SUBSCRIBE    = "api/node/channel/subscribe"
+    const val NODE_CHANNEL_UNSUBSCRIBE  = "api/node/channel/unsubscribe"
+    const val NODE_CHANNEL_ADD_MEMBER   = "api/node/channel/add-member"
+    const val NODE_CHANNEL_POSTS        = "api/node/channel/posts"
+    const val NODE_CHANNEL_CREATE_POST  = "api/node/channel/create-post"
+    const val NODE_CHANNEL_UPDATE_POST  = "api/node/channel/update-post"
+    const val NODE_CHANNEL_DELETE_POST  = "api/node/channel/delete-post"
+    const val NODE_CHANNEL_PIN_POST     = "api/node/channel/pin-post"
+    const val NODE_CHANNEL_UNPIN_POST   = "api/node/channel/unpin-post"
+    const val NODE_CHANNEL_COMMENTS     = "api/node/channel/comments"
+    const val NODE_CHANNEL_ADD_COMMENT  = "api/node/channel/add-comment"
+    const val NODE_CHANNEL_DEL_COMMENT  = "api/node/channel/delete-comment"
+    const val NODE_CHANNEL_POST_REACT   = "api/node/channel/post-reaction"
+    const val NODE_CHANNEL_POST_UNREACT = "api/node/channel/post-unreaction"
+    const val NODE_CHANNEL_COMMENT_REACT = "api/node/channel/comment-reaction"
+    const val NODE_CHANNEL_POST_VIEW    = "api/node/channel/post-view"
+    const val NODE_CHANNEL_ADD_ADMIN    = "api/node/channel/add-admin"
+    const val NODE_CHANNEL_REMOVE_ADMIN = "api/node/channel/remove-admin"
+    const val NODE_CHANNEL_SETTINGS     = "api/node/channel/settings"
+    const val NODE_CHANNEL_STATISTICS   = "api/node/channel/statistics"
+    const val NODE_CHANNEL_SUBSCRIBERS  = "api/node/channel/subscribers"
+    const val NODE_CHANNEL_MUTE         = "api/node/channel/mute"
+    const val NODE_CHANNEL_UNMUTE       = "api/node/channel/unmute"
+    const val NODE_CHANNEL_QR_GENERATE  = "api/node/channel/qr-generate"
+    const val NODE_CHANNEL_QR_SUBSCRIBE = "api/node/channel/qr-subscribe"
+    const val NODE_CHANNEL_UPLOAD_AVATAR = "api/node/channel/upload-avatar"
+    const val NODE_MEDIA_UPLOAD          = "api/node/media/upload"
+
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH = "join"  // Изменено с register_socket на join
     const val SOCKET_EVENT_PRIVATE_MESSAGE = "private_message"  // Событие личного сообщения от сервера

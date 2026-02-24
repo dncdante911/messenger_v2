@@ -7,8 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Channel
 import com.worldmates.messenger.data.model.CreateChannelRequest
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
-import com.worldmates.messenger.network.WorldMatesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -58,8 +58,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChannels(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.getChannels(
                     type = "get_list",
                     limit = 100
                 )
@@ -92,8 +91,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChannels(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.getChannels(
                     type = "get_subscribed",
                     limit = 100
                 )
@@ -124,8 +122,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChannels(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.getChannels(
                     type = "search",
                     query = query,
                     limit = 50
@@ -189,8 +186,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.createChannel(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.createChannel(
                     name = name,
                     username = username,
                     description = description,
@@ -233,8 +229,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.subscribeChannel(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.subscribeChannel(
                     channelId = channelId
                 )
 
@@ -288,8 +283,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.unsubscribeChannel(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.unsubscribeChannel(
                     channelId = channelId
                 )
 
@@ -350,8 +344,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.addChannelMember(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.addChannelMember(
                     channelId = channelId,
                     userId = userId
                 )
@@ -439,8 +432,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.deleteChannel(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.deleteChannel(
                     channelId = channelId
                 )
 
@@ -486,8 +478,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChannelDetails(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.getChannelDetails(
                     channelId = channelId
                 )
 
@@ -534,16 +525,15 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.generateChannelQr(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.generateChannelQr(
                     channelId = channelId
                 )
 
-                if (response.apiStatus == 200 && response.qrCode != null && response.joinUrl != null) {
-                    onSuccess(response.qrCode, response.joinUrl)
-                    Log.d("ChannelsViewModel", "📡 Channel $channelId QR generated: ${response.qrCode}")
+                if (response.apiStatus == 200 && response.qrUrl != null && response.joinUrl != null) {
+                    onSuccess(response.qrUrl, response.joinUrl)
+                    Log.d("ChannelsViewModel", "Channel $channelId QR generated: ${response.qrUrl}")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося згенерувати QR код"
+                    val errorMsg = response.errorMessage ?: "Failed to generate QR code"
                     onError(errorMsg)
                     Log.e("ChannelsViewModel", "❌ Failed to generate QR: ${response.message}")
                 }
@@ -574,18 +564,16 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.subscribeChannelByQr(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.subscribeChannelByQr(
                     qrCode = qrCode
                 )
 
                 if (response.apiStatus == 200 && response.channel != null) {
-                    // Оновлюємо список підписаних каналів
                     fetchSubscribedChannels()
                     onSuccess(response.channel)
-                    Log.d("ChannelsViewModel", "📡 Subscribed to channel ${response.channel.id} via QR: $qrCode")
+                    Log.d("ChannelsViewModel", "Subscribed to channel ${response.channel.id} via QR: $qrCode")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося підписатися на канал"
+                    val errorMsg = response.message ?: "Failed to subscribe via QR"
                     onError(errorMsg)
                     Log.e("ChannelsViewModel", "❌ Failed to subscribe by QR: ${response.message}")
                 }
@@ -614,18 +602,16 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.muteChannel(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.muteChannel(
                     channelId = channelId
                 )
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо деталі каналу
                     refreshChannel(channelId)
                     onSuccess()
-                    Log.d("ChannelsViewModel", "📡 Channel $channelId muted")
+                    Log.d("ChannelsViewModel", "Channel $channelId muted")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося вимкнути сповіщення"
+                    val errorMsg = response.errorMessage ?: "Failed to mute channel"
                     onError(errorMsg)
                     Log.e("ChannelsViewModel", "❌ Failed to mute: ${response.message}")
                 }
@@ -652,18 +638,16 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.unmuteChannel(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.unmuteChannel(
                     channelId = channelId
                 )
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо деталі каналу
                     refreshChannel(channelId)
                     onSuccess()
-                    Log.d("ChannelsViewModel", "📡 Channel $channelId unmuted")
+                    Log.d("ChannelsViewModel", "Channel $channelId unmuted")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося увімкнути сповіщення"
+                    val errorMsg = response.errorMessage ?: "Failed to unmute channel"
                     onError(errorMsg)
                     Log.e("ChannelsViewModel", "❌ Failed to unmute: ${response.message}")
                 }
@@ -718,22 +702,13 @@ class ChannelsViewModel : ViewModel() {
                     channelId.toString()
                 )
 
-                // Convert access token to RequestBody for multipart
-                val accessTokenBody = okhttp3.RequestBody.create(
-                    "text/plain".toMediaTypeOrNull(),
-                    token
-                )
+                Log.d("ChannelsViewModel", "Uploading avatar for channel $channelId")
 
-                Log.d("ChannelsViewModel", "📸 Uploading avatar for channel $channelId")
-
-                // Викликаємо API з правильними параметрами
-                val response = RetrofitClient.apiService.uploadChannelAvatar(
-                    accessToken = accessTokenBody,
+                val response = NodeRetrofitClient.channelApi.uploadChannelAvatar(
                     channelId = channelIdBody,
-                    avatar = filePart
+                    file = filePart
                 )
 
-                // ВАЖНО: В CreateChannelResponse обычно поле называется apiStatus (Int)
                 if (response.apiStatus == 200) {
                     refreshChannel(channelId)
                     onSuccess()
