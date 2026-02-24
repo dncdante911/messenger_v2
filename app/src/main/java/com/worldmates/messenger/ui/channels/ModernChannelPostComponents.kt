@@ -1247,8 +1247,7 @@ fun CommentsBottomSheet(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
                             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                        )
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
