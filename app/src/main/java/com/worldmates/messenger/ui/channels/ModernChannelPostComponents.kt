@@ -992,258 +992,375 @@ fun CommentsBottomSheet(
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showGifPicker by remember { mutableStateOf(false) }
     var showStrapiPicker by remember { mutableStateOf(false) }
+    var activePickerTab by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = modifier
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {
+            // Compact drag handle
+            Box(
+                modifier = Modifier
+                    .padding(top = 8.dp, bottom = 4.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+            )
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .navigationBarsPadding()
         ) {
-            // Header
+            // Compact header with gradient accent
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Коментарі",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "${comments.size}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Comments",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (comments.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = PremiumColors.GradientStart.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "${comments.size}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = PremiumColors.GradientStart,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
 
             // Comments list
             if (isLoading) {
-                Box(
+                // Shimmer loading
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
+                        .heightIn(min = 150.dp)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    CircularProgressIndicator()
+                    repeat(3) {
+                        Row {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                            .copy(alpha = 0.6f)
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Box(
+                                    modifier = Modifier
+                                        .width(100.dp)
+                                        .height(12.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                                .copy(alpha = 0.6f)
+                                        )
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.8f)
+                                        .height(10.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                                .copy(alpha = 0.4f)
+                                        )
+                                )
+                            }
+                        }
+                    }
                 }
             } else if (comments.isEmpty()) {
-                Box(
+                // Empty state
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(
+                                PremiumColors.GradientStart.copy(alpha = 0.08f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Outlined.ChatBubbleOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = PremiumColors.GradientStart.copy(alpha = 0.5f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Коментарів ще немає",
-                        style = MaterialTheme.typography.bodyLarge,
+                        text = "No comments yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Be the first to share your thoughts",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 400.dp)
+                        .heightIn(max = 380.dp)
+                        .padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     items(comments) { comment ->
-                        CommentItem(
+                        PremiumCommentItem(
                             comment = comment,
                             canDelete = isAdmin || comment.userId == currentUserId,
                             onDeleteClick = { onDeleteComment(comment.id) },
                             onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) }
                         )
-                        Divider(modifier = Modifier.padding(vertical = 8.dp))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Add comment field - redesigned for better UX
+            // Input area
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
+                    .background(MaterialTheme.colorScheme.surface)
             ) {
-                // Main input row with TextField and Send button
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                // Quick picker tabs
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CommentPickerChip(
+                        icon = Icons.Outlined.EmojiEmotions,
+                        label = "Stickers",
+                        isActive = activePickerTab == "strapi",
+                        onClick = {
+                            activePickerTab = if (activePickerTab == "strapi") null else "strapi"
+                            showStrapiPicker = activePickerTab == "strapi"
+                            showEmojiPicker = false
+                            showGifPicker = false
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    CommentPickerChip(
+                        icon = Icons.Outlined.Mood,
+                        label = "Emoji",
+                        isActive = activePickerTab == "emoji",
+                        onClick = {
+                            activePickerTab = if (activePickerTab == "emoji") null else "emoji"
+                            showEmojiPicker = activePickerTab == "emoji"
+                            showStrapiPicker = false
+                            showGifPicker = false
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    CommentPickerChip(
+                        icon = Icons.Outlined.Gif,
+                        label = "GIF",
+                        isActive = activePickerTab == "gif",
+                        onClick = {
+                            activePickerTab = if (activePickerTab == "gif") null else "gif"
+                            showGifPicker = activePickerTab == "gif"
+                            showEmojiPicker = false
+                            showStrapiPicker = false
+                        }
+                    )
+                }
+
+                // Main input row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 8.dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    // Text input field - takes most of the space
                     OutlinedTextField(
                         value = commentText,
                         onValueChange = { commentText = it },
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 56.dp, max = 150.dp),
-                        placeholder = { Text("Напишіть коментар...") },
-                        maxLines = 5,
-                        shape = RoundedCornerShape(16.dp),
+                            .heightIn(min = 48.dp, max = 120.dp),
+                        placeholder = {
+                            Text(
+                                "Write a comment...",
+                                fontSize = 14.sp
+                            )
+                        },
+                        maxLines = 4,
+                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                        shape = RoundedCornerShape(24.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
+                            focusedBorderColor = PremiumColors.GradientStart,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Send button - prominent
+                    // Send button
+                    val sendEnabled = commentText.isNotBlank()
                     Surface(
                         onClick = {
-                            if (commentText.isNotBlank()) {
+                            if (sendEnabled) {
                                 onAddComment(commentText)
                                 commentText = ""
                             }
                         },
-                        enabled = commentText.isNotBlank(),
-                        modifier = Modifier.size(48.dp),
+                        enabled = sendEnabled,
+                        modifier = Modifier.size(44.dp),
                         shape = CircleShape,
-                        color = if (commentText.isNotBlank())
-                            MaterialTheme.colorScheme.primary
+                        color = if (sendEnabled)
+                            PremiumColors.GradientStart
                         else
                             MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.Send,
-                                contentDescription = "Надіслати",
-                                tint = if (commentText.isNotBlank())
-                                    MaterialTheme.colorScheme.onPrimary
+                                contentDescription = "Send",
+                                tint = if (sendEnabled)
+                                    Color.White
                                 else
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Quick action buttons row (stickers, emoji, GIF)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Strapi Stickers button
-                    TextButton(
-                        onClick = {
-                            showStrapiPicker = !showStrapiPicker
-                            if (showStrapiPicker) {
-                                showEmojiPicker = false
-                                showGifPicker = false
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.InsertEmoticon,
-                            contentDescription = null,
-                            tint = if (showStrapiPicker) MaterialTheme.colorScheme.primary
-                                   else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Стікери",
-                            fontSize = 12.sp,
-                            color = if (showStrapiPicker) MaterialTheme.colorScheme.primary
-                                   else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    // Emoji button
-                    TextButton(
-                        onClick = {
-                            showEmojiPicker = !showEmojiPicker
-                            if (showEmojiPicker) {
-                                showGifPicker = false
-                                showStrapiPicker = false
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.EmojiEmotions,
-                            contentDescription = null,
-                            tint = if (showEmojiPicker) MaterialTheme.colorScheme.primary
-                                   else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Емодзі",
-                            fontSize = 12.sp,
-                            color = if (showEmojiPicker) MaterialTheme.colorScheme.primary
-                                   else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    // GIF button
-                    TextButton(
-                        onClick = {
-                            showGifPicker = !showGifPicker
-                            if (showGifPicker) {
-                                showEmojiPicker = false
-                                showStrapiPicker = false
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Gif,
-                            contentDescription = null,
-                            tint = if (showGifPicker) MaterialTheme.colorScheme.primary
-                                   else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "GIF",
-                            fontSize = 12.sp,
-                            color = if (showGifPicker) MaterialTheme.colorScheme.primary
-                                   else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                // Emoji Picker
-                if (showEmojiPicker) {
+                // Pickers
+                AnimatedVisibility(visible = showEmojiPicker) {
                     com.worldmates.messenger.ui.components.EmojiPicker(
-                        onEmojiSelected = { emoji ->
-                            commentText += emoji
-                        },
-                        onDismiss = { showEmojiPicker = false }
+                        onEmojiSelected = { emoji -> commentText += emoji },
+                        onDismiss = {
+                            showEmojiPicker = false
+                            activePickerTab = null
+                        }
                     )
                 }
 
-                // GIF Picker
-                if (showGifPicker) {
+                AnimatedVisibility(visible = showGifPicker) {
                     com.worldmates.messenger.ui.components.GifPicker(
                         onGifSelected = { gifUrl ->
-                            // Додаємо GIF як текст з посиланням або markdown
                             commentText += "\n[GIF]($gifUrl)"
                             showGifPicker = false
+                            activePickerTab = null
                         },
-                        onDismiss = { showGifPicker = false }
+                        onDismiss = {
+                            showGifPicker = false
+                            activePickerTab = null
+                        }
                     )
                 }
 
-                // Strapi Stickers/GIF Picker
-                if (showStrapiPicker) {
+                AnimatedVisibility(visible = showStrapiPicker) {
                     com.worldmates.messenger.ui.strapi.StrapiContentPicker(
                         onItemSelected = { contentUrl ->
-                            // Додаємо стікер або GIF з Strapi
-                            commentText += "\n[Стікер]($contentUrl)"
+                            commentText += "\n[Sticker]($contentUrl)"
                             showStrapiPicker = false
+                            activePickerTab = null
                         },
-                        onDismiss = { showStrapiPicker = false }
+                        onDismiss = {
+                            showStrapiPicker = false
+                            activePickerTab = null
+                        }
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CommentPickerChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (isActive)
+            PremiumColors.GradientStart.copy(alpha = 0.12f)
+        else
+            Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isActive) PremiumColors.GradientStart
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (isActive) PremiumColors.GradientStart
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -1344,8 +1461,142 @@ fun CommentContent(text: String) {
 }
 
 /**
- * Компонент для відображення одного коментаря з підтримкою тем
+ * Premium comment item with bubble style and compact reactions
  */
+@Composable
+fun PremiumCommentItem(
+    comment: ChannelComment,
+    canDelete: Boolean,
+    onDeleteClick: () -> Unit,
+    onReactionClick: (String) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    var showActions by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { showActions = !showActions }
+            .padding(horizontal = 4.dp, vertical = 6.dp)
+    ) {
+        // Compact avatar
+        if (!comment.userAvatar.isNullOrEmpty()) {
+            AsyncImage(
+                model = comment.userAvatar.toFullMediaUrl(),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                PremiumColors.GradientStart,
+                                PremiumColors.GradientMiddle
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = (comment.userName ?: comment.username ?: "U")
+                        .take(1).uppercase(),
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            // Name + time row
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = comment.userName ?: comment.username ?: "User #${comment.userId}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = PremiumColors.GradientStart,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = formatPostTime(comment.time),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Comment text
+            CommentContent(text = comment.text)
+
+            // Compact reactions row
+            if (comment.reactionsCount > 0 || showActions) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf("👍", "❤️", "😂").forEach { emoji ->
+                        Surface(
+                            onClick = { onReactionClick(emoji) },
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.height(26.dp)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) {
+                                Text(text = emoji, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                    if (comment.reactionsCount > 0) {
+                        Text(
+                            text = "${comment.reactionsCount}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+
+        // Delete
+        if (canDelete && showActions) {
+            IconButton(
+                onClick = onDeleteClick,
+                modifier = Modifier.size(30.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = "Delete",
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+// Keep backward compatibility alias
 @Composable
 fun CommentItem(
     comment: ChannelComment,
@@ -1354,123 +1605,7 @@ fun CommentItem(
     onReactionClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    ) {
-        // Avatar
-        if (!comment.userAvatar.isNullOrEmpty()) {
-            AsyncImage(
-                model = comment.userAvatar.toFullMediaUrl(),
-                contentDescription = "User Avatar",
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.secondary
-                            )
-                        )
-                    ),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.secondary
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = "User",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            // User name and time
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = comment.userName ?: comment.username ?: "Користувач #${comment.userId}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = formatPostTime(comment.time),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Comment text with sticker/GIF support
-            CommentContent(text = comment.text)
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Reaction buttons
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(top = 2.dp)
-            ) {
-                listOf("👍", "❤️", "😂").forEach { emoji ->
-                    Text(
-                        text = emoji,
-                        fontSize = 16.sp,
-                        modifier = Modifier
-                            .clickable { onReactionClick(emoji) }
-                            .padding(4.dp)
-                    )
-                }
-
-                // Reactions count
-                if (comment.reactionsCount > 0) {
-                    Text(
-                        text = "• ${comment.reactionsCount}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.CenterVertically)
-                    )
-                }
-            }
-        }
-
-        // Delete button
-        if (canDelete) {
-            IconButton(
-                onClick = onDeleteClick,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Видалити",
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
+    PremiumCommentItem(comment, canDelete, onDeleteClick, onReactionClick, modifier)
 }
 
 // ==================== POST OPTIONS COMPONENTS ====================
