@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -510,24 +511,15 @@ fun ChannelDetailsScreen(
             CreatePostDialog(
                 channelId = channelId,
                 onDismiss = { showCreatePostDialog = false },
-                onCreate = { text, mediaUrl ->
-                    // Створюємо медіа якщо є URL
-                    val media = if (!mediaUrl.isNullOrBlank()) {
-                        listOf(
-                            com.worldmates.messenger.data.model.PostMedia(
-                                url = mediaUrl,
-                                type = "image", // За замовчуванням вважаємо зображенням
-                                filename = null
-                            )
-                        )
-                    } else null
+                onCreate = { text, mediaList ->
+                    val media = mediaList?.takeIf { it.isNotEmpty() }
 
                     detailsViewModel.createPost(
                         channelId = channelId,
                         text = text,
                         media = media,
                         onSuccess = {
-                            Toast.makeText(context, "Пост створено!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Post created!", Toast.LENGTH_SHORT).show()
                             detailsViewModel.loadChannelPosts(channelId)
                         },
                         onError = { error ->
@@ -1006,31 +998,35 @@ fun ChannelDetailsScreen(
 fun CreatePostDialog(
     channelId: Long,
     onDismiss: () -> Unit,
-    onCreate: (text: String, mediaUrl: String?) -> Unit
+    onCreate: (text: String, mediaList: List<com.worldmates.messenger.data.model.PostMedia>?) -> Unit
 ) {
     val context = LocalContext.current
     var text by remember { mutableStateOf("") }
-    var mediaUrl by remember { mutableStateOf("") }
-    var selectedMediaUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var selectedMediaUris by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
     var isUploadingMedia by remember { mutableStateOf(false) }
-    var uploadedMediaUrl by remember { mutableStateOf<String?>(null) }
+    var uploadProgress by remember { mutableIntStateOf(0) }
+    var uploadTotal by remember { mutableIntStateOf(0) }
+    var currentMediaIndex by remember { mutableIntStateOf(0) }
 
-    // Лаунчер для вибору зображення з галереї
-    val imagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: android.net.Uri? ->
-        selectedMediaUri = uri
+    val maxMedia = 15
+
+    // Multi-media picker (images + videos)
+    val multiMediaPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = maxMedia)
+    ) { uris: List<android.net.Uri> ->
+        val remaining = maxMedia - selectedMediaUris.size
+        val newUris = uris.take(remaining)
+        selectedMediaUris = selectedMediaUris + newUris
     }
 
-    // Лаунчер для зйомки фото
+    // Camera
     val cameraUri = remember {
         android.content.ContentValues().apply {
             put(android.provider.MediaStore.Images.Media.TITLE, "post_image_${System.currentTimeMillis()}")
             put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
         }.let {
             context.contentResolver.insert(
-                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                it
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, it
             )
         }
     }
@@ -1038,183 +1034,283 @@ fun CreatePostDialog(
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success && cameraUri != null) {
-            selectedMediaUri = cameraUri
+        if (success && cameraUri != null && selectedMediaUris.size < maxMedia) {
+            selectedMediaUris = selectedMediaUris + cameraUri
         }
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isUploadingMedia) onDismiss() },
         title = {
-            Text(
-                text = "Створити новий пост",
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("New Post", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                if (selectedMediaUris.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = PremiumColors.GradientStart.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            "${selectedMediaUris.size}/$maxMedia",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PremiumColors.GradientStart,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
         },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Текст поста
+                // Text input
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("Текст поста") },
-                    placeholder = { Text("Введіть текст поста...") },
+                    placeholder = { Text("What's on your mind?", fontSize = 14.sp) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(160.dp),
-                    maxLines = 8
+                        .height(130.dp),
+                    maxLines = 6,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PremiumColors.GradientStart,
+                        cursorColor = PremiumColors.GradientStart
+                    )
                 )
 
-                // Preview вибраного медіа
-                if (selectedMediaUri != null) {
-                    Card(
+                // Media preview grid
+                if (selectedMediaUris.isNotEmpty()) {
+                    // Horizontal pager for media preview
+                    val pagerItemSize = if (selectedMediaUris.size == 1) 200.dp else 160.dp
+
+                    androidx.compose.foundation.lazy.LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
-                        shape = RoundedCornerShape(12.dp)
+                            .height(pagerItemSize),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            AsyncImage(
-                                model = selectedMediaUri,
-                                contentDescription = "Selected Media",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                            // Кнопка видалення
-                            IconButton(
-                                onClick = {
-                                    selectedMediaUri = null
-                                    uploadedMediaUrl = null
-                                },
+                        items(selectedMediaUris.size) { index ->
+                            Box(
                                 modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp)
-                                    .background(
-                                        Color.Black.copy(alpha = 0.6f),
-                                        CircleShape
-                                    )
+                                    .size(pagerItemSize)
+                                    .clip(RoundedCornerShape(12.dp))
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Remove",
-                                    tint = Color.White
+                                AsyncImage(
+                                    model = selectedMediaUris[index],
+                                    contentDescription = "Media ${index + 1}",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
                                 )
+
+                                // Index badge
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.Black.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(6.dp)
+                                        .size(24.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            "${index + 1}",
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                // Remove button
+                                IconButton(
+                                    onClick = {
+                                        selectedMediaUris = selectedMediaUris
+                                            .toMutableList()
+                                            .apply { removeAt(index) }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .size(28.dp)
+                                        .background(
+                                            Color.Black.copy(alpha = 0.6f),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Remove",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+
+                                // Video indicator
+                                val mimeType = context.contentResolver.getType(selectedMediaUris[index])
+                                if (mimeType?.startsWith("video/") == true) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color.Black.copy(alpha = 0.6f),
+                                        modifier = Modifier
+                                            .align(Alignment.BottomStart)
+                                            .padding(6.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.Videocam,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Text("Video", color = Color.White, fontSize = 10.sp)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
-                // Кнопки вибору медіа
+                // Media action buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = {
-                            imagePicker.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            multiMediaPicker.launch(
+                                PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                                )
                             )
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !isUploadingMedia
+                        enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Icon(
-                            Icons.Default.Image,
+                            Icons.Outlined.PhotoLibrary,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Галерея")
+                        Text("Gallery", fontSize = 13.sp)
                     }
 
                     OutlinedButton(
-                        onClick = {
-                            cameraUri?.let { cameraLauncher.launch(it) }
-                        },
+                        onClick = { cameraUri?.let { cameraLauncher.launch(it) } },
                         modifier = Modifier.weight(1f),
-                        enabled = !isUploadingMedia
+                        enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Icon(
-                            Icons.Default.CameraAlt,
+                            Icons.Outlined.CameraAlt,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Камера")
+                        Text("Camera", fontSize = 13.sp)
                     }
                 }
 
-                // Або URL
-                OutlinedTextField(
-                    value = mediaUrl,
-                    onValueChange = { mediaUrl = it },
-                    label = { Text("Або вставте URL") },
-                    placeholder = { Text("https://example.com/image.jpg") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = selectedMediaUri == null && !isUploadingMedia
-                )
-
+                // Upload progress
                 if (isUploadingMedia) {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Завантаження медіа...", fontSize = 12.sp)
+                        LinearProgressIndicator(
+                            progress = { if (uploadTotal > 0) uploadProgress.toFloat() / uploadTotal else 0f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = PremiumColors.GradientStart
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Uploading $uploadProgress of $uploadTotal...",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
-                Text(
-                    text = "💡 Підтримуються зображення, відео та GIF",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+                if (selectedMediaUris.size >= maxMedia) {
+                    Text(
+                        text = "Maximum $maxMedia files reached",
+                        fontSize = 12.sp,
+                        color = PremiumColors.WarningOrange
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    if (text.isNotBlank()) {
-                        // Якщо вибрано локальне медіа, спочатку завантажуємо його
-                        if (selectedMediaUri != null && uploadedMediaUrl == null) {
+                    if (text.isNotBlank() || selectedMediaUris.isNotEmpty()) {
+                        if (selectedMediaUris.isNotEmpty()) {
                             isUploadingMedia = true
-                            uploadMediaFile(
-                                context = context,
-                                uri = selectedMediaUri!!,
-                                onSuccess = { url ->
+                            uploadTotal = selectedMediaUris.size
+                            uploadProgress = 0
+                            val uploadedMedia = mutableListOf<com.worldmates.messenger.data.model.PostMedia>()
+
+                            fun uploadNext(index: Int) {
+                                if (index >= selectedMediaUris.size) {
                                     isUploadingMedia = false
-                                    uploadedMediaUrl = url
-                                    // Створюємо пост з завантаженим медіа
-                                    onCreate(text.trim(), url)
-                                },
-                                onError = { error ->
-                                    isUploadingMedia = false
-                                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                                    onCreate(text.trim(), uploadedMedia)
+                                    return
                                 }
-                            )
+                                uploadMediaFile(
+                                    context = context,
+                                    uri = selectedMediaUris[index],
+                                    onSuccess = { url ->
+                                        val mimeType = context.contentResolver.getType(selectedMediaUris[index])
+                                        val mediaType = when {
+                                            mimeType?.startsWith("video/") == true -> "video"
+                                            else -> "image"
+                                        }
+                                        uploadedMedia.add(
+                                            com.worldmates.messenger.data.model.PostMedia(
+                                                url = url,
+                                                type = mediaType,
+                                                filename = null
+                                            )
+                                        )
+                                        uploadProgress = index + 1
+                                        uploadNext(index + 1)
+                                    },
+                                    onError = { error ->
+                                        isUploadingMedia = false
+                                        Toast.makeText(context, "Upload error: $error", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }
+                            uploadNext(0)
                         } else {
-                            // Використовуємо URL (якщо є) або вже завантажене медіа
-                            onCreate(
-                                text.trim(),
-                                uploadedMediaUrl ?: mediaUrl.trim().takeIf { it.isNotBlank() }
-                            )
+                            onCreate(text.trim(), null)
                         }
                     }
                 },
-                enabled = text.isNotBlank() && !isUploadingMedia,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
+                enabled = (text.isNotBlank() || selectedMediaUris.isNotEmpty()) && !isUploadingMedia,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.GradientStart)
             ) {
-                Text("Опублікувати")
+                Icon(Icons.Outlined.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Publish")
             }
         },
         dismissButton = {
@@ -1222,9 +1318,10 @@ fun CreatePostDialog(
                 onClick = onDismiss,
                 enabled = !isUploadingMedia
             ) {
-                Text("Скасувати")
+                Text("Cancel")
             }
-        }
+        },
+        shape = RoundedCornerShape(16.dp)
     )
 }
 
