@@ -868,7 +868,7 @@ fun ChannelDetailsScreen(
 
                             // Formatting
                             PremiumMenuItem(
-                                icon = Icons.Default.TextFormat,
+                                icon = Icons.Outlined.TextFormat,
                                 title = "Message Formatting",
                                 subtitle = "Text styling permissions",
                                 iconTint = MaterialTheme.colorScheme.secondary,
