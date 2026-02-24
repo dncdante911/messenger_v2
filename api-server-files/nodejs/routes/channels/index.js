@@ -23,6 +23,7 @@
 'use strict';
 
 const multer       = require('multer');
+const funcs       = require('../../functions/functions');
 const management   = require('./management');
 const subscriptions = require('./subscriptions');
 const posts        = require('./posts');
@@ -49,6 +50,23 @@ const upload = multer({
         if (file.mimetype.startsWith('image/')) cb(null, true);
         else cb(new Error('Only image files allowed'), false);
     }
+});
+
+// ─── multer for generic media upload (image/video/audio/file) ───────────────
+const mediaUpload = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            const fs = require('fs');
+            const dir = require('path').resolve(__dirname, '../../../../upload/photos/channels/media');
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            cb(null, dir);
+        },
+        filename: function (req, file, cb) {
+            const ext = require('path').extname(file.originalname) || '';
+            cb(null, 'ch_media_' + Date.now() + '_' + Math.floor(Math.random() * 100000) + ext);
+        }
+    }),
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB
 });
 
 // ─── auth middleware ────────────────────────────────────────────────────────
@@ -135,6 +153,54 @@ function channelsDispatcher(ctx, io) {
     };
 }
 
+function uploadMedia(ctx) {
+    return async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.json({
+                    api_status: 400,
+                    url: null,
+                    media_id: null,
+                    message: 'File is required',
+                    errors: { error_text: 'File is required' }
+                });
+            }
+
+            const mediaType = (req.body.media_type || '').toLowerCase();
+            const allowed = ['image', 'video', 'audio', 'file'];
+            if (!allowed.includes(mediaType)) {
+                return res.json({
+                    api_status: 400,
+                    url: null,
+                    media_id: null,
+                    message: 'Invalid media_type',
+                    errors: { error_text: 'Invalid media_type' }
+                });
+            }
+
+            const relativePath = 'upload/photos/channels/media/' + req.file.filename;
+            const fileUrl = await funcs.Wo_GetMedia(ctx, relativePath);
+
+            return res.json({
+                api_status: 200,
+                url: fileUrl,
+                media_id: null,
+                message: null,
+                errors: null
+            });
+        } catch (err) {
+            console.error('[Channels/uploadMedia]', err.message);
+            return res.json({
+                api_status: 500,
+                url: null,
+                media_id: null,
+                message: 'Server error',
+                errors: { error_text: 'Server error' }
+            });
+        }
+    };
+}
+
 // ─── register routes ────────────────────────────────────────────────────────
 function registerChannelRoutes(app, ctx, io) {
     const auth = (req, res, next) => authMiddleware(ctx, req, res, next);
@@ -149,7 +215,7 @@ function registerChannelRoutes(app, ctx, io) {
     app.post('/api/v2/endpoints/unmute_channel.php',           auth, admin.unmuteChannel(ctx, io));
     app.post('/api/v2/endpoints/upload_channel_avatar.php',    upload.single('avatar'), auth, admin.uploadAvatar(ctx, io));
 
-        // Node REST compatibility for Android client (/api/node/channel/*)
+    // Node REST compatibility for Android client (/api/node/channel/*)
     // NOTE: list endpoint keeps dispatcher because client sends type=get_list/get_subscribed/search.
     app.post('/api/node/channel/list',            auth, channelsDispatcher(ctx, io));
     app.post('/api/node/channel/details',         auth, management.getDetails(ctx, io));
@@ -192,6 +258,7 @@ function registerChannelRoutes(app, ctx, io) {
     console.log('  QR      : generate_channel_qr, subscribe_channel_by_qr');
     console.log('  Mute    : mute_channel, unmute_channel');
     console.log('  Upload  : upload_channel_avatar');
+    console.log('  Media   : /api/node/media/upload (+aliases)');
 }
 
 module.exports = { registerChannelRoutes };
