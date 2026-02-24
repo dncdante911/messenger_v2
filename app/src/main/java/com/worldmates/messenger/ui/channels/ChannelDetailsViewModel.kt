@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.*
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,8 +67,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChannelDetails(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.getChannelDetails(
                     channelId = channelId
                 )
 
@@ -105,8 +105,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChannelPosts(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.getChannelPosts(
                     channelId = channelId,
                     limit = 20,
                     beforePostId = beforePostId
@@ -163,8 +162,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     Gson().toJson(media)
                 } else null
 
-                val response = RetrofitClient.apiService.createChannelPost(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.createChannelPost(
                     channelId = channelId,
                     text = text,
                     mediaUrls = mediaJson,
@@ -223,8 +221,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     Gson().toJson(media)
                 } else null
 
-                val response = RetrofitClient.apiService.updateChannelPost(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.updateChannelPost(
                     postId = postId,
                     text = text,
                     mediaUrls = mediaJson
@@ -263,8 +260,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.deleteChannelPost(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.deleteChannelPost(
                     postId = postId
                 )
 
@@ -310,13 +306,11 @@ class ChannelDetailsViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val response = if (isPinned) {
-                    RetrofitClient.apiService.unpinChannelPost(
-                        accessToken = UserSession.accessToken!!,
+                    NodeRetrofitClient.channelApi.unpinChannelPost(
                         postId = postId
                     )
                 } else {
-                    RetrofitClient.apiService.pinChannelPost(
-                        accessToken = UserSession.accessToken!!,
+                    NodeRetrofitClient.channelApi.pinChannelPost(
                         postId = postId
                     )
                 }
@@ -362,8 +356,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChannelComments(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.getChannelComments(
                     postId = postId,
                     limit = 100
                 )
@@ -407,8 +400,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.addChannelComment(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.addChannelComment(
                     postId = postId,
                     text = text,
                     replyToId = replyToId
@@ -455,8 +447,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.deleteChannelComment(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.deleteChannelComment(
                     commentId = commentId
                 )
 
@@ -501,8 +492,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.addPostReaction(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.addPostReaction(
                     postId = postId,
                     emoji = emoji
                 )
@@ -545,8 +535,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.removePostReaction(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.removePostReaction(
                     postId = postId,
                     emoji = emoji
                 )
@@ -589,8 +578,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChannelStatistics(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.getChannelStatistics(
                     channelId = channelId
                 )
 
@@ -619,8 +607,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChannelSubscribers(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.getChannelSubscribers(
                     channelId = channelId,
                     limit = 1000
                 )
@@ -670,8 +657,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.addCommentReaction(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.addCommentReaction(
                     commentId = commentId,
                     reaction = emoji
                 )
@@ -719,8 +705,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.addChannelAdmin(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.addChannelAdmin(
                     channelId = channelId,
                     userId = null,
                     userSearch = userSearch,
@@ -761,8 +746,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.removeChannelAdmin(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.removeChannelAdmin(
                     channelId = channelId,
                     userId = userId
                 )
@@ -803,8 +787,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.updateChannel(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.updateChannel(
                     channelId = channelId,
                     name = name,
                     description = description,
@@ -849,8 +832,7 @@ class ChannelDetailsViewModel : ViewModel() {
                 // Конвертуємо налаштування в JSON
                 val settingsJson = Gson().toJson(settings)
 
-                val response = RetrofitClient.apiService.updateChannelSettings(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.updateChannelSettings(
                     channelId = channelId,
                     settingsJson = settingsJson
                 )
@@ -888,8 +870,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.registerPostView(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.channelApi.registerPostView(
                     postId = postId
                 )
 

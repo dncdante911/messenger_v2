@@ -85,6 +85,9 @@ object NodeRetrofitClient {
     /** Singleton NodeApi сервіс. Використовуй скрізь у проекті. */
     val api: NodeApi = retrofit.create(NodeApi::class.java)
 
+    /** Channel API via Node.js. */
+    val channelApi: NodeChannelApi = retrofit.create(NodeChannelApi::class.java)
+
     // ── Upload client with longer timeouts for file uploads ────────────────
     private val uploadClient = client.newBuilder()
         .writeTimeout(Constants.MEDIA_UPLOAD_TIMEOUT.toLong(), TimeUnit.SECONDS)
