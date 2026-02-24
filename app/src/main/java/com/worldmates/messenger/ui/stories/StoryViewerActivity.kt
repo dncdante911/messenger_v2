@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -83,6 +84,9 @@ class StoryViewerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Edge-to-edge: let us control insets so content doesn't clip under system bars
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         storyId = intent.getLongExtra("story_id", 0)
         userId = intent.getLongExtra("user_id", 0)
@@ -285,6 +289,7 @@ fun StoryViewerScreen(
                                     )
                                 )
                             )
+                            .windowInsetsPadding(WindowInsets.statusBars)
                     ) {
                         // Progress bars
                         Row(
@@ -488,6 +493,7 @@ fun StoryBottomBar(
     onViewsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val navBarInsets = WindowInsets.navigationBars
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -501,7 +507,8 @@ fun StoryBottomBar(
                     )
                 )
             )
-            .padding(bottom = 12.dp)
+            .windowInsetsPadding(navBarInsets)
+            .padding(bottom = 8.dp)
     ) {
         // Title / description
         if (!story.title.isNullOrEmpty() || !story.description.isNullOrEmpty()) {
