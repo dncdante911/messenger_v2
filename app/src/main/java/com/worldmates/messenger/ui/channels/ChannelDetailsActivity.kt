@@ -44,7 +44,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material.icons.outlined.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import androidx.lifecycle.ViewModelProvider
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -786,118 +786,104 @@ fun ChannelDetailsScreen(
             )
         }
 
-        // Меню каналу (тільки для адмінів)
+        // Premium channel management menu (bottom sheet style dialog)
         if (showChannelMenuDialog && channel?.isAdmin == true) {
             AlertDialog(
                 onDismissRequest = { showChannelMenuDialog = false },
                 title = {
-                    Text("Управління каналом", fontWeight = FontWeight.Bold)
+                    Column {
+                        Text(
+                            "Channel Management",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            channel.name,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
                 },
                 text = {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        // Редагувати інформацію
-                        TextButton(
+                        // Edit info
+                        PremiumMenuItem(
+                            icon = Icons.Default.Edit,
+                            title = "Edit Info",
+                            subtitle = "Name, description, username",
+                            iconTint = PremiumColors.TelegramBlue,
                             onClick = {
                                 showChannelMenuDialog = false
                                 showEditChannelDialog = true
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Edit, contentDescription = null)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text("Редагувати інформацію")
                             }
-                        }
+                        )
 
-                        // Налаштування
-                        TextButton(
+                        // Settings
+                        PremiumMenuItem(
+                            icon = Icons.Default.Settings,
+                            title = "Settings",
+                            subtitle = "Comments, reactions, slow mode",
+                            iconTint = MaterialTheme.colorScheme.tertiary,
                             onClick = {
                                 showChannelMenuDialog = false
                                 showChannelSettingsDialog = true
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Settings, contentDescription = null)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text("Налаштування")
                             }
-                        }
+                        )
 
-                        // Статистика
-                        TextButton(
+                        // Statistics
+                        PremiumMenuItem(
+                            icon = Icons.Default.Info,
+                            title = "Statistics",
+                            subtitle = "Views, growth, engagement",
+                            iconTint = PremiumColors.SuccessGreen,
                             onClick = {
                                 showChannelMenuDialog = false
                                 detailsViewModel.loadStatistics(channelId)
                                 showStatisticsDialog = true
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Start,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Info, contentDescription = null)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text("Статистика")
                             }
-                        }
+                        )
 
-                        // Адміністратори (тільки для адмінів)
                         if (channel.isAdmin) {
-                            TextButton(
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                            )
+
+                            // Administrators
+                            PremiumMenuItem(
+                                icon = Icons.Default.AccountCircle,
+                                title = "Administrators",
+                                subtitle = "Manage admin roles",
+                                iconTint = PremiumColors.WarningOrange,
                                 onClick = {
                                     showChannelMenuDialog = false
                                     detailsViewModel.loadChannelDetails(channelId)
                                     showAdminsDialog = true
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.Start,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.AccountCircle, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text("Адміністратори")
                                 }
-                            }
+                            )
 
-                            // Налаштування форматування
-                            TextButton(
+                            // Formatting
+                            PremiumMenuItem(
+                                icon = Icons.Default.TextFormat,
+                                title = "Message Formatting",
+                                subtitle = "Text styling permissions",
+                                iconTint = MaterialTheme.colorScheme.secondary,
                                 onClick = {
                                     showChannelMenuDialog = false
                                     showFormattingSettings = true
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.Start,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Settings, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text("Форматування повідомлень")
                                 }
-                            }
+                            )
 
-                            // Адмін-панель (повна)
-                            TextButton(
+                            // Admin Panel
+                            PremiumMenuItem(
+                                icon = Icons.Outlined.Dashboard,
+                                title = "Admin Panel",
+                                subtitle = "Full management dashboard",
+                                iconTint = PremiumColors.ErrorRed,
                                 onClick = {
                                     showChannelMenuDialog = false
                                     context.startActivity(
@@ -905,26 +891,15 @@ fun ChannelDetailsScreen(
                                             putExtra("channel_id", channelId)
                                         }
                                     )
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.Start,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Outlined.Article, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text("Адмін-панель")
                                 }
-                            }
+                            )
                         }
                     }
                 },
                 confirmButton = {},
                 dismissButton = {
                     TextButton(onClick = { showChannelMenuDialog = false }) {
-                        Text("Закрити")
+                        Text("Close")
                     }
                 }
             )

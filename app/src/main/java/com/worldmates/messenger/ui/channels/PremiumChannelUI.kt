@@ -249,6 +249,24 @@ fun PremiumChannelHeader(
                     }
                 }
 
+                // Category badge
+                if (!channel.category.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = if (isDarkTheme) Color.White.copy(alpha = 0.08f)
+                            else Color.Black.copy(alpha = 0.04f)
+                    ) {
+                        Text(
+                            text = channel.category!!,
+                            fontSize = 12.sp,
+                            color = textSecondary,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
                 // Description
                 if (!channel.description.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1184,6 +1202,78 @@ fun PremiumEmptyState(
         if (action != null) {
             Spacer(modifier = Modifier.height(20.dp))
             action()
+        }
+    }
+}
+
+// ==================== PREMIUM MENU ITEM ====================
+
+@Composable
+fun PremiumMenuItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String? = null,
+    iconTint: Color = PremiumColors.TelegramBlue,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDarkTheme = isSystemInDarkTheme()
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = Color.Transparent,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon with tinted background
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = iconTint.copy(alpha = 0.12f),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDarkTheme) PremiumColors.TextPrimaryDark
+                        else PremiumColors.TextPrimaryLight
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = if (isDarkTheme) PremiumColors.TextSecondaryDark
+                            else PremiumColors.TextSecondaryLight
+                    )
+                }
+            }
+
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = if (isDarkTheme) PremiumColors.TextSecondaryDark
+                    else PremiumColors.TextSecondaryLight,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
