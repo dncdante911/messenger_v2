@@ -726,6 +726,4 @@ class ChannelsViewModel : ViewModel() {
             }
         }
     }
-
-}
 }
