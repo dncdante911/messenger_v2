@@ -1490,88 +1490,137 @@ fun PostOptionsBottomSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = modifier
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
         ) {
-            // Header
+            // Handle bar is already provided by ModalBottomSheet
+
+            // Header with post preview
             Text(
-                text = "Опції поста",
-                style = MaterialTheme.typography.titleLarge,
+                text = "Post Options",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(bottom = 4.dp)
             )
+            if (post.text.isNotBlank()) {
+                Text(
+                    text = post.text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
-            Divider()
-
-            // Pin/Unpin option
+            // Pin/Unpin
             PostOptionItem(
-                icon = if (post.isPinned) Icons.Default.PushPin else Icons.Default.PushPin,
-                text = if (post.isPinned) "Відкріпити" else "Закріпити",
+                icon = Icons.Default.PushPin,
+                text = if (post.isPinned) "Unpin Post" else "Pin Post",
+                subtitle = if (post.isPinned) "Remove from top" else "Show at the top",
+                iconTint = PremiumColors.TelegramBlue,
                 onClick = {
                     onPinClick()
                     onDismiss()
                 }
             )
 
-            // Edit option
+            // Edit
             PostOptionItem(
                 icon = Icons.Default.Edit,
-                text = "Редагувати",
+                text = "Edit Post",
+                subtitle = "Change text or media",
+                iconTint = PremiumColors.WarningOrange,
                 onClick = {
                     onEditClick()
                     onDismiss()
                 }
             )
 
-            // Delete option
+            Spacer(modifier = Modifier.height(4.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Delete
             PostOptionItem(
                 icon = Icons.Default.Delete,
-                text = "Видалити",
-                textColor = MaterialTheme.colorScheme.error,
+                text = "Delete Post",
+                subtitle = "This action cannot be undone",
+                iconTint = PremiumColors.ErrorRed,
+                textColor = PremiumColors.ErrorRed,
                 onClick = {
                     onDeleteClick()
                     onDismiss()
                 }
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 /**
- * Елемент опції поста
+ * Premium post option item with icon background and subtitle
  */
 @Composable
 fun PostOptionItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
+    subtitle: String? = null,
+    iconTint: Color = MaterialTheme.colorScheme.onSurface,
     textColor: Color = Color.Unspecified,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = Color.Transparent
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = text,
-            tint = if (textColor != Color.Unspecified) textColor else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = textColor
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = iconTint.copy(alpha = 0.12f),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = text,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = text,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (textColor != Color.Unspecified) textColor
+                        else MaterialTheme.colorScheme.onSurface
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1586,14 +1635,25 @@ fun EditPostDialog(
     onSave: (String) -> Unit
 ) {
     var editedText by remember { mutableStateOf(post.text) }
+    val charCount = editedText.length
+    val hasChanges = editedText.isNotBlank() && editedText != post.text
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Редагувати пост",
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = PremiumColors.TelegramBlue,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Edit Post",
+                    fontWeight = FontWeight.Bold
+                )
+            }
         },
         text = {
             Column(
@@ -1605,27 +1665,55 @@ fun EditPostDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 150.dp, max = 300.dp),
-                    placeholder = { Text("Текст поста...") },
+                    placeholder = { Text("Post text...") },
                     maxLines = 10,
-                    textStyle = MaterialTheme.typography.bodyMedium
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PremiumColors.TelegramBlue,
+                        cursorColor = PremiumColors.TelegramBlue
+                    )
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "$charCount characters",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                    if (hasChanges) {
+                        Text(
+                            text = "Modified",
+                            fontSize = 12.sp,
+                            color = PremiumColors.TelegramBlue,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
                     if (editedText.isNotBlank()) {
                         onSave(editedText)
                     }
                 },
-                enabled = editedText.isNotBlank() && editedText != post.text
+                enabled = hasChanges,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PremiumColors.TelegramBlue
+                ),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Зберегти")
+                Text("Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Скасувати")
+                Text("Cancel")
             }
         }
     )
@@ -1644,31 +1732,149 @@ fun StatisticsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Статистика каналу", fontWeight = FontWeight.Bold) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.BarChart,
+                    contentDescription = null,
+                    tint = PremiumColors.SuccessGreen,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text("Channel Statistics", fontWeight = FontWeight.Bold)
+            }
+        },
         text = {
             if (statistics == null) {
-                CircularProgressIndicator()
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = PremiumColors.TelegramBlue)
+                }
             } else {
-                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatItem("Підписників", "${statistics.subscribersCount}")
-                    StatItem("Всього постів", "${statistics.postsCount}")
-                    StatItem("Постів за тиждень", "${statistics.postsLastWeek}")
-                    StatItem("Активних за 24 год", "${statistics.activeSubscribers24h}")
+                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Stats grid
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        StatCard(
+                            value = "${statistics.subscribersCount}",
+                            label = "Subscribers",
+                            color = PremiumColors.TelegramBlue,
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatCard(
+                            value = "${statistics.postsCount}",
+                            label = "Posts",
+                            color = PremiumColors.SuccessGreen,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        StatCard(
+                            value = "${statistics.postsLastWeek}",
+                            label = "This week",
+                            color = PremiumColors.WarningOrange,
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatCard(
+                            value = "${statistics.activeSubscribers24h}",
+                            label = "Active 24h",
+                            color = Color(0xFF9C27B0),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
                     if (!statistics.topPosts.isNullOrEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Топ пости:", fontWeight = FontWeight.SemiBold)
-                        statistics.topPosts.take(3).forEach { topPost ->
-                            Text("• ${topPost.text.take(40)}... (${topPost.views} переглядів)", fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Top Posts",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
+                        statistics.topPosts.take(3).forEachIndexed { index, topPost ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${index + 1}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PremiumColors.TelegramBlue
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = topPost.text.take(40) + if (topPost.text.length > 40) "..." else "",
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Outlined.Visibility,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "${topPost.views}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Закрити") }
+            TextButton(onClick = onDismiss) { Text("Close") }
         }
     )
+}
+
+@Composable
+fun StatCard(
+    value: String,
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = color.copy(alpha = 0.1f)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = value,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+    }
 }
 
 @Composable
@@ -1696,40 +1902,107 @@ fun ManageAdminsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Адміністратори • ${admins.size}", fontWeight = FontWeight.Bold) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.AdminPanelSettings,
+                    contentDescription = null,
+                    tint = PremiumColors.WarningOrange,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text("Administrators", fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = PremiumColors.TelegramBlue.copy(alpha = 0.12f)
+                ) {
+                    Text(
+                        text = "${admins.size}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PremiumColors.TelegramBlue,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        },
         text = {
             LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
                 items(admins) { admin ->
-                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Role icon
+                        val roleColor = when (admin.role) {
+                            "owner" -> PremiumColors.PremiumGold
+                            "admin" -> PremiumColors.TelegramBlue
+                            else -> PremiumColors.SuccessGreen
+                        }
+                        Surface(
+                            shape = CircleShape,
+                            color = roleColor.copy(alpha = 0.15f),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    when (admin.role) {
+                                        "owner" -> Icons.Default.Star
+                                        "admin" -> Icons.Default.Shield
+                                        else -> Icons.Default.Person
+                                    },
+                                    contentDescription = null,
+                                    tint = roleColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = admin.username.takeIf { !it.isNullOrEmpty() } ?: "Користувач #${admin.userId}",
-                                fontWeight = FontWeight.Medium
+                                text = admin.username.takeIf { !it.isNullOrEmpty() } ?: "User #${admin.userId}",
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp
                             )
                             Text(
                                 when(admin.role) {
-                                    "owner" -> "Власник"
-                                    "admin" -> "Адміністратор"
+                                    "owner" -> "Owner"
+                                    "admin" -> "Administrator"
+                                    "moderator" -> "Moderator"
                                     else -> admin.role
                                 },
                                 fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = roleColor
                             )
                         }
                         if (admin.role != "owner") {
                             IconButton(onClick = { onRemoveAdmin(admin.userId) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Delete, "Видалити", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Close, "Remove", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { showAddDialog = true }) { Text("Додати") }
+            Button(
+                onClick = { showAddDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.TelegramBlue),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Add Admin")
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Закрити") }
+            TextButton(onClick = onDismiss) { Text("Close") }
         }
     )
 
@@ -1758,50 +2031,94 @@ fun AddAdminDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Додати адміністратора") },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.PersonAdd,
+                    contentDescription = null,
+                    tint = PremiumColors.TelegramBlue,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text("Add Administrator", fontWeight = FontWeight.Bold)
+            }
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
-                    label = { Text("ID, username або ім'я") },
-                    placeholder = { Text("Введіть ID, @username або ім'я...") },
+                    label = { Text("User") },
+                    placeholder = { Text("Enter ID, @username or name...") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PremiumColors.TelegramBlue,
+                        cursorColor = PremiumColors.TelegramBlue
+                    )
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Роль:")
-                    Spacer(Modifier.width(8.dp))
-                    Row {
-                        FilterChip(
-                            selected = selectedRole == "admin",
-                            onClick = { selectedRole = "admin" },
-                            label = { Text("Адмін") }
+
+                Text(
+                    "Role",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = selectedRole == "admin",
+                        onClick = { selectedRole = "admin" },
+                        label = { Text("Admin") },
+                        leadingIcon = if (selectedRole == "admin") {
+                            { Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null,
+                        shape = RoundedCornerShape(20.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PremiumColors.TelegramBlue.copy(alpha = 0.15f),
+                            selectedLabelColor = PremiumColors.TelegramBlue
                         )
-                        Spacer(Modifier.width(8.dp))
-                        FilterChip(
-                            selected = selectedRole == "moderator",
-                            onClick = { selectedRole = "moderator" },
-                            label = { Text("Модератор") }
+                    )
+                    FilterChip(
+                        selected = selectedRole == "moderator",
+                        onClick = { selectedRole = "moderator" },
+                        label = { Text("Moderator") },
+                        leadingIcon = if (selectedRole == "moderator") {
+                            { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null,
+                        shape = RoundedCornerShape(20.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = PremiumColors.SuccessGreen.copy(alpha = 0.15f),
+                            selectedLabelColor = PremiumColors.SuccessGreen
                         )
-                    }
+                    )
                 }
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
                     if (searchText.isNotBlank()) {
                         onAdd(searchText.trim(), selectedRole)
                     }
                 },
-                enabled = searchText.isNotBlank()
+                enabled = searchText.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.TelegramBlue),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Додати")
+                Text("Add")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Скасувати") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }
@@ -1822,14 +2139,27 @@ fun EditChannelInfoDialog(
     var channelUsername by remember { mutableStateOf(channel.username ?: "") }
     var usernameError by remember { mutableStateOf<String?>(null) }
 
+    val hasChanges = channelName != channel.name ||
+        channelDescription != (channel.description ?: "") ||
+        channelUsername != (channel.username ?: "")
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Редагувати канал",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = PremiumColors.TelegramBlue,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Edit Channel",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            }
         },
         text = {
             Column(
@@ -1838,16 +2168,21 @@ fun EditChannelInfoDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Назва каналу
+                // Channel name
                 OutlinedTextField(
                     value = channelName,
                     onValueChange = { channelName = it },
-                    label = { Text("Назва каналу") },
+                    label = { Text("Channel Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
                     leadingIcon = {
-                        Icon(Icons.Default.Title, contentDescription = null)
-                    }
+                        Icon(Icons.Default.Title, contentDescription = null, tint = PremiumColors.TelegramBlue)
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PremiumColors.TelegramBlue,
+                        cursorColor = PremiumColors.TelegramBlue
+                    )
                 )
 
                 // Username
@@ -1858,44 +2193,54 @@ fun EditChannelInfoDialog(
                         channelUsername = cleaned
                         usernameError = when {
                             cleaned.isEmpty() -> null
-                            !cleaned.matches(Regex("^[a-z0-9_]+$")) -> "Тільки літери, цифри та _"
-                            cleaned.length < 5 -> "Мінімум 5 символів"
+                            !cleaned.matches(Regex("^[a-z0-9_]+$")) -> "Only letters, numbers and _"
+                            cleaned.length < 5 -> "Minimum 5 characters"
                             else -> null
                         }
                     },
-                    label = { Text("Username (@username)") },
+                    label = { Text("Username") },
                     placeholder = { Text("channel_name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     isError = usernameError != null,
+                    shape = RoundedCornerShape(14.dp),
                     supportingText = {
                         if (usernameError != null) {
                             Text(usernameError!!, color = MaterialTheme.colorScheme.error)
                         }
                     },
                     leadingIcon = {
-                        Icon(Icons.Default.AlternateEmail, contentDescription = null)
-                    }
+                        Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = PremiumColors.WarningOrange)
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PremiumColors.TelegramBlue,
+                        cursorColor = PremiumColors.TelegramBlue
+                    )
                 )
 
-                // Опис
+                // Description
                 OutlinedTextField(
                     value = channelDescription,
                     onValueChange = { channelDescription = it },
-                    label = { Text("Опис") },
-                    placeholder = { Text("Розкажіть про ваш канал...") },
+                    label = { Text("Description") },
+                    placeholder = { Text("Tell about your channel...") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 100.dp),
                     maxLines = 4,
+                    shape = RoundedCornerShape(14.dp),
                     leadingIcon = {
-                        Icon(Icons.Default.Description, contentDescription = null)
-                    }
+                        Icon(Icons.Default.Description, contentDescription = null, tint = PremiumColors.SuccessGreen)
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PremiumColors.TelegramBlue,
+                        cursorColor = PremiumColors.TelegramBlue
+                    )
                 )
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
                     if (channelName.isNotBlank() && usernameError == null) {
                         onSave(
@@ -1905,13 +2250,15 @@ fun EditChannelInfoDialog(
                         )
                     }
                 },
-                enabled = channelName.isNotBlank() && usernameError == null
+                enabled = channelName.isNotBlank() && usernameError == null && hasChanges,
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.TelegramBlue),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Зберегти")
+                Text("Save")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Скасувати") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }
@@ -1942,11 +2289,20 @@ fun ChannelSettingsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Налаштування каналу",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = null,
+                    tint = PremiumColors.TelegramBlue,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Channel Settings",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            }
         },
         text = {
             Column(
@@ -1956,10 +2312,11 @@ fun ChannelSettingsDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Публікації",
+                    text = "POSTS",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = Color(0xFF667eea)
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp,
+                    color = PremiumColors.TelegramBlue
                 )
 
                 // Підпис автора
@@ -1969,9 +2326,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Підпис автора поста", fontSize = 14.sp)
+                        Text("Author Signature", fontSize = 14.sp)
                         Text(
-                            "Показувати ім'я автора в постах",
+                            "Show author name on posts",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -1985,10 +2342,11 @@ fun ChannelSettingsDialog(
                 Divider()
 
                 Text(
-                    text = "Інтерактивність",
+                    text = "INTERACTIVITY",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = Color(0xFF667eea)
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp,
+                    color = PremiumColors.TelegramBlue
                 )
 
                 // Коментарі
@@ -1998,9 +2356,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Дозволити коментарі", fontSize = 14.sp)
+                        Text("Allow Comments", fontSize = 14.sp)
                         Text(
-                            "Підписники можуть коментувати пости",
+                            "Subscribers can comment on posts",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2018,9 +2376,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Дозволити реакції", fontSize = 14.sp)
+                        Text("Allow Reactions", fontSize = 14.sp)
                         Text(
-                            "Підписники можуть ставити реакції",
+                            "Subscribers can add reactions",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2038,9 +2396,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Дозволити поширення", fontSize = 14.sp)
+                        Text("Allow Sharing", fontSize = 14.sp)
                         Text(
-                            "Можна репостити пости каналу",
+                            "Allow reposting channel posts",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2054,10 +2412,11 @@ fun ChannelSettingsDialog(
                 Divider()
 
                 Text(
-                    text = "Модерація",
+                    text = "MODERATION",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = Color(0xFF667eea)
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp,
+                    color = PremiumColors.TelegramBlue
                 )
 
                 // Модерація коментарів
@@ -2067,9 +2426,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Модерація коментарів", fontSize = 14.sp)
+                        Text("Comment Moderation", fontSize = 14.sp)
                         Text(
-                            "Коментарі потребують схвалення",
+                            "Comments require approval",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2088,13 +2447,13 @@ fun ChannelSettingsDialog(
                             slowModeSeconds = it
                         }
                     },
-                    label = { Text("Повільний режим (секунди)") },
-                    placeholder = { Text("0 = вимкнено") },
+                    label = { Text("Slow Mode (seconds)") },
+                    placeholder = { Text("0 = disabled") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     supportingText = {
                         Text(
-                            "Затримка між коментарями (0-300 сек)",
+                            "Delay between comments (0-300 sec)",
                             fontSize = 11.sp,
                             color = Color.Gray
                         )
@@ -2104,10 +2463,11 @@ fun ChannelSettingsDialog(
                 Divider()
 
                 Text(
-                    text = "Сповіщення та статистика",
+                    text = "NOTIFICATIONS & ANALYTICS",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = Color(0xFF667eea)
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp,
+                    color = PremiumColors.TelegramBlue
                 )
 
                 // Сповіщення про нові пости
@@ -2117,9 +2477,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Сповіщення про пости", fontSize = 14.sp)
+                        Text("Post Notifications", fontSize = 14.sp)
                         Text(
-                            "Надсилати push-сповіщення підписникам",
+                            "Send push notifications to subscribers",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2137,9 +2497,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Показувати статистику", fontSize = 14.sp)
+                        Text("Show Statistics", fontSize = 14.sp)
                         Text(
-                            "Підписники бачать статистику каналу",
+                            "Subscribers can see channel stats",
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2152,7 +2512,7 @@ fun ChannelSettingsDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
                     val slowMode = slowModeSeconds.toIntOrNull()
                     val validSlowMode = when {
@@ -2175,13 +2535,15 @@ fun ChannelSettingsDialog(
                         slowModeSeconds = validSlowMode
                     )
                     onSave(updatedSettings)
-                }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.TelegramBlue),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Зберегти")
+                Text("Save")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Скасувати") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }
