@@ -535,7 +535,7 @@ class ChannelsViewModel : ViewModel() {
                 } else {
                     val errorMsg = response.errorMessage ?: "Failed to generate QR code"
                     onError(errorMsg)
-                    Log.e("ChannelsViewModel", "❌ Failed to generate QR: ${response.message}")
+                    Log.e("ChannelsViewModel", "❌ Failed to generate QR: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -613,7 +613,7 @@ class ChannelsViewModel : ViewModel() {
                 } else {
                     val errorMsg = response.errorMessage ?: "Failed to mute channel"
                     onError(errorMsg)
-                    Log.e("ChannelsViewModel", "❌ Failed to mute: ${response.message}")
+                    Log.e("ChannelsViewModel", "❌ Failed to mute: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -649,7 +649,7 @@ class ChannelsViewModel : ViewModel() {
                 } else {
                     val errorMsg = response.errorMessage ?: "Failed to unmute channel"
                     onError(errorMsg)
-                    Log.e("ChannelsViewModel", "❌ Failed to unmute: ${response.message}")
+                    Log.e("ChannelsViewModel", "❌ Failed to unmute: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -727,4 +727,5 @@ class ChannelsViewModel : ViewModel() {
         }
     }
 
+}
 }
