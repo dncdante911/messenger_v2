@@ -149,6 +149,44 @@ function registerChannelRoutes(app, ctx, io) {
     app.post('/api/v2/endpoints/unmute_channel.php',           auth, admin.unmuteChannel(ctx, io));
     app.post('/api/v2/endpoints/upload_channel_avatar.php',    upload.single('avatar'), auth, admin.uploadAvatar(ctx, io));
 
+        // Node REST compatibility for Android client (/api/node/channel/*)
+    // NOTE: list endpoint keeps dispatcher because client sends type=get_list/get_subscribed/search.
+    app.post('/api/node/channel/list',            auth, channelsDispatcher(ctx, io));
+    app.post('/api/node/channel/details',         auth, management.getDetails(ctx, io));
+    app.post('/api/node/channel/create',          auth, management.createChannel(ctx, io));
+    app.post('/api/node/channel/update',          auth, management.updateChannel(ctx, io));
+    app.post('/api/node/channel/delete',          auth, management.deleteChannel(ctx, io));
+    app.post('/api/node/channel/subscribe',       auth, subscriptions.subscribe(ctx, io));
+    app.post('/api/node/channel/unsubscribe',     auth, subscriptions.unsubscribe(ctx, io));
+    app.post('/api/node/channel/add-member',      auth, subscriptions.addMember(ctx, io));
+
+    app.post('/api/node/channel/posts',           auth, posts.getPosts(ctx, io));
+    app.post('/api/node/channel/create-post',     auth, posts.createPost(ctx, io));
+    app.post('/api/node/channel/update-post',     auth, posts.updatePost(ctx, io));
+    app.post('/api/node/channel/delete-post',     auth, posts.deletePost(ctx, io));
+    app.post('/api/node/channel/pin-post',        auth, posts.pinPost(ctx, io));
+    app.post('/api/node/channel/unpin-post',      auth, posts.unpinPost(ctx, io));
+
+    app.post('/api/node/channel/comments',        auth, comments.getComments(ctx, io));
+    app.post('/api/node/channel/add-comment',     auth, comments.addComment(ctx, io));
+    app.post('/api/node/channel/delete-comment',  auth, comments.deleteComment(ctx, io));
+    app.post('/api/node/channel/comment-reaction',auth, comments.addCommentReaction(ctx, io));
+
+    app.post('/api/node/channel/post-reaction',   auth, reactions.addReaction(ctx, io));
+    app.post('/api/node/channel/post-unreaction', auth, reactions.removeReaction(ctx, io));
+    app.post('/api/node/channel/post-view',       auth, posts.registerView(ctx, io));
+
+    app.post('/api/node/channel/add-admin',       auth, admin.addAdmin(ctx, io));
+    app.post('/api/node/channel/remove-admin',    auth, admin.removeAdmin(ctx, io));
+    app.post('/api/node/channel/settings',        auth, admin.updateSettings(ctx, io));
+    app.post('/api/node/channel/statistics',      auth, admin.getStatistics(ctx, io));
+    app.post('/api/node/channel/subscribers',     auth, subscriptions.getSubscribers(ctx, io));
+    app.post('/api/node/channel/mute',            auth, admin.muteChannel(ctx, io));
+    app.post('/api/node/channel/unmute',          auth, admin.unmuteChannel(ctx, io));
+    app.post('/api/node/channel/qr-generate',     auth, admin.generateQr(ctx, io));
+    app.post('/api/node/channel/qr-subscribe',    auth, admin.subscribeByQr(ctx, io));
+    app.post('/api/node/channel/upload-avatar',   upload.single('avatar'), auth, admin.uploadAvatar(ctx, io));
+
     console.log('[Channel API] Endpoints registered:');
     console.log('  Main    : POST /api/v2/channels.php');
     console.log('  QR      : generate_channel_qr, subscribe_channel_by_qr');
