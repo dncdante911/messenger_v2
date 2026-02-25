@@ -3,13 +3,11 @@ package com.worldmates.messenger.ui.chats
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
@@ -1114,26 +1112,7 @@ fun ChannelListTabWithStories(
     // Канали, де поточний користувач — адмін
     val adminChannelIds = channels.filter { it.isAdmin }.map { it.id }
 
-    // Category filter
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
-    val categories = remember(channels) {
-        channels.mapNotNull { it.category }.distinct().sorted()
-    }
-    val filteredChannels = remember(channels, selectedCategory) {
-        if (selectedCategory == null) channels
-        else channels.filter { it.category == selectedCategory }
-    }
-
-    // Search
-    var localSearchQuery by remember { mutableStateOf("") }
-    val searchFilteredChannels = remember(filteredChannels, localSearchQuery) {
-        if (localSearchQuery.isBlank()) filteredChannels
-        else filteredChannels.filter {
-            it.name.contains(localSearchQuery, ignoreCase = true) ||
-            (it.username?.contains(localSearchQuery, ignoreCase = true) == true) ||
-            (it.description?.contains(localSearchQuery, ignoreCase = true) == true)
-        }
-    }
+    // No local filtering — channels are shown directly
 
     Box(
         modifier = Modifier
@@ -1193,169 +1172,13 @@ fun ChannelListTabWithStories(
                     }
                 }
 
-                // Inline search bar for channels
-                item {
-                    androidx.compose.material3.Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        tonalElevation = 1.dp
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Box(modifier = Modifier.weight(1f)) {
-                                if (localSearchQuery.isEmpty()) {
-                                    Text(
-                                        text = "Search channels...",
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                                        fontSize = 14.sp
-                                    )
-                                }
-                                androidx.compose.foundation.text.BasicTextField(
-                                    value = localSearchQuery,
-                                    onValueChange = { localSearchQuery = it },
-                                    textStyle = androidx.compose.ui.text.TextStyle(
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                            if (localSearchQuery.isNotEmpty()) {
-                                IconButton(
-                                    onClick = { localSearchQuery = "" },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = "Clear",
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Category filter chips
-                if (categories.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState())
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // "All" chip
-                            FilterChip(
-                                selected = selectedCategory == null,
-                                onClick = { selectedCategory = null },
-                                label = { Text("All", fontSize = 13.sp) },
-                                leadingIcon = if (selectedCategory == null) {
-                                    { Icon(Icons.Default.Done, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                } else null,
-                                shape = RoundedCornerShape(20.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                    selectedLabelColor = MaterialTheme.colorScheme.primary
-                                )
-                            )
-                            categories.forEach { category ->
-                                FilterChip(
-                                    selected = selectedCategory == category,
-                                    onClick = {
-                                        selectedCategory = if (selectedCategory == category) null else category
-                                    },
-                                    label = { Text(category, fontSize = 13.sp) },
-                                    leadingIcon = if (selectedCategory == category) {
-                                        { Icon(Icons.Default.Done, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                    } else null,
-                                    shape = RoundedCornerShape(20.dp),
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                        selectedLabelColor = MaterialTheme.colorScheme.primary
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Channel count header
-                if (searchFilteredChannels.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (selectedCategory != null) selectedCategory!! else "Channels",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "${searchFilteredChannels.size}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        }
-                    }
-                }
-
                 // Channel list
-                items(searchFilteredChannels, key = { it.id }) { channel ->
+                items(channels, key = { it.id }) { channel ->
                     com.worldmates.messenger.ui.channels.TelegramChannelItem(
                         channel = channel,
                         onClick = { onChannelClick(channel) },
                         modifier = Modifier.animateItem()
                     )
-                }
-
-                // No results for search
-                if (searchFilteredChannels.isEmpty() && channels.isNotEmpty()) {
-                    item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(48.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                Icons.Outlined.SearchOff,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "No channels found",
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        }
-                    }
                 }
             }
         }

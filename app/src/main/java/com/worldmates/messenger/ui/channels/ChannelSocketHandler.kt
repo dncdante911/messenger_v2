@@ -281,16 +281,20 @@ class ChannelSocketHandler(context: Context) {
 
         return ChannelPost(
             id = postJson.optLong("id", 0),
-            authorId = postJson.optLong("uid", postJson.optLong("user_id", 0)),
-            authorUsername = postJson.optString("un", postJson.optString("username", null)),
-            authorName = postJson.optString("uname", postJson.optString("user_name", null)),
-            authorAvatar = postJson.optString("uav", postJson.optString("user_avatar", null)),
+            authorId = postJson.optLong("author_id",
+                postJson.optLong("uid", postJson.optLong("user_id", 0))),
+            authorUsername = postJson.optString("author_username",
+                postJson.optString("un", postJson.optString("username", null))),
+            authorName = postJson.optString("author_name",
+                postJson.optString("uname", postJson.optString("user_name", null))),
+            authorAvatar = postJson.optString("author_avatar",
+                postJson.optString("uav", postJson.optString("user_avatar", null))),
             text = postJson.optString("txt", postJson.optString("text", "")),
             createdTime = postJson.optLong("ct", postJson.optLong("created_time", 0)),
             isPinned = postJson.optBoolean("pin", postJson.optBoolean("is_pinned", false)),
             viewsCount = postJson.optInt("views", postJson.optInt("views_count", 0)),
             commentsCount = postJson.optInt("coms", postJson.optInt("comments_count", 0)),
-            reactionsCount = postJson.optInt("reacts_count", 0)
+            reactionsCount = postJson.optInt("reacts_count", postJson.optInt("reactions_count", 0))
         )
     }
 }
