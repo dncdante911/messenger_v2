@@ -160,9 +160,8 @@ function uploadMedia(ctx) {
                 return res.json({
                     api_status: 400,
                     url: null,
-                    media_id: null,
-                    message: 'File is required',
-                    errors: { error_text: 'File is required' }
+                    error_code: 400,
+                    error_message: 'File is required'
                 });
             }
 
@@ -172,9 +171,8 @@ function uploadMedia(ctx) {
                 return res.json({
                     api_status: 400,
                     url: null,
-                    media_id: null,
-                    message: 'Invalid media_type',
-                    errors: { error_text: 'Invalid media_type' }
+                    error_code: 400,
+                    error_message: 'Invalid media_type'
                 });
             }
 
@@ -184,18 +182,16 @@ function uploadMedia(ctx) {
             return res.json({
                 api_status: 200,
                 url: fileUrl,
-                media_id: null,
-                message: null,
-                errors: null
+                error_code: null,
+                error_message: null
             });
         } catch (err) {
             console.error('[Channels/uploadMedia]', err.message);
             return res.json({
                 api_status: 500,
                 url: null,
-                media_id: null,
-                message: 'Server error',
-                errors: { error_text: 'Server error' }
+                error_code: 500,
+                error_message: 'Server error'
             });
         }
     };

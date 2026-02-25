@@ -271,7 +271,7 @@ interface NodeChannelApi {
 /** QR code response. */
 data class QrCodeResponse(
     @com.google.gson.annotations.SerializedName("api_status") val apiStatus: Int,
-    @com.google.gson.annotations.SerializedName("qr_url") val qrUrl: String? = null,
+    @com.google.gson.annotations.SerializedName("qr_code") val qrCode: String? = null,
     @com.google.gson.annotations.SerializedName("join_url") val joinUrl: String? = null,
     @com.google.gson.annotations.SerializedName("error_message") val errorMessage: String? = null
 )
