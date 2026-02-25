@@ -47,23 +47,8 @@ fun TelegramChannelItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "item_scale"
-    )
-
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -73,220 +58,70 @@ fun TelegramChannelItem(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = ripple(
                         bounded = true,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
                     ),
                     onClick = onClick
                 )
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Аватар с градиентным кольцом
-            Box {
-                // Gradient ring
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = if (channel.isVerified) {
-                                    listOf(Color(0xFF00D4FF), Color(0xFF0A84FF))
-                                } else {
-                                    listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
+            // Compact avatar
+            Box(modifier = Modifier.size(46.dp)) {
+                if (channel.avatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = channel.avatarUrl.toFullMediaUrl(),
+                        contentDescription = channel.name,
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.tertiary
                                     )
-                                }
-                            )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = channel.name.take(1).uppercase(),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
-                        .padding(2.dp)
-                ) {
-                    if (channel.avatarUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = channel.avatarUrl.toFullMediaUrl(),
-                            contentDescription = channel.name,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        // Animated gradient placeholder
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                                .background(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = channel.name.take(1).uppercase(),
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
                     }
                 }
 
-                // Online/Active indicator
-                if (channel.postsCount > 0) {
+                // Verified mini badge on avatar
+                if (channel.isVerified) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .size(16.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surface)
-                            .padding(2.dp)
+                            .padding(1.5.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
-                                .background(Color(0xFF00C851))
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            // Channel info
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = channel.name,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp,
-                            letterSpacing = 0.15.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    if (channel.isVerified) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0xFF0A84FF),
-                            modifier = Modifier.size(18.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = "Verified",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                            }
-                        }
-                    }
-                    if (channel.isPrivate) {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = "Private",
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-
-                // Description preview (Telegram-style subtitle)
-                if (!channel.description.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = channel.description!!,
-                        fontSize = 13.5.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 17.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Stats with category badge
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Subscribers
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Icon(
-                            Icons.Outlined.PeopleAlt,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            text = formatCount(channel.subscribersCount),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-
-                    if (channel.postsCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .size(3.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f))
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                .background(Color(0xFF0A84FF)),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.Outlined.Article,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f),
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Text(
-                                text = formatCount(channel.postsCount),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-
-                    // Category badge
-                    if (!channel.category.isNullOrBlank()) {
-                        Box(
-                            modifier = Modifier
-                                .size(3.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f))
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
-                        ) {
-                            Text(
-                                text = channel.category!!,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                Icons.Default.Check,
+                                contentDescription = "Verified",
+                                tint = Color.White,
+                                modifier = Modifier.size(9.dp)
                             )
                         }
                     }
@@ -295,41 +130,93 @@ fun TelegramChannelItem(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Status badge or action
+            // Channel info - compact two-line layout
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                // Line 1: Name + lock icon
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = channel.name,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (channel.isPrivate) {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = "Private",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+
+                // Line 2: Subscribers count + posts count inline
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "${formatCount(channel.subscribersCount)} subscribers",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        maxLines = 1
+                    )
+                    if (channel.postsCount > 0) {
+                        Text(
+                            text = " · ${formatCount(channel.postsCount)} posts",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+
+            // Compact right-side badge
             if (channel.isAdmin) {
-                ModernAdminBadge()
-            } else if (channel.isSubscribed) {
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color(0xFFFF6B6B).copy(alpha = 0.12f),
+                    modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Icon(
-                        Icons.Default.Notifications,
-                        contentDescription = "Subscribed",
-                        tint = MaterialTheme.colorScheme.primary,
+                        Icons.Default.Shield,
+                        contentDescription = "Admin",
+                        tint = Color(0xFFFF6B6B),
                         modifier = Modifier
-                            .padding(8.dp)
-                            .size(18.dp)
+                            .padding(5.dp)
+                            .size(14.dp)
                     )
                 }
+            } else if (channel.isSubscribed) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .size(20.dp)
+                )
             }
         }
 
-        // Bottom divider with gradient
+        // Subtle divider
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(start = 86.dp)
+                .padding(start = 72.dp)
                 .height(0.5.dp)
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.02f)
-                        )
-                    )
-                )
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
         )
     }
 }

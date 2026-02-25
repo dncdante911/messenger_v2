@@ -253,6 +253,9 @@ function registerChannelRoutes(app, ctx, io) {
     app.post('/api/node/channel/qr-subscribe',    auth, admin.subscribeByQr(ctx, io));
     app.post('/api/node/channel/upload-avatar',   upload.single('avatar'), auth, admin.uploadAvatar(ctx, io));
 
+    // Generic media upload (for channel post images/videos/files)
+    app.post('/api/node/media/upload',             mediaUpload.single('file'), auth, uploadMedia(ctx));
+
     console.log('[Channel API] Endpoints registered:');
     console.log('  Main    : POST /api/v2/channels.php');
     console.log('  QR      : generate_channel_qr, subscribe_channel_by_qr');

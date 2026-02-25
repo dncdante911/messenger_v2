@@ -1370,7 +1370,7 @@ private fun uploadMediaFile(
                 mediaType
             )
 
-            val response = com.worldmates.messenger.network.NodeRetrofitClient.channelApi.uploadMedia(
+            val response = com.worldmates.messenger.network.NodeRetrofitClient.channelUploadApi.uploadMedia(
                 mediaType = mediaTypePart,
                 file = filePart
             )
