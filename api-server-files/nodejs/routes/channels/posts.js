@@ -47,6 +47,14 @@ async function formatPost(ctx, post, io) {
         ? (author.first_name ? (author.first_name + (author.last_name ? ' ' + author.last_name : '')) : author.username)
         : 'Unknown';
 
+    // Helper: resolve URL only if it's a relative path (not already a full URL)
+    async function resolveUrl(path) {
+        if (!path) return '';
+        const trimmed = path.trim();
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+        return await funcs.Wo_GetMedia(ctx, trimmed);
+    }
+
     // Build media list from post fields
     const media = [];
     if (post.postPhoto && post.postPhoto !== '') {
@@ -54,7 +62,7 @@ async function formatPost(ctx, post, io) {
         for (const photo of photos) {
             if (photo.trim()) {
                 media.push({
-                    url: await funcs.Wo_GetMedia(ctx, photo.trim()),
+                    url: await resolveUrl(photo.trim()),
                     type: 'image',
                     filename: null
                 });
@@ -62,7 +70,7 @@ async function formatPost(ctx, post, io) {
         }
     }
     if (post.postFile && post.postFile !== '') {
-        const fileUrl = await funcs.Wo_GetMedia(ctx, post.postFile);
+        const fileUrl = await resolveUrl(post.postFile);
         const ext = (post.postFile || '').split('.').pop().toLowerCase();
         let type = 'file';
         if (['mp4', 'mkv', 'avi', 'webm', 'mov'].includes(ext)) type = 'video';
@@ -76,7 +84,7 @@ async function formatPost(ctx, post, io) {
     }
     if (post.postRecord && post.postRecord !== '') {
         media.push({
-            url: await funcs.Wo_GetMedia(ctx, post.postRecord),
+            url: await resolveUrl(post.postRecord),
             type: 'audio',
             filename: null
         });

@@ -52,16 +52,20 @@ function addReaction(ctx, io) {
                     { where: { post_id: postId, user_id: userId } }
                 );
             } else {
-                // Create new reaction
-                await ctx.wo_reactions.create({
+                // Create new reaction — only set required fields
+                const reactionData = {
                     user_id: userId,
                     post_id: postId,
-                    comment_id: 0,
-                    reply_id: 0,
-                    message_id: 0,
                     reaction: reaction,
                     time: String(now)
-                });
+                };
+                // Optional fields — set only if columns exist in the model
+                const modelAttrs = Object.keys(ctx.wo_reactions.rawAttributes || {});
+                if (modelAttrs.includes('comment_id')) reactionData.comment_id = 0;
+                if (modelAttrs.includes('reply_id')) reactionData.reply_id = 0;
+                if (modelAttrs.includes('message_id')) reactionData.message_id = 0;
+
+                await ctx.wo_reactions.create(reactionData);
             }
 
             // Broadcast via Socket.IO
@@ -85,8 +89,8 @@ function addReaction(ctx, io) {
                 error_message: null
             });
         } catch (err) {
-            console.error('[Channels/addReaction]', err.message);
-            return res.json({ api_status: 500, error_code: 500, error_message: 'Server error' });
+            console.error('[Channels/addReaction]', err.message, err.stack);
+            return res.json({ api_status: 500, error_code: 500, error_message: 'Server error: ' + err.message });
         }
     };
 }

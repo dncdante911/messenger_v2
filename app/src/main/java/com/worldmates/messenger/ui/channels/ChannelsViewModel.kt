@@ -485,14 +485,24 @@ class ChannelsViewModel : ViewModel() {
                 if (response.apiStatus == 200 && response.channel != null) {
                     val updatedChannel = response.channel!!
 
-                    // Оновлюємо в загальному списку
-                    _channelList.value = _channelList.value.map { channel ->
-                        if (channel.id == channelId) updatedChannel else channel
+                    // Оновлюємо в загальному списку (або додаємо, якщо не було)
+                    val existsInList = _channelList.value.any { it.id == channelId }
+                    _channelList.value = if (existsInList) {
+                        _channelList.value.map { channel ->
+                            if (channel.id == channelId) updatedChannel else channel
+                        }
+                    } else {
+                        _channelList.value + updatedChannel
                     }
 
-                    // Оновлюємо в підписаних
-                    _subscribedChannels.value = _subscribedChannels.value.map { channel ->
-                        if (channel.id == channelId) updatedChannel else channel
+                    // Оновлюємо в підписаних (або додаємо, якщо підписаний)
+                    val existsInSubscribed = _subscribedChannels.value.any { it.id == channelId }
+                    if (existsInSubscribed) {
+                        _subscribedChannels.value = _subscribedChannels.value.map { channel ->
+                            if (channel.id == channelId) updatedChannel else channel
+                        }
+                    } else if (updatedChannel.isSubscribed) {
+                        _subscribedChannels.value = _subscribedChannels.value + updatedChannel
                     }
 
                     // Оновлюємо selected якщо це він
@@ -500,7 +510,7 @@ class ChannelsViewModel : ViewModel() {
                         _selectedChannel.value = updatedChannel
                     }
 
-                    Log.d("ChannelsViewModel", "Канал оновлено: ${updatedChannel.name}")
+                    Log.d("ChannelsViewModel", "Канал оновлено: ${updatedChannel.name}, avatar=${updatedChannel.avatarUrl}")
                 }
             } catch (e: Exception) {
                 Log.e("ChannelsViewModel", "Помилка оновлення каналу", e)

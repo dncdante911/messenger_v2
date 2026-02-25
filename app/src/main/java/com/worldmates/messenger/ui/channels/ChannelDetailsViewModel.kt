@@ -960,8 +960,9 @@ class ChannelDetailsViewModel : ViewModel() {
 
         socketHandler = ChannelSocketHandler(context).apply {
             onPostCreated = { post ->
-                // Don't duplicate own posts (already added via REST response)
-                if (post.authorId != UserSession.userId) {
+                // Don't duplicate posts already in the list (from REST response or previous socket event)
+                val alreadyExists = _posts.value.any { it.id == post.id }
+                if (!alreadyExists) {
                     viewModelScope.launch {
                         _posts.value = listOf(post) + _posts.value
                         _channel.value?.let { ch ->
@@ -969,6 +970,8 @@ class ChannelDetailsViewModel : ViewModel() {
                         }
                         Log.d("ChannelDetailsVM", "RT: New post ${post.id} from user ${post.authorId}")
                     }
+                } else {
+                    Log.d("ChannelDetailsVM", "RT: Skipping duplicate post ${post.id}")
                 }
             }
 
