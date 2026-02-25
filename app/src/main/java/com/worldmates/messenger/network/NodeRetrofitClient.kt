@@ -102,4 +102,7 @@ object NodeRetrofitClient {
 
     /** Stories API with longer upload timeouts. */
     val storiesApi: NodeStoriesApi = uploadRetrofit.create(NodeStoriesApi::class.java)
+
+    /** Channel API with longer upload timeouts (for media/avatar uploads). */
+    val channelUploadApi: NodeChannelApi = uploadRetrofit.create(NodeChannelApi::class.java)
 }

@@ -704,7 +704,7 @@ class ChannelsViewModel : ViewModel() {
 
                 Log.d("ChannelsViewModel", "Uploading avatar for channel $channelId")
 
-                val response = NodeRetrofitClient.channelApi.uploadChannelAvatar(
+                val response = NodeRetrofitClient.channelUploadApi.uploadChannelAvatar(
                     channelId = channelIdBody,
                     file = filePart
                 )
