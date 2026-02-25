@@ -539,9 +539,9 @@ class ChannelsViewModel : ViewModel() {
                     channelId = channelId
                 )
 
-                if (response.apiStatus == 200 && response.qrUrl != null && response.joinUrl != null) {
-                    onSuccess(response.qrUrl, response.joinUrl)
-                    Log.d("ChannelsViewModel", "Channel $channelId QR generated: ${response.qrUrl}")
+                if (response.apiStatus == 200 && response.qrCode != null && response.joinUrl != null) {
+                    onSuccess(response.qrCode, response.joinUrl)
+                    Log.d("ChannelsViewModel", "Channel $channelId QR generated: ${response.qrCode}")
                 } else {
                     val errorMsg = response.errorMessage ?: "Failed to generate QR code"
                     onError(errorMsg)

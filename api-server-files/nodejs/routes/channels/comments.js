@@ -289,6 +289,7 @@ function addCommentReaction(ctx, io) {
             // Check if user already reacted to this comment
             const existing = await ctx.wo_reactions.findOne({
                 where: { comment_id: commentId, user_id: userId },
+                attributes: ['id', 'comment_id', 'user_id', 'reaction'],
                 raw: true
             });
 
@@ -296,7 +297,7 @@ function addCommentReaction(ctx, io) {
                 // Update reaction
                 await ctx.wo_reactions.update(
                     { reaction: reaction, time: String(now) },
-                    { where: { comment_id: commentId, user_id: userId } }
+                    { where: { id: existing.id } }
                 );
             } else {
                 // Create new reaction

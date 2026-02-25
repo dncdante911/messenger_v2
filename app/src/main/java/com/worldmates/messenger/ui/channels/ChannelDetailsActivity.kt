@@ -133,14 +133,16 @@ fun ChannelDetailsScreen(
     val context = LocalContext.current
 
     // States from ViewModels
+    val detailsChannel by detailsViewModel.channel.collectAsState()
     val subscribedChannels by channelsViewModel.subscribedChannels.collectAsState()
     val allChannels by channelsViewModel.channelList.collectAsState()
     val posts by detailsViewModel.posts.collectAsState()
     val isLoadingPosts by detailsViewModel.isLoading.collectAsState()
     val error by detailsViewModel.error.collectAsState()
 
-    // Знаходимо канал
-    val channel = subscribedChannels.find { it.id == channelId }
+    // Знаходимо канал — primary source: detailsViewModel (fresh from API)
+    val channel = detailsChannel
+        ?: subscribedChannels.find { it.id == channelId }
         ?: allChannels.find { it.id == channelId }
 
     // UI States
@@ -201,6 +203,8 @@ fun ChannelDetailsScreen(
                 onSuccess = {
                     Toast.makeText(context, "Аватар успішно оновлено", Toast.LENGTH_SHORT).show()
                     showChangeAvatarDialog = false
+                    // Refresh channel details to pick up new avatar
+                    detailsViewModel.loadChannelDetails(channelId)
                 },
                 onError = { error ->
                     Toast.makeText(context, error, Toast.LENGTH_LONG).show()
@@ -234,6 +238,8 @@ fun ChannelDetailsScreen(
                 onSuccess = {
                     Toast.makeText(context, "Аватар успішно оновлено", Toast.LENGTH_SHORT).show()
                     showChangeAvatarDialog = false
+                    // Refresh channel details to pick up new avatar
+                    detailsViewModel.loadChannelDetails(channelId)
                 },
                 onError = { error ->
                     Toast.makeText(context, error, Toast.LENGTH_LONG).show()

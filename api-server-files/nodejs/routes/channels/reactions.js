@@ -42,6 +42,7 @@ function addReaction(ctx, io) {
             // Check if user already reacted to this post with same emoji
             const existing = await ctx.wo_reactions.findOne({
                 where: { post_id: postId, user_id: userId },
+                attributes: ['id', 'post_id', 'user_id', 'reaction'],
                 raw: true
             });
 
@@ -49,23 +50,16 @@ function addReaction(ctx, io) {
                 // Update to new reaction
                 await ctx.wo_reactions.update(
                     { reaction: reaction, time: String(now) },
-                    { where: { post_id: postId, user_id: userId } }
+                    { where: { id: existing.id } }
                 );
             } else {
                 // Create new reaction — only set required fields
-                const reactionData = {
+                await ctx.wo_reactions.create({
                     user_id: userId,
                     post_id: postId,
                     reaction: reaction,
                     time: String(now)
-                };
-                // Optional fields — set only if columns exist in the model
-                const modelAttrs = Object.keys(ctx.wo_reactions.rawAttributes || {});
-                if (modelAttrs.includes('comment_id')) reactionData.comment_id = 0;
-                if (modelAttrs.includes('reply_id')) reactionData.reply_id = 0;
-                if (modelAttrs.includes('message_id')) reactionData.message_id = 0;
-
-                await ctx.wo_reactions.create(reactionData);
+                });
             }
 
             // Broadcast via Socket.IO

@@ -533,15 +533,9 @@ function unmuteChannel(ctx, io) {
                 return res.json({ api_status: 400, message: 'channel_id is required' });
             }
 
-            try {
-                await ctx.wo_mute.destroy({
-                    where: { user_id: userId, page_id: channelId }
-                });
-            } catch (e) {
-                await ctx.wo_mute.destroy({
-                    where: { notify_user_id: userId, mute_user_id: channelId }
-                });
-            }
+            await ctx.wo_mute.destroy({
+                where: { user_id: userId, chat_id: channelId, type: 'channel' }
+            });
 
             console.log(`[Channels] User ${userId} unmuted channel ${channelId}`);
 
