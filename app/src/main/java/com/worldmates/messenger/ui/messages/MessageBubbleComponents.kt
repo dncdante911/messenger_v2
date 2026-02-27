@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -234,7 +235,31 @@ fun MessageBubbleComposable(
                     }
                 }
             } else {
-                // 💬 ТЕКСТ В БУЛЬБАШЦІ - використовуємо вибраний стиль
+                // ── Resolve media URL & type before deciding bubble style ─────────
+                val effectiveMediaUrl: String? = when {
+                    !message.decryptedMediaUrl.isNullOrEmpty() -> message.decryptedMediaUrl.also {
+                        Log.d("MessageBubble", "Використовую decryptedMediaUrl: $it")
+                    }
+                    !message.mediaUrl.isNullOrEmpty() -> message.mediaUrl.also {
+                        Log.d("MessageBubble", "Використовую mediaUrl: $it")
+                    }
+                    !message.decryptedText.isNullOrEmpty() -> extractMediaUrlFromText(message.decryptedText!!).also {
+                        Log.d("MessageBubble", "Витягнуто з тексту: $it")
+                    }
+                    else -> null
+                }
+                val detectedMediaType = detectMediaType(effectiveMediaUrl ?: "", message.type)
+                Log.d("MessageBubble", "ID: ${message.id}, Type: ${message.type}, Detected: $detectedMediaType, URL: $effectiveMediaUrl")
+
+                val shouldShowText = !message.decryptedText.isNullOrEmpty() &&
+                        !isOnlyMediaUrl(message.decryptedText!!)
+
+                // Transparent media = image/video/sticker/gif without a text caption
+                val isTransparentMedia = !effectiveMediaUrl.isNullOrEmpty() &&
+                        detectedMediaType in listOf("image", "video", "sticker") &&
+                        !shouldShowText
+
+                // 💬 ТЕКСТ/МЕДІА В БУЛЬБАШЦІ - використовуємо вибраний стиль
                 Column {
                     // 👤 Ім'я відправника (тільки для групових чатів/каналів, і не для власних повідомлень)
                     if (isGroup && !isOwn && !message.senderName.isNullOrEmpty()) {
@@ -251,6 +276,98 @@ fun MessageBubbleComposable(
                         )
                     }
 
+                    if (isTransparentMedia) {
+                        // ── 🖼️ TRANSPARENT MEDIA BUBBLE (like Telegram) ───────────
+                        when (detectedMediaType) {
+                            "sticker" -> {
+                                // Sticker/GIF: bare content, no bubble wrapper at all
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 8.dp)
+                                        .combinedClickable(
+                                            onClick = { if (isSelectionMode) onToggleSelection(message.id) },
+                                            onLongClick = { if (!isSelectionMode) { onLongPress(); onToggleSelection(message.id) } },
+                                            onDoubleClick = { if (!isSelectionMode) onDoubleTap(message.id) }
+                                        )
+                                ) {
+                                    AnimatedStickerView(
+                                        url = effectiveMediaUrl!!,
+                                        size = 150.dp,
+                                        autoPlay = true,
+                                        loop = true
+                                    )
+                                }
+                            }
+                            else -> {
+                                // Image or Video: rounded box + overlaid dark time pill
+                                Box(
+                                    modifier = Modifier
+                                        .wrapContentWidth()
+                                        .widthIn(max = 260.dp)
+                                        .heightIn(min = 120.dp, max = 300.dp)
+                                        .padding(horizontal = 8.dp)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .combinedClickable(
+                                            onClick = {
+                                                if (isSelectionMode) {
+                                                    onToggleSelection(message.id)
+                                                } else if (detectedMediaType == "image") {
+                                                    onImageClick(effectiveMediaUrl!!)
+                                                }
+                                            },
+                                            onLongClick = { if (!isSelectionMode) { onLongPress(); onToggleSelection(message.id) } },
+                                            onDoubleClick = { if (!isSelectionMode) onDoubleTap(message.id) }
+                                        )
+                                ) {
+                                    if (detectedMediaType == "image") {
+                                        AsyncImage(
+                                            model = effectiveMediaUrl,
+                                            contentDescription = "Media",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop,
+                                            onError = { Log.e("MessageBubble", "Image load error: $effectiveMediaUrl") }
+                                        )
+                                    } else if (detectedMediaType == "video") {
+                                        VideoMessageComponent(
+                                            message = message,
+                                            videoUrl = effectiveMediaUrl!!,
+                                            showTextAbove = false,
+                                            enablePiP = true,
+                                            modifier = Modifier
+                                        )
+                                    }
+                                    // ⏱ Overlaid dark time pill on bottom-right
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(6.dp)
+                                            .background(
+                                                color = Color.Black.copy(alpha = 0.45f),
+                                                shape = RoundedCornerShape(10.dp)
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Text(
+                                                text = formatTime(message.timeStamp),
+                                                color = Color.White,
+                                                fontSize = 11.sp
+                                            )
+                                            if (isOwn) {
+                                                MessageStatusIcon(
+                                                    isRead = message.isRead ?: false,
+                                                    modifier = Modifier
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
                     StyledBubble(
                         bubbleStyle = bubbleStyle,
                         isOwn = isOwn,
@@ -278,35 +395,6 @@ fun MessageBubbleComposable(
                                 }
                             )
                     ) {
-                        // Получаем URL медиа из разных источников
-                        var effectiveMediaUrl: String? = null
-
-                        // 1. Сначала пытаемся использовать decryptedMediaUrl
-                        if (!message.decryptedMediaUrl.isNullOrEmpty()) {
-                            effectiveMediaUrl = message.decryptedMediaUrl
-                            Log.d("MessageBubble", "Використовую decryptedMediaUrl: $effectiveMediaUrl")
-                        }
-                        // 2. Если пусто, проверяем mediaUrl
-                        else if (!message.mediaUrl.isNullOrEmpty()) {
-                            effectiveMediaUrl = message.mediaUrl
-                            Log.d("MessageBubble", "Використовую mediaUrl: $effectiveMediaUrl")
-                        }
-                        // 3. Если все еще пусто, пытаемся извлечь URL из decryptedText
-                        else if (!message.decryptedText.isNullOrEmpty()) {
-                            effectiveMediaUrl = extractMediaUrlFromText(message.decryptedText!!)
-                            Log.d("MessageBubble", "Витягнуто з тексту: $effectiveMediaUrl")
-                        }
-
-                        // Определяем тип медиа по URL
-                        val detectedMediaType = detectMediaType(effectiveMediaUrl ?: "", message.type)
-                        Log.d("MessageBubble", "ID повідомлення: ${message.id}, Тип: ${message.type}, Визначений тип: $detectedMediaType, URL: $effectiveMediaUrl")
-
-                        // Показываем текст ТОЛЬКО если:
-                        // 1. Текст есть И не пустой
-                        // 2. И это НЕ чистый URL медиа (текст + медиа можно, чистый URL - нет)
-                        val shouldShowText = !message.decryptedText.isNullOrEmpty() &&
-                                !isOnlyMediaUrl(message.decryptedText!!)
-
                         // 💬 Цитата Reply (якщо є)
                         if (message.replyToId != null && message.replyToText != null) {
                             Surface(
@@ -507,6 +595,7 @@ fun MessageBubbleComposable(
                             }
                         }
                     }
+                    }  // end else (StyledBubble path)
 
                     // ❤️ Реакції під повідомленням
                     MessageReactions(
