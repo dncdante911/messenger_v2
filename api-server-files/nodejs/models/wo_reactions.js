@@ -23,11 +23,6 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       defaultValue: 0
     },
-    reply_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0
-    },
     message_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
