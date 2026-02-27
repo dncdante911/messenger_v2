@@ -129,6 +129,7 @@ async function init() {
   ctx.wo_pageadmins = require("./models/wo_pageadmins")(sequelize, DataTypes)
   ctx.wo_pinnedposts = require("./models/wo_pinnedposts")(sequelize, DataTypes)
   ctx.wo_pages_invites = require("./models/wo_pages_invites")(sequelize, DataTypes)
+  ctx.wo_channel_bans = require("./models/wo_channel_bans")(sequelize, DataTypes)
 
   // ==================== Bot API Models ====================
   ctx.wo_bots = require("./models/wo_bots")(sequelize, DataTypes)

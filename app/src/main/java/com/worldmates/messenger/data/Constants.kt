@@ -87,6 +87,10 @@ object Constants {
     const val NODE_CHANNEL_QR_SUBSCRIBE = "api/node/channel/qr-subscribe"
     const val NODE_CHANNEL_UPLOAD_AVATAR = "api/node/channel/upload-avatar"
     const val NODE_MEDIA_UPLOAD          = "api/node/media/upload"
+    const val NODE_CHANNEL_BAN_MEMBER    = "api/node/channel/ban-member"
+    const val NODE_CHANNEL_UNBAN_MEMBER  = "api/node/channel/unban-member"
+    const val NODE_CHANNEL_KICK_MEMBER   = "api/node/channel/kick-member"
+    const val NODE_CHANNEL_BANNED        = "api/node/channel/banned-members"
 
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH = "join"  // Изменено с register_socket на join

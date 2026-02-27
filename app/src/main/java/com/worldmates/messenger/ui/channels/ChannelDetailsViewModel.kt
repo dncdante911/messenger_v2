@@ -39,6 +39,9 @@ class ChannelDetailsViewModel : ViewModel() {
     private val _subscribers = MutableStateFlow<List<ChannelSubscriber>>(emptyList())
     val subscribers: StateFlow<List<ChannelSubscriber>> = _subscribers
 
+    private val _bannedMembers = MutableStateFlow<List<com.worldmates.messenger.data.model.ChannelBannedMember>>(emptyList())
+    val bannedMembers: StateFlow<List<com.worldmates.messenger.data.model.ChannelBannedMember>> = _bannedMembers
+
     private val _statistics = MutableStateFlow<ChannelStatistics?>(null)
     val statistics: StateFlow<ChannelStatistics?> = _statistics
 
@@ -943,6 +946,147 @@ class ChannelDetailsViewModel : ViewModel() {
         } catch (e: Exception) {
             Log.e("ChannelDetailsVM", "❌ Error loading formatting permissions", e)
             com.worldmates.messenger.ui.groups.GroupFormattingPermissions() // Default on error
+        }
+    }
+
+    // ==================== MEMBER MANAGEMENT ====================
+
+    /**
+     * Завантажує список забанених учасників
+     */
+    fun loadBannedMembers(channelId: Long) {
+        if (UserSession.accessToken == null) return
+
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.channelApi.getChannelBannedMembers(
+                    channelId = channelId
+                )
+                if (response.apiStatus == 200) {
+                    _bannedMembers.value = response.bannedMembers ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("ChannelDetailsVM", "Помилка завантаження банів", e)
+            }
+        }
+    }
+
+    /**
+     * Банить учасника каналу
+     */
+    fun banMember(
+        channelId: Long,
+        userId: Long,
+        reason: String = "",
+        durationSeconds: Int = 0,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null) { onError("Не авторизовано"); return }
+
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.channelApi.banChannelMember(
+                    channelId = channelId,
+                    userId = userId,
+                    reason = reason.ifBlank { null },
+                    durationSeconds = durationSeconds
+                )
+                if (response.apiStatus == 200) {
+                    // Remove from active subscribers list
+                    _subscribers.value = _subscribers.value.filter { it.userId != userId }
+                    loadBannedMembers(channelId)
+                    onSuccess()
+                } else {
+                    onError(response.errorMessage ?: "Помилка бану")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    /**
+     * Знімає бан з учасника
+     */
+    fun unbanMember(
+        channelId: Long,
+        userId: Long,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null) { onError("Не авторизовано"); return }
+
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.channelApi.unbanChannelMember(
+                    channelId = channelId,
+                    userId = userId
+                )
+                if (response.apiStatus == 200) {
+                    _bannedMembers.value = _bannedMembers.value.filter { it.userId != userId }
+                    onSuccess()
+                } else {
+                    onError(response.errorMessage ?: "Помилка розбану")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    /**
+     * Виганяє учасника без бану
+     */
+    fun kickMember(
+        channelId: Long,
+        userId: Long,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null) { onError("Не авторизовано"); return }
+
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.channelApi.kickChannelMember(
+                    channelId = channelId,
+                    userId = userId
+                )
+                if (response.apiStatus == 200) {
+                    _subscribers.value = _subscribers.value.filter { it.userId != userId }
+                    onSuccess()
+                } else {
+                    onError(response.errorMessage ?: "Помилка кіку")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    /**
+     * Видаляє канал (тільки власник)
+     */
+    fun deleteChannel(
+        channelId: Long,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (UserSession.accessToken == null) { onError("Не авторизовано"); return }
+
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.channelApi.deleteChannel(
+                    channelId = channelId
+                )
+                if (response.apiStatus == 200) {
+                    onSuccess()
+                } else {
+                    onError(response.errorMessage ?: "Помилка видалення каналу")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+            }
         }
     }
 

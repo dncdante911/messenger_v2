@@ -294,6 +294,29 @@ data class ChannelSubscribersResponse(
     @SerializedName("error_message") val errorMessage: String?
 )
 
+/**
+ * Забанений учасник каналу
+ */
+data class ChannelBannedMember(
+    @SerializedName("user_id") val userId: Long,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("avatar") val avatarUrl: String? = null,
+    @SerializedName("reason") val reason: String? = null,
+    @SerializedName("ban_time") val banTime: Long = 0,
+    @SerializedName("expire_time") val expireTime: Long = 0, // 0 = permanent
+    @SerializedName("banned_by") val bannedBy: Long = 0
+) {
+    val isPermanent: Boolean get() = expireTime == 0L
+}
+
+data class ChannelBannedMembersResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("banned_members") val bannedMembers: List<ChannelBannedMember>?,
+    @SerializedName("error_code") val errorCode: Int? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
 data class ChannelStatisticsResponse(
     @SerializedName("api_status") val apiStatus: Int,
     @SerializedName("statistics") val statistics: ChannelStatistics?,
