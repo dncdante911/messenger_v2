@@ -4,5 +4,6 @@
     "sql_db_pass": "3344Frzaq0607DmC157",
     "sql_db_name": "socialhub",
     "site_url": "https://worldmates.club",
+    "site_path": "/var/www/www-root/data/www/worldmates.club",
     "purchase_code": "49efabf2-a87b-4628-a3c7-50fe53bdb482"
 }

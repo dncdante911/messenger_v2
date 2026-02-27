@@ -22,8 +22,10 @@
 
 'use strict';
 
+const path         = require('path');
+const fs           = require('fs');
 const multer       = require('multer');
-const funcs       = require('../../functions/functions');
+const funcs        = require('../../functions/functions');
 const management   = require('./management');
 const subscriptions = require('./subscriptions');
 const posts        = require('./posts');
@@ -31,17 +33,27 @@ const comments     = require('./comments');
 const reactions    = require('./reactions');
 const admin        = require('./admin');
 
+// ─── Upload base path from config ───────────────────────────────────────────
+// Use site_path from config.json (absolute filesystem path to web root).
+// Falls back to __dirname-relative path if site_path is not set.
+const configFile = require('../../config.json');
+const SITE_ROOT = configFile.site_path || path.resolve(__dirname, '../../../..');
+const CHANNELS_UPLOAD_DIR = path.join(SITE_ROOT, 'upload', 'photos', 'channels');
+const CHANNELS_MEDIA_DIR  = path.join(SITE_ROOT, 'upload', 'photos', 'channels', 'media');
+
+console.log('[Channels] Upload dirs:');
+console.log('  avatar :', CHANNELS_UPLOAD_DIR);
+console.log('  media  :', CHANNELS_MEDIA_DIR);
+
 // ─── multer for avatar upload ───────────────────────────────────────────────
 const upload = multer({
     storage: multer.diskStorage({
         destination: function (req, file, cb) {
-            const fs = require('fs');
-            const dir = require('path').resolve(__dirname, '../../../../upload/photos/channels');
-            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-            cb(null, dir);
+            if (!fs.existsSync(CHANNELS_UPLOAD_DIR)) fs.mkdirSync(CHANNELS_UPLOAD_DIR, { recursive: true });
+            cb(null, CHANNELS_UPLOAD_DIR);
         },
         filename: function (req, file, cb) {
-            const ext = require('path').extname(file.originalname) || '.jpg';
+            const ext = path.extname(file.originalname) || '.jpg';
             cb(null, 'ch_avatar_' + Date.now() + ext);
         }
     }),
@@ -56,13 +68,11 @@ const upload = multer({
 const mediaUpload = multer({
     storage: multer.diskStorage({
         destination: function (req, file, cb) {
-            const fs = require('fs');
-            const dir = require('path').resolve(__dirname, '../../../../upload/photos/channels/media');
-            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-            cb(null, dir);
+            if (!fs.existsSync(CHANNELS_MEDIA_DIR)) fs.mkdirSync(CHANNELS_MEDIA_DIR, { recursive: true });
+            cb(null, CHANNELS_MEDIA_DIR);
         },
         filename: function (req, file, cb) {
-            const ext = require('path').extname(file.originalname) || '';
+            const ext = path.extname(file.originalname) || '';
             cb(null, 'ch_media_' + Date.now() + '_' + Math.floor(Math.random() * 100000) + ext);
         }
     }),
