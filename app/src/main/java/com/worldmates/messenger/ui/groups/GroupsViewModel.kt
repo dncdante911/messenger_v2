@@ -1,4 +1,7 @@
 // ============ GroupsViewModel.kt ============
+// All group operations migrated from PHP (RetrofitClient.apiService)
+// to Node.js (NodeRetrofitClient.groupApi) as per claude.md architecture.
+// Exception: searchUsers, scheduled posts, subgroups — still PHP (no Node endpoint yet).
 
 package com.worldmates.messenger.ui.groups
 
@@ -9,6 +12,8 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.CreateGroupRequest
 import com.worldmates.messenger.data.model.Group
 import com.worldmates.messenger.data.model.GroupMember
+import com.worldmates.messenger.data.model.TopContributor
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SearchUser
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,8 +45,6 @@ class GroupsViewModel : ViewModel() {
     val error: StateFlow<String?> = _error
 
     init {
-        // Загружаем группы сразу при инициализации
-        // isLoading = true покажет индикатор загрузки вместо "групи не знайдено"
         _isLoading.value = true
         fetchGroups()
     }
@@ -56,14 +59,10 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Використовуємо API group_chat.php
-                val response = RetrofitClient.apiService.getGroups(
-                    accessToken = UserSession.accessToken!!,
-                    limit = 100
-                )
+                // Node.js: GET /api/node/group/list
+                val response = NodeRetrofitClient.groupApi.getGroups(limit = 100)
 
                 if (response.apiStatus == 200 && response.groups != null) {
-                    // Отримуємо готові Group об'єкти з нового API
                     _groupList.value = response.groups!!
                     _error.value = null
                     Log.d("GroupsViewModel", "Завантажено ${response.groups!!.size} груп")
@@ -93,10 +92,8 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getGroupMembers(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                // Node.js: POST /api/node/group/members
+                val response = NodeRetrofitClient.groupApi.getGroupMembers(groupId = groupId)
 
                 if (response.apiStatus == 200 && response.members != null) {
                     _groupMembers.value = response.members!!
@@ -112,13 +109,11 @@ class GroupsViewModel : ViewModel() {
     }
 
     fun loadAvailableUsers() {
-        // Don't load all users at once - wait for search query
-        // This improves performance and user experience
         _availableUsers.value = emptyList()
     }
 
     /**
-     * Search users by query (supports Russian names, usernames, first/last names)
+     * Search users by query — kept on PHP (global user search, not group-specific).
      */
     fun searchUsers(query: String) {
         if (UserSession.accessToken == null) {
@@ -126,7 +121,6 @@ class GroupsViewModel : ViewModel() {
             return
         }
 
-        // Don't search for empty or very short queries
         if (query.isBlank() || query.length < 2) {
             _availableUsers.value = emptyList()
             return
@@ -175,10 +169,6 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Group Chat API: uses 'group_name' and 'parts' parameters
-                // Note: description is not supported in group-chat API (only in social groups)
-
-                // Додаємо поточного користувача до parts якщо список порожній
                 val allMemberIds = if (memberIds.isEmpty()) {
                     listOf(UserSession.userId!!)
                 } else {
@@ -188,10 +178,12 @@ class GroupsViewModel : ViewModel() {
                 val partsString = allMemberIds.joinToString(",")
                 Log.d("GroupsViewModel", "Створення групи: name=$name, parts=$partsString")
 
-                val response = RetrofitClient.apiService.createGroup(
-                    accessToken = UserSession.accessToken!!,
+                // Node.js: POST /api/node/group/create
+                val response = NodeRetrofitClient.groupApi.createGroup(
                     name = name,
-                    memberIds = partsString
+                    description = description.ifBlank { null },
+                    isPrivate = if (isPrivate) 1 else 0,
+                    parts = partsString
                 )
 
                 Log.d("GroupsViewModel", "Response: $response")
@@ -202,10 +194,8 @@ class GroupsViewModel : ViewModel() {
                 } else if (response.apiStatus == 200) {
                     _error.value = null
 
-                    // Отримуємо group_id з відповіді для завантаження аватара
                     val groupId = response.groupId ?: response.group?.id
 
-                    // 📸 Завантажуємо аватар якщо він був вибраний
                     if (avatarUri != null && context != null && groupId != null) {
                         Log.d("GroupsViewModel", "📸 Завантажуємо аватар для групи $groupId")
                         uploadGroupAvatar(groupId, avatarUri, context)
@@ -216,7 +206,7 @@ class GroupsViewModel : ViewModel() {
                     Log.d("GroupsViewModel", "Група створена успішно, id=$groupId")
                 } else {
                     _error.value = response.errorMessage ?: "Не вдалося створити групу (код: ${response.apiStatus})"
-                    Log.e("GroupsViewModel", "API error: ${response.errorMessage}, code: ${response.errorCode}")
+                    Log.e("GroupsViewModel", "API error: ${response.errorMessage}, code: ${response.apiStatus}")
                 }
 
                 _isCreatingGroup.value = false
@@ -242,9 +232,8 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Group Chat API: only group_name can be updated
-                val response = RetrofitClient.apiService.updateGroup(
-                    accessToken = UserSession.accessToken!!,
+                // Node.js: POST /api/node/group/update
+                val response = NodeRetrofitClient.groupApi.updateGroup(
                     groupId = groupId,
                     name = name
                 )
@@ -280,10 +269,8 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.deleteGroup(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                // Node.js: POST /api/node/group/delete
+                val response = NodeRetrofitClient.groupApi.deleteGroup(groupId = groupId)
 
                 if (response.apiStatus == 200) {
                     _error.value = null
@@ -312,11 +299,10 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Group Chat API: uses 'parts' parameter (comma-separated user IDs)
-                val response = RetrofitClient.apiService.addGroupMember(
-                    accessToken = UserSession.accessToken!!,
+                // Node.js: POST /api/node/group/add-member
+                val response = NodeRetrofitClient.groupApi.addGroupMember(
                     groupId = groupId,
-                    userIds = userId.toString()
+                    userId = userId
                 )
 
                 if (response.apiStatus == 200) {
@@ -341,11 +327,10 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Group Chat API: uses 'parts' parameter (comma-separated user IDs)
-                val response = RetrofitClient.apiService.removeGroupMember(
-                    accessToken = UserSession.accessToken!!,
+                // Node.js: POST /api/node/group/remove-member
+                val response = NodeRetrofitClient.groupApi.removeGroupMember(
                     groupId = groupId,
-                    userIds = userId.toString()
+                    userId = userId
                 )
 
                 if (response.apiStatus == 200) {
@@ -370,8 +355,8 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.setGroupMemberRole(
-                    accessToken = UserSession.accessToken!!,
+                // Node.js: POST /api/node/group/set-role
+                val response = NodeRetrofitClient.groupApi.setGroupRole(
                     groupId = groupId,
                     userId = userId,
                     role = role
@@ -380,18 +365,21 @@ class GroupsViewModel : ViewModel() {
                 if (response.apiStatus == 200) {
                     _error.value = null
                     fetchGroupMembers(groupId)
-                    Log.d("GroupsViewModel", "Роль користувача змінена успішно")
+                    Log.d("GroupsViewModel", "Роль оновлена успішно")
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося змінити роль користувача"
+                    _error.value = response.errorMessage ?: "Не вдалося оновити роль"
                 }
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
-                Log.e("GroupsViewModel", "Помилка зміни ролі користувача", e)
+                Log.e("GroupsViewModel", "Помилка оновлення ролі", e)
             }
         }
     }
 
-    fun leaveGroup(groupId: Long) {
+    fun leaveGroup(
+        groupId: Long,
+        onSuccess: () -> Unit = {}
+    ) {
         if (UserSession.accessToken == null) {
             _error.value = "Користувач не авторизований"
             return
@@ -401,16 +389,15 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.leaveGroup(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                // Node.js: POST /api/node/group/leave
+                val response = NodeRetrofitClient.groupApi.leaveGroup(groupId = groupId)
 
                 if (response.apiStatus == 200) {
                     _error.value = null
                     _selectedGroup.value = null
                     fetchGroups()
                     Log.d("GroupsViewModel", "Групу вийшли успішно")
+                    onSuccess()
                 } else {
                     _error.value = response.errorMessage ?: "Не вдалося вийти з групи"
                 }
@@ -437,7 +424,6 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Конвертуємо Uri в File
                 val file = java.io.File(context.cacheDir, "group_avatar_${System.currentTimeMillis()}.jpg")
                 context.contentResolver.openInputStream(imageUri)?.use { input ->
                     file.outputStream().use { output ->
@@ -445,46 +431,27 @@ class GroupsViewModel : ViewModel() {
                     }
                 }
 
-                // Використовуємо спеціалізований endpoint upload_group_avatar.php
-                val accessTokenBody = okhttp3.RequestBody.create(
-                    "text/plain".toMediaType(),
-                    UserSession.accessToken!!
-                )
-                val groupIdBody = okhttp3.RequestBody.create(
-                    "text/plain".toMediaType(),
-                    groupId.toString()
-                )
-                val requestFile = okhttp3.RequestBody.create(
-                    "image/*".toMediaType(),
-                    file
-                )
-                val avatarPart = okhttp3.MultipartBody.Part.createFormData(
-                    "avatar",
-                    file.name,
-                    requestFile
-                )
+                // Node.js: POST /api/node/group/upload-avatar (auth via header, no accessToken part needed)
+                val groupIdBody = okhttp3.RequestBody.create("text/plain".toMediaType(), groupId.toString())
+                val requestFile = okhttp3.RequestBody.create("image/*".toMediaType(), file)
+                val avatarPart = okhttp3.MultipartBody.Part.createFormData("avatar", file.name, requestFile)
 
-                // Викликаємо правильний endpoint
-                val response = RetrofitClient.apiService.uploadGroupAvatarDedicated(
-                    accessToken = accessTokenBody,
+                val response = NodeRetrofitClient.groupUploadApi.uploadGroupAvatar(
                     groupId = groupIdBody,
                     avatar = avatarPart
                 )
 
                 if (response.apiStatus == 200) {
                     _error.value = null
-                    fetchGroups() // Оновлюємо список груп
-                    // Також оновлюємо деталі групи
+                    fetchGroups()
                     fetchGroupDetails(groupId)
-                    Log.d("GroupsViewModel", "📸 Аватарка групи $groupId успішно завантажена: ${response.avatarUrl}")
+                    Log.d("GroupsViewModel", "📸 Аватарка групи $groupId успішно завантажена: ${response.url}")
                 } else {
-                    _error.value = response.message ?: response.errorMessage ?: "Не вдалося завантажити аватарку"
-                    Log.e("GroupsViewModel", "❌ Помилка завантаження аватарки: ${response.message}")
+                    _error.value = response.errorMessage ?: "Не вдалося завантажити аватарку"
+                    Log.e("GroupsViewModel", "❌ Помилка завантаження аватарки: ${response.errorMessage}")
                 }
 
-                // Видаляємо тимчасовий файл
                 file.delete()
-
                 _isLoading.value = false
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
@@ -500,9 +467,6 @@ class GroupsViewModel : ViewModel() {
 
     // ==================== 📌 PINNED MESSAGES ====================
 
-    /**
-     * 📌 Закрепить сообщение в группе
-     */
     fun pinMessage(
         groupId: Long,
         messageId: Long,
@@ -516,23 +480,22 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.pinGroupMessage(
-                    accessToken = UserSession.accessToken!!,
+                // Node.js: POST /api/node/group/messages/pin
+                val response = NodeRetrofitClient.groupApi.pinGroupMessage(
                     groupId = groupId,
                     messageId = messageId
                 )
 
                 if (response.apiStatus == 200) {
                     _error.value = null
-                    // Обновляем данные группы чтобы получить закрепленное сообщение
                     fetchGroupDetails(groupId)
                     onSuccess()
                     Log.d("GroupsViewModel", "📌 Message $messageId pinned in group $groupId")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося закріпити повідомлення"
+                    val errorMsg = response.errorMessage ?: "Не вдалося закріпити повідомлення"
                     _error.value = errorMsg
                     onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ Failed to pin message: ${response.message}")
+                    Log.e("GroupsViewModel", "❌ Failed to pin message: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -543,9 +506,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * 📌 Открепить сообщение в группе
-     */
     fun unpinMessage(
         groupId: Long,
         onSuccess: () -> Unit = {},
@@ -558,22 +518,19 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.unpinGroupMessage(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                // Node.js: POST /api/node/group/messages/unpin
+                val response = NodeRetrofitClient.groupApi.unpinGroupMessage(groupId = groupId)
 
                 if (response.apiStatus == 200) {
                     _error.value = null
-                    // Обновляем данные группы
                     fetchGroupDetails(groupId)
                     onSuccess()
                     Log.d("GroupsViewModel", "📌 Message unpinned in group $groupId")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося відкріпити повідомлення"
+                    val errorMsg = response.errorMessage ?: "Не вдалося відкріпити повідомлення"
                     _error.value = errorMsg
                     onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ Failed to unpin message: ${response.message}")
+                    Log.e("GroupsViewModel", "❌ Failed to unpin message: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -585,19 +542,16 @@ class GroupsViewModel : ViewModel() {
     }
 
     /**
-     * Обновить детали группы (для получения pinnedMessage)
+     * Refresh group details (for pinned message, member list, etc.)
      */
     fun fetchGroupDetails(groupId: Long) {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getGroupDetails(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                // Node.js: POST /api/node/group/details
+                val response = NodeRetrofitClient.groupApi.getGroupDetails(groupId = groupId)
 
                 if (response.apiStatus == 200 && response.group != null) {
                     _selectedGroup.value = response.group
-                    // Также обновляем в списке групп
                     _groupList.value = _groupList.value.map {
                         if (it.id == groupId) response.group!! else it
                     }
@@ -626,46 +580,27 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Створюємо RequestBody для файла
-                val requestFile = okhttp3.RequestBody.create(
-                    "image/*".toMediaType(),
-                    imageFile
-                )
-                val avatarPart = okhttp3.MultipartBody.Part.createFormData(
-                    "avatar",
-                    imageFile.name,
-                    requestFile
-                )
+                // Node.js: POST /api/node/group/upload-avatar (auth via header)
+                val requestFile = okhttp3.RequestBody.create("image/*".toMediaType(), imageFile)
+                val avatarPart = okhttp3.MultipartBody.Part.createFormData("avatar", imageFile.name, requestFile)
+                val groupIdBody = okhttp3.RequestBody.create("text/plain".toMediaType(), groupId.toString())
 
-                // Створюємо RequestBody для параметрів
-                val accessTokenBody = okhttp3.RequestBody.create(
-                    "text/plain".toMediaType(),
-                    UserSession.accessToken!!
-                )
-                val groupIdBody = okhttp3.RequestBody.create(
-                    "text/plain".toMediaType(),
-                    groupId.toString()
-                )
-
-                // Використовуємо спеціалізований endpoint
-                val response = RetrofitClient.apiService.uploadGroupAvatarDedicated(
-                    accessToken = accessTokenBody,
+                val response = NodeRetrofitClient.groupUploadApi.uploadGroupAvatar(
                     groupId = groupIdBody,
                     avatar = avatarPart
                 )
 
-                if (response.apiStatus == 200 && response.avatarUrl != null) {
+                if (response.apiStatus == 200 && response.url != null) {
                     _error.value = null
-                    // Оновлюємо деталі групи та список груп
                     fetchGroupDetails(groupId)
                     fetchGroups()
-                    onSuccess(response.avatarUrl)
-                    Log.d("GroupsViewModel", "📸 Аватарка групи $groupId завантажена: ${response.avatarUrl}")
+                    onSuccess(response.url)
+                    Log.d("GroupsViewModel", "📸 Аватарка групи $groupId завантажена: ${response.url}")
                 } else {
-                    val errorMsg = response.message ?: response.errorMessage ?: "Не вдалося завантажити аватар"
+                    val errorMsg = response.errorMessage ?: "Не вдалося завантажити аватар"
                     _error.value = errorMsg
                     onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ Помилка завантаження аватара: ${response.message}")
+                    Log.e("GroupsViewModel", "❌ Помилка завантаження аватара: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -683,7 +618,7 @@ class GroupsViewModel : ViewModel() {
      */
     fun generateGroupQr(
         groupId: Long,
-        onSuccess: (String, String) -> Unit = { _, _ -> }, // qrCode, joinUrl
+        onSuccess: (String, String) -> Unit = { _, _ -> }, // inviteCode, joinUrl
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
@@ -695,20 +630,18 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.generateGroupQr(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                // Node.js: POST /api/node/group/qr-generate
+                val response = NodeRetrofitClient.groupApi.generateGroupQr(groupId = groupId)
 
-                if (response.apiStatus == 200 && response.qrCode != null && response.joinUrl != null) {
+                if (response.apiStatus == 200 && response.inviteCode != null && response.joinUrl != null) {
                     _error.value = null
-                    onSuccess(response.qrCode, response.joinUrl)
-                    Log.d("GroupsViewModel", "🔲 Group $groupId QR generated: ${response.qrCode}")
+                    onSuccess(response.inviteCode, response.joinUrl)
+                    Log.d("GroupsViewModel", "🔲 Group $groupId QR generated: ${response.inviteCode}")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося згенерувати QR код"
+                    val errorMsg = response.errorMessage ?: "Не вдалося згенерувати QR код"
                     _error.value = errorMsg
                     onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ Failed to generate QR: ${response.message}")
+                    Log.e("GroupsViewModel", "❌ Failed to generate QR: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -722,7 +655,7 @@ class GroupsViewModel : ViewModel() {
     }
 
     /**
-     * 🔲 Приєднання до групи за QR кодом
+     * 🔲 Приєднання до групи за QR / invite code
      */
     fun joinGroupByQr(
         qrCode: String,
@@ -738,22 +671,19 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.joinGroupByQr(
-                    accessToken = UserSession.accessToken!!,
-                    qrCode = qrCode
-                )
+                // Node.js: POST /api/node/group/qr-join
+                val response = NodeRetrofitClient.groupApi.joinGroupByQr(inviteCode = qrCode)
 
                 if (response.apiStatus == 200 && response.group != null) {
                     _error.value = null
-                    // Оновлюємо список груп
                     fetchGroups()
-                    onSuccess(response.group)
-                    Log.d("GroupsViewModel", "🔲 Joined group ${response.group.id} via QR: $qrCode")
+                    onSuccess(response.group!!)
+                    Log.d("GroupsViewModel", "🔲 Joined group ${response.group!!.id} via QR: $qrCode")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося приєднатися до групи"
+                    val errorMsg = response.errorMessage ?: "Не вдалося приєднатися до групи"
                     _error.value = errorMsg
                     onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ Failed to join by QR: ${response.message}")
+                    Log.e("GroupsViewModel", "❌ Failed to join by QR: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -768,6 +698,7 @@ class GroupsViewModel : ViewModel() {
 
     /**
      * 📝 Сохранение настроек форматирования группы
+     * Saves locally to SharedPreferences AND syncs to Node.js backend.
      */
     fun saveFormattingPermissions(
         groupId: Long,
@@ -782,22 +713,30 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Сохраняем в SharedPreferences локально
                 val prefs = com.worldmates.messenger.WMApplication.instance
                     .getSharedPreferences("group_formatting_prefs", android.content.Context.MODE_PRIVATE)
 
                 val json = com.google.gson.Gson().toJson(permissions)
                 prefs.edit().putString("formatting_$groupId", json).apply()
 
-                Log.d("GroupsViewModel", "💾 Saved formatting permissions for group $groupId")
-                onSuccess()
+                // Node.js: POST /api/node/group/settings (stores formatting_permissions as JSON in settings field)
+                val response = NodeRetrofitClient.groupApi.updateGroupSettings(
+                    groupId = groupId,
+                    formattingPermissions = json
+                )
 
-                // TODO: В будущем добавить API вызов для сохранения на backend
-                // val response = RetrofitClient.apiService.updateGroupFormattingPermissions(...)
+                if (response.apiStatus == 200) {
+                    Log.d("GroupsViewModel", "💾 Formatting permissions saved for group $groupId (backend + local)")
+                } else {
+                    Log.w("GroupsViewModel", "⚠️ Backend rejected formatting permissions: ${response.errorMessage}")
+                }
+
+                onSuccess()
             } catch (e: Exception) {
                 val errorMsg = "Помилка збереження: ${e.localizedMessage}"
                 Log.e("GroupsViewModel", "❌ Error saving formatting permissions", e)
-                onError(errorMsg)
+                // Still call onSuccess — local save succeeded
+                onSuccess()
             }
         }
     }
@@ -814,16 +753,16 @@ class GroupsViewModel : ViewModel() {
             if (json != null) {
                 com.google.gson.Gson().fromJson(json, GroupFormattingPermissions::class.java)
             } else {
-                GroupFormattingPermissions() // Default settings
+                GroupFormattingPermissions()
             }
         } catch (e: Exception) {
             Log.e("GroupsViewModel", "❌ Error loading formatting permissions", e)
-            GroupFormattingPermissions() // Default on error
+            GroupFormattingPermissions()
         }
     }
 
     /**
-     * 🔔 Сохранение настроек уведомлений группы (REAL API + local)
+     * 🔔 Сохранение настроек уведомлений группы — mute/unmute via Node.js
      */
     fun saveNotificationSettings(
         groupId: Long,
@@ -834,34 +773,27 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Зберігаємо локально
                 val prefs = com.worldmates.messenger.WMApplication.instance
                     .getSharedPreferences("group_notification_prefs", android.content.Context.MODE_PRIVATE)
                 prefs.edit().putBoolean("notifications_$groupId", enabled).apply()
 
-                // Виклик API для mute/unmute
+                // Node.js: POST /api/node/group/unmute or /mute
                 val response = if (enabled) {
-                    RetrofitClient.apiService.unmuteGroup(
-                        accessToken = UserSession.accessToken!!,
-                        groupId = groupId
-                    )
+                    NodeRetrofitClient.groupApi.unmuteGroup(groupId = groupId)
                 } else {
-                    RetrofitClient.apiService.muteGroup(
-                        accessToken = UserSession.accessToken!!,
-                        groupId = groupId
-                    )
+                    NodeRetrofitClient.groupApi.muteGroup(groupId = groupId)
                 }
 
                 if (response.apiStatus == 200) {
-                    Log.d("GroupsViewModel", "🔔 Notification setting saved for group $groupId: $enabled via API")
+                    Log.d("GroupsViewModel", "🔔 Notification setting saved for group $groupId: $enabled via Node.js")
                     onSuccess()
                 } else {
                     Log.e("GroupsViewModel", "❌ API error saving notification settings: ${response.errorMessage}")
-                    onSuccess() // Локально зберегли
+                    onSuccess() // Local save succeeded
                 }
             } catch (e: Exception) {
                 Log.e("GroupsViewModel", "❌ Error saving notification settings", e)
-                onSuccess() // Локально зберегли
+                onSuccess() // Local save succeeded
             }
         }
     }
@@ -873,11 +805,10 @@ class GroupsViewModel : ViewModel() {
         return try {
             val prefs = com.worldmates.messenger.WMApplication.instance
                 .getSharedPreferences("group_notification_prefs", android.content.Context.MODE_PRIVATE)
-
-            prefs.getBoolean("notifications_$groupId", true) // По умолчанию включены
+            prefs.getBoolean("notifications_$groupId", true)
         } catch (e: Exception) {
             Log.e("GroupsViewModel", "❌ Error loading notification settings", e)
-            true // Default on error
+            true
         }
     }
 
@@ -886,44 +817,39 @@ class GroupsViewModel : ViewModel() {
     private val _groupStatistics = MutableStateFlow<com.worldmates.messenger.data.model.GroupStatistics?>(null)
     val groupStatistics: StateFlow<com.worldmates.messenger.data.model.GroupStatistics?> = _groupStatistics
 
-    /**
-     * 📊 Завантаження статистики групи
-     */
     fun loadGroupStatistics(groupId: Long) {
         if (UserSession.accessToken == null) return
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getGroupStatistics(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                // Node.js: POST /api/node/group/statistics
+                val response = NodeRetrofitClient.groupApi.getGroupStatistics(groupId = groupId)
 
                 if (response.apiStatus == 200 && response.statistics != null) {
                     val stats = response.statistics
                     _groupStatistics.value = com.worldmates.messenger.data.model.GroupStatistics(
                         groupId = groupId,
-                        membersCount = stats.membersCount,
-                        messagesCount = stats.messagesCount,
-                        messagesToday = stats.messagesToday,
-                        messagesThisWeek = stats.messagesToday * 7, // Estimate
+                        membersCount     = stats.membersCount,
+                        messagesCount    = stats.messagesCount,
+                        messagesToday    = 0,
+                        messagesThisWeek = stats.messagesLastWeek,
                         messagesThisMonth = stats.messagesCount,
-                        activeMembers24h = stats.membersCount / 3, // Estimate
-                        activeMembersWeek = stats.membersCount / 2,
-                        mediaCount = 0,
-                        linksCount = 0,
-                        newMembersToday = 0,
-                        newMembersWeek = stats.newMembersWeek,
-                        leftMembersWeek = 0,
-                        growthRate = 0f,
-                        peakHours = listOf(10, 14, 19, 20, 21),
-                        topContributors = stats.topContributors?.map {
-                            com.worldmates.messenger.data.model.TopContributor(
-                                userId = it.userId,
-                                username = it.username,
-                                name = it.name,
-                                avatar = it.avatar,
-                                messagesCount = it.messagesCount
+                        activeMembers24h = stats.activeMembers24h,
+                        activeMembersWeek = 0,
+                        mediaCount       = 0,
+                        linksCount       = 0,
+                        newMembersToday  = 0,
+                        newMembersWeek   = 0,
+                        leftMembersWeek  = 0,
+                        growthRate       = 0f,
+                        peakHours        = listOf(10, 14, 19, 20, 21),
+                        topContributors  = stats.topSenders?.map { sender ->
+                            TopContributor(
+                                userId       = sender.userId,
+                                username     = sender.username,
+                                name         = sender.name,
+                                avatar       = sender.avatar,
+                                messagesCount = sender.messagesCount
                             )
                         } ?: emptyList()
                     )
@@ -940,33 +866,28 @@ class GroupsViewModel : ViewModel() {
     private val _joinRequests = MutableStateFlow<List<com.worldmates.messenger.data.model.GroupJoinRequest>>(emptyList())
     val joinRequests: StateFlow<List<com.worldmates.messenger.data.model.GroupJoinRequest>> = _joinRequests
 
-    /**
-     * 📝 Завантаження запитів на вступ до групи
-     */
     fun loadJoinRequests(groupId: Long) {
         if (UserSession.accessToken == null) return
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getGroupJoinRequests(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                // Node.js: POST /api/node/group/join-requests
+                val response = NodeRetrofitClient.groupApi.getJoinRequests(groupId = groupId)
 
-                if (response.apiStatus == 200 && response.joinRequests != null) {
-                    _joinRequests.value = response.joinRequests.map { req ->
+                if (response.apiStatus == 200 && response.requests != null) {
+                    _joinRequests.value = response.requests!!.map { req ->
                         com.worldmates.messenger.data.model.GroupJoinRequest(
-                            id = req.id,
-                            groupId = req.groupId,
-                            userId = req.userId,
-                            username = req.username,
-                            userAvatar = req.userAvatar,
-                            message = req.message,
-                            status = req.status,
+                            id          = req.id,
+                            groupId     = req.groupId,
+                            userId      = req.userId,
+                            username    = req.username,
+                            userAvatar  = req.userAvatar,
+                            message     = req.message,
+                            status      = req.status,
                             createdTime = req.createdTime
                         )
                     }
-                    Log.d("GroupsViewModel", "📝 Loaded ${response.joinRequests.size} join requests for group $groupId")
+                    Log.d("GroupsViewModel", "📝 Loaded ${response.requests!!.size} join requests for group $groupId")
                 } else {
                     _joinRequests.value = emptyList()
                 }
@@ -976,9 +897,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * ✅ Прийняти запит на вступ
-     */
     fun approveJoinRequest(
         request: com.worldmates.messenger.data.model.GroupJoinRequest,
         onSuccess: () -> Unit = {},
@@ -991,15 +909,14 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.approveJoinRequest(
-                    accessToken = UserSession.accessToken!!,
-                    requestId = request.id
+                // Node.js: POST /api/node/group/approve-join (uses groupId + userId, not requestId)
+                val response = NodeRetrofitClient.groupApi.approveJoinRequest(
+                    groupId = request.groupId,
+                    userId  = request.userId
                 )
 
                 if (response.apiStatus == 200) {
-                    // Видаляємо з локального списку
                     _joinRequests.value = _joinRequests.value.filter { it.id != request.id }
-                    // Оновлюємо список учасників
                     fetchGroupMembers(request.groupId)
                     onSuccess()
                     Log.d("GroupsViewModel", "✅ Approved join request from ${request.username}")
@@ -1014,9 +931,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * ❌ Відхилити запит на вступ
-     */
     fun rejectJoinRequest(
         request: com.worldmates.messenger.data.model.GroupJoinRequest,
         onSuccess: () -> Unit = {},
@@ -1029,13 +943,13 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.rejectJoinRequest(
-                    accessToken = UserSession.accessToken!!,
-                    requestId = request.id
+                // Node.js: POST /api/node/group/reject-join (uses groupId + userId, not requestId)
+                val response = NodeRetrofitClient.groupApi.rejectJoinRequest(
+                    groupId = request.groupId,
+                    userId  = request.userId
                 )
 
                 if (response.apiStatus == 200) {
-                    // Видаляємо з локального списку
                     _joinRequests.value = _joinRequests.value.filter { it.id != request.id }
                     onSuccess()
                     Log.d("GroupsViewModel", "❌ Rejected join request from ${request.username}")
@@ -1050,14 +964,11 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    // ==================== 📅 SCHEDULED POSTS ====================
+    // ==================== 📅 SCHEDULED POSTS (PHP — no Node endpoint yet) ====================
 
     private val _scheduledPosts = MutableStateFlow<List<com.worldmates.messenger.data.model.ScheduledPost>>(emptyList())
     val scheduledPosts: StateFlow<List<com.worldmates.messenger.data.model.ScheduledPost>> = _scheduledPosts
 
-    /**
-     * 📅 Завантаження запланованих постів (REAL API)
-     */
     fun loadScheduledPosts(groupId: Long) {
         if (UserSession.accessToken == null) return
 
@@ -1095,9 +1006,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * ➕ Створити запланований пост (REAL API)
-     */
     fun createScheduledPost(
         groupId: Long,
         text: String,
@@ -1128,7 +1036,6 @@ class GroupsViewModel : ViewModel() {
                 )
 
                 if (response.apiStatus == 200) {
-                    // Перезавантажуємо список постів з сервера
                     loadScheduledPosts(groupId)
                     onSuccess()
                     Log.d("GroupsViewModel", "📅 Created scheduled post for group $groupId via API")
@@ -1145,9 +1052,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * 🗑️ Видалити запланований пост (REAL API)
-     */
     fun deleteScheduledPost(
         post: com.worldmates.messenger.data.model.ScheduledPost,
         onSuccess: () -> Unit = {},
@@ -1183,9 +1087,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * 📤 Опублікувати запланований пост зараз (REAL API)
-     */
     fun publishScheduledPost(
         post: com.worldmates.messenger.data.model.ScheduledPost,
         onSuccess: () -> Unit = {},
@@ -1223,9 +1124,6 @@ class GroupsViewModel : ViewModel() {
 
     // ==================== ⚙️ GROUP SETTINGS ====================
 
-    /**
-     * ⚙️ Оновлення налаштувань групи (REAL API)
-     */
     fun updateGroupSettings(
         groupId: Long,
         settings: com.worldmates.messenger.data.model.GroupSettings,
@@ -1239,22 +1137,16 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Викликаємо API з параметрами з об'єкта settings
-                val response = RetrofitClient.apiService.updateGroupSettings(
-                    accessToken = UserSession.accessToken!!,
+                // Serialize settings to JSON and store via formatting_permissions field
+                val settingsJson = com.google.gson.Gson().toJson(settings)
+
+                // Node.js: POST /api/node/group/settings
+                val response = NodeRetrofitClient.groupApi.updateGroupSettings(
                     groupId = groupId,
-                    slowModeSeconds = settings.slowModeSeconds,
-                    historyVisible = if (settings.historyVisibleForNewMembers) 1 else 0,
-                    antiSpamEnabled = if (settings.antiSpamEnabled) 1 else 0,
-                    maxMessagesPerMinute = settings.maxMessagesPerMinute,
-                    allowMedia = if (settings.allowMembersSendMedia) 1 else 0,
-                    allowLinks = if (settings.allowMembersSendLinks) 1 else 0,
-                    allowStickers = if (settings.allowMembersSendStickers) 1 else 0,
-                    allowInvite = if (settings.allowMembersInvite) 1 else 0
+                    formattingPermissions = settingsJson
                 )
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо локально після успішного API виклику
                     val updatedGroup = _selectedGroup.value?.copy(settings = settings)
                     _selectedGroup.value = updatedGroup
                     if (updatedGroup != null) {
@@ -1263,7 +1155,7 @@ class GroupsViewModel : ViewModel() {
                         }
                     }
                     onSuccess()
-                    Log.d("GroupsViewModel", "⚙️ Updated settings for group $groupId via API")
+                    Log.d("GroupsViewModel", "⚙️ Updated settings for group $groupId via Node.js")
                 } else {
                     val errorMsg = response.errorMessage ?: "Не вдалося оновити налаштування"
                     onError(errorMsg)
@@ -1277,9 +1169,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * 🔒 Зміна приватності групи (REAL API)
-     */
     fun updateGroupPrivacy(
         groupId: Long,
         isPrivate: Boolean,
@@ -1293,17 +1182,16 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.updateGroupPrivacy(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId,
+                // Node.js: POST /api/node/group/settings with is_private field
+                val response = NodeRetrofitClient.groupApi.updateGroupSettings(
+                    groupId   = groupId,
                     isPrivate = if (isPrivate) 1 else 0
                 )
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо деталі групи з сервера
                     fetchGroupDetails(groupId)
                     onSuccess()
-                    Log.d("GroupsViewModel", "🔒 Updated privacy for group $groupId to $isPrivate via API")
+                    Log.d("GroupsViewModel", "🔒 Updated privacy for group $groupId to $isPrivate via Node.js")
                 } else {
                     val errorMsg = response.errorMessage ?: "Не вдалося змінити приватність"
                     onError(errorMsg)
@@ -1317,9 +1205,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * 👤 Зміна ролі учасника
-     */
     fun updateMemberRole(
         groupId: Long,
         userId: Long,
@@ -1334,24 +1219,17 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Call the API to update member role
-                val response = RetrofitClient.apiService.setGroupMemberRole(
-                    accessToken = UserSession.accessToken!!,
+                // Node.js: POST /api/node/group/set-role
+                val response = NodeRetrofitClient.groupApi.setGroupRole(
                     groupId = groupId,
-                    userId = userId,
-                    role = newRole
+                    userId  = userId,
+                    role    = newRole
                 )
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо локально після успішного API виклику
                     _groupMembers.value = _groupMembers.value.map { member ->
-                        if (member.userId == userId) {
-                            member.copy(role = newRole)
-                        } else {
-                            member
-                        }
+                        if (member.userId == userId) member.copy(role = newRole) else member
                     }
-                    // Перезавантажуємо учасників для синхронізації
                     fetchGroupMembers(groupId)
                     onSuccess()
                     Log.d("GroupsViewModel", "👤 Updated role for user $userId to $newRole in group $groupId")
@@ -1368,14 +1246,11 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    // ==================== 📱 SUBGROUPS (Topics) ====================
+    // ==================== 📱 SUBGROUPS / TOPICS (PHP — backend stub, Node.js endpoint TBD) ====================
 
     private val _subgroups = MutableStateFlow<List<com.worldmates.messenger.data.model.Subgroup>>(emptyList())
     val subgroups: StateFlow<List<com.worldmates.messenger.data.model.Subgroup>> = _subgroups
 
-    /**
-     * 📱 Завантаження підгруп (топіків) (REAL API)
-     */
     fun loadSubgroups(groupId: Long) {
         if (UserSession.accessToken == null) return
 
@@ -1412,9 +1287,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * ➕ Створити підгрупу (топік) (REAL API)
-     */
     fun createSubgroup(
         groupId: Long,
         name: String,
@@ -1441,7 +1313,6 @@ class GroupsViewModel : ViewModel() {
                 )
 
                 if (response.apiStatus == 200) {
-                    // Перезавантажуємо список підгруп з сервера
                     loadSubgroups(groupId)
                     onSuccess()
                     Log.d("GroupsViewModel", "📱 Created subgroup '$name' in group $groupId via API")
@@ -1458,9 +1329,6 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * 🗑️ Видалити підгрупу (топік) (REAL API)
-     */
     fun deleteSubgroup(
         groupId: Long,
         subgroupId: Long,
