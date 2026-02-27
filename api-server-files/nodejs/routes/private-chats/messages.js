@@ -539,6 +539,8 @@ function sendMediaMessage(ctx, io) {
             const mediaFileName = (req.body.media_file_name || '').trim();
             const hashId        = req.body.message_hash_id || '';
             const replyId       = parseInt(req.body.reply_id) || 0;
+            // Optional caption/text attached to the media message
+            const captionRaw    = (req.body.caption || '').trim();
 
             if (!recipientId && !groupId)
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id or group_id is required' });
@@ -559,18 +561,23 @@ function sendMediaMessage(ctx, io) {
 
             const now = Math.floor(Date.now() / 1000);
 
+            // Encrypt caption if provided (same GCM+ECB hybrid as sendMessage)
+            const enc = captionRaw
+                ? crypto.encryptForStorage(captionRaw, now)
+                : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: 1 };
+
             // Create message in database
             const row = await ctx.wo_messages.create({
                 from_id:        userId,
                 to_id:          recipientId,
                 group_id:       groupId,
                 page_id:        0,
-                text:           '',
-                text_ecb:       '',
-                text_preview:   '',
-                iv:             null,
-                tag:            null,
-                cipher_version: 1,
+                text:           enc.text,
+                text_ecb:       enc.text_ecb,
+                text_preview:   enc.text_preview,
+                iv:             enc.iv,
+                tag:            enc.tag,
+                cipher_version: enc.cipher_version,
                 stickers:       '',
                 media:          mediaUrl,
                 mediaFileName:  mediaFileName || (mediaUrl.split('/').pop() || '').split('?')[0],

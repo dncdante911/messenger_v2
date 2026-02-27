@@ -81,6 +81,7 @@ class MediaUploader(private val context: Context) {
         recipientId: Long? = null,
         groupId: Long? = null,
         isPremium: Boolean = false,
+        caption: String = "",
         onProgress: ((Int) -> Unit)? = null
     ): UploadResult = withContext(Dispatchers.IO) {
         try {
@@ -156,7 +157,8 @@ class MediaUploader(private val context: Context) {
                     mediaUrl = finalMediaUrl,
                     mediaType = mediaType,
                     mediaFileName = file.name, // Оригінальне ім'я файлу (Artist - Title.mp3)
-                    messageHashId = hashId
+                    messageHashId = hashId,
+                    caption = caption
                 )
 
                 when (nodeResponse.apiStatus) {
@@ -181,7 +183,8 @@ class MediaUploader(private val context: Context) {
                     mediaUrl = finalMediaUrl,
                     mediaType = mediaType,
                     mediaFileName = file.name, // Оригінальне ім'я файлу
-                    messageHashId = hashId
+                    messageHashId = hashId,
+                    caption = caption
                 )
 
                 when (nodeResponse.apiStatus) {

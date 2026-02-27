@@ -987,16 +987,6 @@ class MessagesViewModel(application: Application) :
         }
     }
 
-    /**
-     * Отправляет сообщение с медиа-ссылкой
-     */
-    private fun sendMediaMessage(mediaUrl: String, mediaType: String, caption: String) {
-        if (UserSession.accessToken == null) return
-
-        // Для простоты отправляем как текстовое сообщение с URL
-        val messageText = if (caption.isNotEmpty()) "$caption\n$mediaUrl" else "📎 $mediaType"
-        sendMessage(messageText)
-    }
 
     /**
      * Налаштовує Socket.IO для получения сообщений в реальном времени
