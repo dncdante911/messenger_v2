@@ -12,6 +12,7 @@
 'use strict';
 
 const { Op } = require('sequelize');
+const crypto  = require('../../helpers/crypto');
 
 // ─── DELETE message ──────────────────────────────────────────────────────────
 
@@ -255,21 +256,37 @@ function forwardMessage(ctx, io) {
             const now      = Math.floor(Date.now() / 1000);
             const created  = [];
 
+            // Decrypt original text so we can re-encrypt with each new message's timestamp.
+            // Without this, Android would try to decrypt with the new timestamp as key and fail.
+            const originalPlaintext = original.text
+                ? crypto.decryptMessage(original)
+                : '';
+
             for (const toId of recipientIds) {
+                // Re-encrypt plaintext with the new message's timestamp (key derivation uses time).
+                const enc = originalPlaintext
+                    ? crypto.encryptForStorage(originalPlaintext, now)
+                    : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: 1 };
+
                 const newMsg = await ctx.wo_messages.create({
-                    from_id:       userId,
-                    to_id:         toId,
-                    text:          original.text          || '',
-                    media:         original.media         || '',
-                    mediaFileName: original.mediaFileName || '',
-                    stickers:      original.stickers      || '',
-                    lat:           original.lat           || '0',
-                    lng:           original.lng           || '0',
-                    type_two:      original.type_two      || '',
-                    time:          now,
-                    seen:          0,
-                    forward:       1,
-                    page_id:       0,
+                    from_id:        userId,
+                    to_id:          toId,
+                    text:           enc.text,
+                    text_ecb:       enc.text_ecb,
+                    text_preview:   enc.text_preview,
+                    iv:             enc.iv,
+                    tag:            enc.tag,
+                    cipher_version: enc.cipher_version,
+                    media:          original.media         || '',
+                    mediaFileName:  original.mediaFileName || '',
+                    stickers:       original.stickers      || '',
+                    lat:            original.lat           || '0',
+                    lng:            original.lng           || '0',
+                    type_two:       original.type_two      || '',
+                    time:           now,
+                    seen:           0,
+                    forward:        1,
+                    page_id:        0,
                 });
 
                 // update chat metadata
@@ -282,12 +299,18 @@ function forwardMessage(ctx, io) {
                     { time: now, user_id: toId, conversation_user_id: userId });
 
                 const msgPayload = {
-                    id:      newMsg.id,
-                    from_id: userId,
-                    to_id:   toId,
-                    text:    original.text || '',
-                    forward: 1,
-                    time:    now,
+                    id:             newMsg.id,
+                    from_id:        userId,
+                    to_id:          toId,
+                    text:           enc.text           || '',
+                    iv:             enc.iv             || null,
+                    tag:            enc.tag            || null,
+                    cipher_version: enc.cipher_version || 1,
+                    media:          original.media     || '',
+                    stickers:       original.stickers  || '',
+                    type_two:       original.type_two  || '',
+                    forward:        1,
+                    time:           now,
                 };
 
                 io.to(String(toId)).emit('new_message',     msgPayload);
