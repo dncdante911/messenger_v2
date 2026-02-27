@@ -84,6 +84,17 @@ class MessagesViewModel(application: Application) :
     val pinnedPrivateMessage: StateFlow<Message?> = _pinnedPrivateMessage
     // ==================== END PRIVATE CHAT PIN ====================
 
+    // ==================== PRIVATE CHAT MUTE ====================
+    private val _isMutedPrivate = MutableStateFlow(false)
+    val isMutedPrivate: StateFlow<Boolean> = _isMutedPrivate
+    // ==================== END PRIVATE CHAT MUTE ====================
+
+    // ==================== LOAD MORE (PAGINATION) ====================
+    private val _canLoadMore = MutableStateFlow(true)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore
+    private var isLoadingMore = false
+    // ==================== END LOAD MORE ====================
+
     // ==================== SEARCH ====================
     private val _searchResults = MutableStateFlow<List<Message>>(emptyList())
     val searchResults: StateFlow<List<Message>> = _searchResults
@@ -150,6 +161,9 @@ class MessagesViewModel(application: Application) :
         startMessagePolling()
         loadDraft()
         markSeen() // Позначаємо повідомлення як прочитані при відкритті чату
+        loadMuteStatusViaNode(viewModelScope, nodeApi, recipientId) { isMuted ->
+            _isMutedPrivate.value = isMuted
+        }
         Log.d("MessagesViewModel", "✅ Ініціалізація завершена для користувача $recipientId")
     }
 
@@ -231,6 +245,42 @@ class MessagesViewModel(application: Application) :
                 _error.value = "Помилка: ${e.localizedMessage}"
                 _isLoading.value = false
                 Log.e("MessagesViewModel", "Помилка завантаження повідомлень", e)
+            }
+        }
+    }
+
+    /**
+     * Loads older messages (pagination) — triggered when user scrolls to the top.
+     * Uses /api/node/chat/loadmore with the oldest message id as cursor.
+     */
+    fun loadMore() {
+        if (recipientId == 0L || isLoadingMore || !_canLoadMore.value) return
+
+        val oldestId = _messages.value.minByOrNull { it.timeStamp }?.id ?: return
+
+        isLoadingMore = true
+        viewModelScope.launch {
+            try {
+                val response = nodeApi.loadMore(
+                    recipientId     = recipientId,
+                    beforeMessageId = oldestId,
+                    limit           = 30
+                )
+                if (response.apiStatus == 200 && response.messages != null) {
+                    val older = response.messages.map { decryptMessageFully(it) }
+                    if (older.isEmpty()) {
+                        _canLoadMore.value = false
+                        Log.d(TAG, "📜 loadMore: no more messages")
+                    } else {
+                        _messages.value = (_messages.value + older).distinctBy { it.id }.sortedBy { it.timeStamp }
+                        if (older.size < 30) _canLoadMore.value = false
+                        Log.d(TAG, "📜 loadMore: +${older.size} older messages")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ loadMore exception", e)
+            } finally {
+                isLoadingMore = false
             }
         }
     }
@@ -1593,6 +1643,48 @@ class MessagesViewModel(application: Application) :
     }
 
     /**
+     * 🔕 Вимкнути сповіщення для приватного чату (Node.js)
+     */
+    fun mutePrivateChat(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        mutePrivateChatViaNode(
+            scope     = viewModelScope,
+            api       = nodeApi,
+            chatId    = recipientId,
+            mute      = true,
+            isLoading = _isLoading,
+            error     = _error,
+            onSuccess = { isMuted ->
+                _isMutedPrivate.value = isMuted
+                onSuccess()
+            }
+        )
+    }
+
+    /**
+     * 🔔 Увімкнути сповіщення для приватного чату (Node.js)
+     */
+    fun unmutePrivateChat(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        mutePrivateChatViaNode(
+            scope     = viewModelScope,
+            api       = nodeApi,
+            chatId    = recipientId,
+            mute      = false,
+            isLoading = _isLoading,
+            error     = _error,
+            onSuccess = { isMuted ->
+                _isMutedPrivate.value = isMuted
+                onSuccess()
+            }
+        )
+    }
+
+    /**
      * 🔍 Поиск сообщений в группе
      */
     fun searchGroupMessages(query: String) {
@@ -1884,37 +1976,40 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        viewModelScope.launch {
-            try {
-                val response = if (groupId != 0L) {
-                    // Очищення для групи
-                    RetrofitClient.apiService.clearGroupChatHistory(
+        if (groupId != 0L) {
+            // Groups: stay on PHP
+            viewModelScope.launch {
+                try {
+                    val response = RetrofitClient.apiService.clearGroupChatHistory(
                         accessToken = UserSession.accessToken!!,
                         groupId = groupId
                     )
-                } else {
-                    // Очищення для приватного чату
-                    RetrofitClient.apiService.clearChatHistory(
-                        accessToken = UserSession.accessToken!!,
-                        userId = recipientId
-                    )
+                    if (response.apiStatus == 200) {
+                        _messages.value = emptyList()
+                        onSuccess()
+                        Log.d(TAG, "🗑️ Group chat history cleared")
+                    } else {
+                        onError(response.message ?: "Не вдалося очистити історію")
+                    }
+                } catch (e: Exception) {
+                    onError("Помилка: ${e.localizedMessage}")
+                    Log.e(TAG, "❌ Error clearing group chat history", e)
                 }
-
-                if (response.apiStatus == 200) {
-                    // Очищаємо локальний список повідомлень
+            }
+        } else {
+            // Private chats: Node.js soft-delete
+            clearHistoryViaNode(
+                scope       = viewModelScope,
+                api         = nodeApi,
+                recipientId = recipientId,
+                isLoading   = _isLoading,
+                error       = _error,
+                onSuccess   = {
                     _messages.value = emptyList()
                     onSuccess()
-                    Log.d(TAG, "🗑️ Chat history cleared")
-                } else {
-                    val errorMsg = response.message ?: "Не вдалося очистити історію"
-                    onError(errorMsg)
-                    Log.e(TAG, "❌ Failed to clear chat history: $errorMsg")
+                    Log.d(TAG, "🗑️ Private chat history cleared via Node.js")
                 }
-            } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
-                onError(errorMsg)
-                Log.e(TAG, "❌ Error clearing chat history", e)
-            }
+            )
         }
     }
 
