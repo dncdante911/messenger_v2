@@ -908,7 +908,7 @@ private fun BannedMemberRow(
                 } else {
                     val remainingSecs = banned.expireTime - (System.currentTimeMillis() / 1000)
                     if (remainingSecs > 0) {
-                        "Expires in ${formatDuration(remainingSecs)}"
+                        "Expires in ${formatBanDuration(remainingSecs)}"
                     } else {
                         "Expired"
                     }
@@ -932,7 +932,7 @@ private fun BannedMemberRow(
     }
 }
 
-private fun formatDuration(seconds: Long): String {
+private fun formatBanDuration(seconds: Long): String {
     return when {
         seconds >= TimeUnit.DAYS.toSeconds(1) -> "${seconds / TimeUnit.DAYS.toSeconds(1)}d"
         seconds >= TimeUnit.HOURS.toSeconds(1) -> "${seconds / TimeUnit.HOURS.toSeconds(1)}h"
@@ -1018,53 +1018,4 @@ private fun BanDurationDialog(
     )
 }
 
-/**
- * Dialog to add a new admin by username or name search.
- */
-@Composable
-private fun AddAdminDialog(
-    onDismiss: () -> Unit,
-    onAdd: (search: String, role: String) -> Unit
-) {
-    var searchText by remember { mutableStateOf("") }
-    var selectedRole by remember { mutableStateOf("admin") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
-        title = { Text("Add Admin") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = searchText,
-                    onValueChange = { searchText = it },
-                    label = { Text("Username or Name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
-                )
-                Text("Role:", fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("admin", "moderator").forEach { role ->
-                        FilterChip(
-                            selected = selectedRole == role,
-                            onClick = { selectedRole = role },
-                            label = { Text(role.replaceFirstChar { it.uppercase() }) }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { if (searchText.isNotBlank()) onAdd(searchText.trim(), selectedRole) },
-                enabled = searchText.isNotBlank()
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
-}
+// AddAdminDialog is defined in ModernChannelPostComponents.kt
