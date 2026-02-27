@@ -105,4 +105,10 @@ object NodeRetrofitClient {
 
     /** Channel API with longer upload timeouts (for media/avatar uploads). */
     val channelUploadApi: NodeChannelApi = uploadRetrofit.create(NodeChannelApi::class.java)
+
+    /** Group chat API via Node.js. */
+    val groupApi: NodeGroupApi = retrofit.create(NodeGroupApi::class.java)
+
+    /** Group API with longer upload timeouts (for avatar uploads). */
+    val groupUploadApi: NodeGroupApi = uploadRetrofit.create(NodeGroupApi::class.java)
 }
