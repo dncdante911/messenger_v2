@@ -1643,6 +1643,23 @@ class MessagesViewModel(application: Application) :
     }
 
     /**
+     * ✏️ Edit message text locally only — no server call, not visible to other party.
+     */
+    fun editMessageLocally(messageId: Long, newText: String) {
+        if (newText.isBlank()) return
+        val current = _messages.value.toMutableList()
+        val idx = current.indexOfFirst { it.id == messageId }
+        if (idx != -1) {
+            current[idx] = current[idx].copy(
+                decryptedText = newText,
+                encryptedText = newText
+            )
+            _messages.value = current
+            Log.d(TAG, "✏️ Message $messageId edited locally only")
+        }
+    }
+
+    /**
      * 🔕 Вимкнути сповіщення для приватного чату (Node.js)
      */
     fun mutePrivateChat(

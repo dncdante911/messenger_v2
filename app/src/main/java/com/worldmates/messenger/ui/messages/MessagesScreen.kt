@@ -183,9 +183,16 @@ fun MessagesScreen(
     var replyToMessage by remember { mutableStateOf<Message?>(null) }
     var editingMessage by remember { mutableStateOf<Message?>(null) }
 
+    // ✏️ Діалог вибору "де редагувати": для всіх або тільки для мене
+    var showEditScopeDialog by remember { mutableStateOf(false) }
+    var pendingEditText by remember { mutableStateOf("") }
+    var pendingEditMessageId by remember { mutableStateOf(0L) }
+
     // 🗑️ Діалог підтвердження видалення (тільки для себе / для всіх)
     var messageToDelete by remember { mutableStateOf<Message?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    // 🗑️ Діалог видалення в режимі мульти-вибору
+    var showSelectionDeleteDialog by remember { mutableStateOf(false) }
 
     // ✅ Режим множественного выбора
     var isSelectionMode by remember { mutableStateOf(false) }
@@ -1072,28 +1079,25 @@ fun MessagesScreen(
             var editImageUrl by remember { mutableStateOf<String?>(null) }
 
             if (showImageGallery && !showPhotoEditor) {
-                if (imageUrls.isNotEmpty()) {
-                    Log.d("MessagesScreen", "✅ Показуємо ImageGalleryViewer! URLs: ${imageUrls.size}, page: $selectedImageIndex")
+                // Build gallery: always include the tapped URL (imageUrls may miss it)
+                val galleryUrls = remember(imageUrls, clickedImageUrl) {
+                    val clicked = clickedImageUrl
+                    when {
+                        clicked == null -> imageUrls
+                        imageUrls.contains(clicked) -> imageUrls
+                        else -> listOf(clicked) + imageUrls.filter { it != clicked }
+                    }
+                }
+                val galleryIndex = remember(galleryUrls, clickedImageUrl) {
+                    val idx = galleryUrls.indexOf(clickedImageUrl)
+                    if (idx >= 0) idx else 0
+                }
+
+                if (galleryUrls.isNotEmpty()) {
+                    Log.d("MessagesScreen", "✅ ImageGalleryViewer: ${galleryUrls.size} фото, page $galleryIndex")
                     ImageGalleryViewer(
-                        imageUrls = imageUrls,
-                        initialPage = selectedImageIndex,
-                        onDismiss = {
-                            Log.d("MessagesScreen", "❌ Закриваємо галерею")
-                            showImageGallery = false
-                            clickedImageUrl = null
-                        },
-                        onEdit = { imageUrl ->
-                            Log.d("MessagesScreen", "✏️ Відкриваємо редактор для: $imageUrl")
-                            editImageUrl = imageUrl
-                            showImageGallery = false
-                            showPhotoEditor = true
-                        }
-                    )
-                } else if (clickedImageUrl != null) {
-                    // Fallback: якщо imageUrls порожній, відкриваємо одне фото
-                    Log.d("MessagesScreen", "📸 Fallback: показуємо FullscreenImageViewer для: $clickedImageUrl")
-                    com.worldmates.messenger.ui.media.FullscreenImageViewer(
-                        imageUrl = clickedImageUrl!!,
+                        imageUrls = galleryUrls,
+                        initialPage = galleryIndex,
                         onDismiss = {
                             showImageGallery = false
                             clickedImageUrl = null
@@ -1105,8 +1109,7 @@ fun MessagesScreen(
                         }
                     )
                 } else {
-                    // Нічого показати
-                    Log.e("MessagesScreen", "⚠️ showImageGallery=true але imageUrls та clickedImageUrl порожні!")
+                    Log.e("MessagesScreen", "⚠️ showImageGallery=true але немає фото")
                     showImageGallery = false
                 }
             }
@@ -1120,9 +1123,11 @@ fun MessagesScreen(
                         editImageUrl = null
                     },
                     onSave = { savedFile ->
+                        // Upload the edited photo and send it as a new message
+                        viewModel.uploadAndSendMedia(savedFile, "image")
                         android.widget.Toast.makeText(
                             context,
-                            "Фото збережено: ${savedFile.name}",
+                            "Відредаговане фото надсилається...",
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                         showPhotoEditor = false
@@ -1251,6 +1256,80 @@ fun MessagesScreen(
                 )
             }
 
+            // ✏️ Діалог вибору де редагувати (для всіх / тільки для мене)
+            if (showEditScopeDialog) {
+                AlertDialog(
+                    onDismissRequest = { showEditScopeDialog = false },
+                    title = { Text("Редагувати повідомлення") },
+                    text = { Text("Де застосувати зміни?") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.editMessage(pendingEditMessageId, pendingEditText)
+                                messageText = ""
+                                viewModel.updateDraftText("")
+                                editingMessage = null
+                                showEditScopeDialog = false
+                            }
+                        ) { Text("Для всіх") }
+                    },
+                    dismissButton = {
+                        Row {
+                            TextButton(
+                                onClick = {
+                                    viewModel.editMessageLocally(pendingEditMessageId, pendingEditText)
+                                    messageText = ""
+                                    viewModel.updateDraftText("")
+                                    editingMessage = null
+                                    showEditScopeDialog = false
+                                }
+                            ) { Text("Тільки для мене") }
+                            TextButton(onClick = { showEditScopeDialog = false }) {
+                                Text("Скасувати")
+                            }
+                        }
+                    }
+                )
+            }
+
+            // 🗑️ Діалог видалення в режимі мульти-вибору
+            if (showSelectionDeleteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showSelectionDeleteDialog = false },
+                    title = { Text("Видалити ${selectedMessages.size} повідомлень") },
+                    text = { Text("Видалити для всіх учасників або тільки для себе?") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                selectedMessages.forEach { id ->
+                                    viewModel.deleteMessage(id, "everyone")
+                                }
+                                isSelectionMode = false
+                                selectedMessages = emptySet()
+                                showSelectionDeleteDialog = false
+                            }
+                        ) { Text("Видалити для всіх", color = Color(0xFFD32F2F)) }
+                    },
+                    dismissButton = {
+                        Row {
+                            TextButton(
+                                onClick = {
+                                    selectedMessages.forEach { id ->
+                                        viewModel.deleteMessage(id, "just_me")
+                                    }
+                                    isSelectionMode = false
+                                    selectedMessages = emptySet()
+                                    showSelectionDeleteDialog = false
+                                }
+                            ) { Text("Видалити для мене") }
+                            TextButton(onClick = { showSelectionDeleteDialog = false }) {
+                                Text("Скасувати")
+                            }
+                        }
+                    }
+                )
+            }
+
             // 👤 User Profile Menu (при кліку на ім'я в групі)
             if (showUserProfileMenu && selectedUserForMenu != null) {
                 UserProfileMenuSheet(
@@ -1351,19 +1430,16 @@ fun MessagesScreen(
                 if (isSelectionMode) {
                     SelectionBottomBar(
                         selectedCount = selectedMessages.size,
-                        onForward = {
-                            // Відкриваємо діалог вибору отримувачів
-                            showForwardDialog = true
-                        },
+                        onForward = { showForwardDialog = true },
                         onReply = {
-                            // Відповідаємо на вибране повідомлення
                             if (selectedMessages.size == 1) {
                                 val messageId = selectedMessages.first()
                                 replyToMessage = messages.find { it.id == messageId }
                                 isSelectionMode = false
                                 selectedMessages = emptySet()
                             }
-                        }
+                        },
+                        onDelete = { showSelectionDeleteDialog = true }
                     )
                 }
             }
@@ -1418,17 +1494,10 @@ fun MessagesScreen(
                     onSendClick = {
                         if (messageText.isNotBlank()) {
                             if (editingMessage != null) {
-                                // 🧪 ТЕСТОВЕ ПОВІДОМЛЕННЯ
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "💾 Зберігаю зміни для повідомлення ID: ${editingMessage!!.id}",
-                                    android.widget.Toast.LENGTH_LONG
-                                ).show()
-                                // Редагуємо повідомлення
-                                viewModel.editMessage(editingMessage!!.id, messageText)
-                                messageText = ""
-                                viewModel.updateDraftText("") // Явно очищаємо черновик
-                                editingMessage = null
+                                // Show scope dialog: edit for everyone vs just for me
+                                pendingEditMessageId = editingMessage!!.id
+                                pendingEditText = messageText
+                                showEditScopeDialog = true
                             } else {
                                 // Надсилаємо нове повідомлення
                                 viewModel.sendMessage(messageText, replyToMessage?.id)
