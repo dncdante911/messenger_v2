@@ -349,7 +349,12 @@ fun ModernMemberCard(
 fun GroupSettings(
     group: Group,
     isAdmin: Boolean,
+    notificationsEnabled: Boolean = true,
+    isMuted: Boolean = false,
+    joinRequestsEnabled: Boolean = false,
     onSettingChange: (String, Boolean) -> Unit,
+    onLeaveGroup: () -> Unit = {},
+    onDeleteGroup: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -363,7 +368,7 @@ fun GroupSettings(
                 icon = Icons.Default.Notifications,
                 title = "Сповіщення",
                 description = "Отримувати повідомлення з групи",
-                checked = true, // TODO: Add notifications support
+                checked = notificationsEnabled,
                 onCheckedChange = { onSettingChange("notifications", it) }
             )
 
@@ -371,7 +376,7 @@ fun GroupSettings(
                 icon = Icons.Default.VolumeOff,
                 title = "Без звуку",
                 description = "Вимкнути звук повідомлень",
-                checked = false, // TODO: Add mute support
+                checked = isMuted,
                 onCheckedChange = { onSettingChange("mute", it) }
             )
         }
@@ -393,7 +398,7 @@ fun GroupSettings(
                     icon = Icons.Default.CheckCircle,
                     title = "Підтвердження нових учасників",
                     description = "Адмін повинен схвалити запити",
-                    checked = false, // TODO: Add member approval support
+                    checked = joinRequestsEnabled,
                     onCheckedChange = { onSettingChange("approve_members", it) }
                 )
             }
@@ -406,7 +411,7 @@ fun GroupSettings(
             DangerButton(
                 icon = Icons.Default.ExitToApp,
                 title = "Вийти з групи",
-                onClick = { /* TODO */ }
+                onClick = onLeaveGroup
             )
 
             if (isAdmin) {
@@ -414,7 +419,7 @@ fun GroupSettings(
                 DangerButton(
                     icon = Icons.Default.Delete,
                     title = "Видалити групу",
-                    onClick = { /* TODO */ },
+                    onClick = onDeleteGroup,
                     color = Color(0xFFEF5350)
                 )
             }

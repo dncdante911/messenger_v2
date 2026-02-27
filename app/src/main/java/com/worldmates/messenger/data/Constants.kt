@@ -92,6 +92,47 @@ object Constants {
     const val NODE_CHANNEL_KICK_MEMBER   = "api/node/channel/kick-member"
     const val NODE_CHANNEL_BANNED        = "api/node/channel/banned-members"
 
+    // ==================== NODE.JS REST API (group chats) ====================
+    // All group chat operations through Node.js (port 449)
+    const val NODE_GROUP_LIST          = "api/node/group/list"
+    const val NODE_GROUP_DETAILS       = "api/node/group/details"
+    const val NODE_GROUP_CREATE        = "api/node/group/create"
+    const val NODE_GROUP_UPDATE        = "api/node/group/update"
+    const val NODE_GROUP_DELETE        = "api/node/group/delete"
+    const val NODE_GROUP_LEAVE         = "api/node/group/leave"
+    const val NODE_GROUP_SEARCH        = "api/node/group/search"
+    // Members
+    const val NODE_GROUP_MEMBERS       = "api/node/group/members"
+    const val NODE_GROUP_ADD_MEMBER    = "api/node/group/add-member"
+    const val NODE_GROUP_REMOVE_MEMBER = "api/node/group/remove-member"
+    const val NODE_GROUP_SET_ROLE      = "api/node/group/set-role"
+    const val NODE_GROUP_JOIN          = "api/node/group/join"
+    const val NODE_GROUP_REQUEST_JOIN  = "api/node/group/request-join"
+    const val NODE_GROUP_JOIN_REQUESTS = "api/node/group/join-requests"
+    const val NODE_GROUP_APPROVE_JOIN  = "api/node/group/approve-join"
+    const val NODE_GROUP_REJECT_JOIN   = "api/node/group/reject-join"
+    // Messages
+    const val NODE_GROUP_MESSAGES_GET      = "api/node/group/messages/get"
+    const val NODE_GROUP_MESSAGES_SEND     = "api/node/group/messages/send"
+    const val NODE_GROUP_MESSAGES_LOADMORE = "api/node/group/messages/loadmore"
+    const val NODE_GROUP_MESSAGES_EDIT     = "api/node/group/messages/edit"
+    const val NODE_GROUP_MESSAGES_DELETE   = "api/node/group/messages/delete"
+    const val NODE_GROUP_MESSAGES_PIN      = "api/node/group/messages/pin"
+    const val NODE_GROUP_MESSAGES_UNPIN    = "api/node/group/messages/unpin"
+    const val NODE_GROUP_MESSAGES_SEARCH   = "api/node/group/messages/search"
+    const val NODE_GROUP_MESSAGES_SEEN     = "api/node/group/messages/seen"
+    const val NODE_GROUP_MESSAGES_TYPING   = "api/node/group/messages/typing"
+    // Admin
+    const val NODE_GROUP_UPLOAD_AVATAR = "api/node/group/upload-avatar"
+    const val NODE_GROUP_SETTINGS      = "api/node/group/settings"
+    const val NODE_GROUP_MUTE          = "api/node/group/mute"
+    const val NODE_GROUP_UNMUTE        = "api/node/group/unmute"
+    const val NODE_GROUP_QR_GENERATE   = "api/node/group/qr-generate"
+    const val NODE_GROUP_QR_JOIN       = "api/node/group/qr-join"
+    const val NODE_GROUP_STATISTICS    = "api/node/group/statistics"
+    const val NODE_GROUP_ADD_ADMIN     = "api/node/group/add-admin"
+    const val NODE_GROUP_REMOVE_ADMIN  = "api/node/group/remove-admin"
+
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH = "join"  // Изменено с register_socket на join
     const val SOCKET_EVENT_PRIVATE_MESSAGE = "private_message"  // Событие личного сообщения от сервера

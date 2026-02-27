@@ -54,6 +54,14 @@ async function formatGroup(ctx, group, userId) {
         } catch (e) { settings = null; }
     }
 
+    // Calculate unread message count based on user's last_seen timestamp
+    const lastSeen = membership ? (parseInt(membership.last_seen) || 0) : 0;
+    const unreadCount = lastSeen > 0
+        ? await ctx.wo_messages.count({
+            where: { group_id: group.group_id, page_id: 0, time: { [Op.gt]: lastSeen } }
+        })
+        : 0;
+
     // Get owner info
     const owner = await ctx.wo_users.findOne({
         where: { user_id: group.user_id },
@@ -77,6 +85,7 @@ async function formatGroup(ctx, group, userId) {
         is_moderator: membership ? membership.role === 'moderator' : false,
         is_member: !!membership,
         is_muted: settings?.muted_users?.includes(userId) || false,
+        unread_count: unreadCount,
         created_time: parseInt(group.time) || 0,
         pinned_message_id: settings?.pinned_message_id || null,
         pinned_message: pinnedMessage,

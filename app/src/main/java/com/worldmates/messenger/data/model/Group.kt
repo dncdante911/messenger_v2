@@ -96,11 +96,12 @@ data class Group(
     @SerializedName("is_moderator") val isModerator: Boolean = false,
     @SerializedName("is_member") val isMember: Boolean = true,
     @SerializedName("is_muted") val isMuted: Boolean = false,
+    @SerializedName("unread_count") val unreadCount: Int = 0,
     @SerializedName("created_time") val createdTime: Long = 0,
     @SerializedName("updated_time") val updatedTime: Long? = null,
     @SerializedName("members") val members: List<GroupMember>? = null,
     @SerializedName("pinned_message_id") val pinnedMessageId: Long? = null,
-    @SerializedName("pinned_message") val pinnedMessage: Message? = null, // 📌 Закріплене повідомлення
+    @SerializedName("pinned_message") val pinnedMessage: Message? = null,
     @SerializedName("settings") val settings: GroupSettings? = null
 )
 
@@ -462,6 +463,69 @@ data class SyncSessionResponse(
     @SerializedName("session_id") val sessionId: Long?,
     @SerializedName("platform") val platform: String?,
     @SerializedName("error_code") val errorCode: Int?,
+    @SerializedName("error_message") val errorMessage: String?
+)
+
+// ==================== NODE.JS GROUP API RESPONSE MODELS ====================
+
+data class GroupMembersResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("members") val members: List<GroupMember>?,
+    @SerializedName("error_message") val errorMessage: String?
+)
+
+data class GroupJoinRequestsResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("requests") val requests: List<GroupJoinRequest>?,
+    @SerializedName("error_message") val errorMessage: String?
+)
+
+data class GroupQrResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("invite_code") val inviteCode: String?,
+    @SerializedName("join_url") val joinUrl: String?,
+    @SerializedName("error_message") val errorMessage: String?
+)
+
+data class GroupStatisticsResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("statistics") val statistics: GroupStatisticsData?,
+    @SerializedName("error_message") val errorMessage: String?
+)
+
+data class GroupStatisticsData(
+    @SerializedName("members_count") val membersCount: Int = 0,
+    @SerializedName("messages_count") val messagesCount: Int = 0,
+    @SerializedName("messages_last_week") val messagesLastWeek: Int = 0,
+    @SerializedName("active_members_24h") val activeMembers24h: Int = 0,
+    @SerializedName("top_senders") val topSenders: List<TopContributor>? = null
+)
+
+data class GroupAvatarResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("url") val url: String?,
+    @SerializedName("group") val group: Group?,
+    @SerializedName("error_message") val errorMessage: String?
+)
+
+data class GroupMessageListResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("messages") val messages: List<Message>?,
+    @SerializedName("pinned_message") val pinnedMessage: Message?,
+    @SerializedName("count") val count: Int? = null,
+    @SerializedName("error_message") val errorMessage: String?
+)
+
+data class GroupMessageResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("message_data") val messageData: Message?,
+    @SerializedName("message_id") val messageId: Long? = null,
+    @SerializedName("error_message") val errorMessage: String?
+)
+
+data class GroupSimpleResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("message") val message: String?,
     @SerializedName("error_message") val errorMessage: String?
 )
 
