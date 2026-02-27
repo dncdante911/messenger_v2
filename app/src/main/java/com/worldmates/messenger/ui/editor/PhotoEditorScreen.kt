@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
@@ -117,8 +118,13 @@ fun PhotoEditorScreen(
                     EditorTool.DRAW -> DrawControls(
                         selectedColor = selectedColor,
                         brushSize = brushSize,
+                        isErasing = selectedColor == eraserColor,
                         onColorChange = { viewModel.setDrawColor(it) },
-                        onBrushSizeChange = { viewModel.setBrushSize(it) }
+                        onBrushSizeChange = { viewModel.setBrushSize(it) },
+                        onToggleEraser = {
+                            val newColor = if (selectedColor == eraserColor) Color.Red else eraserColor
+                            viewModel.setDrawColor(newColor)
+                        }
                     )
                     EditorTool.FILTER -> FilterControls(
                         selectedFilter = selectedFilter,
@@ -354,21 +360,22 @@ private fun PhotoEditorCanvas(
                         val path = Path()
                         val points = drawPath.points
                         if (points.size >= 2) {
-                            // Convert normalized points back to canvas coordinates
                             val scaleX = size.width
                             val scaleY = size.height
                             path.moveTo(points[0].x * scaleX, points[0].y * scaleY)
                             for (i in 1 until points.size) {
                                 path.lineTo(points[i].x * scaleX, points[i].y * scaleY)
                             }
+                            val isEraser = drawPath.color == eraserColor
                             drawPath(
                                 path = path,
-                                color = drawPath.color,
+                                color = if (isEraser) Color.Transparent else drawPath.color,
                                 style = Stroke(
                                     width = drawPath.strokeWidth,
                                     cap = StrokeCap.Round,
                                     join = StrokeJoin.Round
-                                )
+                                ),
+                                blendMode = if (isEraser) BlendMode.Clear else BlendMode.SrcOver
                             )
                         }
                     }
@@ -476,59 +483,86 @@ private fun ToolSelector(
 }
 
 /**
- * Draw Controls
+ * Draw Controls — color picker + brush size + eraser toggle
  */
 @Composable
 private fun DrawControls(
     selectedColor: Color,
     brushSize: Float,
+    isErasing: Boolean,
     onColorChange: (Color) -> Unit,
-    onBrushSizeChange: (Float) -> Unit
+    onBrushSizeChange: (Float) -> Unit,
+    onToggleEraser: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        Text("Колір і розмір кисті", fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Color picker
-        LazyRow(
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(drawingColors) { color ->
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                        .border(
-                            width = if (color == selectedColor) 3.dp else 1.dp,
-                            color = if (color == selectedColor) Color.White else Color.Gray,
-                            shape = CircleShape
-                        )
-                        .clickable { onColorChange(color) }
+            Text("Кисть:", fontWeight = FontWeight.Bold, modifier = Modifier.width(52.dp))
+
+            // Color swatches
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(drawingColors) { color ->
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .border(
+                                width = if (!isErasing && color == selectedColor) 3.dp else 1.dp,
+                                color = if (!isErasing && color == selectedColor) Color.White else Color.Gray,
+                                shape = CircleShape
+                            )
+                            .clickable { onColorChange(color) }
+                    )
+                }
+            }
+
+            // Eraser toggle button
+            IconButton(
+                onClick = onToggleEraser,
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = if (isErasing) MaterialTheme.colorScheme.errorContainer
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                        shape = CircleShape
+                    )
+            ) {
+                Icon(
+                    Icons.Default.AutoFixOff,
+                    contentDescription = "Ластик",
+                    tint = if (isErasing) MaterialTheme.colorScheme.error
+                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Brush size slider
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Розмір:", fontSize = 14.sp)
+            Text(if (isErasing) "Ластик:" else "Розмір:", fontSize = 13.sp, modifier = Modifier.width(52.dp))
             Slider(
                 value = brushSize,
                 onValueChange = onBrushSizeChange,
-                valueRange = 2f..50f,
+                valueRange = 2f..60f,
                 modifier = Modifier.weight(1f)
             )
-            Text("${brushSize.toInt()}px", fontSize = 14.sp)
+            Text("${brushSize.toInt()}px", fontSize = 13.sp, modifier = Modifier.width(42.dp))
         }
     }
 }
@@ -803,10 +837,25 @@ private fun CropControls(
     }
 }
 
-// Color palettes
+// Special sentinel color for the eraser tool (detected in canvas via identity check)
+internal val eraserColor = Color(0x00000001)   // fully transparent, unique alpha
+
+// Color palette — expanded for more creative options
 private val drawingColors = listOf(
-    Color.Black, Color.White, Color.Red, Color.Blue,
-    Color.Green, Color.Yellow, Color.Magenta, Color.Cyan
+    Color.Black,
+    Color.White,
+    Color(0xFFE53935), // red
+    Color(0xFFFF7043), // deep orange
+    Color(0xFFFFA726), // orange
+    Color(0xFFFFEE58), // yellow
+    Color(0xFF66BB6A), // green
+    Color(0xFF26C6DA), // cyan
+    Color(0xFF1E88E5), // blue
+    Color(0xFF5E35B1), // purple
+    Color(0xFFEC407A), // pink
+    Color(0xFF8D6E63), // brown
+    Color(0xFF78909C), // blue-grey
+    Color(0xFFBDBDBD), // light grey
 )
 
 private val textColors = listOf(
@@ -829,7 +878,7 @@ enum class EditorTool(
 ) {
     DRAW("Малювати", Icons.Default.Brush),
     FILTER("Фільтри", Icons.Default.FilterVintage),
-    ADJUST("Налаштування", Icons.Default.Tune),
+    ADJUST("Налаш.", Icons.Default.Tune),
     ROTATE("Поворот", Icons.Default.RotateRight),
     TEXT("Текст", Icons.Default.TextFields),
     STICKER("Стікери", Icons.Default.EmojiEmotions),

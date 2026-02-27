@@ -8,32 +8,29 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Forward
 import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
  * 🔥 Нижня панель дій для вибраних повідомлень
  *
- * Відображається знизу екрану з напівпрозорими кнопками.
- * - Кнопка "Ответить" (активна тільки для 1 повідомлення)
- * - Кнопка "Переслать" (для будь-якої кількості)
- * - Красива анімація появи/зникнення
- *
- * @param selectedCount Кількість вибраних повідомлень
- * @param onForward Callback для пересилання
- * @param onReply Callback для відповіді (тільки для 1 повідомлення)
- * @param modifier Modifier для кастомізації
+ * - Відповісти (тільки 1 повідомлення)
+ * - Переслати (будь-яка кількість)
+ * - Видалити (будь-яка кількість, з вибором "для всіх / для мене")
  */
 @Composable
 fun SelectionBottomBar(
     selectedCount: Int,
     onForward: () -> Unit,
     onReply: () -> Unit,
+    onDelete: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -52,48 +49,56 @@ fun SelectionBottomBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                // Кнопка "Ответить"
+                // Відповісти
                 OutlinedButton(
                     onClick = onReply,
                     enabled = selectedCount == 1,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(end = 8.dp),
+                        .padding(end = 4.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                     )
                 ) {
-                    Icon(
-                        Icons.Default.Reply,
-                        contentDescription = "Ответить",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Ответить", fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Default.Reply, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Відповісти", fontWeight = FontWeight.SemiBold)
                 }
 
-                // Кнопка "Переслать"
+                // Переслати
                 Button(
                     onClick = onForward,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = 8.dp),
+                        .padding(horizontal = 4.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
                     )
                 ) {
-                    Icon(
-                        Icons.Default.Forward,
-                        contentDescription = "Переслать",
-                        modifier = Modifier.size(20.dp)
+                    Icon(Icons.Default.Forward, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Переслати", fontWeight = FontWeight.SemiBold)
+                }
+
+                // Видалити
+                Button(
+                    onClick = onDelete,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 4.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFD32F2F).copy(alpha = 0.85f)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Переслать", fontWeight = FontWeight.SemiBold)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Видалити", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
