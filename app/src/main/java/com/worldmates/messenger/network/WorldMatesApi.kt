@@ -1559,10 +1559,11 @@ data class MediaUploadResponse(
     @SerializedName("url") val url: String?,  // URL завантаженого файлу
     @SerializedName("media_id") val mediaId: String?,  // ID медіа (опціонально)
     @SerializedName("message") val message: String?,
+    @SerializedName("error_message") val errorText: String?,  // Node.js error field
     @SerializedName("errors") val errors: ErrorDetails?
 ) {
     val errorMessage: String?
-        get() = errors?.errorText ?: message
+        get() = errors?.errorText ?: errorText ?: message
 }
 
 // ==================== VERIFICATION RESPONSE MODELS ====================

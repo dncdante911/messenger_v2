@@ -720,14 +720,30 @@ class ChannelsViewModel : ViewModel() {
                 )
 
                 if (response.apiStatus == 200) {
+                    // Immediately update local state with new avatar URL from server response
+                    val newAvatarUrl = response.url
+                    if (newAvatarUrl != null) {
+                        _channelList.value = _channelList.value.map { ch ->
+                            if (ch.id == channelId) ch.copy(avatarUrl = newAvatarUrl) else ch
+                        }
+                        _subscribedChannels.value = _subscribedChannels.value.map { ch ->
+                            if (ch.id == channelId) ch.copy(avatarUrl = newAvatarUrl) else ch
+                        }
+                        _selectedChannel.value?.let { selected ->
+                            if (selected.id == channelId) {
+                                _selectedChannel.value = selected.copy(avatarUrl = newAvatarUrl)
+                            }
+                        }
+                        Log.d("ChannelsViewModel", "✅ Avatar state updated immediately: $newAvatarUrl")
+                    }
+                    // Also refresh from server to sync all channel data
                     refreshChannel(channelId)
                     onSuccess()
                     Log.d("ChannelsViewModel", "✅ Channel avatar uploaded successfully")
                 } else {
-                    // Используем errorMessage или message в зависимости от того, что есть в CreateChannelResponse
                     val errorMsg = response.errorMessage ?: "Не вдалося завантажити аватар"
                     onError(errorMsg)
-                    Log.e("ChannelsViewModel", "❌ Failed to upload avatar: $errorMsg")
+                    Log.e("ChannelsViewModel", "❌ Failed to upload avatar: apiStatus=${response.apiStatus}, error=$errorMsg")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка завантаження: ${e.localizedMessage}"

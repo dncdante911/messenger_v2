@@ -31,7 +31,9 @@ async function isChannelOwner(ctx, channelId, userId) {
         attributes: ['user_id'],
         raw: true
     });
-    return page && page.user_id === userId;
+    // Use == (loose equality) to safely compare across potential int/string type differences
+    // eslint-disable-next-line eqeqeq
+    return page && page.user_id == userId;
 }
 
 async function isChannelAdmin(ctx, channelId, userId) {
@@ -555,40 +557,61 @@ function uploadAvatar(ctx, io) {
             const userId = req.userId;
             const channelId = parseInt(req.body.channel_id);
 
-            if (!channelId) {
+            console.log(`[Channels/uploadAvatar] userId=${userId}, channelId=${channelId}, file=${req.file ? req.file.filename : 'MISSING'}`);
+
+            if (!channelId || isNaN(channelId)) {
+                console.warn('[Channels/uploadAvatar] channel_id missing or invalid in req.body:', req.body);
                 return res.json({ api_status: 400, error_code: 400, error_message: 'channel_id is required' });
             }
 
             if (!req.file) {
+                console.warn('[Channels/uploadAvatar] No file received');
                 return res.json({ api_status: 400, error_code: 400, error_message: 'Avatar file is required' });
             }
 
-            // Check admin permission
-            if (!await isChannelAdmin(ctx, channelId, userId)) {
+            // Check admin permission (use == for type-safe comparison between MySQL INT and JS number)
+            const isAdmin = await isChannelAdmin(ctx, channelId, userId);
+            console.log(`[Channels/uploadAvatar] isAdmin=${isAdmin} for userId=${userId}, channelId=${channelId}`);
+            if (!isAdmin) {
                 return res.json({ api_status: 403, error_code: 403, error_message: 'Only admins can change avatar' });
             }
 
             // Build the relative path for storage
             const relativePath = 'upload/photos/channels/' + req.file.filename;
 
-            // Update page avatar
-            await ctx.wo_pages.update(
+            // Update page avatar and verify result
+            const [affectedCount] = await ctx.wo_pages.update(
                 { avatar: relativePath },
                 { where: { page_id: channelId } }
             );
 
+            console.log(`[Channels/uploadAvatar] DB update affected ${affectedCount} rows for channel ${channelId}, path=${relativePath}`);
+
+            if (affectedCount === 0) {
+                console.error(`[Channels/uploadAvatar] ERROR: 0 rows updated for channel ${channelId}. Channel may not exist.`);
+                return res.json({ api_status: 404, error_code: 404, error_message: 'Channel not found or update failed' });
+            }
+
             const avatarUrl = await funcs.Wo_GetMedia(ctx, relativePath);
 
-            console.log(`[Channels] Avatar uploaded for channel ${channelId}: ${relativePath}`);
+            // Return updated channel data so client can update state immediately
+            const updatedPage = await ctx.wo_pages.findOne({
+                where: { page_id: channelId },
+                raw: true
+            });
+            const channel = updatedPage ? await formatChannel(ctx, updatedPage, userId) : null;
+
+            console.log(`[Channels/uploadAvatar] Success: channel ${channelId} avatar=${avatarUrl}`);
 
             return res.json({
                 api_status: 200,
                 url: avatarUrl,
+                channel: channel,
                 error_code: null,
                 error_message: null
             });
         } catch (err) {
-            console.error('[Channels/uploadAvatar]', err.message);
+            console.error('[Channels/uploadAvatar] Exception:', err.message, err.stack);
             return res.json({ api_status: 500, error_code: 500, error_message: 'Server error' });
         }
     };
