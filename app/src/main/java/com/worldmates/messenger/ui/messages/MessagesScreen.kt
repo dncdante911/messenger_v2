@@ -125,6 +125,7 @@ fun MessagesScreen(
     onRequestVideoPermissions: () -> Boolean = { true }  // Default для preview
 ) {
     val messages by viewModel.messages.collectAsState()
+    val deletingMessages by viewModel.deletingMessages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val uploadProgress by viewModel.uploadProgress.collectAsState()
     val recordingState by voiceRecorder.recordingState.collectAsState()
@@ -983,6 +984,11 @@ fun MessagesScreen(
                     items = messages.reversed(),
                     key = { it.id }
                 ) { message ->
+                    // 💫 Thanos disintegration when the message is being deleted
+                    ThanosDisintegrationEffect(
+                        isDisintegrating = message.id in deletingMessages,
+                        seed = message.id
+                    ) {
                     // ✨ Анімація появи повідомлення
                     AnimatedVisibility(
                         visible = true,
@@ -1071,6 +1077,7 @@ fun MessagesScreen(
                             viewModel = viewModel
                         )
                     }  // Закриття AnimatedVisibility
+                    }  // Закриття ThanosDisintegrationEffect
                 }
             }
 

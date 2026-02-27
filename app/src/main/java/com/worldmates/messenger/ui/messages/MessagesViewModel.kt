@@ -17,8 +17,11 @@ import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.utils.DecryptionUtility
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.worldmates.messenger.ui.messages.selection.ForwardRecipient
 import com.worldmates.messenger.data.repository.DraftRepository
@@ -48,6 +51,23 @@ class MessagesViewModel(application: Application) :
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages
+
+    // 💫 Messages currently playing the Thanos disintegration animation
+    private val _deletingMessages = MutableStateFlow<Set<Long>>(emptySet())
+    val deletingMessages: StateFlow<Set<Long>> = _deletingMessages.asStateFlow()
+
+    // 🗑️ IDs permanently deleted this session — prevents polling from re-adding them
+    private val permanentlyDeletedIds = mutableSetOf<Long>()
+
+    /**
+     * Thread-safe messages setter that always strips [permanentlyDeletedIds].
+     * Use this instead of `_messages.value = ...` whenever setting a fetched list.
+     */
+    private fun setMessagesSafe(list: List<Message>) {
+        val filtered = if (permanentlyDeletedIds.isEmpty()) list
+                       else list.filter { it.id !in permanentlyDeletedIds }
+        _messages.value = filtered
+    }
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -231,7 +251,7 @@ class MessagesViewModel(application: Application) :
                     val currentMessages = _messages.value.toMutableList()
                     currentMessages.addAll(decryptedMessages)
                     // Сортируем по времени (старые сверху, новые внизу)
-                    _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                    setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
 
                     _error.value = null
                     Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень (Node.js)")
@@ -272,7 +292,7 @@ class MessagesViewModel(application: Application) :
                         _canLoadMore.value = false
                         Log.d(TAG, "📜 loadMore: no more messages")
                     } else {
-                        _messages.value = (_messages.value + older).distinctBy { it.id }.sortedBy { it.timeStamp }
+                        setMessagesSafe((_messages.value + older).distinctBy { it.id }.sortedBy { it.timeStamp })
                         if (older.size < 30) _canLoadMore.value = false
                         Log.d(TAG, "📜 loadMore: +${older.size} older messages")
                     }
@@ -315,7 +335,7 @@ class MessagesViewModel(application: Application) :
                     val currentMessages = _messages.value.toMutableList()
                     currentMessages.addAll(decryptedMessages)
                     // Сортируем по времени (старые сверху, новые внизу)
-                    _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                    setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
 
                     _error.value = null
                     if (topicId != 0L) {
@@ -414,7 +434,7 @@ class MessagesViewModel(application: Application) :
                         val currentMessages = _messages.value.toMutableList()
                         currentMessages.addAll(decryptedMessages)
                         // Сортируем по времени (старые сверху, новые внизу)
-                        _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                        setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
                         Log.d("MessagesViewModel", "Додано ${decryptedMessages.size} нових повідомлень")
                     } else {
                         // Если API не вернул сообщения, перезагружаем весь список
@@ -534,23 +554,28 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        _isLoading.value = true
-
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) {
             try {
+                // ① Start Thanos animation immediately (optimistic UX)
+                _deletingMessages.update { it + messageId }
+                permanentlyDeletedIds.add(messageId)
+
                 // Private chat → Node.js
                 if (groupId == 0L && recipientId != 0L) {
                     val resp = nodeApi.deleteMessage(messageId, deleteType)
                     if (resp.apiStatus == 200) {
-                        // For "everyone" the socket event will delete on recipient side.
-                        // For "just_me" remove locally right away.
-                        _messages.value = _messages.value.filter { it.id != messageId }
+                        // ② Wait for animation to finish, then remove from list
+                        kotlinx.coroutines.delay(750L)
+                        _messages.update { list -> list.filter { it.id != messageId } }
                         _error.value = null
                         Log.d("MessagesViewModel", "Повідомлення видалено (Node.js, $deleteType): $messageId")
                     } else {
+                        // Rollback animation on failure
+                        _deletingMessages.update { it - messageId }
+                        permanentlyDeletedIds.remove(messageId)
                         _error.value = resp.errorMessage ?: "Не вдалося видалити повідомлення"
                     }
-                    _isLoading.value = false
+                    _deletingMessages.update { it - messageId }
                     return@launch
                 }
 
@@ -561,22 +586,21 @@ class MessagesViewModel(application: Application) :
                 )
 
                 if (response.apiStatus == 200) {
-                    // Видаляємо повідомлення з локального списку
-                    val currentMessages = _messages.value.toMutableList()
-                    currentMessages.removeAll { it.id == messageId }
-                    _messages.value = currentMessages
-                    Log.d("MessagesViewModel", "Повідомлення видалено: $messageId")
-
+                    kotlinx.coroutines.delay(750L)
+                    _messages.update { list -> list.filter { it.id != messageId } }
                     _error.value = null
+                    Log.d("MessagesViewModel", "Повідомлення видалено: $messageId")
                 } else {
+                    _deletingMessages.update { it - messageId }
+                    permanentlyDeletedIds.remove(messageId)
                     _error.value = response.errors?.errorText ?: "Не вдалося видалити повідомлення"
                     Log.e("MessagesViewModel", "Delete Error: ${response.errors?.errorText}")
                 }
-
-                _isLoading.value = false
+                _deletingMessages.update { it - messageId }
             } catch (e: Exception) {
+                _deletingMessages.update { it - messageId }
+                permanentlyDeletedIds.remove(messageId)
                 _error.value = "Помилка: ${e.localizedMessage}"
-                _isLoading.value = false
                 Log.e("MessagesViewModel", "Помилка видалення повідомлення", e)
             }
         }
@@ -1249,8 +1273,21 @@ class MessagesViewModel(application: Application) :
     }
 
     override fun onMessageDeleted(messageId: Long, deleteType: String) {
-        _messages.value = _messages.value.filter { it.id != messageId }
-        Log.d(TAG, "Socket: повідомлення $messageId видалено ($deleteType)")
+        // Skip if the sender already triggered the animation locally
+        if (_deletingMessages.value.contains(messageId)) {
+            Log.d(TAG, "Socket: message $messageId already deleting, skip duplicate event")
+            return
+        }
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) {
+            permanentlyDeletedIds.add(messageId)
+            // ① Play Thanos animation
+            _deletingMessages.update { it + messageId }
+            // ② Wait for animation, then remove atomically
+            kotlinx.coroutines.delay(750L)
+            _messages.update { list -> list.filter { it.id != messageId } }
+            _deletingMessages.update { it - messageId }
+            Log.d(TAG, "Socket: повідомлення $messageId видалено ($deleteType)")
+        }
     }
 
     override fun onMessageReaction(messageId: Long, userId: Long, reaction: String, action: String) {
@@ -2122,7 +2159,7 @@ class MessagesViewModel(application: Application) :
                         val currentIds = _messages.value.map { it.id }.toSet()
                         val trulyNew = newMessages.filter { it.id !in currentIds }
                         if (trulyNew.isNotEmpty()) {
-                            _messages.value = (_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp }
+                            setMessagesSafe((_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp })
                             Log.d(TAG, "🔄 Polling (Node.js): +${trulyNew.size} нових")
                         }
                     }
