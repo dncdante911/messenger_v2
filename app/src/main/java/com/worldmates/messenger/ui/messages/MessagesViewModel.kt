@@ -695,6 +695,7 @@ class MessagesViewModel(application: Application) :
 
     /**
      * 🎬 Надсилає GIF
+     * Для груп — залишаємо PHP. Для приватних чатів — Node.js (stickers field).
      */
     fun sendGif(gifUrl: String) {
         if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
@@ -702,54 +703,40 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        if (gifUrl.isBlank()) {
-            _error.value = "GIF URL не може бути порожнім"
+        if (groupId != 0L) {
+            // Групи — залишаємо на PHP (групи поки не мігровані на Node.js)
+            viewModelScope.launch {
+                try {
+                    RetrofitClient.apiService.sendMessage(
+                        accessToken = UserSession.accessToken!!,
+                        recipientId = recipientId,
+                        text = gifUrl,
+                        messageHashId = java.util.UUID.randomUUID().toString(),
+                        replyToId = null
+                    )
+                    fetchGroupMessages()
+                } catch (e: Exception) {
+                    _error.value = "Помилка: ${e.localizedMessage}"
+                }
+            }
             return
         }
 
-        _isLoading.value = true
-
-        viewModelScope.launch {
-            try {
-                val messageHashId = java.util.UUID.randomUUID().toString()
-
-                // Відправляємо GIF як медіа-повідомлення (текст = GIF URL)
-                val response = RetrofitClient.apiService.sendMessage(
-                    accessToken = UserSession.accessToken!!,
-                    recipientId = recipientId,
-                    text = gifUrl,  // GIF URL як текст (сервер розпізнає це як GIF)
-                    messageHashId = messageHashId,
-                    replyToId = null
-                )
-
-                if (response.apiStatus == 200) {
-                    Log.d(TAG, "✅ GIF sent successfully: $gifUrl")
-
-                    // Перезавантажуємо повідомлення
-                    if (groupId != 0L) {
-                        fetchGroupMessages()
-                    } else {
-                        fetchMessages()
-                    }
-
-                    _error.value = null
-                    Log.d(TAG, "GIF надіслано")
-                } else {
-                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати GIF"
-                    Log.e(TAG, "Send GIF Error: ${response.errors?.errorText ?: response.errorMessage}")
-                }
-
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
-                _isLoading.value = false
-                Log.e(TAG, "Помилка надсилання GIF", e)
-            }
-        }
+        // Приватний чат — Node.js: GIF URL → stickers field
+        sendGifViaNode(
+            scope       = viewModelScope,
+            api         = nodeApi,
+            recipientId = recipientId,
+            gifUrl      = gifUrl,
+            isLoading   = _isLoading,
+            error       = _error,
+            onSuccess   = { fetchMessages() }
+        )
     }
 
     /**
      * 📍 Надсилає геолокацію
+     * Для груп — PHP (текст). Для приватних чатів — Node.js (lat/lng fields, type=map).
      */
     fun sendLocation(locationData: com.worldmates.messenger.data.repository.LocationData) {
         if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
@@ -757,56 +744,42 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        _isLoading.value = true
-
-        viewModelScope.launch {
-            try {
-                val messageHashId = java.util.UUID.randomUUID().toString()
-
-                // Формуємо текст з координатами та адресою
-                val locationText = """
-                    📍 ${locationData.address}
-                    ${locationData.latLng.latitude},${locationData.latLng.longitude}
-                """.trimIndent()
-
-                // Відправляємо геолокацію як текстове повідомлення
-                // В майбутньому можна додати спеціальний тип повідомлення для геолокації
-                val response = RetrofitClient.apiService.sendMessage(
-                    accessToken = UserSession.accessToken!!,
-                    recipientId = recipientId,
-                    text = locationText,
-                    messageHashId = messageHashId,
-                    replyToId = null
-                )
-
-                if (response.apiStatus == 200) {
-                    Log.d(TAG, "✅ Location sent successfully: ${locationData.latLng}")
-
-                    // Перезавантажуємо повідомлення
-                    if (groupId != 0L) {
-                        fetchGroupMessages()
-                    } else {
-                        fetchMessages()
-                    }
-
-                    _error.value = null
-                    Log.d(TAG, "Геолокацію надіслано")
-                } else {
-                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати геолокацію"
-                    Log.e(TAG, "Send Location Error: ${response.errors?.errorText ?: response.errorMessage}")
+        if (groupId != 0L) {
+            // Групи — PHP
+            viewModelScope.launch {
+                try {
+                    val locationText = "📍 ${locationData.address}\n${locationData.latLng.latitude},${locationData.latLng.longitude}"
+                    RetrofitClient.apiService.sendGroupMessage(
+                        accessToken = UserSession.accessToken!!,
+                        groupId = groupId,
+                        text = locationText,
+                        replyToId = null
+                    )
+                    fetchGroupMessages()
+                } catch (e: Exception) {
+                    _error.value = "Помилка: ${e.localizedMessage}"
                 }
-
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
-                _isLoading.value = false
-                Log.e(TAG, "Помилка надсилання геолокації", e)
             }
+            return
         }
+
+        // Приватний чат — Node.js: нативні поля lat/lng (type = map)
+        sendLocationViaNode(
+            scope       = viewModelScope,
+            api         = nodeApi,
+            recipientId = recipientId,
+            lat         = locationData.latLng.latitude.toString(),
+            lng         = locationData.latLng.longitude.toString(),
+            address     = locationData.address,
+            isLoading   = _isLoading,
+            error       = _error,
+            onSuccess   = { fetchMessages() }
+        )
     }
 
     /**
      * Отправка контакта (vCard)
+     * Для груп — PHP. Для приватних чатів — Node.js (contact field, type_two=contact).
      */
     fun sendContact(contact: com.worldmates.messenger.data.model.Contact) {
         if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
@@ -814,76 +787,36 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        _isLoading.value = true
+        val vCardString = contact.toVCard()
 
-        viewModelScope.launch {
-            try {
-                val messageHashId = java.util.UUID.randomUUID().toString()
-
-                // Генерируем vCard
-                val vCardString = contact.toVCard()
-
-                // Формируем текст сообщения с префиксом для идентификации контакта
-                val contactText = "📇 VCARD\n$vCardString"
-
-                val response = if (groupId != 0L) {
+        if (groupId != 0L) {
+            // Групи — PHP
+            viewModelScope.launch {
+                try {
                     RetrofitClient.apiService.sendGroupMessage(
                         accessToken = UserSession.accessToken!!,
                         groupId = groupId,
-                        text = contactText,
+                        text = "📇 VCARD\n$vCardString",
                         replyToId = null
                     )
-                } else {
-                    RetrofitClient.apiService.sendMessage(
-                        accessToken = UserSession.accessToken!!,
-                        recipientId = recipientId,
-                        text = contactText,
-                        messageHashId = messageHashId,
-                        replyToId = null
-                    )
+                    fetchGroupMessages()
+                } catch (e: Exception) {
+                    _error.value = "Помилка: ${e.localizedMessage}"
                 }
-
-                if (response.apiStatus == 200) {
-                    Log.d(TAG, "✅ Contact sent successfully: ${contact.name}")
-
-                    // Если API вернул сообщения, добавляем их
-                    if (response.messages != null && response.messages.isNotEmpty()) {
-                        val decryptedMessages = response.messages.map { msg ->
-                            decryptMessageFully(msg)
-                        }
-                        val currentMessages = _messages.value.toMutableList()
-                        currentMessages.addAll(decryptedMessages)
-                        _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
-                    } else {
-                        // Перезагружаем сообщения
-                        if (groupId != 0L) {
-                            fetchGroupMessages()
-                        } else {
-                            fetchMessages()
-                        }
-                    }
-
-                    // Отправляем через Socket.IO
-                    if (groupId != 0L) {
-                        socketManager?.sendGroupMessage(groupId, contactText)
-                    } else {
-                        socketManager?.sendMessage(recipientId, contactText)
-                    }
-
-                    _error.value = null
-                    Log.d(TAG, "Контакт надіслано")
-                } else {
-                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати контакт"
-                    Log.e(TAG, "Send Contact Error: ${response.errors?.errorText ?: response.errorMessage}")
-                }
-
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
-                _isLoading.value = false
-                Log.e(TAG, "Помилка надсилання контакту", e)
             }
+            return
         }
+
+        // Приватний чат — Node.js: contact field (type_two=contact on server)
+        sendContactViaNode(
+            scope       = viewModelScope,
+            api         = nodeApi,
+            recipientId = recipientId,
+            vCard       = vCardString,
+            isLoading   = _isLoading,
+            error       = _error,
+            onSuccess   = { fetchMessages() }
+        )
     }
 
     // ==================== DRAFT METHODS ====================
@@ -1467,7 +1400,9 @@ class MessagesViewModel(application: Application) :
     }
 
     /**
-     * 📤 Пересилає повідомлення до вибраних отримувачів
+     * 📤 Пересилає повідомлення до вибраних отримувачів.
+     * Приватні чати — Node.js /api/node/chat/forward (сервер розшифровує/перешифровує текст).
+     * Групи — PHP sendGroupMessage.
      */
     fun forwardMessages(messageIds: Set<Long>, recipientIds: List<Long>) {
         if (UserSession.accessToken == null) {
@@ -1475,42 +1410,45 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        viewModelScope.launch {
-            try {
-                messageIds.forEach { messageId ->
-                    // Знаходимо повідомлення
-                    val message = _messages.value.find { it.id == messageId }
-                    if (message != null) {
-                        recipientIds.forEach { recipientId ->
-                            // Визначаємо чи це група чи користувач
-                            val isGroup = _forwardGroups.value.any { it.id == recipientId }
+        // Split recipients into groups vs private users
+        val groupIds   = recipientIds.filter { id -> _forwardGroups.value.any { it.id == id } }
+        val privateIds = recipientIds.filter { id -> !_forwardGroups.value.any { it.id == id } }
 
-                            if (isGroup) {
-                                // Пересилаємо в групу
+        // Groups — PHP
+        if (groupIds.isNotEmpty()) {
+            viewModelScope.launch {
+                try {
+                    messageIds.forEach { messageId ->
+                        val message = _messages.value.find { it.id == messageId }
+                        if (message != null) {
+                            groupIds.forEach { gId ->
                                 RetrofitClient.apiService.sendGroupMessage(
                                     accessToken = UserSession.accessToken!!,
                                     type = "send_message",
-                                    groupId = recipientId,
+                                    groupId = gId,
                                     text = message.decryptedText ?: ""
                                 )
-                                Log.d("MessagesViewModel", "Переслано повідомлення $messageId в групу $recipientId")
-                            } else {
-                                // Пересилаємо користувачу
-                                val messageHashId = "${System.currentTimeMillis()}_${(0..999999).random()}"
-                                RetrofitClient.apiService.sendMessage(
-                                    accessToken = UserSession.accessToken!!,
-                                    recipientId = recipientId,
-                                    text = message.decryptedText ?: "",
-                                    messageHashId = messageHashId
-                                )
-                                Log.d("MessagesViewModel", "Переслано повідомлення $messageId користувачу $recipientId")
+                                Log.d("MessagesViewModel", "Forwarded msg $messageId to group $gId via PHP")
                             }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.e("MessagesViewModel", "Forward to group error", e)
                 }
-            } catch (e: Exception) {
-                Log.e("MessagesViewModel", "Помилка пересилання", e)
             }
+        }
+
+        // Private chats — Node.js (decrypts+re-encrypts on server side)
+        if (privateIds.isNotEmpty()) {
+            forwardPrivateMsgsViaNode(
+                scope        = viewModelScope,
+                api          = nodeApi,
+                messageIds   = messageIds,
+                recipientIds = privateIds,
+                onResult     = { allOk ->
+                    if (!allOk) Log.w("MessagesViewModel", "Some private forwards failed")
+                }
+            )
         }
     }
 
