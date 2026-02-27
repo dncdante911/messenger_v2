@@ -194,8 +194,8 @@ fun GroupsScreenWrapper(
                             group = group,
                             onClick = { onGroupClick(group) },
                             onLongClick = { groupToEdit = group },
-                            isPinned = false, // TODO: Add pinned support
-                            unreadCount = 0  // TODO: Add unread count support
+                            isPinned = false,
+                            unreadCount = group.unreadCount
                         )
                     }
                 }

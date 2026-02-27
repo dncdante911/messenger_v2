@@ -114,6 +114,7 @@ fun GroupDetailsScreen(
     val availableUsers by viewModel.availableUsers.collectAsState()
     val joinRequests by viewModel.joinRequests.collectAsState()
     val scheduledPosts by viewModel.scheduledPosts.collectAsState()
+    val vmSubgroups by viewModel.subgroups.collectAsState()
 
     val group = groups.find { it.id == groupId }
     val context = LocalContext.current
@@ -142,31 +143,18 @@ fun GroupDetailsScreen(
     // 🔔 Notifications state
     var notificationsEnabled by remember { mutableStateOf(viewModel.loadNotificationSettings(groupId)) }
 
-    // Subgroups (Topics) state
+    // Subgroups (Topics) state — collected from ViewModel and mapped to UI type
     var showCreateSubgroupDialog by remember { mutableStateOf(initialOpenCreateSubgroup) }
-    // Локальний список підгруп (поки бекенд не готовий)
-    // Завантажуємо з SharedPreferences або показуємо приклади для адмінів
-    var subgroups by remember {
-        mutableStateOf<List<Subgroup>>(
-            // Показуємо приклади підгруп для демонстрації
-            listOf(
-                Subgroup(
-                    id = 1,
-                    parentGroupId = groupId,
-                    name = "General",
-                    description = "Основна тема для загальних обговорень",
-                    messagesCount = 0,
-                    color = "#0088CC"
-                ),
-                Subgroup(
-                    id = 2,
-                    parentGroupId = groupId,
-                    name = "Announcements",
-                    description = "Важливі оголошення",
-                    messagesCount = 0,
-                    color = "#00C853"
-                )
-            )
+    val subgroups = vmSubgroups.map { s ->
+        com.worldmates.messenger.ui.groups.components.Subgroup(
+            id = s.id,
+            parentGroupId = s.parentGroupId,
+            name = s.name,
+            description = s.description,
+            membersCount = s.membersCount,
+            messagesCount = s.messagesCount,
+            isPrivate = s.isPrivate,
+            color = s.color
         )
     }
 
@@ -236,6 +224,7 @@ fun GroupDetailsScreen(
     LaunchedEffect(groupId) {
         viewModel.selectGroup(group ?: return@LaunchedEffect)
         viewModel.loadAvailableUsers()
+        viewModel.loadSubgroups(groupId)
     }
 
     // Показуємо результат завантаження аватара
@@ -698,26 +687,19 @@ fun GroupDetailsScreen(
             CreateSubgroupDialog(
                 onDismiss = { showCreateSubgroupDialog = false },
                 onCreate = { name, description, isPrivate, color ->
-                    // TODO: Connect to backend when ready
-                    // For now, add locally to demonstrate UI
-                    val newSubgroup = Subgroup(
-                        id = System.currentTimeMillis(),
-                        parentGroupId = group.id,
+                    viewModel.createSubgroup(
+                        groupId = group.id,
                         name = name,
                         description = description,
                         isPrivate = isPrivate,
                         color = color,
-                        membersCount = 1,
-                        messagesCount = 0
+                        onSuccess = {
+                            showCreateSubgroupDialog = false
+                        },
+                        onError = { errorMsg ->
+                            android.widget.Toast.makeText(context, errorMsg, android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     )
-                    subgroups = subgroups + newSubgroup
-
-                    android.widget.Toast.makeText(
-                        context,
-                        "Topic \"$name\" created! (Backend integration pending)",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                    showCreateSubgroupDialog = false
                 },
                 isLoading = isLoading
             )
