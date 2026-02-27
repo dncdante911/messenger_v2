@@ -134,6 +134,7 @@ fun MessagesScreen(
     val isOnline by viewModel.recipientOnlineStatus.collectAsState()
     val connectionQuality by viewModel.connectionQuality.collectAsState()
     val pinnedPrivateMessage by viewModel.pinnedPrivateMessage.collectAsState()
+    val isMutedPrivate by viewModel.isMutedPrivate.collectAsState()
 
     // 📝 Draft state
     val currentDraft by viewModel.currentDraft.collectAsState()
@@ -308,6 +309,20 @@ fun MessagesScreen(
                 Log.e("MessagesScreen", "❌ Auto-scroll error: ${e.message}")
             }
         }
+    }
+
+    // ⬆️ Load more when user scrolls near the top (reverseLayout = true → "top" is last item)
+    val canLoadMore by viewModel.canLoadMore.collectAsState()
+    LaunchedEffect(listState, canLoadMore) {
+        snapshotFlow { listState.layoutInfo }
+            .collect { layoutInfo ->
+                val totalItems = layoutInfo.totalItemsCount
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return@collect
+                // reverseLayout=true: last rendered item = oldest message. Load when within 5 items of the top.
+                if (canLoadMore && totalItems > 0 && lastVisible >= totalItems - 5) {
+                    viewModel.loadMore()
+                }
+            }
     }
 
     // 📸 Галерея фото - збір всіх фото з чату
@@ -607,9 +622,26 @@ fun MessagesScreen(
                             )
                         }
                     } else {
-                        // Для особистих чатів - TODO
-                        Log.d("MessagesScreen", "Вимкнення сповіщень для: $recipientName")
-                        android.widget.Toast.makeText(context, "Сповіщення вимкнено для $recipientName", android.widget.Toast.LENGTH_SHORT).show()
+                        // Приватний чат — перемикаємо через Node.js
+                        if (isMutedPrivate) {
+                            viewModel.unmutePrivateChat(
+                                onSuccess = {
+                                    android.widget.Toast.makeText(context, "Сповіщення увімкнено для $recipientName", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        } else {
+                            viewModel.mutePrivateChat(
+                                onSuccess = {
+                                    android.widget.Toast.makeText(context, "Сповіщення вимкнено для $recipientName", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
                     }
                 },
                 onClearHistoryClick = {
@@ -629,7 +661,7 @@ fun MessagesScreen(
                     val intent = android.content.Intent(context, com.worldmates.messenger.ui.theme.ThemeSettingsActivity::class.java)
                     context.startActivity(intent)
                 },
-                isMuted = if (isGroup) currentGroup?.isMuted == true else false,
+                isMuted = if (isGroup) currentGroup?.isMuted == true else isMutedPrivate,
                 // 🔥 Group-specific parameters
                 isGroup = isGroup,
                 isGroupAdmin = currentGroup?.isAdmin == true || (isGroup && currentGroup?.let {

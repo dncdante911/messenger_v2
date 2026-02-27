@@ -274,7 +274,7 @@ function loadMore(ctx, io) {
             const userId          = req.userId;
             const recipientId     = parseInt(req.body.recipient_id);
             const beforeMessageId = parseInt(req.body.before_message_id) || 0;
-            const limit           = Math.min(parseInt(req.body.limit) || 15, 50);
+            const limit           = Math.min(parseInt(req.body.limit) || 30, 100);
 
             if (!recipientId || isNaN(recipientId))
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
