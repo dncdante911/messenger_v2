@@ -20,6 +20,7 @@ const { registerMessagingRoutes } = require('./routes/messaging')
 const { registerPrivateChatRoutes } = require('./routes/private-chats/index')
 const { registerStoryRoutes } = require('./routes/stories/index')
 const { registerChannelRoutes } = require('./routes/channels/index')
+const { registerGroupRoutes }   = require('./routes/groups/index')
 
 let serverPort
 let server
@@ -123,6 +124,9 @@ async function init() {
   ctx.wo_group_call_participants = require("./models/wo_group_call_participants")(sequelize, DataTypes)
   ctx.wo_ice_candidates = require("./models/wo_ice_candidates")(sequelize, DataTypes)
   ctx.wo_call_statistics = require("./models/wo_call_statistics")(sequelize, DataTypes)
+
+  // ==================== Group Chat Admin Models ====================
+  ctx.wo_groupadmins = require("./models/wo_groupadmins")(sequelize, DataTypes)
 
   // ==================== Channel API Models ====================
   ctx.wo_pages_likes = require("./models/wo_pages_likes")(sequelize, DataTypes)
@@ -290,6 +294,7 @@ async function main() {
   registerPrivateChatRoutes(app, ctx, io);
   registerStoryRoutes(app, ctx, io);
   registerChannelRoutes(app, ctx, io);
+  registerGroupRoutes(app, ctx, io);
 
   io.on('connection', async (socket, query) => {
     await listeners.registerListeners(socket, io, ctx)
