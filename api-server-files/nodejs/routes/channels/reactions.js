@@ -49,16 +49,19 @@ function addReaction(ctx, io) {
             if (existing) {
                 // Update to new reaction
                 await ctx.wo_reactions.update(
-                    { reaction: reaction, time: String(now) },
+                    { reaction: reaction },
                     { where: { id: existing.id } }
                 );
             } else {
-                // Create new reaction — only set required fields
+                // Create new reaction — only set fields that exist in the table
                 await ctx.wo_reactions.create({
                     user_id: userId,
                     post_id: postId,
                     reaction: reaction,
-                    time: String(now)
+                    comment_id: 0,
+                    replay_id: 0,
+                    message_id: 0,
+                    story_id: 0
                 });
             }
 
