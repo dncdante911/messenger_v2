@@ -362,11 +362,71 @@ async function upsertMute(ctx, userId, chatId, fields) {
     }
 }
 
+// ─── CLEAR CHAT HISTORY ───────────────────────────────────────────────────────
+// Soft-deletes all messages between caller and recipient on caller's side only.
+// The conversation entry remains in the list (unlike deleteConversation).
+
+function clearHistory(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId      = req.userId;
+            const recipientId = parseInt(req.body.recipient_id || req.body.user_id);
+
+            if (!recipientId || isNaN(recipientId))
+                return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
+
+            // Soft-delete: messages sent by caller → deleted_one='1'
+            await ctx.wo_messages.update(
+                { deleted_one: '1' },
+                { where: { from_id: userId, to_id: recipientId, page_id: 0 } }
+            );
+            // Soft-delete: messages received by caller → deleted_two='1'
+            await ctx.wo_messages.update(
+                { deleted_two: '1' },
+                { where: { from_id: recipientId, to_id: userId, page_id: 0 } }
+            );
+
+            res.json({ api_status: 200, message: 'Chat history cleared' });
+        } catch (err) {
+            console.error('[Node/chat/clear-history]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to clear history' });
+        }
+    };
+}
+
+// ─── GET MUTE STATUS for a single chat ───────────────────────────────────────
+
+function getMuteStatus(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId  = req.userId;
+            const chatId  = parseInt(req.body.chat_id || req.body.recipient_id);
+
+            if (!chatId || isNaN(chatId))
+                return res.status(400).json({ api_status: 400, error_message: 'chat_id is required' });
+
+            const m = await getMuteSettings(ctx, userId, chatId);
+            res.json({
+                api_status: 200,
+                notify:    m.notify    ?? 'yes',
+                call_chat: m.call_chat ?? 'yes',
+                archive:   m.archive   ?? 'no',
+                pin:       m.pin       ?? 'no',
+            });
+        } catch (err) {
+            console.error('[Node/chat/mute-status]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to get mute status' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
     getChats,
     deleteConversation,
+    clearHistory,
+    getMuteStatus,
     archiveChat,
     muteChat,
     pinChat,

@@ -68,6 +68,8 @@ function registerPrivateChatRoutes(app, ctx, io) {
     // ── chats list & settings ────────────────────────────────────────────────
     app.post('/api/node/chat/chats',                auth, chatsList.getChats(ctx, io));
     app.post('/api/node/chat/delete-conversation',  auth, chatsList.deleteConversation(ctx, io));
+    app.post('/api/node/chat/clear-history',        auth, chatsList.clearHistory(ctx, io));
+    app.post('/api/node/chat/mute-status',          auth, chatsList.getMuteStatus(ctx, io));
     app.post('/api/node/chat/archive',              auth, chatsList.archiveChat(ctx, io));
     app.post('/api/node/chat/mute',                 auth, chatsList.muteChat(ctx, io));
     app.post('/api/node/chat/pin-chat',             auth, chatsList.pinChat(ctx, io));
@@ -81,7 +83,7 @@ function registerPrivateChatRoutes(app, ctx, io) {
     console.log('[Private Chat API] Endpoints registered under /api/node/chat/*');
     console.log('  Messages : get, send, send-media, loadmore, edit, search, seen, typing, notify-media');
     console.log('  Actions  : delete, react, pin, pinned, forward');
-    console.log('  Chats    : chats, delete-conversation, archive, mute, pin-chat, color, read');
+    console.log('  Chats    : chats, delete-conversation, clear-history, mute-status, archive, mute, pin-chat, color, read');
     console.log('  Favorites: fav, fav-list');
 }
 
