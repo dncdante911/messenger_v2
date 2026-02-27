@@ -565,7 +565,7 @@ interface WorldMatesApi {
         @Query("access_token") accessToken: String,
         @Field("type") type: String = "get_statistics",
         @Field("id") groupId: Long
-    ): GroupStatisticsResponse
+    ): PhpGroupStatisticsResponse
 
     // ==================== GROUP CUSTOMIZATION (theme API) ====================
 
@@ -1786,22 +1786,22 @@ data class GroupCustomizationData(
 /**
  * 📊 Response for group statistics
  */
-data class GroupStatisticsResponse(
+data class PhpGroupStatisticsResponse(
     @SerializedName("api_status") val apiStatus: Int,
-    @SerializedName("statistics") val statistics: GroupStatisticsData? = null,
+    @SerializedName("statistics") val statistics: PhpGroupStatisticsData? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 
-data class GroupStatisticsData(
+data class PhpGroupStatisticsData(
     @SerializedName("members_count") val membersCount: Int = 0,
     @SerializedName("messages_count") val messagesCount: Int = 0,
     @SerializedName("messages_today") val messagesToday: Int = 0,
     @SerializedName("new_members_week") val newMembersWeek: Int = 0,
     @SerializedName("admins_count") val adminsCount: Int = 0,
-    @SerializedName("top_contributors") val topContributors: List<TopContributorData>? = null
+    @SerializedName("top_contributors") val topContributors: List<PhpTopContributorData>? = null
 )
 
-data class TopContributorData(
+data class PhpTopContributorData(
     @SerializedName("user_id") val userId: Long,
     @SerializedName("username") val username: String,
     @SerializedName("name") val name: String? = null,
