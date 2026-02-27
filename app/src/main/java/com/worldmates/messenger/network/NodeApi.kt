@@ -68,7 +68,9 @@ interface NodeApi {
         @Field("media_type")      mediaType: String,
         @Field("media_file_name") mediaFileName: String = "",
         @Field("message_hash_id") messageHashId: String = "",
-        @Field("reply_id")        replyId: Long = 0
+        @Field("reply_id")        replyId: Long = 0,
+        /** Optional caption shown under the media. Server encrypts with AES-256-GCM. */
+        @Field("caption")         caption: String = ""
     ): NodeMessageResponse
 
     /**
