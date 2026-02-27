@@ -128,8 +128,12 @@ function channelsDispatcher(ctx, io) {
                 case 'search':         return management.search(ctx, io)(req, res);
                 case 'get_by_id':      return management.getDetails(ctx, io)(req, res);
                 // Subscriptions
-                case 'add_channel_member': return subscriptions.addMember(ctx, io)(req, res);
+                case 'add_channel_member':    return subscriptions.addMember(ctx, io)(req, res);
                 case 'get_channel_subscribers': return subscriptions.getSubscribers(ctx, io)(req, res);
+                case 'ban_channel_member':    return subscriptions.banMember(ctx, io)(req, res);
+                case 'unban_channel_member':  return subscriptions.unbanMember(ctx, io)(req, res);
+                case 'kick_channel_member':   return subscriptions.kickMember(ctx, io)(req, res);
+                case 'get_banned_members':    return subscriptions.getBanned(ctx, io)(req, res);
                 // Posts
                 case 'update_post':    return posts.updatePost(ctx, io)(req, res);
                 case 'delete_post':    return posts.deletePost(ctx, io)(req, res);
@@ -253,6 +257,10 @@ function registerChannelRoutes(app, ctx, io) {
     app.post('/api/node/channel/settings',        auth, admin.updateSettings(ctx, io));
     app.post('/api/node/channel/statistics',      auth, admin.getStatistics(ctx, io));
     app.post('/api/node/channel/subscribers',     auth, subscriptions.getSubscribers(ctx, io));
+    app.post('/api/node/channel/ban-member',      auth, subscriptions.banMember(ctx, io));
+    app.post('/api/node/channel/unban-member',    auth, subscriptions.unbanMember(ctx, io));
+    app.post('/api/node/channel/kick-member',     auth, subscriptions.kickMember(ctx, io));
+    app.post('/api/node/channel/banned-members',  auth, subscriptions.getBanned(ctx, io));
     app.post('/api/node/channel/mute',            auth, admin.muteChannel(ctx, io));
     app.post('/api/node/channel/unmute',          auth, admin.unmuteChannel(ctx, io));
     app.post('/api/node/channel/qr-generate',     auth, admin.generateQr(ctx, io));

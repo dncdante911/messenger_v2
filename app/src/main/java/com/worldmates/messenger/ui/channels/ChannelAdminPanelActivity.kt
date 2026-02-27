@@ -31,9 +31,11 @@ import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.util.toFullMediaUrl
+import java.util.concurrent.TimeUnit
 
 /**
- * Channel Admin Panel - unified admin interface with tabs
+ * Channel Admin Panel — unified admin interface with tabs
+ * Tabs: Info | Settings | Stats | Admins | Members | Banned
  */
 class ChannelAdminPanelActivity : AppCompatActivity() {
 
@@ -55,13 +57,15 @@ class ChannelAdminPanelActivity : AppCompatActivity() {
         detailsViewModel.loadChannelDetails(channelId)
         detailsViewModel.loadStatistics(channelId)
         detailsViewModel.loadSubscribers(channelId)
+        detailsViewModel.loadBannedMembers(channelId)
 
         setContent {
             WorldMatesThemedApp {
                 ChannelAdminPanelScreen(
                     channelId = channelId,
                     viewModel = detailsViewModel,
-                    onBack = { finish() }
+                    onBack = { finish() },
+                    onChannelDeleted = { finish() }
                 )
             }
         }
@@ -73,17 +77,19 @@ class ChannelAdminPanelActivity : AppCompatActivity() {
 fun ChannelAdminPanelScreen(
     channelId: Long,
     viewModel: ChannelDetailsViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onChannelDeleted: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val channel by viewModel.channel.collectAsState()
     val statistics by viewModel.statistics.collectAsState()
     val admins by viewModel.admins.collectAsState()
     val subscribers by viewModel.subscribers.collectAsState()
+    val bannedMembers by viewModel.bannedMembers.collectAsState()
     val error by viewModel.error.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Info", "Settings", "Stats", "Admins", "Members")
+    val tabs = listOf("Info", "Settings", "Stats", "Admins", "Members", "Banned")
 
     LaunchedEffect(error) {
         error?.let {
@@ -118,7 +124,6 @@ fun ChannelAdminPanelScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Tab row
             ScrollableTabRow(
                 selectedTabIndex = selectedTab,
                 edgePadding = 8.dp,
@@ -128,18 +133,26 @@ fun ChannelAdminPanelScreen(
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title, fontSize = 13.sp) }
+                        text = {
+                            if (index == 5 && bannedMembers.isNotEmpty()) {
+                                BadgedBox(badge = { Badge { Text("${bannedMembers.size}") } }) {
+                                    Text(title, fontSize = 13.sp)
+                                }
+                            } else {
+                                Text(title, fontSize = 13.sp)
+                            }
+                        }
                     )
                 }
             }
 
-            // Tab content
             when (selectedTab) {
-                0 -> InfoTab(channel, viewModel, channelId)
+                0 -> InfoTab(channel, viewModel, channelId, onChannelDeleted)
                 1 -> SettingsTab(channel, viewModel, channelId)
                 2 -> StatsTab(statistics, channel)
                 3 -> AdminsTab(admins, viewModel, channelId)
                 4 -> MembersTab(subscribers, viewModel, channelId)
+                5 -> BannedTab(bannedMembers, viewModel, channelId)
             }
         }
     }
@@ -151,13 +164,15 @@ fun ChannelAdminPanelScreen(
 private fun InfoTab(
     channel: Channel?,
     viewModel: ChannelDetailsViewModel,
-    channelId: Long
+    channelId: Long,
+    onChannelDeleted: () -> Unit
 ) {
     val context = LocalContext.current
     var editName by remember(channel) { mutableStateOf(channel?.name ?: "") }
     var editDesc by remember(channel) { mutableStateOf(channel?.description ?: "") }
     var editUsername by remember(channel) { mutableStateOf(channel?.username ?: "") }
     var isSaving by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -165,7 +180,6 @@ private fun InfoTab(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Channel avatar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -264,6 +278,73 @@ private fun InfoTab(
                 Text("Save Changes")
             }
         }
+
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+
+        // Delete channel — danger zone
+        item {
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                "Danger Zone",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = Color(0xFFCC0000),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Button(
+                onClick = { showDeleteDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFCC0000)
+                )
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Delete Channel")
+            }
+        }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFCC0000)) },
+            title = { Text("Delete Channel") },
+            text = {
+                Text("Are you sure you want to permanently delete \"${channel?.name}\"? This action cannot be undone. All posts and subscriber data will be lost.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteChannel(
+                            channelId = channelId,
+                            onSuccess = {
+                                Toast.makeText(context, "Channel deleted", Toast.LENGTH_SHORT).show()
+                                onChannelDeleted()
+                            },
+                            onError = { err ->
+                                Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                            }
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCC0000))
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -308,24 +389,14 @@ private fun SettingsTab(
 
         item {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Moderation",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+            Text("Moderation", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 8.dp))
         }
         item { SettingToggle("Comment Moderation", "Comments require approval", moderation) { moderation = it } }
         item { SettingToggle("Author Signature", "Show author name on posts", signature) { signature = it } }
 
         item {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Notifications & Privacy",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+            Text("Notifications & Privacy", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 8.dp))
         }
         item { SettingToggle("Notify on New Post", "Push notifications for new posts", notifyNew) { notifyNew = it } }
         item { SettingToggle("Show Statistics", "Subscribers can see view counts", showStats) { showStats = it } }
@@ -363,11 +434,7 @@ private fun SettingsTab(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 Text("Save Settings")
@@ -393,11 +460,7 @@ private fun SettingToggle(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.Medium, fontSize = 15.sp)
-            Text(
-                subtitle,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
+            Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
@@ -413,76 +476,42 @@ private fun StatsTab(statistics: ChannelStatistics?, channel: Channel?) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text(
-                "Channel Statistics",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Text("Channel Statistics", fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 8.dp))
         }
 
         if (statistics == null) {
             item {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             }
         } else {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatCard("Subscribers", "${statistics.subscribersCount}", Icons.Default.People, Modifier.weight(1f))
                     StatCard("Posts", "${statistics.postsCount}", Icons.Default.Article, Modifier.weight(1f))
                 }
             }
-
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatCard("This Week", "${statistics.postsLastWeek}", Icons.Default.DateRange, Modifier.weight(1f))
                     StatCard("Active 24h", "${statistics.activeSubscribers24h}", Icons.Default.Visibility, Modifier.weight(1f))
                 }
             }
-
             if (!statistics.topPosts.isNullOrEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Top Posts", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
                 items(statistics.topPosts!!.take(5)) { topPost ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = topPost.text.take(80) + if (topPost.text.length > 80) "..." else "",
-                                    fontSize = 14.sp
-                                )
+                                Text(text = topPost.text.take(80) + if (topPost.text.length > 80) "..." else "", fontSize = 14.sp)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "${topPost.views}",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Icon(
-                                Icons.Default.Visibility,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp).padding(start = 4.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            Text("${topPost.views}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp).padding(start = 4.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -498,10 +527,7 @@ private fun StatCard(title: String, value: String, icon: ImageVector, modifier: 
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
             Spacer(modifier = Modifier.height(8.dp))
             Text(value, fontWeight = FontWeight.Bold, fontSize = 22.sp)
@@ -533,10 +559,7 @@ private fun AdminsTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Admins (${admins.size})", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                FilledTonalButton(
-                    onClick = { showAddDialog = true },
-                    shape = RoundedCornerShape(12.dp)
-                ) {
+                FilledTonalButton(onClick = { showAddDialog = true }, shape = RoundedCornerShape(12.dp)) {
                     Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Add")
@@ -545,14 +568,8 @@ private fun AdminsTab(
         }
 
         items(admins) { admin ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     AsyncImage(
                         model = admin.avatarUrl.toFullMediaUrl(),
                         contentDescription = null,
@@ -630,14 +647,22 @@ private fun MembersTab(
     viewModel: ChannelDetailsViewModel,
     channelId: Long
 ) {
+    val context = LocalContext.current
+    var memberForAction by remember { mutableStateOf<ChannelSubscriber?>(null) }
+    var showBanDialog by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         item {
-            Text("Subscribers (${subscribers.size})", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Members (${subscribers.size})",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
         }
 
         if (subscribers.isEmpty()) {
@@ -646,59 +671,400 @@ private fun MembersTab(
                     modifier = Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "No subscribers yet",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    )
+                    Text("No subscribers yet", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             }
         } else {
-            items(subscribers) { subscriber ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .padding(vertical = 6.dp, horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AsyncImage(
-                        model = subscriber.avatarUrl?.toFullMediaUrl(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = subscriber.name ?: subscriber.username ?: "User #${subscriber.userId}",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 14.sp
+            items(subscribers, key = { it.userId ?: it.id ?: 0 }) { subscriber ->
+                MemberRow(
+                    subscriber = subscriber,
+                    onBan = {
+                        memberForAction = subscriber
+                        showBanDialog = true
+                    },
+                    onKick = {
+                        viewModel.kickMember(
+                            channelId = channelId,
+                            userId = subscriber.userId ?: return@MemberRow,
+                            onSuccess = { Toast.makeText(context, "${subscriber.name ?: subscriber.username} kicked", Toast.LENGTH_SHORT).show() },
+                            onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
                         )
-                        if (subscriber.role != null && subscriber.role != "member") {
-                            Text(
-                                text = subscriber.role.replaceFirstChar { it.uppercase() },
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                    },
+                    onMakeAdmin = {
+                        viewModel.addChannelAdmin(
+                            channelId = channelId,
+                            userSearch = subscriber.username ?: return@MemberRow,
+                            role = "admin",
+                            onSuccess = {
+                                Toast.makeText(context, "${subscriber.name ?: subscriber.username} is now admin", Toast.LENGTH_SHORT).show()
+                                viewModel.loadChannelDetails(channelId)
+                            },
+                            onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+                        )
                     }
-                    if (subscriber.isBanned) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = Color(0xFFFF4444).copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                "Banned",
-                                fontSize = 11.sp,
-                                color = Color(0xFFFF4444),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
+                )
+            }
+        }
+    }
+
+    // Ban duration dialog
+    if (showBanDialog && memberForAction != null) {
+        BanDurationDialog(
+            memberName = memberForAction!!.name ?: memberForAction!!.username ?: "User",
+            onDismiss = {
+                showBanDialog = false
+                memberForAction = null
+            },
+            onBan = { durationSeconds, reason ->
+                val target = memberForAction!!
+                showBanDialog = false
+                memberForAction = null
+                viewModel.banMember(
+                    channelId = channelId,
+                    userId = target.userId ?: return@BanDurationDialog,
+                    reason = reason,
+                    durationSeconds = durationSeconds,
+                    onSuccess = {
+                        val desc = if (durationSeconds == 0) "permanently" else "temporarily"
+                        Toast.makeText(context, "${target.name ?: target.username} banned $desc", Toast.LENGTH_SHORT).show()
+                        viewModel.loadBannedMembers(channelId)
+                    },
+                    onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun MemberRow(
+    subscriber: ChannelSubscriber,
+    onBan: () -> Unit,
+    onKick: () -> Unit,
+    onMakeAdmin: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    val isAdminOrOwner = subscriber.role == "owner" || subscriber.role == "admin"
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { if (!isAdminOrOwner) showMenu = true }
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = subscriber.avatarUrl?.toFullMediaUrl(),
+            contentDescription = null,
+            modifier = Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = subscriber.name ?: subscriber.username ?: "User #${subscriber.userId}",
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp
+            )
+            if (subscriber.role != null && subscriber.role != "member") {
+                Text(
+                    text = subscriber.role.replaceFirstChar { it.uppercase() },
+                    fontSize = 12.sp,
+                    color = when (subscriber.role) {
+                        "owner" -> Color(0xFF4CAF50)
+                        "admin" -> Color(0xFF2196F3)
+                        else -> MaterialTheme.colorScheme.primary
                     }
+                )
+            }
+        }
+
+        if (!isAdminOrOwner) {
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "Actions",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Make Admin") },
+                        leadingIcon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            onMakeAdmin()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Kick") },
+                        leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            onKick()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Ban", color = Color(0xFFFF4444)) },
+                        leadingIcon = { Icon(Icons.Default.Block, contentDescription = null, tint = Color(0xFFFF4444)) },
+                        onClick = {
+                            showMenu = false
+                            onBan()
+                        }
+                    )
                 }
             }
         }
     }
+}
+
+// ==================== BANNED TAB ====================
+
+@Composable
+private fun BannedTab(
+    bannedMembers: List<ChannelBannedMember>,
+    viewModel: ChannelDetailsViewModel,
+    channelId: Long
+) {
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            Text(
+                "Banned Members (${bannedMembers.size})",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        if (bannedMembers.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No banned members", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                }
+            }
+        } else {
+            items(bannedMembers, key = { it.userId }) { banned ->
+                BannedMemberRow(
+                    banned = banned,
+                    onUnban = {
+                        viewModel.unbanMember(
+                            channelId = channelId,
+                            userId = banned.userId,
+                            onSuccess = {
+                                Toast.makeText(context, "${banned.name ?: banned.username} unbanned", Toast.LENGTH_SHORT).show()
+                            },
+                            onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BannedMemberRow(
+    banned: ChannelBannedMember,
+    onUnban: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFF4444).copy(alpha = 0.05f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = banned.avatarUrl?.toFullMediaUrl(),
+                contentDescription = null,
+                modifier = Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = banned.name ?: banned.username ?: "User #${banned.userId}",
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp
+                )
+                val banInfo = if (banned.isPermanent) {
+                    "Permanent ban"
+                } else {
+                    val remainingSecs = banned.expireTime - (System.currentTimeMillis() / 1000)
+                    if (remainingSecs > 0) {
+                        "Expires in ${formatDuration(remainingSecs)}"
+                    } else {
+                        "Expired"
+                    }
+                }
+                Text(banInfo, fontSize = 12.sp, color = Color(0xFFFF4444))
+                if (!banned.reason.isNullOrBlank()) {
+                    Text(
+                        "Reason: ${banned.reason}",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+            TextButton(
+                onClick = onUnban,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Unban")
+            }
+        }
+    }
+}
+
+private fun formatDuration(seconds: Long): String {
+    return when {
+        seconds >= TimeUnit.DAYS.toSeconds(1) -> "${seconds / TimeUnit.DAYS.toSeconds(1)}d"
+        seconds >= TimeUnit.HOURS.toSeconds(1) -> "${seconds / TimeUnit.HOURS.toSeconds(1)}h"
+        else -> "${seconds / 60}m"
+    }
+}
+
+// ==================== DIALOGS ====================
+
+/**
+ * Dialog to select ban duration and enter optional reason.
+ * Durations: 1h | 24h | 7d | 30d | Permanent
+ */
+@Composable
+private fun BanDurationDialog(
+    memberName: String,
+    onDismiss: () -> Unit,
+    onBan: (durationSeconds: Int, reason: String) -> Unit
+) {
+    data class BanOption(val label: String, val seconds: Int)
+
+    val options = listOf(
+        BanOption("1 hour",    3600),
+        BanOption("24 hours",  86400),
+        BanOption("7 days",    604800),
+        BanOption("30 days",   2592000),
+        BanOption("Permanent", 0)
+    )
+    var selectedOption by remember { mutableStateOf(options[1]) } // default: 24h
+    var reason by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Block, contentDescription = null, tint = Color(0xFFFF4444)) },
+        title = { Text("Ban $memberName") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Select ban duration:", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+
+                options.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { selectedOption = option }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedOption == option,
+                            onClick = { selectedOption = option }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            option.label,
+                            fontSize = 14.sp,
+                            color = if (option.seconds == 0) Color(0xFFFF4444) else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text("Reason (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onBan(selectedOption.seconds, reason.trim()) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4444))
+            ) {
+                Text("Ban")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+/**
+ * Dialog to add a new admin by username or name search.
+ */
+@Composable
+private fun AddAdminDialog(
+    onDismiss: () -> Unit,
+    onAdd: (search: String, role: String) -> Unit
+) {
+    var searchText by remember { mutableStateOf("") }
+    var selectedRole by remember { mutableStateOf("admin") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.PersonAdd, contentDescription = null) },
+        title = { Text("Add Admin") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = { Text("Username or Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+                )
+                Text("Role:", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("admin", "moderator").forEach { role ->
+                        FilterChip(
+                            selected = selectedRole == role,
+                            onClick = { selectedRole = role },
+                            label = { Text(role.replaceFirstChar { it.uppercase() }) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { if (searchText.isNotBlank()) onAdd(searchText.trim(), selectedRole) },
+                enabled = searchText.isNotBlank()
+            ) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

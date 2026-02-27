@@ -258,6 +258,39 @@ interface NodeChannelApi {
         @Part file: MultipartBody.Part
     ): MediaUploadResponse
 
+    // ═══════════════════════ MEMBER MANAGEMENT ══════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_BAN_MEMBER)
+    suspend fun banChannelMember(
+        @Field("channel_id") channelId: Long,
+        @Field("user_id") userId: Long,
+        @Field("reason") reason: String? = null,
+        @Field("duration_seconds") durationSeconds: Int = 0 // 0 = permanent
+    ): CreateChannelResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_UNBAN_MEMBER)
+    suspend fun unbanChannelMember(
+        @Field("channel_id") channelId: Long,
+        @Field("user_id") userId: Long
+    ): CreateChannelResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_KICK_MEMBER)
+    suspend fun kickChannelMember(
+        @Field("channel_id") channelId: Long,
+        @Field("user_id") userId: Long
+    ): CreateChannelResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_BANNED)
+    suspend fun getChannelBannedMembers(
+        @Field("channel_id") channelId: Long,
+        @Field("limit") limit: Int = 50,
+        @Field("offset") offset: Int = 0
+    ): ChannelBannedMembersResponse
+
     // ═══════════════════════ GENERAL MEDIA UPLOAD ═══════════════════════════════
 
     @Multipart
