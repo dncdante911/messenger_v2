@@ -9,6 +9,7 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Message
 import com.worldmates.messenger.data.model.MessageReaction
 import com.worldmates.messenger.data.model.ReactionGroup
+import com.worldmates.messenger.data.model.UserPresenceStatus
 import com.worldmates.messenger.network.FileManager
 import com.worldmates.messenger.network.MediaUploader
 import com.worldmates.messenger.network.MediaLoadingManager
@@ -37,6 +38,7 @@ class MessagesViewModel(application: Application) :
 
     private val context = application
     private val nodeApi = NodeRetrofitClient.api
+    private val groupApi = NodeRetrofitClient.groupApi
 
     companion object {
         private const val TAG = "MessagesViewModel"
@@ -78,15 +80,19 @@ class MessagesViewModel(application: Application) :
     private val _uploadProgress = MutableStateFlow(0)
     val uploadProgress: StateFlow<Int> = _uploadProgress
 
-    private val _isTyping = MutableStateFlow(false)
-    val isTyping: StateFlow<Boolean> = _isTyping
+    // Combined presence/activity status for the chat header
+    private val _presenceStatus = MutableStateFlow<UserPresenceStatus>(UserPresenceStatus.Offline)
+    val presenceStatus: StateFlow<UserPresenceStatus> = _presenceStatus
 
-    // true = співрозмовник зараз записує голосове повідомлення
-    private val _isRecording = MutableStateFlow(false)
-    val isRecording: StateFlow<Boolean> = _isRecording
+    // Internal flags used to restore the base status after a transient action ends
+    private var presenceIsOnline = false
+    private var presenceLastSeenTs = 0L
 
-    private val _recipientOnlineStatus = MutableStateFlow(false)
-    val recipientOnlineStatus: StateFlow<Boolean> = _recipientOnlineStatus
+    private fun basePresenceStatus(): UserPresenceStatus = when {
+        presenceIsOnline -> UserPresenceStatus.Online
+        presenceLastSeenTs > 0L -> UserPresenceStatus.LastSeen(presenceLastSeenTs)
+        else -> UserPresenceStatus.Offline
+    }
 
     private val _forwardContacts = MutableStateFlow<List<ForwardRecipient>>(emptyList())
     val forwardContacts: StateFlow<List<ForwardRecipient>> = _forwardContacts
@@ -507,34 +513,48 @@ class MessagesViewModel(application: Application) :
                     return@launch
                 }
 
-                // Group/PHP path
+                // Group → Node.js
+                if (groupId > 0L) {
+                    val resp = groupApi.editGroupMessage(messageId, newText)
+                    if (resp.apiStatus == 200) {
+                        val current = _messages.value.toMutableList()
+                        val idx = current.indexOfFirst { it.id == messageId }
+                        if (idx != -1) {
+                            current[idx] = current[idx].copy(
+                                encryptedText = newText,
+                                decryptedText = newText
+                            )
+                            _messages.value = current
+                        }
+                        _error.value = null
+                        Log.d("MessagesViewModel", "Повідомлення відредаговано у групі (Node.js): $messageId")
+                    } else {
+                        _error.value = resp.errorMessage ?: "Не вдалося відредагувати повідомлення"
+                    }
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                // PHP fallback (legacy)
                 val response = RetrofitClient.apiService.editMessage(
                     accessToken = UserSession.accessToken!!,
                     messageId = messageId,
                     newText = newText
                 )
-
                 if (response.apiStatus == 200) {
-                    // Оновлюємо повідомлення в локальному списку
                     val currentMessages = _messages.value.toMutableList()
                     val index = currentMessages.indexOfFirst { it.id == messageId }
-
                     if (index != -1) {
-                        val updatedMessage = currentMessages[index].copy(
+                        currentMessages[index] = currentMessages[index].copy(
                             encryptedText = newText,
                             decryptedText = newText
                         )
-                        currentMessages[index] = updatedMessage
                         _messages.value = currentMessages
-                        Log.d("MessagesViewModel", "Повідомлення відредаговано: $messageId")
                     }
-
                     _error.value = null
                 } else {
                     _error.value = response.errors?.errorText ?: "Не вдалося відредагувати повідомлення"
-                    Log.e("MessagesViewModel", "Edit Error: ${response.errors?.errorText}")
                 }
-
                 _isLoading.value = false
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
@@ -579,24 +599,35 @@ class MessagesViewModel(application: Application) :
                     return@launch
                 }
 
-                // Group/PHP path
+                // Group → Node.js
+                if (groupId > 0L) {
+                    val resp = groupApi.deleteGroupMessage(messageId)
+                    if (resp.apiStatus == 200) {
+                        _messages.value = _messages.value.filter { it.id != messageId }
+                        _error.value = null
+                        Log.d("MessagesViewModel", "Повідомлення видалено у групі (Node.js): $messageId")
+                    } else {
+                        _error.value = resp.errorMessage ?: "Не вдалося видалити повідомлення"
+                    }
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                // PHP fallback (legacy)
                 val response = RetrofitClient.apiService.deleteMessage(
                     accessToken = UserSession.accessToken!!,
                     messageId = messageId
                 )
-
                 if (response.apiStatus == 200) {
-                    kotlinx.coroutines.delay(750L)
-                    _messages.update { list -> list.filter { it.id != messageId } }
+                    _messages.value = _messages.value.filter { it.id != messageId }
                     _error.value = null
                     Log.d("MessagesViewModel", "Повідомлення видалено: $messageId")
                 } else {
                     _deletingMessages.update { it - messageId }
                     permanentlyDeletedIds.remove(messageId)
                     _error.value = response.errors?.errorText ?: "Не вдалося видалити повідомлення"
-                    Log.e("MessagesViewModel", "Delete Error: ${response.errors?.errorText}")
                 }
-                _deletingMessages.update { it - messageId }
+                _isLoading.value = false
             } catch (e: Exception) {
                 _deletingMessages.update { it - messageId }
                 permanentlyDeletedIds.remove(messageId)
@@ -1206,41 +1237,87 @@ class MessagesViewModel(application: Application) :
     }
 
     override fun onTypingStatus(userId: Long?, isTyping: Boolean) {
-        if (userId == recipientId) {
-            _isTyping.value = isTyping
-            // ВАЖНО: Если пользователь печатает, значит он онлайн!
-            if (isTyping) {
-                _recipientOnlineStatus.value = true
-            }
+        // Private chat: check userId == recipientId
+        if (groupId == 0L && userId == recipientId) {
+            _presenceStatus.value = if (isTyping) UserPresenceStatus.Typing else basePresenceStatus()
+            if (isTyping) presenceIsOnline = true
             Log.d("MessagesViewModel", "Користувач $userId ${if (isTyping) "набирає" else "зупинив набір"}")
         }
     }
 
+    override fun onGroupTyping(groupId: Long, userId: Long, isTyping: Boolean) {
+        if (this.groupId != groupId) return
+        if (userId == UserSession.userId) return  // ignore own typing
+        if (isTyping) {
+            val memberName = _currentGroup.value?.members?.find { it.userId == userId }?.username ?: "Хтось"
+            _presenceStatus.value = UserPresenceStatus.GroupTyping(memberName)
+        } else {
+            _presenceStatus.value = UserPresenceStatus.Online
+        }
+        Log.d(TAG, "Group $groupId: user $userId ${if (isTyping) "typing" else "stopped"}")
+    }
+
     override fun onUserOnline(userId: Long) {
         if (userId == recipientId) {
-            _recipientOnlineStatus.value = true
+            presenceIsOnline = true
+            // Only update if not in a transient action state
+            val cur = _presenceStatus.value
+            if (cur is UserPresenceStatus.Offline || cur is UserPresenceStatus.LastSeen) {
+                _presenceStatus.value = UserPresenceStatus.Online
+            }
             Log.d("MessagesViewModel", "✅ Користувач $userId з'явився онлайн")
         }
     }
 
     override fun onUserOffline(userId: Long) {
         if (userId == recipientId) {
-            // ВАЖНО: Не сбрасываем статус, если пользователь печатает
-            if (!_isTyping.value) {
-                _recipientOnlineStatus.value = false
-                Log.d("MessagesViewModel", "❌ Користувач $userId з'явився офлайн")
-            } else {
-                Log.d("MessagesViewModel", "⚠️ Ігноруємо offline для $userId (друкує)")
+            presenceIsOnline = false
+            // Only update if not in a transient action state (typing etc.)
+            val cur = _presenceStatus.value
+            if (cur is UserPresenceStatus.Online) {
+                _presenceStatus.value = basePresenceStatus()
             }
+            Log.d("MessagesViewModel", "❌ Користувач $userId з'явився офлайн")
         }
     }
 
     override fun onRecordingStatus(userId: Long?, isRecording: Boolean) {
         if (userId == recipientId) {
-            _isRecording.value = isRecording
-            if (isRecording) _recipientOnlineStatus.value = true
-            Log.d(TAG, "Користувач $userId recording: $isRecording")
+            _presenceStatus.value = if (isRecording) UserPresenceStatus.RecordingVoice else basePresenceStatus()
+            if (isRecording) presenceIsOnline = true
+            Log.d(TAG, "Користувач $userId recording voice: $isRecording")
         }
+    }
+
+    override fun onLastSeen(userId: Long, lastSeen: Long) {
+        if (userId == recipientId && lastSeen > 0) {
+            presenceLastSeenTs = lastSeen
+            // Only switch to LastSeen if currently offline
+            if (_presenceStatus.value is UserPresenceStatus.Offline) {
+                _presenceStatus.value = UserPresenceStatus.LastSeen(lastSeen)
+            }
+            Log.d(TAG, "Last seen for $userId: $lastSeen")
+        }
+    }
+
+    override fun onUserAction(userId: Long?, groupId: Long?, action: String) {
+        val isRelevant = if (this.groupId > 0L) {
+            groupId == this.groupId && userId != UserSession.userId
+        } else {
+            userId == recipientId
+        }
+        if (!isRelevant) return
+
+        val newStatus: UserPresenceStatus = when (action) {
+            "recording"       -> UserPresenceStatus.RecordingVoice
+            "recording_video" -> UserPresenceStatus.RecordingVideo
+            "listening"       -> UserPresenceStatus.ListeningAudio
+            "viewing"         -> UserPresenceStatus.ViewingMedia
+            "choosing_sticker"-> UserPresenceStatus.ChoosingSticker
+            else              -> basePresenceStatus()
+        }
+        _presenceStatus.value = newStatus
+        Log.d(TAG, "User action '$action' from user $userId")
     }
 
     override fun onMessageEdited(messageId: Long, newText: String, iv: String?, tag: String?, cipherVersion: String?) {
@@ -1295,6 +1372,13 @@ class MessagesViewModel(application: Application) :
         Log.d(TAG, "Socket: реакція '$reaction' ($action) на повідомлення $messageId від $userId")
     }
 
+    override fun onGroupHistoryCleared(groupId: Long) {
+        if (this.groupId == groupId) {
+            _messages.value = emptyList()
+            Log.d(TAG, "Socket: group $groupId history cleared for all")
+        }
+    }
+
     override fun onMessagePinned(messageId: Long, isPinned: Boolean, chatId: Long) {
         if (recipientId != 0L && (chatId == recipientId || chatId == UserSession.userId)) {
             if (isPinned) {
@@ -1337,13 +1421,16 @@ class MessagesViewModel(application: Application) :
      * а не session hash — так простіше та надійніше.
      */
     fun sendTypingStatus(isTyping: Boolean) {
-        if (recipientId == 0L || groupId != 0L) return
         if (socketManager?.canSendTypingIndicators() == false) return
-
         viewModelScope.launch {
             try {
-                nodeApi.sendTyping(recipientId, if (isTyping) "true" else "false")
-                Log.d(TAG, "Typing status sent via REST: $isTyping → recipient $recipientId")
+                if (groupId > 0L) {
+                    groupApi.sendGroupTyping(groupId, isTyping)
+                    Log.d(TAG, "Group typing status sent: $isTyping → group $groupId")
+                } else if (recipientId != 0L) {
+                    nodeApi.sendTyping(recipientId, if (isTyping) "true" else "false")
+                    Log.d(TAG, "Typing status sent via REST: $isTyping → recipient $recipientId")
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "sendTypingStatus failed: ${e.message}")
             }
@@ -1351,13 +1438,35 @@ class MessagesViewModel(application: Application) :
     }
 
     /**
-     * Надсилає статус "записує голосове" через Socket.IO
-     * Сервер RecordingController очікує session hash у полі user_id
+     * Надсилає статус "записує голосове"
      */
     fun sendRecordingStatus() {
-        if (recipientId == 0L || groupId != 0L) return
-        socketManager?.sendRecordingStatus(recipientId)
-        Log.d(TAG, "Recording status emitted for recipient $recipientId")
+        if (groupId > 0L) {
+            sendUserAction("recording")
+        } else if (recipientId != 0L) {
+            socketManager?.sendRecordingStatus(recipientId)
+            Log.d(TAG, "Recording status emitted for recipient $recipientId")
+        }
+    }
+
+    /**
+     * Sends a user action status (listening, viewing, choosing_sticker, recording_video, etc.)
+     * to the current chat recipient or group.
+     */
+    fun sendUserAction(action: String) {
+        viewModelScope.launch {
+            try {
+                if (groupId > 0L) {
+                    groupApi.sendGroupUserAction(groupId, action)
+                    Log.d(TAG, "Group user action '$action' sent for group $groupId")
+                } else if (recipientId != 0L) {
+                    nodeApi.sendUserAction(recipientId, action)
+                    Log.d(TAG, "User action '$action' sent for recipient $recipientId")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "sendUserAction failed: ${e.message}")
+            }
+        }
     }
 
     fun clearError() {
@@ -2030,40 +2139,64 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        if (groupId != 0L) {
-            // Groups: stay on PHP
-            viewModelScope.launch {
-                try {
-                    val response = RetrofitClient.apiService.clearGroupChatHistory(
-                        accessToken = UserSession.accessToken!!,
-                        groupId = groupId
-                    )
-                    if (response.apiStatus == 200) {
+        viewModelScope.launch {
+            try {
+                if (groupId != 0L) {
+                    // Group → Node.js: "for me" = clear-self, "for all" = clear-all (admin only)
+                    val forAll = UserSession.userId?.let { uid ->
+                        // we don't know admin status here, try clear-all first; fallback to self
+                        false // callers should pass deleteType to distinguish
+                    } ?: false
+                    val resp = groupApi.clearGroupHistorySelf(groupId)
+                    if (resp.apiStatus == 200) {
                         _messages.value = emptyList()
                         onSuccess()
-                        Log.d(TAG, "🗑️ Group chat history cleared")
+                        Log.d(TAG, "🗑️ Group history cleared for self (Node.js)")
                     } else {
-                        onError(response.message ?: "Не вдалося очистити історію")
+                        onError(resp.errorMessage ?: "Не вдалося очистити історію")
                     }
-                } catch (e: Exception) {
-                    onError("Помилка: ${e.localizedMessage}")
-                    Log.e(TAG, "❌ Error clearing group chat history", e)
+                    return@launch
                 }
-            }
-        } else {
-            // Private chats: Node.js soft-delete
-            clearHistoryViaNode(
-                scope       = viewModelScope,
-                api         = nodeApi,
-                recipientId = recipientId,
-                isLoading   = _isLoading,
-                error       = _error,
-                onSuccess   = {
+                // Private chat → PHP
+                val response = RetrofitClient.apiService.clearChatHistory(
+                    accessToken = UserSession.accessToken!!,
+                    userId = recipientId
+                )
+                if (response.apiStatus == 200) {
                     _messages.value = emptyList()
                     onSuccess()
-                    Log.d(TAG, "🗑️ Private chat history cleared via Node.js")
+                    Log.d(TAG, "🗑️ Chat history cleared")
+                } else {
+                    onError(response.message ?: "Не вдалося очистити історію")
                 }
-            )
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+                Log.e(TAG, "❌ Error clearing chat history", e)
+            }
+        }
+    }
+
+    /**
+     * 🗑️ Очистити історію групи для всіх (тільки адміни)
+     */
+    fun clearGroupHistoryForAll(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (groupId == 0L) return
+        viewModelScope.launch {
+            try {
+                val resp = groupApi.clearGroupHistoryAdmin(groupId)
+                if (resp.apiStatus == 200) {
+                    _messages.value = emptyList()
+                    onSuccess()
+                    Log.d(TAG, "🗑️ Group history cleared for all (Node.js)")
+                } else {
+                    onError(resp.errorMessage ?: "Не вдалося очистити історію для всіх")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+            }
         }
     }
 

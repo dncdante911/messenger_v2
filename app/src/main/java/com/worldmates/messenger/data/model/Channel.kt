@@ -146,23 +146,58 @@ data class ChannelSettings(
 )
 
 /**
- * Статистика каналу
+ * Повна статистика каналу (Telegram-style)
  */
 data class ChannelStatistics(
+    // ── Subscribers ──────────────────────────────────────────────────────────
     @SerializedName("subscribers_count") val subscribersCount: Int = 0,
-    @SerializedName("posts_count") val postsCount: Int = 0,
-    @SerializedName("posts_last_week") val postsLastWeek: Int = 0,
+    @SerializedName("new_subscribers_today") val newSubscribersToday: Int = 0,
+    @SerializedName("new_subscribers_week") val newSubscribersWeek: Int = 0,
+    @SerializedName("left_subscribers_week") val leftSubscribersWeek: Int = 0,
+    @SerializedName("growth_rate") val growthRate: Float = 0f, // % change this week
     @SerializedName("active_subscribers_24h") val activeSubscribers24h: Int = 0,
+    @SerializedName("subscribers_by_day") val subscribersByDay: List<Int>? = null, // 7 days
+
+    // ── Posts ─────────────────────────────────────────────────────────────────
+    @SerializedName("posts_count") val postsCount: Int = 0,
+    @SerializedName("posts_today") val postsToday: Int = 0,
+    @SerializedName("posts_last_week") val postsLastWeek: Int = 0,
+    @SerializedName("posts_this_month") val postsThisMonth: Int = 0,
+
+    // ── Views ─────────────────────────────────────────────────────────────────
+    @SerializedName("views_total") val viewsTotal: Long = 0L,
+    @SerializedName("views_last_week") val viewsLastWeek: Long = 0L,
+    @SerializedName("avg_views_per_post") val avgViewsPerPost: Int = 0,
+    @SerializedName("views_by_day") val viewsByDay: List<Int>? = null, // 7 days
+
+    // ── Engagement ────────────────────────────────────────────────────────────
+    @SerializedName("reactions_total") val reactionsTotal: Int = 0,
+    @SerializedName("comments_total") val commentsTotal: Int = 0,
+    @SerializedName("engagement_rate") val engagementRate: Float = 0f, // %
+
+    // ── Content breakdown ─────────────────────────────────────────────────────
+    @SerializedName("media_posts_count") val mediaPostsCount: Int = 0,
+    @SerializedName("text_posts_count") val textPostsCount: Int = 0,
+
+    // ── Activity heatmap ─────────────────────────────────────────────────────
+    @SerializedName("peak_hours") val peakHours: List<Int>? = null, // top active hours (indices 0-23)
+    @SerializedName("hourly_views") val hourlyViews: List<Int>? = null, // views count per hour [0..23]
+
+    // ── Top content ───────────────────────────────────────────────────────────
     @SerializedName("top_posts") val topPosts: List<TopPostStatistic>? = null
 )
 
 /**
- * Статистика топ-поста
+ * Топ-пост з повними метриками
  */
 data class TopPostStatistic(
     @SerializedName("id") val id: Long,
     @SerializedName("text") val text: String,
-    @SerializedName("views") val views: Int
+    @SerializedName("views") val views: Int,
+    @SerializedName("reactions") val reactions: Int = 0,
+    @SerializedName("comments") val comments: Int = 0,
+    @SerializedName("published_time") val publishedTime: Long = 0L,
+    @SerializedName("has_media") val hasMedia: Boolean = false
 )
 
 /**

@@ -137,6 +137,16 @@ interface NodeApi {
         @Field("typing")       typing: String  // "true" | "false"
     ): NodeSimpleResponse
 
+    /**
+     * USER ACTION status (listening, viewing, choosing_sticker, recording_video, etc.)
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHAT_USER_ACTION)
+    suspend fun sendUserAction(
+        @Field("recipient_id") recipientId: Long,
+        @Field("action")       action: String
+    ): NodeSimpleResponse
+
     // ═══════════════════════ ACTIONS ═════════════════════════════════════════
 
     /**

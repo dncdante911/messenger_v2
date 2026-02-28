@@ -297,66 +297,236 @@ function getStatistics(ctx, io) {
                 return res.json({ api_status: 403, error_code: 403, error_message: 'Only admins can view statistics' });
             }
 
+            const now     = Math.floor(Date.now() / 1000);
+            const day1    = now - 86400;
+            const week1   = now - 7  * 86400;
+            const month1  = now - 30 * 86400;
+
+            // ── Subscribers ────────────────────────────────────────────────────
             const subscribersCount = await ctx.wo_pages_likes.count({
                 where: { page_id: channelId, active: '1' }
             });
 
-            const postsCount = await ctx.wo_posts.count({
-                where: { page_id: channelId, active: 1 }
-            });
+            // New subscribers this week (wo_pages_likes.time if column exists)
+            let newSubscribersWeek = 0;
+            let newSubscribersToday = 0;
+            let leftSubscribersWeek = 0;
+            let subscribersByDay = [0, 0, 0, 0, 0, 0, 0];
+            try {
+                newSubscribersWeek = await ctx.wo_pages_likes.count({
+                    where: { page_id: channelId, active: '1', time: { [Op.gte]: week1 } }
+                });
+                newSubscribersToday = await ctx.wo_pages_likes.count({
+                    where: { page_id: channelId, active: '1', time: { [Op.gte]: day1 } }
+                });
+                // unsubscribes tracked as active='0' with recent time
+                leftSubscribersWeek = await ctx.wo_pages_likes.count({
+                    where: { page_id: channelId, active: '0', time: { [Op.gte]: week1 } }
+                });
+                // subscribers per day for last 7 days
+                const subRows = await ctx.wo_pages_likes.findAll({
+                    where: { page_id: channelId, active: '1', time: { [Op.gte]: week1 } },
+                    attributes: ['time'],
+                    raw: true
+                });
+                subRows.forEach(r => {
+                    const daysAgo = Math.floor((now - r.time) / 86400);
+                    if (daysAgo >= 0 && daysAgo < 7) subscribersByDay[6 - daysAgo]++;
+                });
+            } catch (_) { /* time column may not exist */ }
 
-            // Posts in last week
-            const oneWeekAgo = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
-            const postsLastWeek = await ctx.wo_posts.count({
-                where: {
-                    page_id: channelId,
-                    active: 1,
-                    time: { [Op.gte]: oneWeekAgo }
-                }
-            });
+            // Growth rate: (newSubscribersWeek - leftSubscribersWeek) / max(subscribersCount, 1) * 100
+            const netGrowth = newSubscribersWeek - leftSubscribersWeek;
+            const growthRate = subscribersCount > 0
+                ? parseFloat(((netGrowth / subscribersCount) * 100).toFixed(1))
+                : 0;
 
-            // Active subscribers (who viewed posts in last 24h) - approximate via lastseen
-            const oneDayAgo = Math.floor(Date.now() / 1000) - (24 * 60 * 60);
+            // Active subscribers (lastseen >= 24h ago)
             const subscriberIds = await ctx.wo_pages_likes.findAll({
                 where: { page_id: channelId, active: '1' },
                 attributes: ['user_id'],
-                raw: true
+                raw: true,
+                limit: 5000 // cap for performance
             });
             const subUserIds = subscriberIds.map(s => s.user_id);
-
             let activeSubscribers24h = 0;
             if (subUserIds.length > 0) {
                 activeSubscribers24h = await ctx.wo_users.count({
-                    where: {
-                        user_id: { [Op.in]: subUserIds },
-                        lastseen: { [Op.gte]: oneDayAgo }
-                    }
+                    where: { user_id: { [Op.in]: subUserIds }, lastseen: { [Op.gte]: day1 } }
                 });
             }
 
-            // Top posts by views
-            const topPosts = await ctx.wo_posts.findAll({
+            // ── Posts ──────────────────────────────────────────────────────────
+            const postsCount = await ctx.wo_posts.count({
+                where: { page_id: channelId, active: 1 }
+            });
+            const postsToday = await ctx.wo_posts.count({
+                where: { page_id: channelId, active: 1, time: { [Op.gte]: day1 } }
+            });
+            const postsLastWeek = await ctx.wo_posts.count({
+                where: { page_id: channelId, active: 1, time: { [Op.gte]: week1 } }
+            });
+            const postsThisMonth = await ctx.wo_posts.count({
+                where: { page_id: channelId, active: 1, time: { [Op.gte]: month1 } }
+            });
+            // Media vs text posts breakdown
+            const mediaPostsCount = await ctx.wo_posts.count({
+                where: { page_id: channelId, active: 1, postFile: { [Op.ne]: '' } }
+            });
+            const textPostsCount = postsCount - mediaPostsCount;
+
+            // ── Views ──────────────────────────────────────────────────────────
+            const viewsTotalRow = await ctx.wo_posts.findAll({
                 where: { page_id: channelId, active: 1 },
-                attributes: ['id', 'postText', 'videoViews'],
-                order: [['videoViews', 'DESC']],
-                limit: 5,
+                attributes: [[Sequelize.fn('SUM', Sequelize.col('videoViews')), 'total']],
                 raw: true
             });
+            const viewsTotal = parseInt(viewsTotalRow[0]?.total || 0, 10);
 
-            const topPostStats = topPosts.map(p => ({
+            const viewsWeekRow = await ctx.wo_posts.findAll({
+                where: { page_id: channelId, active: 1, time: { [Op.gte]: week1 } },
+                attributes: [[Sequelize.fn('SUM', Sequelize.col('videoViews')), 'total']],
+                raw: true
+            });
+            const viewsLastWeek = parseInt(viewsWeekRow[0]?.total || 0, 10);
+
+            const avgViewsPerPost = postsCount > 0 ? Math.round(viewsTotal / postsCount) : 0;
+
+            // Views per day for last 7 days
+            const viewsByDay = [0, 0, 0, 0, 0, 0, 0];
+            try {
+                const recentPosts = await ctx.wo_posts.findAll({
+                    where: { page_id: channelId, active: 1, time: { [Op.gte]: week1 } },
+                    attributes: ['time', 'videoViews'],
+                    raw: true
+                });
+                recentPosts.forEach(p => {
+                    const daysAgo = Math.floor((now - p.time) / 86400);
+                    if (daysAgo >= 0 && daysAgo < 7) viewsByDay[6 - daysAgo] += (p.videoViews || 0);
+                });
+            } catch (_) {}
+
+            // ── Engagement ─────────────────────────────────────────────────────
+            let reactionsTotal = 0;
+            let commentsTotal = 0;
+            try {
+                const reactRow = await ctx.wo_post_reactions?.findAll?.({
+                    where: { page_id: channelId },
+                    attributes: [[Sequelize.fn('COUNT', Sequelize.col('id')), 'total']],
+                    raw: true
+                });
+                reactionsTotal = parseInt(reactRow?.[0]?.total || 0, 10);
+            } catch (_) {}
+            try {
+                const comRow = await ctx.wo_post_comments?.findAll?.({
+                    where: { post_id: { [Op.in]: (await ctx.wo_posts.findAll({
+                        where: { page_id: channelId, active: 1 },
+                        attributes: ['id'], raw: true, limit: 1000
+                    })).map(p => p.id) } },
+                    attributes: [[Sequelize.fn('COUNT', Sequelize.col('id')), 'total']],
+                    raw: true
+                });
+                commentsTotal = parseInt(comRow?.[0]?.total || 0, 10);
+            } catch (_) {}
+            const engagementRate = viewsTotal > 0
+                ? parseFloat((((reactionsTotal + commentsTotal) / viewsTotal) * 100).toFixed(2))
+                : 0;
+
+            // ── Peak hours (by post publish time) ─────────────────────────────
+            const allPostTimes = await ctx.wo_posts.findAll({
+                where: { page_id: channelId, active: 1 },
+                attributes: ['time'],
+                raw: true,
+                limit: 2000
+            });
+            const hourCounts = Array(24).fill(0);
+            const hourlyViews24 = Array(24).fill(0);
+            allPostTimes.forEach(p => {
+                const h = new Date(p.time * 1000).getHours();
+                hourCounts[h]++;
+            });
+            // top peak hours (indices where activity is above average)
+            const avgHourCount = hourCounts.reduce((a, b) => a + b, 0) / 24;
+            const peakHours = hourCounts
+                .map((cnt, h) => ({ h, cnt }))
+                .filter(x => x.cnt > avgHourCount)
+                .sort((a, b) => b.cnt - a.cnt)
+                .slice(0, 6)
+                .map(x => x.h);
+
+            // ── Top posts by views ─────────────────────────────────────────────
+            const topPostRows = await ctx.wo_posts.findAll({
+                where: { page_id: channelId, active: 1 },
+                attributes: ['id', 'postText', 'videoViews', 'time', 'postFile'],
+                order: [['videoViews', 'DESC']],
+                limit: 10,
+                raw: true
+            });
+            // Gather reactions+comments counts per post
+            const topPostIds = topPostRows.map(p => p.id);
+            const reactByPost = {};
+            const commentByPost = {};
+            try {
+                const rRows = await ctx.wo_post_reactions?.findAll?.({
+                    where: { post_id: { [Op.in]: topPostIds } },
+                    attributes: ['post_id', [Sequelize.fn('COUNT', Sequelize.col('id')), 'cnt']],
+                    group: ['post_id'],
+                    raw: true
+                });
+                (rRows || []).forEach(r => { reactByPost[r.post_id] = parseInt(r.cnt, 10); });
+            } catch (_) {}
+            try {
+                const cRows = await ctx.wo_post_comments?.findAll?.({
+                    where: { post_id: { [Op.in]: topPostIds } },
+                    attributes: ['post_id', [Sequelize.fn('COUNT', Sequelize.col('id')), 'cnt']],
+                    group: ['post_id'],
+                    raw: true
+                });
+                (cRows || []).forEach(c => { commentByPost[c.post_id] = parseInt(c.cnt, 10); });
+            } catch (_) {}
+
+            const topPostStats = topPostRows.map(p => ({
                 id: p.id,
-                text: (p.postText || '').substring(0, 100),
-                views: p.videoViews || 0
+                text: (p.postText || '').substring(0, 120),
+                views: p.videoViews || 0,
+                reactions: reactByPost[p.id] || 0,
+                comments: commentByPost[p.id] || 0,
+                published_time: p.time || 0,
+                has_media: !!(p.postFile && p.postFile !== '')
             }));
 
             return res.json({
                 api_status: 200,
                 statistics: {
-                    subscribers_count: subscribersCount,
-                    posts_count: postsCount,
-                    posts_last_week: postsLastWeek,
-                    active_subscribers_24h: activeSubscribers24h,
-                    top_posts: topPostStats
+                    // Subscribers
+                    subscribers_count:        subscribersCount,
+                    new_subscribers_today:    newSubscribersToday,
+                    new_subscribers_week:     newSubscribersWeek,
+                    left_subscribers_week:    leftSubscribersWeek,
+                    growth_rate:              growthRate,
+                    active_subscribers_24h:   activeSubscribers24h,
+                    subscribers_by_day:       subscribersByDay,
+                    // Posts
+                    posts_count:              postsCount,
+                    posts_today:              postsToday,
+                    posts_last_week:          postsLastWeek,
+                    posts_this_month:         postsThisMonth,
+                    media_posts_count:        mediaPostsCount,
+                    text_posts_count:         textPostsCount,
+                    // Views
+                    views_total:              viewsTotal,
+                    views_last_week:          viewsLastWeek,
+                    avg_views_per_post:       avgViewsPerPost,
+                    views_by_day:             viewsByDay,
+                    // Engagement
+                    reactions_total:          reactionsTotal,
+                    comments_total:           commentsTotal,
+                    engagement_rate:          engagementRate,
+                    // Activity heatmap
+                    peak_hours:               peakHours,
+                    hourly_views:             hourCounts,
+                    // Top content
+                    top_posts:                topPostStats
                 },
                 error_code: null,
                 error_message: null

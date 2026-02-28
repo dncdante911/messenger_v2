@@ -203,6 +203,18 @@ interface NodeGroupApi {
     ): GroupSimpleResponse
 
     @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_MESSAGES_CLEAR_SELF)
+    suspend fun clearGroupHistorySelf(
+        @Field("group_id") groupId: Long
+    ): GroupSimpleResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_MESSAGES_CLEAR_ALL)
+    suspend fun clearGroupHistoryAdmin(
+        @Field("group_id") groupId: Long
+    ): GroupSimpleResponse
+
+    @FormUrlEncoded
     @POST(Constants.NODE_GROUP_MESSAGES_PIN)
     suspend fun pinGroupMessage(
         @Field("group_id")   groupId: Long,
@@ -235,6 +247,16 @@ interface NodeGroupApi {
     suspend fun sendGroupTyping(
         @Field("group_id") groupId: Long,
         @Field("typing")   typing: Boolean = true
+    ): GroupSimpleResponse
+
+    /**
+     * GROUP USER ACTION status (listening, viewing, choosing_sticker, recording_video, etc.)
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_MESSAGES_USER_ACTION)
+    suspend fun sendGroupUserAction(
+        @Field("group_id") groupId: Long,
+        @Field("action")   action: String
     ): GroupSimpleResponse
 
     // ═══════════════════════ ADMIN ══════════════════════════════════════════════

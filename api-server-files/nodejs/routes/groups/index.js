@@ -105,8 +105,11 @@ function registerGroupRoutes(app, ctx, io) {
     app.post('/api/node/group/messages/pin',      auth, messages.pinMessage(ctx, io));
     app.post('/api/node/group/messages/unpin',    auth, messages.unpinMessage(ctx, io));
     app.post('/api/node/group/messages/search',   auth, messages.searchMessages(ctx, io));
-    app.post('/api/node/group/messages/seen',     auth, messages.seenMessages(ctx, io));
-    app.post('/api/node/group/messages/typing',   auth, messages.typing(ctx, io));
+    app.post('/api/node/group/messages/seen',          auth, messages.seenMessages(ctx, io));
+    app.post('/api/node/group/messages/typing',        auth, messages.typing(ctx, io));
+    app.post('/api/node/group/messages/user-action',   auth, messages.groupUserAction(ctx, io));
+    app.post('/api/node/group/messages/clear-self',    auth, messages.clearHistorySelf(ctx, io));
+    app.post('/api/node/group/messages/clear-all',     auth, messages.clearHistoryAdmin(ctx, io));
 
     // ── Admin ───────────────────────────────────────────────────────────────
     app.post('/api/node/group/upload-avatar', upload.single('avatar'), auth, admin.uploadAvatar(ctx, io));

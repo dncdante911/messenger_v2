@@ -1,6 +1,7 @@
 package com.worldmates.messenger.ui.messages
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -17,17 +18,20 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.data.model.UserPresenceStatus
 import com.worldmates.messenger.network.NetworkQualityMonitor
 import com.worldmates.messenger.ui.messages.selection.SelectionTopBarActions
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesHeaderBar(
     recipientName: String,
     recipientAvatar: String,
-    isOnline: Boolean,
-    isTyping: Boolean,
-    isRecording: Boolean = false,
+    presenceStatus: UserPresenceStatus = UserPresenceStatus.Offline,
     onBackPressed: () -> Unit,
     onUserProfileClick: () -> Unit = {},
     onCallClick: () -> Unit = {},
@@ -78,7 +82,7 @@ fun MessagesHeaderBar(
                         .fillMaxHeight()
                         .clickable { onUserProfileClick() }
                 ) {
-                    // Аватар с индикатором онлайн-статуса
+                    // Avatar with online status dot
                     if (recipientAvatar.isNotEmpty()) {
                         Box {
                             AsyncImage(
@@ -89,38 +93,35 @@ fun MessagesHeaderBar(
                                     .clip(CircleShape),
                                 contentScale = ContentScale.Crop
                             )
-                            // Зелёная/серая точка онлайн-статуса
+                            val dotColor = when (presenceStatus) {
+                                is UserPresenceStatus.Online,
+                                is UserPresenceStatus.Typing,
+                                is UserPresenceStatus.GroupTyping,
+                                is UserPresenceStatus.RecordingVoice,
+                                is UserPresenceStatus.RecordingVideo,
+                                is UserPresenceStatus.ListeningAudio,
+                                is UserPresenceStatus.ViewingMedia,
+                                is UserPresenceStatus.ChoosingSticker -> Color(0xFF4CAF50)
+                                else -> Color.Gray
+                            }
                             Box(
                                 modifier = Modifier
                                     .size(12.dp)
                                     .align(Alignment.BottomEnd)
                                     .clip(CircleShape)
-                                    .background(if (isOnline) Color(0xFF4CAF50) else Color.Gray)
+                                    .background(dotColor)
                                     .border(2.dp, Color.White, CircleShape)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    // Ім'я та статус ("печатає", "записує голосове" тощо)
+                    // Name and animated presence status
                     Column {
                         Text(recipientName, color = colorScheme.onPrimary)
-                        when {
-                            isRecording -> Text(
-                                text = "пише голосове...",
-                                fontSize = 12.sp,
-                                color = colorScheme.onPrimary.copy(alpha = 0.8f)
-                            )
-                            isTyping -> Text(
-                                text = "печатає...",
-                                fontSize = 12.sp,
-                                color = colorScheme.onPrimary.copy(alpha = 0.8f)
-                            )
-                            isOnline -> Text(
-                                text = "онлайн",
-                                fontSize = 12.sp,
-                                color = colorScheme.onPrimary.copy(alpha = 0.8f)
-                            )
-                        }
+                        PresenceStatusText(
+                            status = presenceStatus,
+                            textColor = colorScheme.onPrimary.copy(alpha = 0.85f)
+                        )
                     }
                 }
             }
@@ -320,6 +321,122 @@ fun MessagesHeaderBar(
             actionIconContentColor = colorScheme.onPrimary
         )
     )  // Конец TopAppBar
+}
+
+/** Animated three-dot typing indicator (●  ●  ●) */
+@Composable
+private fun TypingDots(color: Color) {
+    val infiniteTransition = rememberInfiniteTransition(label = "typing")
+    val dot1Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes { durationMillis = 900; 1f at 300; 0.3f at 600 },
+            repeatMode = RepeatMode.Restart
+        ), label = "dot1"
+    )
+    val dot2Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes { durationMillis = 900; 0.3f at 150; 1f at 450; 0.3f at 750 },
+            repeatMode = RepeatMode.Restart
+        ), label = "dot2"
+    )
+    val dot3Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes { durationMillis = 900; 0.3f at 300; 1f at 600 },
+            repeatMode = RepeatMode.Restart
+        ), label = "dot3"
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        listOf(dot1Alpha, dot2Alpha, dot3Alpha).forEach { alpha ->
+            Box(
+                modifier = Modifier
+                    .size(4.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = alpha))
+            )
+            Spacer(Modifier.width(2.dp))
+        }
+    }
+}
+
+/** Formats a Unix-seconds timestamp for "last seen" display. */
+private fun formatLastSeen(ts: Long): String {
+    if (ts <= 0L) return "офлайн"
+    val now = System.currentTimeMillis()
+    val diff = now - ts * 1000L
+    val cal = Calendar.getInstance().apply { timeInMillis = ts * 1000L }
+    val today = Calendar.getInstance()
+
+    return when {
+        diff < 60_000L -> "був(ла) нещодавно"
+        diff < 3_600_000L -> {
+            val mins = (diff / 60_000L).toInt()
+            "був(ла) $mins хв тому"
+        }
+        cal.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR) -> {
+            val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+            "був(ла) сьогодні о ${fmt.format(Date(ts * 1000L))}"
+        }
+        diff < 172_800_000L -> {
+            val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+            "був(ла) вчора о ${fmt.format(Date(ts * 1000L))}"
+        }
+        else -> {
+            val fmt = SimpleDateFormat("d MMM", Locale.getDefault())
+            "був(ла) ${fmt.format(Date(ts * 1000L))}"
+        }
+    }
+}
+
+/**
+ * Shows the current presence/activity status text under the recipient name.
+ * Typing and group-typing show animated dots.
+ */
+@Composable
+fun PresenceStatusText(status: UserPresenceStatus, textColor: Color) {
+    val fontSize = 12.sp
+    when (status) {
+        is UserPresenceStatus.Typing -> {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("друкує", fontSize = fontSize, color = textColor)
+                Spacer(Modifier.width(3.dp))
+                TypingDots(color = textColor)
+            }
+        }
+        is UserPresenceStatus.GroupTyping -> {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${status.userName} друкує", fontSize = fontSize, color = textColor)
+                Spacer(Modifier.width(3.dp))
+                TypingDots(color = textColor)
+            }
+        }
+        is UserPresenceStatus.RecordingVoice -> {
+            Text("🎤 пише голосове...", fontSize = fontSize, color = textColor)
+        }
+        is UserPresenceStatus.RecordingVideo -> {
+            Text("🎥 знімає відео...", fontSize = fontSize, color = textColor)
+        }
+        is UserPresenceStatus.ListeningAudio -> {
+            Text("🎧 слухає аудіо...", fontSize = fontSize, color = textColor)
+        }
+        is UserPresenceStatus.ViewingMedia -> {
+            Text("👁 переглядає...", fontSize = fontSize, color = textColor)
+        }
+        is UserPresenceStatus.ChoosingSticker -> {
+            Text("😊 вибирає стикер...", fontSize = fontSize, color = textColor)
+        }
+        is UserPresenceStatus.Online -> {
+            Text("онлайн", fontSize = fontSize, color = textColor)
+        }
+        is UserPresenceStatus.LastSeen -> {
+            Text(formatLastSeen(status.timestamp), fontSize = fontSize, color = textColor)
+        }
+        is UserPresenceStatus.Offline -> {
+            // Show nothing for plain offline with no lastSeen data
+        }
+    }
 }
 
 @Composable

@@ -130,9 +130,7 @@ fun MessagesScreen(
     val uploadProgress by viewModel.uploadProgress.collectAsState()
     val recordingState by voiceRecorder.recordingState.collectAsState()
     val recordingDuration by voiceRecorder.recordingDuration.collectAsState()
-    val isTyping by viewModel.isTyping.collectAsState()
-    val isRecording by viewModel.isRecording.collectAsState()
-    val isOnline by viewModel.recipientOnlineStatus.collectAsState()
+    val presenceStatus by viewModel.presenceStatus.collectAsState()
     val connectionQuality by viewModel.connectionQuality.collectAsState()
     val pinnedPrivateMessage by viewModel.pinnedPrivateMessage.collectAsState()
     val isMutedPrivate by viewModel.isMutedPrivate.collectAsState()
@@ -553,9 +551,7 @@ fun MessagesScreen(
             MessagesHeaderBar(
                 recipientName = recipientName,
                 recipientAvatar = recipientAvatar,
-                isOnline = isOnline,
-                isTyping = isTyping,
-                isRecording = isRecording,
+                presenceStatus = presenceStatus,
                 onBackPressed = onBackPressed,
                 onUserProfileClick = {
                     Log.d("MessagesScreen", "Відкриваю профіль користувача: $recipientName")
@@ -653,15 +649,32 @@ fun MessagesScreen(
                     }
                 },
                 onClearHistoryClick = {
-                    Log.d("MessagesScreen", "Очищення історії чату")
-                    viewModel.clearChatHistory(
-                        onSuccess = {
-                            android.widget.Toast.makeText(context, "Історію очищено", android.widget.Toast.LENGTH_SHORT).show()
-                        },
-                        onError = { error ->
-                            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    )
+                    val isGroupAdmin = currentGroup?.isAdmin == true || currentGroup?.isOwner == true
+                    if (isGroup && isGroupAdmin) {
+                        // Admin gets a choice: for me / for all
+                        android.app.AlertDialog.Builder(context)
+                            .setTitle("Очистити історію")
+                            .setMessage("Виберіть тип очищення:")
+                            .setPositiveButton("Тільки для мене") { _, _ ->
+                                viewModel.clearChatHistory(
+                                    onSuccess = { android.widget.Toast.makeText(context, "Твою історію очищено", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
+                                )
+                            }
+                            .setNeutralButton("Для всіх учасників") { _, _ ->
+                                viewModel.clearGroupHistoryForAll(
+                                    onSuccess = { android.widget.Toast.makeText(context, "Історію очищено для всіх", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
+                                )
+                            }
+                            .setNegativeButton("Скасувати", null)
+                            .show()
+                    } else {
+                        viewModel.clearChatHistory(
+                            onSuccess = { android.widget.Toast.makeText(context, "Історію очищено", android.widget.Toast.LENGTH_SHORT).show() },
+                            onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
+                        )
+                    }
                 },
                 onChangeWallpaperClick = {
                     Log.d("MessagesScreen", "Відкриваю налаштування теми для зміни фону")
