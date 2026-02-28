@@ -10,11 +10,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.worldmates.messenger.R
 
 /**
  * 🔲 Діалог приєднання до групи за QR кодом
@@ -45,7 +47,7 @@ fun JoinGroupByQrDialog(
             ) {
                 // Title
                 Text(
-                    text = "Приєднатися до групи",
+                    text = stringResource(R.string.join_group),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -54,7 +56,7 @@ fun JoinGroupByQrDialog(
 
                 // Subtitle
                 Text(
-                    text = "Введіть QR код або відскануйте його",
+                    text = stringResource(R.string.enter_or_scan_qr),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -64,7 +66,7 @@ fun JoinGroupByQrDialog(
                 OutlinedTextField(
                     value = qrCode,
                     onValueChange = { qrCode = it },
-                    label = { Text("QR код групи") },
+                    label = { Text(stringResource(R.string.group_qr_code_label)) },
                     placeholder = { Text("WMG_XXXXXXXXXXXX") },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -96,7 +98,7 @@ fun JoinGroupByQrDialog(
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Сканувати QR код")
+                        Text(stringResource(R.string.scan_qr_code))
                     }
                 }
 
@@ -111,7 +113,7 @@ fun JoinGroupByQrDialog(
                         modifier = Modifier.weight(1f),
                         enabled = !isLoading
                     ) {
-                        Text("Скасувати")
+                        Text(stringResource(R.string.cancel))
                     }
 
                     // Join Button
@@ -131,7 +133,7 @@ fun JoinGroupByQrDialog(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Приєднатися")
+                            Text(stringResource(R.string.join_action))
                         }
                     }
                 }

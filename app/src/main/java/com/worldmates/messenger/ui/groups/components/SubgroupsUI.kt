@@ -24,10 +24,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.util.toFullMediaUrl
 
 // ==================== DATA MODELS ====================
@@ -101,7 +103,7 @@ fun SubgroupsSection(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Topics",
+                        text = stringResource(R.string.topics),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = textPrimary
@@ -136,7 +138,7 @@ fun SubgroupsSection(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "New Topic",
+                            text = stringResource(R.string.new_topic),
                             fontSize = 13.sp,
                             color = GroupColors.TelegramBlue
                         )

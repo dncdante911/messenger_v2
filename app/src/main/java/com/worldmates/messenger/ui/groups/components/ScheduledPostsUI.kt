@@ -25,9 +25,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.ScheduledPost
 import java.text.SimpleDateFormat
 import java.util.*
@@ -63,12 +65,12 @@ fun ScheduledPostsPanel(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Заплановані пости",
+                        text = stringResource(R.string.scheduled_posts_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "${scheduledPosts.size} постів у черзі",
+                        text = stringResource(R.string.posts_in_queue, scheduledPosts.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -77,7 +79,7 @@ fun ScheduledPostsPanel(
                     IconButton(onClick = onCreateClick) {
                         Icon(
                             Icons.Default.Add,
-                            contentDescription = "Створити",
+                            contentDescription = stringResource(R.string.create),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -101,7 +103,7 @@ fun ScheduledPostsPanel(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Немає запланованих постів",
+                            text = stringResource(R.string.no_scheduled_posts),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -110,7 +112,7 @@ fun ScheduledPostsPanel(
                             TextButton(onClick = onCreateClick) {
                                 Icon(Icons.Default.Add, contentDescription = null)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Створити пост")
+                                Text(stringResource(R.string.create_post))
                             }
                         }
                     }
@@ -133,7 +135,7 @@ fun ScheduledPostsPanel(
                 if (scheduledPosts.size > 5) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "... та ще ${scheduledPosts.size - 5} постів",
+                        text = stringResource(R.string.and_more_posts, scheduledPosts.size - 5),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.fillMaxWidth(),

@@ -20,8 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Message
 import com.worldmates.messenger.ui.preferences.UIStyle
 import com.worldmates.messenger.ui.preferences.rememberUIStyle
@@ -126,13 +128,13 @@ private fun TelegramPinnedBanner(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "Закреплено",
+                    text = stringResource(R.string.pinned_label),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = decryptedText.ifBlank { "Медиа" },
+                    text = decryptedText.ifBlank { stringResource(R.string.media_label) },
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     maxLines = 1,
@@ -243,14 +245,14 @@ private fun WorldMatesPinnedBanner(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "📌 Закріплене повідомлення",
+                        text = stringResource(R.string.pinned_message_with_emoji),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = decryptedText.ifBlank { "🖼️ Медіа" },
+                        text = decryptedText.ifBlank { stringResource(R.string.media_with_emoji) },
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,

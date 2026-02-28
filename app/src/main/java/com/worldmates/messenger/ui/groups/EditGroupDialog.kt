@@ -16,10 +16,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Group
 
 @Composable
@@ -56,7 +58,7 @@ fun EditGroupDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Редагування групи",
+                    text = stringResource(R.string.edit_group_title),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
@@ -71,7 +73,7 @@ fun EditGroupDialog(
                 ) {
                     AsyncImage(
                         model = group.avatarUrl,
-                        contentDescription = "Group avatar",
+                        contentDescription = stringResource(R.string.group_avatar),
                         modifier = Modifier
                             .size(120.dp)
                             .clip(CircleShape),
@@ -86,7 +88,7 @@ fun EditGroupDialog(
                     ) {
                         Icon(
                             Icons.Default.CameraAlt,
-                            contentDescription = "Change avatar",
+                            contentDescription = stringResource(R.string.change_avatar),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -98,7 +100,7 @@ fun EditGroupDialog(
                 OutlinedTextField(
                     value = groupName,
                     onValueChange = { groupName = it },
-                    label = { Text("Назва групи") },
+                    label = { Text(stringResource(R.string.group_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading
                 )
@@ -119,7 +121,7 @@ fun EditGroupDialog(
                             contentColor = Color.Red
                         )
                     ) {
-                        Text("Видалити")
+                        Text(stringResource(R.string.delete))
                     }
 
                     // Кнопка збереження
@@ -142,7 +144,7 @@ fun EditGroupDialog(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Зберегти")
+                            Text(stringResource(R.string.save))
                         }
                     }
                 }
@@ -153,7 +155,7 @@ fun EditGroupDialog(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading
                 ) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         }
@@ -163,8 +165,8 @@ fun EditGroupDialog(
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Видалити групу?") },
-            text = { Text("Ви впевнені, що хочете видалити групу \"${group.name}\"? Цю дію неможливо скасувати.") },
+            title = { Text(stringResource(R.string.delete_group_confirm_title)) },
+            text = { Text(stringResource(R.string.delete_group_confirm_message, group.name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -175,12 +177,12 @@ fun EditGroupDialog(
                         contentColor = Color.Red
                     )
                 ) {
-                    Text("Видалити")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

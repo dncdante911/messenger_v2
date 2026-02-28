@@ -284,6 +284,91 @@
     <string name="add_photo">Додати фото</string>
     <string name="change_photo">Змінити фото</string>
 
+    <!-- ===== GROUP DIALOGS &amp; ACTIONS ===== -->
+    <string name="enter_group_name">Введіть назву групи</string>
+    <string name="describe_group">Опишіть групу…</string>
+    <string name="tap_to_add_group_photo">Натисніть щоб додати фото групи</string>
+    <string name="private_group_label">Приватна група</string>
+    <string name="public_group_label">Публічна група</string>
+    <string name="only_members_can_see_group">Тільки учасники можуть бачити групу</string>
+    <string name="everyone_can_see_group">Всі можуть бачити групу</string>
+    <string name="search_users_hint">Шукати користувачів…</string>
+    <string name="edit_group_title">Редагування групи</string>
+    <string name="delete_group_confirm_title">Видалити групу?</string>
+    <string name="delete_group_confirm_message">Ви впевнені, що хочете видалити групу \"%s\"? Цю дію неможливо скасувати.</string>
+    <string name="change_group_avatar">Змінити аватар групи</string>
+    <string name="join_action">Приєднатися</string>
+    <string name="enter_or_scan_qr">Введіть QR код або відскануйте його</string>
+    <string name="group_qr_code_label">QR код групи</string>
+    <string name="scan_or_share_qr">Скануйте цей QR код або поділіться посиланням</string>
+
+    <!-- ===== FORMATTING SETTINGS ===== -->
+    <string name="formatting_subtitle_channel">Налаштуйте, які функції форматування доступні для публікацій</string>
+    <string name="formatting_subtitle_group">Налаштуйте, які функції форматування доступні учасникам</string>
+    <string name="quick_settings">Швидкі налаштування</string>
+    <string name="all_enabled">Все увімкнено</string>
+    <string name="basic">Базове</string>
+    <string name="text_only">Тільки текст</string>
+    <string name="bold_syntax">**текст** або __текст__</string>
+    <string name="italic_syntax">*текст* або _текст_</string>
+    <string name="strikethrough_syntax">~~текст~~</string>
+    <string name="underline_syntax">&lt;u&gt;текст&lt;/u&gt;</string>
+    <string name="code_syntax">`код` або ```блок коду```</string>
+    <string name="quote_syntax">&gt; цитований текст</string>
+    <string name="mention_syntax">@username для згадки користувача</string>
+    <string name="hashtag_syntax">#тег для категоризації</string>
+    <string name="link_syntax">[текст](url) або автоматичні URL</string>
+    <string name="spoiler_syntax">||прихований текст||</string>
+    <string name="text_formatting">Форматування тексту</string>
+    <string name="configure_allowed_features">Налаштувати дозволені функції</string>
+
+    <!-- ===== GROUP THEME ===== -->
+    <string name="ready_templates">Готові шаблони</string>
+    <string name="accent_color">Акцентний колір</string>
+    <string name="reset_to_global_theme">Скинути до глобальної теми</string>
+    <string name="custom_theme_applied">Кастомна тема встановлена</string>
+    <string name="using_global_theme">Використовується глобальна тема</string>
+
+    <!-- ===== ADMIN PANEL &amp; STATISTICS ===== -->
+    <string name="admin_panel">Адмін-панель</string>
+    <string name="general_tab">Загальні</string>
+    <string name="permissions_tab">Права</string>
+    <string name="requests_tab">Запити</string>
+    <string name="posts_tab">Пости</string>
+    <string name="statistics_tab">Статистика</string>
+    <string name="statistics_unavailable">Статистика недоступна</string>
+    <string name="members_count_label">Учасників</string>
+    <string name="messages_count_label">Повідомлень</string>
+    <string name="today_label">Сьогодні</string>
+    <string name="week_label">За тиждень</string>
+
+    <!-- ===== SCHEDULED POSTS ===== -->
+    <string name="scheduled_posts_title">Заплановані пости</string>
+    <string name="posts_in_queue">%d постів у черзі</string>
+    <string name="create_post">Створити пост</string>
+    <string name="and_more_posts">… та ще %d постів</string>
+
+    <!-- ===== PINNED MESSAGE ===== -->
+    <string name="pinned_label">Закріплено</string>
+    <string name="media_label">Медіа</string>
+    <string name="pinned_message_with_emoji">📌 Закріплене повідомлення</string>
+    <string name="media_with_emoji">🖼️ Медіа</string>
+
+    <!-- ===== INVITE MEMBERS &amp; SUBGROUPS ===== -->
+    <string name="invite_members_title">Запросити учасників</string>
+    <string name="to_group_format">до %s</string>
+    <string name="search_users_placeholder">Пошук користувачів за іменем або нікнеймом…</string>
+    <string name="topics">Теми</string>
+    <string name="new_topic">Нова тема</string>
+
+    <!-- ===== CHANNEL ADMIN PANEL TABS ===== -->
+    <string name="channel_tab_info">Інформація</string>
+    <string name="channel_tab_settings">Налаштування</string>
+    <string name="channel_tab_stats">Статистика</string>
+    <string name="channel_tab_admins">Адміністратори</string>
+    <string name="channel_tab_members">Учасники</string>
+    <string name="channel_tab_banned">Заблоковані</string>
+
     <!-- ===== CHANNELS ===== -->
     <string name="create_channel">Створити канал</string>
     <string name="channel_name_hint">Назва каналу *</string>
