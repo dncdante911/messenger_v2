@@ -259,6 +259,66 @@ function sendMessage(ctx, io) {
 
             console.log(`[Node/chat/send] ${userId} -> ${recipientId} msg=${row.id} gcm=${enc.cipher_version === 2}`);
             res.json({ api_status: 200, message_data: msgData });
+
+            // ── Бот-детекция (не блокирует ответ) ──────────────────────────
+            setImmediate(async () => {
+                try {
+                    const toUser = await ctx.wo_users.findOne({
+                        where:      { user_id: recipientId },
+                        attributes: ['user_id', 'username', 'type'],
+                        raw: true,
+                    });
+                    if (!toUser || toUser.type !== 'bot') return;
+
+                    const isCmd   = plaintext.startsWith('/');
+                    const parts   = isCmd ? plaintext.slice(1).trim().split(/\s+/) : [];
+                    const cmdName = isCmd ? (parts[0] || null) : null;
+                    const cmdArgs = isCmd && parts.length > 1 ? parts.slice(1).join(' ') : null;
+
+                    const bot = await ctx.wo_bots.findOne({ where: { username: toUser.username }, raw: true });
+                    if (!bot) return;
+
+                    const botMsg = await ctx.wo_bot_messages.create({
+                        bot_id:       bot.bot_id,
+                        chat_id:      String(userId),
+                        chat_type:    'private',
+                        direction:    'incoming',
+                        text:         plaintext || null,
+                        is_command:   isCmd ? 1 : 0,
+                        command_name: cmdName,
+                        command_args: cmdArgs,
+                        processed:    0,
+                    });
+
+                    await ctx.wo_bots.increment('messages_received', { where: { bot_id: bot.bot_id } });
+
+                    const [, created] = await ctx.wo_bot_users.findOrCreate({
+                        where:    { bot_id: bot.bot_id, user_id: userId },
+                        defaults: { bot_id: bot.bot_id, user_id: userId, messages_count: 1, last_interaction_at: new Date() },
+                    });
+                    if (created) await ctx.wo_bots.increment('total_users', { where: { bot_id: bot.bot_id } });
+                    else         await ctx.wo_bot_users.increment('messages_count', { where: { bot_id: bot.bot_id, user_id: userId } });
+
+                    if (ctx.botSockets && ctx.botSockets.has(bot.bot_id)) {
+                        ctx.botSockets.get(bot.bot_id).emit('user_message', {
+                            event:         'user_message',
+                            user_id:       userId,
+                            message_id:    botMsg.id,
+                            text:          plaintext,
+                            is_command:    isCmd,
+                            command_name:  cmdName,
+                            command_args:  cmdArgs,
+                            callback_data: null,
+                            timestamp:     Date.now(),
+                        });
+                    }
+                    console.log(`[Bot] DM → @${bot.username} from user ${userId}: ${plaintext.substring(0, 60)}`);
+                } catch (botErr) {
+                    console.error('[Bot/DM-route]', botErr.message);
+                }
+            });
+            // ── Конец бот-детекции ──────────────────────────────────────────
+
         } catch (err) {
             console.error('[Node/chat/send]', err.message);
             res.status(500).json({ api_status: 500, error_message: 'Failed to send message' });
