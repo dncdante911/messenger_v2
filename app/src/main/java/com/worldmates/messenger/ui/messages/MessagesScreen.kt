@@ -653,15 +653,32 @@ fun MessagesScreen(
                     }
                 },
                 onClearHistoryClick = {
-                    Log.d("MessagesScreen", "Очищення історії чату")
-                    viewModel.clearChatHistory(
-                        onSuccess = {
-                            android.widget.Toast.makeText(context, "Історію очищено", android.widget.Toast.LENGTH_SHORT).show()
-                        },
-                        onError = { error ->
-                            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    )
+                    val isGroupAdmin = currentGroup?.isAdmin == true || currentGroup?.isOwner == true
+                    if (isGroup && isGroupAdmin) {
+                        // Admin gets a choice: for me / for all
+                        android.app.AlertDialog.Builder(context)
+                            .setTitle("Очистити історію")
+                            .setMessage("Виберіть тип очищення:")
+                            .setPositiveButton("Тільки для мене") { _, _ ->
+                                viewModel.clearChatHistory(
+                                    onSuccess = { android.widget.Toast.makeText(context, "Твою історію очищено", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
+                                )
+                            }
+                            .setNeutralButton("Для всіх учасників") { _, _ ->
+                                viewModel.clearGroupHistoryForAll(
+                                    onSuccess = { android.widget.Toast.makeText(context, "Історію очищено для всіх", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
+                                )
+                            }
+                            .setNegativeButton("Скасувати", null)
+                            .show()
+                    } else {
+                        viewModel.clearChatHistory(
+                            onSuccess = { android.widget.Toast.makeText(context, "Історію очищено", android.widget.Toast.LENGTH_SHORT).show() },
+                            onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
+                        )
+                    }
                 },
                 onChangeWallpaperClick = {
                     Log.d("MessagesScreen", "Відкриваю налаштування теми для зміни фону")

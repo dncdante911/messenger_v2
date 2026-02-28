@@ -126,8 +126,10 @@ object Constants {
     const val NODE_GROUP_MESSAGES_PIN      = "api/node/group/messages/pin"
     const val NODE_GROUP_MESSAGES_UNPIN    = "api/node/group/messages/unpin"
     const val NODE_GROUP_MESSAGES_SEARCH   = "api/node/group/messages/search"
-    const val NODE_GROUP_MESSAGES_SEEN     = "api/node/group/messages/seen"
-    const val NODE_GROUP_MESSAGES_TYPING   = "api/node/group/messages/typing"
+    const val NODE_GROUP_MESSAGES_SEEN          = "api/node/group/messages/seen"
+    const val NODE_GROUP_MESSAGES_TYPING        = "api/node/group/messages/typing"
+    const val NODE_GROUP_MESSAGES_CLEAR_SELF    = "api/node/group/messages/clear-self"
+    const val NODE_GROUP_MESSAGES_CLEAR_ALL     = "api/node/group/messages/clear-all"
     // Admin
     const val NODE_GROUP_UPLOAD_AVATAR = "api/node/group/upload-avatar"
     const val NODE_GROUP_SETTINGS      = "api/node/group/settings"

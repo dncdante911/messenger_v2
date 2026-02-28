@@ -203,6 +203,18 @@ interface NodeGroupApi {
     ): GroupSimpleResponse
 
     @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_MESSAGES_CLEAR_SELF)
+    suspend fun clearGroupHistorySelf(
+        @Field("group_id") groupId: Long
+    ): GroupSimpleResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_MESSAGES_CLEAR_ALL)
+    suspend fun clearGroupHistoryAdmin(
+        @Field("group_id") groupId: Long
+    ): GroupSimpleResponse
+
+    @FormUrlEncoded
     @POST(Constants.NODE_GROUP_MESSAGES_PIN)
     suspend fun pinGroupMessage(
         @Field("group_id")   groupId: Long,

@@ -37,6 +37,7 @@ class MessagesViewModel(application: Application) :
 
     private val context = application
     private val nodeApi = NodeRetrofitClient.api
+    private val groupApi = NodeRetrofitClient.groupApi
 
     companion object {
         private const val TAG = "MessagesViewModel"
@@ -507,34 +508,48 @@ class MessagesViewModel(application: Application) :
                     return@launch
                 }
 
-                // Group/PHP path
+                // Group → Node.js
+                if (groupId > 0L) {
+                    val resp = groupApi.editGroupMessage(messageId, newText)
+                    if (resp.apiStatus == 200) {
+                        val current = _messages.value.toMutableList()
+                        val idx = current.indexOfFirst { it.id == messageId }
+                        if (idx != -1) {
+                            current[idx] = current[idx].copy(
+                                encryptedText = newText,
+                                decryptedText = newText
+                            )
+                            _messages.value = current
+                        }
+                        _error.value = null
+                        Log.d("MessagesViewModel", "Повідомлення відредаговано у групі (Node.js): $messageId")
+                    } else {
+                        _error.value = resp.errorMessage ?: "Не вдалося відредагувати повідомлення"
+                    }
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                // PHP fallback (legacy)
                 val response = RetrofitClient.apiService.editMessage(
                     accessToken = UserSession.accessToken!!,
                     messageId = messageId,
                     newText = newText
                 )
-
                 if (response.apiStatus == 200) {
-                    // Оновлюємо повідомлення в локальному списку
                     val currentMessages = _messages.value.toMutableList()
                     val index = currentMessages.indexOfFirst { it.id == messageId }
-
                     if (index != -1) {
-                        val updatedMessage = currentMessages[index].copy(
+                        currentMessages[index] = currentMessages[index].copy(
                             encryptedText = newText,
                             decryptedText = newText
                         )
-                        currentMessages[index] = updatedMessage
                         _messages.value = currentMessages
-                        Log.d("MessagesViewModel", "Повідомлення відредаговано: $messageId")
                     }
-
                     _error.value = null
                 } else {
                     _error.value = response.errors?.errorText ?: "Не вдалося відредагувати повідомлення"
-                    Log.e("MessagesViewModel", "Edit Error: ${response.errors?.errorText}")
                 }
-
                 _isLoading.value = false
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
@@ -579,24 +594,35 @@ class MessagesViewModel(application: Application) :
                     return@launch
                 }
 
-                // Group/PHP path
+                // Group → Node.js
+                if (groupId > 0L) {
+                    val resp = groupApi.deleteGroupMessage(messageId)
+                    if (resp.apiStatus == 200) {
+                        _messages.value = _messages.value.filter { it.id != messageId }
+                        _error.value = null
+                        Log.d("MessagesViewModel", "Повідомлення видалено у групі (Node.js): $messageId")
+                    } else {
+                        _error.value = resp.errorMessage ?: "Не вдалося видалити повідомлення"
+                    }
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                // PHP fallback (legacy)
                 val response = RetrofitClient.apiService.deleteMessage(
                     accessToken = UserSession.accessToken!!,
                     messageId = messageId
                 )
-
                 if (response.apiStatus == 200) {
-                    kotlinx.coroutines.delay(750L)
-                    _messages.update { list -> list.filter { it.id != messageId } }
+                    _messages.value = _messages.value.filter { it.id != messageId }
                     _error.value = null
                     Log.d("MessagesViewModel", "Повідомлення видалено: $messageId")
                 } else {
                     _deletingMessages.update { it - messageId }
                     permanentlyDeletedIds.remove(messageId)
                     _error.value = response.errors?.errorText ?: "Не вдалося видалити повідомлення"
-                    Log.e("MessagesViewModel", "Delete Error: ${response.errors?.errorText}")
                 }
-                _deletingMessages.update { it - messageId }
+                _isLoading.value = false
             } catch (e: Exception) {
                 _deletingMessages.update { it - messageId }
                 permanentlyDeletedIds.remove(messageId)
@@ -1293,6 +1319,13 @@ class MessagesViewModel(application: Application) :
     override fun onMessageReaction(messageId: Long, userId: Long, reaction: String, action: String) {
         updateLocalReaction(messageId, userId, reaction, action)
         Log.d(TAG, "Socket: реакція '$reaction' ($action) на повідомлення $messageId від $userId")
+    }
+
+    override fun onGroupHistoryCleared(groupId: Long) {
+        if (this.groupId == groupId) {
+            _messages.value = emptyList()
+            Log.d(TAG, "Socket: group $groupId history cleared for all")
+        }
     }
 
     override fun onMessagePinned(messageId: Long, isPinned: Boolean, chatId: Long) {
@@ -2030,40 +2063,64 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        if (groupId != 0L) {
-            // Groups: stay on PHP
-            viewModelScope.launch {
-                try {
-                    val response = RetrofitClient.apiService.clearGroupChatHistory(
-                        accessToken = UserSession.accessToken!!,
-                        groupId = groupId
-                    )
-                    if (response.apiStatus == 200) {
+        viewModelScope.launch {
+            try {
+                if (groupId != 0L) {
+                    // Group → Node.js: "for me" = clear-self, "for all" = clear-all (admin only)
+                    val forAll = UserSession.userId?.let { uid ->
+                        // we don't know admin status here, try clear-all first; fallback to self
+                        false // callers should pass deleteType to distinguish
+                    } ?: false
+                    val resp = groupApi.clearGroupHistorySelf(groupId)
+                    if (resp.apiStatus == 200) {
                         _messages.value = emptyList()
                         onSuccess()
-                        Log.d(TAG, "🗑️ Group chat history cleared")
+                        Log.d(TAG, "🗑️ Group history cleared for self (Node.js)")
                     } else {
-                        onError(response.message ?: "Не вдалося очистити історію")
+                        onError(resp.errorMessage ?: "Не вдалося очистити історію")
                     }
-                } catch (e: Exception) {
-                    onError("Помилка: ${e.localizedMessage}")
-                    Log.e(TAG, "❌ Error clearing group chat history", e)
+                    return@launch
                 }
-            }
-        } else {
-            // Private chats: Node.js soft-delete
-            clearHistoryViaNode(
-                scope       = viewModelScope,
-                api         = nodeApi,
-                recipientId = recipientId,
-                isLoading   = _isLoading,
-                error       = _error,
-                onSuccess   = {
+                // Private chat → PHP
+                val response = RetrofitClient.apiService.clearChatHistory(
+                    accessToken = UserSession.accessToken!!,
+                    userId = recipientId
+                )
+                if (response.apiStatus == 200) {
                     _messages.value = emptyList()
                     onSuccess()
-                    Log.d(TAG, "🗑️ Private chat history cleared via Node.js")
+                    Log.d(TAG, "🗑️ Chat history cleared")
+                } else {
+                    onError(response.message ?: "Не вдалося очистити історію")
                 }
-            )
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+                Log.e(TAG, "❌ Error clearing chat history", e)
+            }
+        }
+    }
+
+    /**
+     * 🗑️ Очистити історію групи для всіх (тільки адміни)
+     */
+    fun clearGroupHistoryForAll(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (groupId == 0L) return
+        viewModelScope.launch {
+            try {
+                val resp = groupApi.clearGroupHistoryAdmin(groupId)
+                if (resp.apiStatus == 200) {
+                    _messages.value = emptyList()
+                    onSuccess()
+                    Log.d(TAG, "🗑️ Group history cleared for all (Node.js)")
+                } else {
+                    onError(resp.errorMessage ?: "Не вдалося очистити історію для всіх")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+            }
         }
     }
 
