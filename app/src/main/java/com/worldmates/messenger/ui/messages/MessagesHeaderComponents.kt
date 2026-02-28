@@ -15,9 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.UserPresenceStatus
 import com.worldmates.messenger.network.NetworkQualityMonitor
 import com.worldmates.messenger.ui.messages.selection.SelectionTopBarActions
@@ -70,7 +73,7 @@ fun MessagesHeaderBar(
             // 🔥 В режимі вибору показуємо кількість вибраних
             if (isSelectionMode) {
                 Text(
-                    text = "$selectedCount вибрано",
+                    text = stringResource(R.string.selected_items, selectedCount),
                     color = colorScheme.onPrimary,
                     fontSize = 20.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
@@ -130,7 +133,7 @@ fun MessagesHeaderBar(
             IconButton(onClick = onBackPressed) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Назад",
+                    contentDescription = stringResource(R.string.back),
                     tint = colorScheme.onPrimary
                 )
             }
@@ -155,7 +158,7 @@ fun MessagesHeaderBar(
                 IconButton(onClick = onSearchClick) {
                     Icon(
                         Icons.Default.Search,
-                        contentDescription = "Пошук",
+                        contentDescription = stringResource(R.string.search),
                         tint = colorScheme.onPrimary
                     )
                 }
@@ -164,7 +167,7 @@ fun MessagesHeaderBar(
                 IconButton(onClick = onCallClick) {
                     Icon(
                         Icons.Default.Call,
-                        contentDescription = "Дзвінок",
+                        contentDescription = stringResource(R.string.call_user),
                         tint = colorScheme.onPrimary
                     )
                 }
@@ -174,7 +177,7 @@ fun MessagesHeaderBar(
                     IconButton(onClick = { showUserMenu = !showUserMenu }) {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = "Більше",
+                            contentDescription = stringResource(R.string.more_options),
                             tint = colorScheme.onPrimary
                         )
                     }
@@ -186,7 +189,7 @@ fun MessagesHeaderBar(
                     ) {
                         // ✅ Common options for both groups and users
                         DropdownMenuItem(
-                            text = { Text(if (isGroup) "Деталі групи" else "Переглянути профіль") },
+                            text = { Text(if (isGroup) stringResource(R.string.group_details) else stringResource(R.string.view_profile)) },
                             onClick = {
                                 showUserMenu = false
                                 onUserProfileClick()
@@ -196,7 +199,7 @@ fun MessagesHeaderBar(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Відеодзвінок") },
+                            text = { Text(stringResource(R.string.video_call)) },
                             onClick = {
                                 showUserMenu = false
                                 onVideoCallClick()
@@ -211,7 +214,7 @@ fun MessagesHeaderBar(
                             Divider()
                             // Add members option
                             DropdownMenuItem(
-                                text = { Text("Додати учасників") },
+                                text = { Text(stringResource(R.string.add_members)) },
                                 onClick = {
                                     showUserMenu = false
                                     onAddMembersClick()
@@ -223,7 +226,7 @@ fun MessagesHeaderBar(
                             // Create subgroup/folder option (for admins)
                             if (isGroupAdmin) {
                                 DropdownMenuItem(
-                                    text = { Text("Створити підгрупу/папку") },
+                                    text = { Text(stringResource(R.string.create_subgroup)) },
                                     onClick = {
                                         showUserMenu = false
                                         onCreateSubgroupClick()
@@ -236,7 +239,7 @@ fun MessagesHeaderBar(
                             // Group settings (for admins)
                             if (isGroupAdmin) {
                                 DropdownMenuItem(
-                                    text = { Text("Налаштування групи") },
+                                    text = { Text(stringResource(R.string.group_settings)) },
                                     onClick = {
                                         showUserMenu = false
                                         onGroupSettingsClick()
@@ -251,7 +254,7 @@ fun MessagesHeaderBar(
                         Divider()
                         DropdownMenuItem(
                             text = {
-                                Text(if (isMuted) "Увімкнути сповіщення" else "Вимкнути сповіщення")
+                                Text(if (isMuted) stringResource(R.string.unmute_chat) else stringResource(R.string.mute_chat))
                             },
                             onClick = {
                                 showUserMenu = false
@@ -266,7 +269,7 @@ fun MessagesHeaderBar(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Змінити обої") },
+                            text = { Text(stringResource(R.string.change_wallpaper)) },
                             onClick = {
                                 showUserMenu = false
                                 onChangeWallpaperClick()
@@ -277,7 +280,7 @@ fun MessagesHeaderBar(
                         )
                         Divider()
                         DropdownMenuItem(
-                            text = { Text("Очистити історію") },
+                            text = { Text(stringResource(R.string.clear_history)) },
                             onClick = {
                                 showUserMenu = false
                                 onClearHistoryClick()
@@ -293,7 +296,7 @@ fun MessagesHeaderBar(
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        text = if (isUserBlocked) "Розблокувати користувача" else "Заблокувати користувача",
+                                        text = if (isUserBlocked) stringResource(R.string.unblock_user) else stringResource(R.string.block_user_action),
                                         color = if (isUserBlocked) Color(0xFF4CAF50) else Color(0xFFF44336)
                                     )
                                 },
@@ -362,30 +365,32 @@ private fun TypingDots(color: Color) {
 }
 
 /** Formats a Unix-seconds timestamp for "last seen" display. */
-private fun formatLastSeen(ts: Long): String {
-    if (ts <= 0L) return "офлайн"
+private fun formatLastSeen(ts: Long, recentlyStr: String, minsAgoStr: (Int) -> String,
+                           todayAtStr: (String) -> String, yesterdayAtStr: (String) -> String,
+                           onDateStr: (String) -> String): String {
+    if (ts <= 0L) return ""
     val now = System.currentTimeMillis()
     val diff = now - ts * 1000L
     val cal = Calendar.getInstance().apply { timeInMillis = ts * 1000L }
     val today = Calendar.getInstance()
 
     return when {
-        diff < 60_000L -> "був(ла) нещодавно"
+        diff < 60_000L -> recentlyStr
         diff < 3_600_000L -> {
             val mins = (diff / 60_000L).toInt()
-            "був(ла) $mins хв тому"
+            minsAgoStr(mins)
         }
         cal.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR) -> {
             val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-            "був(ла) сьогодні о ${fmt.format(Date(ts * 1000L))}"
+            todayAtStr(fmt.format(Date(ts * 1000L)))
         }
         diff < 172_800_000L -> {
             val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-            "був(ла) вчора о ${fmt.format(Date(ts * 1000L))}"
+            yesterdayAtStr(fmt.format(Date(ts * 1000L)))
         }
         else -> {
             val fmt = SimpleDateFormat("d MMM", Locale.getDefault())
-            "був(ла) ${fmt.format(Date(ts * 1000L))}"
+            onDateStr(fmt.format(Date(ts * 1000L)))
         }
     }
 }
@@ -397,41 +402,63 @@ private fun formatLastSeen(ts: Long): String {
 @Composable
 fun PresenceStatusText(status: UserPresenceStatus, textColor: Color) {
     val fontSize = 12.sp
+    val context = LocalContext.current
+
+    val recentlyStr = stringResource(R.string.seen_recently)
+    val typingStr = stringResource(R.string.typing)
+    val onlineStr = stringResource(R.string.online)
+    val recordingVoiceStr = stringResource(R.string.recording_voice)
+    val recordingVideoStr = stringResource(R.string.recording_video)
+    val listeningAudioStr = stringResource(R.string.listening_audio)
+    val viewingMediaStr = stringResource(R.string.viewing_media)
+    val choosingStickerStr = stringResource(R.string.choosing_sticker)
+    val userTypingTemplate = stringResource(R.string.user_typing)
+
     when (status) {
         is UserPresenceStatus.Typing -> {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("друкує", fontSize = fontSize, color = textColor)
+                Text(typingStr, fontSize = fontSize, color = textColor)
                 Spacer(Modifier.width(3.dp))
                 TypingDots(color = textColor)
             }
         }
         is UserPresenceStatus.GroupTyping -> {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("${status.userName} друкує", fontSize = fontSize, color = textColor)
+                Text(String.format(userTypingTemplate, status.userName), fontSize = fontSize, color = textColor)
                 Spacer(Modifier.width(3.dp))
                 TypingDots(color = textColor)
             }
         }
         is UserPresenceStatus.RecordingVoice -> {
-            Text("🎤 пише голосове...", fontSize = fontSize, color = textColor)
+            Text(recordingVoiceStr, fontSize = fontSize, color = textColor)
         }
         is UserPresenceStatus.RecordingVideo -> {
-            Text("🎥 знімає відео...", fontSize = fontSize, color = textColor)
+            Text(recordingVideoStr, fontSize = fontSize, color = textColor)
         }
         is UserPresenceStatus.ListeningAudio -> {
-            Text("🎧 слухає аудіо...", fontSize = fontSize, color = textColor)
+            Text(listeningAudioStr, fontSize = fontSize, color = textColor)
         }
         is UserPresenceStatus.ViewingMedia -> {
-            Text("👁 переглядає...", fontSize = fontSize, color = textColor)
+            Text(viewingMediaStr, fontSize = fontSize, color = textColor)
         }
         is UserPresenceStatus.ChoosingSticker -> {
-            Text("😊 вибирає стикер...", fontSize = fontSize, color = textColor)
+            Text(choosingStickerStr, fontSize = fontSize, color = textColor)
         }
         is UserPresenceStatus.Online -> {
-            Text("онлайн", fontSize = fontSize, color = textColor)
+            Text(onlineStr, fontSize = fontSize, color = textColor)
         }
         is UserPresenceStatus.LastSeen -> {
-            Text(formatLastSeen(status.timestamp), fontSize = fontSize, color = textColor)
+            val lastSeenText = formatLastSeen(
+                ts = status.timestamp,
+                recentlyStr = recentlyStr,
+                minsAgoStr = { mins -> context.getString(R.string.seen_mins_ago, mins) },
+                todayAtStr = { time -> context.getString(R.string.seen_today_at, time) },
+                yesterdayAtStr = { time -> context.getString(R.string.seen_yesterday_at, time) },
+                onDateStr = { date -> context.getString(R.string.seen_on_date, date) }
+            )
+            if (lastSeenText.isNotEmpty()) {
+                Text(lastSeenText, fontSize = fontSize, color = textColor)
+            }
         }
         is UserPresenceStatus.Offline -> {
             // Show nothing for plain offline with no lastSeen data
@@ -449,19 +476,19 @@ fun ConnectionQualityBanner(quality: NetworkQualityMonitor.ConnectionQuality) {
     val (text, color, icon) = when (quality) {
         NetworkQualityMonitor.ConnectionQuality.GOOD ->
             Triple(
-                "🟡 Добре з'єднання. Медіа завантажуються як превью.",
+                stringResource(R.string.connection_good),
                 Color(0xFFFFA500),
                 Icons.Default.SignalCellularAlt
             )
         NetworkQualityMonitor.ConnectionQuality.POOR ->
             Triple(
-                "🟠 Погане з'єднання. Завантажується тільки текст.",
+                stringResource(R.string.connection_poor),
                 Color(0xFFFF6B6B),
                 Icons.Default.SignalCellularAlt
             )
         NetworkQualityMonitor.ConnectionQuality.OFFLINE ->
             Triple(
-                "🔴 Немає з'єднання. Показуються кешовані повідомлення.",
+                stringResource(R.string.connection_offline),
                 Color(0xFFE74C3C),
                 Icons.Default.WifiOff
             )

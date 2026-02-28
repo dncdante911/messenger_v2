@@ -41,6 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 
 /**
@@ -89,7 +91,7 @@ fun AppBottomNavBar(
                 BottomNavItem(
                     icon = Icons.Outlined.Chat,
                     selectedIcon = Icons.Filled.Chat,
-                    label = "Чати",
+                    label = stringResource(R.string.chats),
                     isSelected = selectedTab == BottomNavTab.CHATS,
                     onClick = { onTabSelected(BottomNavTab.CHATS) },
                     modifier = Modifier.weight(1f)
@@ -98,7 +100,7 @@ fun AppBottomNavBar(
                 BottomNavItem(
                     icon = Icons.Outlined.Contacts,
                     selectedIcon = Icons.Filled.Contacts,
-                    label = "Контакти",
+                    label = stringResource(R.string.contacts),
                     isSelected = selectedTab == BottomNavTab.CONTACTS,
                     onClick = { onTabSelected(BottomNavTab.CONTACTS) },
                     modifier = Modifier.weight(1f)
@@ -107,7 +109,7 @@ fun AppBottomNavBar(
                 BottomNavItem(
                     icon = Icons.Outlined.Settings,
                     selectedIcon = Icons.Filled.Settings,
-                    label = "Настройки",
+                    label = stringResource(R.string.settings_title),
                     isSelected = selectedTab == BottomNavTab.SETTINGS,
                     onClick = { onTabSelected(BottomNavTab.SETTINGS) },
                     modifier = Modifier.weight(1f)
@@ -116,7 +118,7 @@ fun AppBottomNavBar(
                 // Профіль з аватаром замість іконки
                 ProfileNavItem(
                     avatarUrl = avatarUrl,
-                    label = "Профіль",
+                    label = stringResource(R.string.profile),
                     isSelected = selectedTab == BottomNavTab.PROFILE,
                     onClick = { onTabSelected(BottomNavTab.PROFILE) },
                     modifier = Modifier.weight(1f)

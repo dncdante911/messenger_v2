@@ -63,10 +63,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.preferences.BubbleStyle
 import com.worldmates.messenger.ui.preferences.UIStylePreferences
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
@@ -203,7 +205,7 @@ fun ThemeSettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Темы и оформление",
+                        text = stringResource(R.string.themes_title),
                         fontWeight = FontWeight.SemiBold
                     )
                 },
@@ -211,7 +213,7 @@ fun ThemeSettingsScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Назад"
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 },
@@ -294,7 +296,7 @@ fun ThemeSettingsScreen(
             item {
                 Column {
                     Text(
-                        text = "Выберите тему",
+                        text = stringResource(R.string.select_theme),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(bottom = 12.dp)
@@ -329,7 +331,7 @@ fun VideoFrameStylesSection(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Стилі рамок відео",
+                text = stringResource(R.string.video_frame_section),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -355,12 +357,12 @@ fun VideoFrameStylesSection(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Рамки відеодзвінків",
+                                text = stringResource(R.string.call_frame_section),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Classic, Neon, Gradient, Glass, Rainbow",
+                                text = stringResource(R.string.call_frame_styles_list),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -398,12 +400,12 @@ fun VideoFrameStylesSection(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Рамки відеоповідомлень",
+                                text = stringResource(R.string.video_message_frame_title),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Круглий, Неоновий, Градієнт, Rainbow",
+                                text = stringResource(R.string.video_frame_styles_list),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -452,7 +454,7 @@ fun ThemeModeSectionCard(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Темная тема",
+                        text = stringResource(R.string.dark_theme),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium
                     )
@@ -480,12 +482,12 @@ fun ThemeModeSectionCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Следовать системной теме",
+                        text = stringResource(R.string.follow_system_theme),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Тема будет меняться автоматически",
+                        text = stringResource(R.string.follow_system_theme_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -554,7 +556,7 @@ fun MaterialYouCard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "Цвета из ваших обоев",
+                        text = stringResource(R.string.colors_from_wallpaper),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -674,7 +676,7 @@ fun ThemeVariantCard(
 
             // Описание
             Text(
-                text = variant.description,
+                text = variant.localizedDescription(),
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -702,13 +704,13 @@ fun ThemeVariantCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Выбрано",
+                        contentDescription = stringResource(R.string.selected),
                         tint = palette.primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Выбрано",
+                        text = stringResource(R.string.selected),
                         style = MaterialTheme.typography.labelSmall,
                         color = palette.primary,
                         fontWeight = FontWeight.Bold
@@ -759,14 +761,14 @@ fun UIStyleSection() {
                 .padding(16.dp)
         ) {
             Text(
-                text = "Стиль інтерфейсу",
+                text = stringResource(R.string.interface_style),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
             Text(
-                text = "Оберіть стиль відображення чатів та груп",
+                text = stringResource(R.string.interface_style_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -811,7 +813,7 @@ fun UIStyleSection() {
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Картки з градієнтами та анімаціями",
+                        text = stringResource(R.string.interface_modern_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -854,12 +856,12 @@ fun UIStyleSection() {
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Класичний",
+                        text = stringResource(R.string.frame_style_classic),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Мінімалістичний класичний стиль",
+                        text = stringResource(R.string.interface_classic_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -890,14 +892,14 @@ fun BubbleStyleSection() {
                 .padding(16.dp)
         ) {
             Text(
-                text = "🎨 Стиль бульбашок",
+                text = stringResource(R.string.bubble_style_section),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
             Text(
-                text = "Оберіть дизайн бульбашок повідомлень",
+                text = stringResource(R.string.bubble_style_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -983,7 +985,7 @@ fun BubbleStyleCard(
 
             // Назва стилю
             Text(
-                text = bubbleStyle.displayName,
+                text = bubbleStyle.localizedDisplayName(),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
@@ -992,7 +994,7 @@ fun BubbleStyleCard(
 
             // Опис стилю
             Text(
-                text = bubbleStyle.description,
+                text = bubbleStyle.localizedDescription(),
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1007,13 +1009,13 @@ fun BubbleStyleCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Вибрано",
+                        contentDescription = stringResource(R.string.selected),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Вибрано",
+                        text = stringResource(R.string.selected),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -1051,14 +1053,14 @@ fun QuickReactionSection() {
                 .padding(16.dp)
         ) {
             Text(
-                text = "❤️ Швидка реакція",
+                text = stringResource(R.string.quick_reaction_section),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
             Text(
-                text = "Оберіть емодзі для подвійного тапу на повідомленні",
+                text = stringResource(R.string.quick_reaction_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -1143,4 +1145,50 @@ fun EmojiReactionCard(
     }
 }
 
+@Composable
+fun ThemeVariant.localizedDescription(): String {
+    return when (this) {
+        ThemeVariant.CLASSIC -> stringResource(R.string.theme_classic_desc)
+        ThemeVariant.OCEAN -> stringResource(R.string.theme_ocean_desc)
+        ThemeVariant.SUNSET -> stringResource(R.string.theme_sunset_desc)
+        ThemeVariant.FOREST -> stringResource(R.string.theme_forest_desc)
+        ThemeVariant.PURPLE -> stringResource(R.string.theme_purple_desc)
+        ThemeVariant.ROSE_GOLD -> stringResource(R.string.theme_rose_gold_desc)
+        ThemeVariant.MONOCHROME -> stringResource(R.string.theme_monochrome_desc)
+        ThemeVariant.NORD -> stringResource(R.string.theme_nord_desc)
+        ThemeVariant.DRACULA -> stringResource(R.string.theme_dracula_desc)
+        ThemeVariant.MATERIAL_YOU -> stringResource(R.string.theme_material_you_desc)
+    }
+}
 
+@Composable
+fun BubbleStyle.localizedDisplayName(): String {
+    return when (this) {
+        BubbleStyle.STANDARD -> stringResource(R.string.bubble_standard)
+        BubbleStyle.COMIC -> stringResource(R.string.bubble_comic)
+        BubbleStyle.TELEGRAM -> stringResource(R.string.bubble_classic_name)
+        BubbleStyle.MINIMAL -> stringResource(R.string.bubble_minimal)
+        BubbleStyle.MODERN -> stringResource(R.string.bubble_modern)
+        BubbleStyle.RETRO -> stringResource(R.string.bubble_retro)
+        BubbleStyle.GLASS -> stringResource(R.string.bubble_glass)
+        BubbleStyle.NEON -> stringResource(R.string.bubble_neon)
+        BubbleStyle.GRADIENT -> stringResource(R.string.bubble_gradient)
+        BubbleStyle.NEUMORPHISM -> stringResource(R.string.bubble_neumorphism)
+    }
+}
+
+@Composable
+fun BubbleStyle.localizedDescription(): String {
+    return when (this) {
+        BubbleStyle.STANDARD -> stringResource(R.string.bubble_standard_desc)
+        BubbleStyle.COMIC -> stringResource(R.string.bubble_comic_desc)
+        BubbleStyle.TELEGRAM -> stringResource(R.string.bubble_classic_desc)
+        BubbleStyle.MINIMAL -> stringResource(R.string.bubble_minimal_desc)
+        BubbleStyle.MODERN -> stringResource(R.string.bubble_modern_desc)
+        BubbleStyle.RETRO -> stringResource(R.string.bubble_retro_desc)
+        BubbleStyle.GLASS -> stringResource(R.string.bubble_glass_desc)
+        BubbleStyle.NEON -> stringResource(R.string.bubble_neon_desc)
+        BubbleStyle.GRADIENT -> stringResource(R.string.bubble_gradient_desc)
+        BubbleStyle.NEUMORPHISM -> stringResource(R.string.bubble_neumorphism_desc)
+    }
+}

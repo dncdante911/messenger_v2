@@ -24,7 +24,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Chat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -134,7 +136,7 @@ fun ModernChatCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = nickname ?: chat.username ?: "Unknown",
+                        text = nickname ?: chat.username ?: stringResource(R.string.unknown),
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -144,9 +146,10 @@ fun ModernChatCard(
                     )
 
                     // Час останнього повідомлення
+                    val yesterdayStr = stringResource(R.string.yesterday)
                     chat.lastMessage?.let { msg ->
                         Text(
-                            text = formatMessageTime(msg.timeStamp),
+                            text = formatMessageTime(msg.timeStamp, yesterdayStr),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
@@ -260,14 +263,14 @@ fun ModernSearchBar(
             ),
         placeholder = {
             Text(
-                "Пошук чатів...",
+                stringResource(R.string.chat_search),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         },
         leadingIcon = {
             Icon(
                 Icons.Default.Search,
-                contentDescription = "Search",
+                contentDescription = stringResource(R.string.search),
                 tint = MaterialTheme.colorScheme.primary
             )
         },
@@ -276,7 +279,7 @@ fun ModernSearchBar(
                 IconButton(onClick = { onSearchChange("") }) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Clear",
+                        contentDescription = stringResource(R.string.close),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -419,8 +422,9 @@ fun ModernGroupCard(
 
                     // Час останньої активності
                     val groupLastActivity = group.updatedTime ?: group.createdTime
+                    val groupYesterdayStr = stringResource(R.string.yesterday)
                     Text(
-                        text = formatGroupTime(groupLastActivity),
+                        text = formatGroupTime(groupLastActivity, groupYesterdayStr),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
@@ -587,7 +591,7 @@ fun ModernFAB(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = "New Chat",
+            contentDescription = stringResource(R.string.new_chat),
             tint = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.size(28.dp)
         )
@@ -597,15 +601,15 @@ fun ModernFAB(
 /**
  * Утиліти для форматування часу
  */
-private fun formatMessageTime(timestamp: Long): String {
+private fun formatMessageTime(timestamp: Long, yesterdayStr: String): String {
     val messageTime = Date(timestamp * 1000)
     val now = Date()
     val diffInDays = ((now.time - messageTime.time) / (1000 * 60 * 60 * 24)).toInt()
 
     return when {
         diffInDays == 0 -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(messageTime)
-        diffInDays == 1 -> "Вчора"
-        diffInDays < 7 -> SimpleDateFormat("EEEE", Locale("uk")).format(messageTime)
+        diffInDays == 1 -> yesterdayStr
+        diffInDays < 7 -> SimpleDateFormat("EEEE", Locale.getDefault()).format(messageTime)
         else -> SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(messageTime)
     }
 }
@@ -616,15 +620,15 @@ private fun isOnline(lastActivity: Long): Boolean {
     return diffInSeconds < 300 // Онлайн якщо активність була менше 5 хвилин тому
 }
 
-private fun formatGroupTime(timestamp: Long): String {
+private fun formatGroupTime(timestamp: Long, yesterdayStr: String): String {
     val groupTime = Date(timestamp)
     val now = Date()
     val diffInDays = ((now.time - groupTime.time) / (1000 * 60 * 60 * 24)).toInt()
 
     return when {
         diffInDays == 0 -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(groupTime)
-        diffInDays == 1 -> "Вчора"
-        diffInDays < 7 -> SimpleDateFormat("EEEE", Locale("uk")).format(groupTime)
+        diffInDays == 1 -> yesterdayStr
+        diffInDays < 7 -> SimpleDateFormat("EEEE", Locale.getDefault()).format(groupTime)
         else -> SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(groupTime)
     }
 }
