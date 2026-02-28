@@ -10,6 +10,94 @@
 
 const { QueryTypes } = require('sequelize');
 
+/**
+ * Ensure wo_calls, wo_group_calls, wo_group_call_participants tables exist
+ * and that wo_calls has the soft-delete columns.
+ * Safe to run on every start — all statements use IF NOT EXISTS / ignore duplicates.
+ */
+async function runMigration(sequelize) {
+    try {
+        await sequelize.query(`
+            CREATE TABLE IF NOT EXISTS wo_calls (
+                id              INT(11)      NOT NULL AUTO_INCREMENT,
+                from_id         INT(11)      NOT NULL,
+                to_id           INT(11)      NOT NULL,
+                call_type       ENUM('audio','video') NOT NULL DEFAULT 'audio',
+                status          ENUM('ringing','connected','ended','missed','rejected','failed') NOT NULL DEFAULT 'ringing',
+                room_name       VARCHAR(100) NOT NULL,
+                sdp_offer       LONGTEXT     DEFAULT NULL,
+                sdp_answer      LONGTEXT     DEFAULT NULL,
+                created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                accepted_at     DATETIME     DEFAULT NULL,
+                ended_at        DATETIME     DEFAULT NULL,
+                duration        INT(11)      DEFAULT NULL,
+                deleted_by_from TINYINT(1)   NOT NULL DEFAULT 0,
+                deleted_by_to   TINYINT(1)   NOT NULL DEFAULT 0,
+                PRIMARY KEY (id),
+                UNIQUE KEY idx_room_name (room_name),
+                KEY idx_from_id  (from_id),
+                KEY idx_to_id    (to_id),
+                KEY idx_status   (status),
+                KEY idx_created  (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `, { type: QueryTypes.RAW });
+
+        await sequelize.query(`
+            CREATE TABLE IF NOT EXISTS wo_group_calls (
+                id               INT(11)      NOT NULL AUTO_INCREMENT,
+                group_id         INT(11)      NOT NULL,
+                initiated_by     INT(11)      NOT NULL,
+                call_type        ENUM('audio','video') NOT NULL DEFAULT 'audio',
+                status           ENUM('ringing','active','ended') NOT NULL DEFAULT 'ringing',
+                room_name        VARCHAR(100) NOT NULL,
+                created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                started_at       DATETIME     DEFAULT NULL,
+                ended_at         DATETIME     DEFAULT NULL,
+                max_participants INT(11)      DEFAULT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY idx_room_name (room_name),
+                KEY idx_group_id     (group_id),
+                KEY idx_initiated_by (initiated_by),
+                KEY idx_status       (status),
+                KEY idx_created      (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `, { type: QueryTypes.RAW });
+
+        await sequelize.query(`
+            CREATE TABLE IF NOT EXISTS wo_group_call_participants (
+                id            INT(11)    NOT NULL AUTO_INCREMENT,
+                call_id       INT(11)    NOT NULL,
+                user_id       INT(11)    NOT NULL,
+                joined_at     DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                left_at       DATETIME   DEFAULT NULL,
+                duration      INT(11)    DEFAULT NULL,
+                audio_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                video_enabled TINYINT(1) NOT NULL DEFAULT 0,
+                PRIMARY KEY (id),
+                KEY idx_call_id  (call_id),
+                KEY idx_user_id  (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `, { type: QueryTypes.RAW });
+
+        // Add soft-delete columns to existing table if absent
+        for (const col of ['deleted_by_from', 'deleted_by_to']) {
+            try {
+                await sequelize.query(
+                    `ALTER TABLE wo_calls ADD COLUMN ${col} TINYINT(1) NOT NULL DEFAULT 0`,
+                    { type: QueryTypes.RAW }
+                );
+                console.log(`[Calls API] Migration: added column wo_calls.${col}`);
+            } catch (e) {
+                // "Duplicate column name" → column already exists, that's fine
+            }
+        }
+
+        console.log('[Calls API] Migration complete');
+    } catch (e) {
+        console.error('[Calls API] Migration error:', e.message);
+    }
+}
+
 async function authMiddleware(ctx, req, res, next) {
     const accessToken =
         req.headers['access-token'] ||
@@ -178,7 +266,7 @@ async function getHistory(ctx, req, res) {
         res.json({ api_status: 200, calls: formatted, total, offset, limit });
 
     } catch (err) {
-        console.error('[Calls/History] Error:', err.message);
+        console.error('[Calls/History] Error:', err.message, err.stack);
         res.status(500).json({ api_status: 500, error_message: 'Failed to fetch call history' });
     }
 }
@@ -244,6 +332,13 @@ async function clearHistory(ctx, req, res) {
 }
 
 function registerCallRoutes(app, ctx) {
+    const sequelize = ctx.wo_calls.sequelize;
+
+    // Run migration immediately (non-blocking) to ensure soft-delete columns exist
+    runMigration(sequelize).catch(e =>
+        console.error('[Calls API] Migration failed:', e.message)
+    );
+
     const auth = (req, res, next) => authMiddleware(ctx, req, res, next);
 
     // Same path as the PHP endpoint — drop-in replacement
