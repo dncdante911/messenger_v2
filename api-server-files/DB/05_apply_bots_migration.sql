@@ -22,26 +22,6 @@ SET NAMES utf8mb4;
 SET foreign_key_checks = 0;
 
 -- ----------------------------------------------------------------
--- ПРОВЕРКА: убедиться что выбрана правильная база данных
--- Если вы видите эту ошибку — нажмите на вашу БД в левой панели phpMyAdmin
--- ----------------------------------------------------------------
-
-DROP PROCEDURE IF EXISTS `_wm_check_database`;
-CREATE PROCEDURE `_wm_check_database`()
-BEGIN
-  IF DATABASE() IS NULL THEN
-    SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'ОШИБКА: база данных не выбрана. В phpMyAdmin кликните на свою БД в левой панели, затем повторите импорт.';
-  END IF;
-  IF DATABASE() = 'information_schema' THEN
-    SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'ОШИБКА: выбрана information_schema. В phpMyAdmin кликните на свою БД (например socialhub) в левой панели, затем повторите импорт.';
-  END IF;
-END;
-CALL `_wm_check_database`();
-DROP PROCEDURE IF EXISTS `_wm_check_database`;
-
--- ----------------------------------------------------------------
 -- ШАГ 1: Удаляем старые бот-таблицы
 -- ----------------------------------------------------------------
 
