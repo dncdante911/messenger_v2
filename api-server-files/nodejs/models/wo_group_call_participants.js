@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
             autoIncrement: true,
             allowNull: false
         },
-        call_id: {
+        group_call_id: {
             type: DataTypes.INTEGER(11),
             allowNull: false,
             comment: 'ID из wo_group_calls'
@@ -53,7 +53,7 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'wo_group_call_participants',
         timestamps: false,
         indexes: [
-            { fields: ['call_id'] },
+            { fields: ['group_call_id'] },
             { fields: ['user_id'] },
             { fields: ['joined_at'] }
         ]
