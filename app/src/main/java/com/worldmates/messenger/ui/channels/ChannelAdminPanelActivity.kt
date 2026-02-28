@@ -1,5 +1,6 @@
 package com.worldmates.messenger.ui.channels
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.model.*
+import com.worldmates.messenger.ui.channels.components.ChannelStatisticsCompactCard
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.util.toFullMediaUrl
@@ -470,48 +472,80 @@ private fun SettingToggle(
 
 @Composable
 private fun StatsTab(statistics: ChannelStatistics?, channel: Channel?) {
+    val context = LocalContext.current
+
+    if (statistics == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("Channel Statistics", fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 8.dp))
+            // Quick 4-cell overview
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                QuickStatCell("Підписники", "${statistics.subscribersCount}",
+                    trend = if (statistics.growthRate != 0f) "${if (statistics.growthRate > 0) "+" else ""}${statistics.growthRate}%" else null,
+                    trendPositive = statistics.growthRate >= 0, modifier = Modifier.weight(1f))
+                QuickStatCell("Перегляди", formatLargeNumber(statistics.viewsTotal.toInt()), modifier = Modifier.weight(1f))
+            }
         }
-
-        if (statistics == null) {
-            item {
-                Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                QuickStatCell("Сер./пост", "${statistics.avgViewsPerPost}", modifier = Modifier.weight(1f))
+                QuickStatCell("ER", "${statistics.engagementRate}%",
+                    trendPositive = statistics.engagementRate >= 1f, modifier = Modifier.weight(1f))
             }
-        } else {
-            item {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatCard("Subscribers", "${statistics.subscribersCount}", Icons.Default.People, Modifier.weight(1f))
-                    StatCard("Posts", "${statistics.postsCount}", Icons.Default.Article, Modifier.weight(1f))
-                }
+        }
+        item {
+            // "Детальна статистика" button → ChannelStatisticsActivity
+            Button(
+                onClick = {
+                    val intent = Intent(context, ChannelStatisticsActivity::class.java).apply {
+                        putExtra("channel_id", channel?.id ?: 0L)
+                        putExtra("channel_name", channel?.name ?: "")
+                    }
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Детальна статистика")
             }
+        }
+        // Top posts preview (top 3)
+        if (!statistics.topPosts.isNullOrEmpty()) {
             item {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatCard("This Week", "${statistics.postsLastWeek}", Icons.Default.DateRange, Modifier.weight(1f))
-                    StatCard("Active 24h", "${statistics.activeSubscribers24h}", Icons.Default.Visibility, Modifier.weight(1f))
-                }
+                Spacer(Modifier.height(4.dp))
+                Text("Топ публікації", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
-            if (!statistics.topPosts.isNullOrEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Top Posts", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-                items(statistics.topPosts!!.take(5)) { topPost ->
-                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = topPost.text.take(80) + if (topPost.text.length > 80) "..." else "", fontSize = 14.sp)
+            items(statistics.topPosts!!.take(3)) { post ->
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            val preview = post.text.trim().ifEmpty { if (post.hasMedia) "[Медіа]" else "[Пост]" }
+                            Text(preview, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Column(horizontalAlignment = Alignment.End) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Icon(Icons.Default.Visibility, contentDescription = null,
+                                    modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                Text(formatLargeNumber(post.views), fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("${topPost.views}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp).padding(start = 4.dp), tint = MaterialTheme.colorScheme.primary)
+                            if (post.reactions > 0 || post.comments > 0) {
+                                Text("❤️${post.reactions}  💬${post.comments}",
+                                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }
@@ -521,19 +555,33 @@ private fun StatsTab(statistics: ChannelStatistics?, channel: Channel?) {
 }
 
 @Composable
-private fun StatCard(title: String, value: String, icon: ImageVector, modifier: Modifier = Modifier) {
+private fun QuickStatCell(
+    label: String,
+    value: String,
+    trend: String? = null,
+    trendPositive: Boolean = true,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f))
     ) {
-        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-            Spacer(modifier = Modifier.height(8.dp))
+        Column(modifier = Modifier.padding(14.dp)) {
             Text(value, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-            Text(title, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            if (trend != null) {
+                Text(trend, fontSize = 11.sp,
+                    color = if (trendPositive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error)
+            }
+            Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
         }
     }
+}
+
+private fun formatLargeNumber(n: Int): String = when {
+    n >= 1_000_000 -> "${"%.1f".format(n / 1_000_000.0)}M"
+    n >= 1_000     -> "${"%.1f".format(n / 1_000.0)}K"
+    else           -> n.toString()
 }
 
 // ==================== ADMINS TAB ====================
