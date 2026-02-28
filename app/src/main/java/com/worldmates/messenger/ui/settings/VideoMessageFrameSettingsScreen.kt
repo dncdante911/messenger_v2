@@ -26,6 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.messages.VideoMessageFrameStyle
 import com.worldmates.messenger.ui.messages.getSavedVideoMessageFrameStyle
 import com.worldmates.messenger.ui.messages.saveVideoMessageFrameStyle
@@ -47,10 +49,10 @@ fun VideoMessageFrameSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Стиль відеоповідомлень") },
+                title = { Text(stringResource(R.string.video_frame_style_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -65,7 +67,7 @@ fun VideoMessageFrameSettingsScreen(
         ) {
             item {
                 Text(
-                    text = "Оберіть стиль рамки для ваших відеоповідомлень",
+                    text = stringResource(R.string.video_frame_select_desc),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -95,13 +97,13 @@ fun VideoMessageFrameSettingsScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "💡 Порада",
+                            text = stringResource(R.string.video_tip_title),
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Відеоповідомлення до 2 хвилин для всіх користувачів.\nPRO користувачі можуть записувати до 5 хвилин!",
+                            text = stringResource(R.string.video_tip_text),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -171,7 +173,7 @@ fun VideoMessageStyleCard(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = getStyleDescription(style),
+                    text = localizedVideoFrameDescription(style),
                     fontSize = 14.sp,
                     color = if (isSelected) {
                         MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -184,7 +186,7 @@ fun VideoMessageStyleCard(
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Обрано",
+                    contentDescription = stringResource(R.string.done),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
@@ -293,13 +295,14 @@ fun VideoMessageStylePreview(style: VideoMessageFrameStyle) {
     }
 }
 
-private fun getStyleDescription(style: VideoMessageFrameStyle): String {
+@Composable
+fun localizedVideoFrameDescription(style: VideoMessageFrameStyle): String {
     return when (style) {
-        VideoMessageFrameStyle.CIRCLE -> "Класичний круглий стиль як в Telegram"
-        VideoMessageFrameStyle.ROUNDED -> "Заокруглені кути, сучасний вигляд"
-        VideoMessageFrameStyle.NEON -> "Неонове світіння з пульсацією"
-        VideoMessageFrameStyle.GRADIENT -> "Красивий градієнт фіолетово-рожевий"
-        VideoMessageFrameStyle.RAINBOW -> "Анімована веселкова рамка"
-        VideoMessageFrameStyle.MINIMAL -> "Без рамки, чисте відео"
+        VideoMessageFrameStyle.CIRCLE -> stringResource(R.string.video_frame_circle_desc)
+        VideoMessageFrameStyle.ROUNDED -> stringResource(R.string.video_frame_rounded_desc)
+        VideoMessageFrameStyle.NEON -> stringResource(R.string.video_frame_neon_desc)
+        VideoMessageFrameStyle.GRADIENT -> stringResource(R.string.video_frame_gradient_desc)
+        VideoMessageFrameStyle.RAINBOW -> stringResource(R.string.video_frame_rainbow_desc)
+        VideoMessageFrameStyle.MINIMAL -> stringResource(R.string.frame_style_minimal_desc)
     }
 }

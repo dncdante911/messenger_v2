@@ -760,4 +760,33 @@
     <string name="no_publications">Публикаций пока нет…</string>
     <string name="publish_photos_videos">Публикуйте фото и видео в своём профиле</string>
     <string name="search_media">Поиск медиа…</string>
+
+    <!-- ===== CALL FRAME STYLES ===== -->
+    <string name="call_frame_select_desc">Выберите стиль рамки для видеозвонков</string>
+    <string name="frame_style_classic">Классическая</string>
+    <string name="frame_style_neon">Неоновая</string>
+    <string name="frame_style_gradient">Градиентная</string>
+    <string name="frame_style_minimal">Минималистическая</string>
+    <string name="frame_style_glass">Стеклянная</string>
+    <string name="frame_style_rainbow">Радужная</string>
+    <string name="frame_style_classic_desc">Классическая рамка с лёгкой тенью</string>
+    <string name="frame_style_neon_desc">Неоновая рамка с пульсирующим свечением</string>
+    <string name="frame_style_gradient_desc">Градиентная фиолетово-розовая рамка</string>
+    <string name="frame_style_minimal_desc">Без рамки, чистое видео</string>
+    <string name="frame_style_glass_desc">Стеклянный эффект с прозрачностью</string>
+    <string name="frame_style_rainbow_desc">Радужная анимированная рамка</string>
+
+    <!-- ===== VIDEO MESSAGE FRAME STYLES ===== -->
+    <string name="video_frame_select_desc">Выберите стиль рамки для ваших видеосообщений</string>
+    <string name="video_frame_circle_desc">Классический круглый стиль как в Telegram</string>
+    <string name="video_frame_rounded_desc">Закруглённые углы, современный вид</string>
+    <string name="video_frame_neon_desc">Неоновое свечение с пульсацией</string>
+    <string name="video_frame_gradient_desc">Красивый градиент фиолетово-розовый</string>
+    <string name="video_frame_rainbow_desc">Анимированная радужная рамка</string>
+    <string name="video_tip_title">💡 Подсказка</string>
+    <string name="video_tip_text">Видеосообщения до 2 минут для всех пользователей.\nPRO пользователи могут записывать до 5 минут!</string>
+
+    <!-- ===== MY GROUPS ===== -->
+    <string name="no_groups_joined">Вы ещё не присоединились ни к одной группе</string>
+    <string name="error_loading_groups">Ошибка загрузки групп</string>
 </resources>
