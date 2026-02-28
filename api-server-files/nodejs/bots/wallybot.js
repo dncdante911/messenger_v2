@@ -33,6 +33,10 @@ const WALLYBOT_ID    = 'wallybot';
 const WALLYBOT_NAME  = 'WallyBot';
 const OWNER_USER_ID  = 1; // системный владелец
 
+// user_id WallyBot в таблице Wo_Users (устанавливается при инициализации)
+// Нужен для отправки ответов через regular private_message канал
+let WALLYBOT_USER_ID = null;
+
 // ─── FSM состояния разговора ──────────────────────────────────────────────────
 
 const STATES = {
@@ -86,10 +90,15 @@ function sanitize(str) {
 }
 
 // ─── Отправка сообщения пользователю ─────────────────────────────────────────
+// Отправляет через regular private_message (Wo_Messages) — Android получает
+// как обычное сообщение в чате. Дополнительно эмитит bot_message для совместимости.
 
 async function sendToUser(ctx, io, userId, text, replyMarkup = null) {
     try {
-        const msg = await ctx.wo_bot_messages.create({
+        const now = Math.floor(Date.now() / 1000);
+
+        // 1. Сохранить в Wo_Bot_Messages (для статистики и polling/webhook)
+        const botMsg = await ctx.wo_bot_messages.create({
             bot_id:       WALLYBOT_ID,
             chat_id:      String(userId),
             chat_type:    'private',
@@ -100,18 +109,55 @@ async function sendToUser(ctx, io, userId, text, replyMarkup = null) {
             processed_at: new Date()
         });
 
-        const payload = {
-            event:        'bot_message',
-            bot_id:       WALLYBOT_ID,
-            message_id:   msg.id,
-            text,
-            reply_markup: replyMarkup,
-            timestamp:    Date.now()
-        };
+        // 2. Если у WallyBot есть Wo_Users запись — сохранить в Wo_Messages
+        //    (нужно для истории чата в Android)
+        if (WALLYBOT_USER_ID) {
+            try {
+                const woMsg = await ctx.wo_messages.create({
+                    from_id: WALLYBOT_USER_ID,
+                    to_id:   userId,
+                    text:    text,
+                    seen:    0,
+                    time:    now
+                });
 
+                // 3. Отправить как regular private_message — Android отобразит в обычном чате
+                if (io) {
+                    io.to(String(userId)).emit('private_message', {
+                        status:            200,
+                        id:                String(WALLYBOT_USER_ID),
+                        message:           text,
+                        message_id:        woMsg.id,
+                        time_api:          now,
+                        messages_html:     '',
+                        message_page_html: '',
+                        username:          WALLYBOT_NAME,
+                        avatar:            'upload/photos/d-avatar.jpg',
+                        receiver:          userId,
+                        sender:            WALLYBOT_USER_ID,
+                        isMedia:           false,
+                        isRecord:          false,
+                        reply_markup:      replyMarkup || null
+                    });
+                }
+            } catch (msgErr) {
+                // Wo_Messages запись не критична — продолжаем
+                console.warn('[WallyBot/Wo_Messages]', msgErr.message);
+            }
+        }
+
+        // 4. Также эмитим bot_message для совместимости с клиентами, которые слушают его
         if (io) {
-            io.to(String(userId)).emit('bot_message', payload);
-            io.to(`user_bot_${userId}_${WALLYBOT_ID}`).emit('bot_message', payload);
+            const botPayload = {
+                event:        'bot_message',
+                bot_id:       WALLYBOT_ID,
+                message_id:   botMsg.id,
+                text,
+                reply_markup: replyMarkup,
+                timestamp:    Date.now()
+            };
+            io.to(String(userId)).emit('bot_message', botPayload);
+            io.to(`user_bot_${userId}_${WALLYBOT_ID}`).emit('bot_message', botPayload);
         }
 
         await ctx.wo_bots.increment('messages_sent', { where: { bot_id: WALLYBOT_ID } });
@@ -867,63 +913,92 @@ async function handleMessage(ctx, io, data) {
 
 async function initializeWallyBot(ctx, io) {
     try {
-        // Проверяем существование WallyBot в базе
+        const now = Math.floor(Date.now() / 1000);
+
+        // ── 1. Создать/найти Wo_Users запись для WallyBot ──────────────────────
+        // Нужно для появления в поиске Android (Android ищет только Wo_Users)
+        const [wallyUser] = await ctx.wo_users.findOrCreate({
+            where: { username: 'wallybot' },
+            defaults: {
+                email:           'wallybot@bots.internal',
+                password:        crypto.randomBytes(20).toString('hex'),
+                first_name:      'WallyBot',
+                last_name:       '',
+                about:           'Официальный бот-менеджер WorldMates. Создавай своих ботов прямо в чате!',
+                type:            'bot',
+                active:          '1',
+                verified:        '0',
+                lastseen:        now,
+                registered:      new Date().toLocaleDateString('en-US'),
+                joined:          now,
+                message_privacy: '0'  // любой может написать
+            }
+        });
+
+        WALLYBOT_USER_ID = wallyUser.user_id;
+        console.log(`[WallyBot] Wo_Users entry: user_id=${WALLYBOT_USER_ID}`);
+
+        // ── 2. Создать/найти Wo_Bots запись ────────────────────────────────────
         const existing = await ctx.wo_bots.findOne({ where: { bot_id: WALLYBOT_ID } });
 
         if (!existing) {
-            // Создаём WallyBot
             const token = generateBotToken(WALLYBOT_ID);
             await ctx.wo_bots.create({
-                bot_id:       WALLYBOT_ID,
-                owner_id:     OWNER_USER_ID,
-                bot_token:    token,
-                username:     'wallybot',
-                display_name: 'WallyBot',
-                description:  'Официальный бот-менеджер WorldMates. Создавайте своих ботов прямо в чате!',
-                about:        'Помогает создавать и управлять ботами WorldMates. Также обучаем — пишите /learn!',
-                category:     'system',
-                bot_type:     'system',
-                status:       'active',
-                is_public:    1,
+                bot_id:          WALLYBOT_ID,
+                owner_id:        OWNER_USER_ID,
+                bot_token:       token,
+                username:        'wallybot',
+                display_name:    'WallyBot',
+                description:     'Официальный бот-менеджер WorldMates. Создавайте своих ботов прямо в чате!',
+                about:           'Помогает создавать и управлять ботами WorldMates. Также обучаем — пишите /learn!',
+                category:        'system',
+                bot_type:        'system',
+                status:          'active',
+                is_public:       1,
                 can_join_groups: 0,
                 supports_commands: 1,
-                created_at:   new Date(),
-                updated_at:   new Date()
+                linked_user_id:  WALLYBOT_USER_ID,
+                created_at:      new Date(),
+                updated_at:      new Date()
             });
-
-            await registerDefaultCommands(ctx, WALLYBOT_ID);
-
-            // Дополнительные команды WallyBot
-            const commands = [
-                { command: 'newbot',      description: 'Создать нового бота',              sort_order: 3 },
-                { command: 'mybots',      description: 'Список моих ботов',                sort_order: 4 },
-                { command: 'editbot',     description: 'Редактировать бота',               sort_order: 5 },
-                { command: 'deletebot',   description: 'Удалить бота',                     sort_order: 6 },
-                { command: 'token',       description: 'Получить токен бота',              sort_order: 7 },
-                { command: 'setcommands', description: 'Установить команды бота',          sort_order: 8 },
-                { command: 'setdesc',     description: 'Изменить описание бота',           sort_order: 9 },
-                { command: 'learn',       description: 'Научить WallyBot новому ответу',   sort_order: 10 },
-                { command: 'forget',      description: 'Удалить ответ из базы знаний',     sort_order: 11 },
-                { command: 'ask',         description: 'Задать вопрос WallyBot',           sort_order: 12 }
-            ];
-
-            for (const cmd of commands) {
-                await ctx.wo_bot_commands.findOrCreate({
-                    where:    { bot_id: WALLYBOT_ID, command: cmd.command },
-                    defaults: { bot_id: WALLYBOT_ID, ...cmd, scope: 'all', is_hidden: 0 }
-                });
-            }
-
-            console.log(`[WallyBot] Initialized with token: ${token}`);
+            console.log(`[WallyBot] Wo_Bots entry created, token: ${token}`);
+        } else if (!existing.linked_user_id) {
+            // Проставить linked_user_id если не было
+            await ctx.wo_bots.update(
+                { linked_user_id: WALLYBOT_USER_ID },
+                { where: { bot_id: WALLYBOT_ID } }
+            );
         }
 
-        // Регистрируем WallyBot в botSockets как "внутренний" бот
+        // ── 3. Команды WallyBot ──────────────────────────────────────────────
+        await registerDefaultCommands(ctx, WALLYBOT_ID);
+
+        const extraCommands = [
+            { command: 'newbot',      description: 'Создать нового бота',             sort_order: 3 },
+            { command: 'mybots',      description: 'Список моих ботов',               sort_order: 4 },
+            { command: 'editbot',     description: 'Редактировать бота',              sort_order: 5 },
+            { command: 'deletebot',   description: 'Удалить бота',                    sort_order: 6 },
+            { command: 'token',       description: 'Получить токен бота',             sort_order: 7 },
+            { command: 'setcommands', description: 'Установить команды бота',         sort_order: 8 },
+            { command: 'setdesc',     description: 'Изменить описание бота',          sort_order: 9 },
+            { command: 'learn',       description: 'Научить WallyBot новому ответу',  sort_order: 10 },
+            { command: 'forget',      description: 'Удалить ответ из базы знаний',    sort_order: 11 },
+            { command: 'ask',         description: 'Задать вопрос WallyBot',          sort_order: 12 }
+        ];
+
+        for (const cmd of extraCommands) {
+            await ctx.wo_bot_commands.findOrCreate({
+                where:    { bot_id: WALLYBOT_ID, command: cmd.command },
+                defaults: { bot_id: WALLYBOT_ID, ...cmd, scope: 'all', is_hidden: 0 }
+            });
+        }
+
+        // ── 4. Регистрируем внутренний сокет WallyBot ───────────────────────
         if (ctx.botSockets) {
             ctx.botSockets.set(WALLYBOT_ID, {
                 isInternal: true,
                 botId:      WALLYBOT_ID,
                 emit:       (event, data) => {
-                    // Внутренний обработчик сообщений
                     if (event === 'user_message') {
                         handleMessage(ctx, io, data).catch(err =>
                             console.error('[WallyBot/handleMessage]', err.message)
@@ -933,7 +1008,8 @@ async function initializeWallyBot(ctx, io) {
             });
         }
 
-        console.log('[WallyBot] Ready. Bot ID:', WALLYBOT_ID);
+        console.log(`[WallyBot] Ready! Bot ID: ${WALLYBOT_ID}, Wo_Users ID: ${WALLYBOT_USER_ID}`);
+        console.log(`[WallyBot] Users can find WallyBot by searching "@wallybot" in the app`);
 
     } catch (err) {
         console.error('[WallyBot/init]', err.message);

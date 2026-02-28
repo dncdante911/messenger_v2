@@ -294,26 +294,54 @@ function createBot(ctx) {
 
             const botId    = 'bot_' + crypto.randomBytes(12).toString('hex');
             const botToken = generateBotToken(botId);
+            const now      = Math.floor(Date.now() / 1000);
+
+            // Создаём Wo_Users запись для бота — необходимо для поиска в Android
+            // (Android ищет только в Wo_Users, type='bot' идентифицирует аккаунт как бот)
+            let linkedUserId = null;
+            try {
+                const [botUserEntry] = await ctx.wo_users.findOrCreate({
+                    where: { username: sanitize(username) },
+                    defaults: {
+                        email:           `${botId}@bots.internal`,
+                        password:        crypto.randomBytes(20).toString('hex'),
+                        first_name:      sanitize(display_name),
+                        last_name:       '',
+                        about:           sanitize(description),
+                        type:            'bot',
+                        active:          '1',
+                        verified:        '0',
+                        lastseen:        now,
+                        registered:      new Date().toLocaleDateString('en-US'),
+                        joined:          now,
+                        message_privacy: '0'
+                    }
+                });
+                linkedUserId = botUserEntry.user_id;
+            } catch (userErr) {
+                console.warn('[Bots/createBot] Wo_Users entry skipped:', userErr.message);
+            }
 
             await ctx.wo_bots.create({
-                bot_id:      botId,
-                owner_id:    req.userId,
-                bot_token:   botToken,
-                username:    sanitize(username),
-                display_name: sanitize(display_name),
-                description: sanitize(description),
-                about:       sanitize(about),
-                category:    sanitize(category),
+                bot_id:         botId,
+                owner_id:       req.userId,
+                bot_token:      botToken,
+                username:       sanitize(username),
+                display_name:   sanitize(display_name),
+                description:    sanitize(description),
+                about:          sanitize(about),
+                category:       sanitize(category),
                 can_join_groups: parseInt(can_join_groups) ? 1 : 0,
-                is_public:   parseInt(is_public) ? 1 : 0,
-                status:      'active',
-                created_at:  new Date(),
-                updated_at:  new Date()
+                is_public:      parseInt(is_public) ? 1 : 0,
+                status:         'active',
+                linked_user_id: linkedUserId,
+                created_at:     new Date(),
+                updated_at:     new Date()
             });
 
             await registerDefaultCommands(ctx, botId);
 
-            console.log(`[Bots] Created: ${username} (${botId}) owner=${req.userId}`);
+            console.log(`[Bots] Created: ${username} (${botId}) user_id=${linkedUserId} owner=${req.userId}`);
             return res.json({
                 api_status: 200,
                 bot: { bot_id: botId, bot_token: botToken, username, display_name, status: 'active' },
