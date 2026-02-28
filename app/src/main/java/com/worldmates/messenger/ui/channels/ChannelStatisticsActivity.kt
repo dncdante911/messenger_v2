@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.worldmates.messenger.ui.channels.components.ChannelStatisticsScreen
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * Повноекранна сторінка детальної статистики каналу (Telegram-style)
@@ -18,7 +19,11 @@ class ChannelStatisticsActivity : AppCompatActivity() {
     private lateinit var detailsViewModel: ChannelDetailsViewModel
     private var channelId: Long = 0
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         channelId = intent.getLongExtra("channel_id", 0)

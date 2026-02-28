@@ -19,6 +19,7 @@ import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.VoicePlayer
 import com.worldmates.messenger.services.MessageNotificationService
 import com.worldmates.messenger.utils.VoiceRecorder
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * ✅ НОВИЙ MessagesActivity - wrapper для MessagesScreen з Phase 2
@@ -88,7 +89,11 @@ class MessagesActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Дозволяємо Compose керувати window insets (клавіатура, навігація)

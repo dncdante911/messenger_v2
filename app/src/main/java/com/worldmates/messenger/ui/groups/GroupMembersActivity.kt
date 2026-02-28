@@ -30,6 +30,7 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.GroupMember
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.ui.groups.components.MemberRoleBadge
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * Full-screen members management screen.
@@ -41,7 +42,11 @@ class GroupMembersActivity : AppCompatActivity() {
     private var groupId: Long = 0
     private var isAdmin: Boolean = false
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         groupId = intent.getLongExtra("group_id", 0)
         isAdmin = intent.getBooleanExtra("is_admin", false)

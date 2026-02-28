@@ -70,6 +70,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import com.worldmates.messenger.utils.LanguageManager
 
 private const val TAG = "StoryViewer"
 
@@ -84,7 +85,11 @@ class StoryViewerActivity : AppCompatActivity() {
     private var userId: Long = 0
     private var isChannelStory: Boolean = false
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Edge-to-edge: let us control insets so content doesn't clip under system bars

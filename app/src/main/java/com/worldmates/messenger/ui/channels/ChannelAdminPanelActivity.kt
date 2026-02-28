@@ -34,6 +34,7 @@ import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.util.toFullMediaUrl
 import java.util.concurrent.TimeUnit
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * Channel Admin Panel — unified admin interface with tabs
@@ -44,7 +45,11 @@ class ChannelAdminPanelActivity : AppCompatActivity() {
     private lateinit var detailsViewModel: ChannelDetailsViewModel
     private var channelId: Long = 0
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         channelId = intent.getLongExtra("channel_id", 0)

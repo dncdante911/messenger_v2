@@ -64,6 +64,7 @@ import com.worldmates.messenger.ui.groups.GroupFormattingPermissions
 import com.worldmates.messenger.util.toFullMediaUrl
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * Активність для перегляду деталей каналу та його постів
@@ -74,7 +75,11 @@ class ChannelDetailsActivity : AppCompatActivity() {
     private lateinit var detailsViewModel: ChannelDetailsViewModel
     private var channelId: Long = 0
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Отримуємо channelId з Intent

@@ -79,6 +79,7 @@ import com.worldmates.messenger.ui.theme.WMGradients
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import com.worldmates.messenger.utils.LanguageManager
 
 class ChatsActivity : AppCompatActivity() {
 
@@ -107,7 +108,11 @@ class ChatsActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Edge-to-edge: app renders under system bars; each composable adds its own inset padding

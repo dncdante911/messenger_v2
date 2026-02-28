@@ -35,12 +35,17 @@ import com.worldmates.messenger.data.model.Group
 import com.worldmates.messenger.ui.messages.MessagesActivity
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
+import com.worldmates.messenger.utils.LanguageManager
 
 class GroupsActivity : AppCompatActivity() {
 
     private lateinit var viewModel: GroupsViewModel
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Инициализируем ThemeManager

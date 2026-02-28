@@ -39,6 +39,7 @@ import com.worldmates.messenger.ui.components.GradientButton
 import com.worldmates.messenger.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.worldmates.messenger.utils.LanguageManager
 
 class VerificationActivity : AppCompatActivity() {
 
@@ -51,7 +52,11 @@ class VerificationActivity : AppCompatActivity() {
     private var password: String = ""
     private var isRegistration: Boolean = true // true - регистрация, false - логин
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Дозволяємо Compose керувати window insets

@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.ui.groups.components.GroupAdminPanelScreen
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * Activity для повної адмін-панелі групи
@@ -19,7 +20,11 @@ class GroupAdminPanelActivity : AppCompatActivity() {
     private lateinit var viewModel: GroupsViewModel
     private var groupId: Long = 0
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         groupId = intent.getLongExtra("group_id", 0)

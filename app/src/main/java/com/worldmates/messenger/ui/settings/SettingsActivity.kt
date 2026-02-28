@@ -167,8 +167,11 @@ class SettingsActivity : AppCompatActivity() {
                         LanguageSelectionScreen(
                             onLanguageSelected = { lang ->
                                 LanguageManager.setLanguage(lang)
-                                // Перезапустити Activity для застосування нової мови
-                                recreate()
+                                // Перезапустити весь стек Activity щоб нова мова застосувалась скрізь
+                                val restartIntent = packageManager.getLaunchIntentForPackage(packageName)
+                                    ?: Intent(this@SettingsActivity, LoginActivity::class.java)
+                                restartIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                startActivity(restartIntent)
                             },
                             currentLanguage = LanguageManager.currentLanguage,
                             onBackClick = { currentScreen = SettingsScreen.Main }

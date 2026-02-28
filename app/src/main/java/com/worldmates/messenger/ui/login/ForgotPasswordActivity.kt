@@ -41,10 +41,15 @@ import com.worldmates.messenger.ui.chats.ChatsActivity
 import com.worldmates.messenger.ui.components.*
 import com.worldmates.messenger.ui.theme.*
 import kotlinx.coroutines.launch
+import com.worldmates.messenger.utils.LanguageManager
 
 class ForgotPasswordActivity : AppCompatActivity() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
