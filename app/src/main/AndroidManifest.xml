@@ -215,6 +215,14 @@
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
             android:parentActivityName=".ui.channels.ChannelDetailsActivity" />
 
+        <!-- Channel Statistics Detail Activity -->
+        <activity
+            android:name=".ui.channels.ChannelStatisticsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.channels.ChannelAdminPanelActivity" />
+
         <!-- Create Channel Activity -->
         <activity
             android:name=".ui.channels.CreateChannelActivity"
