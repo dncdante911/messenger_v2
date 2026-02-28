@@ -190,9 +190,15 @@ function getMessages(ctx, io) {
             const beforeMessageId = parseInt(req.body.before_message_id) || 0;
             const messageId       = parseInt(req.body.message_id)        || 0;
 
-            const where = { group_id: groupId, page_id: 0 };
+            // Per-user clear-history timestamp: skip messages sent before the user cleared
+            const group    = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
+            const settings = parseSettings(group);
+            const clearTs  = settings.clear_history?.[String(userId)] || 0;
 
-            if (messageId > 0)           where.id = messageId;
+            const where = { group_id: groupId, page_id: 0 };
+            if (clearTs > 0) where.time = { [Op.gt]: clearTs };
+
+            if (messageId > 0)            where.id = messageId;
             else if (afterMessageId  > 0) where.id = { [Op.gt]: afterMessageId };
             else if (beforeMessageId > 0) where.id = { [Op.lt]: beforeMessageId };
 
@@ -328,8 +334,16 @@ function loadMore(ctx, io) {
             if (!membership)
                 return res.status(403).json({ api_status: 403, error_message: 'Not a member of this group' });
 
+            // Respect per-user clear timestamp
+            const group    = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
+            const settings = parseSettings(group);
+            const clearTs  = settings.clear_history?.[String(userId)] || 0;
+
             const where = { group_id: groupId, page_id: 0 };
-            if (beforeMessageId > 0) where.id = { [Op.lt]: beforeMessageId };
+            if (clearTs > 0) where.time = { [Op.gt]: clearTs };
+            if (beforeMessageId > 0) {
+                where.id = { [Op.lt]: beforeMessageId };
+            }
 
             const rows = await ctx.wo_messages.findAll({
                 where,
@@ -651,6 +665,101 @@ function typing(ctx, io) {
     };
 }
 
+// ─── CLEAR HISTORY (for self) ─────────────────────────────────────────────────
+// Stores a per-user "clear timestamp" in wo_groupchatusers.
+// On next getMessages / loadMore calls, messages older than that timestamp
+// are excluded from results for this user.
+
+function clearHistorySelf(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId  = req.userId;
+            const groupId = parseInt(req.body.group_id);
+
+            if (!groupId || isNaN(groupId))
+                return res.json({ api_status: 400, error_message: 'group_id is required' });
+
+            const membership = await getGroupMembership(ctx, groupId, userId);
+            if (!membership)
+                return res.json({ api_status: 403, error_message: 'Not a member of this group' });
+
+            const clearTs = Math.floor(Date.now() / 1000);
+
+            // Store the clear timestamp in wo_groupchatusers as JSON in an extra field.
+            // We use the "data" column if it exists, otherwise fall back to a separate key
+            // stored in group settings keyed by userId.
+            try {
+                await ctx.wo_groupchatusers.update(
+                    { clear_history_ts: clearTs },
+                    { where: { group_id: groupId, user_id: userId } }
+                );
+            } catch (_) {
+                // Column may not exist yet — store in group settings JSON as fallback
+                const group    = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
+                const settings = parseSettings(group);
+                if (!settings.clear_history) settings.clear_history = {};
+                settings.clear_history[String(userId)] = clearTs;
+                await ctx.wo_groupchat.update(
+                    { settings: JSON.stringify(settings) },
+                    { where: { group_id: groupId } }
+                );
+            }
+
+            return res.json({ api_status: 200, message: 'History cleared for you', clear_ts: clearTs });
+        } catch (err) {
+            console.error('[Node/group/messages/clear-self]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── CLEAR HISTORY (for all — admin only) ─────────────────────────────────────
+// Permanently deletes ALL messages in the group. Emits group_history_cleared
+// via Socket.IO so all online members clear their local list immediately.
+
+function clearHistoryAdmin(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId  = req.userId;
+            const groupId = parseInt(req.body.group_id);
+
+            if (!groupId || isNaN(groupId))
+                return res.json({ api_status: 400, error_message: 'group_id is required' });
+
+            const membership = await getGroupMembership(ctx, groupId, userId);
+            if (!membership)
+                return res.json({ api_status: 403, error_message: 'Not a member of this group' });
+
+            if (!await isGroupAdmin(ctx, groupId, userId))
+                return res.json({ api_status: 403, error_message: 'Only admins can clear history for all' });
+
+            // Delete all messages of this group
+            const deleted = await ctx.wo_messages.destroy({
+                where: { group_id: groupId }
+            });
+
+            // Unpin message if any
+            const group    = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
+            const settings = parseSettings(group);
+            if (settings.pinned_message_id) {
+                delete settings.pinned_message_id;
+                await ctx.wo_groupchat.update(
+                    { settings: JSON.stringify(settings) },
+                    { where: { group_id: groupId } }
+                );
+            }
+
+            // Notify all members in real-time
+            io.to('group_' + groupId).emit('group_history_cleared', { group_id: groupId });
+
+            return res.json({ api_status: 200, message: 'All messages deleted', deleted_count: deleted });
+        } catch (err) {
+            console.error('[Node/group/messages/clear-all]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -664,4 +773,6 @@ module.exports = {
     searchMessages,
     seenMessages,
     typing,
+    clearHistorySelf,
+    clearHistoryAdmin,
 };

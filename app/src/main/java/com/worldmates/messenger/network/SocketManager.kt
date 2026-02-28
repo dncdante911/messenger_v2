@@ -369,6 +369,49 @@ class SocketManager(
                 }
             }
 
+            // 18a. Групове редагування повідомлення (group_message_edited)
+            // Payload: {message_id, group_id, text, iv, tag, cipher_version, time, edited}
+            socket?.on("group_message_edited") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data = args[0] as? org.json.JSONObject
+                    val messageId     = data?.optLong("message_id", 0L) ?: 0L
+                    val newText       = data?.optString("text", "") ?: ""
+                    val iv            = data?.optString("iv", null)
+                    val tag           = data?.optString("tag", null)
+                    val cipherVersion = data?.optString("cipher_version", null)
+                    Log.d("SocketManager", "Group message $messageId edited via socket")
+                    if (messageId > 0L && listener is ExtendedSocketListener) {
+                        listener.onMessageEdited(messageId, newText, iv, tag, cipherVersion)
+                    }
+                }
+            }
+
+            // 18b. Групове видалення повідомлення (group_message_deleted)
+            // Payload: {message_id, group_id}
+            socket?.on("group_message_deleted") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data      = args[0] as? org.json.JSONObject
+                    val messageId = data?.optLong("message_id", 0L) ?: 0L
+                    Log.d("SocketManager", "Group message $messageId deleted via socket")
+                    if (messageId > 0L && listener is ExtendedSocketListener) {
+                        listener.onMessageDeleted(messageId, "everyone")
+                    }
+                }
+            }
+
+            // 18c. Очищення історії групи для всіх (group_history_cleared)
+            // Payload: {group_id}
+            socket?.on("group_history_cleared") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data    = args[0] as? org.json.JSONObject
+                    val groupId = data?.optLong("group_id", 0L) ?: 0L
+                    Log.d("SocketManager", "Group $groupId history cleared via socket")
+                    if (groupId > 0L && listener is ExtendedSocketListener) {
+                        listener.onGroupHistoryCleared(groupId)
+                    }
+                }
+            }
+
             // 18. Обробка реакції на повідомлення в реальному часі
             socket?.on("message_reaction") { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
@@ -936,5 +979,6 @@ class SocketManager(
         fun onMessageDeleted(messageId: Long, deleteType: String) {}
         fun onMessageReaction(messageId: Long, userId: Long, reaction: String, action: String) {}
         fun onMessagePinned(messageId: Long, isPinned: Boolean, chatId: Long) {}
+        fun onGroupHistoryCleared(groupId: Long) {}
     }
 }
