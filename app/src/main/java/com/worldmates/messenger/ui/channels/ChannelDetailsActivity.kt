@@ -62,6 +62,8 @@ import com.worldmates.messenger.ui.theme.rememberThemeState
 import com.worldmates.messenger.ui.groups.FormattingSettingsPanel
 import com.worldmates.messenger.ui.groups.GroupFormattingPermissions
 import com.worldmates.messenger.util.toFullMediaUrl
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 /**
  * Активність для перегляду деталей каналу та його постів

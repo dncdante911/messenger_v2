@@ -45,6 +45,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 /**
  * 🎨 УНИКАЛЬНЫЙ СТИЛЬНЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ

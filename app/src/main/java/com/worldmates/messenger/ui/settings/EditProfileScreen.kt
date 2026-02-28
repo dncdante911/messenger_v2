@@ -18,10 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,7 +37,6 @@ fun EditProfileScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    // Локальные состояния для редактирования
     var firstName by remember { mutableStateOf(userData?.firstName ?: "") }
     var lastName by remember { mutableStateOf(userData?.lastName ?: "") }
     var about by remember { mutableStateOf(userData?.about ?: "") }
@@ -61,7 +62,6 @@ fun EditProfileScreen(
         }
     }
 
-    // Обновить локальные состояния когда userData меняется
     LaunchedEffect(userData) {
         userData?.let { user ->
             firstName = user.firstName ?: ""
@@ -78,13 +78,23 @@ fun EditProfileScreen(
         }
     }
 
+    // Pre-compute gender labels
+    val genderMale = stringResource(R.string.gender_male)
+    val genderFemale = stringResource(R.string.gender_female)
+    val genderOther = stringResource(R.string.gender_other)
+
+    fun genderLabel(value: String) = when (value) {
+        "male" -> genderMale
+        "female" -> genderFemale
+        else -> genderOther
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
-        // Top App Bar
         TopAppBar(
-            title = { Text("Редагувати профіль") },
+            title = { Text(stringResource(R.string.edit_profile)) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                    Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
             },
             actions = {
@@ -106,7 +116,7 @@ fun EditProfileScreen(
                             )
                         }
                     ) {
-                        Text("Зберегти", color = Color.White)
+                        Text(stringResource(R.string.save), color = Color.White)
                     }
                 }
             },
@@ -144,14 +154,13 @@ fun EditProfileScreen(
                             AsyncImage(
                                 model = selectedAvatarUri ?: userData?.avatar
                                     ?: "https://worldmates.club/upload/photos/d-avatar.jpg",
-                                contentDescription = "Аватар",
+                                contentDescription = stringResource(R.string.change_avatar),
                                 modifier = Modifier
                                     .size(120.dp)
                                     .clip(CircleShape)
                                     .border(3.dp, Color(0xFF0084FF), CircleShape),
                                 contentScale = ContentScale.Crop
                             )
-                            // Camera icon overlay
                             Surface(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -161,7 +170,7 @@ fun EditProfileScreen(
                             ) {
                                 Icon(
                                     Icons.Default.CameraAlt,
-                                    contentDescription = "Змінити фото",
+                                    contentDescription = stringResource(R.string.change_photo),
                                     tint = Color.White,
                                     modifier = Modifier.padding(8.dp)
                                 )
@@ -169,21 +178,18 @@ fun EditProfileScreen(
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Натисніть, щоб змінити фото",
+                            stringResource(R.string.tap_to_change_photo),
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
                     }
                 }
 
-                // Error Message
                 if (errorMessage != null) {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color(0xFFFFEBEE)
-                            )
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
                         ) {
                             Text(
                                 text = errorMessage ?: "",
@@ -194,61 +200,49 @@ fun EditProfileScreen(
                     }
                 }
 
-                // First Name
                 item {
                     OutlinedTextField(
                         value = firstName,
                         onValueChange = { firstName = it },
-                        label = { Text("Ім'я") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Person, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.first_name)) },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                 }
 
-                // Last Name
                 item {
                     OutlinedTextField(
                         value = lastName,
                         onValueChange = { lastName = it },
-                        label = { Text("Прізвище") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Person, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.last_name)) },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                 }
 
-                // About
                 item {
                     OutlinedTextField(
                         value = about,
                         onValueChange = { about = it },
-                        label = { Text("Про себе") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Info, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.about)) },
+                        leadingIcon = { Icon(Icons.Default.Info, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3,
                         maxLines = 5
                     )
                 }
 
-                // Birthday
                 item {
                     OutlinedTextField(
                         value = birthday,
                         onValueChange = { birthday = it },
-                        label = { Text("Дата народження") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Cake, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.birthday)) },
+                        leadingIcon = { Icon(Icons.Default.Cake, contentDescription = null) },
                         trailingIcon = {
                             IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Default.CalendarToday, contentDescription = "Вибрати дату")
+                                Icon(Icons.Default.CalendarToday, contentDescription = stringResource(R.string.select_date))
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -257,22 +251,15 @@ fun EditProfileScreen(
                     )
                 }
 
-                // Gender
                 item {
                     OutlinedTextField(
-                        value = when (gender) {
-                            "male" -> "Чоловіча"
-                            "female" -> "Жіноча"
-                            else -> "Інше"
-                        },
+                        value = genderLabel(gender),
                         onValueChange = { },
-                        label = { Text("Стать") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Person, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.gender)) },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                         trailingIcon = {
                             IconButton(onClick = { showGenderDialog = true }) {
-                                Icon(Icons.Default.ArrowDropDown, contentDescription = "Вибрати")
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = stringResource(R.string.choose))
                             }
                         },
                         modifier = Modifier
@@ -290,93 +277,74 @@ fun EditProfileScreen(
                     )
                 }
 
-                // Phone Number
                 item {
                     OutlinedTextField(
                         value = phoneNumber,
                         onValueChange = { phoneNumber = it },
-                        label = { Text("Телефон") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Phone, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.phone)) },
+                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                     )
                 }
 
-                // Website
                 item {
                     OutlinedTextField(
                         value = website,
                         onValueChange = { website = it },
-                        label = { Text("Веб-сайт") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Language, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.website)) },
+                        leadingIcon = { Icon(Icons.Default.Language, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
                     )
                 }
 
-                // Working
                 item {
                     OutlinedTextField(
                         value = working,
                         onValueChange = { working = it },
-                        label = { Text("Місце роботи") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Work, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.working_place)) },
+                        leadingIcon = { Icon(Icons.Default.Work, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                 }
 
-                // Address
                 item {
                     OutlinedTextField(
                         value = address,
                         onValueChange = { address = it },
-                        label = { Text("Адреса") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Home, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.address)) },
+                        leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                 }
 
-                // City
                 item {
                     OutlinedTextField(
                         value = city,
                         onValueChange = { city = it },
-                        label = { Text("Місто") },
-                        leadingIcon = {
-                            Icon(Icons.Default.LocationCity, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.city)) },
+                        leadingIcon = { Icon(Icons.Default.LocationCity, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                 }
 
-                // School
                 item {
                     OutlinedTextField(
                         value = school,
                         onValueChange = { school = it },
-                        label = { Text("Навчальний заклад") },
-                        leadingIcon = {
-                            Icon(Icons.Default.School, contentDescription = null)
-                        },
+                        label = { Text(stringResource(R.string.school)) },
+                        leadingIcon = { Icon(Icons.Default.School, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                 }
 
-                // Spacer at bottom
                 item {
                     Spacer(modifier = Modifier.height(32.dp))
                 }
@@ -384,18 +352,18 @@ fun EditProfileScreen(
         }
     }
 
-    // Gender Selection Dialog
     if (showGenderDialog) {
+        val genderOptions = listOf(
+            "male" to genderMale,
+            "female" to genderFemale,
+            "other" to genderOther
+        )
         AlertDialog(
             onDismissRequest = { showGenderDialog = false },
-            title = { Text("Виберіть стать") },
+            title = { Text(stringResource(R.string.select_gender)) },
             text = {
                 Column {
-                    listOf(
-                        "male" to "Чоловіча",
-                        "female" to "Жіноча",
-                        "other" to "Інше"
-                    ).forEach { (value, label) ->
+                    genderOptions.forEach { (value, label) ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -421,7 +389,7 @@ fun EditProfileScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showGenderDialog = false }) {
-                    Text("Закрити")
+                    Text(stringResource(R.string.close))
                 }
             }
         )

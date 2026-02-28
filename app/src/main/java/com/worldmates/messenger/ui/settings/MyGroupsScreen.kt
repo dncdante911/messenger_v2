@@ -18,10 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Group
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,10 +43,10 @@ fun MyGroupsScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Мої групи") },
+            title = { Text(stringResource(R.string.my_groups)) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                    Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -81,13 +83,13 @@ fun MyGroupsScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = errorMessage ?: "Помилка завантаження груп",
+                            text = errorMessage ?: stringResource(R.string.error_loading_groups),
                             color = Color.Red,
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { viewModel.loadMyGroups() }) {
-                            Text("Спробувати знову")
+                            Text(stringResource(R.string.retry))
                         }
                     }
                 }
@@ -110,7 +112,7 @@ fun MyGroupsScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Ви ще не приєдналися до жодної групи",
+                            text = stringResource(R.string.no_groups_joined),
                             color = Color.Gray,
                             fontSize = 16.sp
                         )
@@ -119,9 +121,7 @@ fun MyGroupsScreen(
             }
 
             else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(myGroups) { group ->
                         GroupItem(
                             group = group,
@@ -141,31 +141,22 @@ fun GroupItem(
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         color = Color.White
     ) {
         Row(
-            modifier = Modifier
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Group Avatar
             AsyncImage(
                 model = group.avatarUrl,
                 contentDescription = group.name,
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape),
+                modifier = Modifier.size(56.dp).clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
 
-            // Group Info
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp)
+                modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
             ) {
                 Text(
                     text = group.name,
@@ -175,14 +166,14 @@ fun GroupItem(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${group.membersCount} учасників",
+                    text = "${group.membersCount} ${stringResource(R.string.members_count)}",
                     fontSize = 13.sp,
                     color = Color.Gray
                 )
                 if (group.isAdmin) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Адміністратор",
+                        text = stringResource(R.string.group_admin),
                         fontSize = 12.sp,
                         color = Color(0xFF0084FF),
                         fontWeight = FontWeight.Bold
@@ -190,14 +181,13 @@ fun GroupItem(
                 }
             }
 
-            // Privacy Badge
             if (group.isPrivate) {
                 Surface(
                     color = Color(0xFFE3F2FD),
                     shape = MaterialTheme.shapes.small
                 ) {
                     Text(
-                        text = "Приватна",
+                        text = stringResource(R.string.private_group),
                         fontSize = 11.sp,
                         color = Color(0xFF0084FF),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)

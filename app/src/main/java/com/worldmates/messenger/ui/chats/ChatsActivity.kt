@@ -77,6 +77,8 @@ import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WMColors
 import com.worldmates.messenger.ui.theme.WMGradients
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 class ChatsActivity : AppCompatActivity() {
 

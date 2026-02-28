@@ -1,7 +1,6 @@
 package com.worldmates.messenger.ui.settings
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,18 +16,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.BlockedUser
 
-/**
- * Экран со списком заблокированных пользователей
- * По аналогии с Telegram/WhatsApp
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlockedUsersScreen(
@@ -40,17 +37,15 @@ fun BlockedUsersScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
 
-    // Загружаем список при первом открытии
     LaunchedEffect(Unit) {
         viewModel.loadBlockedUsers()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Top App Bar
         TopAppBar(
             title = {
                 Column {
-                    Text("Заблоковані користувачі")
+                    Text(stringResource(R.string.blocked_users))
                     if (blockedUsers.isNotEmpty()) {
                         Text(
                             text = "${blockedUsers.size} ${getUsersText(blockedUsers.size)}",
@@ -62,7 +57,7 @@ fun BlockedUsersScreen(
             },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                    Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -72,11 +67,9 @@ fun BlockedUsersScreen(
             )
         )
 
-        // Content
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 isLoading && blockedUsers.isEmpty() -> {
-                    // Показываем загрузку только если список пуст
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -85,7 +78,7 @@ fun BlockedUsersScreen(
                             CircularProgressIndicator()
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Завантаження...",
+                                text = stringResource(R.string.loading),
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
@@ -93,11 +86,8 @@ fun BlockedUsersScreen(
                 }
 
                 errorMessage != null -> {
-                    // Показываем ошибку
                     Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -109,7 +99,7 @@ fun BlockedUsersScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = errorMessage ?: "Помилка завантаження",
+                            text = errorMessage ?: stringResource(R.string.content_loading_error),
                             color = MaterialTheme.colorScheme.error,
                             fontSize = 16.sp
                         )
@@ -117,17 +107,14 @@ fun BlockedUsersScreen(
                         Button(onClick = { viewModel.loadBlockedUsers() }) {
                             Icon(Icons.Default.Refresh, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Спробувати знову")
+                            Text(stringResource(R.string.retry))
                         }
                     }
                 }
 
                 blockedUsers.isEmpty() -> {
-                    // Пустой список
                     Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
+                        modifier = Modifier.fillMaxSize().padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -139,14 +126,14 @@ fun BlockedUsersScreen(
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "Немає заблокованих користувачів",
+                            text = stringResource(R.string.no_blocked_users),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Коли ви заблокуєте когось, вони з'являться тут",
+                            text = stringResource(R.string.no_blocked_users_desc),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
@@ -154,12 +141,10 @@ fun BlockedUsersScreen(
                 }
 
                 else -> {
-                    // Список заблокированных пользователей
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        // Success message
                         if (successMessage != null) {
                             item {
                                 SuccessMessageCard(successMessage!!) {
@@ -168,12 +153,10 @@ fun BlockedUsersScreen(
                             }
                         }
 
-                        // Info card
                         item {
                             InfoCard()
                         }
 
-                        // Blocked users list
                         items(
                             items = blockedUsers,
                             key = { it.userId }
@@ -191,9 +174,6 @@ fun BlockedUsersScreen(
     }
 }
 
-/**
- * Элемент списка заблокированного пользователя
- */
 @Composable
 private fun BlockedUserItem(
     user: BlockedUser,
@@ -206,31 +186,20 @@ private fun BlockedUserItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
-            Box(
-                modifier = Modifier.size(56.dp)
-            ) {
+            Box(modifier = Modifier.size(56.dp)) {
                 AsyncImage(
                     model = user.avatar ?: "https://via.placeholder.com/150",
                     contentDescription = user.name,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape),
+                    modifier = Modifier.size(56.dp).clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
-
-                // Pro badge
                 if (user.isPro) {
                     Icon(
                         Icons.Default.Star,
@@ -247,10 +216,7 @@ private fun BlockedUserItem(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // User info
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = user.name ?: "${user.firstName} ${user.lastName}",
@@ -259,7 +225,6 @@ private fun BlockedUserItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-
                     if (user.isVerified) {
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
@@ -270,9 +235,7 @@ private fun BlockedUserItem(
                         )
                     }
                 }
-
                 Spacer(modifier = Modifier.height(2.dp))
-
                 Text(
                     text = "@${user.username}",
                     fontSize = 14.sp,
@@ -280,7 +243,6 @@ private fun BlockedUserItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-
                 if (user.about != null) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
@@ -295,12 +257,8 @@ private fun BlockedUserItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Unblock button
             if (isUnblocking) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(36.dp),
-                    strokeWidth = 2.dp
-                )
+                CircularProgressIndicator(modifier = Modifier.size(36.dp), strokeWidth = 2.dp)
             } else {
                 FilledTonalButton(
                     onClick = { showConfirmDialog = true },
@@ -309,13 +267,12 @@ private fun BlockedUserItem(
                         contentColor = MaterialTheme.colorScheme.onErrorContainer
                     )
                 ) {
-                    Text("Розблокувати")
+                    Text(stringResource(R.string.unblock_user))
                 }
             }
         }
     }
 
-    // Confirmation dialog
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
@@ -326,11 +283,9 @@ private fun BlockedUserItem(
                     tint = MaterialTheme.colorScheme.primary
                 )
             },
-            title = {
-                Text("Розблокувати користувача?")
-            },
+            title = { Text(stringResource(R.string.unblock_confirm_title)) },
             text = {
-                Text("${user.name ?: user.username} зможе надсилати вам повідомлення та дзвонити.")
+                Text("${user.name ?: user.username} ${stringResource(R.string.blocked_users_info)}")
             },
             confirmButton = {
                 Button(
@@ -339,30 +294,23 @@ private fun BlockedUserItem(
                         onUnblockClick()
                     }
                 ) {
-                    Text("Розблокувати")
+                    Text(stringResource(R.string.unblock_user))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmDialog = false }) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
     }
 }
 
-/**
- * Информационная карточка
- */
 @Composable
 private fun InfoCard() {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+        modifier = Modifier.fillMaxWidth().padding(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -375,7 +323,7 @@ private fun InfoCard() {
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Заблоковані користувачі не можуть надсилати вам повідомлення або дзвонити",
+                text = stringResource(R.string.blocked_users_info),
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
@@ -383,9 +331,6 @@ private fun InfoCard() {
     }
 }
 
-/**
- * Карточка с сообщением об успехе
- */
 @Composable
 private fun SuccessMessageCard(
     message: String,
@@ -406,46 +351,27 @@ private fun SuccessMessageCard(
         exit = fadeOut() + shrinkVertically()
     ) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFE8F5E9)
-            )
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
         ) {
             Row(
                 modifier = Modifier.padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = Color(0xFF4CAF50)
-                )
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50))
                 Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = message,
-                    color = Color(0xFF2E7D32),
-                    modifier = Modifier.weight(1f)
-                )
+                Text(text = message, color = Color(0xFF2E7D32), modifier = Modifier.weight(1f))
                 IconButton(onClick = {
                     visible = false
                     onDismiss()
                 }) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Закрыть",
-                        tint = Color(0xFF2E7D32)
-                    )
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = Color(0xFF2E7D32))
                 }
             }
         }
     }
 }
 
-/**
- * Вспомогательная функция для правильного склонения
- */
 private fun getUsersText(count: Int): String {
     return when {
         count % 10 == 1 && count % 100 != 11 -> "користувач"

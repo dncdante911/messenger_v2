@@ -15,10 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.CloudBackupSettings
 import com.worldmates.messenger.data.model.SyncProgress
 import com.worldmates.messenger.data.model.BackupFileInfo
@@ -62,10 +64,10 @@ fun CloudBackupSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Сховище та бэкап") },
+                title = { Text(stringResource(R.string.backup_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, "Назад")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -81,7 +83,7 @@ fun CloudBackupSettingsScreen(
         ) {
             // ==================== СТАТИСТИКА ====================
             item {
-                SectionHeader("Статистика сховища")
+                SectionHeader(stringResource(R.string.storage_stats_section))
             }
 
             item {
@@ -124,7 +126,7 @@ fun CloudBackupSettingsScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text("Завантаження статистики...")
+                            Text(stringResource(R.string.loading_stats))
                         }
                     }
                 }
@@ -134,15 +136,15 @@ fun CloudBackupSettingsScreen(
 
             // ==================== ОБЛАЧНЫЙ БЭКАП ====================
             item {
-                SectionHeader("Налаштування бекапу")
+                SectionHeader(stringResource(R.string.backup_settings_section))
             }
 
             item {
                 settings?.let { s ->
                     SettingsItemWithSwitch(
                         icon = Icons.Default.CloudUpload,
-                        title = "Увімкнути бекап",
-                        subtitle = "Автоматичне збереження в хмару",
+                        title = stringResource(R.string.enable_backup),
+                        subtitle = stringResource(R.string.enable_backup_desc),
                         checked = s.backupEnabled,
                         onCheckedChange = { viewModel.updateBackupEnabled(it) }
                     )
@@ -154,7 +156,7 @@ fun CloudBackupSettingsScreen(
                     if (s.backupEnabled) {
                         SettingsItem(
                             icon = Icons.Default.Cloud,
-                            title = "Провайдер хмари",
+                            title = stringResource(R.string.cloud_provider),
                             subtitle = s.backupProvider.displayName,
                             onClick = { showBackupProviderDialog = true }
                         )
@@ -183,7 +185,7 @@ fun CloudBackupSettingsScreen(
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text("Останній бекап: ${formatTime(s.lastBackupTime)}")
+                                Text("${stringResource(R.string.last_backup)} ${formatTime(s.lastBackupTime)}")
                             }
                         }
                     }
@@ -194,14 +196,14 @@ fun CloudBackupSettingsScreen(
 
             // ==================== УПРАВЛЕНИЕ БЭКАПАМИ ====================
             item {
-                SectionHeader("Керування бекапами")
+                SectionHeader(stringResource(R.string.manage_backups_section))
             }
 
             item {
                 SettingsItem(
                     icon = Icons.Default.Add,
-                    title = "Створити бекап зараз",
-                    subtitle = "Зберегти всі дані на сервер",
+                    title = stringResource(R.string.backup_now),
+                    subtitle = stringResource(R.string.backup_now_desc),
                     onClick = { showCreateBackupDialog = true }
                 )
             }
@@ -209,8 +211,8 @@ fun CloudBackupSettingsScreen(
             item {
                 SettingsItem(
                     icon = Icons.Default.List,
-                    title = "Список бекапів",
-                    subtitle = if (backupList.isEmpty()) "Немає доступних бекапів" else "${backupList.size} бекапів",
+                    title = stringResource(R.string.backup_list),
+                    subtitle = if (backupList.isEmpty()) stringResource(R.string.no_backups_available) else "${backupList.size} ${stringResource(R.string.backup_list)}",
                     onClick = { showBackupListDialog = true }
                 )
             }

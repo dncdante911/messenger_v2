@@ -99,6 +99,8 @@ import com.worldmates.messenger.ui.messages.MessageTouchWrapper
 import com.worldmates.messenger.ui.messages.MessageTouchConfig
 import com.worldmates.messenger.ui.components.CompactMediaMenu
 import com.worldmates.messenger.ui.components.media.VideoMessageComponent
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 // 🎯 Enum для режимів введення (як в Telegram/Viber)
 enum class InputMode {
