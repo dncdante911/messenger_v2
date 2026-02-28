@@ -41,7 +41,7 @@ if (empty($error_code)) {
     $registration_data = array(
         'user_id' => $logged_user_id,
         'posted'  => time(),
-        'expire'  => time() + 86400,
+        'expire'  => time() + (365 * 24 * 3600), // 12 months archive retention
     );
 
     if (!empty($_POST['story_title']) && strlen($_POST['story_title']) >= 2) {
@@ -76,7 +76,7 @@ if (empty($error_code)) {
                 'story_id' => $last_id,
                 'type'     => $file_type,
                 'filename' => $filename,
-                'expire'   => time() + 86400,
+                'expire'   => time() + (365 * 24 * 3600), // 12 months archive retention
             );
 
             // Store video duration if provided
