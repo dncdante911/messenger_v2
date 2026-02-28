@@ -107,6 +107,7 @@ function registerGroupRoutes(app, ctx, io) {
     app.post('/api/node/group/messages/search',   auth, messages.searchMessages(ctx, io));
     app.post('/api/node/group/messages/seen',          auth, messages.seenMessages(ctx, io));
     app.post('/api/node/group/messages/typing',        auth, messages.typing(ctx, io));
+    app.post('/api/node/group/messages/user-action',   auth, messages.groupUserAction(ctx, io));
     app.post('/api/node/group/messages/clear-self',    auth, messages.clearHistorySelf(ctx, io));
     app.post('/api/node/group/messages/clear-all',     auth, messages.clearHistoryAdmin(ctx, io));
 

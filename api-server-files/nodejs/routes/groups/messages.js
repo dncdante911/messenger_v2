@@ -760,6 +760,35 @@ function clearHistoryAdmin(ctx, io) {
     };
 }
 
+// ─── GROUP USER ACTION ────────────────────────────────────────────────────────
+// Relays an activity status to all group members (listening, viewing, etc.)
+
+function groupUserAction(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId  = req.userId;
+            const groupId = parseInt(req.body.group_id);
+            const action  = req.body.action || '';
+
+            if (!groupId || isNaN(groupId))
+                return res.status(400).json({ api_status: 400, error_message: 'group_id is required' });
+            if (!action)
+                return res.status(400).json({ api_status: 400, error_message: 'action is required' });
+
+            io.to('group_' + groupId).emit('group_user_action', {
+                group_id: groupId,
+                user_id:  userId,
+                action:   action,
+            });
+
+            res.json({ api_status: 200 });
+        } catch (err) {
+            console.error('[Node/group/messages/user-action]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to send group user action' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -773,6 +802,7 @@ module.exports = {
     searchMessages,
     seenMessages,
     typing,
+    groupUserAction,
     clearHistorySelf,
     clearHistoryAdmin,
 };

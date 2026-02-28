@@ -670,6 +670,34 @@ function sendMediaMessage(ctx, io) {
     };
 }
 
+// ─── USER ACTION ──────────────────────────────────────────────────────────────
+// Relays an activity status to the recipient (listening, viewing, choosing_sticker, recording_video, etc.)
+
+function userAction(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId      = req.userId;
+            const recipientId = parseInt(req.body.recipient_id);
+            const action      = req.body.action || '';
+
+            if (!recipientId || isNaN(recipientId))
+                return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
+            if (!action)
+                return res.status(400).json({ api_status: 400, error_message: 'action is required' });
+
+            io.to(String(recipientId)).emit('user_action', {
+                user_id: userId,
+                action:  action,
+            });
+
+            res.json({ api_status: 200 });
+        } catch (err) {
+            console.error('[Node/chat/user-action]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to send user action' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
-module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing, notifyMediaMessage, sendMediaMessage };
+module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing, userAction, notifyMediaMessage, sendMediaMessage };

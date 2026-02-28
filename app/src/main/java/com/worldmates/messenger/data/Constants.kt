@@ -30,6 +30,7 @@ object Constants {
     const val NODE_CHAT_SEARCH   = "api/node/chat/search"    // search in chat
     const val NODE_CHAT_SEEN         = "api/node/chat/seen"         // mark as seen
     const val NODE_CHAT_TYPING       = "api/node/chat/typing"       // typing indicator
+    const val NODE_CHAT_USER_ACTION  = "api/node/chat/user-action"  // user action status (listening, viewing, etc.)
     const val NODE_CHAT_NOTIFY_MEDIA = "api/node/chat/notify-media" // notify after PHP media save
     const val NODE_CHAT_SEND_MEDIA   = "api/node/chat/send-media"   // send media message (replaces PHP send_message for media)
 
@@ -128,6 +129,7 @@ object Constants {
     const val NODE_GROUP_MESSAGES_SEARCH   = "api/node/group/messages/search"
     const val NODE_GROUP_MESSAGES_SEEN          = "api/node/group/messages/seen"
     const val NODE_GROUP_MESSAGES_TYPING        = "api/node/group/messages/typing"
+    const val NODE_GROUP_MESSAGES_USER_ACTION   = "api/node/group/messages/user-action"
     const val NODE_GROUP_MESSAGES_CLEAR_SELF    = "api/node/group/messages/clear-self"
     const val NODE_GROUP_MESSAGES_CLEAR_ALL     = "api/node/group/messages/clear-all"
     // Admin
