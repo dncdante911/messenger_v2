@@ -50,6 +50,7 @@ import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import java.text.SimpleDateFormat
 import java.util.*
+import com.worldmates.messenger.utils.LanguageManager
 
 class GroupDetailsActivity : AppCompatActivity() {
 
@@ -58,7 +59,11 @@ class GroupDetailsActivity : AppCompatActivity() {
     private var openAddMembers: Boolean = false
     private var openCreateSubgroup: Boolean = false
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         groupId = intent.getLongExtra("group_id", 0)

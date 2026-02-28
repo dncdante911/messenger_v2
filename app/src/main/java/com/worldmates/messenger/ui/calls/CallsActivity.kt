@@ -53,6 +53,7 @@ import org.webrtc.SurfaceViewRenderer
 import kotlin.math.abs
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * 🎨 Стилі кастомних рамок для відеодзвінків
@@ -106,7 +107,11 @@ class CallsActivity : ComponentActivity() {
             }
         }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Инициализируем ThemeManager

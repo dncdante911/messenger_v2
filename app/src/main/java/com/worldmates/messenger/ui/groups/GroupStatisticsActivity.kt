@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModelProvider
 import com.worldmates.messenger.ui.groups.components.GroupStatisticsScreen
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * Повноекранна сторінка детальної статистики групи
@@ -17,7 +18,11 @@ class GroupStatisticsActivity : AppCompatActivity() {
     private lateinit var viewModel: GroupsViewModel
     private var groupId: Long = 0
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         groupId = intent.getLongExtra("group_id", 0)

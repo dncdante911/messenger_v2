@@ -12,6 +12,7 @@ import com.worldmates.messenger.ui.settings.security.PINLockScreen
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.security.BiometricAuthManager
 import com.worldmates.messenger.utils.security.SecurePreferences
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * Activity для проверки PIN-кода или биометрии при входе в приложение
@@ -22,7 +23,11 @@ class AppLockActivity : AppCompatActivity() {
     private lateinit var biometricManager: BiometricAuthManager
     private var isUnlocked = false
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         biometricManager = BiometricAuthManager(this)
