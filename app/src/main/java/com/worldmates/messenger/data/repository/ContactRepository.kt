@@ -79,7 +79,7 @@ class ContactRepository private constructor(
                 }
             }
 
-            Result.success(contacts)
+            Result.success(contacts.distinctBy { it.id })
         } catch (e: SecurityException) {
             Result.failure(e)
         } catch (e: Exception) {
