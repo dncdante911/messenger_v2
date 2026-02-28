@@ -103,7 +103,8 @@ CREATE TABLE IF NOT EXISTS `Wo_Bot_Messages` (
   KEY `idx_direction` (`direction`),
   KEY `idx_processed` (`processed`),
   KEY `idx_created_at` (`created_at`),
-  KEY `idx_message_id` (`message_id`)
+  KEY `idx_message_id` (`message_id`),
+  KEY `idx_bot_unprocessed` (`bot_id`, `processed`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==================== Wo_Bot_Webhook_Log ====================
@@ -125,7 +126,8 @@ CREATE TABLE IF NOT EXISTS `Wo_Bot_Webhook_Log` (
   KEY `idx_bot_id` (`bot_id`),
   KEY `idx_status` (`delivery_status`),
   KEY `idx_next_retry` (`next_retry_at`),
-  KEY `idx_created_at` (`created_at`)
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_webhook_cleanup` (`created_at`, `delivery_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==================== Wo_Bot_Users ====================
@@ -144,7 +146,8 @@ CREATE TABLE IF NOT EXISTS `Wo_Bot_Users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_bot_user` (`bot_id`, `user_id`),
   KEY `idx_user_id` (`user_id`),
-  KEY `idx_last_interaction` (`last_interaction_at`)
+  KEY `idx_last_interaction` (`last_interaction_at`),
+  KEY `idx_bot_active_users` (`bot_id`, `is_blocked`, `last_interaction_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==================== Wo_Bot_Keyboards ====================
@@ -318,37 +321,6 @@ CREATE TABLE IF NOT EXISTS `Wo_Bot_Api_Keys` (
   KEY `idx_user_id` (`user_id`),
   KEY `idx_is_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ==================== Дополнительные индексы (пропускаем если уже есть) ====================
-
--- Используем процедуру для безопасного создания индексов
-DROP PROCEDURE IF EXISTS `_AddIndexIfNotExists`;
-DELIMITER //
-CREATE PROCEDURE `_AddIndexIfNotExists`(
-  IN tbl VARCHAR(64),
-  IN idx VARCHAR(64),
-  IN ddl TEXT
-)
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.STATISTICS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME   = tbl
-      AND INDEX_NAME   = idx
-  ) THEN
-    SET @sql = ddl;
-    PREPARE stmt FROM @sql;
-    EXECUTE stmt;
-    DEALLOCATE PREPARE stmt;
-  END IF;
-END //
-DELIMITER ;
-
-CALL _AddIndexIfNotExists('Wo_Bot_Messages',    'idx_bot_unprocessed',  'CREATE INDEX `idx_bot_unprocessed` ON `Wo_Bot_Messages` (`bot_id`, `processed`, `created_at`)');
-CALL _AddIndexIfNotExists('Wo_Bot_Users',       'idx_bot_active_users', 'CREATE INDEX `idx_bot_active_users` ON `Wo_Bot_Users` (`bot_id`, `is_blocked`, `last_interaction_at`)');
-CALL _AddIndexIfNotExists('Wo_Bot_Webhook_Log', 'idx_webhook_cleanup',  'CREATE INDEX `idx_webhook_cleanup` ON `Wo_Bot_Webhook_Log` (`created_at`, `delivery_status`)');
-
-DROP PROCEDURE IF EXISTS `_AddIndexIfNotExists`;
 
 -- ============================================================
 -- ШАГ 2: Создать Wo_Users запись для WallyBot
