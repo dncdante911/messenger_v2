@@ -23,11 +23,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 
 /**
  * 📤 Діалог для вибору отримувачів при пересиланні повідомлень
@@ -106,12 +108,12 @@ fun ForwardMessageDialog(
                     ) {
                         Column {
                             Text(
-                                text = "Переслати повідомлення",
+                                text = stringResource(R.string.forward_message),
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Вибрано: $selectedCount",
+                                text = stringResource(R.string.selected_count, selectedCount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -120,7 +122,7 @@ fun ForwardMessageDialog(
                         IconButton(onClick = onDismiss) {
                             Icon(
                                 Icons.Default.Close,
-                                contentDescription = "Закрити",
+                                contentDescription = stringResource(R.string.close),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -133,7 +135,7 @@ fun ForwardMessageDialog(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Пошук контактів або груп...") },
+                        placeholder = { Text(stringResource(R.string.search_contacts_or_groups)) },
                         shape = RoundedCornerShape(16.dp),
                         singleLine = true
                     )
@@ -171,7 +173,7 @@ fun ForwardMessageDialog(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "Нічого не знайдено",
+                                        text = stringResource(R.string.nothing_found),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -200,12 +202,12 @@ fun ForwardMessageDialog(
                     ) {
                         Icon(
                             Icons.Default.Send,
-                            contentDescription = "Переслати",
+                            contentDescription = stringResource(R.string.forward_message),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Переслати (${selectedRecipients.size})",
+                            text = stringResource(R.string.forward_count, selectedRecipients.size),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
                         )
@@ -225,6 +227,11 @@ fun RecipientItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val groupLabel = stringResource(R.string.group_label)
+    val contactLabel = stringResource(R.string.contact_label)
+    val selectedLabel = stringResource(R.string.selected)
+    val notSelectedLabel = stringResource(R.string.not_selected)
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -283,7 +290,7 @@ fun RecipientItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = if (recipient.isGroup) "Група" else "Контакт",
+                    text = if (recipient.isGroup) groupLabel else contactLabel,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -292,7 +299,7 @@ fun RecipientItem(
             // Індикатор вибору
             Icon(
                 imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.Circle,
-                contentDescription = if (isSelected) "Вибрано" else "Не вибрано",
+                contentDescription = if (isSelected) selectedLabel else notSelectedLabel,
                 tint = if (isSelected) {
                     MaterialTheme.colorScheme.primary
                 } else {

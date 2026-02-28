@@ -31,14 +31,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
+import android.content.Context
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.CallHistoryItem
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
+import com.worldmates.messenger.utils.LanguageManager
 import java.text.SimpleDateFormat
 import java.util.*
 
 class CallHistoryActivity : ComponentActivity() {
 
     private lateinit var viewModel: CallHistoryViewModel
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,16 +98,16 @@ fun CallHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Дзвінки", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.call_history), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     if (calls.isNotEmpty()) {
                         IconButton(onClick = { showClearDialog = true }) {
-                            Icon(Icons.Default.DeleteSweep, contentDescription = "Очистити")
+                            Icon(Icons.Default.DeleteSweep, contentDescription = stringResource(R.string.clear_history))
                         }
                     }
                 },
@@ -153,8 +161,8 @@ fun CallHistoryScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Очистити історію") },
-            text = { Text("Ви впевнені, що хочете видалити всю історію дзвінків?") },
+            title = { Text(stringResource(R.string.clear_history)) },
+            text = { Text(stringResource(R.string.clear_history_confirm)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -162,12 +170,12 @@ fun CallHistoryScreen(
                         showClearDialog = false
                     }
                 ) {
-                    Text("Очистити", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.clear), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -183,10 +191,10 @@ fun CallFilterTabs(
     onFilterChange: (String) -> Unit
 ) {
     val filters = listOf(
-        "all" to "Всі",
-        "missed" to "Пропущені",
-        "incoming" to "Вхідні",
-        "outgoing" to "Вихідні"
+        "all" to stringResource(R.string.call_filter_all),
+        "missed" to stringResource(R.string.call_filter_missed),
+        "incoming" to stringResource(R.string.call_filter_incoming),
+        "outgoing" to stringResource(R.string.call_filter_outgoing)
     )
 
     ScrollableTabRow(
@@ -227,6 +235,7 @@ fun CallHistoryList(
     onDeleteCall: (CallHistoryItem) -> Unit,
     onLoadMore: () -> Unit
 ) {
+    val context = LocalContext.current
     val listState = rememberLazyListState()
 
     // Pagination
@@ -244,7 +253,7 @@ fun CallHistoryList(
 
     // Group calls by date
     val groupedCalls = calls.groupBy { call ->
-        getDateGroup(call.timestamp)
+        getDateGroup(call.timestamp, context)
     }
 
     LazyColumn(
@@ -317,7 +326,7 @@ fun CallHistoryItemRow(
             ) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Видалити",
+                    contentDescription = stringResource(R.string.delete),
                     tint = Color.White
                 )
             }
@@ -412,7 +421,7 @@ fun CallHistoryItemRow(
 
                             if (call.isGroupCall) {
                                 Text(
-                                    text = "Груповий",
+                                    text = stringResource(R.string.group_call),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                                 )
@@ -437,7 +446,7 @@ fun CallHistoryItemRow(
                             Icon(
                                 imageVector = if (call.isVideoCall) Icons.Default.Videocam
                                 else Icons.Default.Call,
-                                contentDescription = "Зателефонувати",
+                                contentDescription = stringResource(R.string.call_history),
                                 modifier = Modifier
                                     .size(20.dp)
                                     .clickable(onClick = onClick),
@@ -480,10 +489,10 @@ fun EmptyCallsState(filter: String) {
 
             Text(
                 text = when (filter) {
-                    "missed" -> "Немає пропущених дзвінків"
-                    "incoming" -> "Немає вхідних дзвінків"
-                    "outgoing" -> "Немає вихідних дзвінків"
-                    else -> "Історія дзвінків порожня"
+                    "missed" -> stringResource(R.string.no_missed_calls)
+                    "incoming" -> stringResource(R.string.no_incoming_calls)
+                    "outgoing" -> stringResource(R.string.no_outgoing_calls)
+                    else -> stringResource(R.string.calls_history_empty)
                 },
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -492,7 +501,7 @@ fun EmptyCallsState(filter: String) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Зателефонуйте друзям через WorldMates",
+                text = stringResource(R.string.calls_cta),
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
             )
@@ -505,7 +514,7 @@ fun EmptyCallsState(filter: String) {
 /**
  * Групування за датою
  */
-private fun getDateGroup(timestamp: Long): String {
+private fun getDateGroup(timestamp: Long, context: Context): String {
     val callDate = Calendar.getInstance().apply {
         timeInMillis = timestamp * 1000
     }
@@ -513,8 +522,8 @@ private fun getDateGroup(timestamp: Long): String {
     val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
 
     return when {
-        isSameDay(callDate, today) -> "Сьогодні"
-        isSameDay(callDate, yesterday) -> "Вчора"
+        isSameDay(callDate, today) -> context.getString(R.string.today)
+        isSameDay(callDate, yesterday) -> context.getString(R.string.yesterday)
         isSameWeek(callDate, today) -> {
             val dayFormat = SimpleDateFormat("EEEE", Locale("uk"))
             dayFormat.format(callDate.time).replaceFirstChar { it.uppercase() }

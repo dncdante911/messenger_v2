@@ -19,18 +19,26 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.User
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
+import com.worldmates.messenger.utils.LanguageManager
 
 class UserProfileActivity : AppCompatActivity() {
 
     private lateinit var viewModel: UserProfileViewModel
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,10 +91,11 @@ fun UserProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Повідомлення про завантаження аватара
+    val avatarUpdatedStr = stringResource(R.string.avatar_updated)
     LaunchedEffect(avatarUploadState) {
         when (avatarUploadState) {
             is AvatarUploadState.Success -> {
-                snackbarHostState.showSnackbar("Аватар обновлен")
+                snackbarHostState.showSnackbar(avatarUpdatedStr)
                 viewModel.resetAvatarUploadState()
             }
             is AvatarUploadState.Error -> {
@@ -152,7 +161,7 @@ fun UserProfileScreen(
                             ) {
                                 CircularProgressIndicator()
                                 Spacer(modifier = Modifier.height(12.dp))
-                                Text("Загрузка аватара...")
+                                Text(stringResource(R.string.uploading_avatar))
                             }
                         }
                     }
@@ -165,10 +174,10 @@ fun UserProfileScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 TopAppBar(
-                    title = { Text("Профіль") },
+                    title = { Text(stringResource(R.string.profile)) },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                            Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     }
                 )
@@ -268,7 +277,7 @@ private fun ProfileErrorState(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onRetry) {
-            Text("Спробувати ще раз")
+            Text(stringResource(R.string.retry))
         }
     }
 }
@@ -383,15 +392,15 @@ fun UserProfileContent(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(
-                    label = "Підписників",
+                    label = stringResource(R.string.followers),
                     count = user.followersCount ?: "0"
                 )
                 StatItem(
-                    label = "Підписки",
+                    label = stringResource(R.string.following_count),
                     count = user.followingCount ?: "0"
                 )
                 StatItem(
-                    label = "Пости",
+                    label = stringResource(R.string.posts),
                     count = user.details?.postCount?.toString() ?: "0"
                 )
             }
@@ -447,8 +456,11 @@ fun UserProfileContent(
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp)
             ) {
+                val genderMaleStr = stringResource(R.string.gender_male)
+                val genderFemaleStr = stringResource(R.string.gender_female)
+
                 Text(
-                    text = "Інформація",
+                    text = stringResource(R.string.profile_info),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 12.dp)
@@ -457,7 +469,7 @@ fun UserProfileContent(
                 if (!user.working.isNullOrBlank()) {
                     InfoItem(
                         icon = Icons.Default.Work,
-                        label = "Робота",
+                        label = stringResource(R.string.work_label),
                         value = user.working
                     )
                 }
@@ -465,7 +477,7 @@ fun UserProfileContent(
                 if (!user.school.isNullOrBlank()) {
                     InfoItem(
                         icon = Icons.Default.School,
-                        label = "Навчання",
+                        label = stringResource(R.string.education_label),
                         value = user.school
                     )
                 }
@@ -473,7 +485,7 @@ fun UserProfileContent(
                 if (!user.city.isNullOrBlank()) {
                     InfoItem(
                         icon = Icons.Default.LocationOn,
-                        label = "Місто",
+                        label = stringResource(R.string.city),
                         value = user.city
                     )
                 }
@@ -481,7 +493,7 @@ fun UserProfileContent(
                 if (!user.website.isNullOrBlank()) {
                     InfoItem(
                         icon = Icons.Default.Language,
-                        label = "Веб-сайт",
+                        label = stringResource(R.string.website_label),
                         value = user.website
                     )
                 }
@@ -489,7 +501,7 @@ fun UserProfileContent(
                 if (!user.birthday.isNullOrBlank()) {
                     InfoItem(
                         icon = Icons.Default.Cake,
-                        label = "День народження",
+                        label = stringResource(R.string.birthday_label),
                         value = user.birthday
                     )
                 }
@@ -497,10 +509,10 @@ fun UserProfileContent(
                 if (user.gender != null) {
                     InfoItem(
                         icon = Icons.Default.Person,
-                        label = "Стать",
+                        label = stringResource(R.string.gender),
                         value = when (user.gender) {
-                            "male" -> "Чоловік"
-                            "female" -> "Жінка"
+                            "male" -> genderMaleStr
+                            "female" -> genderFemaleStr
                             else -> user.gender
                         }
                     )
@@ -584,7 +596,7 @@ fun EditProfileDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Редагувати профіль") },
+        title = { Text(stringResource(R.string.edit_profile)) },
         text = {
             LazyColumn(
                 modifier = Modifier
@@ -595,7 +607,7 @@ fun EditProfileDialog(
                     OutlinedTextField(
                         value = firstName,
                         onValueChange = { firstName = it },
-                        label = { Text("Ім'я") },
+                        label = { Text(stringResource(R.string.first_name)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
@@ -606,7 +618,7 @@ fun EditProfileDialog(
                     OutlinedTextField(
                         value = lastName,
                         onValueChange = { lastName = it },
-                        label = { Text("Прізвище") },
+                        label = { Text(stringResource(R.string.last_name)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
@@ -617,7 +629,7 @@ fun EditProfileDialog(
                     OutlinedTextField(
                         value = about,
                         onValueChange = { about = it },
-                        label = { Text("Про себе") },
+                        label = { Text(stringResource(R.string.about)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
@@ -627,7 +639,7 @@ fun EditProfileDialog(
 
                 item {
                     Text(
-                        text = "Стать",
+                        text = stringResource(R.string.gender),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
                     )
@@ -638,13 +650,13 @@ fun EditProfileDialog(
                         FilterChip(
                             selected = gender == "male",
                             onClick = { gender = "male" },
-                            label = { Text("Чоловік") },
+                            label = { Text(stringResource(R.string.gender_male)) },
                             modifier = Modifier.weight(1f)
                         )
                         FilterChip(
                             selected = gender == "female",
                             onClick = { gender = "female" },
-                            label = { Text("Жінка") },
+                            label = { Text(stringResource(R.string.gender_female)) },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -654,7 +666,7 @@ fun EditProfileDialog(
                     OutlinedTextField(
                         value = working,
                         onValueChange = { working = it },
-                        label = { Text("Робота") },
+                        label = { Text(stringResource(R.string.work_label)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
@@ -665,7 +677,7 @@ fun EditProfileDialog(
                     OutlinedTextField(
                         value = school,
                         onValueChange = { school = it },
-                        label = { Text("Навчання") },
+                        label = { Text(stringResource(R.string.education_label)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
@@ -676,7 +688,7 @@ fun EditProfileDialog(
                     OutlinedTextField(
                         value = city,
                         onValueChange = { city = it },
-                        label = { Text("Місто") },
+                        label = { Text(stringResource(R.string.city)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
@@ -687,7 +699,7 @@ fun EditProfileDialog(
                     OutlinedTextField(
                         value = website,
                         onValueChange = { website = it },
-                        label = { Text("Веб-сайт") },
+                        label = { Text(stringResource(R.string.website_label)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
@@ -731,13 +743,13 @@ fun EditProfileDialog(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("Зберегти")
+                    Text(stringResource(R.string.save))
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Скасувати")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -774,7 +786,7 @@ fun UserRatingCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Карма користувача",
+                        text = stringResource(R.string.user_karma),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -796,13 +808,18 @@ fun UserRatingCard(
                     },
                     shape = RoundedCornerShape(12.dp)
                 ) {
+                    val verifiedStr = stringResource(R.string.status_verified)
+                    val trustedStr = stringResource(R.string.status_trusted)
+                    val neutralStr = stringResource(R.string.status_neutral)
+                    val untrustedStr = stringResource(R.string.status_untrusted)
+                    val unknownStr = stringResource(R.string.unknown)
                     Text(
                         text = when (rating.trustLevel) {
-                            "verified" -> "Перевірений"
-                            "trusted" -> "Надійний"
-                            "neutral" -> "Нейтральний"
-                            "untrusted" -> "Ненадійний"
-                            else -> "Невідомо"
+                            "verified" -> verifiedStr
+                            "trusted" -> trustedStr
+                            "neutral" -> neutralStr
+                            "untrusted" -> untrustedStr
+                            else -> unknownStr
                         },
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         color = Color.White,
@@ -837,7 +854,7 @@ fun UserRatingCard(
                         color = Color(0xFF4CAF50)
                     )
                     Text(
-                        text = "Лайків",
+                        text = stringResource(R.string.likes_label),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -861,7 +878,7 @@ fun UserRatingCard(
                         color = Color(0xFFFF9800)
                     )
                     Text(
-                        text = "Рейтинг",
+                        text = stringResource(R.string.rating_label),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -885,7 +902,7 @@ fun UserRatingCard(
                         color = Color(0xFFF44336)
                     )
                     Text(
-                        text = "Дізлайків",
+                        text = stringResource(R.string.dislikes_label),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -898,7 +915,7 @@ fun UserRatingCard(
 
             // Action buttons
             Text(
-                text = "Оцініть цього користувача:",
+                text = stringResource(R.string.rate_user),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -932,7 +949,7 @@ fun UserRatingCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (rating.myRating?.type == "like") "Лайк поставлено" else "Лайк"
+                        text = if (rating.myRating?.type == "like") stringResource(R.string.liked) else stringResource(R.string.like)
                     )
                 }
 
@@ -960,7 +977,7 @@ fun UserRatingCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (rating.myRating?.type == "dislike") "Дізлайк поставлено" else "Дізлайк"
+                        text = if (rating.myRating?.type == "dislike") stringResource(R.string.disliked) else stringResource(R.string.dislike)
                     )
                 }
             }
@@ -986,7 +1003,7 @@ fun UserRatingCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Ви вже оцінили цього користувача. Натисніть кнопку ще раз щоб зняти оцінку.",
+                            text = stringResource(R.string.already_rated),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
