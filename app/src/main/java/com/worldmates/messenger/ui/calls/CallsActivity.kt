@@ -51,6 +51,8 @@ import org.webrtc.EglBase
 import org.webrtc.MediaStream
 import org.webrtc.SurfaceViewRenderer
 import kotlin.math.abs
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 /**
  * 🎨 Стилі кастомних рамок для відеодзвінків

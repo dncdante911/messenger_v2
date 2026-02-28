@@ -694,6 +694,58 @@
     <string name="restore">Восстановить</string>
     <string name="fullscreen">На весь экран</string>
 
+    <!-- ===== NOTIFICATION SETTINGS ===== -->
+    <string name="notif_section_general">ОБЩИЕ</string>
+    <string name="email_notifications_desc">Получать уведомления на электронную почту</string>
+    <string name="notif_section_social">СОЦИАЛЬНЫЕ УВЕДОМЛЕНИЯ</string>
+    <string name="notif_liked">Лайки</string>
+    <string name="notif_liked_desc">Когда кто-то лайкнул ваш пост</string>
+    <string name="notif_wondered">Вау реакция</string>
+    <string name="notif_wondered_desc">Когда кто-то отреагировал на ваш пост</string>
+    <string name="notif_shared">Поделился</string>
+    <string name="notif_shared_desc">Когда кто-то поделился вашим постом</string>
+    <string name="notif_followed">Новые подписчики</string>
+    <string name="notif_followed_desc">Когда кто-то подписался на вас</string>
+    <string name="notif_commented">Комментарии</string>
+    <string name="notif_commented_desc">Когда кто-то прокомментировал ваш пост</string>
+    <string name="notif_visited">Посещения профиля</string>
+    <string name="notif_visited_desc">Когда кто-то посетил ваш профиль</string>
+    <string name="notif_mentioned">Упоминания</string>
+    <string name="notif_mentioned_desc">Когда кто-то упомянул вас в посте</string>
+    <string name="notif_accepted">Принятые запросы</string>
+    <string name="notif_accepted_desc">Когда кто-то принял ваш запрос в друзья</string>
+    <string name="notif_wall_post">Посты на стене</string>
+    <string name="notif_wall_post_desc">Когда кто-то опубликовал на вашей стене</string>
+    <string name="notif_section_pages">СТРАНИЦЫ И ГРУППЫ</string>
+    <string name="notif_liked_page">Лайкнул страницу</string>
+    <string name="notif_liked_page_desc">Когда кто-то лайкнул вашу страницу</string>
+    <string name="notif_joined_group">Вступление в группу</string>
+    <string name="notif_joined_group_desc">Когда кто-то вступил в вашу группу</string>
+    <string name="notif_gift">Подарки</string>
+    <string name="notif_gift_desc">Когда кто-то отправил вам подарок</string>
+
+    <!-- ===== EDIT PROFILE ===== -->
+    <string name="tap_to_change_photo">Нажмите, чтобы изменить фото</string>
+    <string name="gender_male">Мужской</string>
+    <string name="gender_female">Женский</string>
+    <string name="gender_other">Другой</string>
+    <string name="working_place">Место работы</string>
+    <string name="school">Учебное заведение</string>
+
+    <!-- ===== BLOCKED USERS ===== -->
+    <string name="no_blocked_users">Нет заблокированных пользователей</string>
+    <string name="no_blocked_users_desc">Когда вы заблокируете кого-то, они появятся здесь</string>
+    <string name="unblock_confirm_title">Разблокировать пользователя?</string>
+    <string name="blocked_users_info">Заблокированные пользователи не могут отправлять вам сообщения или звонить</string>
+
+    <!-- ===== BACKUP SETTINGS ===== -->
+    <string name="storage_stats_section">Статистика хранилища</string>
+    <string name="backup_settings_section">Настройки резервного копирования</string>
+    <string name="enable_backup_desc">Автоматическое сохранение в облако</string>
+    <string name="manage_backups_section">Управление резервными копиями</string>
+    <string name="backup_now_desc">Сохранить все данные на сервер</string>
+    <string name="no_backups_available">Нет доступных резервных копий</string>
+
     <!-- ===== ERRORS ===== -->
     <string name="error_network">Ошибка сети</string>
     <string name="error_login">Ошибка входа</string>

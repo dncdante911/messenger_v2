@@ -43,6 +43,8 @@ import com.worldmates.messenger.ui.theme.rememberThemeState
 import com.worldmates.messenger.ui.theme.BackgroundImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 /**
  * Сучасний екран чатів з:

@@ -9,8 +9,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,7 +38,6 @@ fun NotificationSettingsScreen(
     var eProfileWallPost by remember { mutableStateOf(true) }
     var eSentGift by remember { mutableStateOf(true) }
 
-    // Обновить локальные состояния когда userData меняется
     LaunchedEffect(userData) {
         userData?.let { user ->
             emailNotification = user.emailNotification == "1"
@@ -57,10 +58,10 @@ fun NotificationSettingsScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Сповіщення") },
+            title = { Text(stringResource(R.string.notification_settings)) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                    Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
             },
             actions = {
@@ -83,7 +84,7 @@ fun NotificationSettingsScreen(
                             )
                         }
                     ) {
-                        Text("Зберегти", color = Color.White)
+                        Text(stringResource(R.string.save), color = Color.White)
                     }
                 }
             },
@@ -106,16 +107,11 @@ fun NotificationSettingsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                // Error Message
                 if (errorMessage != null) {
                     item {
                         Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color(0xFFFFEBEE)
-                            )
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
                         ) {
                             Text(
                                 text = errorMessage ?: "",
@@ -126,182 +122,162 @@ fun NotificationSettingsScreen(
                     }
                 }
 
-                // Section Header: General
                 item {
                     Text(
-                        text = "ЗАГАЛЬНІ",
+                        text = stringResource(R.string.notif_section_general),
                         fontSize = 14.sp,
                         color = Color(0xFF0084FF),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
 
-                // Email Notification
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.Email,
-                        title = "Email сповіщення",
-                        description = "Отримувати сповіщення на електронну пошту",
+                        title = stringResource(R.string.email_notifications),
+                        description = stringResource(R.string.email_notifications_desc),
                         checked = emailNotification,
                         onCheckedChange = { emailNotification = it }
                     )
                 }
 
-                item {
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
-                }
+                item { Divider(modifier = Modifier.padding(vertical = 8.dp)) }
 
-                // Section Header: Social
                 item {
                     Text(
-                        text = "СОЦІАЛЬНІ СПОВІЩЕННЯ",
+                        text = stringResource(R.string.notif_section_social),
                         fontSize = 14.sp,
                         color = Color(0xFF0084FF),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
 
-                // Liked
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.ThumbUp,
-                        title = "Вподобання",
-                        description = "Коли хтось вподобав ваш пост",
+                        title = stringResource(R.string.notif_liked),
+                        description = stringResource(R.string.notif_liked_desc),
                         checked = eLiked,
                         onCheckedChange = { eLiked = it }
                     )
                 }
 
-                // Wondered
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.Star,
-                        title = "Вау реакція",
-                        description = "Коли хтось відреагував на ваш пост",
+                        title = stringResource(R.string.notif_wondered),
+                        description = stringResource(R.string.notif_wondered_desc),
                         checked = eWondered,
                         onCheckedChange = { eWondered = it }
                     )
                 }
 
-                // Shared
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.Share,
-                        title = "Поділився",
-                        description = "Коли хтось поділився вашим постом",
+                        title = stringResource(R.string.notif_shared),
+                        description = stringResource(R.string.notif_shared_desc),
                         checked = eShared,
                         onCheckedChange = { eShared = it }
                     )
                 }
 
-                // Followed
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.PersonAdd,
-                        title = "Нові підписники",
-                        description = "Коли хтось підписався на вас",
+                        title = stringResource(R.string.notif_followed),
+                        description = stringResource(R.string.notif_followed_desc),
                         checked = eFollowed,
                         onCheckedChange = { eFollowed = it }
                     )
                 }
 
-                // Commented
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.Comment,
-                        title = "Коментарі",
-                        description = "Коли хтось прокоментував ваш пост",
+                        title = stringResource(R.string.notif_commented),
+                        description = stringResource(R.string.notif_commented_desc),
                         checked = eCommented,
                         onCheckedChange = { eCommented = it }
                     )
                 }
 
-                // Visited
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.Visibility,
-                        title = "Відвідування профілю",
-                        description = "Коли хтось відвідав ваш профіль",
+                        title = stringResource(R.string.notif_visited),
+                        description = stringResource(R.string.notif_visited_desc),
                         checked = eVisited,
                         onCheckedChange = { eVisited = it }
                     )
                 }
 
-                // Mentioned
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.AlternateEmail,
-                        title = "Згадування",
-                        description = "Коли хтось згадав вас у пості",
+                        title = stringResource(R.string.notif_mentioned),
+                        description = stringResource(R.string.notif_mentioned_desc),
                         checked = eMentioned,
                         onCheckedChange = { eMentioned = it }
                     )
                 }
 
-                // Accepted
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.Check,
-                        title = "Прийняті запити",
-                        description = "Коли хтось прийняв ваш запит у друзі",
+                        title = stringResource(R.string.notif_accepted),
+                        description = stringResource(R.string.notif_accepted_desc),
                         checked = eAccepted,
                         onCheckedChange = { eAccepted = it }
                     )
                 }
 
-                // Profile Wall Post
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.Article,
-                        title = "Пости на стіні",
-                        description = "Коли хтось опублікував на вашій стіні",
+                        title = stringResource(R.string.notif_wall_post),
+                        description = stringResource(R.string.notif_wall_post_desc),
                         checked = eProfileWallPost,
                         onCheckedChange = { eProfileWallPost = it }
                     )
                 }
 
-                item {
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
-                }
+                item { Divider(modifier = Modifier.padding(vertical = 8.dp)) }
 
-                // Section Header: Pages & Groups
                 item {
                     Text(
-                        text = "СТОРІНКИ ТА ГРУПИ",
+                        text = stringResource(R.string.notif_section_pages),
                         fontSize = 14.sp,
                         color = Color(0xFF0084FF),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
 
-                // Liked Page
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.Pages,
-                        title = "Вподобав сторінку",
-                        description = "Коли хтось вподобав вашу сторінку",
+                        title = stringResource(R.string.notif_liked_page),
+                        description = stringResource(R.string.notif_liked_page_desc),
                         checked = eLikedPage,
                         onCheckedChange = { eLikedPage = it }
                     )
                 }
 
-                // Joined Group
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.Group,
-                        title = "Приєднання до групи",
-                        description = "Коли хтось приєднався до вашої групи",
+                        title = stringResource(R.string.notif_joined_group),
+                        description = stringResource(R.string.notif_joined_group_desc),
                         checked = eJoinedGroup,
                         onCheckedChange = { eJoinedGroup = it }
                     )
                 }
 
-                // Sent Gift (if applicable)
                 item {
                     SwitchSettingItem(
                         icon = Icons.Default.CardGiftcard,
-                        title = "Подарунки",
-                        description = "Коли хтось надіслав вам подарунок",
+                        title = stringResource(R.string.notif_gift),
+                        description = stringResource(R.string.notif_gift_desc),
                         checked = eSentGift,
                         onCheckedChange = { eSentGift = it }
                     )

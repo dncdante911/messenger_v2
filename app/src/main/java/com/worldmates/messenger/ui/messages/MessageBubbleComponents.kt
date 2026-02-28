@@ -38,6 +38,8 @@ import com.worldmates.messenger.ui.messages.selection.MediaActionMenu
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
 import com.worldmates.messenger.utils.VoicePlayer
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

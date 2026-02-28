@@ -37,6 +37,8 @@ import coil.compose.AsyncImage
 import com.worldmates.messenger.data.model.*
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 // ==================== CHANNEL POST CARD ====================
 

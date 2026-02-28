@@ -40,6 +40,8 @@ import com.worldmates.messenger.data.model.PostMedia
 import com.worldmates.messenger.util.toFullMediaUrl
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 // ==================== PREMIUM COLOR PALETTE ====================
 
