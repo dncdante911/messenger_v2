@@ -66,16 +66,15 @@ async function runMigration(sequelize) {
         await sequelize.query(`
             CREATE TABLE IF NOT EXISTS wo_group_call_participants (
                 id            INT(11)    NOT NULL AUTO_INCREMENT,
-                call_id       INT(11)    NOT NULL,
+                group_call_id INT(11)    NOT NULL,
                 user_id       INT(11)    NOT NULL,
-                joined_at     DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                left_at       DATETIME   DEFAULT NULL,
+                sdp_answer    LONGTEXT   DEFAULT NULL,
+                joined_at     TIMESTAMP  NULL DEFAULT CURRENT_TIMESTAMP,
+                left_at       TIMESTAMP  NULL DEFAULT NULL,
                 duration      INT(11)    DEFAULT NULL,
-                audio_enabled TINYINT(1) NOT NULL DEFAULT 1,
-                video_enabled TINYINT(1) NOT NULL DEFAULT 0,
                 PRIMARY KEY (id),
-                KEY idx_call_id  (call_id),
-                KEY idx_user_id  (user_id)
+                KEY idx_group_call_id (group_call_id),
+                KEY idx_user_id       (user_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `, { type: QueryTypes.RAW });
 
@@ -198,7 +197,7 @@ async function getHistory(ctx, req, res) {
                 gc.max_participants
             FROM wo_group_calls gc
             INNER JOIN wo_group_call_participants gcp
-                ON gcp.call_id = gc.id AND gcp.user_id = :userId
+                ON gcp.group_call_id = gc.id AND gcp.user_id = :userId
             LEFT JOIN Wo_GroupChat g ON g.group_id = gc.group_id
             ORDER BY gc.created_at DESC
             LIMIT :limit OFFSET :offset
