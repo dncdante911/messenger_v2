@@ -113,7 +113,7 @@ fun ForwardMessageDialog(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = stringResource(R.string.selected_count, selectedCount),
+                                text = stringResource(R.string.forward_selected_count, selectedCount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
