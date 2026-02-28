@@ -46,8 +46,10 @@ object Constants {
     const val NODE_CHAT_ARCHIVE  = "api/node/chat/archive"             // archive/unarchive
     const val NODE_CHAT_MUTE     = "api/node/chat/mute"                // mute/unmute
     const val NODE_CHAT_PIN_CHAT = "api/node/chat/pin-chat"            // pin/unpin chat
-    const val NODE_CHAT_COLOR    = "api/node/chat/color"               // change color
-    const val NODE_CHAT_READ     = "api/node/chat/read"                // mark all as read
+    const val NODE_CHAT_COLOR       = "api/node/chat/color"        // change color
+    const val NODE_CHAT_READ        = "api/node/chat/read"         // mark all as read
+    const val NODE_CHAT_CLEAR_HIST  = "api/node/chat/clear-history" // clear history (soft-delete)
+    const val NODE_CHAT_MUTE_STATUS = "api/node/chat/mute-status"  // get mute/notify status
 
     // Favorites
     const val NODE_CHAT_FAV      = "api/node/chat/fav"                 // fav/unfav message

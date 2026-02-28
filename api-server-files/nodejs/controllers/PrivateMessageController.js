@@ -47,6 +47,74 @@ const PrivateMessageController = async (ctx, data, io,socket,callback) => {
       }
   })
 
+  // ── Перехват сообщений к ботам ──────────────────────────────────────────────
+  // Если получатель — бот (type='bot'), маршрутизируем в систему ботов.
+  // Позволяет Android находить бота через обычный поиск и писать как обычному пользователю.
+  if (toUser && toUser.type === 'bot') {
+      const fromUserId = ctx.userHashUserId[data.from_id];
+      const text       = data.msg || '';
+      const isCommand  = text.startsWith('/');
+      const cmdParts   = isCommand ? text.slice(1).trim().split(/\s+/) : [];
+
+      try {
+          // Сохраняем в Wo_Messages для истории чата
+          const m_sent = await ctx.wo_messages.create({
+              from_id: fromUserId,
+              to_id:   parseInt(data.to_id),
+              text:    text,
+              seen:    1,
+              time:    Math.floor(Date.now() / 1000)
+          });
+
+          // Подтверждение отправителю
+          if (typeof callback === 'function') {
+              callback({
+                  status: 200, id: data.to_id, message: text,
+                  message_id: m_sent.id, time_api: m_sent.time,
+                  messages_html: '', message_page_html: '',
+                  receiver: fromUserId, sender: fromUserId,
+                  isMedia: false, isRecord: false
+              });
+          }
+
+          // Найти бота по username
+          const bot = await ctx.wo_bots.findOne({ where: { username: toUser.username }, raw: true });
+          if (bot) {
+              const botMsg = await ctx.wo_bot_messages.create({
+                  bot_id: bot.bot_id, chat_id: String(fromUserId), chat_type: 'private',
+                  direction: 'incoming', text: text || null,
+                  is_command: isCommand ? 1 : 0,
+                  command_name: isCommand && cmdParts[0] ? cmdParts[0] : null,
+                  command_args: isCommand && cmdParts.length > 1 ? cmdParts.slice(1).join(' ') : null,
+                  processed: 0
+              });
+              await ctx.wo_bots.increment('messages_received', { where: { bot_id: bot.bot_id } });
+              const [, created] = await ctx.wo_bot_users.findOrCreate({
+                  where: { bot_id: bot.bot_id, user_id: fromUserId },
+                  defaults: { bot_id: bot.bot_id, user_id: fromUserId, messages_count: 1, last_interaction_at: new Date() }
+              });
+              if (created) await ctx.wo_bots.increment('total_users', { where: { bot_id: bot.bot_id } });
+              else await ctx.wo_bot_users.update({ last_interaction_at: new Date() }, { where: { bot_id: bot.bot_id, user_id: fromUserId } });
+
+              // Переслать в сокет бота
+              if (ctx.botSockets && ctx.botSockets.has(bot.bot_id)) {
+                  ctx.botSockets.get(bot.bot_id).emit('user_message', {
+                      event: 'user_message', user_id: fromUserId, message_id: botMsg.id, text,
+                      is_command: isCommand,
+                      command_name: isCommand && cmdParts[0] ? cmdParts[0] : null,
+                      command_args: isCommand && cmdParts.length > 1 ? cmdParts.slice(1).join(' ') : null,
+                      callback_data: null, timestamp: Date.now()
+                  });
+              }
+              console.log(`[Bot] DM → @${bot.username} from user ${fromUserId}: ${text.substring(0, 60)}`);
+          }
+      } catch (err) {
+          console.error('[Bot/DM-route]', err.message);
+      }
+      return;
+  }
+  // ── Конец перехвата ботов ──────────────────────────────────────────────────
+
   let hasHTML = false;
   let msg;
   var story_id = 0;

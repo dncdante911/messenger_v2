@@ -68,7 +68,9 @@ interface NodeApi {
         @Field("media_type")      mediaType: String,
         @Field("media_file_name") mediaFileName: String = "",
         @Field("message_hash_id") messageHashId: String = "",
-        @Field("reply_id")        replyId: Long = 0
+        @Field("reply_id")        replyId: Long = 0,
+        /** Optional caption shown under the media. Server encrypts with AES-256-GCM. */
+        @Field("caption")         caption: String = ""
     ): NodeMessageResponse
 
     /**
@@ -268,6 +270,25 @@ interface NodeApi {
         @Field("recipient_id") recipientId: Long
     ): NodeSimpleResponse
 
+    /**
+     * CLEAR HISTORY — soft-deletes all messages for the caller only.
+     * Messages are flagged deleted_one/deleted_two; conversation entry stays.
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHAT_CLEAR_HIST)
+    suspend fun clearHistory(
+        @Field("recipient_id") recipientId: Long
+    ): NodeSimpleResponse
+
+    /**
+     * GET MUTE STATUS — returns current notify/call_chat/archive/pin flags for a chat.
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHAT_MUTE_STATUS)
+    suspend fun getMuteStatus(
+        @Field("chat_id") chatId: Long
+    ): NodeMuteStatusResponse
+
     // ═══════════════════════ FAVORITES ═══════════════════════════════════════
 
     /**
@@ -376,5 +397,15 @@ data class NodeForwardResponse(
 data class NodeChatListResponse(
     @SerializedName("api_status") val apiStatus: Int,
     @SerializedName("data")       val data: List<Chat>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/** Mute/notify status for a private chat. */
+data class NodeMuteStatusResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("notify")     val notify: String?   = null,  // "yes" | "no"
+    @SerializedName("call_chat")  val callChat: String? = null,  // "yes" | "no"
+    @SerializedName("archive")    val archive: String?  = null,  // "yes" | "no"
+    @SerializedName("pin")        val pin: String?      = null,  // "yes" | "no"
     @SerializedName("error_message") val errorMessage: String? = null
 )

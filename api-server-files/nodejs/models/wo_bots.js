@@ -151,6 +151,12 @@ module.exports = function(sequelize, DataTypes) {
     last_active_at: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    // Связанный user_id в Wo_Users — нужен для появления бота в поиске Android
+    // и для маршрутизации DM-сообщений из PrivateMessageController
+    linked_user_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   }, {
     sequelize,

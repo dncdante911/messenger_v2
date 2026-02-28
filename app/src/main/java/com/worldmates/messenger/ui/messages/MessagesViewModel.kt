@@ -17,8 +17,11 @@ import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.utils.DecryptionUtility
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.worldmates.messenger.ui.messages.selection.ForwardRecipient
 import com.worldmates.messenger.data.repository.DraftRepository
@@ -49,6 +52,23 @@ class MessagesViewModel(application: Application) :
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages
+
+    // 💫 Messages currently playing the Thanos disintegration animation
+    private val _deletingMessages = MutableStateFlow<Set<Long>>(emptySet())
+    val deletingMessages: StateFlow<Set<Long>> = _deletingMessages.asStateFlow()
+
+    // 🗑️ IDs permanently deleted this session — prevents polling from re-adding them
+    private val permanentlyDeletedIds = mutableSetOf<Long>()
+
+    /**
+     * Thread-safe messages setter that always strips [permanentlyDeletedIds].
+     * Use this instead of `_messages.value = ...` whenever setting a fetched list.
+     */
+    private fun setMessagesSafe(list: List<Message>) {
+        val filtered = if (permanentlyDeletedIds.isEmpty()) list
+                       else list.filter { it.id !in permanentlyDeletedIds }
+        _messages.value = filtered
+    }
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -84,6 +104,17 @@ class MessagesViewModel(application: Application) :
     private val _pinnedPrivateMessage = MutableStateFlow<Message?>(null)
     val pinnedPrivateMessage: StateFlow<Message?> = _pinnedPrivateMessage
     // ==================== END PRIVATE CHAT PIN ====================
+
+    // ==================== PRIVATE CHAT MUTE ====================
+    private val _isMutedPrivate = MutableStateFlow(false)
+    val isMutedPrivate: StateFlow<Boolean> = _isMutedPrivate
+    // ==================== END PRIVATE CHAT MUTE ====================
+
+    // ==================== LOAD MORE (PAGINATION) ====================
+    private val _canLoadMore = MutableStateFlow(true)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore
+    private var isLoadingMore = false
+    // ==================== END LOAD MORE ====================
 
     // ==================== SEARCH ====================
     private val _searchResults = MutableStateFlow<List<Message>>(emptyList())
@@ -151,6 +182,9 @@ class MessagesViewModel(application: Application) :
         startMessagePolling()
         loadDraft()
         markSeen() // Позначаємо повідомлення як прочитані при відкритті чату
+        loadMuteStatusViaNode(viewModelScope, nodeApi, recipientId) { isMuted ->
+            _isMutedPrivate.value = isMuted
+        }
         Log.d("MessagesViewModel", "✅ Ініціалізація завершена для користувача $recipientId")
     }
 
@@ -218,7 +252,7 @@ class MessagesViewModel(application: Application) :
                     val currentMessages = _messages.value.toMutableList()
                     currentMessages.addAll(decryptedMessages)
                     // Сортируем по времени (старые сверху, новые внизу)
-                    _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                    setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
 
                     _error.value = null
                     Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень (Node.js)")
@@ -232,6 +266,42 @@ class MessagesViewModel(application: Application) :
                 _error.value = "Помилка: ${e.localizedMessage}"
                 _isLoading.value = false
                 Log.e("MessagesViewModel", "Помилка завантаження повідомлень", e)
+            }
+        }
+    }
+
+    /**
+     * Loads older messages (pagination) — triggered when user scrolls to the top.
+     * Uses /api/node/chat/loadmore with the oldest message id as cursor.
+     */
+    fun loadMore() {
+        if (recipientId == 0L || isLoadingMore || !_canLoadMore.value) return
+
+        val oldestId = _messages.value.minByOrNull { it.timeStamp }?.id ?: return
+
+        isLoadingMore = true
+        viewModelScope.launch {
+            try {
+                val response = nodeApi.loadMore(
+                    recipientId     = recipientId,
+                    beforeMessageId = oldestId,
+                    limit           = 30
+                )
+                if (response.apiStatus == 200 && response.messages != null) {
+                    val older = response.messages.map { decryptMessageFully(it) }
+                    if (older.isEmpty()) {
+                        _canLoadMore.value = false
+                        Log.d(TAG, "📜 loadMore: no more messages")
+                    } else {
+                        setMessagesSafe((_messages.value + older).distinctBy { it.id }.sortedBy { it.timeStamp })
+                        if (older.size < 30) _canLoadMore.value = false
+                        Log.d(TAG, "📜 loadMore: +${older.size} older messages")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ loadMore exception", e)
+            } finally {
+                isLoadingMore = false
             }
         }
     }
@@ -266,7 +336,7 @@ class MessagesViewModel(application: Application) :
                     val currentMessages = _messages.value.toMutableList()
                     currentMessages.addAll(decryptedMessages)
                     // Сортируем по времени (старые сверху, новые внизу)
-                    _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                    setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
 
                     _error.value = null
                     if (topicId != 0L) {
@@ -365,7 +435,7 @@ class MessagesViewModel(application: Application) :
                         val currentMessages = _messages.value.toMutableList()
                         currentMessages.addAll(decryptedMessages)
                         // Сортируем по времени (старые сверху, новые внизу)
-                        _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                        setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
                         Log.d("MessagesViewModel", "Додано ${decryptedMessages.size} нових повідомлень")
                     } else {
                         // Если API не вернул сообщения, перезагружаем весь список
@@ -499,23 +569,28 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        _isLoading.value = true
-
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) {
             try {
+                // ① Start Thanos animation immediately (optimistic UX)
+                _deletingMessages.update { it + messageId }
+                permanentlyDeletedIds.add(messageId)
+
                 // Private chat → Node.js
                 if (groupId == 0L && recipientId != 0L) {
                     val resp = nodeApi.deleteMessage(messageId, deleteType)
                     if (resp.apiStatus == 200) {
-                        // For "everyone" the socket event will delete on recipient side.
-                        // For "just_me" remove locally right away.
-                        _messages.value = _messages.value.filter { it.id != messageId }
+                        // ② Wait for animation to finish, then remove from list
+                        kotlinx.coroutines.delay(750L)
+                        _messages.update { list -> list.filter { it.id != messageId } }
                         _error.value = null
                         Log.d("MessagesViewModel", "Повідомлення видалено (Node.js, $deleteType): $messageId")
                     } else {
+                        // Rollback animation on failure
+                        _deletingMessages.update { it - messageId }
+                        permanentlyDeletedIds.remove(messageId)
                         _error.value = resp.errorMessage ?: "Не вдалося видалити повідомлення"
                     }
-                    _isLoading.value = false
+                    _deletingMessages.update { it - messageId }
                     return@launch
                 }
 
@@ -543,12 +618,15 @@ class MessagesViewModel(application: Application) :
                     _error.value = null
                     Log.d("MessagesViewModel", "Повідомлення видалено: $messageId")
                 } else {
+                    _deletingMessages.update { it - messageId }
+                    permanentlyDeletedIds.remove(messageId)
                     _error.value = response.errors?.errorText ?: "Не вдалося видалити повідомлення"
                 }
                 _isLoading.value = false
             } catch (e: Exception) {
+                _deletingMessages.update { it - messageId }
+                permanentlyDeletedIds.remove(messageId)
                 _error.value = "Помилка: ${e.localizedMessage}"
-                _isLoading.value = false
                 Log.e("MessagesViewModel", "Помилка видалення повідомлення", e)
             }
         }
@@ -717,6 +795,7 @@ class MessagesViewModel(application: Application) :
 
     /**
      * 🎬 Надсилає GIF
+     * Для груп — залишаємо PHP. Для приватних чатів — Node.js (stickers field).
      */
     fun sendGif(gifUrl: String) {
         if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
@@ -724,54 +803,40 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        if (gifUrl.isBlank()) {
-            _error.value = "GIF URL не може бути порожнім"
+        if (groupId != 0L) {
+            // Групи — залишаємо на PHP (групи поки не мігровані на Node.js)
+            viewModelScope.launch {
+                try {
+                    RetrofitClient.apiService.sendMessage(
+                        accessToken = UserSession.accessToken!!,
+                        recipientId = recipientId,
+                        text = gifUrl,
+                        messageHashId = java.util.UUID.randomUUID().toString(),
+                        replyToId = null
+                    )
+                    fetchGroupMessages()
+                } catch (e: Exception) {
+                    _error.value = "Помилка: ${e.localizedMessage}"
+                }
+            }
             return
         }
 
-        _isLoading.value = true
-
-        viewModelScope.launch {
-            try {
-                val messageHashId = java.util.UUID.randomUUID().toString()
-
-                // Відправляємо GIF як медіа-повідомлення (текст = GIF URL)
-                val response = RetrofitClient.apiService.sendMessage(
-                    accessToken = UserSession.accessToken!!,
-                    recipientId = recipientId,
-                    text = gifUrl,  // GIF URL як текст (сервер розпізнає це як GIF)
-                    messageHashId = messageHashId,
-                    replyToId = null
-                )
-
-                if (response.apiStatus == 200) {
-                    Log.d(TAG, "✅ GIF sent successfully: $gifUrl")
-
-                    // Перезавантажуємо повідомлення
-                    if (groupId != 0L) {
-                        fetchGroupMessages()
-                    } else {
-                        fetchMessages()
-                    }
-
-                    _error.value = null
-                    Log.d(TAG, "GIF надіслано")
-                } else {
-                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати GIF"
-                    Log.e(TAG, "Send GIF Error: ${response.errors?.errorText ?: response.errorMessage}")
-                }
-
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
-                _isLoading.value = false
-                Log.e(TAG, "Помилка надсилання GIF", e)
-            }
-        }
+        // Приватний чат — Node.js: GIF URL → stickers field
+        sendGifViaNode(
+            scope       = viewModelScope,
+            api         = nodeApi,
+            recipientId = recipientId,
+            gifUrl      = gifUrl,
+            isLoading   = _isLoading,
+            error       = _error,
+            onSuccess   = { fetchMessages() }
+        )
     }
 
     /**
      * 📍 Надсилає геолокацію
+     * Для груп — PHP (текст). Для приватних чатів — Node.js (lat/lng fields, type=map).
      */
     fun sendLocation(locationData: com.worldmates.messenger.data.repository.LocationData) {
         if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
@@ -779,56 +844,42 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        _isLoading.value = true
-
-        viewModelScope.launch {
-            try {
-                val messageHashId = java.util.UUID.randomUUID().toString()
-
-                // Формуємо текст з координатами та адресою
-                val locationText = """
-                    📍 ${locationData.address}
-                    ${locationData.latLng.latitude},${locationData.latLng.longitude}
-                """.trimIndent()
-
-                // Відправляємо геолокацію як текстове повідомлення
-                // В майбутньому можна додати спеціальний тип повідомлення для геолокації
-                val response = RetrofitClient.apiService.sendMessage(
-                    accessToken = UserSession.accessToken!!,
-                    recipientId = recipientId,
-                    text = locationText,
-                    messageHashId = messageHashId,
-                    replyToId = null
-                )
-
-                if (response.apiStatus == 200) {
-                    Log.d(TAG, "✅ Location sent successfully: ${locationData.latLng}")
-
-                    // Перезавантажуємо повідомлення
-                    if (groupId != 0L) {
-                        fetchGroupMessages()
-                    } else {
-                        fetchMessages()
-                    }
-
-                    _error.value = null
-                    Log.d(TAG, "Геолокацію надіслано")
-                } else {
-                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати геолокацію"
-                    Log.e(TAG, "Send Location Error: ${response.errors?.errorText ?: response.errorMessage}")
+        if (groupId != 0L) {
+            // Групи — PHP
+            viewModelScope.launch {
+                try {
+                    val locationText = "📍 ${locationData.address}\n${locationData.latLng.latitude},${locationData.latLng.longitude}"
+                    RetrofitClient.apiService.sendGroupMessage(
+                        accessToken = UserSession.accessToken!!,
+                        groupId = groupId,
+                        text = locationText,
+                        replyToId = null
+                    )
+                    fetchGroupMessages()
+                } catch (e: Exception) {
+                    _error.value = "Помилка: ${e.localizedMessage}"
                 }
-
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
-                _isLoading.value = false
-                Log.e(TAG, "Помилка надсилання геолокації", e)
             }
+            return
         }
+
+        // Приватний чат — Node.js: нативні поля lat/lng (type = map)
+        sendLocationViaNode(
+            scope       = viewModelScope,
+            api         = nodeApi,
+            recipientId = recipientId,
+            lat         = locationData.latLng.latitude.toString(),
+            lng         = locationData.latLng.longitude.toString(),
+            address     = locationData.address,
+            isLoading   = _isLoading,
+            error       = _error,
+            onSuccess   = { fetchMessages() }
+        )
     }
 
     /**
      * Отправка контакта (vCard)
+     * Для груп — PHP. Для приватних чатів — Node.js (contact field, type_two=contact).
      */
     fun sendContact(contact: com.worldmates.messenger.data.model.Contact) {
         if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
@@ -836,76 +887,36 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        _isLoading.value = true
+        val vCardString = contact.toVCard()
 
-        viewModelScope.launch {
-            try {
-                val messageHashId = java.util.UUID.randomUUID().toString()
-
-                // Генерируем vCard
-                val vCardString = contact.toVCard()
-
-                // Формируем текст сообщения с префиксом для идентификации контакта
-                val contactText = "📇 VCARD\n$vCardString"
-
-                val response = if (groupId != 0L) {
+        if (groupId != 0L) {
+            // Групи — PHP
+            viewModelScope.launch {
+                try {
                     RetrofitClient.apiService.sendGroupMessage(
                         accessToken = UserSession.accessToken!!,
                         groupId = groupId,
-                        text = contactText,
+                        text = "📇 VCARD\n$vCardString",
                         replyToId = null
                     )
-                } else {
-                    RetrofitClient.apiService.sendMessage(
-                        accessToken = UserSession.accessToken!!,
-                        recipientId = recipientId,
-                        text = contactText,
-                        messageHashId = messageHashId,
-                        replyToId = null
-                    )
+                    fetchGroupMessages()
+                } catch (e: Exception) {
+                    _error.value = "Помилка: ${e.localizedMessage}"
                 }
-
-                if (response.apiStatus == 200) {
-                    Log.d(TAG, "✅ Contact sent successfully: ${contact.name}")
-
-                    // Если API вернул сообщения, добавляем их
-                    if (response.messages != null && response.messages.isNotEmpty()) {
-                        val decryptedMessages = response.messages.map { msg ->
-                            decryptMessageFully(msg)
-                        }
-                        val currentMessages = _messages.value.toMutableList()
-                        currentMessages.addAll(decryptedMessages)
-                        _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
-                    } else {
-                        // Перезагружаем сообщения
-                        if (groupId != 0L) {
-                            fetchGroupMessages()
-                        } else {
-                            fetchMessages()
-                        }
-                    }
-
-                    // Отправляем через Socket.IO
-                    if (groupId != 0L) {
-                        socketManager?.sendGroupMessage(groupId, contactText)
-                    } else {
-                        socketManager?.sendMessage(recipientId, contactText)
-                    }
-
-                    _error.value = null
-                    Log.d(TAG, "Контакт надіслано")
-                } else {
-                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати контакт"
-                    Log.e(TAG, "Send Contact Error: ${response.errors?.errorText ?: response.errorMessage}")
-                }
-
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
-                _isLoading.value = false
-                Log.e(TAG, "Помилка надсилання контакту", e)
             }
+            return
         }
+
+        // Приватний чат — Node.js: contact field (type_two=contact on server)
+        sendContactViaNode(
+            scope       = viewModelScope,
+            api         = nodeApi,
+            recipientId = recipientId,
+            vCard       = vCardString,
+            isLoading   = _isLoading,
+            error       = _error,
+            onSuccess   = { fetchMessages() }
+        )
     }
 
     // ==================== DRAFT METHODS ====================
@@ -1076,16 +1087,6 @@ class MessagesViewModel(application: Application) :
         }
     }
 
-    /**
-     * Отправляет сообщение с медиа-ссылкой
-     */
-    private fun sendMediaMessage(mediaUrl: String, mediaType: String, caption: String) {
-        if (UserSession.accessToken == null) return
-
-        // Для простоты отправляем как текстовое сообщение с URL
-        val messageText = if (caption.isNotEmpty()) "$caption\n$mediaUrl" else "📎 $mediaType"
-        sendMessage(messageText)
-    }
 
     /**
      * Налаштовує Socket.IO для получения сообщений в реальном времени
@@ -1298,8 +1299,21 @@ class MessagesViewModel(application: Application) :
     }
 
     override fun onMessageDeleted(messageId: Long, deleteType: String) {
-        _messages.value = _messages.value.filter { it.id != messageId }
-        Log.d(TAG, "Socket: повідомлення $messageId видалено ($deleteType)")
+        // Skip if the sender already triggered the animation locally
+        if (_deletingMessages.value.contains(messageId)) {
+            Log.d(TAG, "Socket: message $messageId already deleting, skip duplicate event")
+            return
+        }
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) {
+            permanentlyDeletedIds.add(messageId)
+            // ① Play Thanos animation
+            _deletingMessages.update { it + messageId }
+            // ② Wait for animation, then remove atomically
+            kotlinx.coroutines.delay(750L)
+            _messages.update { list -> list.filter { it.id != messageId } }
+            _deletingMessages.update { it - messageId }
+            Log.d(TAG, "Socket: повідомлення $messageId видалено ($deleteType)")
+        }
     }
 
     override fun onMessageReaction(messageId: Long, userId: Long, reaction: String, action: String) {
@@ -1496,7 +1510,9 @@ class MessagesViewModel(application: Application) :
     }
 
     /**
-     * 📤 Пересилає повідомлення до вибраних отримувачів
+     * 📤 Пересилає повідомлення до вибраних отримувачів.
+     * Приватні чати — Node.js /api/node/chat/forward (сервер розшифровує/перешифровує текст).
+     * Групи — PHP sendGroupMessage.
      */
     fun forwardMessages(messageIds: Set<Long>, recipientIds: List<Long>) {
         if (UserSession.accessToken == null) {
@@ -1504,42 +1520,45 @@ class MessagesViewModel(application: Application) :
             return
         }
 
-        viewModelScope.launch {
-            try {
-                messageIds.forEach { messageId ->
-                    // Знаходимо повідомлення
-                    val message = _messages.value.find { it.id == messageId }
-                    if (message != null) {
-                        recipientIds.forEach { recipientId ->
-                            // Визначаємо чи це група чи користувач
-                            val isGroup = _forwardGroups.value.any { it.id == recipientId }
+        // Split recipients into groups vs private users
+        val groupIds   = recipientIds.filter { id -> _forwardGroups.value.any { it.id == id } }
+        val privateIds = recipientIds.filter { id -> !_forwardGroups.value.any { it.id == id } }
 
-                            if (isGroup) {
-                                // Пересилаємо в групу
+        // Groups — PHP
+        if (groupIds.isNotEmpty()) {
+            viewModelScope.launch {
+                try {
+                    messageIds.forEach { messageId ->
+                        val message = _messages.value.find { it.id == messageId }
+                        if (message != null) {
+                            groupIds.forEach { gId ->
                                 RetrofitClient.apiService.sendGroupMessage(
                                     accessToken = UserSession.accessToken!!,
                                     type = "send_message",
-                                    groupId = recipientId,
+                                    groupId = gId,
                                     text = message.decryptedText ?: ""
                                 )
-                                Log.d("MessagesViewModel", "Переслано повідомлення $messageId в групу $recipientId")
-                            } else {
-                                // Пересилаємо користувачу
-                                val messageHashId = "${System.currentTimeMillis()}_${(0..999999).random()}"
-                                RetrofitClient.apiService.sendMessage(
-                                    accessToken = UserSession.accessToken!!,
-                                    recipientId = recipientId,
-                                    text = message.decryptedText ?: "",
-                                    messageHashId = messageHashId
-                                )
-                                Log.d("MessagesViewModel", "Переслано повідомлення $messageId користувачу $recipientId")
+                                Log.d("MessagesViewModel", "Forwarded msg $messageId to group $gId via PHP")
                             }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.e("MessagesViewModel", "Forward to group error", e)
                 }
-            } catch (e: Exception) {
-                Log.e("MessagesViewModel", "Помилка пересилання", e)
             }
+        }
+
+        // Private chats — Node.js (decrypts+re-encrypts on server side)
+        if (privateIds.isNotEmpty()) {
+            forwardPrivateMsgsViaNode(
+                scope        = viewModelScope,
+                api          = nodeApi,
+                messageIds   = messageIds,
+                recipientIds = privateIds,
+                onResult     = { allOk ->
+                    if (!allOk) Log.w("MessagesViewModel", "Some private forwards failed")
+                }
+            )
         }
     }
 
@@ -1691,6 +1710,65 @@ class MessagesViewModel(application: Application) :
                 Log.e(TAG, "❌ Error unmuting group", e)
             }
         }
+    }
+
+    /**
+     * ✏️ Edit message text locally only — no server call, not visible to other party.
+     */
+    fun editMessageLocally(messageId: Long, newText: String) {
+        if (newText.isBlank()) return
+        val current = _messages.value.toMutableList()
+        val idx = current.indexOfFirst { it.id == messageId }
+        if (idx != -1) {
+            current[idx] = current[idx].copy(
+                decryptedText = newText,
+                encryptedText = newText
+            )
+            _messages.value = current
+            Log.d(TAG, "✏️ Message $messageId edited locally only")
+        }
+    }
+
+    /**
+     * 🔕 Вимкнути сповіщення для приватного чату (Node.js)
+     */
+    fun mutePrivateChat(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        mutePrivateChatViaNode(
+            scope     = viewModelScope,
+            api       = nodeApi,
+            chatId    = recipientId,
+            mute      = true,
+            isLoading = _isLoading,
+            error     = _error,
+            onSuccess = { isMuted ->
+                _isMutedPrivate.value = isMuted
+                onSuccess()
+            }
+        )
+    }
+
+    /**
+     * 🔔 Увімкнути сповіщення для приватного чату (Node.js)
+     */
+    fun unmutePrivateChat(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        mutePrivateChatViaNode(
+            scope     = viewModelScope,
+            api       = nodeApi,
+            chatId    = recipientId,
+            mute      = false,
+            isLoading = _isLoading,
+            error     = _error,
+            onSuccess = { isMuted ->
+                _isMutedPrivate.value = isMuted
+                onSuccess()
+            }
+        )
     }
 
     /**
@@ -2138,7 +2216,7 @@ class MessagesViewModel(application: Application) :
                         val currentIds = _messages.value.map { it.id }.toSet()
                         val trulyNew = newMessages.filter { it.id !in currentIds }
                         if (trulyNew.isNotEmpty()) {
-                            _messages.value = (_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp }
+                            setMessagesSafe((_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp })
                             Log.d(TAG, "🔄 Polling (Node.js): +${trulyNew.size} нових")
                         }
                     }
