@@ -22,6 +22,7 @@ const { registerStoryRoutes } = require('./routes/stories/index')
 const { registerChannelRoutes } = require('./routes/channels/index')
 const { registerGroupRoutes }   = require('./routes/groups/index')
 const { registerBotRoutes }     = require('./routes/bots/index')
+const { registerCallRoutes }    = require('./routes/calls')
 const { initializeWallyBot }    = require('./bots/wallybot')
 
 let serverPort
@@ -300,6 +301,9 @@ async function main() {
 
   // Register Bot REST API (полная замена PHP bot_api.php)
   registerBotRoutes(app, ctx, io);
+
+  // Register Call History REST API (замена PHP call_history.php)
+  registerCallRoutes(app, ctx);
 
   // Инициализация WallyBot (встроенный бот-менеджер)
   await initializeWallyBot(ctx, io);

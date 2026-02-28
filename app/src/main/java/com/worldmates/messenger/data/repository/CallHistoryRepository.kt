@@ -5,7 +5,7 @@ import android.util.Log
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.CallHistoryItem
 import com.worldmates.messenger.network.CallHistoryApiService
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -17,7 +17,7 @@ class CallHistoryRepository(context: Context) {
     private val TAG = "CallHistoryRepository"
 
     private val apiService: CallHistoryApiService =
-        RetrofitClient.retrofit.create(CallHistoryApiService::class.java)
+        NodeRetrofitClient.callHistoryApi
 
     private val _calls = MutableStateFlow<List<CallHistoryItem>>(emptyList())
     val calls: StateFlow<List<CallHistoryItem>> = _calls

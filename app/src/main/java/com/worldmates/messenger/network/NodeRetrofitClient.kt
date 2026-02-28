@@ -85,6 +85,9 @@ object NodeRetrofitClient {
     /** Singleton NodeApi сервіс. Використовуй скрізь у проекті. */
     val api: NodeApi = retrofit.create(NodeApi::class.java)
 
+    /** Call History API via Node.js (замінює PHP call_history.php). */
+    val callHistoryApi: CallHistoryApiService = retrofit.create(CallHistoryApiService::class.java)
+
     /** Channel API via Node.js. */
     val channelApi: NodeChannelApi = retrofit.create(NodeChannelApi::class.java)
 
