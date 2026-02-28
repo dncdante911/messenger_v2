@@ -463,6 +463,19 @@
     <string name="who_sees_profile_visits">Кто видит мои посещения профиля</string>
     <string name="two_step_verification">Двухэтапная верификация</string>
     <string name="passcode_lock">Блокировка паролем</string>
+    <string name="privacy_everyone">Все</string>
+    <string name="privacy_friends">Друзья</string>
+    <string name="privacy_followers">Подписчики</string>
+    <string name="privacy_only_me">Только я</string>
+    <string name="privacy_description">Управляйте тем, кто может взаимодействовать с вашим профилем</string>
+    <string name="confirm_followers_desc">Новые подписчики должны быть подтверждены вручную</string>
+    <string name="show_activity_desc">Разрешить другим видеть вашу активность</string>
+    <string name="privacy_who_can_follow_short">Подписки</string>
+    <string name="privacy_who_can_add_friend_short">Добавление в друзья</string>
+    <string name="privacy_who_sees_posts_short">Просмотр постов</string>
+    <string name="privacy_who_can_write_short">Отправка сообщений</string>
+    <string name="privacy_who_sees_birthday_short">День рождения</string>
+    <string name="privacy_who_sees_visits_short">Посещения профиля</string>
 
     <!-- ===== NOTIFICATION SETTINGS ===== -->
     <string name="notifications_title">Уведомления</string>
