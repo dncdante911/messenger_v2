@@ -637,7 +637,7 @@
     <string name="music_background_note">Музика продовжить грати при згортанні та вимкненні екрану</string>
     <string name="stop">Зупинити</string>
     <string name="playback_speed">Швидкість відтворення</string>
-    <string name="repeat">Повтор</string>
+    <string name="player_repeat">Повтор</string>
     <string name="open_player">Відкрити плеєр</string>
 
     <!-- ===== EMOJI PICKER ===== -->
