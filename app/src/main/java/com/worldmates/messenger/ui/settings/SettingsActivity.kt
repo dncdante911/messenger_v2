@@ -45,10 +45,16 @@ import com.worldmates.messenger.ui.theme.ThemeSettingsScreen
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.update.AppUpdateManager
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.worldmates.messenger.ui.language.LanguageSelectionScreen
+import com.worldmates.messenger.utils.LanguageManager
 
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var viewModel: SettingsViewModel
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -157,6 +163,17 @@ class SettingsActivity : AppCompatActivity() {
                             onBackClick = { currentScreen = SettingsScreen.Main }
                         )
                     }
+                    SettingsScreen.Language -> {
+                        LanguageSelectionScreen(
+                            onLanguageSelected = { lang ->
+                                LanguageManager.setLanguage(lang)
+                                // Перезапустити Activity для застосування нової мови
+                                recreate()
+                            },
+                            currentLanguage = LanguageManager.currentLanguage,
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
                 }
             }
         }
@@ -176,6 +193,7 @@ sealed class SettingsScreen {
     object AppLock : SettingsScreen()
     object CloudBackup : SettingsScreen()
     object BlockedUsers : SettingsScreen()
+    object Language : SettingsScreen()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -451,9 +469,9 @@ fun SettingsScreen(
             item {
                 SettingsItem(
                     icon = Icons.Default.Language,
-                    title = "Мова",
-                    subtitle = userData?.language ?: "Українська",
-                    onClick = { /* TODO */ }
+                    title = "Мова / Язык",
+                    subtitle = LanguageManager.getDisplayName(LanguageManager.currentLanguage),
+                    onClick = { onNavigate(SettingsScreen.Language) }
                 )
             }
             item {
