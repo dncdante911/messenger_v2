@@ -28,7 +28,7 @@ async function isGroupAdmin(ctx, groupId, userId) {
     return m && (m.role === 'owner' || m.role === 'admin');
 }
 
-async function formatMember(ctx, membership) {
+async function formatMember(ctx, membership, mutedMembers = [], bannedUsers = []) {
     const u = await ctx.wo_users.findOne({
         where: { user_id: membership.user_id },
         attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar', 'lastseen'],
@@ -46,6 +46,8 @@ async function formatMember(ctx, membership) {
         name,
         avatar: avatarUrl,
         role: membership.role,
+        is_muted: mutedMembers.includes(Number(membership.user_id)),
+        is_blocked: bannedUsers.includes(Number(membership.user_id)),
         last_seen: u.lastseen ? String(u.lastseen) : null
     };
 }
@@ -67,6 +69,11 @@ function getMembers(ctx, io) {
             const group = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
             if (!group) return res.json({ api_status: 404, error_code: 404, error_message: 'Group not found' });
 
+            let groupSettings = {};
+            try { groupSettings = group.settings ? (typeof group.settings === 'string' ? JSON.parse(group.settings) : group.settings) : {}; } catch (_) {}
+            const mutedMembers = (groupSettings.muted_members || []).map(Number);
+            const bannedUsers  = (groupSettings.banned_users  || []).map(Number);
+
             const memberships = await ctx.wo_groupchatusers.findAll({
                 where: { group_id: groupId, active: '1' },
                 order: [['role', 'ASC']],
@@ -81,7 +88,7 @@ function getMembers(ctx, io) {
 
             const members = [];
             for (const m of memberships) {
-                const fmt = await formatMember(ctx, m);
+                const fmt = await formatMember(ctx, m, mutedMembers, bannedUsers);
                 if (fmt) members.push(fmt);
             }
 
@@ -538,6 +545,157 @@ function rejectJoinRequest(ctx, io) {
     };
 }
 
+// ─── ban-member ───────────────────────────────────────────────────────────────
+
+function banMember(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId   = req.userId;
+            const groupId  = parseInt(req.body.group_id);
+            const targetId = parseInt(req.body.user_id);
+
+            if (!groupId || !targetId)
+                return res.json({ api_status: 400, error_message: 'group_id and user_id are required' });
+            if (!await isGroupAdmin(ctx, groupId, userId))
+                return res.json({ api_status: 403, error_message: 'Admin only' });
+
+            const group = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
+            if (!group) return res.json({ api_status: 404, error_message: 'Group not found' });
+
+            let settings = {};
+            try { settings = group.settings ? (typeof group.settings === 'string' ? JSON.parse(group.settings) : group.settings) : {}; } catch (_) {}
+
+            const banned = (settings.banned_users || []).map(Number);
+            if (!banned.includes(Number(targetId))) banned.push(Number(targetId));
+            settings.banned_users = banned;
+
+            // Remove them from the group (kick)
+            await ctx.wo_groupchatusers.update(
+                { active: '0' },
+                { where: { group_id: groupId, user_id: targetId } }
+            );
+            await ctx.wo_groupchat.update(
+                { settings: JSON.stringify(settings) },
+                { where: { group_id: groupId } }
+            );
+
+            io.to('group_' + groupId).emit('group_member_banned', { group_id: groupId, user_id: targetId, banned_by: userId });
+            return res.json({ api_status: 200, message: 'User banned' });
+        } catch (err) {
+            console.error('[Groups/banMember]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── unban-member ─────────────────────────────────────────────────────────────
+
+function unbanMember(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId   = req.userId;
+            const groupId  = parseInt(req.body.group_id);
+            const targetId = parseInt(req.body.user_id);
+
+            if (!groupId || !targetId)
+                return res.json({ api_status: 400, error_message: 'group_id and user_id are required' });
+            if (!await isGroupAdmin(ctx, groupId, userId))
+                return res.json({ api_status: 403, error_message: 'Admin only' });
+
+            const group = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
+            if (!group) return res.json({ api_status: 404, error_message: 'Group not found' });
+
+            let settings = {};
+            try { settings = group.settings ? (typeof group.settings === 'string' ? JSON.parse(group.settings) : group.settings) : {}; } catch (_) {}
+
+            settings.banned_users = (settings.banned_users || []).map(Number).filter(id => id !== Number(targetId));
+            await ctx.wo_groupchat.update(
+                { settings: JSON.stringify(settings) },
+                { where: { group_id: groupId } }
+            );
+
+            io.to('group_' + groupId).emit('group_member_unbanned', { group_id: groupId, user_id: targetId });
+            return res.json({ api_status: 200, message: 'User unbanned' });
+        } catch (err) {
+            console.error('[Groups/unbanMember]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── mute-member ──────────────────────────────────────────────────────────────
+
+function muteMember(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId   = req.userId;
+            const groupId  = parseInt(req.body.group_id);
+            const targetId = parseInt(req.body.user_id);
+
+            if (!groupId || !targetId)
+                return res.json({ api_status: 400, error_message: 'group_id and user_id are required' });
+            if (!await isGroupAdmin(ctx, groupId, userId))
+                return res.json({ api_status: 403, error_message: 'Admin only' });
+
+            const group = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
+            if (!group) return res.json({ api_status: 404, error_message: 'Group not found' });
+
+            let settings = {};
+            try { settings = group.settings ? (typeof group.settings === 'string' ? JSON.parse(group.settings) : group.settings) : {}; } catch (_) {}
+
+            const muted = (settings.muted_members || []).map(Number);
+            if (!muted.includes(Number(targetId))) muted.push(Number(targetId));
+            settings.muted_members = muted;
+
+            await ctx.wo_groupchat.update(
+                { settings: JSON.stringify(settings) },
+                { where: { group_id: groupId } }
+            );
+
+            io.to('group_' + groupId).emit('group_member_muted', { group_id: groupId, user_id: targetId });
+            return res.json({ api_status: 200, message: 'User muted in group' });
+        } catch (err) {
+            console.error('[Groups/muteMember]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── unmute-member ────────────────────────────────────────────────────────────
+
+function unmuteMember(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId   = req.userId;
+            const groupId  = parseInt(req.body.group_id);
+            const targetId = parseInt(req.body.user_id);
+
+            if (!groupId || !targetId)
+                return res.json({ api_status: 400, error_message: 'group_id and user_id are required' });
+            if (!await isGroupAdmin(ctx, groupId, userId))
+                return res.json({ api_status: 403, error_message: 'Admin only' });
+
+            const group = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
+            if (!group) return res.json({ api_status: 404, error_message: 'Group not found' });
+
+            let settings = {};
+            try { settings = group.settings ? (typeof group.settings === 'string' ? JSON.parse(group.settings) : group.settings) : {}; } catch (_) {}
+
+            settings.muted_members = (settings.muted_members || []).map(Number).filter(id => id !== Number(targetId));
+            await ctx.wo_groupchat.update(
+                { settings: JSON.stringify(settings) },
+                { where: { group_id: groupId } }
+            );
+
+            io.to('group_' + groupId).emit('group_member_unmuted', { group_id: groupId, user_id: targetId });
+            return res.json({ api_status: 200, message: 'User unmuted in group' });
+        } catch (err) {
+            console.error('[Groups/unmuteMember]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 module.exports = {
     getMembers,
     addMember,
@@ -547,5 +705,9 @@ module.exports = {
     requestJoin,
     getJoinRequests,
     approveJoinRequest,
-    rejectJoinRequest
+    rejectJoinRequest,
+    banMember,
+    unbanMember,
+    muteMember,
+    unmuteMember
 };

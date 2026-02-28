@@ -183,6 +183,22 @@
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
             android:parentActivityName=".ui.groups.GroupDetailsActivity" />
 
+        <!-- Group Members Management Activity -->
+        <activity
+            android:name=".ui.groups.GroupMembersActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.groups.GroupDetailsActivity" />
+
+        <!-- Group Statistics Detail Activity -->
+        <activity
+            android:name=".ui.groups.GroupStatisticsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.groups.GroupAdminPanelActivity" />
+
         <!-- Channel Details Activity -->
         <activity
             android:name=".ui.channels.ChannelDetailsActivity"

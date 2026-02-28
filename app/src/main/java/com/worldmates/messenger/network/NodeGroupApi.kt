@@ -133,6 +133,34 @@ interface NodeGroupApi {
         @Field("user_id")  userId: Long
     ): GroupSimpleResponse
 
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_BAN_MEMBER)
+    suspend fun banGroupMember(
+        @Field("group_id") groupId: Long,
+        @Field("user_id")  userId: Long
+    ): GroupSimpleResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_UNBAN_MEMBER)
+    suspend fun unbanGroupMember(
+        @Field("group_id") groupId: Long,
+        @Field("user_id")  userId: Long
+    ): GroupSimpleResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_MUTE_MEMBER)
+    suspend fun muteGroupMember(
+        @Field("group_id") groupId: Long,
+        @Field("user_id")  userId: Long
+    ): GroupSimpleResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_UNMUTE_MEMBER)
+    suspend fun unmuteGroupMember(
+        @Field("group_id") groupId: Long,
+        @Field("user_id")  userId: Long
+    ): GroupSimpleResponse
+
     // ═══════════════════════ MESSAGES ══════════════════════════════════════════
 
     @FormUrlEncoded
@@ -227,7 +255,8 @@ interface NodeGroupApi {
         @Field("is_private")             isPrivate: Int? = null,
         @Field("who_can_send_messages")  whoCanSendMessages: String? = null,
         @Field("formatting_permissions") formattingPermissions: String? = null,
-        @Field("join_requests_enabled")  joinRequestsEnabled: Boolean? = null
+        @Field("join_requests_enabled")  joinRequestsEnabled: Boolean? = null,
+        @Field("settings_json")          settingsJson: String? = null
     ): GroupDetailResponse
 
     @FormUrlEncoded

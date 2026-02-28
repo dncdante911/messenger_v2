@@ -113,6 +113,10 @@ object Constants {
     const val NODE_GROUP_JOIN_REQUESTS = "api/node/group/join-requests"
     const val NODE_GROUP_APPROVE_JOIN  = "api/node/group/approve-join"
     const val NODE_GROUP_REJECT_JOIN   = "api/node/group/reject-join"
+    const val NODE_GROUP_BAN_MEMBER    = "api/node/group/ban-member"
+    const val NODE_GROUP_UNBAN_MEMBER  = "api/node/group/unban-member"
+    const val NODE_GROUP_MUTE_MEMBER   = "api/node/group/mute-member"
+    const val NODE_GROUP_UNMUTE_MEMBER = "api/node/group/unmute-member"
     // Messages
     const val NODE_GROUP_MESSAGES_GET      = "api/node/group/messages/get"
     const val NODE_GROUP_MESSAGES_SEND     = "api/node/group/messages/send"

@@ -347,9 +347,10 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    fun setGroupRole(groupId: Long, userId: Long, role: String) {
+    fun setGroupRole(groupId: Long, userId: Long, role: String, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
         if (UserSession.accessToken == null) {
             _error.value = "Користувач не авторизований"
+            onError("Користувач не авторизований")
             return
         }
 
@@ -365,12 +366,17 @@ class GroupsViewModel : ViewModel() {
                 if (response.apiStatus == 200) {
                     _error.value = null
                     fetchGroupMembers(groupId)
+                    onSuccess()
                     Log.d("GroupsViewModel", "Роль оновлена успішно")
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося оновити роль"
+                    val msg = response.errorMessage ?: "Не вдалося оновити роль"
+                    _error.value = msg
+                    onError(msg)
                 }
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                val msg = "Помилка: ${e.localizedMessage}"
+                _error.value = msg
+                onError(msg)
                 Log.e("GroupsViewModel", "Помилка оновлення ролі", e)
             }
         }
@@ -1137,13 +1143,14 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Serialize settings to JSON and store via formatting_permissions field
+                // Serialize the entire GroupSettings to JSON and send via settings_json field
+                // Server merges it into the settings column, preserving other fields (banned_users, muted_members, etc.)
                 val settingsJson = com.google.gson.Gson().toJson(settings)
 
                 // Node.js: POST /api/node/group/settings
                 val response = NodeRetrofitClient.groupApi.updateGroupSettings(
                     groupId = groupId,
-                    formattingPermissions = settingsJson
+                    settingsJson = settingsJson
                 )
 
                 if (response.apiStatus == 200) {
@@ -1242,6 +1249,104 @@ class GroupsViewModel : ViewModel() {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error updating member role", e)
+            }
+        }
+    }
+
+    // ==================== 🚫 BAN / MUTE PER MEMBER ====================
+
+    fun banGroupMember(
+        groupId: Long,
+        userId: Long,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.groupApi.banGroupMember(groupId = groupId, userId = userId)
+                if (response.apiStatus == 200) {
+                    // Remove from local members list (banned = kicked)
+                    _groupMembers.value = _groupMembers.value.filter { it.userId != userId }
+                    onSuccess()
+                    Log.d("GroupsViewModel", "🚫 Banned user $userId from group $groupId")
+                } else {
+                    onError(response.errorMessage ?: "Помилка бану")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+                Log.e("GroupsViewModel", "❌ Error banning member", e)
+            }
+        }
+    }
+
+    fun unbanGroupMember(
+        groupId: Long,
+        userId: Long,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.groupApi.unbanGroupMember(groupId = groupId, userId = userId)
+                if (response.apiStatus == 200) {
+                    onSuccess()
+                    Log.d("GroupsViewModel", "✅ Unbanned user $userId from group $groupId")
+                } else {
+                    onError(response.errorMessage ?: "Помилка розбану")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+                Log.e("GroupsViewModel", "❌ Error unbanning member", e)
+            }
+        }
+    }
+
+    fun muteGroupMember(
+        groupId: Long,
+        userId: Long,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.groupApi.muteGroupMember(groupId = groupId, userId = userId)
+                if (response.apiStatus == 200) {
+                    _groupMembers.value = _groupMembers.value.map {
+                        if (it.userId == userId) it.copy(isMuted = true) else it
+                    }
+                    onSuccess()
+                    Log.d("GroupsViewModel", "🔇 Muted user $userId in group $groupId")
+                } else {
+                    onError(response.errorMessage ?: "Помилка вимкнення мікрофону")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+                Log.e("GroupsViewModel", "❌ Error muting member", e)
+            }
+        }
+    }
+
+    fun unmuteGroupMember(
+        groupId: Long,
+        userId: Long,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.groupApi.unmuteGroupMember(groupId = groupId, userId = userId)
+                if (response.apiStatus == 200) {
+                    _groupMembers.value = _groupMembers.value.map {
+                        if (it.userId == userId) it.copy(isMuted = false) else it
+                    }
+                    onSuccess()
+                    Log.d("GroupsViewModel", "🔊 Unmuted user $userId in group $groupId")
+                } else {
+                    onError(response.errorMessage ?: "Помилка увімкнення мікрофону")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+                Log.e("GroupsViewModel", "❌ Error unmuting member", e)
             }
         }
     }

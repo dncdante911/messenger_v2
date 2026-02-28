@@ -369,7 +369,13 @@ fun GroupDetailsScreen(
                             context.startActivity(intent)
                         },
                         onEditClick = { showEditDialog = true },
-                        onAddMembersClick = { showAddMemberDialog = true },
+                        onMembersClick = {
+                            val intent = Intent(context, GroupMembersActivity::class.java).apply {
+                                putExtra("group_id", group.id)
+                                putExtra("is_admin", group.isAdmin || group.isOwner)
+                            }
+                            context.startActivity(intent)
+                        },
                         onQrCodeClick = {
                             // Генеруємо QR код
                             viewModel.generateGroupQr(
