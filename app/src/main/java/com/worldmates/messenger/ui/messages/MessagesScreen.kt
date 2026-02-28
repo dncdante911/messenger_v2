@@ -130,9 +130,7 @@ fun MessagesScreen(
     val uploadProgress by viewModel.uploadProgress.collectAsState()
     val recordingState by voiceRecorder.recordingState.collectAsState()
     val recordingDuration by voiceRecorder.recordingDuration.collectAsState()
-    val isTyping by viewModel.isTyping.collectAsState()
-    val isRecording by viewModel.isRecording.collectAsState()
-    val isOnline by viewModel.recipientOnlineStatus.collectAsState()
+    val presenceStatus by viewModel.presenceStatus.collectAsState()
     val connectionQuality by viewModel.connectionQuality.collectAsState()
     val pinnedPrivateMessage by viewModel.pinnedPrivateMessage.collectAsState()
     val isMutedPrivate by viewModel.isMutedPrivate.collectAsState()
@@ -553,9 +551,7 @@ fun MessagesScreen(
             MessagesHeaderBar(
                 recipientName = recipientName,
                 recipientAvatar = recipientAvatar,
-                isOnline = isOnline,
-                isTyping = isTyping,
-                isRecording = isRecording,
+                presenceStatus = presenceStatus,
                 onBackPressed = onBackPressed,
                 onUserProfileClick = {
                     Log.d("MessagesScreen", "Відкриваю профіль користувача: $recipientName")

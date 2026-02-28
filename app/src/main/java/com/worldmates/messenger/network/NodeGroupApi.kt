@@ -249,6 +249,16 @@ interface NodeGroupApi {
         @Field("typing")   typing: Boolean = true
     ): GroupSimpleResponse
 
+    /**
+     * GROUP USER ACTION status (listening, viewing, choosing_sticker, recording_video, etc.)
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_MESSAGES_USER_ACTION)
+    suspend fun sendGroupUserAction(
+        @Field("group_id") groupId: Long,
+        @Field("action")   action: String
+    ): GroupSimpleResponse
+
     // ═══════════════════════ ADMIN ══════════════════════════════════════════════
 
     @Multipart

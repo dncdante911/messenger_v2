@@ -9,6 +9,7 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Message
 import com.worldmates.messenger.data.model.MessageReaction
 import com.worldmates.messenger.data.model.ReactionGroup
+import com.worldmates.messenger.data.model.UserPresenceStatus
 import com.worldmates.messenger.network.FileManager
 import com.worldmates.messenger.network.MediaUploader
 import com.worldmates.messenger.network.MediaLoadingManager
@@ -79,15 +80,19 @@ class MessagesViewModel(application: Application) :
     private val _uploadProgress = MutableStateFlow(0)
     val uploadProgress: StateFlow<Int> = _uploadProgress
 
-    private val _isTyping = MutableStateFlow(false)
-    val isTyping: StateFlow<Boolean> = _isTyping
+    // Combined presence/activity status for the chat header
+    private val _presenceStatus = MutableStateFlow<UserPresenceStatus>(UserPresenceStatus.Offline)
+    val presenceStatus: StateFlow<UserPresenceStatus> = _presenceStatus
 
-    // true = співрозмовник зараз записує голосове повідомлення
-    private val _isRecording = MutableStateFlow(false)
-    val isRecording: StateFlow<Boolean> = _isRecording
+    // Internal flags used to restore the base status after a transient action ends
+    private var presenceIsOnline = false
+    private var presenceLastSeenTs = 0L
 
-    private val _recipientOnlineStatus = MutableStateFlow(false)
-    val recipientOnlineStatus: StateFlow<Boolean> = _recipientOnlineStatus
+    private fun basePresenceStatus(): UserPresenceStatus = when {
+        presenceIsOnline -> UserPresenceStatus.Online
+        presenceLastSeenTs > 0L -> UserPresenceStatus.LastSeen(presenceLastSeenTs)
+        else -> UserPresenceStatus.Offline
+    }
 
     private val _forwardContacts = MutableStateFlow<List<ForwardRecipient>>(emptyList())
     val forwardContacts: StateFlow<List<ForwardRecipient>> = _forwardContacts
@@ -1232,41 +1237,87 @@ class MessagesViewModel(application: Application) :
     }
 
     override fun onTypingStatus(userId: Long?, isTyping: Boolean) {
-        if (userId == recipientId) {
-            _isTyping.value = isTyping
-            // ВАЖНО: Если пользователь печатает, значит он онлайн!
-            if (isTyping) {
-                _recipientOnlineStatus.value = true
-            }
+        // Private chat: check userId == recipientId
+        if (groupId == 0L && userId == recipientId) {
+            _presenceStatus.value = if (isTyping) UserPresenceStatus.Typing else basePresenceStatus()
+            if (isTyping) presenceIsOnline = true
             Log.d("MessagesViewModel", "Користувач $userId ${if (isTyping) "набирає" else "зупинив набір"}")
         }
     }
 
+    override fun onGroupTyping(groupId: Long, userId: Long, isTyping: Boolean) {
+        if (this.groupId != groupId) return
+        if (userId == UserSession.userId) return  // ignore own typing
+        if (isTyping) {
+            val memberName = _currentGroup.value?.members?.find { it.userId == userId }?.username ?: "Хтось"
+            _presenceStatus.value = UserPresenceStatus.GroupTyping(memberName)
+        } else {
+            _presenceStatus.value = UserPresenceStatus.Online
+        }
+        Log.d(TAG, "Group $groupId: user $userId ${if (isTyping) "typing" else "stopped"}")
+    }
+
     override fun onUserOnline(userId: Long) {
         if (userId == recipientId) {
-            _recipientOnlineStatus.value = true
+            presenceIsOnline = true
+            // Only update if not in a transient action state
+            val cur = _presenceStatus.value
+            if (cur is UserPresenceStatus.Offline || cur is UserPresenceStatus.LastSeen) {
+                _presenceStatus.value = UserPresenceStatus.Online
+            }
             Log.d("MessagesViewModel", "✅ Користувач $userId з'явився онлайн")
         }
     }
 
     override fun onUserOffline(userId: Long) {
         if (userId == recipientId) {
-            // ВАЖНО: Не сбрасываем статус, если пользователь печатает
-            if (!_isTyping.value) {
-                _recipientOnlineStatus.value = false
-                Log.d("MessagesViewModel", "❌ Користувач $userId з'явився офлайн")
-            } else {
-                Log.d("MessagesViewModel", "⚠️ Ігноруємо offline для $userId (друкує)")
+            presenceIsOnline = false
+            // Only update if not in a transient action state (typing etc.)
+            val cur = _presenceStatus.value
+            if (cur is UserPresenceStatus.Online) {
+                _presenceStatus.value = basePresenceStatus()
             }
+            Log.d("MessagesViewModel", "❌ Користувач $userId з'явився офлайн")
         }
     }
 
     override fun onRecordingStatus(userId: Long?, isRecording: Boolean) {
         if (userId == recipientId) {
-            _isRecording.value = isRecording
-            if (isRecording) _recipientOnlineStatus.value = true
-            Log.d(TAG, "Користувач $userId recording: $isRecording")
+            _presenceStatus.value = if (isRecording) UserPresenceStatus.RecordingVoice else basePresenceStatus()
+            if (isRecording) presenceIsOnline = true
+            Log.d(TAG, "Користувач $userId recording voice: $isRecording")
         }
+    }
+
+    override fun onLastSeen(userId: Long, lastSeen: Long) {
+        if (userId == recipientId && lastSeen > 0) {
+            presenceLastSeenTs = lastSeen
+            // Only switch to LastSeen if currently offline
+            if (_presenceStatus.value is UserPresenceStatus.Offline) {
+                _presenceStatus.value = UserPresenceStatus.LastSeen(lastSeen)
+            }
+            Log.d(TAG, "Last seen for $userId: $lastSeen")
+        }
+    }
+
+    override fun onUserAction(userId: Long?, groupId: Long?, action: String) {
+        val isRelevant = if (this.groupId > 0L) {
+            groupId == this.groupId && userId != UserSession.userId
+        } else {
+            userId == recipientId
+        }
+        if (!isRelevant) return
+
+        val newStatus: UserPresenceStatus = when (action) {
+            "recording"       -> UserPresenceStatus.RecordingVoice
+            "recording_video" -> UserPresenceStatus.RecordingVideo
+            "listening"       -> UserPresenceStatus.ListeningAudio
+            "viewing"         -> UserPresenceStatus.ViewingMedia
+            "choosing_sticker"-> UserPresenceStatus.ChoosingSticker
+            else              -> basePresenceStatus()
+        }
+        _presenceStatus.value = newStatus
+        Log.d(TAG, "User action '$action' from user $userId")
     }
 
     override fun onMessageEdited(messageId: Long, newText: String, iv: String?, tag: String?, cipherVersion: String?) {
@@ -1370,13 +1421,16 @@ class MessagesViewModel(application: Application) :
      * а не session hash — так простіше та надійніше.
      */
     fun sendTypingStatus(isTyping: Boolean) {
-        if (recipientId == 0L || groupId != 0L) return
         if (socketManager?.canSendTypingIndicators() == false) return
-
         viewModelScope.launch {
             try {
-                nodeApi.sendTyping(recipientId, if (isTyping) "true" else "false")
-                Log.d(TAG, "Typing status sent via REST: $isTyping → recipient $recipientId")
+                if (groupId > 0L) {
+                    groupApi.sendGroupTyping(groupId, isTyping)
+                    Log.d(TAG, "Group typing status sent: $isTyping → group $groupId")
+                } else if (recipientId != 0L) {
+                    nodeApi.sendTyping(recipientId, if (isTyping) "true" else "false")
+                    Log.d(TAG, "Typing status sent via REST: $isTyping → recipient $recipientId")
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "sendTypingStatus failed: ${e.message}")
             }
@@ -1384,13 +1438,35 @@ class MessagesViewModel(application: Application) :
     }
 
     /**
-     * Надсилає статус "записує голосове" через Socket.IO
-     * Сервер RecordingController очікує session hash у полі user_id
+     * Надсилає статус "записує голосове"
      */
     fun sendRecordingStatus() {
-        if (recipientId == 0L || groupId != 0L) return
-        socketManager?.sendRecordingStatus(recipientId)
-        Log.d(TAG, "Recording status emitted for recipient $recipientId")
+        if (groupId > 0L) {
+            sendUserAction("recording")
+        } else if (recipientId != 0L) {
+            socketManager?.sendRecordingStatus(recipientId)
+            Log.d(TAG, "Recording status emitted for recipient $recipientId")
+        }
+    }
+
+    /**
+     * Sends a user action status (listening, viewing, choosing_sticker, recording_video, etc.)
+     * to the current chat recipient or group.
+     */
+    fun sendUserAction(action: String) {
+        viewModelScope.launch {
+            try {
+                if (groupId > 0L) {
+                    groupApi.sendGroupUserAction(groupId, action)
+                    Log.d(TAG, "Group user action '$action' sent for group $groupId")
+                } else if (recipientId != 0L) {
+                    nodeApi.sendUserAction(recipientId, action)
+                    Log.d(TAG, "User action '$action' sent for recipient $recipientId")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "sendUserAction failed: ${e.message}")
+            }
+        }
     }
 
     fun clearError() {
