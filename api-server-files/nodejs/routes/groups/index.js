@@ -91,6 +91,10 @@ function registerGroupRoutes(app, ctx, io) {
     app.post('/api/node/group/join-requests',  auth, members.getJoinRequests(ctx, io));
     app.post('/api/node/group/approve-join',   auth, members.approveJoinRequest(ctx, io));
     app.post('/api/node/group/reject-join',    auth, members.rejectJoinRequest(ctx, io));
+    app.post('/api/node/group/ban-member',     auth, members.banMember(ctx, io));
+    app.post('/api/node/group/unban-member',   auth, members.unbanMember(ctx, io));
+    app.post('/api/node/group/mute-member',    auth, members.muteMember(ctx, io));
+    app.post('/api/node/group/unmute-member',  auth, members.unmuteMember(ctx, io));
 
     // ── Messages ────────────────────────────────────────────────────────────
     app.post('/api/node/group/messages/get',      auth, messages.getMessages(ctx, io));

@@ -394,7 +394,7 @@ fun QuickAdminControlsCard(
     scheduledPostsCount: Int,
     onOpenAdminPanel: () -> Unit,
     onEditClick: () -> Unit,
-    onAddMembersClick: () -> Unit,
+    onMembersClick: () -> Unit,
     onQrCodeClick: () -> Unit,
     onFormattingClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -444,9 +444,9 @@ fun QuickAdminControlsCard(
                     onClick = onEditClick
                 )
                 QuickActionButton(
-                    icon = Icons.Default.PersonAdd,
+                    icon = Icons.Default.Group,
                     label = "Учасники",
-                    onClick = onAddMembersClick
+                    onClick = onMembersClick
                 )
                 QuickActionButton(
                     icon = Icons.Default.QrCode,

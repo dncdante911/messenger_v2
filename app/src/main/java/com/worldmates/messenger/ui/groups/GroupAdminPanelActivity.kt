@@ -1,5 +1,6 @@
 package com.worldmates.messenger.ui.groups
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
@@ -90,7 +91,11 @@ class GroupAdminPanelActivity : AppCompatActivity() {
                             viewModel.publishScheduledPost(post)
                         },
                         onOpenStatistics = {
-                            // Вже відкриті в адмін-панелі
+                            val intent = Intent(this@GroupAdminPanelActivity, GroupStatisticsActivity::class.java).apply {
+                                putExtra("group_id", groupId)
+                                putExtra("group_name", group.name)
+                            }
+                            startActivity(intent)
                         },
                         onRefresh = {
                             viewModel.fetchGroupDetails(groupId)

@@ -132,10 +132,34 @@ function updateSettings(ctx, io) {
             if (req.body.description !== undefined) updates.description = String(req.body.description).trim().substring(0, 500);
             if (req.body.is_private  !== undefined) updates.is_private  = req.body.is_private === '1' || req.body.is_private === true ? '1' : '0';
 
-            // Nested settings fields (stored in Wo_GroupChat.settings JSON)
+            // If a full settings JSON blob is provided, merge it in
+            if (req.body.settings_json !== undefined) {
+                try {
+                    const incoming = typeof req.body.settings_json === 'string'
+                        ? JSON.parse(req.body.settings_json)
+                        : req.body.settings_json;
+                    Object.assign(settings, incoming);
+                } catch (_) {}
+            }
+
+            // Individual settings fields (stored in Wo_GroupChat.settings JSON column)
+            const boolFields = [
+                'allow_members_invite', 'allow_members_pin', 'allow_members_delete_messages',
+                'allow_voice_calls', 'allow_video_calls', 'history_visible_for_new_members',
+                'allow_members_send_media', 'allow_members_send_stickers', 'allow_members_send_gifs',
+                'allow_members_send_links', 'allow_members_send_polls',
+                'anti_spam_enabled', 'auto_mute_spammers', 'block_new_users_media',
+                'join_requests_enabled'
+            ];
+            const intFields = ['slow_mode_seconds', 'history_messages_count', 'max_messages_per_minute', 'new_user_restriction_hours'];
+            for (const f of boolFields) {
+                if (req.body[f] !== undefined) settings[f] = req.body[f] === true || req.body[f] === 'true' || req.body[f] === '1';
+            }
+            for (const f of intFields) {
+                if (req.body[f] !== undefined) settings[f] = parseInt(req.body[f]) || 0;
+            }
             if (req.body.who_can_send_messages  !== undefined) settings.who_can_send_messages  = req.body.who_can_send_messages;
             if (req.body.formatting_permissions !== undefined) settings.formatting_permissions = req.body.formatting_permissions;
-            if (req.body.join_requests_enabled  !== undefined) settings.join_requests_enabled  = !!req.body.join_requests_enabled;
             if (req.body.destruct_at            !== undefined) updates.destruct_at             = parseInt(req.body.destruct_at) || 0;
 
             updates.settings = JSON.stringify(settings);
