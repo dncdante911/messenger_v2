@@ -21,7 +21,7 @@ import com.worldmates.messenger.data.local.entity.CachedMessage
         Draft::class,
         CachedMessage::class  // 📦 CLOUD BACKUP: Кэш сообщений
     ],
-    version = 3,  // 📦 Увеличена версия до 3 (Cloud Backup update)
+    version = 4,  // Увеличена версия до 4 (схема изменилась)
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
