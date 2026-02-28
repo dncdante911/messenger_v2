@@ -19,8 +19,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.components.formatting.FormattingSettings
 
 /**
@@ -92,7 +94,7 @@ fun FormattingSettingsPanel(
         ) {
             // Header
             Text(
-                text = "Налаштування форматування",
+                text = stringResource(R.string.formatting_settings),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -100,9 +102,9 @@ fun FormattingSettingsPanel(
 
             Text(
                 text = if (isChannel) {
-                    "Налаштуйте, які функції форматування доступні для публікацій"
+                    stringResource(R.string.formatting_subtitle_channel)
                 } else {
-                    "Налаштуйте, які функції форматування доступні учасникам"
+                    stringResource(R.string.formatting_subtitle_group)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -111,7 +113,7 @@ fun FormattingSettingsPanel(
 
             // Quick presets
             Text(
-                text = "Швидкі налаштування",
+                text = stringResource(R.string.quick_settings),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -124,19 +126,19 @@ fun FormattingSettingsPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 PresetButton(
-                    label = "Все увімкнено",
+                    label = stringResource(R.string.all_enabled),
                     selected = isAllEnabled(localSettings),
                     onClick = { localSettings = enableAll() },
                     modifier = Modifier.weight(1f)
                 )
                 PresetButton(
-                    label = "Базове",
+                    label = stringResource(R.string.basic),
                     selected = isBasic(localSettings),
                     onClick = { localSettings = basicSettings() },
                     modifier = Modifier.weight(1f)
                 )
                 PresetButton(
-                    label = "Тільки текст",
+                    label = stringResource(R.string.text_only),
                     selected = isTextOnly(localSettings),
                     onClick = { localSettings = textOnly() },
                     modifier = Modifier.weight(1f)
@@ -146,92 +148,92 @@ fun FormattingSettingsPanel(
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Basic formatting section
-            SettingsSection(title = "Базове форматування") {
+            SettingsSection(title = stringResource(R.string.basic_formatting)) {
                 FormattingToggle(
                     icon = Icons.Default.FormatBold,
-                    title = "Жирний текст",
-                    description = "**текст** або __текст__",
+                    title = stringResource(R.string.bold_text),
+                    description = stringResource(R.string.bold_syntax),
                     enabled = localSettings.membersCanUseBold,
                     onToggle = { localSettings = localSettings.copy(membersCanUseBold = it) }
                 )
 
                 FormattingToggle(
                     icon = Icons.Default.FormatItalic,
-                    title = "Курсив",
-                    description = "*текст* або _текст_",
+                    title = stringResource(R.string.italic_text),
+                    description = stringResource(R.string.italic_syntax),
                     enabled = localSettings.membersCanUseItalic,
                     onToggle = { localSettings = localSettings.copy(membersCanUseItalic = it) }
                 )
 
                 FormattingToggle(
                     icon = Icons.Default.FormatStrikethrough,
-                    title = "Закреслений текст",
-                    description = "~~текст~~",
+                    title = stringResource(R.string.strikethrough_text),
+                    description = stringResource(R.string.strikethrough_syntax),
                     enabled = localSettings.membersCanUseStrikethrough,
                     onToggle = { localSettings = localSettings.copy(membersCanUseStrikethrough = it) }
                 )
 
                 FormattingToggle(
                     icon = Icons.Default.FormatUnderlined,
-                    title = "Підкреслений текст",
-                    description = "<u>текст</u>",
+                    title = stringResource(R.string.underline_text),
+                    description = stringResource(R.string.underline_syntax),
                     enabled = localSettings.membersCanUseUnderline,
                     onToggle = { localSettings = localSettings.copy(membersCanUseUnderline = it) }
                 )
             }
 
             // Code and technical
-            SettingsSection(title = "Код і технічне") {
+            SettingsSection(title = stringResource(R.string.technical_code)) {
                 FormattingToggle(
                     icon = Icons.Default.Code,
-                    title = "Код",
-                    description = "`код` або ```блок коду```",
+                    title = stringResource(R.string.code),
+                    description = stringResource(R.string.code_syntax),
                     enabled = localSettings.membersCanUseCode,
                     onToggle = { localSettings = localSettings.copy(membersCanUseCode = it) }
                 )
 
                 FormattingToggle(
                     icon = Icons.Default.FormatQuote,
-                    title = "Цитати",
-                    description = "> цитований текст",
+                    title = stringResource(R.string.quotes),
+                    description = stringResource(R.string.quote_syntax),
                     enabled = localSettings.membersCanUseQuotes,
                     onToggle = { localSettings = localSettings.copy(membersCanUseQuotes = it) }
                 )
             }
 
             // Social features
-            SettingsSection(title = "Соціальні функції") {
+            SettingsSection(title = stringResource(R.string.social_functions)) {
                 FormattingToggle(
                     icon = Icons.Default.AlternateEmail,
-                    title = "Згадки (@mentions)",
-                    description = "@username для згадки користувача",
+                    title = stringResource(R.string.mentions),
+                    description = stringResource(R.string.mention_syntax),
                     enabled = localSettings.membersCanUseMentions,
                     onToggle = { localSettings = localSettings.copy(membersCanUseMentions = it) }
                 )
 
                 FormattingToggle(
                     icon = Icons.Default.Tag,
-                    title = "Хештеги (#tags)",
-                    description = "#тег для категоризації",
+                    title = stringResource(R.string.hashtags),
+                    description = stringResource(R.string.hashtag_syntax),
                     enabled = localSettings.membersCanUseHashtags,
                     onToggle = { localSettings = localSettings.copy(membersCanUseHashtags = it) }
                 )
 
                 FormattingToggle(
                     icon = Icons.Default.Link,
-                    title = "Посилання",
-                    description = "[текст](url) або автоматичні URL",
+                    title = stringResource(R.string.links),
+                    description = stringResource(R.string.link_syntax),
                     enabled = localSettings.membersCanUseLinks,
                     onToggle = { localSettings = localSettings.copy(membersCanUseLinks = it) }
                 )
             }
 
             // Special features
-            SettingsSection(title = "Спеціальні функції") {
+            SettingsSection(title = stringResource(R.string.special_functions)) {
                 FormattingToggle(
                     icon = Icons.Default.VisibilityOff,
-                    title = "Спойлери",
-                    description = "||прихований текст||",
+                    title = stringResource(R.string.spoilers),
+                    description = stringResource(R.string.spoiler_syntax),
                     enabled = localSettings.membersCanUseSpoilers,
                     onToggle = { localSettings = localSettings.copy(membersCanUseSpoilers = it) },
                     highlightColor = Color(0xFF6B5B95)
@@ -249,7 +251,7 @@ fun FormattingSettingsPanel(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.cancel))
                 }
 
                 Button(
@@ -259,7 +261,7 @@ fun FormattingSettingsPanel(
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Зберегти")
+                    Text(stringResource(R.string.save))
                 }
             }
         }
@@ -446,12 +448,12 @@ fun FormattingSettingsButton(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Форматування тексту",
+                    text = stringResource(R.string.text_formatting),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "Налаштувати дозволені функції",
+                    text = stringResource(R.string.configure_allowed_features),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

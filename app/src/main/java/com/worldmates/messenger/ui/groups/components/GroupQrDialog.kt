@@ -14,10 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.worldmates.messenger.R
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 
@@ -56,7 +58,7 @@ fun GroupQrDialog(
             ) {
                 // Title
                 Text(
-                    text = "QR код групи",
+                    text = stringResource(R.string.group_qr_code_label),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -89,7 +91,7 @@ fun GroupQrDialog(
                         ) {
                             Image(
                                 bitmap = qrBitmap.asImageBitmap(),
-                                contentDescription = "QR Code",
+                                contentDescription = stringResource(R.string.qr_code),
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -112,7 +114,7 @@ fun GroupQrDialog(
 
                 // Info Text
                 Text(
-                    text = "Скануйте цей QR код або поділіться посиланням",
+                    text = stringResource(R.string.scan_or_share_qr),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -131,11 +133,11 @@ fun GroupQrDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Share,
-                            contentDescription = "Share",
+                            contentDescription = stringResource(R.string.share),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Поділитися")
+                        Text(stringResource(R.string.share))
                     }
 
                     // Close Button
@@ -143,7 +145,7 @@ fun GroupQrDialog(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Закрити")
+                        Text(stringResource(R.string.close))
                     }
                 }
             }

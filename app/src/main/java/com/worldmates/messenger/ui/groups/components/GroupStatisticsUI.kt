@@ -26,9 +26,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.GroupStatistics
 import com.worldmates.messenger.data.model.TopContributor
 
@@ -47,15 +49,15 @@ fun GroupStatisticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Статистика") },
+                title = { Text(stringResource(R.string.statistics_tab)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Оновити")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
                 }
             )
@@ -86,7 +88,7 @@ fun GroupStatisticsScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Статистика недоступна",
+                        text = stringResource(R.string.statistics_unavailable),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -132,7 +134,7 @@ fun StatisticsOverviewCards(statistics: GroupStatistics) {
         ) {
             StatCard(
                 icon = Icons.Default.Group,
-                title = "Учасників",
+                title = stringResource(R.string.members_count_label),
                 value = statistics.membersCount.toString(),
                 trend = if (statistics.growthRate > 0) "+${statistics.growthRate.toInt()}%" else null,
                 trendPositive = statistics.growthRate > 0,
@@ -140,9 +142,9 @@ fun StatisticsOverviewCards(statistics: GroupStatistics) {
             )
             StatCard(
                 icon = Icons.Default.Message,
-                title = "Повідомлень",
+                title = stringResource(R.string.messages_count_label),
                 value = formatNumber(statistics.messagesCount),
-                subtitle = "за весь час",
+                subtitle = stringResource(R.string.all_time),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -153,16 +155,16 @@ fun StatisticsOverviewCards(statistics: GroupStatistics) {
         ) {
             StatCard(
                 icon = Icons.Default.Today,
-                title = "Сьогодні",
+                title = stringResource(R.string.today_label),
                 value = statistics.messagesToday.toString(),
-                subtitle = "повідомлень",
+                subtitle = stringResource(R.string.messages_count_label),
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 icon = Icons.Default.DateRange,
-                title = "За тиждень",
+                title = stringResource(R.string.week_label),
                 value = statistics.messagesThisWeek.toString(),
-                subtitle = "повідомлень",
+                subtitle = stringResource(R.string.messages_count_label),
                 modifier = Modifier.weight(1f)
             )
         }

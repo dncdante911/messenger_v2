@@ -24,10 +24,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.ui.channels.components.ChannelStatisticsCompactCard
 import com.worldmates.messenger.ui.theme.ThemeManager
@@ -96,7 +98,14 @@ fun ChannelAdminPanelScreen(
     val error by viewModel.error.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Info", "Settings", "Stats", "Admins", "Members", "Banned")
+    val tabs = listOf(
+        stringResource(R.string.channel_tab_info),
+        stringResource(R.string.channel_tab_settings),
+        stringResource(R.string.channel_tab_stats),
+        stringResource(R.string.channel_tab_admins),
+        stringResource(R.string.channel_tab_members),
+        stringResource(R.string.channel_tab_banned)
+    )
 
     LaunchedEffect(error) {
         error?.let {
@@ -110,14 +119,14 @@ fun ChannelAdminPanelScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = channel?.name ?: "Admin Panel",
+                        text = channel?.name ?: stringResource(R.string.admin_panel),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

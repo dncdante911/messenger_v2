@@ -23,7 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.network.SearchUser
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,8 +71,8 @@ fun CreateGroupDialog(
                     title = {
                         Text(
                             when (currentStep) {
-                                CreateGroupStep.GROUP_INFO -> "Нова група"
-                                CreateGroupStep.SELECT_MEMBERS -> "Додати учасників"
+                                CreateGroupStep.GROUP_INFO -> stringResource(R.string.new_group)
+                                CreateGroupStep.SELECT_MEMBERS -> stringResource(R.string.add_members)
                             }
                         )
                     },
@@ -82,7 +84,7 @@ fun CreateGroupDialog(
                                 onDismiss()
                             }
                         }) {
-                            Icon(Icons.Default.ArrowBack, "Назад")
+                            Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                         }
                     },
                     actions = {
@@ -117,8 +119,8 @@ fun CreateGroupDialog(
                             } else {
                                 Text(
                                     when (currentStep) {
-                                        CreateGroupStep.GROUP_INFO -> "Далі"
-                                        CreateGroupStep.SELECT_MEMBERS -> "Створити"
+                                        CreateGroupStep.GROUP_INFO -> stringResource(R.string.next)
+                                        CreateGroupStep.SELECT_MEMBERS -> stringResource(R.string.create)
                                     }
                                 )
                             }
@@ -205,14 +207,14 @@ private fun GroupInfoStep(
             if (selectedAvatarUri != null) {
                 AsyncImage(
                     model = selectedAvatarUri,
-                    contentDescription = "Аватар групи",
+                    contentDescription = stringResource(R.string.group_avatar),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "Додати фото",
+                    contentDescription = stringResource(R.string.add_photo),
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -220,7 +222,7 @@ private fun GroupInfoStep(
         }
 
         Text(
-            text = if (selectedAvatarUri != null) "Натисніть щоб змінити фото" else "Натисніть щоб додати фото групи",
+            text = if (selectedAvatarUri != null) stringResource(R.string.tap_to_change_photo) else stringResource(R.string.tap_to_add_group_photo),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -232,8 +234,8 @@ private fun GroupInfoStep(
         OutlinedTextField(
             value = groupName,
             onValueChange = { if (it.length <= 255) onGroupNameChange(it) },
-            label = { Text("Назва групи *") },
-            placeholder = { Text("Введіть назву групи") },
+            label = { Text(stringResource(R.string.group_name_hint)) },
+            placeholder = { Text(stringResource(R.string.enter_group_name)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             supportingText = {
@@ -245,8 +247,8 @@ private fun GroupInfoStep(
         OutlinedTextField(
             value = groupDescription,
             onValueChange = { if (it.length <= 500) onGroupDescriptionChange(it) },
-            label = { Text("Опис (необов'язково)") },
-            placeholder = { Text("Опишіть групу...") },
+            label = { Text(stringResource(R.string.group_description_hint)) },
+            placeholder = { Text(stringResource(R.string.describe_group)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp),
@@ -272,14 +274,14 @@ private fun GroupInfoStep(
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (isPrivate) "Приватна група" else "Публічна група",
+                    text = if (isPrivate) stringResource(R.string.private_group_label) else stringResource(R.string.public_group_label),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(
                     text = if (isPrivate)
-                        "Тільки учасники можуть бачити групу"
+                        stringResource(R.string.only_members_can_see_group)
                     else
-                        "Всі можуть бачити групу",
+                        stringResource(R.string.everyone_can_see_group),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -310,14 +312,14 @@ private fun SelectMembersStep(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            placeholder = { Text("Шукати користувачів...") },
+            placeholder = { Text(stringResource(R.string.search_users_hint)) },
             leadingIcon = {
-                Icon(Icons.Default.Search, "Пошук")
+                Icon(Icons.Default.Search, stringResource(R.string.search))
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Default.Clear, "Очистити")
+                        Icon(Icons.Default.Clear, stringResource(R.string.clear))
                     }
                 }
             },
@@ -331,7 +333,7 @@ private fun SelectMembersStep(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Обрано: ${selectedUsers.size}",
+                    text = stringResource(R.string.selected_count, selectedUsers.size),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer

@@ -20,9 +20,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.*
 
 /**
@@ -51,20 +53,26 @@ fun GroupAdminPanelScreen(
     onRefresh: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Загальні", "Права", "Запити", "Пости", "Статистика")
+    val tabs = listOf(
+        stringResource(R.string.general_tab),
+        stringResource(R.string.permissions_tab),
+        stringResource(R.string.requests_tab),
+        stringResource(R.string.posts_tab),
+        stringResource(R.string.statistics_tab)
+    )
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Адмін-панель") },
+                title = { Text(stringResource(R.string.admin_panel)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Оновити")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
                 }
             )

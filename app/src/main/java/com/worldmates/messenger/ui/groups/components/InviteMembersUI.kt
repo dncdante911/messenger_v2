@@ -26,9 +26,11 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.network.SearchUser
 import com.worldmates.messenger.util.toFullMediaUrl
 
@@ -103,13 +105,13 @@ fun ModernInviteMembersDialog(
             ) {
                 Column {
                     Text(
-                        text = "Invite Members",
+                        text = stringResource(R.string.invite_members_title),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = textPrimary
                     )
                     Text(
-                        text = "to $groupName",
+                        text = stringResource(R.string.to_group_format, groupName),
                         fontSize = 14.sp,
                         color = textSecondary
                     )
@@ -119,7 +121,7 @@ fun ModernInviteMembersDialog(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.close),
                         tint = textSecondary
                     )
                 }
@@ -142,7 +144,7 @@ fun ModernInviteMembersDialog(
             ModernSearchBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                placeholder = "Search users by name or username...",
+                placeholder = stringResource(R.string.search_users_placeholder),
                 isLoading = isSearching,
                 isDarkTheme = isDarkTheme
             )

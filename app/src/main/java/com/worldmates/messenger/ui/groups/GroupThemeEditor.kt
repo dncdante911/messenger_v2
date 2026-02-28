@@ -50,8 +50,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.preferences.BubbleStyle
 import com.worldmates.messenger.ui.theme.PresetBackground
 
@@ -87,7 +89,7 @@ fun GroupThemeEditorDialog(
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Тема: $groupName")
+                Text(stringResource(R.string.group_theme) + ": $groupName")
             }
         },
         text = {
@@ -99,7 +101,7 @@ fun GroupThemeEditorDialog(
             ) {
                 // Готові шаблони
                 Text(
-                    text = "Готові шаблони",
+                    text = stringResource(R.string.ready_templates),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -129,7 +131,7 @@ fun GroupThemeEditorDialog(
 
                 // Стиль бульбашок
                 Text(
-                    text = "Стиль бульбашок",
+                    text = stringResource(R.string.bubble_style),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -154,7 +156,7 @@ fun GroupThemeEditorDialog(
 
                 // Фон чату
                 Text(
-                    text = "Фон чату",
+                    text = stringResource(R.string.chat_background),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -179,7 +181,7 @@ fun GroupThemeEditorDialog(
 
                 // Акцентний колір
                 Text(
-                    text = "Акцентний колір",
+                    text = stringResource(R.string.accent_color),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -246,7 +248,7 @@ fun GroupThemeEditorDialog(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            "Скинути до глобальної теми",
+                            stringResource(R.string.reset_to_global_theme),
                             color = MaterialTheme.colorScheme.error
                         )
                     }
@@ -267,12 +269,12 @@ fun GroupThemeEditorDialog(
                     onDismiss()
                 }
             ) {
-                Text("Зберегти")
+                Text(stringResource(R.string.save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Скасувати")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -473,12 +475,12 @@ fun GroupThemeButton(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Тема групи",
+                    text = stringResource(R.string.group_theme),
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(
-                    text = if (hasTheme) "Кастомна тема встановлена" else "Використовується глобальна тема",
+                    text = if (hasTheme) stringResource(R.string.custom_theme_applied) else stringResource(R.string.using_global_theme),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
