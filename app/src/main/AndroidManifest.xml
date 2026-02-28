@@ -78,6 +78,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Language Selection Activity (shown once on first launch) -->
+        <activity
+            android:name=".ui.language.LanguageSelectionActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- UI Style Onboarding (shown once on first login) -->
         <activity
             android:name=".ui.onboarding.UIStyleOnboardingActivity"

@@ -9,6 +9,7 @@ import coil.decode.ImageDecoderDecoder
 import timber.log.Timber
 import com.worldmates.messenger.update.AppUpdateManager
 import com.worldmates.messenger.services.NotificationKeepAliveManager
+import com.worldmates.messenger.utils.LanguageManager
 
 /**
  * Главный Application класс WorldMates Messenger
@@ -24,6 +25,10 @@ class WMApplication : MultiDexApplication(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        // Ініціалізація менеджера мови (до будь-чого іншого)
+        LanguageManager.init(this)
+        LanguageManager.applyToConfiguration(this)
 
         // Initialize Timber for logging
         if (BuildConfig.DEBUG) {

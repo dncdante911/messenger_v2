@@ -48,18 +48,31 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.worldmates.messenger.ui.chats.ChatsActivity
 import com.worldmates.messenger.ui.components.*
+import com.worldmates.messenger.ui.language.LanguageSelectionActivity
 import com.worldmates.messenger.ui.theme.*
+import com.worldmates.messenger.utils.LanguageManager
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var viewModel: LoginViewModel
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Дозволяємо Compose керувати window insets
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // Перший запуск: показати вибір мови
+        if (!LanguageManager.isLanguageSelected) {
+            startActivity(Intent(this, LanguageSelectionActivity::class.java))
+            finish()
+            return
+        }
 
         // Проверка автологина
         if (com.worldmates.messenger.data.UserSession.isLoggedIn) {
