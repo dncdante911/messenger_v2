@@ -56,11 +56,6 @@ CREATE TABLE IF NOT EXISTS `Wo_Bots` (
   KEY `idx_is_public` (`is_public`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Добавить linked_user_id если таблица уже существовала без него
-ALTER TABLE `Wo_Bots` ADD COLUMN IF NOT EXISTS
-  `linked_user_id` int(11) DEFAULT NULL
-  COMMENT 'Соответствующий user_id в Wo_Users (для поиска и DM)';
-
 -- ==================== Wo_Bot_Commands ====================
 CREATE TABLE IF NOT EXISTS `Wo_Bot_Commands` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
