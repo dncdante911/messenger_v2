@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -337,35 +338,53 @@ fun getEmojiSize(text: String): androidx.compose.ui.unit.TextUnit {
 // ==================== BUBBLE COLORS ====================
 
 /**
- * Get bubble background color based on UI style
+ * Get bubble background color based on UI style and theme
  */
 @Composable
 fun getBubbleBackgroundColor(isOwn: Boolean): Color {
     val uiStyle = rememberUIStyle()
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     return when (uiStyle) {
         UIStyle.WORLDMATES -> {
-            if (isOwn) Color(0xFF4A90E2) else Color(0xFFF0F0F0)
+            if (isOwn) {
+                if (isDarkTheme) Color(0xFF2B5FA4) else Color(0xFF3B82D9)
+            } else {
+                if (isDarkTheme) Color(0xFF2A2F3A) else Color(0xFFF0F2F5)
+            }
         }
         UIStyle.TELEGRAM -> {
-            if (isOwn) Color(0xFFDCF8C6) else Color(0xFFFFFFFF)
+            if (isOwn) {
+                if (isDarkTheme) Color(0xFF2B6B3E) else Color(0xFFD8F9C2)
+            } else {
+                if (isDarkTheme) Color(0xFF2A2F3A) else Color(0xFFFFFFFF)
+            }
         }
     }
 }
 
 /**
- * Get text color based on UI style
+ * Get text color based on UI style and theme
  */
 @Composable
 fun getBubbleTextColor(isOwn: Boolean): Color {
     val uiStyle = rememberUIStyle()
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     return when (uiStyle) {
         UIStyle.WORLDMATES -> {
-            if (isOwn) Color.White else Color(0xFF1F1F1F)
+            if (isOwn) {
+                Color.White
+            } else {
+                if (isDarkTheme) Color(0xFFE4E8EE) else Color(0xFF1A1C20)
+            }
         }
         UIStyle.TELEGRAM -> {
-            Color(0xFF1F1F1F)
+            if (isDarkTheme) {
+                if (isOwn) Color(0xFFE8F5E9) else Color(0xFFE4E8EE)
+            } else {
+                Color(0xFF1A1C20)
+            }
         }
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.dp
 import com.worldmates.messenger.ui.preferences.BubbleStyle
@@ -33,24 +34,24 @@ fun StandardBubble(
         modifier = modifier,
         shape = if (isOwn) {
             RoundedCornerShape(
-                topStart = 20.dp,
-                topEnd = 20.dp,
-                bottomStart = 20.dp,
+                topStart = 18.dp,
+                topEnd = 18.dp,
+                bottomStart = 18.dp,
                 bottomEnd = 4.dp
             )
         } else {
             RoundedCornerShape(
-                topStart = 20.dp,
-                topEnd = 20.dp,
+                topStart = 18.dp,
+                topEnd = 18.dp,
                 bottomStart = 4.dp,
-                bottomEnd = 20.dp
+                bottomEnd = 18.dp
             )
         },
         colors = CardDefaults.cardColors(containerColor = bgColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             content = content
         )
     }
@@ -129,14 +130,14 @@ fun TelegramBubble(
         modifier = modifier
             .clip(
                 RoundedCornerShape(
-                    topStart = 12.dp,
-                    topEnd = 12.dp,
-                    bottomStart = if (isOwn) 12.dp else 2.dp,
-                    bottomEnd = if (isOwn) 2.dp else 12.dp
+                    topStart = 14.dp,
+                    topEnd = 14.dp,
+                    bottomStart = if (isOwn) 14.dp else 2.dp,
+                    bottomEnd = if (isOwn) 2.dp else 14.dp
                 )
             )
             .background(bgColor)
-            .padding(horizontal = 12.dp, vertical = 5.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Column(content = content)
     }
@@ -172,16 +173,24 @@ fun ModernBubble(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
     val gradientBrush = if (isOwn) {
         Brush.linearGradient(
-            colors = listOf(
-                Color(0xFFDCF8C6),
-                Color(0xFFC8E6C9)
+            colors = if (isDark) listOf(
+                Color(0xFF2B5FA4),
+                Color(0xFF1E4A80)
+            ) else listOf(
+                Color(0xFF4A9AE8),
+                Color(0xFF3580D0)
             )
         )
     } else {
         Brush.linearGradient(
-            colors = listOf(
+            colors = if (isDark) listOf(
+                Color(0xFF2A2F3A),
+                Color(0xFF232832)
+            ) else listOf(
                 Color(0xFFF5F5F5),
                 Color(0xFFE8E8E8)
             )
@@ -190,12 +199,12 @@ fun ModernBubble(
 
     Box(
         modifier = modifier
-            .shadow(4.dp, RoundedCornerShape(18.dp))
+            .shadow(2.dp, RoundedCornerShape(18.dp))
             .clip(RoundedCornerShape(18.dp))
             .background(gradientBrush)
             .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.5f),
+                width = 0.5.dp,
+                color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(18.dp)
             )
             .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -214,16 +223,18 @@ fun RetroBubble(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
     val retroBg = if (isOwn) {
-        Color(0xFFFFE082)  // Жовтий
+        if (isDark) Color(0xFF8B6914) else Color(0xFFFFE082)
     } else {
-        Color(0xFFB39DDB)  // Фіолетовий
+        if (isDark) Color(0xFF4A3680) else Color(0xFFB39DDB)
     }
 
     val borderColor = if (isOwn) {
-        Color(0xFFFF6F00)  // Помаранчевий
+        if (isDark) Color(0xFFC47F00) else Color(0xFFFF6F00)
     } else {
-        Color(0xFF5E35B1)  // Темно-фіолетовий
+        if (isDark) Color(0xFF7E57C2) else Color(0xFF5E35B1)
     }
 
     Box(
@@ -231,7 +242,7 @@ fun RetroBubble(
             .clip(RoundedCornerShape(8.dp))
             .background(retroBg)
             .border(
-                width = 3.dp,
+                width = 2.dp,
                 color = borderColor,
                 shape = RoundedCornerShape(8.dp)
             )
@@ -251,20 +262,22 @@ fun GlassBubble(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
     val glassColor = if (isOwn) {
-        bgColor.copy(alpha = 0.55f)
+        bgColor.copy(alpha = if (isDark) 0.65f else 0.55f)
     } else {
-        Color.White.copy(alpha = 0.45f)
+        if (isDark) Color(0xFF2A2F3A).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.45f)
     }
 
     Box(
         modifier = modifier
-            .shadow(6.dp, RoundedCornerShape(20.dp))
+            .shadow(4.dp, RoundedCornerShape(20.dp))
             .clip(RoundedCornerShape(20.dp))
             .background(glassColor)
             .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.4f),
+                width = 0.5.dp,
+                color = if (isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.4f),
                 shape = RoundedCornerShape(20.dp)
             )
             .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -317,19 +330,23 @@ fun GradientBubble(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
     val gradientBrush = if (isOwn) {
         Brush.linearGradient(
-            colors = listOf(Color(0xFF667eea), Color(0xFF764ba2))
+            colors = if (isDark) listOf(Color(0xFF4A5BA0), Color(0xFF5C3D8F))
+                     else listOf(Color(0xFF667eea), Color(0xFF764ba2))
         )
     } else {
         Brush.linearGradient(
-            colors = listOf(Color(0xFFf5f7fa), Color(0xFFc3cfe2))
+            colors = if (isDark) listOf(Color(0xFF2A2F3A), Color(0xFF262B35))
+                     else listOf(Color(0xFFf5f7fa), Color(0xFFc3cfe2))
         )
     }
 
     Box(
         modifier = modifier
-            .shadow(3.dp, RoundedCornerShape(18.dp))
+            .shadow(2.dp, RoundedCornerShape(18.dp))
             .clip(RoundedCornerShape(18.dp))
             .background(gradientBrush)
             .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -348,21 +365,21 @@ fun NeumorphismBubble(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val surfaceColor = if (isOwn) Color(0xFFE8EAF6) else Color(0xFFF5F5F5)
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    val surfaceColor = if (isDark) {
+        if (isOwn) Color(0xFF2B3548) else Color(0xFF252A34)
+    } else {
+        if (isOwn) Color(0xFFE8EAF6) else Color(0xFFF5F5F5)
+    }
 
     Box(
         modifier = modifier
             .shadow(
-                elevation = 8.dp,
+                elevation = if (isDark) 6.dp else 8.dp,
                 shape = RoundedCornerShape(22.dp),
-                spotColor = Color.Black.copy(alpha = 0.15f),
-                ambientColor = Color.Black.copy(alpha = 0.08f)
-            )
-            .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(22.dp),
-                spotColor = Color.White.copy(alpha = 0.9f),
-                ambientColor = Color.White.copy(alpha = 0.5f)
+                spotColor = Color.Black.copy(alpha = if (isDark) 0.3f else 0.15f),
+                ambientColor = Color.Black.copy(alpha = if (isDark) 0.2f else 0.08f)
             )
             .clip(RoundedCornerShape(22.dp))
             .background(surfaceColor)
