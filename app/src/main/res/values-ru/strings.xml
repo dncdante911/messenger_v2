@@ -980,8 +980,8 @@
     <string name="connection_offline">🔴 Нет соединения. Показываются кешированные сообщения.</string>
 
     <!-- ===== MODERN CHATS UI ===== -->
-    <string name="no_chats_yet">Нет чатов</string>
-    <string name="start_conversation">Начните общение с друзьями</string>
+    <string name="no_chats_yet">У вас нет чатов</string>
+    <string name="start_conversation">Начните разговор прямо сейчас!</string>
     <string name="muted_indicator">Без звука</string>    <string name="no_messages_preview">Нет сообщений</string>
     <string name="image_caption">Фото</string>
     <string name="video_caption">Видео</string>
@@ -1176,8 +1176,6 @@
     <string name="no_groups_subtitle">Создайте новую группу или присоединитесь к существующей</string>
     <string name="invite_friends_text">Присоединяйся к WorldMates — лучшему мессенджеру! 🚀\nСкачай здесь: https://worldmates.club</string>
     <string name="no_messages_in_chat">Нет сообщений</string>
-    <string name="start_conversation">Начните разговор прямо сейчас!</string>
-    <string name="no_chats_yet">У вас нет чатов</string>
 
     <!-- PRIVATE CHATS: Extra toasts and dialogs -->
     <string name="open_link_failed">Не удалось открыть ссылку</string>
