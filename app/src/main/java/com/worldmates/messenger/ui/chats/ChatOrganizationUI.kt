@@ -48,8 +48,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Chat
 
 /**
@@ -86,7 +88,7 @@ fun ChatFolderTabs(
         // Archived tab
         if (archivedCount.isNotEmpty()) {
             FolderTabChip(
-                folder = ChatFolder("archived", "Архів", "📦", 99),
+                folder = ChatFolder("archived", stringResource(R.string.archive), "📦", 99),
                 isSelected = selectedFolderId == "archived",
                 badge = archivedCount.size,
                 onClick = { onFolderSelected("archived") }
@@ -100,7 +102,7 @@ fun ChatFolderTabs(
         ) {
             Icon(
                 Icons.Default.Add,
-                contentDescription = "Додати папку",
+                contentDescription = stringResource(R.string.add),
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -255,12 +257,12 @@ fun CreateFolderDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Нова папка") },
+        title = { Text(stringResource(R.string.new_folder_dialog_title)) },
         text = {
             Column {
                 // Лімітер папок
                 Text(
-                    text = "Папок: $customCount / $maxCount",
+                    text = stringResource(R.string.folder_count_format, customCount, maxCount),
                     fontSize = 12.sp,
                     color = if (canCreate)
                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -270,7 +272,7 @@ fun CreateFolderDialog(
                 )
                 if (!canCreate) {
                     Text(
-                        text = "Ліміт досягнуто. Оформіть підписку для більшої кількості.",
+                        text = stringResource(R.string.folder_limit_reached),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -280,13 +282,13 @@ fun CreateFolderDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Назва папки") },
+                    label = { Text(stringResource(R.string.folder_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = canCreate
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Оберіть іконку:", fontSize = 14.sp)
+                Text(stringResource(R.string.choose_icon_label), fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -314,10 +316,10 @@ fun CreateFolderDialog(
             TextButton(
                 onClick = { if (name.isNotBlank() && canCreate) onConfirm(name.trim(), emoji) },
                 enabled = name.isNotBlank() && canCreate
-            ) { Text("Створити") }
+            ) { Text(stringResource(R.string.create)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Скасувати") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
@@ -337,11 +339,11 @@ fun ManageTagsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Теги: $chatName") },
+        title = { Text(stringResource(R.string.tags) + ": $chatName") },
         text = {
             Column {
                 Text(
-                    "Оберіть або створіть теги:",
+                    stringResource(R.string.select_or_create_tags),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -381,7 +383,7 @@ fun ManageTagsDialog(
                     OutlinedTextField(
                         value = customTagName,
                         onValueChange = { customTagName = it },
-                        label = { Text("Свій тег") },
+                        label = { Text(stringResource(R.string.custom_tag)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
@@ -397,13 +399,13 @@ fun ManageTagsDialog(
                             }
                         }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Додати")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Готово") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
         }
     )
 }
@@ -426,24 +428,24 @@ fun ChatContextMenu(
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         if (isArchived) {
             DropdownMenuItem(
-                text = { Text("Розархівувати") },
+                text = { Text(stringResource(R.string.unarchive)) },
                 onClick = { onUnarchive(); onDismiss() },
                 leadingIcon = { Icon(Icons.Default.Unarchive, contentDescription = null) }
             )
         } else {
             DropdownMenuItem(
-                text = { Text("Архівувати") },
+                text = { Text(stringResource(R.string.archive_chat)) },
                 onClick = { onArchive(); onDismiss() },
                 leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null) }
             )
         }
         DropdownMenuItem(
-            text = { Text("Теги") },
+            text = { Text(stringResource(R.string.tags)) },
             onClick = { onManageTags(); onDismiss() },
             leadingIcon = { Icon(Icons.Default.Label, contentDescription = null) }
         )
         DropdownMenuItem(
-            text = { Text("Перемістити в папку") },
+            text = { Text(stringResource(R.string.move_to_folder)) },
             onClick = { onMoveToFolder(); onDismiss() },
             leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) }
         )
@@ -464,12 +466,12 @@ fun MoveToChatFolderDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Перемістити: $chatName") },
+        title = { Text(stringResource(R.string.move_chat_title_format, chatName)) },
         text = {
             Column {
                 if (customFolders.isEmpty()) {
                     Text(
-                        "Немає власних папок. Створіть папку натиснувши + на панелі папок.",
+                        stringResource(R.string.no_custom_folders_message),
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -512,13 +514,13 @@ fun MoveToChatFolderDialog(
                     ) {
                         Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Прибрати з папки")
+                        Text(stringResource(R.string.remove_from_folder))
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Закрити") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
         }
     )
 }

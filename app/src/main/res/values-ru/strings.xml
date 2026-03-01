@@ -1062,4 +1062,128 @@
     <string name="like">Лайк</string>
     <string name="disliked">Дизлайк поставлен</string>
     <string name="dislike">Дизлайк</string>
+
+    <!-- PRIVATE CHATS: Permissions -->
+    <string name="mic_permission_granted">✅ Разрешение на микрофон предоставлено</string>
+    <string name="mic_permission_required">⚠️ Для голосовых сообщений требуется разрешение на микрофон</string>
+    <string name="camera_no_mic_warning">⚠️ Камера разрешена, но без микрофона видео будет без звука</string>
+    <string name="camera_permission_required">⚠️ Для видеосообщений требуется доступ к камере</string>
+
+    <!-- PRIVATE CHATS: Message input modes and input bar -->
+    <string name="input_mode_text">Текст</string>
+    <string name="input_mode_voice">Голос</string>
+    <string name="input_mode_video">Видео</string>
+    <string name="input_mode_emoji">Эмодзи</string>
+    <string name="input_mode_stickers">Стикеры</string>
+    <string name="input_mode_gif">GIF</string>
+    <string name="media_options_label">Параметры</string>
+    <string name="voice_hold_to_record_hint">Нажмите и удерживайте для записи →</string>
+    <string name="video_record_hint">Нажмите 📹 справа для записи</string>
+    <string name="add_comment_placeholder">Добавить комментарий...</string>
+    <string name="swipe_up_hint">⬆️ Свайп вверх</string>
+    <string name="send_audio_title">Отправить аудио</string>
+    <string name="audio_file_size_format">Размер: %s МБ</string>
+    <string name="audio_quality_original">Оригинальное качество</string>
+    <string name="audio_quality_original_desc">Без сжатия, полное качество звука</string>
+    <string name="audio_quality_compressed">Сжатый (экономия трафика)</string>
+    <string name="audio_quality_compressed_desc">Уменьшенный размер, меньше трафика</string>
+
+    <!-- PRIVATE CHATS: History and message actions -->
+    <string name="for_me_only">Только для меня</string>
+    <string name="for_all_members">Для всех участников</string>
+    <string name="for_everyone">Для всех</string>
+    <string name="history_cleared_for_me_toast">Ваша история очищена</string>
+    <string name="history_cleared_for_all_toast">История очищена для всех</string>
+    <string name="message_pinned_toast">Сообщение закреплено</string>
+    <string name="message_unpinned_toast">Сообщение откреплено</string>
+    <string name="messages_deleted_count">Удалено %d сообщений</string>
+    <string name="pinned_message_not_found">Закреплённое сообщение не найдено в истории</string>
+    <string name="search_type_title">Выберите тип поиска</string>
+    <string name="text_search">Текстовый поиск</string>
+    <string name="media_search">Медиа поиск</string>
+    <string name="text_search_desc">Текстовый поиск — поиск по содержимому сообщений</string>
+    <string name="media_search_desc">Медиа поиск — поиск файлов (фото, видео, аудио)</string>
+    <string name="delete_message_choice_desc">Удалить сообщение для всех участников чата или только для себя?</string>
+    <string name="edit_apply_where">Где применить изменения?</string>
+    <string name="delete_n_messages_title">Удалить %d сообщений</string>
+    <string name="delete_messages_choice_desc">Удалить для всех участников или только для себя?</string>
+    <string name="username_copied_toast">Username скопирован</string>
+
+    <!-- PRIVATE CHATS: Message bubble context menu -->
+    <string name="message_selected">Выбрано</string>
+    <string name="message_not_selected">Не выбрано</string>
+    <string name="delete_media_title">Удалить медиа?</string>
+    <string name="delete_media_warning">Это сообщение будет удалено навсегда</string>
+    <string name="message_read">Прочитано</string>
+    <string name="message_sent">Отправлено</string>
+    <string name="message_delivered">Доставлено</string>
+    <string name="cancel_reply_desc">Отменить ответ</string>
+    <string name="editing_indicator_desc">Редактирование</string>
+    <string name="cancel_editing_desc">Отменить редактирование</string>
+    <string name="editing_message_label">Редактирование сообщения</string>
+    <string name="message_actions_title">Действия с сообщением</string>
+    <string name="you_label">Вы</string>
+    <string name="user_label">Пользователь</string>
+    <string name="media_placeholder">[Медиа]</string>
+    <string name="share_media_failed">Не удалось поделиться медиа</string>
+
+    <!-- PRIVATE CHATS: Chat list and search -->
+    <string name="search_users_title">Поиск пользователей</string>
+    <string name="enter_name_or_username">Введите имя или username</string>
+    <string name="search_button">Искать</string>
+    <string name="loading_groups">Загрузка групп...</string>
+    <string name="load_error">Ошибка загрузки</string>
+    <string name="load_groups_error">Ошибка загрузки групп</string>
+    <string name="group_deleted_toast">Группа удалена</string>
+    <string name="select_group_for_avatar">Выберите группу для смены аватарки</string>
+    <string name="chat_hidden_toast">Чат скрыт</string>
+    <string name="notifications_enabled_for">Уведомления включены для %s</string>
+    <string name="notifications_disabled_for">Уведомления выключены для %s</string>
+    <string name="unread_label">Непрочитанные</string>
+    <string name="archive_folder_label">📦 Архив</string>
+    <string name="saved_label">Сохранённые</string>
+    <string name="contact_selected">Выбран контакт: %s</string>
+    <string name="invite_friend_chooser_title">Пригласить друга</string>
+
+    <!-- PRIVATE CHATS: Contact actions -->
+    <string name="contact_actions_title">Действия с контактом</string>
+    <string name="rename_contact_title">Переименовать контакт</string>
+    <string name="change_nickname">Изменить псевдоним</string>
+    <string name="add_nickname">Добавить псевдоним</string>
+    <string name="enter_nickname_placeholder">Введите псевдоним</string>
+    <string name="reset_to_original_name">Сбросить до оригинального имени</string>
+    <string name="set_nickname_instruction">Задайте удобное имя для контакта %s</string>
+
+    <!-- PRIVATE CHATS: Folder and tag organization -->
+    <string name="new_folder_dialog_title">Новая папка</string>
+    <string name="folder_count_format">Папок: %1$d / %2$d</string>
+    <string name="folder_limit_reached">Лимит достигнут. Оформите подписку для большего количества.</string>
+    <string name="choose_icon_label">Выберите иконку:</string>
+    <string name="select_or_create_tags">Выберите или создайте теги:</string>
+    <string name="move_chat_title_format">Переместить: %s</string>
+    <string name="no_custom_folders_message">Нет собственных папок. Создайте папку, нажав + на панели папок.</string>
+    <string name="remove_from_folder">Убрать из папки</string>
+
+    <!-- CHATS SCREEN: Modern tabs and channels -->
+    <string name="no_channels_subtitle">Подпишитесь на каналы, чтобы видеть их здесь</string>
+    <string name="subscribed_toast">Подписались!</string>
+    <string name="unsubscribed_toast">Отписались</string>
+    <string name="chat_archived_toast">Чат архивирован</string>
+    <string name="chat_unarchived_toast">Чат разархивирован</string>
+    <string name="chat_label">Чат</string>
+
+    <!-- CHATS SCREEN: Drawer and state strings -->
+    <string name="no_groups_subtitle">Создайте новую группу или присоединитесь к существующей</string>
+    <string name="invite_friends_text">Присоединяйся к WorldMates — лучшему мессенджеру! 🚀\nСкачай здесь: https://worldmates.club</string>
+    <string name="no_messages_in_chat">Нет сообщений</string>
+    <string name="start_conversation">Начните разговор прямо сейчас!</string>
+    <string name="no_chats_yet">У вас нет чатов</string>
+
+    <!-- PRIVATE CHATS: Extra toasts and dialogs -->
+    <string name="open_link_failed">Не удалось открыть ссылку</string>
+    <string name="max_files_per_message">Максимум %d файлов за раз</string>
+    <string name="edited_photo_sending">Отредактированное фото отправляется…</string>
+    <string name="scroll_to_see_image">Прокрутите чат, чтобы увидеть это изображение</string>
+    <string name="scroll_to_play_video">Прокрутите чат, чтобы воспроизвести видео</string>
+    <string name="file_type_in_dev">Открытие %s файлов — в разработке</string>
 </resources>

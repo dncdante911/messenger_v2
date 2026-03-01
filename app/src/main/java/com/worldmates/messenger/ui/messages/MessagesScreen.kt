@@ -296,7 +296,7 @@ fun MessagesScreen(
             Log.e("MessagesScreen", "Помилка відкриття URL: ${e.message}")
             android.widget.Toast.makeText(
                 context,
-                "Не вдалося відкрити посилання",
+                context.getString(R.string.open_link_failed),
                 android.widget.Toast.LENGTH_SHORT
             ).show()
         }
@@ -475,7 +475,7 @@ fun MessagesScreen(
                 Log.w("MessagesScreen", "Вибрано занадто багато файлів: ${uris.size}, макс: ${Constants.MAX_FILES_PER_MESSAGE}")
                 android.widget.Toast.makeText(
                     context,
-                    "Максимум ${Constants.MAX_FILES_PER_MESSAGE} файлів за раз",
+                    context.getString(R.string.max_files_per_message, Constants.MAX_FILES_PER_MESSAGE),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
             } else {
@@ -611,7 +611,7 @@ fun MessagesScreen(
                         if (currentGroup!!.isMuted) {
                             viewModel.unmuteGroup(
                                 onSuccess = {
-                                    android.widget.Toast.makeText(context, "Сповіщення увімкнено для $recipientName", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, context.getString(R.string.notifications_enabled_for, recipientName), android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 onError = { error ->
                                     android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
@@ -620,7 +620,7 @@ fun MessagesScreen(
                         } else {
                             viewModel.muteGroup(
                                 onSuccess = {
-                                    android.widget.Toast.makeText(context, "Сповіщення вимкнено для $recipientName", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, context.getString(R.string.notifications_disabled_for, recipientName), android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 onError = { error ->
                                     android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
@@ -632,7 +632,7 @@ fun MessagesScreen(
                         if (isMutedPrivate) {
                             viewModel.unmutePrivateChat(
                                 onSuccess = {
-                                    android.widget.Toast.makeText(context, "Сповіщення увімкнено для $recipientName", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, context.getString(R.string.notifications_enabled_for, recipientName), android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 onError = { error ->
                                     android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
@@ -641,7 +641,7 @@ fun MessagesScreen(
                         } else {
                             viewModel.mutePrivateChat(
                                 onSuccess = {
-                                    android.widget.Toast.makeText(context, "Сповіщення вимкнено для $recipientName", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, context.getString(R.string.notifications_disabled_for, recipientName), android.widget.Toast.LENGTH_SHORT).show()
                                 },
                                 onError = { error ->
                                     android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
@@ -655,25 +655,25 @@ fun MessagesScreen(
                     if (isGroup && isGroupAdmin) {
                         // Admin gets a choice: for me / for all
                         android.app.AlertDialog.Builder(context)
-                            .setTitle("Очистити історію")
-                            .setMessage("Виберіть тип очищення:")
-                            .setPositiveButton("Тільки для мене") { _, _ ->
+                            .setTitle(context.getString(R.string.clear_history))
+                            .setMessage(context.getString(R.string.search_type_title))
+                            .setPositiveButton(context.getString(R.string.for_me_only)) { _, _ ->
                                 viewModel.clearChatHistory(
-                                    onSuccess = { android.widget.Toast.makeText(context, "Твою історію очищено", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onSuccess = { android.widget.Toast.makeText(context, context.getString(R.string.history_cleared_for_me_toast), android.widget.Toast.LENGTH_SHORT).show() },
                                     onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
                                 )
                             }
-                            .setNeutralButton("Для всіх учасників") { _, _ ->
+                            .setNeutralButton(context.getString(R.string.for_all_members)) { _, _ ->
                                 viewModel.clearGroupHistoryForAll(
-                                    onSuccess = { android.widget.Toast.makeText(context, "Історію очищено для всіх", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onSuccess = { android.widget.Toast.makeText(context, context.getString(R.string.history_cleared_for_all_toast), android.widget.Toast.LENGTH_SHORT).show() },
                                     onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
                                 )
                             }
-                            .setNegativeButton("Скасувати", null)
+                            .setNegativeButton(context.getString(R.string.cancel), null)
                             .show()
                     } else {
                         viewModel.clearChatHistory(
-                            onSuccess = { android.widget.Toast.makeText(context, "Історію очищено", android.widget.Toast.LENGTH_SHORT).show() },
+                            onSuccess = { android.widget.Toast.makeText(context, context.getString(R.string.history_cleared_for_me_toast), android.widget.Toast.LENGTH_SHORT).show() },
                             onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
                         )
                     }
@@ -735,7 +735,7 @@ fun MessagesScreen(
                             messageText = messageToEdit.decryptedText ?: ""
                             isSelectionMode = false
                             selectedMessages = emptySet()
-                            android.widget.Toast.makeText(context, "Редагування повідомлення", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.editing_message_label), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 },
@@ -747,7 +747,7 @@ fun MessagesScreen(
                             viewModel.pinGroupMessage(
                                 messageId = messageId,
                                 onSuccess = {
-                                    android.widget.Toast.makeText(context, "Повідомлення закріплено", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, context.getString(R.string.message_pinned_toast), android.widget.Toast.LENGTH_SHORT).show()
                                     isSelectionMode = false
                                     selectedMessages = emptySet()
                                 },
@@ -757,7 +757,7 @@ fun MessagesScreen(
                             )
                         } else {
                             viewModel.pinPrivateMessage(messageId, true)
-                            android.widget.Toast.makeText(context, "Повідомлення закріплено", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, context.getString(R.string.message_pinned_toast), android.widget.Toast.LENGTH_SHORT).show()
                             isSelectionMode = false
                             selectedMessages = emptySet()
                         }
@@ -768,7 +768,7 @@ fun MessagesScreen(
                     selectedMessages.forEach { messageId ->
                         viewModel.deleteMessage(messageId)
                     }
-                    android.widget.Toast.makeText(context, "Видалено ${selectedMessages.size} повідомлень", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, context.getString(R.string.messages_deleted_count, selectedMessages.size), android.widget.Toast.LENGTH_SHORT).show()
                     isSelectionMode = false
                     selectedMessages = emptySet()
                 },
@@ -804,13 +804,13 @@ fun MessagesScreen(
                             }
                             android.widget.Toast.makeText(
                                 context,
-                                "Переміщення до закріпленого повідомлення",
+                                context.getString(R.string.message_pinned_toast),
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         } else {
                             android.widget.Toast.makeText(
                                 context,
-                                "Закріплене повідомлення не знайдено в історії",
+                                context.getString(R.string.pinned_message_not_found),
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -820,7 +820,7 @@ fun MessagesScreen(
                             onSuccess = {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "Повідомлення відкріплено",
+                                    context.getString(R.string.message_unpinned_toast),
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             },
@@ -853,7 +853,7 @@ fun MessagesScreen(
                     },
                     onUnpinClick = {
                         viewModel.pinPrivateMessage(pinnedMsg.id, false)
-                        android.widget.Toast.makeText(context, "Повідомлення відкріплено", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.message_unpinned_toast), android.widget.Toast.LENGTH_SHORT).show()
                     },
                     canUnpin = true
                 )
@@ -910,12 +910,12 @@ fun MessagesScreen(
             if (showSearchTypeDialog) {
                 AlertDialog(
                     onDismissRequest = { showSearchTypeDialog = false },
-                    title = { Text("Виберіть тип пошуку") },
+                    title = { Text(stringResource(R.string.search_type_title)) },
                     text = {
                         Column {
-                            Text("Текстовий пошук — пошук за вмістом повідомлень")
+                            Text(stringResource(R.string.text_search_desc))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Медіа пошук — пошук файлів (фото, відео, аудіо)")
+                            Text(stringResource(R.string.media_search_desc))
                         }
                     },
                     confirmButton = {
@@ -925,7 +925,7 @@ fun MessagesScreen(
                                 showMediaSearch = true
                             }
                         ) {
-                            Text("Медіа пошук")
+                            Text(stringResource(R.string.media_search))
                         }
                     },
                     dismissButton = {
@@ -935,7 +935,7 @@ fun MessagesScreen(
                                 showSearchBar = true
                             }
                         ) {
-                            Text("Текстовий пошук")
+                            Text(stringResource(R.string.text_search))
                         }
                     }
                 )
@@ -960,7 +960,7 @@ fun MessagesScreen(
                                 } else {
                                     android.widget.Toast.makeText(
                                         context,
-                                        "Прокрутите чат, чтобы увидеть это изображение",
+                                        context.getString(R.string.scroll_to_see_image),
                                         android.widget.Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -969,7 +969,7 @@ fun MessagesScreen(
                                 // Videos are shown inline - scroll to message or show toast
                                 android.widget.Toast.makeText(
                                     context,
-                                    "Прокрутите чат, чтобы воспроизвести видео",
+                                    context.getString(R.string.scroll_to_play_video),
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                                 showMediaSearch = false
@@ -977,7 +977,7 @@ fun MessagesScreen(
                             else -> {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "Открытие ${message.type} файлов - в разработке",
+                                    context.getString(R.string.file_type_in_dev, message.type),
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -1149,7 +1149,7 @@ fun MessagesScreen(
                         viewModel.uploadAndSendMedia(savedFile, "image")
                         android.widget.Toast.makeText(
                             context,
-                            "Відредаговане фото надсилається...",
+                            context.getString(R.string.edited_photo_sending),
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                         showPhotoEditor = false
@@ -1226,7 +1226,7 @@ fun MessagesScreen(
                         viewModel.pinPrivateMessage(message.id, true)
                         showContextMenu = false
                         selectedMessage = null
-                        android.widget.Toast.makeText(context, "Повідомлення закріплено", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(R.string.message_pinned_toast), android.widget.Toast.LENGTH_SHORT).show()
                     },
                     isPrivateChat = !isGroup,
                     onCopy = { message ->
@@ -1234,7 +1234,7 @@ fun MessagesScreen(
                             clipboardManager.setText(AnnotatedString(it))
                             android.widget.Toast.makeText(
                                 context,
-                                "Текст скопійовано",
+                                context.getString(R.string.text_copied),
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -1251,8 +1251,8 @@ fun MessagesScreen(
                         showDeleteDialog = false
                         messageToDelete = null
                     },
-                    title = { Text("Видалити повідомлення") },
-                    text = { Text("Видалити повідомлення для всіх учасників чату або тільки для себе?") },
+                    title = { Text(stringResource(R.string.delete_message)) },
+                    text = { Text(stringResource(R.string.delete_message_choice_desc)) },
                     confirmButton = {
                         TextButton(
                             onClick = {
@@ -1261,7 +1261,7 @@ fun MessagesScreen(
                                 messageToDelete = null
                             }
                         ) {
-                            Text("Видалити для всіх", color = Color(0xFFD32F2F))
+                            Text(stringResource(R.string.delete_for_everyone), color = Color(0xFFD32F2F))
                         }
                     },
                     dismissButton = {
@@ -1272,7 +1272,7 @@ fun MessagesScreen(
                                 messageToDelete = null
                             }
                         ) {
-                            Text("Видалити для мене")
+                            Text(stringResource(R.string.delete_for_me))
                         }
                     }
                 )
@@ -1282,8 +1282,8 @@ fun MessagesScreen(
             if (showEditScopeDialog) {
                 AlertDialog(
                     onDismissRequest = { showEditScopeDialog = false },
-                    title = { Text("Редагувати повідомлення") },
-                    text = { Text("Де застосувати зміни?") },
+                    title = { Text(stringResource(R.string.edit_message)) },
+                    text = { Text(stringResource(R.string.edit_apply_where)) },
                     confirmButton = {
                         TextButton(
                             onClick = {
@@ -1293,7 +1293,7 @@ fun MessagesScreen(
                                 editingMessage = null
                                 showEditScopeDialog = false
                             }
-                        ) { Text("Для всіх") }
+                        ) { Text(stringResource(R.string.for_everyone)) }
                     },
                     dismissButton = {
                         Row {
@@ -1305,9 +1305,9 @@ fun MessagesScreen(
                                     editingMessage = null
                                     showEditScopeDialog = false
                                 }
-                            ) { Text("Тільки для мене") }
+                            ) { Text(stringResource(R.string.for_me_only)) }
                             TextButton(onClick = { showEditScopeDialog = false }) {
-                                Text("Скасувати")
+                                Text(stringResource(R.string.cancel))
                             }
                         }
                     }
@@ -1318,8 +1318,8 @@ fun MessagesScreen(
             if (showSelectionDeleteDialog) {
                 AlertDialog(
                     onDismissRequest = { showSelectionDeleteDialog = false },
-                    title = { Text("Видалити ${selectedMessages.size} повідомлень") },
-                    text = { Text("Видалити для всіх учасників або тільки для себе?") },
+                    title = { Text(stringResource(R.string.delete_n_messages_title, selectedMessages.size)) },
+                    text = { Text(stringResource(R.string.delete_messages_choice_desc)) },
                     confirmButton = {
                         TextButton(
                             onClick = {
@@ -1330,7 +1330,7 @@ fun MessagesScreen(
                                 selectedMessages = emptySet()
                                 showSelectionDeleteDialog = false
                             }
-                        ) { Text("Видалити для всіх", color = Color(0xFFD32F2F)) }
+                        ) { Text(stringResource(R.string.delete_for_everyone), color = Color(0xFFD32F2F)) }
                     },
                     dismissButton = {
                         Row {
@@ -1343,9 +1343,9 @@ fun MessagesScreen(
                                     selectedMessages = emptySet()
                                     showSelectionDeleteDialog = false
                                 }
-                            ) { Text("Видалити для мене") }
+                            ) { Text(stringResource(R.string.delete_for_me)) }
                             TextButton(onClick = { showSelectionDeleteDialog = false }) {
-                                Text("Скасувати")
+                                Text(stringResource(R.string.cancel))
                             }
                         }
                     }
@@ -1383,7 +1383,7 @@ fun MessagesScreen(
                             is UserMenuAction.CopyUsername -> {
                                 // Копіюємо username
                                 clipboardManager.setText(AnnotatedString("@${selectedUserForMenu?.username}"))
-                                android.widget.Toast.makeText(context, "Username скопійовано", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, context.getString(R.string.username_copied_toast), android.widget.Toast.LENGTH_SHORT).show()
                             }
                             else -> {
                                 // Інші дії - показуємо toast

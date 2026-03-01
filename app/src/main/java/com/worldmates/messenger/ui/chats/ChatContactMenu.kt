@@ -43,7 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.ContactNicknameRepository
 import com.worldmates.messenger.data.model.Chat
 import kotlinx.coroutines.launch
@@ -88,7 +90,7 @@ fun ContactContextMenu(
         ) {
             // Заголовок
             Text(
-                text = "Дії з контактом",
+                text = stringResource(R.string.contact_actions_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 color = colorScheme.onSurface
@@ -100,7 +102,7 @@ fun ContactContextMenu(
             val context = LocalContext.current
             ContactMenuRow(
                 icon = Icons.Default.Person,
-                title = "Переглянути профіль",
+                title = stringResource(R.string.view_profile),
                 onClick = {
                     onDismiss()
                     if (onViewProfile != null) {
@@ -122,7 +124,7 @@ fun ContactContextMenu(
             // Rename
             ContactMenuRow(
                 icon = Icons.Default.Edit,
-                title = if (existingNickname != null) "Змінити псевдонім" else "Додати псевдонім",
+                title = if (existingNickname != null) stringResource(R.string.change_nickname) else stringResource(R.string.add_nickname),
                 onClick = { showRenameDialog = true }
             )
 
@@ -133,7 +135,7 @@ fun ContactContextMenu(
                 if (isArchived && onUnarchive != null) {
                     ContactMenuRow(
                         icon = Icons.Default.Unarchive,
-                        title = "Розархівувати",
+                        title = stringResource(R.string.unarchive),
                         onClick = {
                             onUnarchive(chat)
                             onDismiss()
@@ -142,7 +144,7 @@ fun ContactContextMenu(
                 } else if (!isArchived && onArchive != null) {
                     ContactMenuRow(
                         icon = Icons.Default.Archive,
-                        title = "Архівувати",
+                        title = stringResource(R.string.archive_chat),
                         onClick = {
                             onArchive(chat)
                             onDismiss()
@@ -156,7 +158,7 @@ fun ContactContextMenu(
                 Divider(modifier = Modifier.padding(vertical = 4.dp, horizontal = 24.dp))
                 ContactMenuRow(
                     icon = Icons.Default.Label,
-                    title = "Теги",
+                    title = stringResource(R.string.tags),
                     onClick = {
                         onManageTags(chat)
                         onDismiss()
@@ -169,7 +171,7 @@ fun ContactContextMenu(
                 Divider(modifier = Modifier.padding(vertical = 4.dp, horizontal = 24.dp))
                 ContactMenuRow(
                     icon = Icons.Default.Folder,
-                    title = "Перемістити в папку",
+                    title = stringResource(R.string.move_to_folder),
                     onClick = {
                         onMoveToFolder(chat)
                         onDismiss()
@@ -181,7 +183,7 @@ fun ContactContextMenu(
             Divider(modifier = Modifier.padding(vertical = 4.dp, horizontal = 24.dp))
             ContactMenuRow(
                 icon = Icons.Default.Delete,
-                title = "Приховати чат",
+                title = stringResource(R.string.hide_chat),
                 tint = Color(0xFFD32F2F),
                 onClick = { onDelete(chat) }
             )
@@ -268,14 +270,14 @@ fun RenameContactDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Перейменувати контакт")
+            Text(stringResource(R.string.rename_contact_title))
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Встановіть зручне ім'я для контакту ${chat.username}",
+                    text = stringResource(R.string.set_nickname_instruction, chat.username ?: ""),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -284,8 +286,8 @@ fun RenameContactDialog(
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it },
-                    label = { Text("Псевдонім") },
-                    placeholder = { Text(chat.username ?: "Введіть псевдонім") },
+                    label = { Text(stringResource(R.string.nickname)) },
+                    placeholder = { Text(chat.username ?: stringResource(R.string.enter_nickname_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
@@ -302,7 +304,7 @@ fun RenameContactDialog(
                         },
                         modifier = Modifier.padding(top = 8.dp)
                     ) {
-                        Text("Скинути до оригінального імені")
+                        Text(stringResource(R.string.reset_to_original_name))
                     }
                 }
             }
@@ -316,12 +318,12 @@ fun RenameContactDialog(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
-                Text("Зберегти")
+                Text(stringResource(R.string.save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Скасувати")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

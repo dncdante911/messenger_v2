@@ -15,8 +15,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.worldmates.messenger.R
 
 /**
  * 🔥 Нижня панель дій для вибраних повідомлень
@@ -66,7 +68,7 @@ fun SelectionBottomBar(
                 ) {
                     Icon(Icons.Default.Reply, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Відповісти", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.reply), fontWeight = FontWeight.SemiBold)
                 }
 
                 // Переслати
@@ -82,7 +84,7 @@ fun SelectionBottomBar(
                 ) {
                     Icon(Icons.Default.Forward, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Переслати", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.forward), fontWeight = FontWeight.SemiBold)
                 }
 
                 // Видалити
@@ -98,7 +100,7 @@ fun SelectionBottomBar(
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Видалити", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.delete), fontWeight = FontWeight.SemiBold)
                 }
             }
         }

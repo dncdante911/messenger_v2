@@ -20,6 +20,7 @@ import com.worldmates.messenger.utils.VoicePlayer
 import com.worldmates.messenger.services.MessageNotificationService
 import com.worldmates.messenger.utils.VoiceRecorder
 import com.worldmates.messenger.utils.LanguageManager
+import com.worldmates.messenger.R
 
 /**
  * ✅ НОВИЙ MessagesActivity - wrapper для MessagesScreen з Phase 2
@@ -56,11 +57,11 @@ class MessagesActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Toast.makeText(this, "✅ Дозвіл на мікрофон надано", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.mic_permission_granted), Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(
                 this,
-                "⚠️ Для голосових повідомлень потрібен дозвіл на мікрофон",
+                getString(R.string.mic_permission_required),
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -76,14 +77,14 @@ class MessagesActivity : AppCompatActivity() {
             if (!micGranted) {
                 Toast.makeText(
                     this,
-                    "⚠️ Камера дозволена, але без мікрофона відео буде без звуку",
+                    getString(R.string.camera_no_mic_warning),
                     Toast.LENGTH_LONG
                 ).show()
             }
         } else {
             Toast.makeText(
                 this,
-                "⚠️ Для відеоповідомлень потрібен доступ до камери",
+                getString(R.string.camera_permission_required),
                 Toast.LENGTH_LONG
             ).show()
         }

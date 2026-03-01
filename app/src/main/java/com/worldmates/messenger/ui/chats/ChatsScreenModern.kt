@@ -167,6 +167,7 @@ fun ChatsScreenModern(
 
     val context = LocalContext.current
     val nicknameRepository = remember { ContactNicknameRepository(context) }
+    val chatLabel = stringResource(R.string.chat_label)
 
     // ModalNavigationDrawer для свайпу налаштувань
     ModalNavigationDrawer(
@@ -223,11 +224,11 @@ fun ChatsScreenModern(
                     Text(
                         text = when {
                             selectedFolderId == "all" -> "WorldMates"
-                            selectedFolderId == "archived" -> "📦 Архів"
-                            selectedFolderId == "channels" -> "Канали"
-                            selectedFolderId == "groups" -> "Групи"
-                            selectedFolderId == "personal" -> "Особисті"
-                            selectedFolderId == "unread" -> "Непрочитані"
+                            selectedFolderId == "archived" -> stringResource(R.string.archive_folder_label)
+                            selectedFolderId == "channels" -> stringResource(R.string.channels)
+                            selectedFolderId == "groups" -> stringResource(R.string.groups)
+                            selectedFolderId == "personal" -> stringResource(R.string.personal)
+                            selectedFolderId == "unread" -> stringResource(R.string.unread_label)
                             else -> chatFolders.find { it.id == selectedFolderId }?.let {
                                 "${it.emoji} ${it.name}"
                             } ?: "WorldMates"
@@ -244,18 +245,18 @@ fun ChatsScreenModern(
                     }) {
                         Icon(
                             imageVector = androidx.compose.material.icons.Icons.Default.Menu,
-                            contentDescription = "Меню"
+                            contentDescription = stringResource(R.string.menu)
                         )
                     }
                 },
                 actions = {
                     // Пошук користувачів/груп
                     ExpressiveIconButton(onClick = { showSearchDialog = true }) {
-                        Icon(Icons.Default.Search, contentDescription = "Пошук")
+                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search))
                     }
                     // Налаштування (залишаємо для швидкого доступу)
                     ExpressiveIconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Default.Settings, contentDescription = "Налаштування")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 }
             )
@@ -268,7 +269,7 @@ fun ChatsScreenModern(
                     ExpressiveFAB(
                         onClick = onCreateChannelClick
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Створити канал")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.create_channel))
                     }
                 }
                 2 -> {
@@ -276,7 +277,7 @@ fun ChatsScreenModern(
                     ExpressiveFAB(
                         onClick = { showCreateGroupDialog = true }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Створити групу")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.create_group))
                     }
                 }
             }
@@ -417,7 +418,7 @@ fun ChatsScreenModern(
                         selectedGroup = null
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                message = "Групу видалено",
+                                message = context.getString(R.string.group_deleted_toast),
                                 duration = SnackbarDuration.Short
                             )
                         }
@@ -431,14 +432,14 @@ fun ChatsScreenModern(
                     groupsViewModel.uploadGroupAvatar(selectedGroup.id, uri, context)
                     scope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "Завантаження аватарки...",
+                            message = context.getString(R.string.uploading_avatar),
                             duration = SnackbarDuration.Short
                         )
                     }
                 } else {
                     scope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "Оберіть групу для зміни аватарки",
+                            message = context.getString(R.string.select_group_for_avatar),
                             duration = SnackbarDuration.Short
                         )
                     }
@@ -484,7 +485,7 @@ fun ChatsScreenModern(
                 scope.launch {
                     viewModel.hideChat(chat.userId)
                     snackbarHostState.showSnackbar(
-                        message = "Чат приховано",
+                        message = context.getString(R.string.chat_hidden_toast),
                         duration = SnackbarDuration.Short
                     )
                 }
@@ -495,7 +496,7 @@ fun ChatsScreenModern(
                 ChatOrganizationManager.archiveChat(chat.userId)
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        message = "Чат архівовано",
+                        message = context.getString(R.string.chat_archived_toast),
                         duration = SnackbarDuration.Short
                     )
                 }
@@ -504,19 +505,19 @@ fun ChatsScreenModern(
                 ChatOrganizationManager.unarchiveChat(chat.userId)
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        message = "Чат розархівовано",
+                        message = context.getString(R.string.chat_unarchived_toast),
                         duration = SnackbarDuration.Short
                     )
                 }
             },
             onManageTags = { chat ->
                 tagTargetChatId = chat.userId
-                tagTargetChatName = chat.username ?: "Чат"
+                tagTargetChatName = chat.username ?: chatLabel
                 showManageTagsDialog = true
             },
             onMoveToFolder = { chat ->
                 folderTargetChatId = chat.userId
-                folderTargetChatName = chat.username ?: "Чат"
+                folderTargetChatName = chat.username ?: chatLabel
                 showMoveFolderDialog = true
             }
         )
@@ -529,7 +530,7 @@ fun ChatsScreenModern(
                 // Здесь можно добавить логику - например, открыть чат с контактом
                 android.widget.Toast.makeText(
                     context,
-                    "Выбран контакт: ${contact.name}",
+                    context.getString(R.string.contact_selected, contact.name),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
                 showContactPicker = false
@@ -633,7 +634,7 @@ fun ChatListTab(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Немає чатів",
+                    text = stringResource(R.string.no_chats),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -708,7 +709,7 @@ fun GroupListTab(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Немає груп",
+                    text = stringResource(R.string.no_groups),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -762,7 +763,7 @@ fun UserSearchDialogForChats(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Пошук користувачів") },
+        title = { Text(stringResource(R.string.search_users_title)) },
         text = {
             Column(
                 modifier = Modifier
@@ -795,7 +796,7 @@ fun UserSearchDialogForChats(
                             searchResults = emptyList()
                         }
                     },
-                    placeholder = { Text("Введіть ім'я або username") },
+                    placeholder = { Text(stringResource(R.string.enter_name_or_username)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -844,7 +845,7 @@ fun UserSearchDialogForChats(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Закрити")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -934,13 +935,13 @@ fun ChannelListTab(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Немає каналів",
+                    stringResource(R.string.no_channels),
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.Gray
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Підпишіться на канали, щоб бачити їх тут",
+                    stringResource(R.string.no_channels_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray.copy(alpha = 0.7f)
                 )
@@ -972,7 +973,7 @@ fun ChannelListTab(
                                         channelsViewModel.unsubscribeChannel(
                                             channelId = channel.id,
                                             onSuccess = {
-                                                android.widget.Toast.makeText(context, "Відписано", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.unsubscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                             },
                                             onError = { error ->
                                                 android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
@@ -982,7 +983,7 @@ fun ChannelListTab(
                                         channelsViewModel.subscribeChannel(
                                             channelId = channel.id,
                                             onSuccess = {
-                                                android.widget.Toast.makeText(context, "Підписано!", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.subscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                             },
                                             onError = { error ->
                                                 android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
