@@ -31,11 +31,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.chats.ChatsActivity
 import com.worldmates.messenger.ui.components.*
 import com.worldmates.messenger.ui.theme.*
@@ -186,7 +188,7 @@ fun RegisterScreen(
         ) {
             // Заголовок
             Text(
-                "Створити акаунт",
+                stringResource(R.string.create_account_title),
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -195,7 +197,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                "Приєднуйтесь до WorldMates",
+                stringResource(R.string.join_worldmates),
                 fontSize = 16.sp,
                 color = Color.White.copy(alpha = 0.9f)
             )
@@ -254,7 +256,7 @@ fun RegisterScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Вже маєте акаунт? ",
+                    stringResource(R.string.already_have_account) + " ",
                     color = Color.White.copy(alpha = 0.9f),
                     fontSize = 14.sp
                 )
@@ -262,7 +264,7 @@ fun RegisterScreen(
                     onClick = onBackToLogin
                 ) {
                     Text(
-                        "Увійти",
+                        stringResource(R.string.sign_in),
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
@@ -338,13 +340,13 @@ fun RegisterFormCard(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { onTabChange(0) },
-                    text = { Text("Email") },
+                    text = { Text(stringResource(R.string.email)) },
                     icon = { Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(20.dp)) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { onTabChange(1) },
-                    text = { Text("Телефон") },
+                    text = { Text(stringResource(R.string.phone)) },
                     icon = { Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(20.dp)) }
                 )
             }
@@ -358,7 +360,7 @@ fun RegisterFormCard(
                     OutlinedTextField(
                         value = username,
                         onValueChange = onUsernameChange,
-                        label = { Text("Ім'я користувача") },
+                        label = { Text(stringResource(R.string.username)) },
                         leadingIcon = {
                             Icon(Icons.Default.Person, contentDescription = null)
                         },
@@ -402,7 +404,7 @@ fun RegisterFormCard(
                         selectedCountry = selectedCountry,
                         onCountryChange = onCountryChange,
                         enabled = !isLoading,
-                        label = "Номер телефону"
+                        label = stringResource(R.string.phone_number)
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -410,7 +412,7 @@ fun RegisterFormCard(
                     OutlinedTextField(
                         value = username,
                         onValueChange = onUsernameChange,
-                        label = { Text("Ім'я користувача") },
+                        label = { Text(stringResource(R.string.username)) },
                         leadingIcon = {
                             Icon(Icons.Default.Person, contentDescription = null)
                         },
@@ -441,7 +443,7 @@ fun RegisterFormCard(
             OutlinedTextField(
                 value = password,
                 onValueChange = onPasswordChange,
-                label = { Text("Пароль") },
+                label = { Text(stringResource(R.string.password)) },
                 leadingIcon = {
                     Icon(Icons.Default.Lock, contentDescription = null)
                 },
@@ -450,7 +452,10 @@ fun RegisterFormCard(
                         Icon(
                             if (passwordVisible) Icons.Default.Visibility
                             else Icons.Default.VisibilityOff,
-                            contentDescription = if (passwordVisible) "Сховати пароль" else "Показати пароль"
+                            contentDescription = if (passwordVisible)
+                                stringResource(R.string.hide_password)
+                            else
+                                stringResource(R.string.show_password)
                         )
                     }
                 },
@@ -476,7 +481,7 @@ fun RegisterFormCard(
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = onConfirmPasswordChange,
-                label = { Text("Підтвердіть пароль") },
+                label = { Text(stringResource(R.string.confirm_password)) },
                 leadingIcon = {
                     Icon(Icons.Default.Lock, contentDescription = null)
                 },
@@ -485,7 +490,10 @@ fun RegisterFormCard(
                         Icon(
                             if (confirmPasswordVisible) Icons.Default.Visibility
                             else Icons.Default.VisibilityOff,
-                            contentDescription = if (confirmPasswordVisible) "Сховати пароль" else "Показати пароль"
+                            contentDescription = if (confirmPasswordVisible)
+                                stringResource(R.string.hide_password)
+                            else
+                                stringResource(R.string.show_password)
                         )
                     }
                 },
@@ -509,7 +517,7 @@ fun RegisterFormCard(
             if (confirmPassword.isNotEmpty() && password != confirmPassword) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Паролі не співпадають",
+                    stringResource(R.string.passwords_mismatch),
                     color = colorScheme.error,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 16.dp)
@@ -528,7 +536,7 @@ fun RegisterFormCard(
             }
 
             GradientButton(
-                text = "Зареєструватися",
+                text = stringResource(R.string.sign_up),
                 onClick = onRegisterClick,
                 enabled = registerEnabled,
                 isLoading = isLoading,

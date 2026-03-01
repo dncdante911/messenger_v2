@@ -25,6 +25,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
@@ -58,7 +61,7 @@ class ForgotPasswordActivity : AppCompatActivity() {
                 AccessRecoveryScreen(
                     onBack = { finish() },
                     onPasswordResetSuccess = {
-                        Toast.makeText(this, "Пароль успішно змінено! Увійдіть з новим паролем.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, getString(R.string.change_password), Toast.LENGTH_LONG).show()
                         finish()
                     },
                     onEmailRecoverySuccess = {
@@ -147,10 +150,10 @@ fun AccessRecoveryScreen(
                     if (mode == RecoveryMode.CHOOSE) onBack()
                     else mode = RecoveryMode.CHOOSE
                 }) {
-                    Icon(Icons.Default.ArrowBack, "Назад", tint = Color.White)
+                    Icon(Icons.Default.ArrowBack, stringResource(R.string.nav_back), tint = Color.White)
                 }
                 Text(
-                    "Відновлення доступу",
+                    stringResource(R.string.recovery_screen_title),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -198,14 +201,14 @@ fun ChooseModeCard(
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
-                "Що саме ви хочете відновити?",
+                stringResource(R.string.what_restore_title),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Оберіть варіант відновлення доступу до вашого акаунту.",
+                stringResource(R.string.choose_recovery_desc),
                 fontSize = 14.sp,
                 color = colorScheme.onSurface.copy(alpha = 0.7f)
             )
@@ -215,8 +218,8 @@ fun ChooseModeCard(
             // Forgot password card
             RecoveryOptionCard(
                 icon = Icons.Default.Lock,
-                title = "Забув пароль",
-                subtitle = "Відновити доступ через email або телефон",
+                title = stringResource(R.string.forgot_password_option),
+                subtitle = stringResource(R.string.restore_via_email),
                 onClick = onForgotPassword
             )
 
@@ -225,8 +228,8 @@ fun ChooseModeCard(
             // Forgot email card
             RecoveryOptionCard(
                 icon = Icons.Default.Email,
-                title = "Забув email",
-                subtitle = "Відновити доступ через номер телефону",
+                title = stringResource(R.string.forgot_email),
+                subtitle = stringResource(R.string.restore_via_phone),
                 onClick = onForgotEmail
             )
         }
@@ -312,9 +315,9 @@ fun ForgotPasswordFlow(
 
                 // ── Step 1: Enter contact ────────────────────────────────────
                 ResetStep.ENTER_CONTACT -> {
-                    Text("Введіть email або телефон", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.enter_email_or_phone_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("Ми надішлемо 6-значний код підтвердження",
+                    Text(stringResource(R.string.will_send_6digit),
                         fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -324,10 +327,10 @@ fun ForgotPasswordFlow(
                         contentColor = colorScheme.primary
                     ) {
                         Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 },
-                            text = { Text("Email") },
+                            text = { Text(stringResource(R.string.email)) },
                             icon = { Icon(Icons.Default.Email, null, Modifier.size(18.dp)) })
                         Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 },
-                            text = { Text("Телефон") },
+                            text = { Text(stringResource(R.string.phone)) },
                             icon = { Icon(Icons.Default.Phone, null, Modifier.size(18.dp)) })
                     }
 
@@ -336,7 +339,7 @@ fun ForgotPasswordFlow(
                     if (selectedTab == 0) {
                         OutlinedTextField(
                             value = email, onValueChange = { email = it },
-                            label = { Text("Email") },
+                            label = { Text(stringResource(R.string.email)) },
                             leadingIcon = { Icon(Icons.Default.Email, null) },
                             modifier = Modifier.fillMaxWidth(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -350,14 +353,15 @@ fun ForgotPasswordFlow(
                             selectedCountry = selectedCountry,
                             onCountryChange = { selectedCountry = it },
                             enabled = !isLoading,
-                            label = "Номер телефону"
+                            label = stringResource(R.string.phone_number)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    val errorCheckData = stringResource(R.string.error_check_data)
                     GradientButton(
-                        text = "Надіслати код",
+                        text = stringResource(R.string.send_code),
                         onClick = {
                             errorMessage = null
                             isLoading = true
@@ -371,10 +375,10 @@ fun ForgotPasswordFlow(
                                         infoMessage = response.message
                                         step = ResetStep.ENTER_CODE
                                     } else {
-                                        errorMessage = response.errorMessage ?: "Помилка. Перевірте введені дані."
+                                        errorMessage = response.errorMessage ?: errorCheckData
                                     }
                                 } catch (e: Exception) {
-                                    errorMessage = "Помилка мережі: ${e.localizedMessage}"
+                                    errorMessage = e.localizedMessage
                                 } finally {
                                     isLoading = false
                                 }
@@ -389,13 +393,13 @@ fun ForgotPasswordFlow(
 
                 // ── Step 2: Enter code ───────────────────────────────────────
                 ResetStep.ENTER_CODE -> {
-                    Text("Введіть код підтвердження", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.enter_confirm_code_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         infoMessage ?: if (selectedTab == 0)
-                            "Код надіслано на $email"
+                            stringResource(R.string.code_sent_to_format, email)
                         else
-                            "Код надіслано на номер $contact",
+                            stringResource(R.string.code_sent_to_number_format, contact),
                         fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f)
                     )
 
@@ -404,7 +408,7 @@ fun ForgotPasswordFlow(
                     OutlinedTextField(
                         value = code,
                         onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) code = it },
-                        label = { Text("6-значний код") },
+                        label = { Text(stringResource(R.string.enter_verification_code)) },
                         leadingIcon = { Icon(Icons.Default.Lock, null) },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -414,14 +418,16 @@ fun ForgotPasswordFlow(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    val code6digitsStr = stringResource(R.string.code_must_be_6_digits)
+                    val codeResentStr2 = stringResource(R.string.code_resent)
                     GradientButton(
-                        text = "Продовжити",
+                        text = stringResource(R.string.continue_btn),
                         onClick = {
                             if (code.length == 6) {
                                 errorMessage = null
                                 step = ResetStep.NEW_PASSWORD
                             } else {
-                                errorMessage = "Код має містити 6 цифр"
+                                errorMessage = code6digitsStr
                             }
                         },
                         enabled = code.length == 6 && !isLoading,
@@ -441,34 +447,34 @@ fun ForgotPasswordFlow(
                                     email = if (selectedTab == 0) contact else null,
                                     phoneNumber = if (selectedTab == 1) contact else null
                                 )
-                                infoMessage = "Код надіслано повторно"
+                                infoMessage = codeResentStr2
                             } catch (e: Exception) {
-                                errorMessage = "Помилка: ${e.localizedMessage}"
+                                errorMessage = e.localizedMessage
                             } finally {
                                 isLoading = false
                             }
                         }
                     }) {
-                        Text("Надіслати код повторно", color = colorScheme.primary)
+                        Text(stringResource(R.string.resend_code_btn), color = colorScheme.primary)
                     }
 
                     TextButton(onClick = { step = ResetStep.ENTER_CONTACT; code = ""; errorMessage = null }) {
-                        Text("Повернутись назад")
+                        Text(stringResource(R.string.go_back_btn))
                     }
                 }
 
                 // ── Step 3: New password ─────────────────────────────────────
                 ResetStep.NEW_PASSWORD -> {
-                    Text("Новий пароль", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.new_password_screen_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("Введіть новий пароль для вашого акаунту",
+                    Text(stringResource(R.string.enter_new_password_desc),
                         fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     OutlinedTextField(
                         value = newPassword, onValueChange = { newPassword = it },
-                        label = { Text("Новий пароль (мін. 8 символів)") },
+                        label = { Text(stringResource(R.string.new_password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, null) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -489,7 +495,7 @@ fun ForgotPasswordFlow(
 
                     OutlinedTextField(
                         value = confirmPassword, onValueChange = { confirmPassword = it },
-                        label = { Text("Підтвердіть пароль") },
+                        label = { Text(stringResource(R.string.confirm_password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, null) },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -499,19 +505,22 @@ fun ForgotPasswordFlow(
                         isError = confirmPassword.isNotEmpty() && newPassword != confirmPassword
                     )
                     if (confirmPassword.isNotEmpty() && newPassword != confirmPassword) {
-                        Text("Паролі не збігаються", color = colorScheme.error,
+                        Text(stringResource(R.string.passwords_not_match), color = colorScheme.error,
                             fontSize = 12.sp, modifier = Modifier.padding(start = 12.dp, top = 4.dp))
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    val passMin8Str = stringResource(R.string.password_min_8_chars)
+                    val passNotMatchStr = stringResource(R.string.passwords_not_match)
+                    val invalidExpiredStr = stringResource(R.string.invalid_expired_code)
                     GradientButton(
-                        text = "Змінити пароль",
+                        text = stringResource(R.string.change_password),
                         onClick = {
                             errorMessage = null
                             when {
-                                newPassword.length < 8 -> errorMessage = "Пароль має бути не менше 8 символів"
-                                newPassword != confirmPassword -> errorMessage = "Паролі не збігаються"
+                                newPassword.length < 8 -> errorMessage = passMin8Str
+                                newPassword != confirmPassword -> errorMessage = passNotMatchStr
                                 else -> {
                                     isLoading = true
                                     scope.launch {
@@ -525,16 +534,14 @@ fun ForgotPasswordFlow(
                                             if (response.apiStatus == 200) {
                                                 onSuccess()
                                             } else {
-                                                errorMessage = response.errorMessage
-                                                    ?: "Невірний або прострочений код. Спробуйте ще раз."
-                                                // Якщо код невірний — повертаємо на крок 2
+                                                errorMessage = response.errorMessage ?: invalidExpiredStr
                                                 if (errorMessage?.contains("code", ignoreCase = true) == true ||
                                                     errorMessage?.contains("код", ignoreCase = true) == true) {
                                                     step = ResetStep.ENTER_CODE
                                                 }
                                             }
                                         } catch (e: Exception) {
-                                            errorMessage = "Помилка мережі: ${e.localizedMessage}"
+                                            errorMessage = e.localizedMessage
                                         } finally {
                                             isLoading = false
                                         }
@@ -600,7 +607,7 @@ fun ForgotEmailFlow(
                     Icon(Icons.Default.Info, null, tint = colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Для відновлення доступу через телефон вам буде надіслано тимчасовий 8-символьний пароль на пошту або SMS.",
+                        stringResource(R.string.phone_recovery_info_text),
                         fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.8f)
                     )
                 }
@@ -612,9 +619,9 @@ fun ForgotEmailFlow(
 
                 // ── Step 1: Enter phone ──────────────────────────────────────
                 ResetStep.ENTER_CONTACT -> {
-                    Text("Введіть номер телефону", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.enter_phone_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("Введіть номер телефону, який прив'язаний до вашого акаунту",
+                    Text(stringResource(R.string.phone_linked_hint),
                         fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -625,13 +632,14 @@ fun ForgotEmailFlow(
                         selectedCountry = selectedCountry,
                         onCountryChange = { selectedCountry = it },
                         enabled = !isLoading,
-                        label = "Номер телефону"
+                        label = stringResource(R.string.phone_number)
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    val phoneNotFoundStr = stringResource(R.string.phone_not_found)
                     GradientButton(
-                        text = "Надіслати код",
+                        text = stringResource(R.string.send_code),
                         onClick = {
                             errorMessage = null
                             isLoading = true
@@ -644,11 +652,10 @@ fun ForgotEmailFlow(
                                         infoMessage = response.message
                                         step = ResetStep.ENTER_CODE
                                     } else {
-                                        errorMessage = response.errorMessage
-                                            ?: "Телефон не знайдено в системі."
+                                        errorMessage = response.errorMessage ?: phoneNotFoundStr
                                     }
                                 } catch (e: Exception) {
-                                    errorMessage = "Помилка мережі: ${e.localizedMessage}"
+                                    errorMessage = e.localizedMessage
                                 } finally {
                                     isLoading = false
                                 }
@@ -662,9 +669,9 @@ fun ForgotEmailFlow(
 
                 // ── Step 2: Enter code ───────────────────────────────────────
                 ResetStep.ENTER_CODE -> {
-                    Text("Введіть код підтвердження", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.enter_confirm_code_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(infoMessage ?: "Код надіслано на номер $fullPhone",
+                    Text(infoMessage ?: stringResource(R.string.code_sent_to_number_format, fullPhone),
                         fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -672,7 +679,7 @@ fun ForgotEmailFlow(
                     OutlinedTextField(
                         value = code,
                         onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) code = it },
-                        label = { Text("6-значний код") },
+                        label = { Text(stringResource(R.string.enter_verification_code)) },
                         leadingIcon = { Icon(Icons.Default.Lock, null) },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -682,13 +689,14 @@ fun ForgotEmailFlow(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    val invalidExpiredStr2 = stringResource(R.string.invalid_expired_code)
+                    val code6digitsStr2 = stringResource(R.string.code_must_be_6_digits)
                     GradientButton(
-                        text = "Відновити доступ",
+                        text = stringResource(R.string.restore_access),
                         onClick = {
                             if (code.length == 6) {
                                 errorMessage = null
                                 isLoading = true
-                                // Генеруємо 8-символьний тимчасовий пароль
                                 val generated = generateTempPassword(8)
                                 scope.launch {
                                     try {
@@ -699,7 +707,6 @@ fun ForgotEmailFlow(
                                         )
                                         if (response.apiStatus == 200) {
                                             tempPassword = generated
-                                            // Спробуємо автоматично увійти
                                             try {
                                                 val loginResponse = RetrofitClient.apiService.login(
                                                     username = fullPhone,
@@ -720,17 +727,16 @@ fun ForgotEmailFlow(
                                             } catch (_: Exception) { /* auto-login failed, show temp pass */ }
                                             step = ResetStep.SHOW_TEMP_PASSWORD
                                         } else {
-                                            errorMessage = response.errorMessage
-                                                ?: "Невірний або прострочений код."
+                                            errorMessage = response.errorMessage ?: invalidExpiredStr2
                                         }
                                     } catch (e: Exception) {
-                                        errorMessage = "Помилка мережі: ${e.localizedMessage}"
+                                        errorMessage = e.localizedMessage
                                     } finally {
                                         isLoading = false
                                     }
                                 }
                             } else {
-                                errorMessage = "Код має містити 6 цифр"
+                                errorMessage = code6digitsStr2
                             }
                         },
                         enabled = code.length == 6 && !isLoading,
@@ -740,16 +746,16 @@ fun ForgotEmailFlow(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = { step = ResetStep.ENTER_CONTACT; code = ""; errorMessage = null }) {
-                        Text("Повернутись назад")
+                        Text(stringResource(R.string.go_back_btn))
                     }
                 }
 
                 // ── Step 3: Show temp password ───────────────────────────────
                 ResetStep.SHOW_TEMP_PASSWORD -> {
-                    Text("Тимчасовий пароль створено", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.temp_password_created_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Ваш акаунт відновлено. Збережіть тимчасовий пароль — він вже надіслано на вашу пошту.",
+                        stringResource(R.string.account_restored_temp_pass),
                         fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.7f)
                     )
 
@@ -765,7 +771,7 @@ fun ForgotEmailFlow(
                             modifier = Modifier.padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("Тимчасовий пароль:", fontSize = 13.sp,
+                            Text(stringResource(R.string.temp_password_label), fontSize = 13.sp,
                                 color = colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -784,7 +790,7 @@ fun ForgotEmailFlow(
                             ) {
                                 Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Копіювати пароль")
+                                Text(stringResource(R.string.copy_password_btn))
                             }
                         }
                     }
@@ -801,7 +807,7 @@ fun ForgotEmailFlow(
                                 tint = colorScheme.onTertiaryContainer, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Після входу рекомендуємо змінити пароль у налаштуваннях профілю.",
+                                stringResource(R.string.change_password_hint_after_login),
                                 fontSize = 13.sp, color = colorScheme.onTertiaryContainer
                             )
                         }
@@ -810,7 +816,7 @@ fun ForgotEmailFlow(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     GradientButton(
-                        text = "Перейти до входу",
+                        text = stringResource(R.string.go_to_login),
                         onClick = { onSuccess() },
                         enabled = true,
                         isLoading = false,
