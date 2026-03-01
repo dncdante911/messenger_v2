@@ -12,8 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.worldmates.messenger.R
 
 /**
  * 📱 Меню для медіа файлів (фото/відео/аудіо)
@@ -71,7 +73,7 @@ fun MediaActionMenu(
                     ) {
                         Icon(Icons.Default.Share, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Поділитися", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.share), fontWeight = FontWeight.SemiBold)
                     }
 
                     // Кнопка "Видалити" (тільки для своїх)
@@ -89,7 +91,7 @@ fun MediaActionMenu(
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Видалити", fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.delete), fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

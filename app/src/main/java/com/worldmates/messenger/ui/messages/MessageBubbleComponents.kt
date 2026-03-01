@@ -145,7 +145,7 @@ fun MessageBubbleComposable(
         if (offsetX > 20f) {
             Icon(
                 imageVector = Icons.Default.Reply,
-                contentDescription = "Reply",
+                contentDescription = stringResource(R.string.reply),
                 tint = colorScheme.primary.copy(alpha = (offsetX / maxSwipeDistance).coerceIn(0f, 1f)),
                 modifier = Modifier
                     .align(if (isOwn) Alignment.CenterEnd else Alignment.CenterStart)
@@ -187,14 +187,14 @@ fun MessageBubbleComposable(
                     if (isSelected) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Вибрано",
+                            contentDescription = stringResource(R.string.message_selected),
                             tint = colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Circle,
-                            contentDescription = "Не вибрано",
+                            contentDescription = stringResource(R.string.message_not_selected),
                             tint = colorScheme.onSurface.copy(alpha = 0.3f),
                             modifier = Modifier.size(24.dp)
                         )
@@ -424,7 +424,7 @@ fun MessageBubbleComposable(
                                     // Текст цитати
                                     Column {
                                         Text(
-                                            text = "Відповідь",
+                                            text = stringResource(R.string.reply_to),
                                             color = colorScheme.primary,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold
@@ -653,12 +653,12 @@ fun MessageBubbleComposable(
                         }
                         putExtra(android.content.Intent.EXTRA_TEXT, mediaUrl)
                     }
-                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Поділитися медіа"))
+                    context.startActivity(android.content.Intent.createChooser(shareIntent, context.getString(R.string.share)))
                     showMediaMenu = false
                 } catch (e: Exception) {
                     android.widget.Toast.makeText(
                         context,
-                        "Не вдалося поділитися медіа",
+                        context.getString(R.string.share_media_failed),
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -676,8 +676,8 @@ fun MessageBubbleComposable(
     if (showDeleteMediaConfirmation) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showDeleteMediaConfirmation = false },
-            title = { androidx.compose.material3.Text("Видалити медіа?") },
-            text = { androidx.compose.material3.Text("Це повідомлення буде видалено назавжди") },
+            title = { androidx.compose.material3.Text(stringResource(R.string.delete_media_title)) },
+            text = { androidx.compose.material3.Text(stringResource(R.string.delete_media_warning)) },
             confirmButton = {
                 androidx.compose.material3.TextButton(
                     onClick = {
@@ -685,14 +685,14 @@ fun MessageBubbleComposable(
                         showDeleteMediaConfirmation = false
                     }
                 ) {
-                    androidx.compose.material3.Text("Видалити", color = androidx.compose.material3.MaterialTheme.colorScheme.error)
+                    androidx.compose.material3.Text(stringResource(R.string.delete), color = androidx.compose.material3.MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(
                     onClick = { showDeleteMediaConfirmation = false }
                 ) {
-                    androidx.compose.material3.Text("Скасувати")
+                    androidx.compose.material3.Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -726,6 +726,7 @@ fun VoiceMessagePlayer(
     val displayTitle = trackInfo.title
     val displayArtist = trackInfo.artist
     val isVoiceMessage = message.type?.lowercase() == "voice"
+    val voiceMessageLabel = stringResource(R.string.voice_message)
 
     // Компактний аудіо плеєр
     Surface(
@@ -794,7 +795,7 @@ fun VoiceMessagePlayer(
                                 com.worldmates.messenger.services.MusicPlaybackService.startPlayback(
                                     context = context,
                                     audioUrl = mediaUrl,
-                                    title = if (!isVoiceMessage) displayTitle else "Голосове повідомлення",
+                                    title = if (!isVoiceMessage) displayTitle else voiceMessageLabel,
                                     artist = displayArtist,
                                     timestamp = message.timeStamp,
                                     iv = message.iv,
@@ -806,7 +807,7 @@ fun VoiceMessagePlayer(
                     ) {
                         Icon(
                             imageVector = if (isThisTrackPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Play",
+                            contentDescription = stringResource(R.string.record_voice),
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
@@ -857,7 +858,7 @@ fun VoiceMessagePlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Fullscreen,
-                        contentDescription = "Відкрити плеєр",
+                        contentDescription = stringResource(R.string.open_player),
                         tint = textColor.copy(alpha = 0.5f),
                         modifier = Modifier.size(14.dp)
                     )
@@ -901,14 +902,14 @@ fun MessageStatusIcon(
         // Перша галочка - більший розмір і краща видимість
         Icon(
             imageVector = Icons.Default.Done,
-            contentDescription = if (isRead) "Прочитано" else "Відправлено",
+            contentDescription = if (isRead) stringResource(R.string.message_read) else stringResource(R.string.message_sent),
             tint = if (isRead) Color(0xFF0084FF) else Color(0xFF8E8E93),  // Світліший сірий
             modifier = Modifier.size(16.dp)  // Збільшено з 14dp до 16dp
         )
         // Друга галочка (тільки коли доставлено або прочитано)
         Icon(
             imageVector = Icons.Default.Done,
-            contentDescription = if (isRead) "Прочитано" else "Доставлено",
+            contentDescription = if (isRead) stringResource(R.string.message_read) else stringResource(R.string.message_delivered),
             tint = if (isRead) Color(0xFF0084FF) else Color(0xFF8E8E93),  // Світліший сірий
             modifier = Modifier.size(16.dp)  // Збільшено з 14dp до 16dp
         )
@@ -1065,7 +1066,7 @@ fun MessageContextMenu(
         ) {
             // Заголовок
             Text(
-                text = "Дії з повідомленням",
+                text = stringResource(R.string.message_actions_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 color = colorScheme.onSurface
@@ -1076,7 +1077,7 @@ fun MessageContextMenu(
             // Reply
             ContextMenuItem(
                 icon = Icons.Default.Reply,
-                text = "Відповісти",
+                text = stringResource(R.string.reply),
                 onClick = { onReply(message) }
             )
 
@@ -1093,7 +1094,7 @@ fun MessageContextMenu(
             if (message.fromId == UserSession.userId && !message.decryptedText.isNullOrEmpty() && !isMediaMessage && !textIsMediaUrl) {
                 ContextMenuItem(
                     icon = Icons.Default.Edit,
-                    text = "Редагувати",
+                    text = stringResource(R.string.edit_message_short),
                     onClick = { onEdit(message) }
                 )
             }
@@ -1101,7 +1102,7 @@ fun MessageContextMenu(
             // Forward
             ContextMenuItem(
                 icon = Icons.Default.Forward,
-                text = "Переслати",
+                text = stringResource(R.string.forward),
                 onClick = { onForward(message) }
             )
 
@@ -1109,7 +1110,7 @@ fun MessageContextMenu(
             if (isPrivateChat) {
                 ContextMenuItem(
                     icon = Icons.Default.PushPin,
-                    text = "Закріпити",
+                    text = stringResource(R.string.pin_message_short),
                     onClick = { onPin(message) }
                 )
             }
@@ -1118,7 +1119,7 @@ fun MessageContextMenu(
             if (!message.decryptedText.isNullOrEmpty() && !isMediaMessage && !textIsMediaUrl) {
                 ContextMenuItem(
                     icon = Icons.Default.ContentCopy,
-                    text = "Копіювати текст",
+                    text = stringResource(R.string.copy_text),
                     onClick = { onCopy(message) }
                 )
             }
@@ -1128,7 +1129,7 @@ fun MessageContextMenu(
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 ContextMenuItem(
                     icon = Icons.Default.Delete,
-                    text = "Видалити",
+                    text = stringResource(R.string.delete),
                     onClick = { onDelete(message) },
                     isDestructive = true
                 )
@@ -1206,12 +1207,12 @@ fun ReplyIndicator(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (replyToMessage.fromId == UserSession.userId) "Ви" else "Користувач",
+                        text = if (replyToMessage.fromId == UserSession.userId) stringResource(R.string.you_label) else stringResource(R.string.user_label),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = replyToMessage.decryptedText ?: "[Медіа]",
+                        text = replyToMessage.decryptedText ?: stringResource(R.string.media_placeholder),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
@@ -1220,7 +1221,7 @@ fun ReplyIndicator(
                 IconButton(onClick = onCancelReply) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Скасувати відповідь",
+                        contentDescription = stringResource(R.string.cancel_reply_desc),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1262,13 +1263,13 @@ fun EditIndicator(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Редагування",
+                            contentDescription = stringResource(R.string.editing_indicator_desc),
                             tint = Color(0xFFFF9800),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Редагування повідомлення",
+                            text = stringResource(R.string.editing_message_label),
                             style = MaterialTheme.typography.labelMedium,
                             color = Color(0xFFFF9800)
                         )
@@ -1283,7 +1284,7 @@ fun EditIndicator(
                 IconButton(onClick = onCancelEdit) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Скасувати редагування",
+                        contentDescription = stringResource(R.string.cancel_editing_desc),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

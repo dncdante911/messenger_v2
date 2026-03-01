@@ -12,6 +12,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 /**
  * ⚡ Кнопки дій в TopBar (режим вибору)
@@ -53,7 +55,7 @@ fun SelectionTopBarActions(
             IconButton(onClick = onSelectAll) {
                 Icon(
                     Icons.Default.CheckCircle,
-                    contentDescription = "Вибрати все",
+                    contentDescription = stringResource(R.string.select_all),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -64,7 +66,7 @@ fun SelectionTopBarActions(
             IconButton(onClick = onEdit) {
                 Icon(
                     Icons.Default.Edit,
-                    contentDescription = "Редагувати",
+                    contentDescription = stringResource(R.string.edit_message_short),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -75,7 +77,7 @@ fun SelectionTopBarActions(
             IconButton(onClick = onPin) {
                 Icon(
                     Icons.Default.PushPin,
-                    contentDescription = "Закріпити",
+                    contentDescription = stringResource(R.string.pin_message_short),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -85,7 +87,7 @@ fun SelectionTopBarActions(
         IconButton(onClick = onDelete) {
             Icon(
                 Icons.Default.Delete,
-                contentDescription = "Видалити",
+                contentDescription = stringResource(R.string.delete),
                 tint = MaterialTheme.colorScheme.error
             )
         }
@@ -94,7 +96,7 @@ fun SelectionTopBarActions(
         IconButton(onClick = onClose) {
             Icon(
                 Icons.Default.Close,
-                contentDescription = "Закрити",
+                contentDescription = stringResource(R.string.close),
                 tint = MaterialTheme.colorScheme.onPrimary
             )
         }

@@ -194,7 +194,7 @@ class ChatsActivity : AppCompatActivity() {
                                     onContactSelected = { contact ->
                                         android.widget.Toast.makeText(
                                             this@ChatsActivity,
-                                            "Контакт: ${contact.name}",
+                                            getString(R.string.contact_selected, contact.name),
                                             android.widget.Toast.LENGTH_SHORT
                                         ).show()
                                     },
@@ -473,7 +473,7 @@ fun ChatsScreen(
         GlassTopAppBar(
             title = {
                 Text(
-                    "Повідомлення",
+                    stringResource(R.string.messages),
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -488,18 +488,18 @@ fun ChatsScreen(
                         viewModel.fetchChats()
                     }
                 }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Оновити")
+                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                 }
 
                 ExpressiveIconButton(onClick = { showSearchDialog = true }) {
-                    Icon(Icons.Default.Search, contentDescription = "Пошук користувачів")
+                    Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_users_title))
                 }
                 ExpressiveIconButton(onClick = {
                     scope.launch {
                         drawerState.open()
                     }
                 }) {
-                    Icon(Icons.Default.Settings, contentDescription = "Налаштування")
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                 }
 
                 if (showSearchDialog) {
@@ -537,7 +537,7 @@ fun ChatsScreen(
                 ) {
                     CircularProgressIndicator(color = Color(0xFF0084FF))
                     Text(
-                        "Завантаження...",
+                        stringResource(R.string.loading),
                         modifier = Modifier.padding(top = 16.dp),
                         color = Color.Gray
                     )
@@ -555,7 +555,7 @@ fun ChatsScreen(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     Text(
-                        error ?: "Помилка завантаження",
+                        error ?: stringResource(R.string.load_error),
                         color = Color.Red,
                         modifier = Modifier.padding(horizontal = 32.dp)
                     )
@@ -566,7 +566,7 @@ fun ChatsScreen(
                             containerColor = Color(0xFF0084FF)
                         )
                     ) {
-                        Text("Спробувати ще раз")
+                        Text(stringResource(R.string.retry))
                     }
                 }
             } else if (showGroups) {
@@ -579,7 +579,7 @@ fun ChatsScreen(
                     ) {
                         CircularProgressIndicator(color = Color(0xFF0084FF))
                         Text(
-                            "Завантаження груп...",
+                            stringResource(R.string.loading_groups),
                             modifier = Modifier.padding(top = 16.dp),
                             color = Color.Gray
                         )
@@ -596,7 +596,7 @@ fun ChatsScreen(
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
                         Text(
-                            errorGroups ?: "Помилка завантаження груп",
+                            errorGroups ?: stringResource(R.string.load_groups_error),
                             color = Color.Red,
                             modifier = Modifier.padding(horizontal = 32.dp)
                         )
@@ -607,7 +607,7 @@ fun ChatsScreen(
                                 containerColor = Color(0xFF0084FF)
                             )
                         ) {
-                            Text("Спробувати ще раз")
+                            Text(stringResource(R.string.retry))
                         }
                     }
                 } else if (filteredGroups.isEmpty()) {
@@ -712,7 +712,7 @@ fun ChatsScreen(
                             selectedGroup = null
                             scope.launch {
                                 snackbarHostState.showSnackbar(
-                                    message = "Групу видалено",
+                                    message = context.getString(R.string.group_deleted_toast),
                                     duration = SnackbarDuration.Short
                                 )
                             }
@@ -726,14 +726,14 @@ fun ChatsScreen(
                         groupsViewModel.uploadGroupAvatar(currentGroup.id, uri, context)
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                message = "Завантаження аватарки...",
+                                message = context.getString(R.string.uploading_avatar),
                                 duration = SnackbarDuration.Short
                             )
                         }
                     } else {
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                message = "Оберіть групу для зміни аватарки",
+                                message = context.getString(R.string.select_group_for_avatar),
                                 duration = SnackbarDuration.Short
                             )
                         }
@@ -760,7 +760,7 @@ fun ChatsScreen(
                     scope.launch {
                         viewModel.hideChat(chat.userId)
                         snackbarHostState.showSnackbar(
-                            message = "Чат приховано",
+                            message = context.getString(R.string.chat_hidden_toast),
                             duration = SnackbarDuration.Short
                         )
                     }
@@ -778,7 +778,7 @@ fun ChatsScreen(
                     // или показать детали контакта
                     Toast.makeText(
                         context,
-                        "Выбран контакт: ${contact.name}",
+                        context.getString(R.string.contact_selected, contact.name),
                         Toast.LENGTH_SHORT
                     ).show()
                     showContactPicker = false
@@ -850,7 +850,7 @@ fun SettingsDrawerContent(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            text = com.worldmates.messenger.data.UserSession.username ?: "Користувач",
+                            text = com.worldmates.messenger.data.UserSession.username ?: stringResource(R.string.user_label),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -866,7 +866,7 @@ fun SettingsDrawerContent(
                 IconButton(onClick = onClose) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Закрити",
+                        contentDescription = stringResource(R.string.close),
                         tint = Color.White
                     )
                 }
@@ -882,7 +882,7 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.Person,
-                    title = "Мій профіль",
+                    title = stringResource(R.string.my_profile),
                     onClick = {
                         onClose()
                         context.startActivity(
@@ -895,7 +895,7 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.Group,
-                    title = "Нова група",
+                    title = stringResource(R.string.new_group),
                     onClick = {
                         onClose()
                         onCreateGroup()
@@ -906,7 +906,7 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.CameraAlt,
-                    title = "Створити Story",
+                    title = stringResource(R.string.create_story),
                     onClick = {
                         onClose()
                         onCreateStoryClick()
@@ -917,7 +917,7 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.Person,
-                    title = "Контакти",
+                    title = stringResource(R.string.contacts),
                     onClick = {
                         onClose()
                         onShowContactPicker()
@@ -928,7 +928,7 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.Edit,
-                    title = "Черновики",
+                    title = stringResource(R.string.drafts),
                     onClick = {
                         onClose()
                         onShowDrafts()
@@ -939,7 +939,7 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.Call,
-                    title = "Дзвінки",
+                    title = stringResource(R.string.calls),
                     onClick = {
                         onClose()
                         context.startActivity(
@@ -952,10 +952,10 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.Star,
-                    title = "Збережені повідомлення",
+                    title = stringResource(R.string.saved_messages),
                     onClick = {
                         onClose()
-                        Toast.makeText(context, "Збережені", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.saved_label), Toast.LENGTH_SHORT).show()
                     }
                 )
             }
@@ -970,7 +970,7 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.Settings,
-                    title = "Налаштування",
+                    title = stringResource(R.string.settings),
                     onClick = onNavigateToFullSettings
                 )
             }
@@ -978,7 +978,7 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.Share,
-                    title = "Запросити друзів",
+                    title = stringResource(R.string.invite_friends),
                     onClick = {
                         onClose()
                         val shareIntent = Intent().apply {
@@ -986,11 +986,10 @@ fun SettingsDrawerContent(
                             type = "text/plain"
                             putExtra(
                                 Intent.EXTRA_TEXT,
-                                "Приєднуйся до WorldMates - найкращого месенджера! 🚀\n" +
-                                "Завантаж тут: https://worldmates.club"
+                                context.getString(R.string.invite_friends_text)
                             )
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Запросити друга"))
+                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.invite_friend_chooser_title)))
                     }
                 )
             }
@@ -998,7 +997,7 @@ fun SettingsDrawerContent(
             item {
                 DrawerMenuItem(
                     icon = Icons.Default.Info,
-                    title = "Про додаток",
+                    title = stringResource(R.string.about_app),
                     onClick = {
                         onClose()
                         showAboutDialog = true
@@ -1072,7 +1071,7 @@ fun SearchBar(
             modifier = Modifier
                 .weight(1f)
                 .background(colorScheme.surfaceVariant, RoundedCornerShape(24.dp)),
-            placeholder = { Text("Пошук чатів...", color = colorScheme.onSurfaceVariant) },
+            placeholder = { Text(stringResource(R.string.search_chats), color = colorScheme.onSurfaceVariant) },
             singleLine = true,
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
@@ -1142,7 +1141,7 @@ fun ChatItemRow(
             Text(
                 text = chat.lastMessage?.let {
                     com.worldmates.messenger.ui.messages.getLastMessagePreview(it)
-                } ?: "Немає повідомлень",
+                } ?: stringResource(R.string.no_messages_in_chat),
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -1173,14 +1172,14 @@ fun EmptyChatsState() {
         )
 
         Text(
-            text = "Немаєте чатів",
+            text = stringResource(R.string.no_chats_yet),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black
         )
 
         Text(
-            text = "Почніть розмову зараз!",
+            text = stringResource(R.string.start_conversation),
             fontSize = 14.sp,
             color = Color.Gray,
             modifier = Modifier.padding(top = 8.dp)
@@ -1282,14 +1281,14 @@ fun EmptyGroupsState(onCreateClick: () -> Unit = {}) {
         )
 
         Text(
-            text = "Немає груп",
+            text = stringResource(R.string.no_groups),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black
         )
 
         Text(
-            text = "Створіть нову групу або приєднайтесь до існуючої",
+            text = stringResource(R.string.no_groups_subtitle),
             fontSize = 14.sp,
             color = Color.Gray,
             modifier = Modifier.padding(top = 8.dp)
@@ -1314,7 +1313,7 @@ fun EmptyGroupsState(onCreateClick: () -> Unit = {}) {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                "Створити групу",
+                stringResource(R.string.create_group),
                 fontSize = 16.sp,
                 color = Color.White,
                 fontWeight = FontWeight.Bold
@@ -1334,10 +1333,11 @@ fun UserSearchDialog(
     var searchResults by remember { mutableStateOf<List<com.worldmates.messenger.network.SearchUser>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val nothingFoundText = stringResource(R.string.nothing_found)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Пошук користувачів") },
+        title = { Text(stringResource(R.string.search_users_title)) },
         text = {
             Column(
                 modifier = Modifier
@@ -1349,7 +1349,7 @@ fun UserSearchDialog(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Введіть ім'я або username") },
+                    placeholder = { Text(stringResource(R.string.enter_name_or_username)) },
                     leadingIcon = {
                         Icon(Icons.Default.Search, contentDescription = "Search")
                     },
@@ -1375,7 +1375,7 @@ fun UserSearchDialog(
                                         searchResults = response.users
                                         errorMessage = null
                                     } else {
-                                        errorMessage = "Нічого не знайдено"
+                                        errorMessage = nothingFoundText
                                         searchResults = emptyList()
                                     }
                                 } catch (e: Exception) {
@@ -1396,7 +1396,7 @@ fun UserSearchDialog(
                             color = Color.White
                         )
                     } else {
-                        Text("Шукати")
+                        Text(stringResource(R.string.search_button))
                     }
                 }
 
@@ -1461,7 +1461,7 @@ fun UserSearchDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Закрити")
+                Text(stringResource(R.string.close))
             }
         }
     )

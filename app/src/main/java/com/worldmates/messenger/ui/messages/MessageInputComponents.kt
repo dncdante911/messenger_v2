@@ -16,7 +16,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.worldmates.messenger.R
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -126,7 +128,7 @@ fun MessageInputBar(
                     // Text mode
                     InputModeTab(
                         icon = Icons.Default.Chat,
-                        label = "Текст",
+                        label = stringResource(R.string.input_mode_text),
                         isSelected = currentInputMode == InputMode.TEXT,
                         onClick = { onInputModeChange(InputMode.TEXT) }
                     )
@@ -134,7 +136,7 @@ fun MessageInputBar(
                     // Voice mode
                     InputModeTab(
                         icon = Icons.Default.Mic,
-                        label = "Голос",
+                        label = stringResource(R.string.input_mode_voice),
                         isSelected = currentInputMode == InputMode.VOICE,
                         onClick = { onInputModeChange(InputMode.VOICE) }
                     )
@@ -142,7 +144,7 @@ fun MessageInputBar(
                     // Video mode (майбутнє)
                     InputModeTab(
                         icon = Icons.Default.Videocam,
-                        label = "Відео",
+                        label = stringResource(R.string.input_mode_video),
                         isSelected = currentInputMode == InputMode.VIDEO,
                         onClick = { onInputModeChange(InputMode.VIDEO) }
                     )
@@ -150,7 +152,7 @@ fun MessageInputBar(
                     // Emoji mode
                     InputModeTab(
                         icon = Icons.Default.EmojiEmotions,
-                        label = "Емодзі",
+                        label = stringResource(R.string.input_mode_emoji),
                         isSelected = currentInputMode == InputMode.EMOJI,
                         onClick = { onInputModeChange(InputMode.EMOJI) }
                     )
@@ -158,7 +160,7 @@ fun MessageInputBar(
                     // Sticker mode
                     InputModeTab(
                         icon = Icons.Default.StickyNote2,
-                        label = "Стікери",
+                        label = stringResource(R.string.input_mode_stickers),
                         isSelected = currentInputMode == InputMode.STICKER,
                         onClick = { onInputModeChange(InputMode.STICKER) }
                     )
@@ -166,7 +168,7 @@ fun MessageInputBar(
                     // GIF mode
                     InputModeTab(
                         icon = Icons.Default.Gif,
-                        label = "GIF",
+                        label = stringResource(R.string.input_mode_gif),
                         isSelected = currentInputMode == InputMode.GIF,
                         onClick = { onInputModeChange(InputMode.GIF) }
                     )
@@ -242,7 +244,7 @@ fun MessageInputBar(
                     ) {
                         Icon(
                             imageVector = if (showMediaOptions) Icons.Default.Close else Icons.Default.Add,
-                            contentDescription = "Опції",
+                            contentDescription = stringResource(R.string.media_options_label),
                             tint = if (showMediaOptions) colorScheme.primary else colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
@@ -258,7 +260,7 @@ fun MessageInputBar(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.TextFormat,
-                                    contentDescription = "Форматування",
+                                    contentDescription = stringResource(R.string.formatted_text),
                                     tint = if (showFormattingToolbar) colorScheme.primary else colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -274,7 +276,7 @@ fun MessageInputBar(
                                     .background(colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
                                 placeholder = {
                                     Text(
-                                        "Повідомлення",
+                                        stringResource(R.string.messages),
                                         color = colorScheme.onSurfaceVariant,
                                         fontSize = 16.sp
                                     )
@@ -313,7 +315,7 @@ fun MessageInputBar(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Натисни і утримуй для запису →",
+                                        text = stringResource(R.string.voice_hold_to_record_hint),
                                         color = colorScheme.onSurfaceVariant,
                                         fontSize = 14.sp
                                     )
@@ -339,7 +341,7 @@ fun MessageInputBar(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Натисніть 📹 справа для запису",
+                                    text = stringResource(R.string.video_record_hint),
                                     color = colorScheme.onSurfaceVariant,
                                     fontSize = 14.sp
                                 )
@@ -357,7 +359,7 @@ fun MessageInputBar(
                                     .background(colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
                                 placeholder = {
                                     Text(
-                                        "Додати коментар...",
+                                        stringResource(R.string.add_comment_placeholder),
                                         color = colorScheme.onSurfaceVariant,
                                         fontSize = 16.sp
                                     )
@@ -390,7 +392,7 @@ fun MessageInputBar(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Send,
-                                        contentDescription = "Відправити",
+                                        contentDescription = stringResource(R.string.send_label),
                                         tint = colorScheme.primary,
                                         modifier = Modifier.size(24.dp)
                                     )
@@ -403,7 +405,7 @@ fun MessageInputBar(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Mic,
-                                        contentDescription = "Голосове повідомлення",
+                                        contentDescription = stringResource(R.string.voice_message),
                                         tint = colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(24.dp)
                                     )
@@ -480,7 +482,7 @@ fun MessageInputBar(
                             ) {
                                 Icon(
                                     imageVector = if (isRecordingLocked) Icons.Default.Lock else Icons.Default.Mic,
-                                    contentDescription = "Записати",
+                                    contentDescription = stringResource(R.string.record_voice),
                                     tint = Color.White,
                                     modifier = Modifier.size(32.dp)
                                 )
@@ -488,7 +490,7 @@ fun MessageInputBar(
                                 // Підказка при записі
                                 if (recordingState is VoiceRecorder.RecordingState.Recording && !isRecordingLocked) {
                                     Text(
-                                        text = "⬆️ Свайп вгору",
+                                        text = stringResource(R.string.swipe_up_hint),
                                         fontSize = 10.sp,
                                         color = Color.White,
                                         modifier = Modifier
@@ -515,7 +517,7 @@ fun MessageInputBar(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Stop,
-                                        contentDescription = "Зупинити",
+                                        contentDescription = stringResource(R.string.stop),
                                         tint = colorScheme.error,
                                         modifier = Modifier.size(24.dp)
                                     )
@@ -531,7 +533,7 @@ fun MessageInputBar(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Videocam,
-                                    contentDescription = "Записати відео",
+                                    contentDescription = stringResource(R.string.record_video),
                                     tint = Color.Red,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -548,7 +550,7 @@ fun MessageInputBar(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Send,
-                                        contentDescription = "Відправити",
+                                        contentDescription = stringResource(R.string.send_label),
                                         tint = colorScheme.primary,
                                         modifier = Modifier.size(24.dp)
                                     )
@@ -602,7 +604,7 @@ fun AudioQualityDialog(
         },
         title = {
             Text(
-                text = "Надіслати аудіо",
+                text = stringResource(R.string.send_audio_title),
                 style = MaterialTheme.typography.titleMedium
             )
         },
@@ -615,7 +617,7 @@ fun AudioQualityDialog(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "Розмір: $fileSizeMB МБ",
+                    text = stringResource(R.string.audio_file_size_format, fileSizeMB),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -640,12 +642,12 @@ fun AudioQualityDialog(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Оригінальна якість",
+                                text = stringResource(R.string.audio_quality_original),
                                 fontWeight = FontWeight.SemiBold,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "Без стиснення, повна якість звуку",
+                                text = stringResource(R.string.audio_quality_original_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -672,12 +674,12 @@ fun AudioQualityDialog(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Стиснутий (економія трафіку)",
+                                text = stringResource(R.string.audio_quality_compressed),
                                 fontWeight = FontWeight.SemiBold,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "Зменшений розмір, менше трафіку",
+                                text = stringResource(R.string.audio_quality_compressed_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -689,7 +691,7 @@ fun AudioQualityDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Скасувати")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -713,7 +715,7 @@ fun VoiceRecordingBar(
     ) {
         Icon(
             Icons.Default.Mic,
-            contentDescription = "Recording",
+            contentDescription = stringResource(R.string.recording),
             tint = Color.Red,
             modifier = Modifier.size(20.dp)
         )
@@ -725,14 +727,14 @@ fun VoiceRecordingBar(
         )
 
         IconButton(onClick = onCancel, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Cancel")
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
         }
 
         Button(
             onClick = onStop,
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0084FF))
         ) {
-            Text("Надіслати", color = Color.White)
+            Text(stringResource(R.string.send_label), color = Color.White)
         }
     }
 }
