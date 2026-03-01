@@ -116,8 +116,6 @@
     <string name="resend_code_timer_format">Отправить код повторно через %d сек</string>
     <string name="resend_code_full">Отправить код повторно</string>
     <string name="gender_select_label">Выберите пол:</string>
-    <string name="gender_male">Мужчина</string>
-    <string name="gender_female">Женщина</string>
 
     <!-- ===== NAVIGATION / BOTTOM BAR ===== -->
     <string name="chats">Чаты</string>
