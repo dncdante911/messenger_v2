@@ -68,6 +68,19 @@ fun CompactMediaMenu(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
+                // Resolve labels in composable scope before passing to items()
+                val labelGallery = stringResource(R.string.gallery)
+                val labelCamera = stringResource(R.string.camera)
+                val labelVideo = stringResource(R.string.video)
+                val labelRecordVoice = stringResource(R.string.record_voice)
+                val labelAudio = stringResource(R.string.audio_caption)
+                val labelFile = stringResource(R.string.file)
+                val labelLocation = stringResource(R.string.location)
+                val labelContact = stringResource(R.string.contact_share)
+                val labelEmoji = stringResource(R.string.emoji)
+                val labelStickers = stringResource(R.string.stickers_label)
+                val labelGif = stringResource(R.string.gif)
+
                 // Сітка опцій 3x4
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -79,7 +92,7 @@ fun CompactMediaMenu(
                         listOf(
                             MediaOption(
                                 icon = Icons.Default.Image,
-                                label = stringResource(R.string.gallery),
+                                label = labelGallery,
                                 color = Color(0xFF2196F3), // Blue
                                 onClick = {
                                     onPhotoClick()
@@ -88,7 +101,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.PhotoCamera,
-                                label = stringResource(R.string.camera),
+                                label = labelCamera,
                                 color = Color(0xFFE91E63), // Pink
                                 onClick = {
                                     onCameraClick()
@@ -97,7 +110,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.VideoLibrary,
-                                label = stringResource(R.string.video),
+                                label = labelVideo,
                                 color = Color(0xFF9C27B0), // Purple
                                 onClick = {
                                     onVideoClick()
@@ -106,7 +119,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.Videocam,
-                                label = stringResource(R.string.record_voice),
+                                label = labelRecordVoice,
                                 color = Color(0xFFFF5722), // Deep Orange
                                 onClick = {
                                     onVideoCameraClick()
@@ -115,7 +128,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.AudioFile,
-                                label = stringResource(R.string.audio_caption),
+                                label = labelAudio,
                                 color = Color(0xFF00BCD4), // Cyan
                                 onClick = {
                                     onAudioClick()
@@ -124,7 +137,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.InsertDriveFile,
-                                label = stringResource(R.string.file),
+                                label = labelFile,
                                 color = Color(0xFF607D8B), // Blue Grey
                                 onClick = {
                                     onFileClick()
@@ -133,7 +146,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.LocationOn,
-                                label = stringResource(R.string.location),
+                                label = labelLocation,
                                 color = Color(0xFF4CAF50), // Green
                                 onClick = {
                                     onLocationClick()
@@ -142,7 +155,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.Person,
-                                label = stringResource(R.string.contact_share),
+                                label = labelContact,
                                 color = Color(0xFFFF9800), // Orange
                                 onClick = {
                                     onContactClick()
@@ -151,7 +164,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.EmojiEmotions,
-                                label = stringResource(R.string.emoji),
+                                label = labelEmoji,
                                 color = Color(0xFFFFEB3B), // Yellow
                                 onClick = {
                                     onEmojiClick()
@@ -160,7 +173,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.StickyNote2,
-                                label = stringResource(R.string.stickers_label),
+                                label = labelStickers,
                                 color = Color(0xFF795548), // Brown
                                 onClick = {
                                     onStickerClick()
@@ -169,7 +182,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.Gif,
-                                label = stringResource(R.string.gif),
+                                label = labelGif,
                                 color = Color(0xFF3F51B5), // Indigo
                                 onClick = {
                                     onGifClick()

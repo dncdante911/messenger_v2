@@ -387,18 +387,28 @@ fun SettingsScreen(
                 SettingsSection(title = stringResource(R.string.security_section))
             }
             item {
+                val twoFactorEnabled = stringResource(R.string.two_factor_enabled)
+                val twoFactorDisabled = stringResource(R.string.two_factor_disabled)
+                val twoFactorSubtitle = try {
+                    if (com.worldmates.messenger.utils.security.SecurePreferences.is2FAEnabled) twoFactorEnabled else twoFactorDisabled
+                } catch (_: Exception) { twoFactorDisabled }
                 SettingsItem(
                     icon = Icons.Default.Shield,
                     title = stringResource(R.string.two_factor_auth),
-                    subtitle = try { if (com.worldmates.messenger.utils.security.SecurePreferences.is2FAEnabled) stringResource(R.string.two_factor_enabled) else stringResource(R.string.two_factor_disabled) } catch (_: Exception) { stringResource(R.string.two_factor_disabled) },
+                    subtitle = twoFactorSubtitle,
                     onClick = { onNavigate(SettingsScreen.TwoFactorAuth) }
                 )
             }
             item {
+                val pinActive = stringResource(R.string.app_lock_pin_active)
+                val pinDisabled = stringResource(R.string.two_factor_disabled)
+                val appLockSubtitle = try {
+                    if (com.worldmates.messenger.utils.security.SecurePreferences.isPINEnabled()) pinActive else pinDisabled
+                } catch (_: Exception) { pinDisabled }
                 SettingsItem(
                     icon = Icons.Default.Lock,
                     title = stringResource(R.string.app_lock),
-                    subtitle = try { if (com.worldmates.messenger.utils.security.SecurePreferences.isPINEnabled()) stringResource(R.string.app_lock_pin_active) else stringResource(R.string.two_factor_disabled) } catch (_: Exception) { stringResource(R.string.two_factor_disabled) },
+                    subtitle = appLockSubtitle,
                     onClick = { onNavigate(SettingsScreen.AppLock) }
                 )
             }
