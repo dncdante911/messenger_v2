@@ -16,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
+import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.security.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,13 +74,13 @@ fun AppLockSettingsScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            "Блокування додатку",
+                            stringResource(R.string.app_lock),
                             fontSize = 18.sp
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.Default.ArrowBack, "Назад", tint = Color.White)
+                            Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = Color.White)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -140,9 +142,9 @@ fun AppLockSettingsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = if (isPINEnabled.value || isBiometricEnabled.value) {
-                                            "Додаток захищено"
+                                            stringResource(R.string.app_protected)
                                         } else {
-                                            "Захист вимкнено"
+                                            stringResource(R.string.protection_disabled)
                                         },
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold,
@@ -150,11 +152,11 @@ fun AppLockSettingsScreen(
                                     )
                                     Text(
                                         text = if (isPINEnabled.value) {
-                                            "PIN-код: активний"
+                                            stringResource(R.string.pin_active_status)
                                         } else if (isBiometricEnabled.value) {
-                                            "Біометрія: активна"
+                                            stringResource(R.string.biometric_active_status)
                                         } else {
-                                            "Налаштуйте захист"
+                                            stringResource(R.string.configure_protection)
                                         },
                                         fontSize = 14.sp,
                                         color = Color.Gray
@@ -167,7 +169,7 @@ fun AppLockSettingsScreen(
                     // PIN Settings
                     item {
                         Text(
-                            "PIN-код",
+                            stringResource(R.string.pin_code),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
@@ -203,13 +205,13 @@ fun AppLockSettingsScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        "PIN-код",
+                                        stringResource(R.string.pin_code),
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color(0xFF2C3E50)
                                     )
                                     Text(
-                                        if (isPINEnabled.value) "Увімкнено" else "Вимкнено",
+                                        if (isPINEnabled.value) stringResource(R.string.two_factor_enabled) else stringResource(R.string.two_factor_disabled),
                                         fontSize = 13.sp,
                                         color = Color.Gray
                                     )
@@ -232,7 +234,7 @@ fun AppLockSettingsScreen(
                     if (biometricAvailability == BiometricAvailability.AVAILABLE) {
                         item {
                             Text(
-                                "Біометрична аутентифікація",
+                                stringResource(R.string.biometric_auth),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
@@ -276,7 +278,7 @@ fun AppLockSettingsScreen(
                                             color = Color(0xFF2C3E50)
                                         )
                                         Text(
-                                            if (isBiometricEnabled.value) "Увімкнено" else "Вимкнено",
+                                            if (isBiometricEnabled.value) stringResource(R.string.two_factor_enabled) else stringResource(R.string.two_factor_disabled),
                                             fontSize = 13.sp,
                                             color = Color.Gray
                                         )
@@ -315,7 +317,7 @@ fun AppLockSettingsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        "Біометрична аутентифікація недоступна на цьому пристрої",
+                                        stringResource(R.string.biometric_unavailable),
                                         fontSize = 13.sp,
                                         color = Color(0xFF856404)
                                     )
@@ -328,7 +330,7 @@ fun AppLockSettingsScreen(
                     if (isPINEnabled.value || isBiometricEnabled.value) {
                         item {
                             Text(
-                                "Автоблокування",
+                                stringResource(R.string.lock_app),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
@@ -358,7 +360,7 @@ fun AppLockSettingsScreen(
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            "Блокувати після",
+                                            stringResource(R.string.lock_after),
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color(0xFF2C3E50)
@@ -397,15 +399,14 @@ fun AppLockSettingsScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "Про блокування додатку",
+                                    stringResource(R.string.about_app_lock_title),
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF2C3E50)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "PIN-код або біометрія додає додатковий рівень захисту. " +
-                                    "Додаток буде блокуватися після виходу з нього.",
+                                    stringResource(R.string.about_app_lock_desc),
                                     fontSize = 13.sp,
                                     color = Color.Gray,
                                     lineHeight = 18.sp
@@ -433,7 +434,7 @@ fun AppLockSettingsScreen(
     if (showTimeoutDialog.value) {
         AlertDialog(
             onDismissRequest = { showTimeoutDialog.value = false },
-            title = { Text("Блокувати після") },
+            title = { Text(stringResource(R.string.lock_after)) },
             text = {
                 Column {
                     AppLockTimeout.getAll().forEach { (timeout, label) ->
@@ -464,7 +465,7 @@ fun AppLockSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showTimeoutDialog.value = false }) {
-                    Text("Закрити")
+                    Text(stringResource(R.string.close))
                 }
             }
         )
@@ -482,10 +483,10 @@ fun AppLockSettingsScreen(
                     modifier = Modifier.size(48.dp)
                 )
             },
-            title = { Text("Вимкнути PIN-код?") },
+            title = { Text(stringResource(R.string.disable_pin_title)) },
             text = {
                 Text(
-                    "Це також вимкне біометричну аутентифікацію. Додаток більше не буде захищено.",
+                    stringResource(R.string.disable_pin_message),
                     textAlign = TextAlign.Center
                 )
             },
@@ -502,12 +503,12 @@ fun AppLockSettingsScreen(
                         containerColor = Color.Red
                     )
                 ) {
-                    Text("Вимкнути")
+                    Text(stringResource(R.string.disable_action_label))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDisablePINDialog.value = false }) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

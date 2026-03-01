@@ -8,9 +8,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.CloudBackupSettings
 import com.worldmates.messenger.data.model.BackupFileInfo
 
@@ -48,7 +50,7 @@ fun MediaDownloadDialog(
             LazyColumn {
                 item {
                     Text(
-                        "Автоматически загружать медиафайлы",
+                        stringResource(R.string.auto_download_media),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
@@ -67,7 +69,7 @@ fun MediaDownloadDialog(
                             onCheckedChange = { photos = it }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Фото", modifier = Modifier.weight(1f))
+                        Text(stringResource(R.string.photos), modifier = Modifier.weight(1f))
                     }
                 }
 
@@ -85,10 +87,10 @@ fun MediaDownloadDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Видео")
+                            Text(stringResource(R.string.videos))
                             if (videos) {
                                 Text(
-                                    "До $videoLimit МБ",
+                                    stringResource(R.string.up_to_mb, videoLimit),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -118,10 +120,10 @@ fun MediaDownloadDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Файлы")
+                            Text(stringResource(R.string.files_label))
                             if (files) {
                                 Text(
-                                    "До $fileLimit МБ",
+                                    stringResource(R.string.up_to_mb, fileLimit),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -142,12 +144,12 @@ fun MediaDownloadDialog(
             TextButton(onClick = {
                 onSave(photos, videos, files, videoLimit, fileLimit)
             }) {
-                Text("Сохранить")
+                Text(stringResource(R.string.save_action))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -162,7 +164,8 @@ fun CacheSizeDialog(
     onDismiss: () -> Unit,
     onSelect: (Long) -> Unit
 ) {
-    val sizes = remember {
+    val unlimitedLabel = stringResource(R.string.unlimited)
+    val sizes = remember(unlimitedLabel) {
         listOf(
             CloudBackupSettings.CACHE_SIZE_1GB to "1 GB",
             CloudBackupSettings.CACHE_SIZE_3GB to "3 GB",
@@ -170,7 +173,7 @@ fun CacheSizeDialog(
             CloudBackupSettings.CACHE_SIZE_10GB to "10 GB",
             CloudBackupSettings.CACHE_SIZE_15GB to "15 GB",
             CloudBackupSettings.CACHE_SIZE_32GB to "32 GB",
-            CloudBackupSettings.CACHE_SIZE_UNLIMITED to "Бесконечно"
+            CloudBackupSettings.CACHE_SIZE_UNLIMITED to unlimitedLabel
         )
     }
 
@@ -178,7 +181,7 @@ fun CacheSizeDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Максимальный размер кэша") },
+        title = { Text(stringResource(R.string.max_cache_size_title)) },
         text = {
             Column(modifier = Modifier.selectableGroup()) {
                 sizes.forEach { (size, label) ->
@@ -207,12 +210,12 @@ fun CacheSizeDialog(
             TextButton(onClick = {
                 onSelect(selectedSize)
             }) {
-                Text("ОК")
+                Text(stringResource(R.string.ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -235,7 +238,7 @@ fun BackupProviderDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Выберите провайдер облака") },
+        title = { Text(stringResource(R.string.choose_cloud_provider_title)) },
         text = {
             Column(modifier = Modifier.selectableGroup()) {
                 providers.forEach { provider ->
@@ -262,7 +265,7 @@ fun BackupProviderDialog(
                             )
                             if (provider == CloudBackupSettings.BackupProvider.LOCAL_SERVER) {
                                 Text(
-                                    "Хранение на вашем сервере",
+                                    stringResource(R.string.store_on_your_server),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -276,12 +279,12 @@ fun BackupProviderDialog(
             TextButton(onClick = {
                 onSelect(selectedProvider)
             }) {
-                Text("Выбрать")
+                Text(stringResource(R.string.select_action))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -300,11 +303,11 @@ fun CreateBackupDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Создать бэкап") },
+        title = { Text(stringResource(R.string.create_backup_title)) },
         text = {
             Column {
                 Text(
-                    "Бэкап будет создан на вашем сервере.",
+                    stringResource(R.string.backup_created_on_server),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
@@ -322,7 +325,7 @@ fun CreateBackupDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Загрузить в облако")
+                            Text(stringResource(R.string.upload_to_cloud))
                             Text(
                                 currentProvider.displayName,
                                 style = MaterialTheme.typography.bodySmall,
@@ -333,7 +336,7 @@ fun CreateBackupDialog(
                 }
 
                 Text(
-                    "Бэкап включает все сообщения, медиафайлы и настройки.",
+                    stringResource(R.string.backup_includes_all),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
@@ -344,12 +347,12 @@ fun CreateBackupDialog(
             TextButton(onClick = {
                 onCreate(uploadToCloud)
             }) {
-                Text("Создать")
+                Text(stringResource(R.string.create_action))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -367,11 +370,11 @@ fun BackupListDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Список бэкапов") },
+        title = { Text(stringResource(R.string.backup_list_title)) },
         text = {
             if (backups.isEmpty()) {
                 Text(
-                    "Нет доступных бэкапов",
+                    stringResource(R.string.no_backups),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(16.dp)
                 )
@@ -397,7 +400,7 @@ fun BackupListDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Закрыть")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -423,7 +426,7 @@ private fun BackupListItem(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Размер: ${formatFileSize(backup.size)} • ${formatBackupDate(backup.createdAt)}",
+            text = "${stringResource(R.string.size_format, formatFileSize(backup.size))} • ${formatBackupDate(backup.createdAt)}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -435,13 +438,13 @@ private fun BackupListItem(
             horizontalArrangement = Arrangement.End
         ) {
             TextButton(onClick = onDelete) {
-                Text("Удалить", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.delete_action), color = MaterialTheme.colorScheme.error)
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
             Button(onClick = onRestore) {
-                Text("Восстановить")
+                Text(stringResource(R.string.restore_action))
             }
         }
     }
@@ -458,24 +461,24 @@ fun RestoreBackupDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Восстановить бэкап?") },
+        title = { Text(stringResource(R.string.restore_backup_title)) },
         text = {
             Column {
                 Text(
-                    "Вы уверены, что хотите восстановить бэкап?",
+                    stringResource(R.string.restore_backup_confirm_text),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    "Файл: ${backup.filename}",
+                    stringResource(R.string.file_label, backup.filename),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Text(
-                    "Размер: ${formatFileSize(backup.size)}",
+                    stringResource(R.string.size_format, formatFileSize(backup.size)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -483,7 +486,7 @@ fun RestoreBackupDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    "⚠️ Внимание: текущие данные не будут удалены, но дубликаты будут пропущены.",
+                    "⚠️ ${stringResource(R.string.restore_backup_warning)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -494,12 +497,12 @@ fun RestoreBackupDialog(
                 onConfirm()
                 onDismiss()
             }) {
-                Text("Восстановить")
+                Text(stringResource(R.string.restore_action))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

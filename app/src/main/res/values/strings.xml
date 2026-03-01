@@ -844,6 +844,118 @@
     <string name="backup_now_desc">Зберегти всі дані на сервер</string>
     <string name="no_backups_available">Немає доступних бекапів</string>
 
+    <!-- ===== APP LOCK SETTINGS ===== -->
+    <string name="app_protected">Додаток захищено</string>
+    <string name="protection_disabled">Захист вимкнено</string>
+    <string name="pin_active_status">PIN-код: активний</string>
+    <string name="biometric_active_status">Біометрія: активна</string>
+    <string name="configure_protection">Налаштуйте захист</string>
+    <string name="biometric_unavailable">Біометрична аутентифікація недоступна на цьому пристрої</string>
+    <string name="lock_after">Блокувати після</string>
+    <string name="about_app_lock_title">Про блокування додатку</string>
+    <string name="about_app_lock_desc">PIN-код або біометрія додає додатковий рівень захисту. Додаток буде блокуватися після виходу з нього.</string>
+    <string name="disable_pin_title">Вимкнути PIN-код?</string>
+    <string name="disable_pin_message">Це також вимкне біометричну аутентифікацію. Додаток більше не буде захищено.</string>
+    <string name="disable_action_label">Вимкнути</string>
+
+    <!-- ===== TWO FACTOR AUTH ===== -->
+    <string name="what_is_2fa_title">Що таке 2FA?</string>
+    <string name="what_is_2fa_desc">Двофакторна аутентифікація додає додатковий рівень безпеки. Крім пароля, вам потрібно буде ввести 6-значний код з Google Authenticator.</string>
+    <string name="account_protected_2fa">Ваш обліковий запис захищено</string>
+    <string name="extra_login_protection">Додатковий захист для входу</string>
+    <string name="disable_2fa_title">Вимкнути 2FA?</string>
+    <string name="disable_2fa_message">Ваш обліковий запис стане менш захищеним. Ви дійсно хочете вимкнути двофакторну аутентифікацію?</string>
+    <string name="backup_codes_remaining">Залишилось: %s / 10</string>
+    <string name="step1_scan_qr">Крок 1: Скануйте QR-код</string>
+    <string name="step1_scan_qr_desc">Відкрийте Google Authenticator та скануйте цей код</string>
+    <string name="enter_code_manually">Або введіть код вручну:</string>
+    <string name="step2_enter_code">Крок 2: Введіть код</string>
+    <string name="step2_enter_code_desc">Введіть 6-значний код з Google Authenticator</string>
+    <string name="code_updates_in">Код оновиться через %d сек</string>
+    <string name="invalid_code_try_again">Невірний код. Спробуйте ще раз.</string>
+    <string name="save_codes_warning">Збережіть ці коди!</string>
+    <string name="save_codes_desc">Використовуйте їх, якщо втратите доступ до Google Authenticator</string>
+    <string name="2fa_status_enabled">2FA Увімкнено</string>
+    <string name="2fa_status_disabled">2FA Вимкнено</string>
+
+    <!-- ===== PIN SCREEN ===== -->
+    <string name="create_pin_title">Створити PIN-код</string>
+    <string name="enter_4digit_pin_subtitle">Введіть 4-значний PIN-код</string>
+    <string name="confirm_pin_title">Підтвердити PIN-код</string>
+    <string name="enter_pin_again_subtitle">Введіть PIN-код ще раз</string>
+    <string name="enter_pin_title">Введіть PIN-код</string>
+    <string name="unlock_app_subtitle">Розблокуйте додаток</string>
+    <string name="pin_mismatch">PIN-коди не збігаються</string>
+    <string name="wrong_pin_message">Невірний PIN-код</string>
+    <string name="use_biometric">Використати біометрію</string>
+
+    <!-- ===== CLOUD BACKUP DIALOGS ===== -->
+    <string name="auto_download_media">Автоматично завантажувати медіафайли</string>
+    <string name="up_to_mb">До %d МБ</string>
+    <string name="files_label">Файли</string>
+    <string name="unlimited">Безмежно</string>
+    <string name="max_cache_size_title">Максимальний розмір кешу</string>
+    <string name="choose_cloud_provider_title">Виберіть провайдер хмари</string>
+    <string name="store_on_your_server">Зберігання на вашому сервері</string>
+    <string name="create_backup_title">Створити бекап</string>
+    <string name="backup_created_on_server">Бекап буде створено на вашому сервері.</string>
+    <string name="upload_to_cloud">Завантажити в хмару</string>
+    <string name="backup_includes_all">Бекап включає всі повідомлення, медіафайли та налаштування.</string>
+    <string name="backup_list_title">Список бекапів</string>
+    <string name="no_backups">Немає доступних бекапів</string>
+    <string name="size_format">Розмір: %s</string>
+    <string name="restore_backup_title">Відновити бекап?</string>
+    <string name="restore_backup_confirm_text">Ви впевнені, що хочете відновити бекап?</string>
+    <string name="file_label">Файл: %s</string>
+    <string name="restore_backup_warning">Увага: поточні дані не будуть видалені, але дублікати будуть пропущені.</string>
+    <string name="restore_action">Відновити</string>
+    <string name="delete_action">Видалити</string>
+    <string name="save_action">Зберегти</string>
+    <string name="select_action">Вибрати</string>
+    <string name="create_action">Створити</string>
+
+    <!-- ===== MY PROFILE SCREEN ===== -->
+    <string name="qr_code_label">QR-код</string>
+    <string name="more_options_label">Більше</string>
+    <string name="avatar_desc">Аватар</string>
+    <string name="online_status_text">в мережі</string>
+    <string name="last_seen_recently">був(ла) нещодавно</string>
+    <string name="profile_action_photo">Вибрати\nфото</string>
+    <string name="profile_action_edit">Змінити</string>
+    <string name="profile_action_settings">Налаштування</string>
+    <string name="profile_action_themes">Теми</string>
+    <string name="phone_label">Телефон</string>
+    <string name="about_label">Про себе</string>
+    <string name="username_label">Ім\'я користувача</string>
+    <string name="birthday_profile_label">День народження</string>
+    <string name="city_label">Місто</string>
+    <string name="work_profile_label">Робота</string>
+    <string name="website_profile_label">Веб-сайт</string>
+    <string name="publications_tab">Публікації</string>
+    <string name="archive_publications_tab">Архів публікацій</string>
+    <string name="no_publications_yet">Публікацій поки немає...</string>
+    <string name="publish_photos_videos_cta">Публікуйте фото та відео у своєму профілі</string>
+
+    <!-- ===== STORAGE STATISTICS ===== -->
+    <string name="stat_total_messages">Всього повідомлень</string>
+    <string name="stat_sent">Відправлено</string>
+    <string name="stat_received">Отримано</string>
+    <string name="stat_media_count">Медіа файлів</string>
+    <string name="stat_media_size">Розмір медіа</string>
+    <string name="stat_total_size">Загальний розмір</string>
+    <string name="time_just_now">щойно</string>
+    <string name="time_hours_ago">%d год. тому</string>
+    <string name="time_days_ago">%d дн. тому</string>
+
+    <!-- ===== SETTINGS SCREEN ===== -->
+    <string name="settings_header">Налаштування</string>
+    <string name="nav_back">Назад</string>
+    <string name="nav_edit">Редагувати</string>
+    <string name="nav_go">Перейти</string>
+    <string name="update_available_title">Доступне оновлення %s</string>
+    <string name="update_auto_check">Автоперевірка з сервера кожні 30 хв</string>
+    <string name="update_available_version">Доступна версія %s</string>
+
     <!-- ===== ERRORS ===== -->
     <string name="error_network">Помилка мережі</string>
     <string name="error_login">Помилка входу</string>

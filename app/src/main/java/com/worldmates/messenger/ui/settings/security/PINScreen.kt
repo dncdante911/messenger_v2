@@ -20,12 +20,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.security.SecurePreferences
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -41,6 +43,7 @@ fun PINSetupDialog(
     var step by remember { mutableStateOf(PINSetupStep.CREATE) }
     var firstPIN by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
+    val pinMismatchMessage = stringResource(R.string.pin_mismatch)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -63,20 +66,21 @@ fun PINSetupDialog(
             when (step) {
                 PINSetupStep.CREATE -> {
                     PINInputScreen(
-                        title = "Створити PIN-код",
-                        subtitle = "Введіть 4-значний PIN-код",
+                        title = stringResource(R.string.create_pin_title),
+                        subtitle = stringResource(R.string.enter_4digit_pin_subtitle),
                         onPINEntered = { pin ->
                             firstPIN = pin
                             step = PINSetupStep.CONFIRM
                         },
                         onBackClick = onDismiss,
-                        showError = showError
+                        showError = showError,
+                        errorMessage = pinMismatchMessage
                     )
                 }
                 PINSetupStep.CONFIRM -> {
                     PINInputScreen(
-                        title = "Підтвердити PIN-код",
-                        subtitle = "Введіть PIN-код ще раз",
+                        title = stringResource(R.string.confirm_pin_title),
+                        subtitle = stringResource(R.string.enter_pin_again_subtitle),
                         onPINEntered = { pin ->
                             if (pin == firstPIN) {
                                 // Сохраняем PIN
@@ -92,7 +96,8 @@ fun PINSetupDialog(
                             step = PINSetupStep.CREATE
                             firstPIN = ""
                         },
-                        showError = showError
+                        showError = showError,
+                        errorMessage = pinMismatchMessage
                     )
                 }
             }
@@ -111,6 +116,7 @@ fun PINLockScreen(
 ) {
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    val wrongPinMessage = stringResource(R.string.wrong_pin_message)
 
     Box(
         modifier = Modifier
@@ -125,15 +131,15 @@ fun PINLockScreen(
             )
     ) {
         PINInputScreen(
-            title = "Введіть PIN-код",
-            subtitle = "Розблокуйте додаток",
+            title = stringResource(R.string.enter_pin_title),
+            subtitle = stringResource(R.string.unlock_app_subtitle),
             onPINEntered = { pin ->
                 if (SecurePreferences.verifyPIN(pin)) {
                     SecurePreferences.updateUnlockTime()
                     onUnlocked()
                 } else {
                     showError = true
-                    errorMessage = "Невірний PIN-код"
+                    errorMessage = wrongPinMessage
                 }
             },
             showError = showError,
@@ -154,7 +160,7 @@ private fun PINInputScreen(
     onPINEntered: (String) -> Unit,
     onBackClick: (() -> Unit)? = null,
     showError: Boolean = false,
-    errorMessage: String = "PIN-коди не збігаються",
+    errorMessage: String = "",
     showBiometricButton: Boolean = false,
     onBiometricClick: (() -> Unit)? = null
 ) {
@@ -276,7 +282,7 @@ private fun PINInputScreen(
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Використати біометрію", fontSize = 16.sp)
+                    Text(stringResource(R.string.use_biometric), fontSize = 16.sp)
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             }

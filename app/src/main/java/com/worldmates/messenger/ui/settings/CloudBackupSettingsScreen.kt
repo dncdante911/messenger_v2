@@ -99,12 +99,12 @@ fun CloudBackupSettingsScreen(
                         Column(
                             modifier = Modifier.padding(16.dp)
                         ) {
-                            StatRow("📊 Всього повідомлень:", "${stats.totalMessages}")
-                            StatRow("📤 Відправлено:", "${stats.messagesSent}")
-                            StatRow("📥 Отримано:", "${stats.messagesReceived}")
-                            StatRow("📷 Медіа файлів:", "${stats.mediaFilesCount}")
-                            StatRow("💾 Розмір медіа:", "${stats.mediaSizeMb} MB")
-                            StatRow("📦 Загальний розмір:", "${stats.totalStorageMb} MB")
+                            StatRow("📊 ${stringResource(R.string.stat_total_messages)}:", "${stats.totalMessages}")
+                            StatRow("📤 ${stringResource(R.string.stat_sent)}:", "${stats.messagesSent}")
+                            StatRow("📥 ${stringResource(R.string.stat_received)}:", "${stats.messagesReceived}")
+                            StatRow("📷 ${stringResource(R.string.stat_media_count)}:", "${stats.mediaFilesCount}")
+                            StatRow("💾 ${stringResource(R.string.stat_media_size)}:", "${stats.mediaSizeMb} MB")
+                            StatRow("📦 ${stringResource(R.string.stat_total_size)}:", "${stats.totalStorageMb} MB")
                         }
                     }
                 } ?: run {
