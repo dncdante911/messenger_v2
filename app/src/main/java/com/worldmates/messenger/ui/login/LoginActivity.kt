@@ -37,6 +37,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -46,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.chats.ChatsActivity
 import com.worldmates.messenger.ui.components.*
 import com.worldmates.messenger.ui.language.LanguageSelectionActivity
@@ -92,7 +95,13 @@ class LoginActivity : AppCompatActivity() {
                     onLoginSuccess = { navigateToChats() },
                     onNavigateToRegister = { navigateToRegister() },
                     onNavigateToForgotPassword = { navigateToForgotPassword() },
-                    onNavigateToQuickRegister = { navigateToQuickRegister() }
+                    onNavigateToQuickRegister = { navigateToQuickRegister() },
+                    onLanguageToggle = {
+                        val newLang = if (LanguageManager.currentLanguage == LanguageManager.LANG_UK)
+                            LanguageManager.LANG_RU else LanguageManager.LANG_UK
+                        LanguageManager.setLanguage(newLang)
+                        recreate()
+                    }
                 )
             }
         }
@@ -103,7 +112,7 @@ class LoginActivity : AppCompatActivity() {
                     is LoginState.Success -> {
                         Toast.makeText(
                             this@LoginActivity,
-                            "Успішно увійшли!",
+                            getString(R.string.login_success),
                             Toast.LENGTH_SHORT
                         ).show()
                         navigateToChats()
@@ -152,7 +161,8 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit = {},
-    onNavigateToQuickRegister: () -> Unit = {}
+    onNavigateToQuickRegister: () -> Unit = {},
+    onLanguageToggle: () -> Unit = {}
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -222,7 +232,17 @@ fun LoginScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Language toggle button — top right
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                LanguageToggleChip(onToggle = onLanguageToggle)
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             AnimatedVisibility(
                 visible = visible,
@@ -347,7 +367,7 @@ fun LogoSection() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            "Спілкуйтесь з друзями по всьому світу",
+            stringResource(R.string.login_world_subtitle),
             fontSize = 15.sp,
             color = Color.White.copy(alpha = 0.9f)
         )
@@ -392,7 +412,7 @@ fun LoginFormCard(
             modifier = Modifier.padding(24.dp)
         ) {
             Text(
-                "Вхід",
+                stringResource(R.string.login),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = colorScheme.onSurface
@@ -417,13 +437,13 @@ fun LoginFormCard(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("Логін/Email") },
+                    text = { Text(stringResource(R.string.login_email_tab)) },
                     icon = { Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(20.dp)) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("Телефон") },
+                    text = { Text(stringResource(R.string.phone)) },
                     icon = { Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(20.dp)) }
                 )
             }
@@ -437,7 +457,7 @@ fun LoginFormCard(
                     OutlinedTextField(
                         value = username,
                         onValueChange = onUsernameChange,
-                        label = { Text("Ім'я користувача або email") },
+                        label = { Text(stringResource(R.string.username_or_email)) },
                         leadingIcon = {
                             Icon(Icons.Default.Person, contentDescription = null)
                         },
@@ -459,7 +479,7 @@ fun LoginFormCard(
                     OutlinedTextField(
                         value = password,
                         onValueChange = onPasswordChange,
-                        label = { Text("Пароль") },
+                        label = { Text(stringResource(R.string.password)) },
                         leadingIcon = {
                             Icon(Icons.Default.Lock, contentDescription = null)
                         },
@@ -468,7 +488,10 @@ fun LoginFormCard(
                                 Icon(
                                     if (passwordVisible) Icons.Default.Visibility
                                     else Icons.Default.VisibilityOff,
-                                    contentDescription = if (passwordVisible) "Сховати пароль" else "Показати пароль"
+                                    contentDescription = if (passwordVisible)
+                                        stringResource(R.string.hide_password)
+                                    else
+                                        stringResource(R.string.show_password)
                                 )
                             }
                         },
@@ -497,7 +520,7 @@ fun LoginFormCard(
                         selectedCountry = selectedCountry,
                         onCountryChange = { selectedCountry = it },
                         enabled = !isLoading,
-                        label = "Номер телефону"
+                        label = stringResource(R.string.phone_number)
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -506,7 +529,7 @@ fun LoginFormCard(
                     OutlinedTextField(
                         value = password,
                         onValueChange = onPasswordChange,
-                        label = { Text("Пароль") },
+                        label = { Text(stringResource(R.string.password)) },
                         leadingIcon = {
                             Icon(Icons.Default.Lock, contentDescription = null)
                         },
@@ -515,7 +538,10 @@ fun LoginFormCard(
                                 Icon(
                                     if (passwordVisible) Icons.Default.Visibility
                                     else Icons.Default.VisibilityOff,
-                                    contentDescription = if (passwordVisible) "Сховати пароль" else "Показати пароль"
+                                    contentDescription = if (passwordVisible)
+                                        stringResource(R.string.hide_password)
+                                    else
+                                        stringResource(R.string.show_password)
                                 )
                             }
                         },
@@ -545,7 +571,7 @@ fun LoginFormCard(
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text(
-                    "Відновлення доступу",
+                    stringResource(R.string.recovery_access_btn),
                     color = colorScheme.primary,
                     fontSize = 13.sp
                 )
@@ -561,7 +587,7 @@ fun LoginFormCard(
             }
 
             GradientButton(
-                text = "Увійти",
+                text = stringResource(R.string.sign_in),
                 onClick = {
                     if (selectedTab == 0) {
                         onLoginClick()
@@ -611,7 +637,7 @@ fun RegisterPrompt(
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            "Немаєте облікового запису?",
+            stringResource(R.string.no_account_question),
             color = Color.White.copy(alpha = 0.80f),
             fontSize = 14.sp
         )
@@ -628,7 +654,7 @@ fun RegisterPrompt(
         ) {
             Icon(Icons.Default.PersonAdd, null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Реєстрація", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.register), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 
@@ -647,14 +673,14 @@ fun RegisterPrompt(
                     .padding(bottom = 28.dp)
             ) {
                 Text(
-                    "Оберіть тип реєстрації",
+                    stringResource(R.string.reg_type_title),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Ви зможете налаштувати акаунт після входу",
+                    stringResource(R.string.reg_account_setup_hint),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.50f)
                 )
@@ -662,8 +688,8 @@ fun RegisterPrompt(
 
                 RegOptionCard(
                     icon = Icons.Default.Person,
-                    title = "Стандартна реєстрація",
-                    desc = "Ім'я, email або телефон, пароль — повний контроль над акаунтом",
+                    title = stringResource(R.string.standard_register),
+                    desc = stringResource(R.string.std_reg_desc),
                     gradient = listOf(Color(0xFF1565C0), Color(0xFF1E88E5)),
                     onClick = {
                         scope.launch { sheetState.hide() }.invokeOnCompletion {
@@ -677,8 +703,8 @@ fun RegisterPrompt(
 
                 RegOptionCard(
                     icon = Icons.Default.Email,
-                    title = "Швидка реєстрація",
-                    desc = "Лише email або телефон — вхід через код підтвердження, без паролю",
+                    title = stringResource(R.string.quick_register),
+                    desc = stringResource(R.string.quick_reg_desc),
                     gradient = listOf(Color(0xFF6A1B9A), Color(0xFF8E24AA)),
                     onClick = {
                         scope.launch { sheetState.hide() }.invokeOnCompletion {
@@ -731,6 +757,33 @@ private fun RegOptionCard(
             Icon(Icons.Default.ChevronRight, null,
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f),
                 modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@Composable
+fun LanguageToggleChip(onToggle: () -> Unit) {
+    val currentLang = LanguageManager.currentLanguage
+    val (flag, code) = if (currentLang == LanguageManager.LANG_UK) "🇺🇦" to "UA" else "🇷🇺" to "RU"
+
+    Surface(
+        onClick = onToggle,
+        shape = androidx.compose.foundation.shape.CircleShape,
+        color = Color.White.copy(alpha = 0.15f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(flag, fontSize = 16.sp)
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                code,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
         }
     }
 }

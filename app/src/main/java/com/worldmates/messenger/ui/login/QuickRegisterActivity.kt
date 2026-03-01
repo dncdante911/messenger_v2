@@ -23,9 +23,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.ui.chats.ChatsActivity
@@ -117,10 +119,10 @@ fun QuickRegisterScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, "Назад", tint = Color.White)
+                    Icon(Icons.Default.ArrowBack, stringResource(R.string.nav_back), tint = Color.White)
                 }
                 Text(
-                    "Швидка реєстрація",
+                    stringResource(R.string.quick_register),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -131,7 +133,7 @@ fun QuickRegisterScreen(
 
             // Info text
             Text(
-                "Введіть email або телефон — ми надішлемо код підтвердження.\nНіяких логінів та паролів!",
+                stringResource(R.string.quick_reg_info),
                 fontSize = 14.sp,
                 color = Color.White.copy(alpha = 0.9f),
                 textAlign = TextAlign.Center
@@ -150,7 +152,7 @@ fun QuickRegisterScreen(
                     when (step) {
                         QuickRegStep.ENTER_CONTACT -> {
                             Text(
-                                "Спосіб реєстрації",
+                                stringResource(R.string.reg_method_title),
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = colorScheme.onSurface
@@ -166,13 +168,13 @@ fun QuickRegisterScreen(
                                 Tab(
                                     selected = selectedTab == 0,
                                     onClick = { selectedTab = 0 },
-                                    text = { Text("Email") },
+                                    text = { Text(stringResource(R.string.email)) },
                                     icon = { Icon(Icons.Default.Email, null, Modifier.size(20.dp)) }
                                 )
                                 Tab(
                                     selected = selectedTab == 1,
                                     onClick = { selectedTab = 1 },
-                                    text = { Text("Телефон") },
+                                    text = { Text(stringResource(R.string.phone)) },
                                     icon = { Icon(Icons.Default.Phone, null, Modifier.size(20.dp)) }
                                 )
                             }
@@ -184,7 +186,7 @@ fun QuickRegisterScreen(
                                     OutlinedTextField(
                                         value = email,
                                         onValueChange = { email = it },
-                                        label = { Text("Email") },
+                                        label = { Text(stringResource(R.string.email)) },
                                         leadingIcon = { Icon(Icons.Default.Email, null) },
                                         modifier = Modifier.fillMaxWidth(),
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -200,15 +202,16 @@ fun QuickRegisterScreen(
                                         selectedCountry = selectedCountry,
                                         onCountryChange = { selectedCountry = it },
                                         enabled = !isLoading,
-                                        label = "Номер телефону"
+                                        label = stringResource(R.string.phone_number)
                                     )
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(20.dp))
 
+                            val errorRegistration = stringResource(R.string.error_registration)
                             GradientButton(
-                                text = "Отримати код",
+                                text = stringResource(R.string.get_code),
                                 onClick = {
                                     errorMessage = null
                                     isLoading = true
@@ -227,10 +230,10 @@ fun QuickRegisterScreen(
                                                 successMessage = response.message
                                                 step = QuickRegStep.ENTER_CODE
                                             } else {
-                                                errorMessage = response.errorMessage ?: "Помилка реєстрації"
+                                                errorMessage = response.errorMessage ?: errorRegistration
                                             }
                                         } catch (e: Exception) {
-                                            errorMessage = "Помилка мережі: ${e.localizedMessage}"
+                                            errorMessage = e.localizedMessage
                                         } finally {
                                             isLoading = false
                                         }
@@ -245,14 +248,14 @@ fun QuickRegisterScreen(
 
                         QuickRegStep.ENTER_CODE -> {
                             Text(
-                                "Введіть код",
+                                stringResource(R.string.enter_code_title),
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                successMessage ?: "Код надіслано",
+                                successMessage ?: stringResource(R.string.code_sent_default),
                                 fontSize = 14.sp,
                                 color = colorScheme.onSurface.copy(alpha = 0.7f)
                             )
@@ -262,7 +265,7 @@ fun QuickRegisterScreen(
                             OutlinedTextField(
                                 value = code,
                                 onValueChange = { if (it.length <= 6) code = it },
-                                label = { Text("6-значний код") },
+                                label = { Text(stringResource(R.string.enter_verification_code)) },
                                 leadingIcon = { Icon(Icons.Default.Lock, null) },
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -273,8 +276,10 @@ fun QuickRegisterScreen(
 
                             Spacer(modifier = Modifier.height(20.dp))
 
+                            val invalidCodeStr = stringResource(R.string.invalid_code_error)
+                            val codeResentStr = stringResource(R.string.code_resent)
                             GradientButton(
-                                text = "Підтвердити",
+                                text = stringResource(R.string.verify),
                                 onClick = {
                                     errorMessage = null
                                     isLoading = true
@@ -290,7 +295,6 @@ fun QuickRegisterScreen(
                                             )
 
                                             if (response.apiStatus == 200 && response.accessToken != null) {
-                                                // Save session and navigate
                                                 UserSession.saveSession(
                                                     token = response.accessToken,
                                                     id = response.userId ?: 0,
@@ -299,10 +303,10 @@ fun QuickRegisterScreen(
                                                 )
                                                 onSuccess()
                                             } else {
-                                                errorMessage = response.errorMessage ?: "Невірний код"
+                                                errorMessage = response.errorMessage ?: invalidCodeStr
                                             }
                                         } catch (e: Exception) {
-                                            errorMessage = "Помилка мережі: ${e.localizedMessage}"
+                                            errorMessage = e.localizedMessage
                                         } finally {
                                             isLoading = false
                                         }
@@ -328,18 +332,18 @@ fun QuickRegisterScreen(
                                             else null
                                         )
                                         if (response.apiStatus == 200) {
-                                            successMessage = "Код надіслано повторно"
+                                            successMessage = codeResentStr
                                         } else {
                                             errorMessage = response.errorMessage
                                         }
                                     } catch (e: Exception) {
-                                        errorMessage = "Помилка: ${e.localizedMessage}"
+                                        errorMessage = e.localizedMessage
                                     } finally {
                                         isLoading = false
                                     }
                                 }
                             }) {
-                                Text("Надіслати код повторно")
+                                Text(stringResource(R.string.resend_code_btn))
                             }
 
                             TextButton(onClick = {
@@ -347,7 +351,7 @@ fun QuickRegisterScreen(
                                 code = ""
                                 errorMessage = null
                             }) {
-                                Text("Повернутись назад")
+                                Text(stringResource(R.string.go_back_btn))
                             }
                         }
                     }

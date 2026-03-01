@@ -17,8 +17,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.worldmates.messenger.R
 
 /**
  * Компонент для выбора пола при регистрации
@@ -126,7 +128,7 @@ fun GenderSelectionGroup(
         modifier = modifier.fillMaxWidth()
     ) {
         Text(
-            text = "Оберіть стать:",
+            text = stringResource(R.string.gender_select_label),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -143,7 +145,7 @@ fun GenderSelectionGroup(
                 onSelect = { onGenderChange("male") },
                 avatarRes = maleAvatarRes,
                 icon = Icons.Default.Man,
-                label = "Чоловік"
+                label = stringResource(R.string.gender_male)
             )
 
             // Женский
@@ -153,7 +155,7 @@ fun GenderSelectionGroup(
                 onSelect = { onGenderChange("female") },
                 avatarRes = femaleAvatarRes,
                 icon = Icons.Default.Woman,
-                label = "Жінка"
+                label = stringResource(R.string.gender_female)
             )
         }
     }

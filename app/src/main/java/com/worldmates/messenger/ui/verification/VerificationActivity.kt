@@ -29,11 +29,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.chats.ChatsActivity
 import com.worldmates.messenger.ui.components.GradientButton
 import com.worldmates.messenger.ui.theme.*
@@ -93,7 +95,7 @@ class VerificationActivity : AppCompatActivity() {
                     is VerificationState.Success -> {
                         Toast.makeText(
                             this@VerificationActivity,
-                            "Верифікацію успішно завершено!",
+                            getString(R.string.verification_success_toast),
                             Toast.LENGTH_SHORT
                         ).show()
                         navigateToChats()
@@ -182,7 +184,7 @@ fun VerificationScreen(
                 IconButton(onClick = onBackPressed) {
                     Icon(
                         Icons.Default.ArrowBack,
-                        contentDescription = "Назад",
+                        contentDescription = stringResource(R.string.nav_back),
                         tint = Color.White
                     )
                 }
@@ -218,7 +220,7 @@ fun VerificationScreen(
 
             // Заголовок
             Text(
-                "Підтвердження",
+                stringResource(R.string.verification_screen_title),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -229,9 +231,9 @@ fun VerificationScreen(
             // Описание
             Text(
                 text = if (verificationType == "email") {
-                    "Ми надіслали код на $contactInfo"
+                    stringResource(R.string.code_sent_email_format, contactInfo)
                 } else {
-                    "Ми надіслали SMS з кодом на $contactInfo"
+                    stringResource(R.string.code_sent_sms_format, contactInfo)
                 },
                 fontSize = 15.sp,
                 color = Color.White.copy(alpha = 0.9f),
@@ -260,7 +262,7 @@ fun VerificationScreen(
 
             // Кнопка подтверждения
             GradientButton(
-                text = "Підтвердити",
+                text = stringResource(R.string.verify),
                 onClick = {
                     if (code.length == 6) {
                         viewModel.verifyCode(verificationType, contactInfo, code, username)
@@ -283,7 +285,7 @@ fun VerificationScreen(
                     }
                 ) {
                     Text(
-                        "Надіслати код повторно",
+                        stringResource(R.string.resend_code_full),
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
@@ -291,7 +293,7 @@ fun VerificationScreen(
                 }
             } else {
                 Text(
-                    "Надіслати код повторно через $resendTimer сек",
+                    stringResource(R.string.resend_code_timer_format, resendTimer),
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
