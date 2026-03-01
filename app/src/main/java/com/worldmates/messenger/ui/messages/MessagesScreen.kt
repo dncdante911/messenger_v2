@@ -531,13 +531,25 @@ fun MessagesScreen(
                     Log.e("MessagesScreen", "Preset not found for ID: ${themeState.presetBackgroundId}")
                 }
             }
-            // Стандартний фон з теми
+            // Стандартний фон з теми - з тонким градієнтом для глибини
             else -> {
-                Log.d("MessagesScreen", "Using default MaterialTheme background")
+                Log.d("MessagesScreen", "Using enhanced default background")
+                val bgBase = MaterialTheme.colorScheme.background
+                val bgAccent = MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    bgBase,
+                                    bgAccent,
+                                    bgBase
+                                ),
+                                startY = 0f,
+                                endY = Float.POSITIVE_INFINITY
+                            )
+                        )
                 )
             }
         }
@@ -992,8 +1004,9 @@ fun MessagesScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                reverseLayout = true
+                    .padding(horizontal = 6.dp),
+                reverseLayout = true,
+                contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 items(
                     items = messages.reversed(),

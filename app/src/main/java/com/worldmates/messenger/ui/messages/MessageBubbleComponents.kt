@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -92,22 +93,22 @@ fun MessageBubbleComposable(
         } ?: emptyList()
     }
 
-    // 🎨 Кольори бульбашок залежать від стилю інтерфейсу
+    // 🎨 Кольори бульбашок залежать від стилю інтерфейсу та теми
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
     val bgColor = when (uiStyle) {
         com.worldmates.messenger.ui.preferences.UIStyle.WORLDMATES -> {
-            // WorldMates стиль - яскраві градієнтні кольори
             if (isOwn) {
-                Color(0xFF4A90E2)  // Яскравий синій для власних
+                if (isDarkTheme) Color(0xFF2B5FA4) else Color(0xFF3B82D9)
             } else {
-                Color(0xFFF0F0F0)  // Світло-сірий для вхідних
+                if (isDarkTheme) Color(0xFF2A2F3A) else Color(0xFFF0F2F5)
             }
         }
         com.worldmates.messenger.ui.preferences.UIStyle.TELEGRAM -> {
-            // Telegram/Класичний стиль - м'які нейтральні тони
             if (isOwn) {
-                Color(0xFFDCF8C6)  // Світло-зелений як в Telegram
+                if (isDarkTheme) Color(0xFF2B6B3E) else Color(0xFFD8F9C2)
             } else {
-                Color(0xFFFFFFFF)  // Білий для вхідних
+                if (isDarkTheme) Color(0xFF2A2F3A) else Color(0xFFFFFFFF)
             }
         }
     }
@@ -115,14 +116,17 @@ fun MessageBubbleComposable(
     val textColor = when (uiStyle) {
         com.worldmates.messenger.ui.preferences.UIStyle.WORLDMATES -> {
             if (isOwn) {
-                Color.White  // Білий текст на яскравому фоні
+                Color.White
             } else {
-                Color(0xFF1F1F1F)  // Темний текст
+                if (isDarkTheme) Color(0xFFE4E8EE) else Color(0xFF1A1C20)
             }
         }
         com.worldmates.messenger.ui.preferences.UIStyle.TELEGRAM -> {
-            // Класичний стиль - завжди темний текст
-            Color(0xFF1F1F1F)
+            if (isDarkTheme) {
+                if (isOwn) Color(0xFFE8F5E9) else Color(0xFFE4E8EE)
+            } else {
+                Color(0xFF1A1C20)
+            }
         }
     }
 
@@ -139,7 +143,7 @@ fun MessageBubbleComposable(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp)
+            .padding(vertical = 3.dp)
     ) {
         // Іконка Reply (показується при свайпі)
         if (offsetX > 20f) {
@@ -574,7 +578,7 @@ fun MessageBubbleComposable(
                             }
                         }
 
-                        // Время с более стильным форматированием + галочки прочитано
+                        // Час з покращеним форматуванням + галочки прочитано
                         Row(
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically,
@@ -582,18 +586,18 @@ fun MessageBubbleComposable(
                         ) {
                             Text(
                                 text = formatTime(message.timeStamp),
-                                color = textColor.copy(alpha = 0.6f),
-                                fontSize = 12.sp,
+                                color = textColor.copy(alpha = 0.45f),
+                                fontSize = 11.sp,
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(top = 4.dp)
+                                modifier = Modifier.padding(top = 2.dp)
                             )
 
                             // ✓✓ Галочки прочитано (тільки для власних повідомлень)
                             if (isOwn) {
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
                                 MessageStatusIcon(
                                     isRead = message.isRead ?: false,
-                                    modifier = Modifier.padding(top = 4.dp)
+                                    modifier = Modifier.padding(top = 2.dp)
                                 )
                             }
                         }
