@@ -13,11 +13,15 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.Constants
+import com.worldmates.messenger.data.UserPreferences
+import com.worldmates.messenger.data.UserPreferencesRepository
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.ui.messages.MessagesActivity
 import com.worldmates.messenger.utils.DecryptionUtility
 import io.socket.client.IO
 import io.socket.client.Socket
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collectLatest
 import org.json.JSONObject
 
 /**
@@ -90,6 +94,10 @@ class MessageNotificationService : Service() {
     }
 
     private var socket: Socket? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // Cached notification preferences (updated reactively via DataStore Flow)
+    @Volatile private var notifPrefs = UserPreferences()
 
     // ------------------------------------------------------------------
     // Lifecycle
@@ -100,6 +108,7 @@ class MessageNotificationService : Service() {
         isRunning = true
         createNotificationChannels()
         startForeground(FOREGROUND_NOTIF_ID, buildServiceNotification())
+        observeNotificationPreferences()
         connectSocket()
         scheduleRestartAlarm()
         Log.d(TAG, "MessageNotificationService started")
@@ -108,6 +117,7 @@ class MessageNotificationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        serviceScope.cancel()
         socket?.off()
         socket?.disconnect()
         socket = null
@@ -155,6 +165,22 @@ class MessageNotificationService : Service() {
             pi
         )
         Log.d(TAG, "Restart alarm scheduled in ${RESTART_ALARM_INTERVAL_MS / 1000}s")
+    }
+
+    /**
+     * Слухає DataStore і оновлює кешовані налаштування сповіщень.
+     */
+    private fun observeNotificationPreferences() {
+        val repo = UserPreferencesRepository(this)
+        serviceScope.launch {
+            repo.userPreferencesFlow.collectLatest { prefs ->
+                notifPrefs = prefs
+                Log.d(TAG, "Notification prefs updated: " +
+                    "enabled=${prefs.notificationsEnabled}, sound=${prefs.soundEnabled}, " +
+                    "vibration=${prefs.vibrationEnabled}, preview=${prefs.previewEnabled}, " +
+                    "groups=${prefs.groupNotificationsEnabled}")
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -238,15 +264,18 @@ class MessageNotificationService : Service() {
 
     private fun handleMessage(data: JSONObject, type: ChatType) {
         try {
+            // --- Перевірка налаштувань користувача ---
+            if (!notifPrefs.notificationsEnabled) return
+
+            // Якщо групові сповіщення вимкнено — пропускаємо групи та канали
+            if (!notifPrefs.groupNotificationsEnabled &&
+                (type == ChatType.GROUP || type == ChatType.CHANNEL)) return
+
             val senderId   = data.optLong("from_id", data.optLong("sender_id", 0))
             val groupId    = data.optLong("group_id", 0)
             val channelId  = data.optLong("channel_id", 0)
 
             // --- Витягуємо ім'я відправника ---
-            // Сервер може надсилати ім'я у різних форматах:
-            // 1. Новий Node.js формат: user_data: { name, username, first_name, last_name }
-            // 2. Старий WoWonder формат: username: "First Last"
-            // 3. Прямі поля: sender_name, from_name
             val senderName = extractSenderName(data)
 
             // --- Витягуємо та дешифруємо текст повідомлення ---
@@ -287,10 +316,14 @@ class MessageNotificationService : Service() {
                 }
             }
 
+            // Якщо preview вимкнено — показуємо загальний текст замість вмісту
+            val notifText = if (notifPrefs.previewEnabled) displayText
+                            else getString(R.string.new_message_fallback)
+
             showMessageNotification(
                 notifId    = notifId,
                 title      = title,
-                text       = displayText,
+                text       = notifText,
                 senderId   = senderId,
                 senderName = senderName,
                 groupId    = groupId,
@@ -447,14 +480,12 @@ class MessageNotificationService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-
         // MessagingStyle makes the notification look like a chat bubble on Android 7+
         val sender = Person.Builder().setName(title).build()
         val style  = NotificationCompat.MessagingStyle(sender)
             .addMessage(text, System.currentTimeMillis(), sender)
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
             .setSmallIcon(R.drawable.ic_notification_message)
             .setStyle(style)
             .setContentTitle(title)
@@ -463,10 +494,21 @@ class MessageNotificationService : Service() {
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setSound(soundUri)
-            .setVibrate(longArrayOf(0, 200, 80, 200))
             .setLights(0xFF0084FF.toInt(), 300, 1000)
-            .build()
+
+        // Звук — тільки якщо увімкнено у налаштуваннях
+        if (notifPrefs.soundEnabled) {
+            builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+        } else {
+            builder.setSilent(true)
+        }
+
+        // Вібрація — тільки якщо увімкнено у налаштуваннях
+        if (notifPrefs.vibrationEnabled) {
+            builder.setVibrate(longArrayOf(0, 200, 80, 200))
+        }
+
+        val notification = builder.build()
 
         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
             .notify(notifId, notification)

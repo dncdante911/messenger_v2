@@ -2,17 +2,21 @@ package com.worldmates.messenger.ui.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
+import com.worldmates.messenger.data.UserPreferencesRepository
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,6 +28,33 @@ fun NotificationSettingsScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
+    val colorScheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val prefsRepo = remember { UserPreferencesRepository(context) }
+
+    // --- Messenger local preferences ---
+    var messengerNotifEnabled by remember { mutableStateOf(true) }
+    var soundEnabled by remember { mutableStateOf(true) }
+    var vibrationEnabled by remember { mutableStateOf(true) }
+    var previewEnabled by remember { mutableStateOf(true) }
+    var groupNotifEnabled by remember { mutableStateOf(true) }
+
+    // Load local messenger preferences from DataStore
+    val prefsFlow = remember { prefsRepo.userPreferencesFlow }
+    val prefs by prefsFlow.collectAsState(initial = null)
+
+    LaunchedEffect(prefs) {
+        prefs?.let {
+            messengerNotifEnabled = it.notificationsEnabled
+            soundEnabled = it.soundEnabled
+            vibrationEnabled = it.vibrationEnabled
+            previewEnabled = it.previewEnabled
+            groupNotifEnabled = it.groupNotificationsEnabled
+        }
+    }
+
+    // --- WoWonder server-side notification settings ---
     var emailNotification by remember { mutableStateOf(true) }
     var eLiked by remember { mutableStateOf(true) }
     var eWondered by remember { mutableStateOf(true) }
@@ -68,6 +99,15 @@ fun NotificationSettingsScreen(
                 if (!isLoading) {
                     TextButton(
                         onClick = {
+                            // Save messenger local preferences
+                            scope.launch {
+                                prefsRepo.setNotificationsEnabled(messengerNotifEnabled)
+                                prefsRepo.setSoundEnabled(soundEnabled)
+                                prefsRepo.setVibrationEnabled(vibrationEnabled)
+                                prefsRepo.setPreviewEnabled(previewEnabled)
+                                prefsRepo.setGroupNotificationsEnabled(groupNotifEnabled)
+                            }
+                            // Save WoWonder server-side settings
                             viewModel.updateNotificationSettings(
                                 emailNotification = if (emailNotification) 1 else 0,
                                 eLiked = if (eLiked) 1 else 0,
@@ -84,14 +124,17 @@ fun NotificationSettingsScreen(
                             )
                         }
                     ) {
-                        Text(stringResource(R.string.save), color = Color.White)
+                        Text(
+                            stringResource(R.string.save),
+                            color = colorScheme.onPrimary
+                        )
                     }
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color(0xFF0084FF),
-                titleContentColor = Color.White,
-                navigationIconContentColor = Color.White
+                containerColor = colorScheme.primary,
+                titleContentColor = colorScheme.onPrimary,
+                navigationIconContentColor = colorScheme.onPrimary
             )
         )
 
@@ -100,7 +143,7 @@ fun NotificationSettingsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = colorScheme.primary)
             }
         } else {
             LazyColumn(
@@ -110,24 +153,111 @@ fun NotificationSettingsScreen(
                 if (errorMessage != null) {
                     item {
                         Card(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = colorScheme.errorContainer
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
                                 text = errorMessage ?: "",
-                                color = Color.Red,
+                                color = colorScheme.onErrorContainer,
                                 modifier = Modifier.padding(12.dp)
                             )
                         }
                     }
                 }
 
+                // ======================================================
+                // MESSENGER NOTIFICATIONS (local DataStore preferences)
+                // ======================================================
                 item {
-                    Text(
+                    NotifSectionHeader(
+                        text = stringResource(R.string.notif_section_messenger),
+                        color = colorScheme.primary
+                    )
+                }
+
+                item {
+                    SwitchSettingItem(
+                        icon = Icons.Default.Chat,
+                        title = stringResource(R.string.notif_chat_messages),
+                        description = stringResource(R.string.notif_chat_messages_desc),
+                        checked = messengerNotifEnabled,
+                        onCheckedChange = {
+                            messengerNotifEnabled = it
+                            scope.launch { prefsRepo.setNotificationsEnabled(it) }
+                        }
+                    )
+                }
+
+                item {
+                    SwitchSettingItem(
+                        icon = Icons.Default.VolumeUp,
+                        title = stringResource(R.string.notif_sound),
+                        description = stringResource(R.string.notif_sound_desc),
+                        checked = soundEnabled,
+                        enabled = messengerNotifEnabled,
+                        onCheckedChange = {
+                            soundEnabled = it
+                            scope.launch { prefsRepo.setSoundEnabled(it) }
+                        }
+                    )
+                }
+
+                item {
+                    SwitchSettingItem(
+                        icon = Icons.Default.Vibration,
+                        title = stringResource(R.string.notif_vibration),
+                        description = stringResource(R.string.notif_vibration_desc),
+                        checked = vibrationEnabled,
+                        enabled = messengerNotifEnabled,
+                        onCheckedChange = {
+                            vibrationEnabled = it
+                            scope.launch { prefsRepo.setVibrationEnabled(it) }
+                        }
+                    )
+                }
+
+                item {
+                    SwitchSettingItem(
+                        icon = Icons.Default.RemoveRedEye,
+                        title = stringResource(R.string.notif_preview),
+                        description = stringResource(R.string.notif_preview_desc),
+                        checked = previewEnabled,
+                        enabled = messengerNotifEnabled,
+                        onCheckedChange = {
+                            previewEnabled = it
+                            scope.launch { prefsRepo.setPreviewEnabled(it) }
+                        }
+                    )
+                }
+
+                item {
+                    SwitchSettingItem(
+                        icon = Icons.Default.Groups,
+                        title = stringResource(R.string.notif_group_messages),
+                        description = stringResource(R.string.notif_group_messages_desc),
+                        checked = groupNotifEnabled,
+                        enabled = messengerNotifEnabled,
+                        onCheckedChange = {
+                            groupNotifEnabled = it
+                            scope.launch { prefsRepo.setGroupNotificationsEnabled(it) }
+                        }
+                    )
+                }
+
+                item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
+
+                // ======================================================
+                // GENERAL (email notifications — server side)
+                // ======================================================
+                item {
+                    NotifSectionHeader(
                         text = stringResource(R.string.notif_section_general),
-                        fontSize = 14.sp,
-                        color = Color(0xFF0084FF),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        color = colorScheme.primary
                     )
                 }
 
@@ -141,14 +271,15 @@ fun NotificationSettingsScreen(
                     )
                 }
 
-                item { Divider(modifier = Modifier.padding(vertical = 8.dp)) }
+                item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
 
+                // ======================================================
+                // SOCIAL NOTIFICATIONS (server side)
+                // ======================================================
                 item {
-                    Text(
+                    NotifSectionHeader(
                         text = stringResource(R.string.notif_section_social),
-                        fontSize = 14.sp,
-                        color = Color(0xFF0084FF),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        color = colorScheme.primary
                     )
                 }
 
@@ -242,14 +373,15 @@ fun NotificationSettingsScreen(
                     )
                 }
 
-                item { Divider(modifier = Modifier.padding(vertical = 8.dp)) }
+                item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
 
+                // ======================================================
+                // PAGES & GROUPS (server side)
+                // ======================================================
                 item {
-                    Text(
+                    NotifSectionHeader(
                         text = stringResource(R.string.notif_section_pages),
-                        fontSize = 14.sp,
-                        color = Color(0xFF0084FF),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        color = colorScheme.primary
                     )
                 }
 
@@ -289,4 +421,19 @@ fun NotificationSettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun NotifSectionHeader(
+    text: String,
+    color: androidx.compose.ui.graphics.Color
+) {
+    Text(
+        text = text,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = color,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        letterSpacing = 0.5.sp
+    )
 }
