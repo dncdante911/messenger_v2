@@ -1343,4 +1343,32 @@
     <string name="scroll_to_see_image">Прокрутите чат, чтобы увидеть это изображение</string>
     <string name="scroll_to_play_video">Прокрутите чат, чтобы воспроизвести видео</string>
     <string name="file_type_in_dev">Открытие %s файлов — в разработке</string>
+
+    <!-- Edit Profile Sections -->
+    <string name="section_personal_info">Личная информация</string>
+    <string name="section_contact">Контакты</string>
+    <string name="section_location">Местоположение</string>
+    <string name="section_work_education">Работа и образование</string>
+
+    <!-- Messenger Notification Settings -->
+    <string name="notif_section_messenger">Уведомления чата</string>
+    <string name="notif_chat_messages">Уведомления о сообщениях</string>
+    <string name="notif_chat_messages_desc">Показывать уведомления для новых сообщений</string>
+    <string name="notif_sound">Звук уведомления</string>
+    <string name="notif_sound_desc">Воспроизводить звук при получении сообщения</string>
+    <string name="notif_vibration">Вибрация</string>
+    <string name="notif_vibration_desc">Вибрировать при получении сообщения</string>
+    <string name="notif_preview">Показывать текст</string>
+    <string name="notif_preview_desc">Показывать содержание сообщения в уведомлении</string>
+    <string name="notif_group_messages">Групповые сообщения</string>
+    <string name="notif_group_messages_desc">Уведомления о сообщениях в группах</string>
+
+    <!-- Privacy Settings - Messenger specific -->
+    <string name="privacy_last_seen">Последний визит</string>
+    <string name="privacy_last_seen_desc">Кто может видеть ваше время последнего визита</string>
+    <string name="privacy_show_last_seen">Показывать «последний визит»</string>
+    <string name="privacy_show_last_seen_desc">Разрешить другим видеть, когда вы были онлайн</string>
+
+    <!-- Notification fallback text (when preview is disabled) -->
+    <string name="new_message_fallback">Новое сообщение</string>
 </resources>

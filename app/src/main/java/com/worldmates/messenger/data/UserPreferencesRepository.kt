@@ -28,6 +28,8 @@ class UserPreferencesRepository(private val context: Context) {
         private val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         private val SOUND_ENABLED = booleanPreferencesKey("sound_enabled")
         private val VIBRATION_ENABLED = booleanPreferencesKey("vibration_enabled")
+        private val PREVIEW_ENABLED = booleanPreferencesKey("preview_enabled")
+        private val GROUP_NOTIFICATIONS_ENABLED = booleanPreferencesKey("group_notifications_enabled")
         private val AUTO_DOWNLOAD_MEDIA = booleanPreferencesKey("auto_download_media")
         private val THEME_MODE = stringPreferencesKey("theme_mode") // "light", "dark", "system"
         private val LANGUAGE = stringPreferencesKey("language")
@@ -47,6 +49,8 @@ class UserPreferencesRepository(private val context: Context) {
             notificationsEnabled = prefs[NOTIFICATIONS_ENABLED] ?: true,
             soundEnabled = prefs[SOUND_ENABLED] ?: true,
             vibrationEnabled = prefs[VIBRATION_ENABLED] ?: true,
+            previewEnabled = prefs[PREVIEW_ENABLED] ?: true,
+            groupNotificationsEnabled = prefs[GROUP_NOTIFICATIONS_ENABLED] ?: true,
             autoDownloadMedia = prefs[AUTO_DOWNLOAD_MEDIA] ?: true,
             themeMode = prefs[THEME_MODE] ?: "system",
             language = prefs[LANGUAGE] ?: "uk"
@@ -98,6 +102,18 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 
+    suspend fun setPreviewEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[PREVIEW_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setGroupNotificationsEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[GROUP_NOTIFICATIONS_ENABLED] = enabled
+        }
+    }
+
     suspend fun setAutoDownloadMedia(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[AUTO_DOWNLOAD_MEDIA] = enabled
@@ -139,6 +155,8 @@ data class UserPreferences(
     val notificationsEnabled: Boolean = true,
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
+    val previewEnabled: Boolean = true,
+    val groupNotificationsEnabled: Boolean = true,
     val autoDownloadMedia: Boolean = true,
     val themeMode: String = "system",
     val language: String = "uk"
