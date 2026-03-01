@@ -17,9 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 
 /**
  * 📎 Компактне меню медіа у стилі Telegram
@@ -60,7 +62,7 @@ fun CompactMediaMenu(
             ) {
                 // Заголовок
                 Text(
-                    text = "Прикріпити",
+                    text = stringResource(R.string.attach),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -77,7 +79,7 @@ fun CompactMediaMenu(
                         listOf(
                             MediaOption(
                                 icon = Icons.Default.Image,
-                                label = "Галерея",
+                                label = stringResource(R.string.gallery),
                                 color = Color(0xFF2196F3), // Blue
                                 onClick = {
                                     onPhotoClick()
@@ -86,7 +88,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.PhotoCamera,
-                                label = "Камера",
+                                label = stringResource(R.string.camera),
                                 color = Color(0xFFE91E63), // Pink
                                 onClick = {
                                     onCameraClick()
@@ -95,7 +97,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.VideoLibrary,
-                                label = "Відео",
+                                label = stringResource(R.string.video),
                                 color = Color(0xFF9C27B0), // Purple
                                 onClick = {
                                     onVideoClick()
@@ -104,7 +106,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.Videocam,
-                                label = "Записати",
+                                label = stringResource(R.string.record_voice),
                                 color = Color(0xFFFF5722), // Deep Orange
                                 onClick = {
                                     onVideoCameraClick()
@@ -113,7 +115,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.AudioFile,
-                                label = "Аудіо",
+                                label = stringResource(R.string.audio_caption),
                                 color = Color(0xFF00BCD4), // Cyan
                                 onClick = {
                                     onAudioClick()
@@ -122,7 +124,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.InsertDriveFile,
-                                label = "Файл",
+                                label = stringResource(R.string.file),
                                 color = Color(0xFF607D8B), // Blue Grey
                                 onClick = {
                                     onFileClick()
@@ -131,7 +133,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.LocationOn,
-                                label = "Локація",
+                                label = stringResource(R.string.location),
                                 color = Color(0xFF4CAF50), // Green
                                 onClick = {
                                     onLocationClick()
@@ -140,7 +142,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.Person,
-                                label = "Контакт",
+                                label = stringResource(R.string.contact_share),
                                 color = Color(0xFFFF9800), // Orange
                                 onClick = {
                                     onContactClick()
@@ -149,7 +151,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.EmojiEmotions,
-                                label = "Емоджі",
+                                label = stringResource(R.string.emoji),
                                 color = Color(0xFFFFEB3B), // Yellow
                                 onClick = {
                                     onEmojiClick()
@@ -158,7 +160,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.StickyNote2,
-                                label = "Стікери",
+                                label = stringResource(R.string.stickers_label),
                                 color = Color(0xFF795548), // Brown
                                 onClick = {
                                     onStickerClick()
@@ -167,7 +169,7 @@ fun CompactMediaMenu(
                             ),
                             MediaOption(
                                 icon = Icons.Default.Gif,
-                                label = "GIF",
+                                label = stringResource(R.string.gif),
                                 color = Color(0xFF3F51B5), // Indigo
                                 onClick = {
                                     onGifClick()
@@ -261,7 +263,7 @@ fun AttachButton(
     ) {
         Icon(
             imageVector = Icons.Default.AttachFile,
-            contentDescription = "Прикріпити",
+            contentDescription = stringResource(R.string.attach),
             tint = MaterialTheme.colorScheme.primary
         )
     }

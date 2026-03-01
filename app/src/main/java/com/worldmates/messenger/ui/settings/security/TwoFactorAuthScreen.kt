@@ -22,10 +22,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.utils.security.SecurePreferences
 import com.worldmates.messenger.utils.security.TOTPGenerator
@@ -81,13 +83,13 @@ fun TwoFactorAuthScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            "Двофакторна аутентифікація",
+                            stringResource(R.string.two_factor_auth),
                             fontSize = 18.sp
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.Default.ArrowBack, "Назад", tint = Color.White)
+                            Icon(Icons.Default.ArrowBack, stringResource(R.string.back), tint = Color.White)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -141,7 +143,7 @@ fun TwoFactorAuthScreen(
                                     currentStep.value = TwoFAStep.RECOVERY_CODES
                                 } else {
                                     showError.value = true
-                                    errorMessage.value = "Невірний код. Спробуйте ще раз."
+                                    errorMessage.value = context.getString(R.string.invalid_code_try_again)
                                 }
                             },
                             onBackClick = { currentStep.value = TwoFAStep.MAIN }
@@ -233,16 +235,16 @@ private fun MainStep(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "2FA ${if (is2FAEnabled) "Увімкнено" else "Вимкнено"}",
+                            text = if (is2FAEnabled) stringResource(R.string.`2fa_status_enabled`) else stringResource(R.string.`2fa_status_disabled`),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF2C3E50)
                         )
                         Text(
                             text = if (is2FAEnabled) {
-                                "Ваш обліковий запис захищено"
+                                stringResource(R.string.account_protected_2fa)
                             } else {
-                                "Додатковий захист для входу"
+                                stringResource(R.string.extra_login_protection)
                             },
                             fontSize = 14.sp,
                             color = Color.Gray
@@ -270,15 +272,14 @@ private fun MainStep(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "Що таке 2FA?",
+                        stringResource(R.string.what_is_2fa_title),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2C3E50)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Двофакторна аутентифікація додає додатковий рівень безпеки. " +
-                        "Крім пароля, вам потрібно буде ввести 6-значний код з Google Authenticator.",
+                        stringResource(R.string.what_is_2fa_desc),
                         fontSize = 14.sp,
                         color = Color.Gray,
                         lineHeight = 20.sp
@@ -306,7 +307,7 @@ private fun MainStep(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    if (is2FAEnabled) "Вимкнути 2FA" else "Увімкнути 2FA",
+                    if (is2FAEnabled) stringResource(R.string.disable_2fa) else stringResource(R.string.enable_2fa),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -338,13 +339,13 @@ private fun MainStep(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "Резервні коди",
+                                stringResource(R.string.backup_codes),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF2C3E50)
                             )
                             Text(
-                                "Залишилось: ${SecurePreferences.getRemainingBackupCodesCount()} / 10",
+                                stringResource(R.string.backup_codes_remaining, SecurePreferences.getRemainingBackupCodesCount().toString()),
                                 fontSize = 13.sp,
                                 color = Color.Gray
                             )
@@ -398,14 +399,14 @@ private fun SetupStep(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "Крок 1: Скануйте QR-код",
+                        stringResource(R.string.step1_scan_qr),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2C3E50)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Відкрийте Google Authenticator та скануйте цей код",
+                        stringResource(R.string.step1_scan_qr_desc),
                         fontSize = 14.sp,
                         color = Color.Gray,
                         textAlign = TextAlign.Center
@@ -428,7 +429,7 @@ private fun SetupStep(
 
                     // Manual entry
                     Text(
-                        "Або введіть код вручну:",
+                        stringResource(R.string.enter_code_manually),
                         fontSize = 13.sp,
                         color = Color.Gray
                     )
@@ -455,14 +456,14 @@ private fun SetupStep(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        "Крок 2: Введіть код",
+                        stringResource(R.string.step2_enter_code),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2C3E50)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Введіть 6-значний код з Google Authenticator",
+                        stringResource(R.string.step2_enter_code_desc),
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
@@ -471,7 +472,7 @@ private fun SetupStep(
                     OutlinedTextField(
                         value = verificationCode,
                         onValueChange = { if (it.length <= 6) onCodeChange(it) },
-                        label = { Text("Код підтвердження") },
+                        label = { Text(stringResource(R.string.enter_totp)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         isError = showError,
                         supportingText = if (showError) {
@@ -490,7 +491,7 @@ private fun SetupStep(
                         color = Color(0xFF0084FF)
                     )
                     Text(
-                        "Код оновиться через $remainingSeconds сек",
+                        stringResource(R.string.code_updates_in, remainingSeconds),
                         fontSize = 12.sp,
                         color = Color.Gray,
                         modifier = Modifier.padding(top = 4.dp)
@@ -512,7 +513,7 @@ private fun SetupStep(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Назад")
+                    Text(stringResource(R.string.back))
                 }
 
                 Button(
@@ -526,7 +527,7 @@ private fun SetupStep(
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Підтвердити", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.confirm), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -564,13 +565,13 @@ private fun RecoveryCodesStep(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            "Збережіть ці коди!",
+                            stringResource(R.string.save_codes_warning),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF856404)
                         )
                         Text(
-                            "Використовуйте їх, якщо втратите доступ до Google Authenticator",
+                            stringResource(R.string.save_codes_desc),
                             fontSize = 13.sp,
                             color = Color(0xFF856404)
                         )
@@ -624,7 +625,7 @@ private fun RecoveryCodesStep(
             ) {
                 Icon(Icons.Default.Check, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Я зберіг коди", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.i_saved_codes), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -659,15 +660,14 @@ private fun DisableStep(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Вимкнути 2FA?",
+                    stringResource(R.string.disable_2fa_title),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF2C3E50)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Ваш обліковий запис стане менш захищеним. " +
-                    "Ви дійсно хочете вимкнути двофакторну аутентифікацію?",
+                    stringResource(R.string.disable_2fa_message),
                     fontSize = 14.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
@@ -686,7 +686,7 @@ private fun DisableStep(
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Скасувати")
+                        Text(stringResource(R.string.cancel))
                     }
 
                     Button(
@@ -699,7 +699,7 @@ private fun DisableStep(
                         ),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Вимкнути", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.disable_action_label), fontWeight = FontWeight.Bold)
                     }
                 }
             }

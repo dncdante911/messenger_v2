@@ -844,6 +844,107 @@
     <string name="backup_now_desc">Сохранить все данные на сервер</string>
     <string name="no_backups_available">Нет доступных резервных копий</string>
 
+    <!-- ===== APP LOCK SETTINGS ===== -->
+    <string name="app_protected">Приложение защищено</string>
+    <string name="protection_disabled">Защита отключена</string>
+    <string name="pin_active_status">PIN-код: активен</string>
+    <string name="biometric_active_status">Биометрия: активна</string>
+    <string name="configure_protection">Настройте защиту</string>
+    <string name="biometric_unavailable">Биометрическая аутентификация недоступна на этом устройстве</string>
+    <string name="lock_after">Блокировать после</string>
+    <string name="about_app_lock_title">О блокировке приложения</string>
+    <string name="about_app_lock_desc">PIN-код или биометрия добавляет дополнительный уровень защиты. Приложение будет блокироваться после выхода из него.</string>
+    <string name="disable_pin_title">Отключить PIN-код?</string>
+    <string name="disable_pin_message">Это также отключит биометрическую аутентификацию. Приложение больше не будет защищено.</string>
+    <string name="disable_action_label">Отключить</string>
+
+    <!-- ===== TWO FACTOR AUTH ===== -->
+    <string name="what_is_2fa_title">Что такое 2FA?</string>
+    <string name="what_is_2fa_desc">Двухфакторная аутентификация добавляет дополнительный уровень безопасности. Кроме пароля, вам нужно будет ввести 6-значный код из Google Authenticator.</string>
+    <string name="account_protected_2fa">Ваш аккаунт защищён</string>
+    <string name="extra_login_protection">Дополнительная защита для входа</string>
+    <string name="disable_2fa_title">Отключить 2FA?</string>
+    <string name="disable_2fa_message">Ваш аккаунт станет менее защищённым. Вы действительно хотите отключить двухфакторную аутентификацию?</string>
+    <string name="backup_codes_remaining">Осталось: %s / 10</string>
+    <string name="step1_scan_qr">Шаг 1: Сканируйте QR-код</string>
+    <string name="step1_scan_qr_desc">Откройте Google Authenticator и сканируйте этот код</string>
+    <string name="enter_code_manually">Или введите код вручную:</string>
+    <string name="step2_enter_code">Шаг 2: Введите код</string>
+    <string name="step2_enter_code_desc">Введите 6-значный код из Google Authenticator</string>
+    <string name="code_updates_in">Код обновится через %d сек</string>
+    <string name="invalid_code_try_again">Неверный код. Попробуйте ещё раз.</string>
+    <string name="save_codes_warning">Сохраните эти коды!</string>
+    <string name="save_codes_desc">Используйте их, если потеряете доступ к Google Authenticator</string>
+    <string name="2fa_status_enabled">2FA Включено</string>
+    <string name="2fa_status_disabled">2FA Выключено</string>
+
+    <!-- ===== PIN SCREEN ===== -->
+    <string name="create_pin_title">Создать PIN-код</string>
+    <string name="enter_4digit_pin_subtitle">Введите 4-значный PIN-код</string>
+    <string name="confirm_pin_title">Подтвердить PIN-код</string>
+    <string name="enter_pin_again_subtitle">Введите PIN-код ещё раз</string>
+    <string name="enter_pin_title">Введите PIN-код</string>
+    <string name="unlock_app_subtitle">Разблокируйте приложение</string>
+    <string name="pin_mismatch">PIN-коды не совпадают</string>
+    <string name="wrong_pin_message">Неверный PIN-код</string>
+    <string name="use_biometric">Использовать биометрию</string>
+
+    <!-- ===== CLOUD BACKUP DIALOGS ===== -->
+    <string name="auto_download_media">Автоматически загружать медиафайлы</string>
+    <string name="up_to_mb">До %d МБ</string>
+    <string name="files_label">Файлы</string>
+    <string name="unlimited">Бесконечно</string>
+    <string name="max_cache_size_title">Максимальный размер кэша</string>
+    <string name="choose_cloud_provider_title">Выберите провайдер облака</string>
+    <string name="store_on_your_server">Хранение на вашем сервере</string>
+    <string name="create_backup_title">Создать бэкап</string>
+    <string name="backup_created_on_server">Бэкап будет создан на вашем сервере.</string>
+    <string name="upload_to_cloud">Загрузить в облако</string>
+    <string name="backup_includes_all">Бэкап включает все сообщения, медиафайлы и настройки.</string>
+    <string name="backup_list_title">Список бэкапов</string>
+    <string name="no_backups">Нет доступных бэкапов</string>
+    <string name="size_format">Размер: %s</string>
+    <string name="restore_backup_title">Восстановить бэкап?</string>
+    <string name="restore_backup_confirm_text">Вы уверены, что хотите восстановить бэкап?</string>
+    <string name="file_label">Файл: %s</string>
+    <string name="restore_backup_warning">Внимание: текущие данные не будут удалены, но дубликаты будут пропущены.</string>
+    <string name="restore_action">Восстановить</string>
+    <string name="delete_action">Удалить</string>
+    <string name="save_action">Сохранить</string>
+    <string name="select_action">Выбрать</string>
+    <string name="create_action">Создать</string>
+
+    <!-- ===== MY PROFILE SCREEN ===== -->
+    <string name="qr_code_label">QR-код</string>
+    <string name="more_options_label">Больше</string>
+    <string name="avatar_desc">Аватар</string>
+    <string name="online_status_text">в сети</string>
+    <string name="last_seen_recently">был(а) недавно</string>
+    <string name="profile_action_photo">Выбрать\nфото</string>
+    <string name="profile_action_edit">Изменить</string>
+    <string name="profile_action_settings">Настройки</string>
+    <string name="profile_action_themes">Темы</string>
+    <string name="phone_label">Телефон</string>
+    <string name="about_label">О себе</string>
+    <string name="username_label">Имя пользователя</string>
+    <string name="birthday_profile_label">День рождения</string>
+    <string name="city_label">Город</string>
+    <string name="work_profile_label">Работа</string>
+    <string name="website_profile_label">Веб-сайт</string>
+    <string name="publications_tab">Публикации</string>
+    <string name="archive_publications_tab">Архив публикаций</string>
+    <string name="no_publications_yet">Публикаций пока нет...</string>
+    <string name="publish_photos_videos_cta">Публикуйте фото и видео в своём профиле</string>
+
+    <!-- ===== SETTINGS SCREEN ===== -->
+    <string name="settings_header">Настройки</string>
+    <string name="nav_back">Назад</string>
+    <string name="nav_edit">Редактировать</string>
+    <string name="nav_go">Перейти</string>
+    <string name="update_available_title">Доступно обновление %s</string>
+    <string name="update_auto_check">Автопроверка с сервера каждые 30 мин</string>
+    <string name="update_available_version">Доступна версия %s</string>
+
     <!-- ===== ERRORS ===== -->
     <string name="error_network">Ошибка сети</string>
     <string name="error_login">Ошибка входа</string>

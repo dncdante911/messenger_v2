@@ -30,9 +30,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
 import com.worldmates.messenger.BuildConfig
@@ -207,7 +209,7 @@ fun SettingsScreen(
     onNavigate: (SettingsScreen) -> Unit,
     onLogout: () -> Unit
 ) {
-    val username = UserSession.username ?: "Користувач"
+    val username = UserSession.username ?: stringResource(R.string.unknown)
     val avatar = UserSession.avatar
     val userData by viewModel.userData.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
@@ -285,13 +287,13 @@ fun SettingsScreen(
                         ) {
                             Icon(
                                 Icons.Default.ArrowBack,
-                                contentDescription = "Назад",
+                                contentDescription = stringResource(R.string.back),
                                 tint = Color.White
                             )
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = "Налаштування",
+                            text = stringResource(R.string.settings_header),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -351,29 +353,29 @@ fun SettingsScreen(
 
             // Account Settings
             item {
-                SettingsSection(title = "Акаунт")
+                SettingsSection(title = stringResource(R.string.account_section))
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Person,
-                    title = "Редагувати профіль",
-                    subtitle = "Змінити особисті дані",
+                    title = stringResource(R.string.edit_profile),
+                    subtitle = stringResource(R.string.edit_profile_subtitle),
                     onClick = { onNavigate(SettingsScreen.EditProfile) }
                 )
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Lock,
-                    title = "Конфіденційність",
-                    subtitle = "Налаштування приватності",
+                    title = stringResource(R.string.privacy_settings),
+                    subtitle = stringResource(R.string.privacy_subtitle),
                     onClick = { onNavigate(SettingsScreen.Privacy) }
                 )
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Notifications,
-                    title = "Сповіщення",
-                    subtitle = "Керування сповіщеннями",
+                    title = stringResource(R.string.notification_settings),
+                    subtitle = stringResource(R.string.notification_subtitle),
                     onClick = { onNavigate(SettingsScreen.Notifications) }
                 )
             }
@@ -382,29 +384,29 @@ fun SettingsScreen(
 
             // Security Settings
             item {
-                SettingsSection(title = "Безпека")
+                SettingsSection(title = stringResource(R.string.security_section))
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Shield,
-                    title = "Двофакторна аутентифікація",
-                    subtitle = try { if (com.worldmates.messenger.utils.security.SecurePreferences.is2FAEnabled) "Увімкнено" else "Вимкнено" } catch (_: Exception) { "Вимкнено" },
+                    title = stringResource(R.string.two_factor_auth),
+                    subtitle = try { if (com.worldmates.messenger.utils.security.SecurePreferences.is2FAEnabled) stringResource(R.string.two_factor_enabled) else stringResource(R.string.two_factor_disabled) } catch (_: Exception) { stringResource(R.string.two_factor_disabled) },
                     onClick = { onNavigate(SettingsScreen.TwoFactorAuth) }
                 )
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Lock,
-                    title = "Блокування додатку",
-                    subtitle = try { if (com.worldmates.messenger.utils.security.SecurePreferences.isPINEnabled()) "PIN-код активний" else "Вимкнено" } catch (_: Exception) { "Вимкнено" },
+                    title = stringResource(R.string.app_lock),
+                    subtitle = try { if (com.worldmates.messenger.utils.security.SecurePreferences.isPINEnabled()) stringResource(R.string.app_lock_pin_active) else stringResource(R.string.two_factor_disabled) } catch (_: Exception) { stringResource(R.string.two_factor_disabled) },
                     onClick = { onNavigate(SettingsScreen.AppLock) }
                 )
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Block,
-                    title = "Заблоковані користувачі",
-                    subtitle = "Керування списком блокування",
+                    title = stringResource(R.string.blocked_users),
+                    subtitle = stringResource(R.string.blocked_users_subtitle),
                     onClick = { onNavigate(SettingsScreen.BlockedUsers) }
                 )
             }
@@ -413,29 +415,29 @@ fun SettingsScreen(
 
             // Social Settings
             item {
-                SettingsSection(title = "Соціальне")
+                SettingsSection(title = stringResource(R.string.social_section))
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Group,
-                    title = "Мої групи",
-                    subtitle = "${userData?.groupsCount ?: "0"} груп",
+                    title = stringResource(R.string.my_groups_settings),
+                    subtitle = stringResource(R.string.groups_count_fmt, userData?.groupsCount ?: "0"),
                     onClick = { onNavigate(SettingsScreen.MyGroups) }
                 )
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.People,
-                    title = "Підписники",
-                    subtitle = "${userData?.followersCount ?: "0"} підписників",
+                    title = stringResource(R.string.followers_settings),
+                    subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
                     onClick = { /* TODO */ }
                 )
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.PersonAdd,
-                    title = "Підписки",
-                    subtitle = "${userData?.followingCount ?: "0"} підписок",
+                    title = stringResource(R.string.following_settings),
+                    subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
                     onClick = { /* TODO */ }
                 )
             }
@@ -444,21 +446,21 @@ fun SettingsScreen(
 
             // Chat Settings
             item {
-                SettingsSection(title = "Чати")
+                SettingsSection(title = stringResource(R.string.chats_section))
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Chat,
-                    title = "Фон чату",
-                    subtitle = "Налаштувати фон чату",
+                    title = stringResource(R.string.chat_background),
+                    subtitle = stringResource(R.string.chat_background_subtitle),
                     onClick = { /* TODO */ }
                 )
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Storage,
-                    title = "Сховище та бэкап",
-                    subtitle = "Автозагрузка медіа, кеш, хмарні бекапи",
+                    title = stringResource(R.string.storage_backup),
+                    subtitle = stringResource(R.string.storage_backup_subtitle),
                     onClick = { onNavigate(SettingsScreen.CloudBackup) }
                 )
             }
@@ -467,12 +469,12 @@ fun SettingsScreen(
 
             // App Settings
             item {
-                SettingsSection(title = "Додаток")
+                SettingsSection(title = stringResource(R.string.app_section))
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Language,
-                    title = "Мова / Язык",
+                    title = stringResource(R.string.language_settings),
                     subtitle = LanguageManager.getDisplayName(LanguageManager.currentLanguage),
                     onClick = { onNavigate(SettingsScreen.Language) }
                 )
@@ -480,8 +482,8 @@ fun SettingsScreen(
             item {
                 SettingsItem(
                     icon = Icons.Default.DarkMode,
-                    title = "Тема",
-                    subtitle = "Налаштування кольорів",
+                    title = stringResource(R.string.theme_settings),
+                    subtitle = stringResource(R.string.theme_subtitle),
                     onClick = { onNavigate(SettingsScreen.Theme) }
                 )
             }
@@ -489,15 +491,15 @@ fun SettingsScreen(
             item {
                 SettingsItem(
                     icon = Icons.Default.SystemUpdate,
-                    title = "Оновлення додатку",
-                    subtitle = if (updateState.hasUpdate) "Доступна версія ${updateState.latestVersion}" else "Автоперевірка з сервера кожні 30 хв",
+                    title = stringResource(R.string.app_update),
+                    subtitle = if (updateState.hasUpdate) stringResource(R.string.update_available_version, updateState.latestVersion ?: "") else stringResource(R.string.update_auto_check),
                     onClick = { viewModel.checkUpdates(force = true) }
                 )
             }
             item {
                 SettingsItem(
                     icon = Icons.Default.Info,
-                    title = "Про додаток",
+                    title = stringResource(R.string.about_app),
                     subtitle = "Версія ${BuildConfig.VERSION_NAME}",
                     onClick = { showAboutDialog = true }
                 )
@@ -529,13 +531,13 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(16.dp))
                             Column {
                                 Text(
-                                    "PRO акаунт",
+                                    stringResource(R.string.pro_account),
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
                                     fontSize = 18.sp
                                 )
                                 Text(
-                                    "Дякуємо за підтримку!",
+                                    stringResource(R.string.thank_you_support),
                                     color = Color.White,
                                     fontSize = 14.sp
                                 )
@@ -551,7 +553,7 @@ fun SettingsScreen(
             item {
                 SettingsItem(
                     icon = Icons.Default.ExitToApp,
-                    title = "Вийти",
+                    title = stringResource(R.string.logout),
                     textColor = Color.Red,
                     onClick = { showLogoutDialog = true }
                 )
@@ -567,8 +569,8 @@ fun SettingsScreen(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Вийти з акаунту?") },
-            text = { Text("Ви впевнені, що хочете вийти?") },
+            title = { Text(stringResource(R.string.logout_confirm_title)) },
+            text = { Text(stringResource(R.string.logout_confirm_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -576,12 +578,12 @@ fun SettingsScreen(
                         onLogout()
                     }
                 ) {
-                    Text("Вийти", color = Color.Red)
+                    Text(stringResource(R.string.logout), color = Color.Red)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -594,18 +596,18 @@ fun SettingsScreen(
                     viewModel.snoozeUpdatePrompt()
                 }
             },
-            title = { Text("Доступне оновлення ${updateState.latestVersion ?: ""}") },
+            title = { Text(stringResource(R.string.update_available_title, updateState.latestVersion ?: "")) },
             text = {
                 Column(
                     modifier = Modifier
                         .heightIn(max = 400.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text("Нова версія доступна на сервері. Можна встановити в один клік без очікування Google Play.")
+                    Text(stringResource(R.string.update_available_text))
                     if (updateState.changelog.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Що нового:",
+                            text = stringResource(R.string.whats_new),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp
                         )
@@ -622,13 +624,13 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { AppUpdateManager.openUpdateUrl(context) }) {
-                    Text("Оновити зараз")
+                    Text(stringResource(R.string.update_now))
                 }
             },
             dismissButton = {
                 if (!updateState.isMandatory) {
                     TextButton(onClick = { viewModel.snoozeUpdatePrompt() }) {
-                        Text("Пізніше")
+                        Text(stringResource(R.string.later))
                     }
                 }
             }
@@ -705,7 +707,7 @@ fun ProfileSection(
                 // Edit icon
                 Icon(
                     Icons.Default.Edit,
-                    contentDescription = "Редагувати",
+                    contentDescription = stringResource(R.string.edit_profile),
                     tint = Color(0xFF0084FF)
                 )
             }
@@ -847,7 +849,7 @@ fun SettingsItem(
             if (textColor != Color.Red) {
                 Icon(
                     Icons.Default.KeyboardArrowRight,
-                    contentDescription = "Перейти",
+                    contentDescription = null,
                     tint = Color(0xFF667eea),
                     modifier = Modifier.size(24.dp)
                 )
