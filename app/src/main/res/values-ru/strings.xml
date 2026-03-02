@@ -787,6 +787,10 @@
     <string name="one_click_theme_desc">Полный пакет оформления: тема + фон + реакция + пузырьки + стиль</string>
     <string name="call_frame_style_title">Стиль рамок видеозвонков</string>
     <string name="video_frame_style_title">Стиль рамки видеосообщения</string>
+    <!-- Названия секций экрана тем (для заголовков-разделителей) -->
+    <string name="appearance_section">Внешний вид</string>
+    <string name="bubble_style_title">Стиль пузырьков</string>
+    <string name="quick_reaction_title">Быстрая реакция</string>
 
     <!-- ===== PRESET BACKGROUNDS ===== -->
     <!-- Заголовки секции фонов -->

@@ -787,6 +787,10 @@
     <string name="one_click_theme_desc">Повний пакет оформлення: тема + фон + реакція + бульбашки + стиль</string>
     <string name="call_frame_style_title">Стиль рамок відеодзвінків</string>
     <string name="video_frame_style_title">Стиль рамки відеоповідомлення</string>
+    <!-- Назви секцій екрану тем (для заголовків-роздільників) -->
+    <string name="appearance_section">Відображення</string>
+    <string name="bubble_style_title">Стиль бульбашок</string>
+    <string name="quick_reaction_title">Швидка реакція</string>
 
     <!-- ===== PRESET BACKGROUNDS ===== -->
     <!-- Заголовки секції фонів -->

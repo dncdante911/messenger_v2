@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -152,11 +150,14 @@ val oneClickPacks = listOf(
 )
 
 @Composable
-fun OneClickInterfacePacksSection(themeViewModel: ThemeViewModel) {
+fun OneClickInterfacePacksSection(
+    themeViewModel: ThemeViewModel,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         shape = RoundedCornerShape(16.dp)
     ) {
@@ -178,11 +179,10 @@ fun OneClickInterfacePacksSection(themeViewModel: ThemeViewModel) {
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            LazyColumn(
-                modifier = Modifier.height(460.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(oneClickPacks) { pack ->
+            // Звичайний Column замість LazyColumn — 10 елементів не потребують
+            // вкладеного прокручування; зовнішній LazyColumn вирішує скрол.
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                oneClickPacks.forEach { pack ->
                     OneClickPackCard(
                         pack = pack,
                         onClick = {
