@@ -14,6 +14,7 @@ const { Sequelize, Op, DataTypes } = require("sequelize");
 // const notificationTemplate = Handlebars.compile(notification.toString());
 
 const listeners = require('./listeners/listeners')
+const turnHelper = require('./helpers/turn-credentials');
 const { initializeBotNamespace, getBotStats } = require('./listeners/bots-listener')
 const { registerAuthRoutes } = require('./routes/auth')
 const { registerMessagingRoutes } = require('./routes/messaging')
