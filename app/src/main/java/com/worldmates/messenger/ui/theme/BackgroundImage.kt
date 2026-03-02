@@ -85,34 +85,26 @@ fun BackgroundImage(
                         .background(Color.Black.copy(alpha = 0.3f))
                 )
             }
-            // Пріоритет 2: Готовий градієнт
+            // Пріоритет 2: Готовий градієнт (з enum PresetBackground)
             presetBackgroundId != null -> {
-                val presetBg = when (presetBackgroundId) {
-                    "ocean" -> listOf(Color(0xFF667eea), Color(0xFF764ba2))
-                    "sunset" -> listOf(Color(0xFFf83600), Color(0xFFf9d423))
-                    "forest" -> listOf(Color(0xFF11998e), Color(0xFF38ef7d))
-                    "lavender" -> listOf(Color(0xFFa8edea), Color(0xFFfed6e3))
-                    "midnight" -> listOf(Color(0xFF2c3e50), Color(0xFF3498db))
-                    "peach" -> listOf(Color(0xFFffecd2), Color(0xFFfcb69f))
-                    else -> null
-                }
+                val preset = PresetBackground.fromId(presetBackgroundId)
 
-                if (presetBg != null) {
+                if (preset != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                brush = Brush.verticalGradient(colors = presetBg)
+                                brush = Brush.verticalGradient(colors = preset.gradientColors)
                             )
                     )
-                    // Легкий оверлей
+                    // Легкий оверлей для кращої читабельності
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.1f))
+                            .background(Color.Black.copy(alpha = 0.08f))
                     )
                 } else {
-                    // Невідомий ID - показуємо стандартний фон
+                    // Невідомий ID — показуємо стандартний фон теми
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

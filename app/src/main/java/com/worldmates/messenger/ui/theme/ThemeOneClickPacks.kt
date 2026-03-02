@@ -20,9 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.preferences.BubbleStyle
 import com.worldmates.messenger.ui.preferences.UIStyle
 import com.worldmates.messenger.ui.preferences.UIStylePreferences
@@ -164,13 +166,13 @@ fun OneClickInterfacePacksSection(themeViewModel: ThemeViewModel) {
                 .padding(16.dp)
         ) {
             Text(
-                text = "Готові рішення в один клік",
+                text = stringResource(R.string.one_click_themes),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Повний пакет оформлення: тема + фон + реакція + бульбашки + стиль",
+                text = stringResource(R.string.one_click_theme_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 12.dp)

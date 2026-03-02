@@ -41,6 +41,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -88,12 +90,12 @@ fun BackgroundImageSection(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Фонове зображення",
+                        text = stringResource(R.string.bg_section_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "Кастомний фон для чатів",
+                        text = stringResource(R.string.bg_section_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -153,7 +155,7 @@ fun BackgroundImageSection(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Немає фону",
+                            text = stringResource(R.string.bg_no_background),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -164,7 +166,7 @@ fun BackgroundImageSection(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Готові фони",
+                text = stringResource(R.string.bg_presets_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -172,7 +174,7 @@ fun BackgroundImageSection(
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
-                modifier = Modifier.height(340.dp),
+                modifier = Modifier.height(480.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -201,7 +203,7 @@ fun BackgroundImageSection(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (currentBackgroundUri != null) "Змінити фон" else "Вибрати фон",
+                    text = if (currentBackgroundUri != null) stringResource(R.string.bg_change) else stringResource(R.string.bg_pick),
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -276,7 +278,7 @@ fun PresetBackgroundCard(
         }
 
         Text(
-            text = preset.displayName,
+            text = stringResource(preset.nameResId),
             color = Color.White,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,

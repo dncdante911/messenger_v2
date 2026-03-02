@@ -788,6 +788,39 @@
     <string name="call_frame_style_title">Стиль рамок видеозвонков</string>
     <string name="video_frame_style_title">Стиль рамки видеосообщения</string>
 
+    <!-- ===== PRESET BACKGROUNDS ===== -->
+    <!-- Заголовки секции фонов -->
+    <string name="bg_section_title">Фоновое изображение</string>
+    <string name="bg_section_desc">Собственный фон для чатов</string>
+    <string name="bg_presets_title">Готовые фоны</string>
+    <string name="bg_no_background">Нет фона</string>
+    <string name="bg_pick">Выбрать фон</string>
+    <string name="bg_change">Изменить фон</string>
+    <!-- Названия готовых фонов (классические) -->
+    <string name="bg_ocean">Океан</string>
+    <string name="bg_midnight">Полночь</string>
+    <string name="bg_deep_space">Глубокий космос</string>
+    <!-- Названия готовых фонов (тёплая палитра) -->
+    <string name="bg_sunset">Закат</string>
+    <string name="bg_peach">Персик</string>
+    <string name="bg_fire">Огонь</string>
+    <string name="bg_sand_dunes">Песчаные дюны</string>
+    <!-- Названия готовых фонов (природа) -->
+    <string name="bg_forest">Лес</string>
+    <string name="bg_spring">Весна</string>
+    <string name="bg_cherry">Вишня</string>
+    <!-- Названия готовых фонов (пастельная палитра) -->
+    <string name="bg_lavender">Лаванда</string>
+    <string name="bg_cotton_candy">Сахарная вата</string>
+    <string name="bg_morning_mist">Утренний туман</string>
+    <!-- Названия готовых фонов (эффектные) -->
+    <string name="bg_aurora">Полярное сияние</string>
+    <string name="bg_cosmic">Космос</string>
+    <string name="bg_neon_city">Неоновый город</string>
+    <!-- Названия готовых фонов (нейтральные / сезонные) -->
+    <string name="bg_winter">Зима</string>
+    <string name="bg_messenger">Синий мессенджер</string>
+
     <!-- ===== MUSIC PLAYER ===== -->
     <string name="player">Плеер</string>
     <string name="music_background_note">Музыка продолжит играть при сворачивании и выключении экрана</string>
