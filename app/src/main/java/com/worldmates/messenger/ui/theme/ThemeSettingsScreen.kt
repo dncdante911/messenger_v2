@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -74,87 +75,128 @@ import com.worldmates.messenger.ui.preferences.UIStylePreferences
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
 
 /**
- * Готові фонові градієнти для чатів
+ * Готові фонові градієнти для чатів.
+ * Назви беруться з ресурсів рядків (nameResId), щоб підтримувати локалізацію.
+ * id — стабільний ключ, який використовується в одноклікових пакетах та сховищі.
  */
 enum class PresetBackground(
     val id: String,
-    val displayName: String,
+    @StringRes val nameResId: Int,
     val gradientColors: List<Color>
 ) {
+    // ── Класичні ────────────────────────────────────────────────────────────
     OCEAN(
         id = "ocean",
-        displayName = "Океан",
-        gradientColors = listOf(Color(0xFF667eea), Color(0xFF764ba2))
-    ),
-    SUNSET(
-        id = "sunset",
-        displayName = "Захід сонця",
-        gradientColors = listOf(Color(0xFFf83600), Color(0xFFf9d423))
-    ),
-    FOREST(
-        id = "forest",
-        displayName = "Ліс",
-        gradientColors = listOf(Color(0xFF11998e), Color(0xFF38ef7d))
-    ),
-    LAVENDER(
-        id = "lavender",
-        displayName = "Лаванда",
-        gradientColors = listOf(Color(0xFFa8edea), Color(0xFFfed6e3))
+        nameResId = R.string.bg_ocean,
+        // Глибокий синьо-фіолетовий, схожий на стандартні теми Telegram
+        gradientColors = listOf(Color(0xFF1565C0), Color(0xFF283593), Color(0xFF6200EA))
     ),
     MIDNIGHT(
         id = "midnight",
-        displayName = "Опівночі",
-        gradientColors = listOf(Color(0xFF2c3e50), Color(0xFF3498db))
-    ),
-    PEACH(
-        id = "peach",
-        displayName = "Персик",
-        gradientColors = listOf(Color(0xFFffecd2), Color(0xFFfcb69f))
-    ),
-    FIRE(
-        id = "fire",
-        displayName = "Вогонь",
-        gradientColors = listOf(Color(0xFFFF0000), Color(0xFFFF7F00), Color(0xFFFFFF00))
-    ),
-    AURORA(
-        id = "aurora",
-        displayName = "Полярне сяйво",
-        gradientColors = listOf(Color(0xFF00FFA3), Color(0xFF03E1FF), Color(0xFFDC1FFF))
-    ),
-    CHERRY(
-        id = "cherry",
-        displayName = "Вишня",
-        gradientColors = listOf(Color(0xFFEB3349), Color(0xFFF45C43))
-    ),
-    COSMIC(
-        id = "cosmic",
-        displayName = "Космос",
-        gradientColors = listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0))
-    ),
-    COTTON_CANDY(
-        id = "cotton_candy",
-        displayName = "Цукрова вата",
-        gradientColors = listOf(Color(0xFFFFAFBD), Color(0xFFffc3a0))
+        nameResId = R.string.bg_midnight,
+        // Глибоке нічне небо — темно-синій, майже чорний
+        gradientColors = listOf(Color(0xFF0A0E27), Color(0xFF1A237E), Color(0xFF0D2137))
     ),
     DEEP_SPACE(
         id = "deep_space",
-        displayName = "Глибокий космос",
-        gradientColors = listOf(Color(0xFF000428), Color(0xFF004e92))
+        nameResId = R.string.bg_deep_space,
+        // Темний космос — безодня з відтінком синього
+        gradientColors = listOf(Color(0xFF000005), Color(0xFF00061C), Color(0xFF001650))
+    ),
+    // ── Тепла палітра ───────────────────────────────────────────────────────
+    SUNSET(
+        id = "sunset",
+        nameResId = R.string.bg_sunset,
+        // Тепле небо на заході: золото → помаранчевий → пурпур
+        gradientColors = listOf(Color(0xFFFFD93D), Color(0xFFFF6B35), Color(0xFFE53E3E), Color(0xFF9F2793))
+    ),
+    PEACH(
+        id = "peach",
+        nameResId = R.string.bg_peach,
+        // Затишний персиковий — як WhatsApp neutral
+        gradientColors = listOf(Color(0xFFFFF3E0), Color(0xFFFFCC80), Color(0xFFFF9A5C))
+    ),
+    FIRE(
+        id = "fire",
+        nameResId = R.string.bg_fire,
+        // Лава та вогонь: темно-червоний → помаранчевий → жовте полум'я
+        gradientColors = listOf(Color(0xFF7F0000), Color(0xFFBF360C), Color(0xFFFF6F00), Color(0xFFFFD54F))
+    ),
+    SAND_DUNES(
+        id = "sand_dunes",
+        nameResId = R.string.bg_sand_dunes,
+        // Тепла пустеля — пісок і бежевий (нейтральний, WA-стиль)
+        gradientColors = listOf(Color(0xFFFFF8DC), Color(0xFFEDCB84), Color(0xFFC8965C))
+    ),
+    // ── Природа ─────────────────────────────────────────────────────────────
+    FOREST(
+        id = "forest",
+        nameResId = R.string.bg_forest,
+        // Глибокий ліс: темний смарагд → насичений зелений
+        gradientColors = listOf(Color(0xFF1A472A), Color(0xFF2D6A4F), Color(0xFF52B788))
     ),
     SPRING(
         id = "spring",
-        displayName = "Весна",
-        gradientColors = listOf(Color(0xFF00b09b), Color(0xFF96c93d))
+        nameResId = R.string.bg_spring,
+        // Свіжа весна: молодий пагін, цвіт яблуні
+        gradientColors = listOf(Color(0xFFE8F5E9), Color(0xFFA5D6A7), Color(0xFF43A047))
+    ),
+    CHERRY(
+        id = "cherry",
+        nameResId = R.string.bg_cherry,
+        // Японська сакура: ніжний рожевий → насичений малиновий
+        gradientColors = listOf(Color(0xFFFCE4EC), Color(0xFFF8BBD0), Color(0xFFF06292), Color(0xFFE91E63))
+    ),
+    // ── Пастельна палітра ───────────────────────────────────────────────────
+    LAVENDER(
+        id = "lavender",
+        nameResId = R.string.bg_lavender,
+        // Елегантна лаванда — ніжний ліловий
+        gradientColors = listOf(Color(0xFFEDE7F6), Color(0xFFD1C4E9), Color(0xFF9575CD))
+    ),
+    COTTON_CANDY(
+        id = "cotton_candy",
+        nameResId = R.string.bg_cotton_candy,
+        // Цукрова вата: рожевий → бузковий → блакитний (kawaii)
+        gradientColors = listOf(Color(0xFFFFD6E0), Color(0xFFFFAFCC), Color(0xFFCDB4DB), Color(0xFFA2D2FF))
+    ),
+    MORNING_MIST(
+        id = "morning_mist",
+        nameResId = R.string.bg_morning_mist,
+        // Ранковий туман — м'який сіро-блакитний, нейтральний як WhatsApp
+        gradientColors = listOf(Color(0xFFF5F7FA), Color(0xFFDDE8F5), Color(0xFFB0CCE9))
+    ),
+    // ── Ефектні ─────────────────────────────────────────────────────────────
+    AURORA(
+        id = "aurora",
+        nameResId = R.string.bg_aurora,
+        // Північне сяйво на темному небі: зелений → бірюзовий → фіолетовий
+        gradientColors = listOf(Color(0xFF0A1628), Color(0xFF004D40), Color(0xFF00BFA5), Color(0xFF7B1FA2))
+    ),
+    COSMIC(
+        id = "cosmic",
+        nameResId = R.string.bg_cosmic,
+        // Глибокий космос: темний → фіолет → лаванда
+        gradientColors = listOf(Color(0xFF0D0221), Color(0xFF2D1B69), Color(0xFF6D3FC0), Color(0xFF9C6EE8))
     ),
     NEON_CITY(
         id = "neon_city",
-        displayName = "Неон-Сіті",
-        gradientColors = listOf(Color(0xFFFC466B), Color(0xFF3F5EFB))
+        nameResId = R.string.bg_neon_city,
+        // Кіберпанк-місто вночі: чорний → пурпур → неоновий синій
+        gradientColors = listOf(Color(0xFF0D0019), Color(0xFF2D003E), Color(0xFFBC00B8), Color(0xFF0066FF))
     ),
+    // ── Нейтральні / сезонні ────────────────────────────────────────────────
     WINTER(
         id = "winter",
-        displayName = "Зима",
-        gradientColors = listOf(Color(0xFFE6DADA), Color(0xFF274046))
+        nameResId = R.string.bg_winter,
+        // Крижана зима: майже білий → ніжний блакит → синій лід
+        gradientColors = listOf(Color(0xFFE3F2FD), Color(0xFFBBDEFB), Color(0xFF42A5F5))
+    ),
+    MESSENGER_BLUE(
+        id = "messenger",
+        nameResId = R.string.bg_messenger,
+        // Класичний синій месенджер — схожий на палітру Telegram
+        gradientColors = listOf(Color(0xFF2AABEE), Color(0xFF1E88E5), Color(0xFF1565C0))
     );
 
     companion object {

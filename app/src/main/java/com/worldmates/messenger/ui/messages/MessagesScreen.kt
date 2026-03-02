@@ -517,7 +517,7 @@ fun MessagesScreen(
                 Log.d("MessagesScreen", "Applying preset background: ${themeState.presetBackgroundId}")
                 val preset = PresetBackground.fromId(themeState.presetBackgroundId)
                 if (preset != null) {
-                    Log.d("MessagesScreen", "Preset found: ${preset.displayName}")
+                    Log.d("MessagesScreen", "Preset found: ${preset.id}")
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

@@ -422,7 +422,7 @@ private fun MiniPresetBackgroundCard(
             )
         }
         Text(
-            text = preset.displayName.take(4),
+            text = stringResource(preset.nameResId).take(4),
             fontSize = 8.sp,
             color = Color.White,
             fontWeight = FontWeight.Bold,
