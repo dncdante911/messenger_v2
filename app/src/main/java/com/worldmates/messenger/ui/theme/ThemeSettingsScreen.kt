@@ -71,8 +71,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.preferences.BubbleStyle
+import com.worldmates.messenger.ui.preferences.UIStyle
 import com.worldmates.messenger.ui.preferences.UIStylePreferences
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
+import com.worldmates.messenger.ui.preferences.rememberUIStyle
+import androidx.compose.foundation.lazy.LazyRow
 
 /**
  * Готові фонові градієнти для чатів.
@@ -267,26 +270,92 @@ fun ThemeSettingsScreen(
             )
         }
     ) { paddingValues ->
+        val currentBubbleStyle = rememberBubbleStyle()
+        val currentUIStyle = rememberUIStyle()
+        val currentQuickReaction by UIStylePreferences.quickReaction.collectAsState()
+
         LazyColumn(
             modifier = modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(bottom = 40.dp)
         ) {
-            // Секция темной темы
+
+            // ══════════════════════════════════════════════════════════════════
+            // 1. ГОТОВІ НАБОРИ В ОДИН КЛІК — найшвидший спосіб налаштувати все
+            // ══════════════════════════════════════════════════════════════════
             item {
-                ThemeModeSectionCard(
-                    themeState = themeState,
-                    viewModel = themeViewModel
+                OneClickInterfacePacksSection(
+                    themeViewModel = themeViewModel,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
                 )
             }
 
-            // Секция фонового изображения
+            // ══════════════════════════════════════════════════════════════════
+            // 2. ТЕМА КОЛЬОРІВ
+            // ══════════════════════════════════════════════════════════════════
             item {
-                BackgroundImageSection(
-                    currentBackgroundUri = themeState.backgroundImageUri,
+                ThemeSectionHeader(
+                    emoji = "🎨",
+                    title = stringResource(R.string.select_theme),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                ThemeVariantsLazyRow(
+                    selectedVariant = themeState.variant,
+                    onVariantSelected = { themeViewModel.setThemeVariant(it) }
+                )
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // 3. ВІДОБРАЖЕННЯ — темна / системна тема / Material You
+            // ══════════════════════════════════════════════════════════════════
+            item {
+                ThemeSectionHeader(
+                    emoji = "🌙",
+                    title = stringResource(R.string.appearance_section),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                ThemeModeSectionCard(
+                    themeState = themeState,
+                    viewModel = themeViewModel,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MaterialYouCard(
+                        enabled = themeState.useDynamicColor,
+                        onToggle = { themeViewModel.toggleDynamicColor() },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // 4. ФОН ЧАТУ — пресети + власне фото
+            // ══════════════════════════════════════════════════════════════════
+            item {
+                ThemeSectionHeader(
+                    emoji = "🖼️",
+                    title = stringResource(R.string.bg_section_title),
+                    subtitle = stringResource(R.string.bg_section_desc),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                BackgroundPresetsLazyRow(
                     currentPresetId = themeState.presetBackgroundId,
+                    onSelectPreset = { themeViewModel.setPresetBackgroundId(it) }
+                )
+            }
+            item {
+                BackgroundCustomImageRow(
+                    currentUri = themeState.backgroundImageUri,
                     onSelectImage = {
                         android.util.Log.d("ThemeSettings", "Opening image picker for background")
                         imagePickerLauncher.launch("image/*")
@@ -296,57 +365,80 @@ fun ThemeSettingsScreen(
                         themeViewModel.setBackgroundImageUri(null)
                         themeViewModel.setPresetBackgroundId(null)
                     },
-                    onSelectPreset = { presetId ->
-                        android.util.Log.d("ThemeSettings", "User selected preset background: $presetId")
-                        themeViewModel.setPresetBackgroundId(presetId)
-                        android.util.Log.d("ThemeSettings", "setPresetBackgroundId called with: $presetId")
-                    }
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
 
-            // Секция выбора стиля интерфейса (WorldMates/Telegram)
+            // ══════════════════════════════════════════════════════════════════
+            // 5. СТИЛЬ БУЛЬБАШОК — горизонтальний скрол
+            // ══════════════════════════════════════════════════════════════════
             item {
-                UIStyleSection()
+                ThemeSectionHeader(
+                    emoji = "💬",
+                    title = stringResource(R.string.bubble_style_title),
+                    subtitle = stringResource(R.string.bubble_style_desc),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                BubbleStylesLazyRow(
+                    currentStyle = currentBubbleStyle,
+                    onStyleSelected = { UIStylePreferences.setBubbleStyle(context, it) }
+                )
             }
 
-            // Секция выбора стиля бульбашок
+            // ══════════════════════════════════════════════════════════════════
+            // 6. СТИЛЬ ІНТЕРФЕЙСУ — сегментований перемикач
+            // ══════════════════════════════════════════════════════════════════
             item {
-                BubbleStyleSection()
+                ThemeSectionHeader(
+                    emoji = "🎛️",
+                    title = stringResource(R.string.interface_style),
+                    subtitle = stringResource(R.string.interface_style_desc),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                UIStyleToggleRow(
+                    currentStyle = currentUIStyle,
+                    onStyleSelected = { UIStylePreferences.setStyle(context, it) },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
 
-            // Секція вибору швидкої реакції
+            // ══════════════════════════════════════════════════════════════════
+            // 7. ШВИДКА РЕАКЦІЯ — горизонтальний ряд емодзі
+            // ══════════════════════════════════════════════════════════════════
             item {
-                QuickReactionSection()
+                ThemeSectionHeader(
+                    emoji = "❤️",
+                    title = stringResource(R.string.quick_reaction_title),
+                    subtitle = stringResource(R.string.quick_reaction_desc),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                QuickReactionLazyRow(
+                    currentReaction = currentQuickReaction,
+                    onReactionSelected = { UIStylePreferences.setQuickReaction(context, it) }
+                )
             }
 
-            // One-click готові набори інтерфейсу
-            item {
-                OneClickInterfacePacksSection(themeViewModel = themeViewModel)
-            }
-
-            // Стилі рамок відео (перенесено з налаштувань)
+            // ══════════════════════════════════════════════════════════════════
+            // 8. РАМКИ ВІДЕО (якщо є навігація)
+            // ══════════════════════════════════════════════════════════════════
             if (onNavigateToCallFrame != null || onNavigateToVideoFrame != null) {
+                item {
+                    ThemeSectionHeader(
+                        emoji = "📹",
+                        title = stringResource(R.string.video_frame_section),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                    )
+                }
                 item {
                     VideoFrameStylesSection(
                         onNavigateToCallFrame = onNavigateToCallFrame,
                         onNavigateToVideoFrame = onNavigateToVideoFrame
-                    )
-                }
-            }
-
-            // Сетка вариантов тем
-            item {
-                Column {
-                    Text(
-                        text = stringResource(R.string.select_theme),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    ThemeVariantsGrid(
-                        selectedVariant = themeState.variant,
-                        onVariantSelected = { themeViewModel.setThemeVariant(it) }
                     )
                 }
             }
@@ -470,10 +562,11 @@ fun VideoFrameStylesSection(
 @Composable
 fun ThemeModeSectionCard(
     themeState: ThemeState,
-    viewModel: ThemeViewModel
+    viewModel: ThemeViewModel,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -554,10 +647,11 @@ fun ThemeModeSectionCard(
 @Composable
 fun MaterialYouCard(
     enabled: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
@@ -1232,5 +1326,471 @@ fun BubbleStyle.localizedDescription(): String {
         BubbleStyle.NEON -> stringResource(R.string.bubble_neon_desc)
         BubbleStyle.GRADIENT -> stringResource(R.string.bubble_gradient_desc)
         BubbleStyle.NEUMORPHISM -> stringResource(R.string.bubble_neumorphism_desc)
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// НОВІ КОМПОНЕНТИ ДЛЯ ПЕРЕРОБЛЕНОГО ЕКРАНУ ТЕМ
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Заголовок-роздільник секції з кольоровим значком та необов'язковим підзаголовком.
+ */
+@Composable
+fun ThemeSectionHeader(
+    emoji: String,
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = if (subtitle != null) Alignment.Top else Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(10.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = emoji, fontSize = 20.sp)
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Горизонтальний LazyRow карток вибору теми кольорів.
+ * Замінює LazyVerticalGrid з фіксованою висотою 600 dp — усуває вкладений скрол.
+ */
+@Composable
+fun ThemeVariantsLazyRow(
+    selectedVariant: ThemeVariant,
+    onVariantSelected: (ThemeVariant) -> Unit
+) {
+    val availableThemes = ThemeVariant.values().filter { v ->
+        v != ThemeVariant.MATERIAL_YOU || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    }
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        items(availableThemes) { variant ->
+            ThemeVariantChip(
+                variant = variant,
+                isSelected = variant == selectedVariant,
+                onClick = { onVariantSelected(variant) }
+            )
+        }
+    }
+}
+
+/**
+ * Компактна картка теми в горизонтальному ряду: емодзі + назва + 3 кольорових кружки.
+ */
+@Composable
+fun ThemeVariantChip(
+    variant: ThemeVariant,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val palette = variant.getPalette()
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) palette.primary else Color.Transparent,
+        animationSpec = tween(300),
+        label = "chipBorder"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.05f else 1f,
+        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium),
+        label = "chipScale"
+    )
+
+    Column(
+        modifier = Modifier
+            .scale(scale)
+            .width(88.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+            .background(
+                if (isSelected) palette.primary.copy(alpha = 0.1f)
+                else MaterialTheme.colorScheme.surfaceVariant
+            )
+            .clickable(
+                onClick = onClick,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            )
+            .padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = variant.emoji, fontSize = 28.sp)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = variant.displayName,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            textAlign = TextAlign.Center,
+            color = if (isSelected) palette.primary else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            listOf(palette.primary, palette.secondary, palette.accent).forEach { c ->
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(c)
+                )
+            }
+        }
+        if (isSelected) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = palette.primary,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Горизонтальний LazyRow карток готових градієнтних фонів.
+ * Замінює LazyVerticalGrid з фіксованою висотою 480 dp.
+ */
+@Composable
+fun BackgroundPresetsLazyRow(
+    currentPresetId: String?,
+    onSelectPreset: (String) -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        items(PresetBackground.values()) { preset ->
+            BackgroundPresetChip(
+                preset = preset,
+                isSelected = preset.id == currentPresetId,
+                onClick = { onSelectPreset(preset.id) }
+            )
+        }
+    }
+}
+
+/**
+ * Картка одного готового градієнтного фону з назвою та індикатором вибору.
+ */
+@Composable
+fun BackgroundPresetChip(
+    preset: PresetBackground,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.06f else 1f,
+        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium),
+        label = "presetScale"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) Color.White else Color.Transparent,
+        animationSpec = tween(300),
+        label = "presetBorder"
+    )
+
+    Box(
+        modifier = Modifier
+            .scale(scale)
+            .width(76.dp)
+            .height(110.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = preset.gradientColors
+                )
+            )
+            .clickable(onClick = onClick)
+    ) {
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(18.dp)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))
+                    )
+                )
+                .padding(vertical = 5.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(preset.nameResId),
+                color = Color.White,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+/**
+ * Рядок для перегляду, вибору та видалення власного фото фону.
+ */
+@Composable
+fun BackgroundCustomImageRow(
+    currentUri: String?,
+    onSelectImage: () -> Unit,
+    onRemoveImage: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (currentUri != null) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            ) {
+                coil.compose.AsyncImage(
+                    model = android.net.Uri.parse(currentUri),
+                    contentDescription = null,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                IconButton(
+                    onClick = onRemoveImage,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(26.dp)
+                        .background(MaterialTheme.colorScheme.errorContainer, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.remove_background),
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+        }
+        androidx.compose.material3.OutlinedButton(
+            onClick = onSelectImage,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (currentUri != null) stringResource(R.string.bg_change)
+                       else stringResource(R.string.bg_pick),
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+/**
+ * Горизонтальний LazyRow карток стилів бульбашок.
+ * Замінює LazyVerticalGrid з фіксованою висотою 660 dp.
+ */
+@Composable
+fun BubbleStylesLazyRow(
+    currentStyle: BubbleStyle,
+    onStyleSelected: (BubbleStyle) -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        items(BubbleStyle.values()) { style ->
+            BubbleStyleChip(
+                bubbleStyle = style,
+                isSelected = style == currentStyle,
+                onClick = { onStyleSelected(style) }
+            )
+        }
+    }
+}
+
+/**
+ * Компактна картка стилю бульбашок для горизонтального ряду.
+ */
+@Composable
+fun BubbleStyleChip(
+    bubbleStyle: BubbleStyle,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(300),
+        label = "bubbleBorder"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.05f else 1f,
+        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium),
+        label = "bubbleScale"
+    )
+
+    Column(
+        modifier = Modifier
+            .scale(scale)
+            .width(82.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surfaceVariant
+            )
+            .clickable(
+                onClick = onClick,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            )
+            .padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = bubbleStyle.icon, fontSize = 28.sp)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = bubbleStyle.localizedDisplayName(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            textAlign = TextAlign.Center,
+            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                    else MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+/**
+ * Сегментований перемикач стилю інтерфейсу (WorldMates / Класичний).
+ * Замінює два громіздких RadioButton-рядки.
+ */
+@Composable
+fun UIStyleToggleRow(
+    currentStyle: UIStyle,
+    onStyleSelected: (UIStyle) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        UIStyle.values().forEach { style ->
+            val isSelected = style == currentStyle
+            val label = when (style) {
+                UIStyle.WORLDMATES -> "WorldMates"
+                UIStyle.TELEGRAM -> stringResource(R.string.frame_style_classic)
+            }
+            val description = when (style) {
+                UIStyle.WORLDMATES -> stringResource(R.string.interface_modern_desc)
+                UIStyle.TELEGRAM -> stringResource(R.string.interface_classic_desc)
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary
+                        else Color.Transparent
+                    )
+                    .clickable(
+                        onClick = { onStyleSelected(style) },
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    )
+                    .padding(vertical = 10.dp, horizontal = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Горизонтальний LazyRow вибору емодзі для швидкої реакції.
+ * Замінює LazyVerticalGrid з фіксованою висотою 160 dp.
+ */
+@Composable
+fun QuickReactionLazyRow(
+    currentReaction: String,
+    onReactionSelected: (String) -> Unit
+) {
+    val popularEmojis = listOf(
+        "❤️", "👍", "👎", "😂", "😮", "😢",
+        "🔥", "✨", "🎉", "💯", "👏", "🙏"
+    )
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(popularEmojis) { emoji ->
+            EmojiReactionCard(
+                emoji = emoji,
+                isSelected = emoji == currentReaction,
+                onClick = { onReactionSelected(emoji) }
+            )
+        }
     }
 }
