@@ -71,28 +71,41 @@ async function getUserBasicData(ctx, userId) {
 
 /**
  * Собирает объект сообщения для ответа клиенту.
- * Поле text возвращается зашифрованным (GCM) + iv, tag, cipher_version.
- * Android расшифрует на стороне клиента с помощью EncryptionUtility.kt.
+ *
+ * cipher_version=1 (ECB) / 2 (GCM):
+ *   – text: зашифрованный текст (Android расшифрует локально).
+ * cipher_version=3 (Signal Double Ratchet):
+ *   – text + iv + tag: клиентский шифротекст (сервер не расшифровывает).
+ *   – signal_header: JSON DR-заголовок для Double Ratchet decrypt на устройстве.
  */
 async function buildMessage(ctx, msg, userId) {
     const { position, type } = resolveType(msg, userId);
+    const cipherVersion = Number(msg.cipher_version) || 1;
+    const isSignal      = cipherVersion === 3;
 
     // Reply data
     let replyData = null;
     if (msg.reply_id && msg.reply_id > 0) {
         const r = await ctx.wo_messages.findOne({
-            attributes: ['id', 'from_id', 'text', 'iv', 'tag', 'cipher_version', 'media', 'time'],
+            attributes: ['id', 'from_id', 'text', 'iv', 'tag', 'cipher_version',
+                         'signal_header', 'media', 'time'],
             where: { id: msg.reply_id },
-            raw: true,
+            raw:   true,
         });
         if (r) {
-            // Дешифруем текст реплая для превью
+            const replyCv = Number(r.cipher_version) || 1;
+            // For Signal replies the server cannot decrypt — show placeholder
+            const replyText = replyCv === 3
+                ? ''
+                : (r.text ? crypto.decryptMessage(r) : '');
             replyData = {
-                id:      r.id,
-                from_id: r.from_id,
-                text:    r.text ? crypto.decryptMessage(r) : '',
-                media:   r.media || '',
-                time:    r.time,
+                id:             r.id,
+                from_id:        r.from_id,
+                text:           replyText,
+                cipher_version: replyCv,
+                signal_header:  r.signal_header || null,
+                media:          r.media || '',
+                time:           r.time,
             };
         }
     }
@@ -103,12 +116,14 @@ async function buildMessage(ctx, msg, userId) {
         id:             msg.id,
         from_id:        msg.from_id,
         to_id:          msg.to_id,
-        // Зашифрованный текст (GCM) — Android расшифрует локально
+        // Encrypted text — client decrypts locally for both GCM and Signal
         text:           msg.text           || '',
         iv:             msg.iv             || null,
         tag:            msg.tag            || null,
-        cipher_version: msg.cipher_version != null ? Number(msg.cipher_version) : 1,
-        // Остальные поля
+        cipher_version: cipherVersion,
+        // Signal Double Ratchet header (null for version 1/2)
+        signal_header:  isSignal ? (msg.signal_header || null) : null,
+        // Other fields
         media:          msg.media          || '',
         mediaFileName:  msg.mediaFileName  || '',
         stickers:       msg.stickers       || '',
@@ -199,24 +214,55 @@ function sendMessage(ctx, io) {
             if (!hasContent)
                 return res.status(400).json({ api_status: 400, error_message: 'Message has no content' });
 
-            const now = Math.floor(Date.now() / 1000);
+            const now           = Math.floor(Date.now() / 1000);
+            const clientVersion = parseInt(req.body.cipher_version) || 0;
+            const isSignal      = clientVersion === 3;
 
-            // Шифруем текст (AES-256-GCM + AES-128-ECB для совместимости с WoWonder)
-            const enc = plaintext
-                ? crypto.encryptForStorage(plaintext, now)
-                : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: 1 };
+            let enc;
+            let signalHeader = null;
+
+            if (isSignal) {
+                // ── cipher_version=3: client pre-encrypted via Double Ratchet ──
+                // Server stores the payload as-is — NO server-side encryption.
+                // True E2EE: server never sees plaintext for Signal messages.
+                const clientIv  = req.body.iv    || null;
+                const clientTag = req.body.tag   || null;
+                signalHeader    = req.body.signal_header || null;
+
+                if (!plaintext || !clientIv || !clientTag || !signalHeader) {
+                    return res.status(400).json({
+                        api_status:    400,
+                        error_message: 'cipher_version=3 requires text, iv, tag, signal_header',
+                    });
+                }
+
+                enc = {
+                    text:           plaintext,   // Base64(ciphertext) from client
+                    text_ecb:       '',          // Web cannot read Signal messages
+                    text_preview:   '',          // No plaintext preview for E2EE
+                    iv:             clientIv,
+                    tag:            clientTag,
+                    cipher_version: 3,
+                };
+            } else {
+                // ── cipher_version=1/2: server encrypts (existing behaviour) ──
+                enc = plaintext
+                    ? crypto.encryptForStorage(plaintext, now)
+                    : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: 1 };
+            }
 
             const row = await ctx.wo_messages.create({
                 from_id:        userId,
                 to_id:          recipientId,
-                // Зашифрованные поля
+                // Encrypted fields
                 text:           enc.text,
                 text_ecb:       enc.text_ecb,
                 text_preview:   enc.text_preview,
                 iv:             enc.iv,
                 tag:            enc.tag,
                 cipher_version: enc.cipher_version,
-                // Остальные поля
+                signal_header:  signalHeader,
+                // Other fields
                 stickers,
                 media:         '',
                 mediaFileName: '',

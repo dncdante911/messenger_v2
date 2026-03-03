@@ -25,6 +25,7 @@ const { registerGroupRoutes }   = require('./routes/groups/index')
 const { registerBotRoutes }     = require('./routes/bots/index')
 const { registerCallRoutes }    = require('./routes/calls')
 const { initializeWallyBot }    = require('./bots/wallybot')
+const { registerSignalRoutes }  = require('./routes/signal')
 
 let serverPort
 let server
@@ -155,6 +156,9 @@ async function init() {
   ctx.wo_bot_rss_items = require("./models/wo_bot_rss_items")(sequelize, DataTypes)
   ctx.wo_bot_rate_limits = require("./models/wo_bot_rate_limits")(sequelize, DataTypes)
   ctx.wo_bot_api_keys = require("./models/wo_bot_api_keys")(sequelize, DataTypes)
+
+  // ==================== Signal Protocol Model ====================
+  ctx.signal_keys = require("./models/signal_keys")(sequelize, DataTypes)
 
   ctx.globalconfig = {}
   ctx.globallangs = {}
@@ -305,6 +309,9 @@ async function main() {
 
   // Register Call History REST API (замена PHP call_history.php)
   registerCallRoutes(app, ctx);
+
+  // Register Signal Protocol key server (X3DH pre-key distribution)
+  registerSignalRoutes(app, ctx);
 
   // Инициализация WallyBot (встроенный бот-менеджер)
   await initializeWallyBot(ctx, io);

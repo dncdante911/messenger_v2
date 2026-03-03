@@ -4,6 +4,10 @@ import com.google.gson.annotations.SerializedName
 import com.worldmates.messenger.data.Constants
 import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.data.model.Message
+import com.worldmates.messenger.utils.signal.PreKeyBundleResponse
+import com.worldmates.messenger.utils.signal.SignalRegisterRequest
+import com.worldmates.messenger.utils.signal.SignalReplenishRequest
+import com.worldmates.messenger.utils.signal.SignalSimpleResponse
 import retrofit2.http.*
 
 /**
@@ -36,20 +40,29 @@ interface NodeApi {
     ): NodeMessageListResponse
 
     /**
-     * SEND text message.
-     * Replaces: Socket.IO private_message event + PHP send-message.php (text path)
+     * SEND text message (supports AES-256-GCM and Signal Double Ratchet).
+     *
+     * For cipher_version=2 (default): server encrypts plaintext in [text].
+     * For cipher_version=3 (Signal):  client pre-encrypts; [text] = Base64(ciphertext),
+     *   [iv]/[tag] = crypto params, [signal_header] = JSON DR header.
+     *   Server stores without re-encrypting (true E2EE).
      */
     @FormUrlEncoded
     @POST(Constants.NODE_CHAT_SEND)
     suspend fun sendMessage(
-        @Field("recipient_id") recipientId: Long,
-        @Field("text")         text: String,
-        @Field("reply_id")     replyId: Long?   = null,
-        @Field("story_id")     storyId: Long?   = null,
-        @Field("stickers")     stickers: String? = null,
-        @Field("lat")          lat: String?      = null,
-        @Field("lng")          lng: String?      = null,
-        @Field("contact")      contact: String?  = null
+        @Field("recipient_id")   recipientId: Long,
+        @Field("text")           text: String,
+        @Field("reply_id")       replyId: Long?    = null,
+        @Field("story_id")       storyId: Long?    = null,
+        @Field("stickers")       stickers: String? = null,
+        @Field("lat")            lat: String?      = null,
+        @Field("lng")            lng: String?      = null,
+        @Field("contact")        contact: String?  = null,
+        // ── Signal Protocol fields (cipher_version=3 only) ──────────────────
+        @Field("iv")             iv: String?           = null,
+        @Field("tag")            tag: String?          = null,
+        @Field("signal_header")  signalHeader: String? = null,
+        @Field("cipher_version") cipherVersion: Int?   = null
     ): NodeMessageResponse
 
     /**
@@ -323,6 +336,48 @@ interface NodeApi {
         @Field("limit")   limit: Int = 50,
         @Field("offset")  offset: Int = 0
     ): NodeMessageListResponse
+
+    // ═══════════════════════ SIGNAL PROTOCOL ════════════════════════════════
+
+    /**
+     * Upload our identity key + signed pre-key + one-time pre-keys to the server.
+     * Call once per app installation (or after key rotation).
+     * [prekeys] = JSON array string, e.g. [{"id":1,"key":"base64..."},...]
+     */
+    @FormUrlEncoded
+    @POST("api/node/signal/register")
+    suspend fun registerSignalKeys(
+        @Field("identity_key")      identityKey:     String,
+        @Field("signed_prekey_id")  signedPreKeyId:  Int,
+        @Field("signed_prekey")     signedPreKey:    String,
+        @Field("signed_prekey_sig") signedPreKeySig: String,
+        @Field("prekeys")           prekeys:         String   // JSON array of {id,key}
+    ): SignalSimpleResponse
+
+    /**
+     * Fetch another user's pre-key bundle to initiate X3DH.
+     * Server pops one one-time pre-key from the target user's pool.
+     */
+    @GET("api/node/signal/bundle/{userId}")
+    suspend fun getSignalBundle(
+        @Path("userId") userId: Long
+    ): PreKeyBundleResponse
+
+    /**
+     * Upload a fresh batch of one-time pre-keys (called when local pool runs low).
+     * [prekeys] = JSON array string.
+     */
+    @FormUrlEncoded
+    @POST("api/node/signal/replenish")
+    suspend fun replenishSignalPreKeys(
+        @Field("prekeys") prekeys: String   // JSON array of {id,key}
+    ): SignalSimpleResponse
+
+    /**
+     * Check how many one-time pre-keys remain on the server for current user.
+     */
+    @GET("api/node/signal/prekey-count")
+    suspend fun getSignalPreKeyCount(): SignalSimpleResponse
 
     // ═══════════════════════ AUTH (no access-token required) ═════════════════
 
