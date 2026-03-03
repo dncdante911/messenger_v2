@@ -420,13 +420,16 @@ class MessagesViewModel(application: Application) :
                     }
 
                     if (resp.apiStatus == 200) {
-                        // Decrypt the server echo and add to local list
+                        // Decrypt the server echo and add to local list.
+                        // For Signal (cipher_version=3) we are the sender — we cannot decrypt
+                        // our own outgoing ciphertext (it was encrypted for the recipient).
+                        // Use the known plaintext directly instead of calling decryptMessageFully.
                         val rawMsg  = resp.messageData
-                        val newMsg  = rawMsg?.let { decryptMessageFully(it) }
-                            ?: if (signalPayload != null) {
-                                // Build local echo from our own plaintext (Signal echo)
-                                rawMsg?.copy(decryptedText = text)
-                            } else null
+                        val newMsg  = when {
+                            rawMsg == null       -> null
+                            signalPayload != null -> rawMsg.copy(decryptedText = text)
+                            else                  -> decryptMessageFully(rawMsg)
+                        }
 
                         if (newMsg != null) {
                             val curr = _messages.value
