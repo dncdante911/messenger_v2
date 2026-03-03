@@ -74,7 +74,9 @@ data class Message(
     // Новые поля для AES-GCM шифрования (v2)
     @SerializedName("iv") val iv: String? = null,                          // Base64 Initialization Vector (12 байт)
     @SerializedName("tag") val tag: String? = null,                        // Base64 Authentication Tag (16 байт)
-    @SerializedName("cipher_version") val cipherVersion: Int? = null,      // Версия алгоритма (1=ECB, 2=GCM)
+    @SerializedName("cipher_version") val cipherVersion: Int? = null,      // Версия алгоритма (1=ECB, 2=GCM, 3=Signal)
+    // Signal Double Ratchet header (cipher_version=3 only)
+    @SerializedName("signal_header") val signalHeader: String? = null,     // JSON DR+X3DH header для E2EE декриптування
     // Реакції емоджі
     @SerializedName("reactions") val reactions: List<MessageReaction>? = null,
     // Локальные поля (не приходят с сервера)

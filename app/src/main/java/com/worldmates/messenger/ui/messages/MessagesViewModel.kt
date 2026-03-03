@@ -18,7 +18,9 @@ import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.utils.DecryptionUtility
+import com.worldmates.messenger.utils.signal.SignalEncryptionService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,10 +47,19 @@ class MessagesViewModel(application: Application) :
         private const val DRAFT_AUTO_SAVE_DELAY = 5000L // 5 секунд
     }
 
+    /** Signal Protocol E2EE service — singleton per process. */
+    private val signalService: SignalEncryptionService by lazy {
+        SignalEncryptionService.getInstance(getApplication(), nodeApi)
+    }
+
     init {
         Log.d(TAG, "🚀 MessagesViewModel створено!")
         Log.d(TAG, "Access Token: ${UserSession.accessToken?.take(10)}...")
         Log.d(TAG, "User ID: ${UserSession.userId}")
+        // Ensure Signal public keys are registered with the server (runs once per install)
+        viewModelScope.launch {
+            signalService.ensureRegistered()
+        }
     }
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
@@ -178,7 +189,7 @@ class MessagesViewModel(application: Application) :
     fun getTopicId(): Long = topicId
 
     fun initialize(recipientId: Long) {
-        Log.d("MessagesViewModel", "🔧 initialize() викликано для користувача $recipientId")
+        Log.d(TAG, "🔧 initialize() for user $recipientId")
         this.recipientId = recipientId
         this.groupId = 0
         this.topicId = 0
@@ -186,11 +197,21 @@ class MessagesViewModel(application: Application) :
         setupSocket()
         startMessagePolling()
         loadDraft()
-        markSeen() // Позначаємо повідомлення як прочитані при відкритті чату
+        markSeen()
         loadMuteStatusViaNode(viewModelScope, nodeApi, recipientId) { isMuted ->
             _isMutedPrivate.value = isMuted
         }
-        Log.d("MessagesViewModel", "✅ Ініціалізація завершена для користувача $recipientId")
+        // Log Signal session status for debug
+        viewModelScope.launch {
+            val keyStore = com.worldmates.messenger.utils.signal.SignalKeyStore(getApplication())
+            val hasSession  = keyStore.hasSession(recipientId)
+            val isRegistered = keyStore.isRegistered()
+            val opkCount    = keyStore.opkCount()
+            val ikPub       = keyStore.getIdentityPublicKeyBase64()?.take(8) ?: "none"
+            Log.i(TAG, "🔑 [Signal] user=$recipientId session=$hasSession " +
+                "registered=$isRegistered opk_pool=$opkCount ik=${ikPub}...")
+        }
+        Log.d(TAG, "✅ initialize() done for user $recipientId")
     }
 
     fun initializeGroup(groupId: Long, topicId: Long = 0) {
@@ -250,9 +271,7 @@ class MessagesViewModel(application: Application) :
                 )
 
                 if (response.apiStatus == 200 && response.messages != null) {
-                    val decryptedMessages = response.messages.map { msg ->
-                        decryptMessageFully(msg)
-                    }
+                    val decryptedMessages = response.messages.decryptAll()
 
                     val currentMessages = _messages.value.toMutableList()
                     currentMessages.addAll(decryptedMessages)
@@ -293,7 +312,7 @@ class MessagesViewModel(application: Application) :
                     limit           = 30
                 )
                 if (response.apiStatus == 200 && response.messages != null) {
-                    val older = response.messages.map { decryptMessageFully(it) }
+                    val older = response.messages.decryptAll()
                     if (older.isEmpty()) {
                         _canLoadMore.value = false
                         Log.d(TAG, "📜 loadMore: no more messages")
@@ -334,9 +353,7 @@ class MessagesViewModel(application: Application) :
                 )
 
                 if (response.apiStatus == 200 && response.messages != null) {
-                    val decryptedMessages = response.messages!!.map { msg ->
-                        decryptMessageFully(msg)
-                    }
+                    val decryptedMessages = response.messages!!.decryptAll()
 
                     val currentMessages = _messages.value.toMutableList()
                     currentMessages.addAll(decryptedMessages)
@@ -375,15 +392,42 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                // ── Private chat → Node.js ────────────────────────────────────────
+                // ── Private chat → Node.js (with Signal Double Ratchet E2EE) ──────
                 if (groupId == 0L) {
-                    val resp = nodeApi.sendMessage(
-                        recipientId = recipientId,
-                        text = text,
-                        replyId = replyToId
-                    )
+                    // Try Signal encryption first (cipher_version=3)
+                    val signalPayload = signalService.encryptForSend(recipientId, text)
+
+                    val resp = if (signalPayload != null) {
+                        Log.d(TAG, "📤 [Signal] Sending E2EE msg to user $recipientId " +
+                            "(header=${signalPayload.signalHeader.take(40)}...)")
+                        nodeApi.sendMessage(
+                            recipientId   = recipientId,
+                            text          = signalPayload.ciphertext,
+                            iv            = signalPayload.iv,
+                            tag           = signalPayload.tag,
+                            signalHeader  = signalPayload.signalHeader,
+                            cipherVersion = SignalEncryptionService.CIPHER_VERSION_SIGNAL,
+                            replyId       = replyToId
+                        )
+                    } else {
+                        // Fallback: server-side AES-256-GCM (cipher_version=2)
+                        Log.w(TAG, "⚠️ [Signal] Encryption failed, falling back to GCM for user $recipientId")
+                        nodeApi.sendMessage(
+                            recipientId = recipientId,
+                            text        = text,
+                            replyId     = replyToId
+                        )
+                    }
+
                     if (resp.apiStatus == 200) {
-                        val newMsg = resp.messageData?.let { decryptMessageFully(it) }
+                        // Decrypt the server echo and add to local list
+                        val rawMsg  = resp.messageData
+                        val newMsg  = rawMsg?.let { decryptMessageFully(it) }
+                            ?: if (signalPayload != null) {
+                                // Build local echo from our own plaintext (Signal echo)
+                                rawMsg?.copy(decryptedText = text)
+                            } else null
+
                         if (newMsg != null) {
                             val curr = _messages.value
                             if (!curr.any { it.id == newMsg.id }) {
@@ -395,10 +439,10 @@ class MessagesViewModel(application: Application) :
                         }
                         _error.value = null
                         deleteDraft()
-                        Log.d("MessagesViewModel", "Повідомлення надіслано через Node.js")
+                        Log.d(TAG, "✅ Message sent (E2EE=${signalPayload != null})")
                     } else {
                         _error.value = resp.errorMessage ?: "Не вдалося надіслати повідомлення"
-                        Log.e("MessagesViewModel", "Node.js send error: ${resp.errorMessage}")
+                        Log.e(TAG, "Node.js send error: ${resp.errorMessage}")
                     }
                     _isLoading.value = false
                     return@launch
@@ -433,9 +477,7 @@ class MessagesViewModel(application: Application) :
                     val receivedMessages = response.allMessages
                     Log.d("MessagesViewModel", "receivedMessages: $receivedMessages")
                     if (receivedMessages != null && receivedMessages.isNotEmpty()) {
-                        val decryptedMessages = receivedMessages.map { msg ->
-                            decryptMessageFully(msg)
-                        }
+                        val decryptedMessages = receivedMessages.decryptAll()
 
                         val currentMessages = _messages.value.toMutableList()
                         currentMessages.addAll(decryptedMessages)
@@ -1140,84 +1182,67 @@ class MessagesViewModel(application: Application) :
     }
 
     override fun onNewMessage(messageJson: JSONObject) {
-        try {
-            Log.d("MessagesViewModel", "📨 Отримано Socket.IO повідомлення: $messageJson")
+        // Run in a coroutine so we can call suspend functions (Signal decryption)
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "📨 [Socket.IO] Incoming message: ${messageJson.toString().take(120)}")
 
-            val timestamp = messageJson.getLong("time")
-            val encryptedText = messageJson.optString("text", null)
-            val mediaUrl = messageJson.optString("media", null)
+                val timestamp     = messageJson.getLong("time")
+                val encryptedText = messageJson.optString("text", null)
+                val mediaUrl      = messageJson.optString("media", null)?.takeIf { it.isNotEmpty() }
+                val iv            = messageJson.optString("iv",  null)?.takeIf { it.isNotEmpty() }
+                val tag           = messageJson.optString("tag", null)?.takeIf { it.isNotEmpty() }
+                val cipherVersion = if (messageJson.has("cipher_version"))
+                    messageJson.getInt("cipher_version") else null
+                val signalHeader  = messageJson.optString("signal_header", null)
+                    ?.takeIf { it.isNotEmpty() }
 
-            // Поддержка AES-GCM (v2) - новые поля
-            val iv = messageJson.optString("iv", null)?.takeIf { it.isNotEmpty() }
-            val tag = messageJson.optString("tag", null)?.takeIf { it.isNotEmpty() }
-            val cipherVersion = if (messageJson.has("cipher_version")) {
-                messageJson.getInt("cipher_version")
-            } else null
+                Log.d(TAG, "📨 [Socket.IO] cipher_v=$cipherVersion" +
+                    " iv=${iv?.take(8)} signal=${signalHeader?.take(30)}")
 
-            // Дешифруем текст с поддержкой GCM
-            val decryptedText = DecryptionUtility.decryptMessageOrOriginal(
-                text = encryptedText,
-                timestamp = timestamp,
-                iv = iv,
-                tag = tag,
-                cipherVersion = cipherVersion
-            )
+                // Build raw Message object with encrypted payload
+                val rawMessage = Message(
+                    id            = messageJson.getLong("id"),
+                    fromId        = messageJson.getLong("from_id"),
+                    toId          = messageJson.getLong("to_id"),
+                    groupId       = messageJson.optLong("group_id", 0).takeIf { it != 0L },
+                    encryptedText = encryptedText,
+                    timeStamp     = timestamp,
+                    mediaUrl      = mediaUrl,
+                    type          = messageJson.optString("type", Constants.MESSAGE_TYPE_TEXT),
+                    senderName    = messageJson.optString("sender_name", null),
+                    senderAvatar  = messageJson.optString("sender_avatar", null),
+                    iv            = iv,
+                    tag           = tag,
+                    cipherVersion = cipherVersion,
+                    signalHeader  = signalHeader
+                )
 
-            // Дешифруем URL медиа с поддержкой GCM
-            val decryptedMediaUrl = DecryptionUtility.decryptMediaUrl(
-                mediaUrl = mediaUrl,
-                timestamp = timestamp,
-                iv = iv,
-                tag = tag,
-                cipherVersion = cipherVersion
-            )
+                // Decrypt (suspend — handles Signal v3 and legacy GCM/ECB)
+                val message = decryptMessageFully(rawMessage)
 
-            // Пытаемся извлечь URL медиа из текста, если mediaUrl пуст
-            val finalMediaUrl = decryptedMediaUrl
-                ?: DecryptionUtility.extractMediaUrlFromText(decryptedText)
-
-            val message = Message(
-                id = messageJson.getLong("id"),
-                fromId = messageJson.getLong("from_id"),
-                toId = messageJson.getLong("to_id"),
-                groupId = messageJson.optLong("group_id", 0).takeIf { it != 0L },
-                encryptedText = encryptedText,
-                timeStamp = timestamp,
-                mediaUrl = mediaUrl,
-                type = messageJson.optString("type", Constants.MESSAGE_TYPE_TEXT),
-                senderName = messageJson.optString("sender_name", null),
-                senderAvatar = messageJson.optString("sender_avatar", null),
-                // Поля для AES-GCM (v2)
-                iv = iv,
-                tag = tag,
-                cipherVersion = cipherVersion,
-                // Дешифрованные данные
-                decryptedText = decryptedText,
-                decryptedMediaUrl = finalMediaUrl
-            )
-
-            // Проверяем, принадлежит ли сообщение текущему диалогу
-            val isRelevant = if (groupId != 0L) {
-                message.groupId == groupId
-            } else {
-                (message.fromId == recipientId && message.toId == UserSession.userId) ||
-                        (message.fromId == UserSession.userId && message.toId == recipientId)
-            }
-
-            if (isRelevant) {
-                val currentMessages = _messages.value.toMutableList()
-                currentMessages.add(message)
-                // Сортируем по времени (старые сверху, новые внизу)
-                _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
-                Log.d("MessagesViewModel", "Додано нове повідомлення від Socket.IO: ${message.decryptedText}")
-
-                // Відразу позначаємо як прочитане — чат відкритий
-                if (message.fromId == recipientId) {
-                    markSeen()
+                // Check relevance
+                val isRelevant = if (this@MessagesViewModel.groupId != 0L) {
+                    message.groupId == this@MessagesViewModel.groupId
+                } else {
+                    (message.fromId == recipientId && message.toId == UserSession.userId) ||
+                    (message.fromId == UserSession.userId && message.toId == recipientId)
                 }
+
+                if (isRelevant) {
+                    val currentMessages = _messages.value.toMutableList()
+                    currentMessages.add(message)
+                    _messages.value = currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp }
+                    Log.d(TAG, "✅ [Socket.IO] Added msg ${message.id} " +
+                        "(E2EE=${cipherVersion == 3}): \"${message.decryptedText?.take(40)}\"")
+
+                    if (message.fromId == recipientId) markSeen()
+                } else {
+                    Log.d(TAG, "ℹ️ [Socket.IO] msg ${message.id} not relevant to current chat")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ [Socket.IO] Error processing incoming message", e)
             }
-        } catch (e: Exception) {
-            Log.e("MessagesViewModel", "Помилка обробки повідомлення", e)
         }
     }
 
@@ -1478,33 +1503,85 @@ class MessagesViewModel(application: Application) :
      * Также пытается извлечь URL медиа из текста сообщения.
      * Поддерживает AES-GCM (v2) и обратную совместимость с AES-ECB (v1).
      */
-    private fun decryptMessageFully(msg: Message): Message {
-        // Дешифруем текст с поддержкой GCM
+    /**
+     * Decrypt a single message.
+     *
+     * cipher_version=1 (ECB) or 2 (GCM) — uses DecryptionUtility (synchronous).
+     * cipher_version=3 (Signal Double Ratchet) — uses SignalEncryptionService (suspend).
+     *
+     * All cipher paths run on [Dispatchers.Default] to keep the Main thread free.
+     */
+    private suspend fun decryptMessageFully(msg: Message): Message =
+        withContext(Dispatchers.Default) {
+            when (msg.cipherVersion) {
+                3 -> decryptSignalMessage(msg)
+                else -> decryptLegacyMessage(msg)
+            }
+        }
+
+    /** Decrypt AES-128-ECB (v1) or AES-256-GCM (v2) message. */
+    private fun decryptLegacyMessage(msg: Message): Message {
         val decryptedText = DecryptionUtility.decryptMessageOrOriginal(
-            text = msg.encryptedText,
-            timestamp = msg.timeStamp,
-            iv = msg.iv,
-            tag = msg.tag,
+            text          = msg.encryptedText,
+            timestamp     = msg.timeStamp,
+            iv            = msg.iv,
+            tag           = msg.tag,
             cipherVersion = msg.cipherVersion
         )
-
-        // Дешифруем URL медиа с поддержкой GCM
         val decryptedMediaUrl = DecryptionUtility.decryptMediaUrl(
-            mediaUrl = msg.mediaUrl,
-            timestamp = msg.timeStamp,
-            iv = msg.iv,
-            tag = msg.tag,
+            mediaUrl      = msg.mediaUrl,
+            timestamp     = msg.timeStamp,
+            iv            = msg.iv,
+            tag           = msg.tag,
             cipherVersion = msg.cipherVersion
         )
-
-        // Пытаемся извлечь URL медиа из текста, если mediaUrl пуст
         val finalMediaUrl = decryptedMediaUrl
             ?: DecryptionUtility.extractMediaUrlFromText(decryptedText)
+        return msg.copy(decryptedText = decryptedText, decryptedMediaUrl = finalMediaUrl)
+    }
 
-        return msg.copy(
-            decryptedText = decryptedText,
-            decryptedMediaUrl = finalMediaUrl
+    /** Decrypt a Signal Double Ratchet (cipher_version=3) message. */
+    private suspend fun decryptSignalMessage(msg: Message): Message {
+        val signalHeader = msg.signalHeader
+        val ciphertext   = msg.encryptedText
+        val iv           = msg.iv
+        val tag          = msg.tag
+
+        if (signalHeader == null || ciphertext.isNullOrEmpty() || iv == null || tag == null) {
+            Log.w(TAG, "⚠️ [Signal] msg ${msg.id} missing fields: " +
+                "header=${signalHeader != null} iv=${iv != null} tag=${tag != null}")
+            return msg.copy(decryptedText = "🔐 [Signal повідомлення]")
+        }
+
+        val senderId = msg.fromId
+        Log.d(TAG, "🔐 [Signal] Decrypting msg ${msg.id} from user $senderId " +
+            "header=${signalHeader.take(40)}...")
+
+        val plainText = signalService.decryptIncoming(
+            senderId         = senderId,
+            ciphertextB64    = ciphertext,
+            ivB64            = iv,
+            tagB64           = tag,
+            signalHeaderJson = signalHeader
         )
+
+        return if (plainText != null) {
+            Log.d(TAG, "🔓 [Signal] msg ${msg.id} OK: \"${plainText.take(40)}\"")
+            msg.copy(decryptedText = plainText)
+        } else {
+            Log.e(TAG, "❌ [Signal] msg ${msg.id} auth FAILED — possible session mismatch")
+            msg.copy(decryptedText = "🔐 [Не вдалося розшифрувати]")
+        }
+    }
+
+    /**
+     * Decrypt a list of messages sequentially.
+     * Must be called from a coroutine context (suspend).
+     */
+    private suspend fun List<Message>.decryptAll(): List<Message> {
+        val result = ArrayList<Message>(size)
+        for (msg in this) result.add(decryptMessageFully(msg))
+        return result
     }
 
     /**
@@ -1923,7 +2000,7 @@ class MessagesViewModel(application: Application) :
                     limit = 100
                 )
                 if (response.apiStatus == 200) {
-                    val messages = response.messages?.map { decryptMessageFully(it) } ?: emptyList()
+                    val messages = response.messages?.decryptAll() ?: emptyList()
                     _searchResults.value = messages
                     _searchTotalCount.value = messages.size
                     _currentSearchIndex.value = if (messages.isNotEmpty()) 0 else -1
@@ -2288,7 +2365,7 @@ class MessagesViewModel(application: Application) :
                         beforeMessageId = 0
                     )
                     if (response.apiStatus == 200 && response.messages != null) {
-                        val newMessages = response.messages.map { msg -> decryptMessageFully(msg) }
+                        val newMessages = response.messages.decryptAll()
                         val currentIds = _messages.value.map { it.id }.toSet()
                         val trulyNew = newMessages.filter { it.id !in currentIds }
                         if (trulyNew.isNotEmpty()) {
@@ -2309,7 +2386,7 @@ class MessagesViewModel(application: Application) :
                     beforeMessageId = 0
                 )
                 if (response.apiStatus == 200 && response.messages != null) {
-                    val newMessages = response.messages!!.map { msg -> decryptMessageFully(msg) }
+                    val newMessages = response.messages!!.decryptAll()
                     val currentIds = _messages.value.map { it.id }.toSet()
                     val trulyNew = newMessages.filter { it.id !in currentIds }
                     if (trulyNew.isNotEmpty()) {
