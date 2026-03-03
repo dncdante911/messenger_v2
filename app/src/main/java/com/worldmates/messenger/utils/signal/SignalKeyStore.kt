@@ -38,6 +38,7 @@ class SignalKeyStore(private val context: Context) {
         private const val KEY_OPK_POOL        = "opk_pool"
         private const val KEY_REGISTERED      = "signal_registered"
         private const val KEY_NEXT_OPK_ID     = "next_opk_id"
+        private const val KEY_PLAIN_PREFIX    = "plain_"
 
         const val OPK_BATCH_SIZE     = 100
         const val OPK_REPLENISH_LOW  = 20   // Replenish when below this count
@@ -207,6 +208,21 @@ class SignalKeyStore(private val context: Context) {
 
     fun hasSession(remoteUserId: Long): Boolean =
         prefs.contains(sessionKey(remoteUserId))
+
+    // ─── Plaintext message cache ──────────────────────────────────────────────
+
+    /**
+     * Cache the decrypted plaintext for a message by its server-assigned ID.
+     * This prevents attempting to re-decrypt messages whose ratchet keys are
+     * already consumed when the user re-opens a conversation.
+     */
+    fun cacheDecryptedMessage(msgId: Long, plaintext: String) {
+        prefs.edit().putString("$KEY_PLAIN_PREFIX$msgId", plaintext).apply()
+    }
+
+    /** Returns cached plaintext for [msgId], or null if not cached. */
+    fun getCachedDecryptedMessage(msgId: Long): String? =
+        prefs.getString("$KEY_PLAIN_PREFIX$msgId", null)
 
     // ─── Registration status ──────────────────────────────────────────────────
 
