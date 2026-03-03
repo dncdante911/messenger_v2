@@ -9,6 +9,7 @@ import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.utils.DecryptionUtility
+import com.worldmates.messenger.utils.signal.SignalKeyStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -91,17 +92,24 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                                 // Перевіряємо чи є текст повідомлення
                                 val encryptedText = msg.encryptedText ?: ""
 
-                                // Дешифруємо з підтримкою AES-GCM (v2)
-                                val decryptedText = if (encryptedText.isNotEmpty()) {
-                                    DecryptionUtility.decryptMessageOrOriginal(
-                                        text = encryptedText,
-                                        timestamp = msg.timeStamp,
-                                        iv = msg.iv,
-                                        tag = msg.tag,
-                                        cipherVersion = msg.cipherVersion
-                                    )
-                                } else {
-                                    "" // Порожнє повідомлення (можливо медіа без тексту)
+                                // cipher_version=3 is Signal Double Ratchet — keys are one-time
+                                // use, so we never attempt live decryption here.  Read from the
+                                // persistent plaintext cache written by MessagesViewModel instead.
+                                val decryptedText = when {
+                                    msg.cipherVersion == 3 -> {
+                                        SignalKeyStore(context).getCachedDecryptedMessage(msg.id)
+                                            ?: "🔐 E2EE"
+                                    }
+                                    encryptedText.isNotEmpty() -> {
+                                        DecryptionUtility.decryptMessageOrOriginal(
+                                            text = encryptedText,
+                                            timestamp = msg.timeStamp,
+                                            iv = msg.iv,
+                                            tag = msg.tag,
+                                            cipherVersion = msg.cipherVersion
+                                        )
+                                    }
+                                    else -> "" // Порожнє повідомлення (можливо медіа без тексту)
                                 }
 
                                 Log.d("ChatsViewModel", "🔐 Дешифрування для ${chat.username}:")
