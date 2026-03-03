@@ -166,6 +166,13 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: true,
       defaultValue: 1
+    },
+    // ── Signal Protocol header (cipher_version=3 only) ────────────────────────
+    signal_header: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null,
+      comment: 'JSON DR+X3DH header for Signal-encrypted messages (cipher_version=3)'
     }
   }, {
     sequelize,

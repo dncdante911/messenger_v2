@@ -31,8 +31,9 @@ object EncryptionUtility {
     private const val GCM_TAG_LENGTH = 128 // 128 бит = 16 байт
 
     // Версии шифрования для совместимости
-    const val CIPHER_VERSION_ECB = 1 // Старая версия (AES-128-ECB)
-    const val CIPHER_VERSION_GCM = 2 // Новая версия (AES-256-GCM)
+    const val CIPHER_VERSION_ECB    = 1 // Старая версия (AES-128-ECB)
+    const val CIPHER_VERSION_GCM    = 2 // Текущая версия (AES-256-GCM, ключ из timestamp)
+    const val CIPHER_VERSION_SIGNAL = 3 // Signal Double Ratchet (E2EE, ключ из X3DH+DR)
 
     /**
      * Генерирует случайный 256-битный ключ для AES-256.
@@ -211,11 +212,17 @@ object EncryptionUtility {
 
     /**
      * Класс данных для хранения зашифрованного сообщения.
+     *
+     * Для cipher_version = 1 (AES-128-ECB): encryptedText заполнен, iv/tag пустые.
+     * Для cipher_version = 2 (AES-256-GCM): encryptedText + iv + tag заполнены.
+     * Для cipher_version = 3 (Signal/DR):   encryptedText + iv + tag заполнены,
+     *                                         signalHeader содержит JSON с DR заголовком.
      */
     data class EncryptedData(
-        val encryptedText: String,  // Base64 зашифрованный текст
-        val iv: String,              // Base64 Initialization Vector
-        val tag: String,             // Base64 Authentication Tag
-        val cipherVersion: Int = CIPHER_VERSION_GCM  // Версия алгоритма шифрования
+        val encryptedText: String,              // Base64 зашифрованный текст
+        val iv: String,                          // Base64 Initialization Vector
+        val tag: String,                         // Base64 Authentication Tag
+        val cipherVersion: Int = CIPHER_VERSION_GCM,  // Версия алгоритма шифрования
+        val signalHeader: String? = null         // JSON DR-заголовок (только для version=3)
     )
 }
