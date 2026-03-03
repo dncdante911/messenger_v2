@@ -273,7 +273,7 @@ private fun ScheduledPostItem(
                 IconButton(onClick = { showMenu = true }) {
                     Icon(
                         Icons.Default.MoreVert,
-                        contentDescription = "Опції",
+                        contentDescription = stringResource(R.string.options_cd),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -283,7 +283,7 @@ private fun ScheduledPostItem(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Опублікувати зараз") },
+                        text = { Text(stringResource(R.string.publish_now)) },
                         onClick = {
                             showMenu = false
                             onPublishNow()
@@ -293,7 +293,7 @@ private fun ScheduledPostItem(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Редагувати") },
+                        text = { Text(stringResource(R.string.edit)) },
                         onClick = {
                             showMenu = false
                             onEdit()
@@ -303,7 +303,7 @@ private fun ScheduledPostItem(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Видалити") },
+                        text = { Text(stringResource(R.string.delete_action)) },
                         onClick = {
                             showMenu = false
                             onDelete()
@@ -361,11 +361,11 @@ fun CreateScheduledPostDialog(
                 // Header
                 TopAppBar(
                     title = {
-                        Text(if (existingPost == null) "Новий запланований пост" else "Редагувати пост")
+                        Text(if (existingPost == null) stringResource(R.string.new_scheduled_post_title) else stringResource(R.string.edit_post_title))
                     },
                     navigationIcon = {
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Закрити")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_cd))
                         }
                     },
                     actions = {
@@ -377,7 +377,7 @@ fun CreateScheduledPostDialog(
                             },
                             enabled = text.isNotBlank()
                         ) {
-                            Text("Зберегти")
+                            Text(stringResource(R.string.save_action))
                         }
                     }
                 )
@@ -393,11 +393,11 @@ fun CreateScheduledPostDialog(
                     OutlinedTextField(
                         value = text,
                         onValueChange = { text = it },
-                        label = { Text("Текст поста") },
+                        label = { Text(stringResource(R.string.post_text)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(150.dp),
-                        placeholder = { Text("Напишіть текст поста...") }
+                        placeholder = { Text(stringResource(R.string.post_text_hint)) }
                     )
 
                     // Date/Time picker
@@ -585,7 +585,7 @@ fun CreateScheduledPostDialog(
                     ) {
                         Icon(Icons.Default.AttachFile, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Додати медіа")
+                        Text(stringResource(R.string.add_media))
                     }
                 }
             }
@@ -610,15 +610,15 @@ fun ScheduledPostsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Заплановані пости") },
+                title = { Text(stringResource(R.string.scheduled_posts_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back_cd))
                     }
                 },
                 actions = {
                     IconButton(onClick = onCreateClick) {
-                        Icon(Icons.Default.Add, contentDescription = "Додати")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
                     }
                 }
             )
@@ -649,7 +649,7 @@ fun ScheduledPostsScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Немає запланованих постів",
+                        text = stringResource(R.string.no_scheduled_posts),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -657,7 +657,7 @@ fun ScheduledPostsScreen(
                     Button(onClick = onCreateClick) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Створити пост")
+                        Text(stringResource(R.string.create_post))
                     }
                 }
             }
@@ -779,20 +779,20 @@ private fun ScheduledPostCard(
                     IconButton(onClick = onPublishNow) {
                         Icon(
                             Icons.Default.Send,
-                            contentDescription = "Опублікувати",
+                            contentDescription = stringResource(R.string.publish_cd),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     IconButton(onClick = onEdit) {
                         Icon(
                             Icons.Default.Edit,
-                            contentDescription = "Редагувати"
+                            contentDescription = stringResource(R.string.edit)
                         )
                     }
                     IconButton(onClick = onDelete) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = "Видалити",
+                            contentDescription = stringResource(R.string.delete_action),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }

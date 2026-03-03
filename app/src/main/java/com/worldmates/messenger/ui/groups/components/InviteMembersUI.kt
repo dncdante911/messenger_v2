@@ -449,7 +449,7 @@ fun ModernSearchBar(
                 ) {
                     Icon(
                         Icons.Default.Clear,
-                        contentDescription = "Clear",
+                        contentDescription = stringResource(R.string.clear_cd),
                         tint = placeholderColor,
                         modifier = Modifier.size(18.dp)
                     )
@@ -530,7 +530,7 @@ fun SelectedUsersChips(
                     ) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Remove",
+                            contentDescription = stringResource(R.string.remove_cd),
                             tint = GroupColors.TelegramBlue,
                             modifier = Modifier.size(14.dp)
                         )
@@ -618,7 +618,7 @@ fun SelectableUserCard(
                     ) {
                         Icon(
                             Icons.Default.Check,
-                            contentDescription = "Selected",
+                            contentDescription = stringResource(R.string.selected_cd),
                             tint = Color.White,
                             modifier = Modifier.size(12.dp)
                         )

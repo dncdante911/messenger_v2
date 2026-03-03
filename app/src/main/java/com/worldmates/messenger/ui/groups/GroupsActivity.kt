@@ -19,6 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,10 +104,10 @@ fun GroupsScreenWrapper(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Групи") },
+                title = { Text(stringResource(R.string.groups)) },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -117,7 +119,7 @@ fun GroupsScreenWrapper(
             ) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = "Створити групу",
+                    contentDescription = stringResource(R.string.create_group),
                     tint = Color.White
                 )
             }

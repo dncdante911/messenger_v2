@@ -94,7 +94,7 @@ fun JoinGroupByQrDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = "Scan QR",
+                            contentDescription = stringResource(R.string.scan_qr_cd),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))

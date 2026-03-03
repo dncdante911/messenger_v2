@@ -23,7 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Group
 import com.worldmates.messenger.data.model.GroupMember
 import com.worldmates.messenger.data.model.isOwner
@@ -73,7 +75,7 @@ fun GroupDetailsHeader(
             if (group.isAdmin || group.isOwner == true) {
                 Icon(
                     Icons.Default.Edit,
-                    contentDescription = "Редагувати",
+                    contentDescription = stringResource(R.string.edit),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .size(32.dp)
