@@ -26,8 +26,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.worldmates.messenger.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
@@ -246,10 +248,10 @@ fun GroupDetailsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Деталі групи") },
+                title = { Text(stringResource(R.string.group_details)) },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -267,7 +269,7 @@ fun GroupDetailsScreen(
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Група не знайдена")
+                Text(stringResource(R.string.group_not_found))
             }
             return@Scaffold
         }
@@ -305,14 +307,14 @@ fun GroupDetailsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(8.dp),
-                            placeholder = { Text("Пошук учасників...") },
+                            placeholder = { Text(stringResource(R.string.search_members_hint)) },
                             leadingIcon = {
-                                Icon(Icons.Default.Search, contentDescription = "Search")
+                                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_cd))
                             },
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
                                     IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(Icons.Default.Close, contentDescription = "Clear")
+                                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_cd))
                                     }
                                 }
                             },
@@ -466,7 +468,7 @@ fun GroupDetailsScreen(
                             ) {
                                 Icon(
                                     Icons.Default.PersonAdd,
-                                    contentDescription = "Add members",
+                                    contentDescription = stringResource(R.string.add_members),
                                     tint = Color(0xFF0084FF)
                                 )
                             }
@@ -607,8 +609,8 @@ fun GroupDetailsScreen(
         if (showLeaveConfirmation) {
             AlertDialog(
                 onDismissRequest = { showLeaveConfirmation = false },
-                title = { Text("Вийти з групи?") },
-                text = { Text("Ви впевнені, що хочете вийти з групи \"${group.name}\"?") },
+                title = { Text(stringResource(R.string.leave_group_confirm_title)) },
+                text = { Text(stringResource(R.string.leave_group_confirm_message, group.name)) },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -618,12 +620,12 @@ fun GroupDetailsScreen(
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
                     ) {
-                        Text("Вийти")
+                        Text(stringResource(R.string.leave_action))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showLeaveConfirmation = false }) {
-                        Text("Скасувати")
+                        Text(stringResource(R.string.cancel))
                     }
                 }
             )
@@ -633,8 +635,8 @@ fun GroupDetailsScreen(
         if (showDeleteConfirmation) {
             AlertDialog(
                 onDismissRequest = { showDeleteConfirmation = false },
-                title = { Text("Видалити групу?") },
-                text = { Text("Ви впевнені, що хочете видалити групу \"${group.name}\"? Цю дію неможливо скасувати.") },
+                title = { Text(stringResource(R.string.delete_group_confirm_title)) },
+                text = { Text(stringResource(R.string.delete_group_confirm_message, group.name)) },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -644,12 +646,12 @@ fun GroupDetailsScreen(
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
                     ) {
-                        Text("Видалити")
+                        Text(stringResource(R.string.delete_action))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteConfirmation = false }) {
-                        Text("Скасувати")
+                        Text(stringResource(R.string.cancel))
                     }
                 }
             )
@@ -766,7 +768,7 @@ fun GroupHeaderSection(
             // Large Avatar
             AsyncImage(
                 model = group.avatarUrl,
-                contentDescription = "Group avatar",
+                contentDescription = stringResource(R.string.group_avatar),
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
@@ -1078,13 +1080,13 @@ fun AddMemberDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Додати учасника") },
+        title = { Text(stringResource(R.string.add_member_title)) },
         text = {
             LazyColumn(modifier = Modifier.height(300.dp)) {
                 if (availableUsers.isEmpty()) {
                     item {
                         Text(
-                            "Всі користувачі вже в групі",
+                            stringResource(R.string.all_users_in_group),
                             color = Color.Gray,
                             modifier = Modifier.padding(16.dp)
                         )
@@ -1119,7 +1121,7 @@ fun AddMemberDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Закрити")
+                Text(stringResource(R.string.close_cd))
             }
         }
     )
@@ -1143,14 +1145,14 @@ fun MemberOptionsDialog(
                         onClick = onPromoteToAdmin,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Призначити адміністратором", color = Color(0xFF0084FF))
+                        Text(stringResource(R.string.assign_admin), color = Color(0xFF0084FF))
                     }
                 } else if (member.role == "admin") {
                     TextButton(
                         onClick = onDemoteToMember,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Зняти адміністратора", color = Color(0xFF0084FF))
+                        Text(stringResource(R.string.demote_admin), color = Color(0xFF0084FF))
                     }
                 }
 
@@ -1158,14 +1160,14 @@ fun MemberOptionsDialog(
                     onClick = onRemove,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Видалити з групи", color = Color.Red)
+                    Text(stringResource(R.string.remove_from_group), color = Color.Red)
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Скасувати")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

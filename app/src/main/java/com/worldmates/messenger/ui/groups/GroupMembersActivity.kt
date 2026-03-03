@@ -21,9 +21,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.UserSession
@@ -75,15 +77,15 @@ class GroupMembersActivity : AppCompatActivity() {
                 Scaffold(
                     topBar = {
                         TopAppBar(
-                            title = { Text("Учасники • ${members.size}") },
+                            title = { Text(stringResource(R.string.members_count_title, members.size)) },
                             navigationIcon = {
                                 IconButton(onClick = { finish() }) {
-                                    Icon(Icons.Default.ArrowBack, "Назад")
+                                    Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                                 }
                             },
                             actions = {
                                 IconButton(onClick = { viewModel.fetchGroupMembers(groupId) }) {
-                                    Icon(Icons.Default.Refresh, "Оновити")
+                                    Icon(Icons.Default.Refresh, stringResource(R.string.refresh))
                                 }
                             },
                             colors = TopAppBarDefaults.topAppBarColors(
@@ -107,7 +109,7 @@ class GroupMembersActivity : AppCompatActivity() {
                                 value = searchQuery,
                                 onValueChange = { searchQuery = it },
                                 modifier = Modifier.fillMaxWidth(),
-                                placeholder = { Text("Пошук учасників...") },
+                                placeholder = { Text(stringResource(R.string.search_members_hint)) },
                                 leadingIcon = { Icon(Icons.Default.Search, null) },
                                 trailingIcon = {
                                     if (searchQuery.isNotEmpty()) {
@@ -231,7 +233,7 @@ private fun MemberManagementCard(
                     )
                     if (isCurrentUser) {
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("(Ви)", fontSize = 12.sp, color = Color.Gray)
+                        Text(stringResource(R.string.you_suffix), fontSize = 12.sp, color = Color.Gray)
                     }
                 }
                 Row(
@@ -245,7 +247,7 @@ private fun MemberManagementCard(
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                "Заглушений",
+                                stringResource(R.string.member_muted_label),
                                 fontSize = 10.sp,
                                 color = Color(0xFFE65100),
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -258,7 +260,7 @@ private fun MemberManagementCard(
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                "Заблокований",
+                                stringResource(R.string.member_blocked_label),
                                 fontSize = 10.sp,
                                 color = Color.Red,
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -310,7 +312,7 @@ private fun MemberActionSheet(
                 ) {
                     Icon(Icons.Default.Person, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Переглянути профіль", color = Color(0xFF0084FF))
+                    Text(stringResource(R.string.view_profile), color = Color(0xFF0084FF))
                 }
 
                 Divider()
@@ -328,7 +330,7 @@ private fun MemberActionSheet(
                     ) {
                         Icon(Icons.Default.AdminPanelSettings, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Призначити адміністратором", color = Color(0xFF0084FF))
+                        Text(stringResource(R.string.assign_admin), color = Color(0xFF0084FF))
                     }
                 }
                 if (member.role == "admin") {
@@ -343,7 +345,7 @@ private fun MemberActionSheet(
                     ) {
                         Icon(Icons.Default.PersonOff, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Зняти адміністратора", color = Color(0xFF0084FF))
+                        Text(stringResource(R.string.demote_admin), color = Color(0xFF0084FF))
                     }
                 }
 
@@ -362,7 +364,7 @@ private fun MemberActionSheet(
                     ) {
                         Icon(Icons.Default.VolumeOff, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Заглушити в групі", color = Color(0xFFFF9800))
+                        Text(stringResource(R.string.mute_in_group), color = Color(0xFFFF9800))
                     }
                 } else {
                     TextButton(
@@ -376,7 +378,7 @@ private fun MemberActionSheet(
                     ) {
                         Icon(Icons.Default.VolumeUp, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Увімкнути звук", color = Color(0xFF4CAF50))
+                        Text(stringResource(R.string.unmute_in_group), color = Color(0xFF4CAF50))
                     }
                 }
 
@@ -390,7 +392,7 @@ private fun MemberActionSheet(
                 ) {
                     Icon(Icons.Default.ExitToApp, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Видалити з групи", color = Color.Red)
+                    Text(stringResource(R.string.remove_from_group), color = Color.Red)
                 }
 
                 // Ban / unban
@@ -406,7 +408,7 @@ private fun MemberActionSheet(
                     ) {
                         Icon(Icons.Default.Block, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Забанити (заборонити вхід)", color = Color.Red)
+                        Text(stringResource(R.string.ban_member_with_info), color = Color.Red)
                     }
                 } else {
                     TextButton(
@@ -420,14 +422,14 @@ private fun MemberActionSheet(
                     ) {
                         Icon(Icons.Default.LockOpen, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Розбанити", color = Color(0xFF4CAF50))
+                        Text(stringResource(R.string.unban_member), color = Color(0xFF4CAF50))
                     }
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Скасувати") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }

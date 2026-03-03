@@ -28,7 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Group
 import com.worldmates.messenger.data.model.lastActivity
 import java.text.SimpleDateFormat
@@ -154,7 +156,7 @@ fun ModernGroupCard(
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
                                 Icons.Default.PushPin,
-                                contentDescription = "Закріплено",
+                                contentDescription = stringResource(R.string.pinned_cd),
                                 tint = Color.White,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -359,7 +361,7 @@ fun GroupsSearchBar(
         leadingIcon = {
             Icon(
                 Icons.Default.Search,
-                contentDescription = "Пошук",
+                contentDescription = stringResource(R.string.search_cd),
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         },
@@ -368,7 +370,7 @@ fun GroupsSearchBar(
                 IconButton(onClick = { onSearchQueryChange("") }) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Очистити",
+                        contentDescription = stringResource(R.string.clear_cd),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 }

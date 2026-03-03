@@ -2,6 +2,8 @@ package com.worldmates.messenger.ui.groups.components
 
 import android.util.Log
 import androidx.compose.animation.*
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,13 +52,13 @@ fun SlowModeSettingsPanel(
     modifier: Modifier = Modifier
 ) {
     val slowModeOptions = listOf(
-        0 to "Вимкнено",
-        10 to "10 секунд",
-        30 to "30 секунд",
-        60 to "1 хвилина",
-        300 to "5 хвилин",
-        900 to "15 хвилин",
-        3600 to "1 година"
+        0 to stringResource(R.string.slow_mode_disabled_label),
+        10 to stringResource(R.string.slow_mode_10s),
+        30 to stringResource(R.string.slow_mode_30s),
+        60 to stringResource(R.string.slow_mode_1m),
+        300 to stringResource(R.string.slow_mode_5m),
+        900 to stringResource(R.string.slow_mode_15m),
+        3600 to stringResource(R.string.slow_mode_1h)
     )
 
     var expanded by remember { mutableStateOf(false) }
@@ -80,12 +82,12 @@ fun SlowModeSettingsPanel(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Slow Mode",
+                        text = stringResource(R.string.slow_mode),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Обмеження частоти повідомлень",
+                        text = stringResource(R.string.slow_mode_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -136,9 +138,9 @@ fun SlowModeSettingsPanel(
             } else {
                 Text(
                     text = if (currentSeconds > 0) {
-                        "Затримка між повідомленнями: ${selectedOption.second}"
+                        stringResource(R.string.slow_mode_delay_format, selectedOption.second)
                     } else {
-                        "Slow mode вимкнено"
+                        stringResource(R.string.slow_mode_off)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -148,7 +150,7 @@ fun SlowModeSettingsPanel(
             if (currentSeconds > 0) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Учасники можуть надсилати повідомлення не частіше ніж раз на ${selectedOption.second}",
+                    text = stringResource(R.string.slow_mode_hint_format, selectedOption.second),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
@@ -187,12 +189,12 @@ fun AntiSpamSettingsPanel(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Анти-спам захист",
+                        text = stringResource(R.string.anti_spam),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Автоматичний захист від спаму",
+                        text = stringResource(R.string.anti_spam_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -214,7 +216,7 @@ fun AntiSpamSettingsPanel(
 
                     // Максимум повідомлень на хвилину
                     AntiSpamSlider(
-                        label = "Повідомлень/хвилину",
+                        label = stringResource(R.string.messages_per_minute),
                         value = settings.maxMessagesPerMinute.toFloat(),
                         onValueChange = {
                             onSettingsChange(settings.copy(maxMessagesPerMinute = it.toInt()))
@@ -233,11 +235,11 @@ fun AntiSpamSettingsPanel(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Авто-мут спамерів",
+                                text = stringResource(R.string.auto_mute_spammers),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "Автоматично замутити порушників",
+                                text = stringResource(R.string.auto_mute_spammers_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -259,11 +261,11 @@ fun AntiSpamSettingsPanel(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Обмеження для нових",
+                                text = stringResource(R.string.restrict_new_members),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "Блокувати медіа від нових учасників",
+                                text = stringResource(R.string.restrict_new_members_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -279,14 +281,14 @@ fun AntiSpamSettingsPanel(
                     if (settings.blockNewUsersMedia) {
                         Spacer(modifier = Modifier.height(8.dp))
                         AntiSpamSlider(
-                            label = "Період обмеження",
+                            label = stringResource(R.string.restriction_period),
                             value = settings.newUserRestrictionHours.toFloat(),
                             onValueChange = {
                                 onSettingsChange(settings.copy(newUserRestrictionHours = it.toInt()))
                             },
                             valueRange = 1f..72f,
                             steps = 7,
-                            valueLabel = "${settings.newUserRestrictionHours} годин"
+                            valueLabel = stringResource(R.string.restriction_hours_format, settings.newUserRestrictionHours)
                         )
                     }
                 }
@@ -363,15 +365,15 @@ fun GroupPrivacySettingsPanel(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (isPrivate) "Приватна група" else "Публічна група",
+                        text = if (isPrivate) stringResource(R.string.private_group_label) else stringResource(R.string.public_group_label),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = if (isPrivate)
-                            "Вступ тільки за запитом"
+                            stringResource(R.string.join_by_request)
                         else
-                            "Будь-хто може приєднатися",
+                            stringResource(R.string.anyone_can_join),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -389,7 +391,7 @@ fun GroupPrivacySettingsPanel(
                     FilterChip(
                         selected = !isPrivate,
                         onClick = { onPrivacyChange(false) },
-                        label = { Text("Публічна") },
+                        label = { Text(stringResource(R.string.public_group)) },
                         leadingIcon = {
                             Icon(
                                 Icons.Default.Public,
@@ -404,7 +406,7 @@ fun GroupPrivacySettingsPanel(
                     FilterChip(
                         selected = isPrivate,
                         onClick = { onPrivacyChange(true) },
-                        label = { Text("Приватна") },
+                        label = { Text(stringResource(R.string.private_group)) },
                         leadingIcon = {
                             Icon(
                                 Icons.Default.Lock,
@@ -422,7 +424,7 @@ fun GroupPrivacySettingsPanel(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Історія для нових учасників",
+                    text = stringResource(R.string.history_for_new_members),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -435,11 +437,11 @@ fun GroupPrivacySettingsPanel(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Показувати історію",
+                            text = stringResource(R.string.show_history),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            text = "Нові учасники бачать попередні повідомлення",
+                            text = stringResource(R.string.show_history_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -455,7 +457,7 @@ fun GroupPrivacySettingsPanel(
                 AnimatedVisibility(visible = settings.historyVisibleForNewMembers) {
                     Column(modifier = Modifier.padding(top = 8.dp)) {
                         Text(
-                            text = "Кількість повідомлень: ${settings.historyMessagesCount}",
+                            text = stringResource(R.string.history_messages_count_format, settings.historyMessagesCount),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -503,7 +505,7 @@ fun MemberPermissionsPanel(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Права учасників",
+                    text = stringResource(R.string.member_permissions),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -513,7 +515,7 @@ fun MemberPermissionsPanel(
 
             // Права на контент
             Text(
-                text = "Контент",
+                text = stringResource(R.string.content_section),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -523,8 +525,8 @@ fun MemberPermissionsPanel(
 
             PermissionToggle(
                 icon = Icons.Default.Image,
-                title = "Медіа",
-                description = "Фото, відео, аудіо",
+                title = stringResource(R.string.media),
+                description = stringResource(R.string.media_types_desc),
                 enabled = settings.allowMembersSendMedia,
                 onToggle = { onSettingsChange(settings.copy(allowMembersSendMedia = it)) },
                 isAdmin = isAdmin
@@ -532,8 +534,8 @@ fun MemberPermissionsPanel(
 
             PermissionToggle(
                 icon = Icons.Default.EmojiEmotions,
-                title = "Стікери",
-                description = "Стікери та емодзі",
+                title = stringResource(R.string.stickers_label),
+                description = stringResource(R.string.stickers_emoji_desc),
                 enabled = settings.allowMembersSendStickers,
                 onToggle = { onSettingsChange(settings.copy(allowMembersSendStickers = it)) },
                 isAdmin = isAdmin
@@ -542,7 +544,7 @@ fun MemberPermissionsPanel(
             PermissionToggle(
                 icon = Icons.Default.Gif,
                 title = "GIF",
-                description = "Анімовані зображення",
+                description = stringResource(R.string.gif_desc),
                 enabled = settings.allowMembersSendGifs,
                 onToggle = { onSettingsChange(settings.copy(allowMembersSendGifs = it)) },
                 isAdmin = isAdmin
@@ -550,8 +552,8 @@ fun MemberPermissionsPanel(
 
             PermissionToggle(
                 icon = Icons.Default.Link,
-                title = "Посилання",
-                description = "URL та превью",
+                title = stringResource(R.string.links),
+                description = stringResource(R.string.links_url_desc),
                 enabled = settings.allowMembersSendLinks,
                 onToggle = { onSettingsChange(settings.copy(allowMembersSendLinks = it)) },
                 isAdmin = isAdmin
@@ -559,8 +561,8 @@ fun MemberPermissionsPanel(
 
             PermissionToggle(
                 icon = Icons.Default.Poll,
-                title = "Опитування",
-                description = "Створення опитувань",
+                title = stringResource(R.string.polls),
+                description = stringResource(R.string.polls_create_desc),
                 enabled = settings.allowMembersSendPolls,
                 onToggle = { onSettingsChange(settings.copy(allowMembersSendPolls = it)) },
                 isAdmin = isAdmin
@@ -572,7 +574,7 @@ fun MemberPermissionsPanel(
 
             // Права на управління
             Text(
-                text = "Управління",
+                text = stringResource(R.string.management_section),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -582,8 +584,8 @@ fun MemberPermissionsPanel(
 
             PermissionToggle(
                 icon = Icons.Default.PersonAdd,
-                title = "Запрошення",
-                description = "Додавати нових учасників",
+                title = stringResource(R.string.invites),
+                description = stringResource(R.string.invite_members_desc),
                 enabled = settings.allowMembersInvite,
                 onToggle = { onSettingsChange(settings.copy(allowMembersInvite = it)) },
                 isAdmin = isAdmin
@@ -591,8 +593,8 @@ fun MemberPermissionsPanel(
 
             PermissionToggle(
                 icon = Icons.Default.PushPin,
-                title = "Закріплення",
-                description = "Закріплювати повідомлення",
+                title = stringResource(R.string.pinning),
+                description = stringResource(R.string.pinning_desc),
                 enabled = settings.allowMembersPin,
                 onToggle = { onSettingsChange(settings.copy(allowMembersPin = it)) },
                 isAdmin = isAdmin
@@ -600,8 +602,8 @@ fun MemberPermissionsPanel(
 
             PermissionToggle(
                 icon = Icons.Default.Delete,
-                title = "Видалення",
-                description = "Видаляти повідомлення",
+                title = stringResource(R.string.deleting),
+                description = stringResource(R.string.deleting_desc),
                 enabled = settings.allowMembersDeleteMessages,
                 onToggle = { onSettingsChange(settings.copy(allowMembersDeleteMessages = it)) },
                 isAdmin = isAdmin
@@ -688,7 +690,7 @@ fun JoinRequestsPanel(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Запити на вступ",
+                    text = stringResource(R.string.join_requests),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -789,7 +791,7 @@ private fun JoinRequestItem(
                 contentColor = MaterialTheme.colorScheme.error
             )
         ) {
-            Icon(Icons.Default.Close, contentDescription = "Відхилити")
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.reject_request_cd))
         }
 
         IconButton(
@@ -798,7 +800,7 @@ private fun JoinRequestItem(
                 contentColor = MaterialTheme.colorScheme.primary
             )
         ) {
-            Icon(Icons.Default.Check, contentDescription = "Прийняти")
+            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.approve_request_cd))
         }
     }
 }
@@ -991,10 +993,10 @@ private fun RoleChangeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Змінити роль") },
+        title = { Text(stringResource(R.string.change_role)) },
         text = {
             Column {
-                Text("Виберіть роль для ${member.username}:")
+                Text(stringResource(R.string.select_role_for_format, member.username))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 listOf(
@@ -1021,7 +1023,7 @@ private fun RoleChangeDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Скасувати")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

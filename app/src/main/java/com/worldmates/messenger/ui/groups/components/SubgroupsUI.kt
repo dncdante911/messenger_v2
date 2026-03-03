@@ -249,7 +249,7 @@ fun SubgroupCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         Icon(
                             Icons.Default.Lock,
-                            contentDescription = "Private",
+                            contentDescription = stringResource(R.string.private_cd),
                             tint = textSecondary,
                             modifier = Modifier.size(14.dp)
                         )
@@ -368,7 +368,7 @@ fun EmptySubgroupsState(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Create Topic")
+                Text(stringResource(R.string.create_topic))
             }
         }
     }
@@ -425,7 +425,7 @@ fun CreateSubgroupDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Create Topic",
+                        text = stringResource(R.string.create_topic),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = textPrimary
@@ -433,7 +433,7 @@ fun CreateSubgroupDialog(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Close",
+                            contentDescription = stringResource(R.string.close_cd),
                             tint = textSecondary
                         )
                     }
@@ -470,8 +470,8 @@ fun CreateSubgroupDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Topic name") },
-                    placeholder = { Text("e.g., General Discussion") },
+                    label = { Text(stringResource(R.string.topic_name_label)) },
+                    placeholder = { Text(stringResource(R.string.topic_name_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     singleLine = true,
@@ -487,8 +487,8 @@ fun CreateSubgroupDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (optional)") },
-                    placeholder = { Text("What's this topic about?") },
+                    label = { Text(stringResource(R.string.topic_description_optional)) },
+                    placeholder = { Text(stringResource(R.string.topic_description_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
                     maxLines = 3,
@@ -499,7 +499,7 @@ fun CreateSubgroupDialog(
 
                 // Color picker
                 Text(
-                    text = "Topic color",
+                    text = stringResource(R.string.topic_color),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = textPrimary
@@ -532,7 +532,7 @@ fun CreateSubgroupDialog(
                             if (selectedColorIndex == index) {
                                 Icon(
                                     Icons.Default.Check,
-                                    contentDescription = "Selected",
+                                    contentDescription = stringResource(R.string.selected_cd),
                                     tint = Color.White,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -565,13 +565,13 @@ fun CreateSubgroupDialog(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Private topic",
+                                text = stringResource(R.string.private_topic),
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = textPrimary
                             )
                             Text(
-                                text = "Only selected members can access",
+                                text = stringResource(R.string.private_topic_desc),
                                 fontSize = 13.sp,
                                 color = textSecondary
                             )
@@ -600,7 +600,7 @@ fun CreateSubgroupDialog(
                         shape = RoundedCornerShape(12.dp),
                         enabled = !isLoading
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.cancel))
                     }
 
                     Button(
@@ -628,7 +628,7 @@ fun CreateSubgroupDialog(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Create")
+                            Text(stringResource(R.string.create_action))
                         }
                     }
                 }
@@ -682,7 +682,7 @@ fun SubgroupDetailsHeader(
             IconButton(onClick = onBackClick) {
                 Icon(
                     Icons.Default.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.back_cd),
                     tint = textPrimary
                 )
             }
@@ -691,7 +691,7 @@ fun SubgroupDetailsHeader(
                 IconButton(onClick = onSettingsClick) {
                     Icon(
                         Icons.Default.Settings,
-                        contentDescription = "Settings",
+                        contentDescription = stringResource(R.string.settings_cd),
                         tint = textPrimary
                     )
                 }
@@ -749,7 +749,7 @@ fun SubgroupDetailsHeader(
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
                         Icons.Default.Lock,
-                        contentDescription = "Private",
+                        contentDescription = stringResource(R.string.private_cd),
                         tint = textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -758,7 +758,7 @@ fun SubgroupDetailsHeader(
 
             // Parent group
             Text(
-                text = "in $parentGroupName",
+                text = stringResource(R.string.topic_in_group_format, parentGroupName),
                 fontSize = 14.sp,
                 color = textSecondary
             )

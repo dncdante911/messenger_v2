@@ -384,7 +384,7 @@ private fun StatisticsTab(
             ) {
                 Icon(Icons.Default.OpenInNew, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Детальна статистика")
+                Text(stringResource(R.string.detailed_statistics))
             }
         }
     }
@@ -424,13 +424,13 @@ fun QuickAdminControlsCard(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Управління групою",
+                    text = stringResource(R.string.group_management),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 TextButton(onClick = onOpenAdminPanel) {
-                    Text("Адмін-панель")
+                    Text(stringResource(R.string.admin_panel))
                     Icon(
                         Icons.Default.ChevronRight,
                         contentDescription = null,

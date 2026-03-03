@@ -116,7 +116,7 @@ private fun TelegramPinnedBanner(
             // Иконка Pin
             Icon(
                 imageVector = Icons.Default.PushPin,
-                contentDescription = "Pinned",
+                contentDescription = stringResource(R.string.pin_message_short),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
@@ -150,7 +150,7 @@ private fun TelegramPinnedBanner(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Unpin",
+                        contentDescription = stringResource(R.string.unpin_message_short),
                         tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
                         modifier = Modifier.size(18.dp)
                     )
@@ -227,7 +227,7 @@ private fun WorldMatesPinnedBanner(
                 ) {
                     Icon(
                         imageVector = Icons.Default.PushPin,
-                        contentDescription = "Pinned",
+                        contentDescription = stringResource(R.string.pin_message_short),
                         tint = Color.White,
                         modifier = Modifier
                             .size(22.dp)
@@ -275,7 +275,7 @@ private fun WorldMatesPinnedBanner(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Unpin",
+                            contentDescription = stringResource(R.string.unpin_message_short),
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(20.dp)
                         )
