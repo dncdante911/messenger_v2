@@ -231,6 +231,19 @@ class SignalEncryptionService private constructor(
         }
     }
 
+    // ─── Plaintext cache (delegate to keyStore) ───────────────────────────────
+
+    /**
+     * Persist [plaintext] for [msgId] so the message can be shown without
+     * re-decrypting when the user re-opens the conversation.
+     */
+    fun cacheDecryptedMessage(msgId: Long, plaintext: String) =
+        keyStore.cacheDecryptedMessage(msgId, plaintext)
+
+    /** Returns cached plaintext for [msgId], or null if not cached. */
+    fun getCachedDecryptedMessage(msgId: Long): String? =
+        keyStore.getCachedDecryptedMessage(msgId)
+
     // ─── Pre-key bundle fetch ─────────────────────────────────────────────────
 
     private suspend fun fetchPreKeyBundle(userId: Long): PreKeyBundle? = try {

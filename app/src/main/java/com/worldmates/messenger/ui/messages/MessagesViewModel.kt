@@ -427,7 +427,13 @@ class MessagesViewModel(application: Application) :
                         val rawMsg  = resp.messageData
                         val newMsg  = when {
                             rawMsg == null       -> null
-                            signalPayload != null -> rawMsg.copy(decryptedText = text)
+                            signalPayload != null -> {
+                                // Cache our own plaintext so it can be shown on reload
+                                // without attempting to re-decrypt (own ciphertext is
+                                // encrypted for the recipient, not for us).
+                                signalService.cacheDecryptedMessage(rawMsg.id, text)
+                                rawMsg.copy(decryptedText = text)
+                            }
                             else                  -> decryptMessageFully(rawMsg)
                         }
 
@@ -1545,6 +1551,16 @@ class MessagesViewModel(application: Application) :
 
     /** Decrypt a Signal Double Ratchet (cipher_version=3) message. */
     private suspend fun decryptSignalMessage(msg: Message): Message {
+        // Double Ratchet keys are one-time use: once a message is decrypted the
+        // session state advances and the same ciphertext cannot be decrypted again.
+        // Check the persistent plaintext cache first so re-opening a conversation
+        // does not trigger a second (failing) decryption attempt.
+        val cached = signalService.getCachedDecryptedMessage(msg.id)
+        if (cached != null) {
+            Log.d(TAG, "📱 [Signal] msg ${msg.id} from cache")
+            return msg.copy(decryptedText = cached)
+        }
+
         val signalHeader = msg.signalHeader
         val ciphertext   = msg.encryptedText
         val iv           = msg.iv
@@ -1570,6 +1586,7 @@ class MessagesViewModel(application: Application) :
 
         return if (plainText != null) {
             Log.d(TAG, "🔓 [Signal] msg ${msg.id} OK: \"${plainText.take(40)}\"")
+            signalService.cacheDecryptedMessage(msg.id, plainText)
             msg.copy(decryptedText = plainText)
         } else {
             Log.e(TAG, "❌ [Signal] msg ${msg.id} auth FAILED — possible session mismatch")
