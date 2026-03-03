@@ -852,7 +852,7 @@ class GroupsViewModel : ViewModel() {
                         topContributors  = stats.topSenders?.map { sender ->
                             TopContributor(
                                 userId       = sender.userId,
-                                username     = sender.username,
+                                username     = sender.username ?: "",
                                 name         = sender.name,
                                 avatar       = sender.avatar,
                                 messagesCount = sender.messagesCount

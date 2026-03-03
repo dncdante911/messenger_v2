@@ -707,7 +707,7 @@ fun JoinRequestsPanel(
             if (requests.isEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Немає нових запитів",
+                    text = stringResource(R.string.no_new_requests),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -728,7 +728,7 @@ fun JoinRequestsPanel(
                 if (requests.size > 5) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "... та ще ${requests.size - 5} запитів",
+                        text = stringResource(R.string.and_more_requests, requests.size - 5),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.fillMaxWidth(),
@@ -837,7 +837,7 @@ fun RolesManagementPanel(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Ролі учасників",
+                    text = stringResource(R.string.member_roles),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -849,7 +849,7 @@ fun RolesManagementPanel(
             val admins = members.filter { it.role == "admin" }
             if (admins.isNotEmpty()) {
                 Text(
-                    text = "Адміністратори (${admins.size})",
+                    text = stringResource(R.string.admins_count, admins.size),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -869,7 +869,7 @@ fun RolesManagementPanel(
             if (moderators.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Модератори (${moderators.size})",
+                    text = stringResource(R.string.moderators_count, moderators.size),
                     style = MaterialTheme.typography.labelLarge,
                     color = Color(0xFF4CAF50),
                     fontWeight = FontWeight.Bold
@@ -889,7 +889,7 @@ fun RolesManagementPanel(
             if (regularMembers.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Учасники (${members.count { it.role == "member" }})",
+                    text = stringResource(R.string.members_with_count, members.count { it.role == "member" }),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold
@@ -960,9 +960,9 @@ private fun MemberRoleItem(
         ) {
             Text(
                 text = when (member.role) {
-                    "admin" -> "Адмін"
-                    "moderator" -> "Модератор"
-                    else -> "Учасник"
+                    "admin" -> stringResource(R.string.role_admin_short)
+                    "moderator" -> stringResource(R.string.role_moderator_short)
+                    else -> stringResource(R.string.role_member_short)
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = when (member.role) {
@@ -1000,9 +1000,9 @@ private fun RoleChangeDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 listOf(
-                    "admin" to "Адміністратор",
-                    "moderator" to "Модератор",
-                    "member" to "Учасник"
+                    "admin" to stringResource(R.string.role_admin),
+                    "moderator" to stringResource(R.string.role_moderator),
+                    "member" to stringResource(R.string.role_member)
                 ).forEach { (role, label) ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -1074,7 +1074,7 @@ fun GroupInfoPanel(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (group.isPrivate) "Приватна група" else "Публічна група",
+                            text = if (group.isPrivate) stringResource(R.string.private_group_label) else stringResource(R.string.public_group_label),
                             style = MaterialTheme.typography.labelMedium,
                             color = if (group.isPrivate)
                                 MaterialTheme.colorScheme.error
@@ -1095,17 +1095,17 @@ fun GroupInfoPanel(
                 StatItem(
                     icon = Icons.Default.Group,
                     value = group.membersCount.toString(),
-                    label = "Учасників"
+                    label = stringResource(R.string.members_count_label)
                 )
                 StatItem(
                     icon = Icons.Default.Message,
                     value = statistics?.messagesCount?.toString() ?: "—",
-                    label = "Повідомлень"
+                    label = stringResource(R.string.messages_count_label)
                 )
                 StatItem(
                     icon = Icons.Default.TrendingUp,
                     value = statistics?.activeMembers24h?.toString() ?: "—",
-                    label = "Активних"
+                    label = stringResource(R.string.stat_active_label)
                 )
             }
 
@@ -1124,7 +1124,7 @@ fun GroupInfoPanel(
             // Created date
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Створена: ${formatDate(group.createdTime)}",
+                text = stringResource(R.string.group_created_date, formatDate(group.createdTime)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
@@ -1171,6 +1171,6 @@ private fun formatTime(timestamp: Long): String {
 }
 
 private fun formatDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("dd MMMM yyyy", Locale("uk"))
+    val sdf = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }

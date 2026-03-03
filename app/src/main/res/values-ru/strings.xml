@@ -1517,4 +1517,22 @@
     <string name="leave_action">Выйти</string>
     <string name="add_member_title">Добавить участника</string>
     <string name="all_users_in_group">Все пользователи уже в группе</string>
+
+    <!-- ===== ROLES MANAGEMENT PANEL ===== -->
+    <string name="no_new_requests">Нет новых запросов</string>
+    <string name="and_more_requests">... и ещё %d запросов</string>
+    <string name="member_roles">Роли участников</string>
+    <string name="admins_count">Администраторы (%d)</string>
+    <string name="moderators_count">Модераторы (%d)</string>
+    <string name="members_with_count">Участники (%d)</string>
+    <string name="role_admin_short">Админ</string>
+    <string name="role_moderator_short">Модератор</string>
+    <string name="role_member_short">Участник</string>
+    <string name="role_admin">Администратор</string>
+    <string name="role_moderator">Модератор</string>
+    <string name="role_member">Участник</string>
+
+    <!-- ===== GROUP INFO PANEL ===== -->
+    <string name="stat_active_label">Активных</string>
+    <string name="group_created_date">Создана: %s</string>
 </resources>
