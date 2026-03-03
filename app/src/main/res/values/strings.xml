@@ -1528,4 +1528,22 @@
     <string name="leave_action">Вийти</string>
     <string name="add_member_title">Додати учасника</string>
     <string name="all_users_in_group">Всі користувачі вже в групі</string>
+
+    <!-- ===== ROLES MANAGEMENT PANEL ===== -->
+    <string name="no_new_requests">Немає нових запитів</string>
+    <string name="and_more_requests">... та ще %d запитів</string>
+    <string name="member_roles">Ролі учасників</string>
+    <string name="admins_count">Адміністратори (%d)</string>
+    <string name="moderators_count">Модератори (%d)</string>
+    <string name="members_with_count">Учасники (%d)</string>
+    <string name="role_admin_short">Адмін</string>
+    <string name="role_moderator_short">Модератор</string>
+    <string name="role_member_short">Учасник</string>
+    <string name="role_admin">Адміністратор</string>
+    <string name="role_moderator">Модератор</string>
+    <string name="role_member">Учасник</string>
+
+    <!-- ===== GROUP INFO PANEL ===== -->
+    <string name="stat_active_label">Активних</string>
+    <string name="group_created_date">Створена: %s</string>
 </resources>
