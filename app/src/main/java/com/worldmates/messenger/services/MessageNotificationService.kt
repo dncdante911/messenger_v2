@@ -18,6 +18,7 @@ import com.worldmates.messenger.data.UserPreferencesRepository
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.ui.messages.MessagesActivity
 import com.worldmates.messenger.utils.DecryptionUtility
+import com.worldmates.messenger.utils.signal.SignalKeyStore
 import io.socket.client.IO
 import io.socket.client.Socket
 import kotlinx.coroutines.*
@@ -283,13 +284,22 @@ class MessageNotificationService : Service() {
                           data.optString("text",
                           data.optString("message", data.optString("content", ""))))
 
+            val msgId         = data.optLong("id", 0)
             val timestamp     = data.optLong("time", data.optLong("time_api", 0))
             val iv            = data.optString("iv", null)
             val tag           = data.optString("tag", null)
             val cipherVersion = if (data.has("cipher_version")) data.optInt("cipher_version", 1) else null
 
-            // Дешифруємо текст (або показуємо fallback)
-            val displayText = decryptNotificationText(rawText, timestamp, iv, tag, cipherVersion, data)
+            // cipher_version=3 = Signal E2EE — server never has the plaintext.
+            // Check the local plaintext cache written by MessagesViewModel; if the
+            // message is not yet cached (user hasn't opened the chat) show a generic
+            // indicator — this is correct behaviour for end-to-end encrypted chats.
+            val displayText = if (cipherVersion == 3) {
+                val cached = if (msgId > 0) SignalKeyStore(this).getCachedDecryptedMessage(msgId) else null
+                cached ?: "🔐 Нове зашифроване повідомлення"
+            } else {
+                decryptNotificationText(rawText, timestamp, iv, tag, cipherVersion, data)
+            }
 
             // Skip our own messages
             if (senderId == UserSession.userId) return
