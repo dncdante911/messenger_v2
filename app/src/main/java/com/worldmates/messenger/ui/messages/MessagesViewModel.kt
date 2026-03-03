@@ -1038,6 +1038,8 @@ class MessagesViewModel(application: Application) :
             )
 
             Log.d(TAG, "💾 Draft auto-saved for chat $chatId")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e // Coroutine cancelled (e.g. message sent) — not an error
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error saving draft", e)
         } finally {
