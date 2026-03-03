@@ -1258,112 +1258,55 @@ fun MessagesScreen(
             }
 
             // 🗑️ Діалог підтвердження видалення повідомлення
-            if (showDeleteDialog && messageToDelete != null) {
-                AlertDialog(
-                    onDismissRequest = {
-                        showDeleteDialog = false
-                        messageToDelete = null
-                    },
-                    title = { Text(stringResource(R.string.delete_message)) },
-                    text = { Text(stringResource(R.string.delete_message_choice_desc)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.deleteMessage(messageToDelete!!.id, "everyone")
-                                showDeleteDialog = false
-                                messageToDelete = null
-                            }
-                        ) {
-                            Text(stringResource(R.string.delete_for_everyone), color = Color(0xFFD32F2F))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.deleteMessage(messageToDelete!!.id, "just_me")
-                                showDeleteDialog = false
-                                messageToDelete = null
-                            }
-                        ) {
-                            Text(stringResource(R.string.delete_for_me))
-                        }
-                    }
-                )
-            }
-
-            // ✏️ Діалог вибору де редагувати (для всіх / тільки для мене)
-            if (showEditScopeDialog) {
-                AlertDialog(
-                    onDismissRequest = { showEditScopeDialog = false },
-                    title = { Text(stringResource(R.string.edit_message)) },
-                    text = { Text(stringResource(R.string.edit_apply_where)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.editMessage(pendingEditMessageId, pendingEditText)
-                                messageText = ""
-                                viewModel.updateDraftText("")
-                                editingMessage = null
-                                showEditScopeDialog = false
-                            }
-                        ) { Text(stringResource(R.string.for_everyone)) }
-                    },
-                    dismissButton = {
-                        Row {
-                            TextButton(
-                                onClick = {
-                                    viewModel.editMessageLocally(pendingEditMessageId, pendingEditText)
-                                    messageText = ""
-                                    viewModel.updateDraftText("")
-                                    editingMessage = null
-                                    showEditScopeDialog = false
-                                }
-                            ) { Text(stringResource(R.string.for_me_only)) }
-                            TextButton(onClick = { showEditScopeDialog = false }) {
-                                Text(stringResource(R.string.cancel))
-                            }
-                        }
-                    }
-                )
-            }
-
-            // 🗑️ Діалог видалення в режимі мульти-вибору
-            if (showSelectionDeleteDialog) {
-                AlertDialog(
-                    onDismissRequest = { showSelectionDeleteDialog = false },
-                    title = { Text(stringResource(R.string.delete_n_messages_title, selectedMessages.size)) },
-                    text = { Text(stringResource(R.string.delete_messages_choice_desc)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                selectedMessages.forEach { id ->
-                                    viewModel.deleteMessage(id, "everyone")
-                                }
-                                isSelectionMode = false
-                                selectedMessages = emptySet()
-                                showSelectionDeleteDialog = false
-                            }
-                        ) { Text(stringResource(R.string.delete_for_everyone), color = Color(0xFFD32F2F)) }
-                    },
-                    dismissButton = {
-                        Row {
-                            TextButton(
-                                onClick = {
-                                    selectedMessages.forEach { id ->
-                                        viewModel.deleteMessage(id, "just_me")
-                                    }
-                                    isSelectionMode = false
-                                    selectedMessages = emptySet()
-                                    showSelectionDeleteDialog = false
-                                }
-                            ) { Text(stringResource(R.string.delete_for_me)) }
-                            TextButton(onClick = { showSelectionDeleteDialog = false }) {
-                                Text(stringResource(R.string.cancel))
-                            }
-                        }
-                    }
-                )
-            }
+            MessagesDeletionDialogs(
+                showDeleteDialog = showDeleteDialog,
+                messageToDelete = messageToDelete,
+                showEditScopeDialog = showEditScopeDialog,
+                showSelectionDeleteDialog = showSelectionDeleteDialog,
+                selectedCount = selectedMessages.size,
+                onDeleteForEveryone = {
+                    viewModel.deleteMessage(messageToDelete!!.id, "everyone")
+                    showDeleteDialog = false
+                    messageToDelete = null
+                },
+                onDeleteForMe = {
+                    viewModel.deleteMessage(messageToDelete!!.id, "just_me")
+                    showDeleteDialog = false
+                    messageToDelete = null
+                },
+                onDeleteDismiss = {
+                    showDeleteDialog = false
+                    messageToDelete = null
+                },
+                onEditForEveryone = {
+                    viewModel.editMessage(pendingEditMessageId, pendingEditText)
+                    messageText = ""
+                    viewModel.updateDraftText("")
+                    editingMessage = null
+                    showEditScopeDialog = false
+                },
+                onEditForMe = {
+                    viewModel.editMessageLocally(pendingEditMessageId, pendingEditText)
+                    messageText = ""
+                    viewModel.updateDraftText("")
+                    editingMessage = null
+                    showEditScopeDialog = false
+                },
+                onEditDismiss = { showEditScopeDialog = false },
+                onSelectionDeleteForEveryone = {
+                    selectedMessages.forEach { id -> viewModel.deleteMessage(id, "everyone") }
+                    isSelectionMode = false
+                    selectedMessages = emptySet()
+                    showSelectionDeleteDialog = false
+                },
+                onSelectionDeleteForMe = {
+                    selectedMessages.forEach { id -> viewModel.deleteMessage(id, "just_me") }
+                    isSelectionMode = false
+                    selectedMessages = emptySet()
+                    showSelectionDeleteDialog = false
+                },
+                onSelectionDeleteDismiss = { showSelectionDeleteDialog = false },
+            )
 
             // 👤 User Profile Menu (при кліку на ім'я в групі)
             if (showUserProfileMenu && selectedUserForMenu != null) {
@@ -1612,117 +1555,227 @@ fun MessagesScreen(
                 }
             }  // Закриття if (!isSelectionMode)
 
-            // 😊 Emoji Picker
-            if (showEmojiPicker) {
-                com.worldmates.messenger.ui.components.EmojiPicker(
-                    onEmojiSelected = { emoji ->
-                        messageText += emoji
-                        // Не закриваємо picker автоматично, щоб можна було вибрати кілька емоджі
-                    },
-                    onDismiss = { showEmojiPicker = false }
-                )
-            }
-
-            // 🎭 Sticker Picker
-            if (showStickerPicker) {
-                com.worldmates.messenger.ui.components.StickerPicker(
-                    onStickerSelected = { sticker ->
-                        viewModel.sendSticker(sticker.id)
-                        showStickerPicker = false
-                    },
-                    onDismiss = { showStickerPicker = false }
-                )
-            }
-
-            // 🎬 GIF Picker
-            if (showGifPicker) {
-                com.worldmates.messenger.ui.components.GifPicker(
-                    onGifSelected = { gifUrl ->
-                        viewModel.sendGif(gifUrl)
-                        showGifPicker = false
-                    },
-                    onDismiss = { showGifPicker = false }
-                )
-            }
-
-            // 📍 Location Picker
-            if (showLocationPicker) {
-                com.worldmates.messenger.ui.components.LocationPicker(
-                    onLocationSelected = { locationData ->
-                        viewModel.sendLocation(locationData)
-                        showLocationPicker = false
-                    },
-                    onDismiss = { showLocationPicker = false }
-                )
-            }
-
-            // 📇 Contact Picker
-            if (showContactPicker) {
-                com.worldmates.messenger.ui.components.ContactPicker(
-                    onContactSelected = { contact ->
-                        viewModel.sendContact(contact)
-                        showContactPicker = false
-                    },
-                    onDismiss = { showContactPicker = false }
-                )
-            }
-
-            // 🛍️ Strapi Content Picker (стікери/GIF/емодзі з Strapi CMS)
-            if (showStrapiPicker) {
-                com.worldmates.messenger.ui.strapi.StrapiContentPicker(
-                    onItemSelected = { contentUrl ->
-                        // Відправляємо стікер/GIF з Strapi як медіа
-                        viewModel.sendGif(contentUrl)
-                        showStrapiPicker = false
-                    },
-                    onDismiss = { showStrapiPicker = false }
-                )
-            }
-
-            // 🎵 Діалог якості аудіо (як в Telegram: стиснутий/оригінальний)
-            if (showAudioQualityDialog && pendingAudioFile != null) {
-                AudioQualityDialog(
-                    fileName = pendingAudioFile!!.name,
-                    fileSize = pendingAudioFile!!.length(),
-                    onSendOriginal = {
-                        viewModel.uploadAndSendMedia(pendingAudioFile!!, "audio")
-                        showAudioQualityDialog = false
-                        pendingAudioFile = null
-                    },
-                    onSendCompressed = {
-                        viewModel.uploadAndSendMedia(pendingAudioFile!!, "voice")
-                        showAudioQualityDialog = false
-                        pendingAudioFile = null
-                    },
-                    onDismiss = {
-                        showAudioQualityDialog = false
-                        pendingAudioFile = null
-                    }
-                )
-            }
-
-            // 📤 Діалог пересилання повідомлень
-            ForwardMessageDialog(
-                visible = showForwardDialog,
-                contacts = forwardContacts,  // Реальні дані з ViewModel
-                groups = forwardGroups,      // Реальні дані з ViewModel
+            MessagesMediaPickersAndDialogs(
+                showEmojiPicker = showEmojiPicker,
+                onEmojiSelected = { emoji -> messageText += emoji },
+                onEmojiDismiss = { showEmojiPicker = false },
+                showStickerPicker = showStickerPicker,
+                onStickerSelected = { sticker -> viewModel.sendSticker(sticker.id); showStickerPicker = false },
+                onStickerDismiss = { showStickerPicker = false },
+                showGifPicker = showGifPicker,
+                onGifSelected = { gifUrl -> viewModel.sendGif(gifUrl); showGifPicker = false },
+                onGifDismiss = { showGifPicker = false },
+                showLocationPicker = showLocationPicker,
+                onLocationSelected = { locationData -> viewModel.sendLocation(locationData); showLocationPicker = false },
+                onLocationDismiss = { showLocationPicker = false },
+                showContactPicker = showContactPicker,
+                onContactSelected = { contact -> viewModel.sendContact(contact); showContactPicker = false },
+                onContactDismiss = { showContactPicker = false },
+                showStrapiPicker = showStrapiPicker,
+                onStrapiSelected = { contentUrl -> viewModel.sendGif(contentUrl); showStrapiPicker = false },
+                onStrapiDismiss = { showStrapiPicker = false },
+                showAudioQualityDialog = showAudioQualityDialog,
+                pendingAudioFile = pendingAudioFile,
+                onSendOriginalAudio = {
+                    viewModel.uploadAndSendMedia(pendingAudioFile!!, "audio")
+                    showAudioQualityDialog = false
+                    pendingAudioFile = null
+                },
+                onSendCompressedAudio = {
+                    viewModel.uploadAndSendMedia(pendingAudioFile!!, "voice")
+                    showAudioQualityDialog = false
+                    pendingAudioFile = null
+                },
+                onAudioDismiss = { showAudioQualityDialog = false; pendingAudioFile = null },
+                showForwardDialog = showForwardDialog,
+                forwardContacts = forwardContacts,
+                forwardGroups = forwardGroups,
                 selectedCount = selectedMessages.size,
                 onForward = { recipientIds ->
-                    // Викликаємо метод ViewModel для пересилання
                     viewModel.forwardMessages(selectedMessages, recipientIds)
-
                     android.widget.Toast.makeText(
                         context,
                         "✅ Переслано ${selectedMessages.size} повідомлень до ${recipientIds.size} отримувачів",
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
-
-                    // Виходимо з режиму вибору
                     isSelectionMode = false
                     selectedMessages = emptySet()
                 },
-                onDismiss = { showForwardDialog = false }
+                onForwardDismiss = { showForwardDialog = false },
             )
         }  // Кінець Column
     }  // Кінець Box
+}
+
+// ---------------------------------------------------------------------------
+// Private helper composables — extracted to keep MessagesScreen under the
+// D8 "method exceeds compiler instruction limit" threshold.
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun MessagesDeletionDialogs(
+    showDeleteDialog: Boolean,
+    messageToDelete: com.worldmates.messenger.data.model.Message?,
+    showEditScopeDialog: Boolean,
+    showSelectionDeleteDialog: Boolean,
+    selectedCount: Int,
+    onDeleteForEveryone: () -> Unit,
+    onDeleteForMe: () -> Unit,
+    onDeleteDismiss: () -> Unit,
+    onEditForEveryone: () -> Unit,
+    onEditForMe: () -> Unit,
+    onEditDismiss: () -> Unit,
+    onSelectionDeleteForEveryone: () -> Unit,
+    onSelectionDeleteForMe: () -> Unit,
+    onSelectionDeleteDismiss: () -> Unit,
+) {
+    if (showDeleteDialog && messageToDelete != null) {
+        AlertDialog(
+            onDismissRequest = onDeleteDismiss,
+            title = { Text(stringResource(R.string.delete_message)) },
+            text = { Text(stringResource(R.string.delete_message_choice_desc)) },
+            confirmButton = {
+                TextButton(onClick = onDeleteForEveryone) {
+                    Text(stringResource(R.string.delete_for_everyone), color = Color(0xFFD32F2F))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDeleteForMe) {
+                    Text(stringResource(R.string.delete_for_me))
+                }
+            }
+        )
+    }
+
+    if (showEditScopeDialog) {
+        AlertDialog(
+            onDismissRequest = onEditDismiss,
+            title = { Text(stringResource(R.string.edit_message)) },
+            text = { Text(stringResource(R.string.edit_apply_where)) },
+            confirmButton = {
+                TextButton(onClick = onEditForEveryone) {
+                    Text(stringResource(R.string.for_everyone))
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = onEditForMe) { Text(stringResource(R.string.for_me_only)) }
+                    TextButton(onClick = onEditDismiss) { Text(stringResource(R.string.cancel)) }
+                }
+            }
+        )
+    }
+
+    if (showSelectionDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = onSelectionDeleteDismiss,
+            title = { Text(stringResource(R.string.delete_n_messages_title, selectedCount)) },
+            text = { Text(stringResource(R.string.delete_messages_choice_desc)) },
+            confirmButton = {
+                TextButton(onClick = onSelectionDeleteForEveryone) {
+                    Text(stringResource(R.string.delete_for_everyone), color = Color(0xFFD32F2F))
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = onSelectionDeleteForMe) { Text(stringResource(R.string.delete_for_me)) }
+                    TextButton(onClick = onSelectionDeleteDismiss) { Text(stringResource(R.string.cancel)) }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun MessagesMediaPickersAndDialogs(
+    showEmojiPicker: Boolean,
+    onEmojiSelected: (String) -> Unit,
+    onEmojiDismiss: () -> Unit,
+    showStickerPicker: Boolean,
+    onStickerSelected: (com.worldmates.messenger.data.model.Sticker) -> Unit,
+    onStickerDismiss: () -> Unit,
+    showGifPicker: Boolean,
+    onGifSelected: (String) -> Unit,
+    onGifDismiss: () -> Unit,
+    showLocationPicker: Boolean,
+    onLocationSelected: (com.worldmates.messenger.data.repository.LocationData) -> Unit,
+    onLocationDismiss: () -> Unit,
+    showContactPicker: Boolean,
+    onContactSelected: (com.worldmates.messenger.data.model.Contact) -> Unit,
+    onContactDismiss: () -> Unit,
+    showStrapiPicker: Boolean,
+    onStrapiSelected: (String) -> Unit,
+    onStrapiDismiss: () -> Unit,
+    showAudioQualityDialog: Boolean,
+    pendingAudioFile: java.io.File?,
+    onSendOriginalAudio: () -> Unit,
+    onSendCompressedAudio: () -> Unit,
+    onAudioDismiss: () -> Unit,
+    showForwardDialog: Boolean,
+    forwardContacts: List<com.worldmates.messenger.ui.messages.selection.ForwardRecipient>,
+    forwardGroups: List<com.worldmates.messenger.ui.messages.selection.ForwardRecipient>,
+    selectedCount: Int,
+    onForward: (List<Long>) -> Unit,
+    onForwardDismiss: () -> Unit,
+) {
+    if (showEmojiPicker) {
+        com.worldmates.messenger.ui.components.EmojiPicker(
+            onEmojiSelected = onEmojiSelected,
+            onDismiss = onEmojiDismiss
+        )
+    }
+
+    if (showStickerPicker) {
+        com.worldmates.messenger.ui.components.StickerPicker(
+            onStickerSelected = onStickerSelected,
+            onDismiss = onStickerDismiss
+        )
+    }
+
+    if (showGifPicker) {
+        com.worldmates.messenger.ui.components.GifPicker(
+            onGifSelected = onGifSelected,
+            onDismiss = onGifDismiss
+        )
+    }
+
+    if (showLocationPicker) {
+        com.worldmates.messenger.ui.components.LocationPicker(
+            onLocationSelected = onLocationSelected,
+            onDismiss = onLocationDismiss
+        )
+    }
+
+    if (showContactPicker) {
+        com.worldmates.messenger.ui.components.ContactPicker(
+            onContactSelected = onContactSelected,
+            onDismiss = onContactDismiss
+        )
+    }
+
+    if (showStrapiPicker) {
+        com.worldmates.messenger.ui.strapi.StrapiContentPicker(
+            onItemSelected = onStrapiSelected,
+            onDismiss = onStrapiDismiss
+        )
+    }
+
+    if (showAudioQualityDialog && pendingAudioFile != null) {
+        AudioQualityDialog(
+            fileName = pendingAudioFile.name,
+            fileSize = pendingAudioFile.length(),
+            onSendOriginal = onSendOriginalAudio,
+            onSendCompressed = onSendCompressedAudio,
+            onDismiss = onAudioDismiss
+        )
+    }
+
+    ForwardMessageDialog(
+        visible = showForwardDialog,
+        contacts = forwardContacts,
+        groups = forwardGroups,
+        selectedCount = selectedCount,
+        onForward = onForward,
+        onDismiss = onForwardDismiss
+    )
 }
