@@ -19,6 +19,7 @@
  *   /learn        — научить WallyBot новому ответу (глобальная база знаний)
  *   /forget       — удалить ответ из базы знаний
  *   /ask          — задать вопрос WallyBot (поиск по обученным ответам)
+ *   /messenger    — справка по функциям мессенджера (встроенная база RU/UK)
  *
  * Обучаемость:
  *   WallyBot может запоминать факты и ответы через команду /learn.
@@ -32,6 +33,49 @@ const { Op }  = require('sequelize');
 const WALLYBOT_ID    = 'wallybot';
 const WALLYBOT_NAME  = 'WallyBot';
 const OWNER_USER_ID  = 1; // системный владелец
+
+const MESSENGER_KB_SEED = [
+    {
+        keyword: 'как найти бота в мессенджере',
+        response: 'Открой вкладку Чаты и нажми на иконку робота (Bot Store), либо используй поиск по имени/@username бота.'
+    },
+    {
+        keyword: 'як знайти бота в месенджері',
+        response: 'Відкрий вкладку Чати та натисни на іконку робота (Bot Store), або скористайся пошуком за ім’ям/@username бота.'
+    },
+    {
+        keyword: 'как запустить бота',
+        response: 'Открой чат бота и нажми START, после этого отправь /help для списка команд.'
+    },
+    {
+        keyword: 'как создать своего бота',
+        response: 'Открой Bot Store → Мои боты → Создать бота. Заполни username, display name, описание и сохрани bot_token.'
+    },
+    {
+        keyword: 'як створити свого бота',
+        response: 'Відкрий Bot Store → Мої боти → Створити бота. Заповни username, display name, опис і збережи bot_token.'
+    },
+    {
+        keyword: 'что умеют боты',
+        response: 'Боты могут отвечать на FAQ, отправлять уведомления/новости, создавать опросы, помогать с задачами и поддержкой.'
+    },
+    {
+        keyword: 'как добавить бота в группу',
+        response: 'Если бот поддерживает группы, открой профиль бота и добавь его в нужную группу через меню участников.'
+    },
+    {
+        keyword: 'как заблокировать бота',
+        response: 'Открой чат с ботом → профиль бота → Block Bot. Разблокировка: Settings → Privacy → Blocked list.'
+    },
+    {
+        keyword: 'как использовать команды бота',
+        response: 'Команды начинаются с /. Нажми кнопку / возле поля ввода или отправь вручную: /start, /help, /settings и т.д.'
+    },
+    {
+        keyword: 'як користуватись командами бота',
+        response: 'Команди починаються з /. Натисни кнопку / біля поля вводу або надішли вручну: /start, /help, /settings.'
+    }
+];
 
 // user_id WallyBot в таблице Wo_Users (устанавливается при инициализации)
 // Нужен для отправки ответов через regular private_message канал
@@ -339,6 +383,27 @@ async function forgetFact(ctx, keyword) {
     });
 }
 
+async function ensureMessengerKnowledgeBase(ctx) {
+    for (const item of MESSENGER_KB_SEED) {
+        await ctx.wo_bot_tasks.findOrCreate({
+            where: {
+                bot_id: WALLYBOT_ID,
+                title: item.keyword.toLowerCase().trim()
+            },
+            defaults: {
+                bot_id:      WALLYBOT_ID,
+                user_id:     OWNER_USER_ID,
+                chat_id:     String(OWNER_USER_ID),
+                title:       item.keyword.toLowerCase().trim(),
+                description: item.response,
+                status:      'done',
+                priority:    'low',
+                created_at:  new Date()
+            }
+        });
+    }
+}
+
 // ─── Вспомогательные функции управления ботами ───────────────────────────────
 
 async function getUserBots(ctx, userId) {
@@ -353,9 +418,10 @@ async function getUserBots(ctx, userId) {
 
 async function registerDefaultCommands(ctx, botId) {
     const defaults = [
-        { command: 'start',  description: 'Начать работу с ботом', sort_order: 0 },
-        { command: 'help',   description: 'Помощь и список команд', sort_order: 1 },
-        { command: 'cancel', description: 'Отменить действие',      sort_order: 2 }
+        { command: 'start',     description: 'Начать работу с ботом', sort_order: 0 },
+        { command: 'help',      description: 'Помощь и список команд', sort_order: 1 },
+        { command: 'messenger', description: 'Справка по функциям мессенджера', sort_order: 2 },
+        { command: 'cancel',    description: 'Отменить действие',      sort_order: 3 }
     ];
     for (const cmd of defaults) {
         await ctx.wo_bot_commands.findOrCreate({
@@ -375,6 +441,7 @@ async function handleStart(ctx, io, userId, userName) {
         btn('Мои боты',         'cmd_mybots'),
         btn('Обучить меня',     'cmd_learn'),
         btn('Спросить WallyBot','cmd_ask'),
+        btn('Функции мессенджера', 'cmd_messenger_guide'),
         btn('Помощь',           'cmd_help')
     ], 2);
     await sendToUser(ctx, io, userId, text, kb);
@@ -393,7 +460,8 @@ async function handleHelp(ctx, io, userId) {
         `*База знаний WallyBot:*\n` +
         `/learn — научить меня чему-то новому\n` +
         `/forget — забыть что-то\n` +
-        `/ask — задать вопрос\n\n` +
+        `/ask — задать вопрос\n` +
+        `/messenger — справка по функциям мессенджера\n\n` +
         `Просто напиши вопрос — я попробую ответить из базы знаний!`;
     await sendToUser(ctx, io, userId, text);
 }
@@ -502,6 +570,23 @@ async function handleForget(ctx, io, userId) {
 async function handleAsk(ctx, io, userId) {
     setState(userId, STATES.IDLE, {});
     await sendToUser(ctx, io, userId, 'Задай мне любой вопрос — и я поищу ответ в базе знаний!');
+}
+
+async function handleMessengerGuide(ctx, io, userId) {
+    clearState(userId);
+    const text = `*Справка по мессенджеру / Довідка по месенджеру*\n\n` +
+        `Я могу отвечать по функциям WorldMates. Примеры вопросов:\n` +
+        `• Как найти бота в мессенджере?\n` +
+        `• Как создать своего бота?\n` +
+        `• Как добавить бота в группу?\n` +
+        `• Як знайти бота в месенджері?\n` +
+        `• Як створити свого бота?\n\n` +
+        `Просто напиши вопрос обычным текстом — я постараюсь подобрать ответ.`;
+
+    return sendToUser(ctx, io, userId, text, inlineKeyboard([
+        btn('Задать вопрос', 'cmd_ask'),
+        btn('Помощь', 'cmd_help')
+    ]));
 }
 
 async function handleCancel(ctx, io, userId) {
@@ -728,6 +813,7 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
     if (callbackData === 'cmd_cancel')    return handleCancel(ctx, io, userId);
     if (callbackData === 'cmd_learn')     return handleLearn(ctx, io, userId);
     if (callbackData === 'cmd_ask')       return handleAsk(ctx, io, userId);
+    if (callbackData === 'cmd_messenger_guide') return handleMessengerGuide(ctx, io, userId);
 
     // ── Просмотр базы знаний ─────────────────────────────────────────────────
     if (callbackData === 'cmd_knowledge') {
@@ -951,6 +1037,7 @@ async function handleMessage(ctx, io, data) {
             learn:       () => handleLearn(ctx, io, userId),
             forget:      () => handleForget(ctx, io, userId),
             ask:         () => handleAsk(ctx, io, userId),
+            messenger:   () => handleMessengerGuide(ctx, io, userId),
             cancel:      () => handleCancel(ctx, io, userId)
         };
 
@@ -1057,6 +1144,7 @@ async function initializeWallyBot(ctx, io) {
 
         // ── 3. Команды WallyBot ──────────────────────────────────────────────
         await registerDefaultCommands(ctx, WALLYBOT_ID);
+        await ensureMessengerKnowledgeBase(ctx);
 
         const extraCommands = [
             { command: 'newbot',      description: 'Создать нового бота',             sort_order: 3 },
@@ -1068,7 +1156,8 @@ async function initializeWallyBot(ctx, io) {
             { command: 'setdesc',     description: 'Изменить описание бота',          sort_order: 9 },
             { command: 'learn',       description: 'Научить WallyBot новому ответу',  sort_order: 10 },
             { command: 'forget',      description: 'Удалить ответ из базы знаний',    sort_order: 11 },
-            { command: 'ask',         description: 'Задать вопрос WallyBot',          sort_order: 12 }
+            { command: 'ask',         description: 'Задать вопрос WallyBot',          sort_order: 12 },
+            { command: 'messenger',   description: 'Справка по функциям мессенджера', sort_order: 13 }
         ];
 
         for (const cmd of extraCommands) {
