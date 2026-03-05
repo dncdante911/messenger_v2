@@ -323,6 +323,8 @@ async function searchKnowledge(ctx, query) {
             best = item;
         }
     }
+    return [token];
+}
 
     const confidence = Math.min(1, bestScore / Math.max(queryTerms.length * 4, 6));
     return best && confidence >= 0.35 ? best : null;
