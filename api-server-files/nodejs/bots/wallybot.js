@@ -207,36 +207,121 @@ async function learnFact(ctx, keyword, response, userId) {
 }
 
 async function searchKnowledge(ctx, query) {
-    const q = query.toLowerCase().trim();
-    const words = q.split(/\s+/).filter(w => w.length > 2);
-
+    const words = extractSearchTerms(query);
     if (!words.length) return null;
 
-    // Ищем по ключевым словам
-    const conditions = words.map(w => ({ title: { [Op.like]: `%${w}%` } }));
+    // Ищем по ключам и тексту ответа, чтобы лучше покрыть RU/UK перефразировки.
+    const conditions = words.flatMap(w => ([
+        { title:       { [Op.like]: `%${w}%` } },
+        { description: { [Op.like]: `%${w}%` } }
+    ]));
+
     const results = await ctx.wo_bot_tasks.findAll({
         where: {
             bot_id: WALLYBOT_ID,
             status: 'done',
             [Op.or]: conditions
         },
-        raw: true
+        raw: true,
+        limit: 60
     });
 
     if (!results.length) return null;
 
-    // Ранжируем по количеству совпадений
     let best = null;
     let bestScore = 0;
-    for (const r of results) {
+
+    for (const item of results) {
+        const titleTokens = new Set(extractSearchTerms(item.title || ''));
+        const descTokens  = new Set(extractSearchTerms(item.description || ''));
+
         let score = 0;
-        for (const w of words) {
-            if (r.title.includes(w)) score++;
+        for (const token of words) {
+            if (titleTokens.has(token)) score += 4;
+            if (descTokens.has(token))  score += 2;
         }
-        if (score > bestScore) { bestScore = score; best = r; }
+
+        // Бонус за совпадение фразы целиком (после нормализации)
+        const normalizedQuery = normalizeText(query);
+        const normalizedTitle = normalizeText(item.title || '');
+        if (normalizedQuery && normalizedTitle && normalizedTitle.includes(normalizedQuery)) {
+            score += 6;
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
+            best = item;
+        }
     }
 
-    return bestScore > 0 ? best : null;
+    const confidence = Math.min(1, bestScore / Math.max(words.length * 4, 6));
+    return best && confidence >= 0.35 ? best : null;
+}
+
+const SEARCH_STOPWORDS = new Set([
+    // RU
+    'и', 'или', 'в', 'во', 'на', 'с', 'со', 'к', 'по', 'за', 'из', 'под', 'над', 'о', 'об',
+    'а', 'но', 'не', 'да', 'же', 'ли', 'это', 'этот', 'эта', 'эти', 'как', 'что', 'где', 'когда',
+    'почему', 'зачем', 'мне', 'мой', 'моя', 'моё', 'мои', 'твой', 'твоя', 'их', 'его', 'ее',
+    // UK
+    'і', 'й', 'та', 'або', 'у', 'в', 'на', 'з', 'із', 'до', 'по', 'над', 'під', 'про',
+    'але', 'не', 'це', 'цей', 'ця', 'ці', 'як', 'що', 'де', 'коли', 'чому', 'навіщо',
+    'мені', 'мій', 'моя', 'моє', 'мої', 'твій', 'твоя', 'його', 'її', 'їх'
+]);
+
+const SEARCH_SYNONYMS = {
+    // RU/UK support intents
+    аккаунт: ['аккаунт', 'учетная', 'учётная', 'профиль', 'обліковий', 'акаунт', 'профіль'],
+    пароль: ['пароль', 'код', 'pass', 'password'],
+    сообщение: ['сообщение', 'сообщения', 'смс', 'меседж', 'повідомлення', 'повідомлень', 'message'],
+    бот: ['бот', 'бота', 'боту', 'боти', 'ботів'],
+    чат: ['чат', 'чаты', 'чатик', 'діалог', 'діалоги', 'розмова', 'переписка'],
+    группа: ['группа', 'группы', 'группу', 'група', 'групи', 'спільнота'],
+    звонок: ['звонок', 'звонки', 'вызов', 'дзвінок', 'дзвінки', 'виклик'],
+    удалить: ['удалить', 'удаление', 'стереть', 'удалити', 'видалити', 'видалення'],
+    создать: ['создать', 'сделать', 'добавить', 'створити', 'додати']
+};
+
+function normalizeText(value = '') {
+    return String(value)
+        .toLowerCase()
+        .replace(/[ё]/g, 'е')
+        .replace(/[’']/g, '')
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function normalizeToken(token = '') {
+    let t = normalizeText(token);
+    // Простейшее стеммирование для RU/UK, чтобы снизить зависимость от формы слова.
+    t = t
+        .replace(/(ами|ями|ого|ему|ому|ах|ях|ий|ый|ой|ая|яя|ое|ее|ые|ие|ов|ев|ів|ів|ий|ій|ою|ею|ом|ем|ам|ям|у|ю|а|я|ы|і|ї|е)$/u, '');
+    return t;
+}
+
+function expandSynonyms(token) {
+    for (const list of Object.values(SEARCH_SYNONYMS)) {
+        if (list.includes(token)) {
+            return list.map(normalizeToken).filter(Boolean);
+        }
+    }
+    return [token];
+}
+
+function extractSearchTerms(text) {
+    const baseTokens = normalizeText(text)
+        .split(/\s+/)
+        .map(normalizeToken)
+        .filter(t => t.length >= 2 && !SEARCH_STOPWORDS.has(t));
+
+    const expanded = new Set();
+    for (const token of baseTokens) {
+        expanded.add(token);
+        for (const s of expandSynonyms(token)) expanded.add(s);
+    }
+
+    return [...expanded];
 }
 
 async function getKnowledgeList(ctx, limit = 20) {
@@ -898,9 +983,9 @@ async function handleMessage(ctx, io, data) {
             );
         }
 
-        // Дефолтный ответ
+        // Дефолтный ответ (RU/UK)
         await sendToUser(ctx, io, userId,
-            `Не знаю ответа на это.\n\nПопробуй:\n• /help — список команд\n• /newbot — создать бота\n• /learn — научи меня этому`,
+            `Не знаю ответа на это / Не знаю відповіді на це.\n\nПопробуй / Спробуй:\n• /help — список команд\n• /newbot — создать бота\n• /learn — научи меня этому`,
             inlineKeyboard([
                 btn('Главное меню', 'cmd_start'),
                 btn('Помощь',       'cmd_help')
