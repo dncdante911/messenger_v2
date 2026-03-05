@@ -20,7 +20,6 @@
  *   /forget       — удалить ответ из базы знаний
  *   /ask          — задать вопрос WallyBot (поиск по обученным ответам)
  *   /messenger    — справка по функциям мессенджера (встроенная база RU/UK)
- *   /topics       — популярные темы и примеры вопросов
  *
  * Обучаемость:
  *   WallyBot может запоминать факты и ответы через команду /learn.
@@ -76,14 +75,6 @@ const MESSENGER_KB_SEED = [
         keyword: 'як користуватись командами бота',
         response: 'Команди починаються з /. Натисни кнопку / біля поля вводу або надішли вручну: /start, /help, /settings.'
     }
-];
-
-const MESSENGER_TOPICS = [
-    'Как найти бота в мессенджере?',
-    'Как создать своего бота?',
-    'Как использовать команды бота?',
-    'Як знайти бота в месенджері?',
-    'Як створити свого бота?'
 ];
 
 // user_id WallyBot в таблице Wo_Users (устанавливается при инициализации)
@@ -260,25 +251,11 @@ async function learnFact(ctx, keyword, response, userId) {
 }
 
 async function searchKnowledge(ctx, query) {
-    const normalizedQuery = normalizeText(query);
-    if (!normalizedQuery) return null;
-
     const words = extractSearchTerms(query);
-    const queryTerms = words.length ? words : extractFallbackTerms(normalizedQuery);
-    if (!queryTerms.length) return null;
-
-    const exact = await ctx.wo_bot_tasks.findOne({
-        where: {
-            bot_id: WALLYBOT_ID,
-            status: 'done',
-            title: normalizedQuery
-        },
-        raw: true
-    });
-    if (exact) return exact;
+    if (!words.length) return null;
 
     // Ищем по ключам и тексту ответа, чтобы лучше покрыть RU/UK перефразировки.
-    const conditions = queryTerms.flatMap(w => ([
+    const conditions = words.flatMap(w => ([
         { title:       { [Op.like]: `%${w}%` } },
         { description: { [Op.like]: `%${w}%` } }
     ]));
@@ -303,19 +280,16 @@ async function searchKnowledge(ctx, query) {
         const descTokens  = new Set(extractSearchTerms(item.description || ''));
 
         let score = 0;
-        for (const token of queryTerms) {
+        for (const token of words) {
             if (titleTokens.has(token)) score += 4;
             if (descTokens.has(token))  score += 2;
         }
 
         // Бонус за совпадение фразы целиком (после нормализации)
+        const normalizedQuery = normalizeText(query);
         const normalizedTitle = normalizeText(item.title || '');
         if (normalizedQuery && normalizedTitle && normalizedTitle.includes(normalizedQuery)) {
             score += 6;
-        }
-
-        if (normalizedQuery && normalizedTitle && normalizedTitle.startsWith(normalizedQuery)) {
-            score += 2;
         }
 
         if (score > bestScore) {
@@ -323,16 +297,9 @@ async function searchKnowledge(ctx, query) {
             best = item;
         }
     }
-    return [token];
-}
 
-    const confidence = Math.min(1, bestScore / Math.max(queryTerms.length * 4, 6));
+    const confidence = Math.min(1, bestScore / Math.max(words.length * 4, 6));
     return best && confidence >= 0.35 ? best : null;
-}
-
-function extractFallbackTerms(normalizedQuery) {
-    const first = normalizedQuery.split(' ').map(normalizeToken).filter(t => t.length >= 2);
-    return [...new Set(first)];
 }
 
 const SEARCH_STOPWORDS = new Set([
@@ -454,8 +421,7 @@ async function registerDefaultCommands(ctx, botId) {
         { command: 'start',     description: 'Начать работу с ботом', sort_order: 0 },
         { command: 'help',      description: 'Помощь и список команд', sort_order: 1 },
         { command: 'messenger', description: 'Справка по функциям мессенджера', sort_order: 2 },
-        { command: 'topics',    description: 'Популярные темы для вопросов', sort_order: 3 },
-        { command: 'cancel',    description: 'Отменить действие',      sort_order: 4 }
+        { command: 'cancel',    description: 'Отменить действие',      sort_order: 3 }
     ];
     for (const cmd of defaults) {
         await ctx.wo_bot_commands.findOrCreate({
@@ -476,7 +442,6 @@ async function handleStart(ctx, io, userId, userName) {
         btn('Обучить меня',     'cmd_learn'),
         btn('Спросить WallyBot','cmd_ask'),
         btn('Функции мессенджера', 'cmd_messenger_guide'),
-        btn('Популярные темы',  'cmd_topics'),
         btn('Помощь',           'cmd_help')
     ], 2);
     await sendToUser(ctx, io, userId, text, kb);
@@ -497,7 +462,6 @@ async function handleHelp(ctx, io, userId) {
         `/forget — забыть что-то\n` +
         `/ask — задать вопрос\n` +
         `/messenger — справка по функциям мессенджера\n\n` +
-        `/topics — популярные темы и примеры вопросов\n\n` +
         `Просто напиши вопрос — я попробую ответить из базы знаний!`;
     await sendToUser(ctx, io, userId, text);
 }
@@ -621,20 +585,7 @@ async function handleMessengerGuide(ctx, io, userId) {
 
     return sendToUser(ctx, io, userId, text, inlineKeyboard([
         btn('Задать вопрос', 'cmd_ask'),
-        btn('Темы', 'cmd_topics'),
         btn('Помощь', 'cmd_help')
-    ]));
-}
-
-async function handleTopics(ctx, io, userId) {
-    clearState(userId);
-    const text = `*Популярные темы / Популярні теми:*\n\n` +
-        MESSENGER_TOPICS.map((q, i) => `${i + 1}. ${q}`).join('\n') +
-        `\n\nНапиши любой из вопросов (или похожий) — я подберу ответ из базы знаний.`;
-
-    return sendToUser(ctx, io, userId, text, inlineKeyboard([
-        btn('Справка мессенджера', 'cmd_messenger_guide'),
-        btn('Задать вопрос', 'cmd_ask')
     ]));
 }
 
@@ -863,17 +814,6 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
     if (callbackData === 'cmd_learn')     return handleLearn(ctx, io, userId);
     if (callbackData === 'cmd_ask')       return handleAsk(ctx, io, userId);
     if (callbackData === 'cmd_messenger_guide') return handleMessengerGuide(ctx, io, userId);
-    if (callbackData === 'cmd_topics') return handleTopics(ctx, io, userId);
-
-    if (callbackData === 'kb_helpful_yes') {
-        return sendToUser(ctx, io, userId, 'Отлично! Рад, что помог. Если хочешь, могу подсказать ещё по функциям мессенджера (/messenger).');
-    }
-
-    if (callbackData === 'kb_helpful_no') {
-        return sendToUser(ctx, io, userId,
-            'Понял. Переформулируй вопрос или используй /topics и /messenger. Также можешь обучить меня через /learn для своего кейса.'
-        );
-    }
 
     // ── Просмотр базы знаний ─────────────────────────────────────────────────
     if (callbackData === 'cmd_knowledge') {
@@ -1098,7 +1038,6 @@ async function handleMessage(ctx, io, data) {
             forget:      () => handleForget(ctx, io, userId),
             ask:         () => handleAsk(ctx, io, userId),
             messenger:   () => handleMessengerGuide(ctx, io, userId),
-            topics:      () => handleTopics(ctx, io, userId),
             cancel:      () => handleCancel(ctx, io, userId)
         };
 
@@ -1218,8 +1157,7 @@ async function initializeWallyBot(ctx, io) {
             { command: 'learn',       description: 'Научить WallyBot новому ответу',  sort_order: 10 },
             { command: 'forget',      description: 'Удалить ответ из базы знаний',    sort_order: 11 },
             { command: 'ask',         description: 'Задать вопрос WallyBot',          sort_order: 12 },
-            { command: 'messenger',   description: 'Справка по функциям мессенджера', sort_order: 13 },
-            { command: 'topics',      description: 'Популярные темы для вопросов',    sort_order: 14 }
+            { command: 'messenger',   description: 'Справка по функциям мессенджера', sort_order: 13 }
         ];
 
         for (const cmd of extraCommands) {
