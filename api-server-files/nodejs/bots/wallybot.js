@@ -19,6 +19,7 @@
  *   /learn        — научить WallyBot новому ответу (глобальная база знаний)
  *   /forget       — удалить ответ из базы знаний
  *   /ask          — задать вопрос WallyBot (поиск по обученным ответам)
+ *   /messenger    — справка по функциям мессенджера (встроенная база RU/UK)
  *
  * Обучаемость:
  *   WallyBot может запоминать факты и ответы через команду /learn.
@@ -32,6 +33,49 @@ const { Op }  = require('sequelize');
 const WALLYBOT_ID    = 'wallybot';
 const WALLYBOT_NAME  = 'WallyBot';
 const OWNER_USER_ID  = 1; // системный владелец
+
+const MESSENGER_KB_SEED = [
+    {
+        keyword: 'как найти бота в мессенджере',
+        response: 'Открой вкладку Чаты и нажми на иконку робота (Bot Store), либо используй поиск по имени/@username бота.'
+    },
+    {
+        keyword: 'як знайти бота в месенджері',
+        response: 'Відкрий вкладку Чати та натисни на іконку робота (Bot Store), або скористайся пошуком за ім’ям/@username бота.'
+    },
+    {
+        keyword: 'как запустить бота',
+        response: 'Открой чат бота и нажми START, после этого отправь /help для списка команд.'
+    },
+    {
+        keyword: 'как создать своего бота',
+        response: 'Открой Bot Store → Мои боты → Создать бота. Заполни username, display name, описание и сохрани bot_token.'
+    },
+    {
+        keyword: 'як створити свого бота',
+        response: 'Відкрий Bot Store → Мої боти → Створити бота. Заповни username, display name, опис і збережи bot_token.'
+    },
+    {
+        keyword: 'что умеют боты',
+        response: 'Боты могут отвечать на FAQ, отправлять уведомления/новости, создавать опросы, помогать с задачами и поддержкой.'
+    },
+    {
+        keyword: 'как добавить бота в группу',
+        response: 'Если бот поддерживает группы, открой профиль бота и добавь его в нужную группу через меню участников.'
+    },
+    {
+        keyword: 'как заблокировать бота',
+        response: 'Открой чат с ботом → профиль бота → Block Bot. Разблокировка: Settings → Privacy → Blocked list.'
+    },
+    {
+        keyword: 'как использовать команды бота',
+        response: 'Команды начинаются с /. Нажми кнопку / возле поля ввода или отправь вручную: /start, /help, /settings и т.д.'
+    },
+    {
+        keyword: 'як користуватись командами бота',
+        response: 'Команди починаються з /. Натисни кнопку / біля поля вводу або надішли вручну: /start, /help, /settings.'
+    }
+];
 
 // user_id WallyBot в таблице Wo_Users (устанавливается при инициализации)
 // Нужен для отправки ответов через regular private_message канал
@@ -207,36 +251,121 @@ async function learnFact(ctx, keyword, response, userId) {
 }
 
 async function searchKnowledge(ctx, query) {
-    const q = query.toLowerCase().trim();
-    const words = q.split(/\s+/).filter(w => w.length > 2);
-
+    const words = extractSearchTerms(query);
     if (!words.length) return null;
 
-    // Ищем по ключевым словам
-    const conditions = words.map(w => ({ title: { [Op.like]: `%${w}%` } }));
+    // Ищем по ключам и тексту ответа, чтобы лучше покрыть RU/UK перефразировки.
+    const conditions = words.flatMap(w => ([
+        { title:       { [Op.like]: `%${w}%` } },
+        { description: { [Op.like]: `%${w}%` } }
+    ]));
+
     const results = await ctx.wo_bot_tasks.findAll({
         where: {
             bot_id: WALLYBOT_ID,
             status: 'done',
             [Op.or]: conditions
         },
-        raw: true
+        raw: true,
+        limit: 60
     });
 
     if (!results.length) return null;
 
-    // Ранжируем по количеству совпадений
     let best = null;
     let bestScore = 0;
-    for (const r of results) {
+
+    for (const item of results) {
+        const titleTokens = new Set(extractSearchTerms(item.title || ''));
+        const descTokens  = new Set(extractSearchTerms(item.description || ''));
+
         let score = 0;
-        for (const w of words) {
-            if (r.title.includes(w)) score++;
+        for (const token of words) {
+            if (titleTokens.has(token)) score += 4;
+            if (descTokens.has(token))  score += 2;
         }
-        if (score > bestScore) { bestScore = score; best = r; }
+
+        // Бонус за совпадение фразы целиком (после нормализации)
+        const normalizedQuery = normalizeText(query);
+        const normalizedTitle = normalizeText(item.title || '');
+        if (normalizedQuery && normalizedTitle && normalizedTitle.includes(normalizedQuery)) {
+            score += 6;
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
+            best = item;
+        }
     }
 
-    return bestScore > 0 ? best : null;
+    const confidence = Math.min(1, bestScore / Math.max(words.length * 4, 6));
+    return best && confidence >= 0.35 ? best : null;
+}
+
+const SEARCH_STOPWORDS = new Set([
+    // RU
+    'и', 'или', 'в', 'во', 'на', 'с', 'со', 'к', 'по', 'за', 'из', 'под', 'над', 'о', 'об',
+    'а', 'но', 'не', 'да', 'же', 'ли', 'это', 'этот', 'эта', 'эти', 'как', 'что', 'где', 'когда',
+    'почему', 'зачем', 'мне', 'мой', 'моя', 'моё', 'мои', 'твой', 'твоя', 'их', 'его', 'ее',
+    // UK
+    'і', 'й', 'та', 'або', 'у', 'в', 'на', 'з', 'із', 'до', 'по', 'над', 'під', 'про',
+    'але', 'не', 'це', 'цей', 'ця', 'ці', 'як', 'що', 'де', 'коли', 'чому', 'навіщо',
+    'мені', 'мій', 'моя', 'моє', 'мої', 'твій', 'твоя', 'його', 'її', 'їх'
+]);
+
+const SEARCH_SYNONYMS = {
+    // RU/UK support intents
+    аккаунт: ['аккаунт', 'учетная', 'учётная', 'профиль', 'обліковий', 'акаунт', 'профіль'],
+    пароль: ['пароль', 'код', 'pass', 'password'],
+    сообщение: ['сообщение', 'сообщения', 'смс', 'меседж', 'повідомлення', 'повідомлень', 'message'],
+    бот: ['бот', 'бота', 'боту', 'боти', 'ботів'],
+    чат: ['чат', 'чаты', 'чатик', 'діалог', 'діалоги', 'розмова', 'переписка'],
+    группа: ['группа', 'группы', 'группу', 'група', 'групи', 'спільнота'],
+    звонок: ['звонок', 'звонки', 'вызов', 'дзвінок', 'дзвінки', 'виклик'],
+    удалить: ['удалить', 'удаление', 'стереть', 'удалити', 'видалити', 'видалення'],
+    создать: ['создать', 'сделать', 'добавить', 'створити', 'додати']
+};
+
+function normalizeText(value = '') {
+    return String(value)
+        .toLowerCase()
+        .replace(/[ё]/g, 'е')
+        .replace(/[’']/g, '')
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function normalizeToken(token = '') {
+    let t = normalizeText(token);
+    // Простейшее стеммирование для RU/UK, чтобы снизить зависимость от формы слова.
+    t = t
+        .replace(/(ами|ями|ого|ему|ому|ах|ях|ий|ый|ой|ая|яя|ое|ее|ые|ие|ов|ев|ів|ів|ий|ій|ою|ею|ом|ем|ам|ям|у|ю|а|я|ы|і|ї|е)$/u, '');
+    return t;
+}
+
+function expandSynonyms(token) {
+    for (const list of Object.values(SEARCH_SYNONYMS)) {
+        if (list.includes(token)) {
+            return list.map(normalizeToken).filter(Boolean);
+        }
+    }
+    return [token];
+}
+
+function extractSearchTerms(text) {
+    const baseTokens = normalizeText(text)
+        .split(/\s+/)
+        .map(normalizeToken)
+        .filter(t => t.length >= 2 && !SEARCH_STOPWORDS.has(t));
+
+    const expanded = new Set();
+    for (const token of baseTokens) {
+        expanded.add(token);
+        for (const s of expandSynonyms(token)) expanded.add(s);
+    }
+
+    return [...expanded];
 }
 
 async function getKnowledgeList(ctx, limit = 20) {
@@ -254,6 +383,27 @@ async function forgetFact(ctx, keyword) {
     });
 }
 
+async function ensureMessengerKnowledgeBase(ctx) {
+    for (const item of MESSENGER_KB_SEED) {
+        await ctx.wo_bot_tasks.findOrCreate({
+            where: {
+                bot_id: WALLYBOT_ID,
+                title: item.keyword.toLowerCase().trim()
+            },
+            defaults: {
+                bot_id:      WALLYBOT_ID,
+                user_id:     OWNER_USER_ID,
+                chat_id:     String(OWNER_USER_ID),
+                title:       item.keyword.toLowerCase().trim(),
+                description: item.response,
+                status:      'done',
+                priority:    'low',
+                created_at:  new Date()
+            }
+        });
+    }
+}
+
 // ─── Вспомогательные функции управления ботами ───────────────────────────────
 
 async function getUserBots(ctx, userId) {
@@ -268,9 +418,10 @@ async function getUserBots(ctx, userId) {
 
 async function registerDefaultCommands(ctx, botId) {
     const defaults = [
-        { command: 'start',  description: 'Начать работу с ботом', sort_order: 0 },
-        { command: 'help',   description: 'Помощь и список команд', sort_order: 1 },
-        { command: 'cancel', description: 'Отменить действие',      sort_order: 2 }
+        { command: 'start',     description: 'Начать работу с ботом', sort_order: 0 },
+        { command: 'help',      description: 'Помощь и список команд', sort_order: 1 },
+        { command: 'messenger', description: 'Справка по функциям мессенджера', sort_order: 2 },
+        { command: 'cancel',    description: 'Отменить действие',      sort_order: 3 }
     ];
     for (const cmd of defaults) {
         await ctx.wo_bot_commands.findOrCreate({
@@ -290,6 +441,7 @@ async function handleStart(ctx, io, userId, userName) {
         btn('Мои боты',         'cmd_mybots'),
         btn('Обучить меня',     'cmd_learn'),
         btn('Спросить WallyBot','cmd_ask'),
+        btn('Функции мессенджера', 'cmd_messenger_guide'),
         btn('Помощь',           'cmd_help')
     ], 2);
     await sendToUser(ctx, io, userId, text, kb);
@@ -308,7 +460,8 @@ async function handleHelp(ctx, io, userId) {
         `*База знаний WallyBot:*\n` +
         `/learn — научить меня чему-то новому\n` +
         `/forget — забыть что-то\n` +
-        `/ask — задать вопрос\n\n` +
+        `/ask — задать вопрос\n` +
+        `/messenger — справка по функциям мессенджера\n\n` +
         `Просто напиши вопрос — я попробую ответить из базы знаний!`;
     await sendToUser(ctx, io, userId, text);
 }
@@ -417,6 +570,23 @@ async function handleForget(ctx, io, userId) {
 async function handleAsk(ctx, io, userId) {
     setState(userId, STATES.IDLE, {});
     await sendToUser(ctx, io, userId, 'Задай мне любой вопрос — и я поищу ответ в базе знаний!');
+}
+
+async function handleMessengerGuide(ctx, io, userId) {
+    clearState(userId);
+    const text = `*Справка по мессенджеру / Довідка по месенджеру*\n\n` +
+        `Я могу отвечать по функциям WorldMates. Примеры вопросов:\n` +
+        `• Как найти бота в мессенджере?\n` +
+        `• Как создать своего бота?\n` +
+        `• Как добавить бота в группу?\n` +
+        `• Як знайти бота в месенджері?\n` +
+        `• Як створити свого бота?\n\n` +
+        `Просто напиши вопрос обычным текстом — я постараюсь подобрать ответ.`;
+
+    return sendToUser(ctx, io, userId, text, inlineKeyboard([
+        btn('Задать вопрос', 'cmd_ask'),
+        btn('Помощь', 'cmd_help')
+    ]));
 }
 
 async function handleCancel(ctx, io, userId) {
@@ -643,6 +813,7 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
     if (callbackData === 'cmd_cancel')    return handleCancel(ctx, io, userId);
     if (callbackData === 'cmd_learn')     return handleLearn(ctx, io, userId);
     if (callbackData === 'cmd_ask')       return handleAsk(ctx, io, userId);
+    if (callbackData === 'cmd_messenger_guide') return handleMessengerGuide(ctx, io, userId);
 
     // ── Просмотр базы знаний ─────────────────────────────────────────────────
     if (callbackData === 'cmd_knowledge') {
@@ -866,6 +1037,7 @@ async function handleMessage(ctx, io, data) {
             learn:       () => handleLearn(ctx, io, userId),
             forget:      () => handleForget(ctx, io, userId),
             ask:         () => handleAsk(ctx, io, userId),
+            messenger:   () => handleMessengerGuide(ctx, io, userId),
             cancel:      () => handleCancel(ctx, io, userId)
         };
 
@@ -898,9 +1070,9 @@ async function handleMessage(ctx, io, data) {
             );
         }
 
-        // Дефолтный ответ
+        // Дефолтный ответ (RU/UK)
         await sendToUser(ctx, io, userId,
-            `Не знаю ответа на это.\n\nПопробуй:\n• /help — список команд\n• /newbot — создать бота\n• /learn — научи меня этому`,
+            `Не знаю ответа на это / Не знаю відповіді на це.\n\nПопробуй / Спробуй:\n• /help — список команд\n• /newbot — создать бота\n• /learn — научи меня этому`,
             inlineKeyboard([
                 btn('Главное меню', 'cmd_start'),
                 btn('Помощь',       'cmd_help')
@@ -972,6 +1144,7 @@ async function initializeWallyBot(ctx, io) {
 
         // ── 3. Команды WallyBot ──────────────────────────────────────────────
         await registerDefaultCommands(ctx, WALLYBOT_ID);
+        await ensureMessengerKnowledgeBase(ctx);
 
         const extraCommands = [
             { command: 'newbot',      description: 'Создать нового бота',             sort_order: 3 },
@@ -983,7 +1156,8 @@ async function initializeWallyBot(ctx, io) {
             { command: 'setdesc',     description: 'Изменить описание бота',          sort_order: 9 },
             { command: 'learn',       description: 'Научить WallyBot новому ответу',  sort_order: 10 },
             { command: 'forget',      description: 'Удалить ответ из базы знаний',    sort_order: 11 },
-            { command: 'ask',         description: 'Задать вопрос WallyBot',          sort_order: 12 }
+            { command: 'ask',         description: 'Задать вопрос WallyBot',          sort_order: 12 },
+            { command: 'messenger',   description: 'Справка по функциям мессенджера', sort_order: 13 }
         ];
 
         for (const cmd of extraCommands) {
