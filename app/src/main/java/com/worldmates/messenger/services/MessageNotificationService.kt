@@ -286,16 +286,28 @@ class MessageNotificationService : Service() {
 
             val msgId         = data.optLong("id", 0)
             val timestamp     = data.optLong("time", data.optLong("time_api", 0))
-            val iv            = data.optString("iv", null)
-            val tag           = data.optString("tag", null)
+            // Use takeIf to treat empty strings as null (same as MessagesViewModel)
+            val iv            = data.optString("iv",  null)?.takeIf { it.isNotEmpty() }
+            val tag           = data.optString("tag", null)?.takeIf { it.isNotEmpty() }
             val cipherVersion = if (data.has("cipher_version")) data.optInt("cipher_version", 1) else null
 
             // cipher_version=3 = Signal E2EE — server never has the plaintext.
             // Check the local plaintext cache written by MessagesViewModel; if the
             // message is not yet cached (user hasn't opened the chat) show a generic
             // indicator — this is correct behaviour for end-to-end encrypted chats.
+            //
+            // IMPORTANT: wrap SignalKeyStore access in its own try/catch so that a
+            // Keystore initialisation failure (e.g. right after reboot before first
+            // unlock, or on devices with restricted Keystore state) does NOT cause
+            // the entire handleMessage to silently abort via the outer catch block,
+            // which would result in NO notification being shown at all.
             val displayText = if (cipherVersion == 3) {
-                val cached = if (msgId > 0) SignalKeyStore(this).getCachedDecryptedMessage(msgId) else null
+                val cached = try {
+                    if (msgId > 0) SignalKeyStore(this).getCachedDecryptedMessage(msgId) else null
+                } catch (e: Exception) {
+                    Log.w(TAG, "SignalKeyStore unavailable in notification service — using fallback", e)
+                    null
+                }
                 cached ?: "🔐 Нове зашифроване повідомлення"
             } else {
                 decryptNotificationText(rawText, timestamp, iv, tag, cipherVersion, data)

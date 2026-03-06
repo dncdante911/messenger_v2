@@ -97,17 +97,23 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                                 // persistent plaintext cache written by MessagesViewModel instead.
                                 val decryptedText = when {
                                     msg.cipherVersion == 3 -> {
-                                        SignalKeyStore(context).getCachedDecryptedMessage(msg.id)
-                                            ?: "🔐 E2EE"
+                                        try {
+                                            SignalKeyStore(context).getCachedDecryptedMessage(msg.id)
+                                        } catch (e: Exception) {
+                                            Log.w("ChatsViewModel", "SignalKeyStore unavailable", e)
+                                            null
+                                        } ?: "🔐 E2EE"
                                     }
                                     encryptedText.isNotEmpty() -> {
-                                        DecryptionUtility.decryptMessageOrOriginal(
+                                        val result = DecryptionUtility.decryptMessageOrOriginal(
                                             text = encryptedText,
                                             timestamp = msg.timeStamp,
                                             iv = msg.iv,
                                             tag = msg.tag,
                                             cipherVersion = msg.cipherVersion
                                         )
+                                        // If decryption failed (result == original ciphertext), show placeholder
+                                        if (result == encryptedText) "🔐 Повідомлення" else result
                                     }
                                     else -> "" // Порожнє повідомлення (можливо медіа без тексту)
                                 }
