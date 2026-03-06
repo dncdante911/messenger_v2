@@ -870,6 +870,7 @@ fun ChannelListTab(
     val context = LocalContext.current
     val refreshing by remember { mutableStateOf(false) }
     val searchQuery by channelsViewModel.searchQuery.collectAsState()
+    val channelViewStyle = rememberChannelViewStyle()
     val pullRefreshState = rememberPullRefreshState(
         refreshing = refreshing,
         onRefresh = onRefresh
@@ -954,8 +955,6 @@ fun ChannelListTab(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                val channelViewStyle = com.worldmates.messenger.ui.preferences.UIStylePreferences.getChannelViewStyle()
-
                 items(
                     items = channels,
                     key = { it.id }
@@ -1150,6 +1149,7 @@ fun ChannelListTabWithStories(
     onCreateChannelStoryClick: () -> Unit = {}
 ) {
     val refreshing by remember { mutableStateOf(false) }
+    val channelViewStyle = rememberChannelViewStyle()
     val pullRefreshState = rememberPullRefreshState(
         refreshing = refreshing || isLoading,
         onRefresh = onRefresh
@@ -1219,8 +1219,6 @@ fun ChannelListTabWithStories(
                 }
 
                 // Channel list
-                val channelViewStyle = com.worldmates.messenger.ui.preferences.UIStylePreferences.getChannelViewStyle()
-
                 items(channels, key = { it.id }) { channel ->
                     when (channelViewStyle) {
                         com.worldmates.messenger.ui.preferences.ChannelViewStyle.PREMIUM -> {

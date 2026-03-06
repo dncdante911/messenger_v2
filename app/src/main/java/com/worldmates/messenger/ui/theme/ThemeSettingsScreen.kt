@@ -1839,7 +1839,7 @@ fun ChannelViewStyleSelector(
         ChannelViewStyleCard(
             title = stringResource(R.string.channel_style_classic),
             description = stringResource(R.string.channel_style_classic_desc),
-            emoji = "📋",
+            emoji = "🌍",
             isSelected = currentStyle == ChannelViewStyle.CLASSIC,
             onClick = { onStyleSelected(ChannelViewStyle.CLASSIC) },
             modifier = Modifier.weight(1f)
