@@ -50,10 +50,19 @@ async function loadConfig(ctx) {
   var endpoint_url = ctx.globalconfig['ftp_endpoint']; 
   ctx.globalconfig['ftp_endpoint'] = endpoint_url.replace('https://', '');
 
-   if (ctx.globalconfig["redis"] === "Y") {
-     const redisAdapter = require('socket.io-redis');
-     io.adapter(redisAdapter({ host: '127.0.0.1', port: ctx.globalconfig["redis_port"], auth_pass: '3344Frz@q0607Dm$157' }));
-   }
+   // NOTE: socket.io-redis adapter intentionally disabled.
+   // With a single Node.js process it provides no benefit, but it causes a
+   // critical failure: when Redis disconnects and reconnects, all socket room
+   // memberships stored in Redis are lost.  Subsequent io.to(room).emit()
+   // calls find no sockets and messages/notifications are silently dropped.
+   // PHP→Node.js message delivery still works via the separate Redis pub/sub
+   // subscriber in listeners.js (sub.subscribe('messages', ...)).
+   //
+   // if (ctx.globalconfig["redis"] === "Y") {
+   //   const redisAdapter = require('socket.io-redis');
+   //   io.adapter(redisAdapter({ host: '127.0.0.1', port: ctx.globalconfig["redis_port"], auth_pass: '3344Frz@q0607Dm$157' }));
+   // }
+
 
 
   if (ctx.globalconfig["nodejs_ssl"] == 1) {
