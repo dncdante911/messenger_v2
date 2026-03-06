@@ -8,6 +8,7 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SocketManager
+import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.DecryptionUtility
 import com.worldmates.messenger.utils.signal.SignalKeyStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -102,7 +103,7 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                                         } catch (e: Exception) {
                                             Log.w("ChatsViewModel", "SignalKeyStore unavailable", e)
                                             null
-                                        } ?: "🔐 E2EE"
+                                        } ?: context.getString(R.string.last_message_e2ee)
                                     }
                                     encryptedText.isNotEmpty() -> {
                                         val result = DecryptionUtility.decryptMessageOrOriginal(
@@ -112,8 +113,21 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                                             tag = msg.tag,
                                             cipherVersion = msg.cipherVersion
                                         )
-                                        // If decryption failed (result == original ciphertext), show placeholder
-                                        if (result == encryptedText) "🔐 Повідомлення" else result
+                                        // Only show placeholder when the text actually looks like
+                                        // ciphertext (Base64-structured, min length).  Plain text
+                                        // messages also satisfy result == encryptedText (unchanged),
+                                        // so we must distinguish them from real ciphertext.
+                                        if (result == encryptedText) {
+                                            val looksEncrypted = encryptedText.length >= 12 &&
+                                                encryptedText.length % 4 == 0 &&
+                                                encryptedText.all { c ->
+                                                    c.isLetterOrDigit() || c == '+' || c == '/' || c == '='
+                                                }
+                                            if (looksEncrypted)
+                                                context.getString(R.string.last_message_encrypted)
+                                            else
+                                                result
+                                        } else result
                                     }
                                     else -> "" // Порожнє повідомлення (можливо медіа без тексту)
                                 }

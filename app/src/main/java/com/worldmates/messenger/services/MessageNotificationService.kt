@@ -308,7 +308,7 @@ class MessageNotificationService : Service() {
                     Log.w(TAG, "SignalKeyStore unavailable in notification service — using fallback", e)
                     null
                 }
-                cached ?: "🔐 Нове зашифроване повідомлення"
+                cached ?: getString(R.string.notification_e2ee_message)
             } else {
                 decryptNotificationText(rawText, timestamp, iv, tag, cipherVersion, data)
             }
