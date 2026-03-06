@@ -1204,8 +1204,8 @@
     <!-- ===== CHANNEL VIEW STYLE ===== -->
     <string name="channel_view_style_title">Стиль каналов</string>
     <string name="channel_view_style_desc">Выберите внешний вид списка каналов</string>
-    <string name="channel_style_classic">Классический</string>
-    <string name="channel_style_classic_desc">Улучшенный список с категориями и иконками</string>
+    <string name="channel_style_classic">WorldMates</string>
+    <string name="channel_style_classic_desc">Стандартный список с категориями и иконками</string>
     <string name="channel_style_premium">Премиум</string>
     <string name="channel_style_premium_desc">Карточки с акцентами, тегами и инлайн-действиями</string>
 
