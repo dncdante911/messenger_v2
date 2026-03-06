@@ -45,6 +45,8 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.Brush
+import com.worldmates.messenger.ui.preferences.ChannelViewStyle
+import com.worldmates.messenger.ui.preferences.rememberChannelViewStyle
 import androidx.compose.material.icons.outlined.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import androidx.lifecycle.ViewModelProvider
@@ -138,6 +140,7 @@ fun ChannelDetailsScreen(
     onBackPressed: () -> Unit
 ) {
     val context = LocalContext.current
+    val channelViewStyle = rememberChannelViewStyle()
 
     // States from ViewModels
     val detailsChannel by detailsViewModel.channel.collectAsState()
@@ -283,11 +286,19 @@ fun ChannelDetailsScreen(
         Scaffold(
             containerColor = Color.Transparent, // Прозорий фон щоб був видно BackgroundImage
             floatingActionButton = {
-                // Premium FAB для створення поста (тільки для адмінів)
                 if (channel?.isAdmin == true) {
-                    PremiumFAB(
-                        onClick = { showCreatePostDialog = true }
-                    )
+                    if (channelViewStyle == ChannelViewStyle.PREMIUM) {
+                        PremiumFAB(
+                            onClick = { showCreatePostDialog = true }
+                        )
+                    } else {
+                        FloatingActionButton(
+                            onClick = { showCreatePostDialog = true },
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Create Post")
+                        }
+                    }
                 }
             }
         ) { paddingValues ->
@@ -331,28 +342,51 @@ fun ChannelDetailsScreen(
                             .fillMaxSize()
                             .pullRefresh(pullRefreshState)
                     ) {
-                        // Шапка каналу - Premium UI
+                        // Шапка каналу — залежить від стилю
                         item {
-                            PremiumChannelHeader(
-                                channel = channel,
-                                onBackClick = onBackPressed,
-                                onSettingsClick = if (channel.isAdmin) {
-                                    { showChannelMenuDialog = true }
-                                } else null,
-                                onSubscribersClick = {
-                                    detailsViewModel.loadSubscribers(channelId)
-                                    showSubscribersDialog = true
-                                },
-                                onAddMembersClick = if (channel.isAdmin) {
-                                    { showAddMembersDialog = true }
-                                } else null,
-                                onAvatarClick = if (channel.isAdmin) {
-                                    { showChangeAvatarDialog = true }
-                                } else null
-                            )
+                            when (channelViewStyle) {
+                                ChannelViewStyle.PREMIUM -> {
+                                    PremiumChannelHeader(
+                                        channel = channel,
+                                        onBackClick = onBackPressed,
+                                        onSettingsClick = if (channel.isAdmin) {
+                                            { showChannelMenuDialog = true }
+                                        } else null,
+                                        onSubscribersClick = {
+                                            detailsViewModel.loadSubscribers(channelId)
+                                            showSubscribersDialog = true
+                                        },
+                                        onAddMembersClick = if (channel.isAdmin) {
+                                            { showAddMembersDialog = true }
+                                        } else null,
+                                        onAvatarClick = if (channel.isAdmin) {
+                                            { showChangeAvatarDialog = true }
+                                        } else null
+                                    )
+                                }
+                                ChannelViewStyle.CLASSIC -> {
+                                    ChannelHeader(
+                                        channel = channel,
+                                        onBackClick = onBackPressed,
+                                        onSettingsClick = if (channel.isAdmin) {
+                                            { showChannelMenuDialog = true }
+                                        } else null,
+                                        onSubscribersClick = {
+                                            detailsViewModel.loadSubscribers(channelId)
+                                            showSubscribersDialog = true
+                                        },
+                                        onAddMembersClick = if (channel.isAdmin) {
+                                            { showAddMembersDialog = true }
+                                        } else null,
+                                        onAvatarClick = if (channel.isAdmin) {
+                                            { showChangeAvatarDialog = true }
+                                        } else null
+                                    )
+                                }
+                            }
                         }
 
-                        // Кнопка підписки (якщо не адмін) - Premium UI
+                        // Кнопка підписки (якщо не адмін)
                         if (!channel.isAdmin) {
                             item {
                                 Box(
@@ -360,133 +394,204 @@ fun ChannelDetailsScreen(
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
-                                    PremiumSubscribeButton(
-                                        isSubscribed = channel.isSubscribed,
-                                        onToggle = {
-                                            if (channel.isSubscribed) {
-                                                channelsViewModel.unsubscribeChannel(
-                                                    channelId = channelId,
-                                                    onSuccess = {
-                                                        Toast.makeText(context, "Ви відписалися від каналу", Toast.LENGTH_SHORT).show()
-                                                    },
-                                                    onError = { error ->
-                                                        Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                )
-                                            } else {
-                                                channelsViewModel.subscribeChannel(
-                                                    channelId = channelId,
-                                                    onSuccess = {
-                                                        Toast.makeText(context, "Ви підписалися на канал!", Toast.LENGTH_SHORT).show()
-                                                    },
-                                                    onError = { error ->
-                                                        Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
+                                    val subscribeToggle: () -> Unit = {
+                                        if (channel.isSubscribed) {
+                                            channelsViewModel.unsubscribeChannel(
+                                                channelId = channelId,
+                                                onSuccess = {
+                                                    Toast.makeText(context, "Ви відписалися від каналу", Toast.LENGTH_SHORT).show()
+                                                },
+                                                onError = { error ->
+                                                    Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                                }
+                                            )
+                                        } else {
+                                            channelsViewModel.subscribeChannel(
+                                                channelId = channelId,
+                                                onSuccess = {
+                                                    Toast.makeText(context, "Ви підписалися на канал!", Toast.LENGTH_SHORT).show()
+                                                },
+                                                onError = { error ->
+                                                    Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                                }
+                                            )
+                                        }
+                                    }
+                                    when (channelViewStyle) {
+                                        ChannelViewStyle.PREMIUM -> PremiumSubscribeButton(
+                                            isSubscribed = channel.isSubscribed,
+                                            onToggle = subscribeToggle,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        ChannelViewStyle.CLASSIC -> ModernSubscribeButton(
+                                            isSubscribed = channel.isSubscribed,
+                                            onToggle = subscribeToggle
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
 
-                        // Заголовок секції постів - Premium UI
+                        // Заголовок секції постів
                         item {
-                            PremiumSectionHeader(
-                                title = "Posts",
-                                count = posts.size
-                            )
+                            if (channelViewStyle == ChannelViewStyle.PREMIUM) {
+                                PremiumSectionHeader(
+                                    title = "Posts",
+                                    count = posts.size
+                                )
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Posts",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (posts.isNotEmpty()) {
+                                        Text(
+                                            text = "${posts.size}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
                             Spacer(modifier = Modifier.height(4.dp))
                         }
 
-                        // Список постів - Premium UI
+                        // Список постів — залежить від стилю
                         if (posts.isEmpty() && !isLoadingPosts) {
                             item {
-                                PremiumEmptyState(
-                                    icon = Icons.Outlined.Article,
-                                    title = "No posts yet",
-                                    subtitle = if (channel.isAdmin) "Create your first post!" else null,
-                                    action = if (channel.isAdmin) {
-                                        {
-                                            Button(
-                                                onClick = { showCreatePostDialog = true },
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = PremiumColors.TelegramBlue
-                                                )
-                                            ) {
-                                                Icon(Icons.Default.Add, contentDescription = null)
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text("Create Post")
+                                if (channelViewStyle == ChannelViewStyle.PREMIUM) {
+                                    PremiumEmptyState(
+                                        icon = Icons.Outlined.Article,
+                                        title = "No posts yet",
+                                        subtitle = if (channel.isAdmin) "Create your first post!" else null,
+                                        action = if (channel.isAdmin) {
+                                            {
+                                                Button(
+                                                    onClick = { showCreatePostDialog = true },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = PremiumColors.TelegramBlue
+                                                    )
+                                                ) {
+                                                    Icon(Icons.Default.Add, contentDescription = null)
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("Create Post")
+                                                }
                                             }
-                                        }
-                                    } else null
-                                )
+                                        } else null
+                                    )
+                                } else {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(48.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Article,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text(
+                                            "No posts yet",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
                             }
                         } else {
                             items(
                                 items = posts.sortedByDescending { it.createdTime },
                                 key = { it.id }
                             ) { post ->
-                                // Premium Post Card
-                                PremiumPostCard(
-                                    post = post,
-                                    onPostClick = {
-                                        selectedPostForDetail = post
-                                        detailsViewModel.loadComments(post.id)
-                                        detailsViewModel.registerPostView(
-                                            postId = post.id,
-                                            onSuccess = { /* View registered */ },
-                                            onError = { /* Silent fail */ }
-                                        )
-                                        showPostDetailDialog = true
-                                    },
-                                    onReactionClick = { emoji ->
-                                        detailsViewModel.addPostReaction(
-                                            postId = post.id,
-                                            emoji = emoji,
-                                            onSuccess = {
-                                                Toast.makeText(context, "Reaction added!", Toast.LENGTH_SHORT).show()
-                                            },
-                                            onError = { error ->
-                                                Toast.makeText(context, "Error: $error", Toast.LENGTH_SHORT).show()
-                                            }
-                                        )
-                                    },
-                                    onCommentsClick = {
-                                        detailsViewModel.loadComments(post.id)
-                                        showCommentsSheet = true
-                                    },
-                                    onShareClick = {
-                                        val shareText = buildString {
-                                            append(post.text)
-                                            append("\n\n")
-                                            append("By: ${post.authorName ?: post.authorUsername ?: "User #${post.authorId}"}")
-                                            append("\n")
-                                            append("Channel: ${channel?.name ?: "WorldMates Channel"}")
+                                val onPostClickHandler: () -> Unit = {
+                                    selectedPostForDetail = post
+                                    detailsViewModel.loadComments(post.id)
+                                    detailsViewModel.registerPostView(
+                                        postId = post.id,
+                                        onSuccess = { /* View registered */ },
+                                        onError = { /* Silent fail */ }
+                                    )
+                                    showPostDetailDialog = true
+                                }
+                                val onReactionClickHandler: (String) -> Unit = { emoji ->
+                                    detailsViewModel.addPostReaction(
+                                        postId = post.id,
+                                        emoji = emoji,
+                                        onSuccess = {
+                                            Toast.makeText(context, "Reaction added!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        onError = { error ->
+                                            Toast.makeText(context, "Error: $error", Toast.LENGTH_SHORT).show()
                                         }
+                                    )
+                                }
+                                val onCommentsClickHandler: () -> Unit = {
+                                    detailsViewModel.loadComments(post.id)
+                                    showCommentsSheet = true
+                                }
+                                val onShareClickHandler: () -> Unit = {
+                                    val shareText = buildString {
+                                        append(post.text)
+                                        append("\n\n")
+                                        append("By: ${post.authorName ?: post.authorUsername ?: "User #${post.authorId}"}")
+                                        append("\n")
+                                        append("Channel: ${channel?.name ?: "WorldMates Channel"}")
+                                    }
+                                    val sendIntent = android.content.Intent().apply {
+                                        action = android.content.Intent.ACTION_SEND
+                                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                        type = "text/plain"
+                                    }
+                                    val shareIntent = android.content.Intent.createChooser(sendIntent, "Share post")
+                                    context.startActivity(shareIntent)
+                                }
+                                val onMoreClickHandler: () -> Unit = {
+                                    selectedPostForOptions = post
+                                    showPostOptions = true
+                                }
 
-                                        val sendIntent = android.content.Intent().apply {
-                                            action = android.content.Intent.ACTION_SEND
-                                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                                            type = "text/plain"
-                                        }
-
-                                        val shareIntent = android.content.Intent.createChooser(sendIntent, "Share post")
-                                        context.startActivity(shareIntent)
-                                    },
-                                    onMoreClick = {
-                                        selectedPostForOptions = post
-                                        showPostOptions = true
-                                    },
-                                    canEdit = channel.isAdmin,
-                                    modifier = Modifier.animateItem()
-                                )
+                                when (channelViewStyle) {
+                                    ChannelViewStyle.PREMIUM -> {
+                                        PremiumPostCard(
+                                            post = post,
+                                            onPostClick = onPostClickHandler,
+                                            onReactionClick = onReactionClickHandler,
+                                            onCommentsClick = onCommentsClickHandler,
+                                            onShareClick = onShareClickHandler,
+                                            onMoreClick = onMoreClickHandler,
+                                            canEdit = channel.isAdmin,
+                                            modifier = Modifier.animateItem()
+                                        )
+                                    }
+                                    ChannelViewStyle.CLASSIC -> {
+                                        ChannelPostCard(
+                                            post = post,
+                                            onPostClick = onPostClickHandler,
+                                            onReactionClick = onReactionClickHandler,
+                                            onCommentsClick = onCommentsClickHandler,
+                                            onShareClick = onShareClickHandler,
+                                            onMoreClick = onMoreClickHandler,
+                                            canEdit = channel.isAdmin,
+                                            modifier = Modifier.animateItem()
+                                        )
+                                    }
+                                }
                             }
                         }
 
-                        // Premium Loading Indicator
                         if (isLoadingPosts && posts.isNotEmpty()) {
                             item {
                                 Box(
@@ -497,7 +602,10 @@ fun ChannelDetailsScreen(
                                 ) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(32.dp),
-                                        color = PremiumColors.TelegramBlue
+                                        color = if (channelViewStyle == ChannelViewStyle.PREMIUM)
+                                            PremiumColors.TelegramBlue
+                                        else
+                                            MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }

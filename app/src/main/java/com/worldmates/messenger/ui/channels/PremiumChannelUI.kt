@@ -609,6 +609,8 @@ fun PremiumPostCard(
     val cardBg = if (isDarkTheme) PremiumColors.CardDark else PremiumColors.CardLight
     val textPrimary = if (isDarkTheme) PremiumColors.TextPrimaryDark else PremiumColors.TextPrimaryLight
     val textSecondary = if (isDarkTheme) PremiumColors.TextSecondaryDark else PremiumColors.TextSecondaryLight
+    val hasReactions = post.reactions?.isNotEmpty() == true
+    val reactionsCount = post.reactions?.sumOf { it.count } ?: 0
 
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -620,165 +622,248 @@ fun PremiumPostCard(
         label = "post_scale"
     )
 
+    // Accent gradient stripe color based on pinned state
+    val accentGradient = if (post.isPinned) {
+        Brush.verticalGradient(listOf(PremiumColors.WarningOrange, PremiumColors.TelegramBlue))
+    } else {
+        Brush.verticalGradient(listOf(PremiumColors.TelegramBlue, Color(0xFF7C4DFF)))
+    }
+
     Card(
         onClick = onPostClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             },
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Post header
-            Row(
+        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            // Left accent stripe — визуальный акцент Premium стиля
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Author avatar
-                PremiumSmallAvatar(
-                    avatarUrl = post.authorAvatar ?: "",
-                    name = post.authorName ?: post.authorUsername ?: "User",
-                    size = 44.dp
-                )
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(accentGradient, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
+            )
 
-                Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                // Pinned badge
+                if (post.isPinned) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                PremiumColors.TelegramBlue.copy(alpha = 0.08f)
+                            )
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.PushPin,
+                            contentDescription = "Pinned",
+                            tint = PremiumColors.TelegramBlue,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Pinned Post",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PremiumColors.TelegramBlue
+                        )
+                    }
+                }
 
-                // Author info
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                // Post header — увеличенный для удобства 60+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Author avatar — крупнее
+                    PremiumSmallAvatar(
+                        avatarUrl = post.authorAvatar ?: "",
+                        name = post.authorName ?: post.authorUsername ?: "User",
+                        size = 52.dp
+                    )
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    // Author info — крупный шрифт
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
                             color = textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (post.isPinned) {
-                            Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = formatPostTime(post.createdTime),
+                            fontSize = 14.sp,
+                            color = textSecondary
+                        )
+                    }
+
+                    // More options button
+                    if (canEdit) {
+                        IconButton(
+                            onClick = onMoreClick,
+                            modifier = Modifier.size(44.dp)
+                        ) {
                             Icon(
-                                Icons.Default.PushPin,
-                                contentDescription = "Pinned",
-                                tint = PremiumColors.TelegramBlue,
-                                modifier = Modifier.size(14.dp)
+                                Icons.Default.MoreVert,
+                                contentDescription = "More",
+                                tint = textSecondary,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
+                }
+
+                // Post content — крупный шрифт для удобства чтения
+                if (post.text.isNotBlank()) {
                     Text(
-                        text = formatPostTime(post.createdTime),
-                        fontSize = 13.sp,
+                        text = post.text,
+                        fontSize = 17.sp,
+                        color = textPrimary,
+                        lineHeight = 26.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                // Media content
+                if (!post.media.isNullOrEmpty()) {
+                    PremiumMediaGallery(
+                        media = post.media!!,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                // Views counter
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.Visibility,
+                        contentDescription = null,
+                        tint = textSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = "${formatCountPremium(post.viewsCount)} views",
+                        fontSize = 14.sp,
                         color = textSecondary
                     )
                 }
 
-                // More options button
-                if (canEdit) {
-                    IconButton(
-                        onClick = onMoreClick,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "More",
-                            tint = textSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Divider
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
+                )
+
+                // Action buttons — крупные кнопки для удобства нажатия
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    // Like button — с цветным фоном при нажатии
+                    PremiumPostActionButton(
+                        icon = if (hasReactions) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                        label = if (hasReactions) "$reactionsCount" else "Like",
+                        onClick = { onReactionClick("\uD83D\uDC4D") },
+                        isActive = hasReactions,
+                        activeColor = PremiumColors.TelegramBlue,
+                        inactiveColor = textSecondary,
+                        isDarkTheme = isDarkTheme
+                    )
+
+                    // Comments button
+                    PremiumPostActionButton(
+                        icon = Icons.Outlined.ChatBubbleOutline,
+                        label = if (post.commentsCount > 0) "${post.commentsCount}" else "Comment",
+                        onClick = onCommentsClick,
+                        isActive = post.commentsCount > 0,
+                        activeColor = PremiumColors.SuccessGreen,
+                        inactiveColor = textSecondary,
+                        isDarkTheme = isDarkTheme
+                    )
+
+                    // Share button
+                    PremiumPostActionButton(
+                        icon = Icons.Outlined.Share,
+                        label = "Share",
+                        onClick = onShareClick,
+                        isActive = false,
+                        activeColor = PremiumColors.TelegramBlue,
+                        inactiveColor = textSecondary,
+                        isDarkTheme = isDarkTheme
+                    )
                 }
             }
-
-            // Post content
-            if (post.text.isNotBlank()) {
-                Text(
-                    text = post.text,
-                    fontSize = 15.sp,
-                    color = textPrimary,
-                    lineHeight = 22.sp,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // Media content
-            if (!post.media.isNullOrEmpty()) {
-                PremiumMediaGallery(
-                    media = post.media!!,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // Views counter
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Outlined.Visibility,
-                    contentDescription = null,
-                    tint = textSecondary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "${formatCountPremium(post.viewsCount)} views",
-                    fontSize = 13.sp,
-                    color = textSecondary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Divider
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
-            )
-
-            // Action buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                // Reactions
-                PremiumActionButton(
-                    icon = if (post.reactions?.isNotEmpty() ?:false ) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
-                    label = if (post.reactions?.isNotEmpty() ?:false ) "${post.reactions.sumOf { it.count }}" else "Like",
-                    onClick = { onReactionClick("\uD83D\uDC4D") },
-                    color = if (post.reactions?.isNotEmpty() ?:false ) PremiumColors.TelegramBlue else textSecondary,
-                    isDarkTheme = isDarkTheme
-                )
-
-                // Comments
-                PremiumActionButton(
-                    icon = Icons.Outlined.ChatBubbleOutline,
-                    label = if (post.commentsCount > 0) "${post.commentsCount}" else "Comment",
-                    onClick = onCommentsClick,
-                    color = textSecondary,
-                    isDarkTheme = isDarkTheme
-                )
-
-                // Share
-                PremiumActionButton(
-                    icon = Icons.Outlined.Share,
-                    label = "Share",
-                    onClick = onShareClick,
-                    color = textSecondary,
-                    isDarkTheme = isDarkTheme
-                )
-            }
         }
+    }
+}
+
+/**
+ * Кнопка действия для Premium поста — крупная, удобная для нажатия
+ */
+@Composable
+private fun PremiumPostActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    isActive: Boolean,
+    activeColor: Color,
+    inactiveColor: Color,
+    isDarkTheme: Boolean
+) {
+    val color = if (isActive) activeColor else inactiveColor
+    val bgColor = if (isActive) activeColor.copy(alpha = 0.1f) else Color.Transparent
+
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.height(48.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.textButtonColors(
+            containerColor = bgColor,
+            contentColor = color
+        )
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+            color = color
+        )
     }
 }
 
