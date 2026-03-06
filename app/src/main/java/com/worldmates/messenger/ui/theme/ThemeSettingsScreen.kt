@@ -73,9 +73,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.preferences.BubbleStyle
+import com.worldmates.messenger.ui.preferences.ChannelViewStyle
 import com.worldmates.messenger.ui.preferences.UIStyle
 import com.worldmates.messenger.ui.preferences.UIStylePreferences
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
+import com.worldmates.messenger.ui.preferences.rememberChannelViewStyle
 import com.worldmates.messenger.ui.preferences.rememberUIStyle
 import androidx.compose.foundation.lazy.LazyRow
 
@@ -274,6 +276,7 @@ fun ThemeSettingsScreen(
     ) { paddingValues ->
         val currentBubbleStyle = rememberBubbleStyle()
         val currentUIStyle = rememberUIStyle()
+        val currentChannelViewStyle = rememberChannelViewStyle()
         val currentQuickReaction by UIStylePreferences.quickReaction.collectAsState()
 
         LazyColumn(
@@ -404,6 +407,25 @@ fun ThemeSettingsScreen(
                 UIStyleToggleRow(
                     currentStyle = currentUIStyle,
                     onStyleSelected = { UIStylePreferences.setStyle(context, it) },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // 6.5. СТИЛЬ КАНАЛІВ — вибір вигляду списку каналів
+            // ══════════════════════════════════════════════════════════════════
+            item {
+                ThemeSectionHeader(
+                    emoji = "📢",
+                    title = stringResource(R.string.channel_view_style_title),
+                    subtitle = stringResource(R.string.channel_view_style_desc),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                ChannelViewStyleSelector(
+                    currentStyle = currentChannelViewStyle,
+                    onStyleSelected = { UIStylePreferences.setChannelViewStyle(context, it) },
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
@@ -1793,6 +1815,148 @@ fun QuickReactionLazyRow(
                 isSelected = emoji == currentReaction,
                 onClick = { onReactionSelected(emoji) }
             )
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CHANNEL VIEW STYLE SELECTOR
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Селектор стилю відображення каналів — дві картки поруч
+ */
+@Composable
+fun ChannelViewStyleSelector(
+    currentStyle: ChannelViewStyle,
+    onStyleSelected: (ChannelViewStyle) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        ChannelViewStyleCard(
+            title = stringResource(R.string.channel_style_classic),
+            description = stringResource(R.string.channel_style_classic_desc),
+            emoji = "📋",
+            isSelected = currentStyle == ChannelViewStyle.CLASSIC,
+            onClick = { onStyleSelected(ChannelViewStyle.CLASSIC) },
+            modifier = Modifier.weight(1f)
+        )
+        ChannelViewStyleCard(
+            title = stringResource(R.string.channel_style_premium),
+            description = stringResource(R.string.channel_style_premium_desc),
+            emoji = "💎",
+            isSelected = currentStyle == ChannelViewStyle.PREMIUM,
+            onClick = { onStyleSelected(ChannelViewStyle.PREMIUM) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun ChannelViewStyleCard(
+    title: String,
+    description: String,
+    emoji: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.03f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "channel_style_scale"
+    )
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(300),
+        label = "channel_style_border"
+    )
+
+    Card(
+        modifier = modifier
+            .scale(scale)
+            .then(
+                if (isSelected) Modifier.border(
+                    width = 2.dp,
+                    color = borderColor,
+                    shape = RoundedCornerShape(16.dp)
+                ) else Modifier
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            else
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 4.dp else 1.dp
+        ),
+        onClick = onClick
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = emoji,
+                fontSize = 28.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = description,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                lineHeight = 14.sp,
+                maxLines = 2
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (isSelected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .border(
+                            width = 1.5.dp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                            shape = CircleShape
+                        )
+                )
+            }
         }
     }
 }
