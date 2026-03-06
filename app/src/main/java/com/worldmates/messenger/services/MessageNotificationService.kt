@@ -422,7 +422,7 @@ class MessageNotificationService : Service() {
                 msgType.contains("file", ignoreCase = true) || media.contains("/files/") -> "\uD83D\uDCCE Файл"
                 msgType.contains("sticker", ignoreCase = true) -> "\uD83C\uDFAD Стікер"
                 media.isNotEmpty() -> "\uD83D\uDCCE Медіа"
-                else -> "Нове повідомлення"
+                else -> getString(R.string.new_message_fallback)
             }
         }
 
@@ -446,8 +446,8 @@ class MessageNotificationService : Service() {
             return rawText
         }
 
-        // Fallback — не показуємо зашифрований текст
-        return "Нове повідомлення"
+        // Fallback — text is ciphertext or unreadable
+        return getString(R.string.new_message_fallback)
     }
 
     /**
