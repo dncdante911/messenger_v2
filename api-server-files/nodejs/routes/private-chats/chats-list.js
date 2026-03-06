@@ -123,16 +123,21 @@ function getChats(ctx, io) {
                 if (last) {
                     const pos  = last.from_id === userId ? 'right' : 'left';
                     lastMsg = {
-                        id:        last.id,
-                        from_id:   last.from_id,
-                        to_id:     last.to_id,
-                        text:      last.text     || '',
-                        media:     last.media    || '',
-                        stickers:  last.stickers || '',
-                        time:      last.time,
-                        time_text: fmtTime(last.time),
-                        seen:      last.seen,
-                        position:  pos,
+                        id:             last.id,
+                        from_id:        last.from_id,
+                        to_id:          last.to_id,
+                        text:           last.text           || '',
+                        iv:             last.iv             || null,
+                        tag:            last.tag            || null,
+                        cipher_version: last.cipher_version ?? null,
+                        signal_header:  last.signal_header  || null,
+                        type_two:       last.type_two       || '',
+                        media:          last.media          || '',
+                        stickers:       last.stickers       || '',
+                        time:           last.time,
+                        time_text:      fmtTime(last.time),
+                        seen:           last.seen,
+                        position:       pos,
                     };
                 }
 

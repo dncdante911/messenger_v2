@@ -1408,6 +1408,12 @@
 
     <!-- Notification fallback text (when preview is disabled) -->
     <string name="new_message_fallback">Новое сообщение</string>
+    <!-- Chat list: last message could not be decrypted (AES/GCM without iv/tag) -->
+    <string name="last_message_encrypted">🔐 Сообщение</string>
+    <!-- Chat list: Signal Protocol (E2EE) message not yet cached locally -->
+    <string name="last_message_e2ee">🔐 E2EE</string>
+    <!-- Notification: Signal (E2EE) message when cache is unavailable -->
+    <string name="notification_e2ee_message">🔐 Новое зашифрованное сообщение</string>
 
     <!-- ===== GROUP MEMBERS MANAGEMENT ===== -->
     <string name="members_count_title">Участники • %d</string>
