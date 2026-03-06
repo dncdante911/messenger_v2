@@ -970,8 +970,8 @@
     <string name="invalid_code_try_again">Невірний код. Спробуйте ще раз.</string>
     <string name="save_codes_warning">Збережіть ці коди!</string>
     <string name="save_codes_desc">Використовуйте їх, якщо втратите доступ до Google Authenticator</string>
-    <string name="2fa_status_enabled">2FA Увімкнено</string>
-    <string name="2fa_status_disabled">2FA Вимкнено</string>
+    <string name="two_status_enabled">2FA Увімкнено</string>
+    <string name="two_status_disabled">2FA Вимкнено</string>
 
     <!-- ===== PIN SCREEN ===== -->
     <string name="create_pin_title">Створити PIN-код</string>
