@@ -34,7 +34,10 @@ import com.worldmates.messenger.data.ContactNicknameRepository
 import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.data.model.Group
 import com.worldmates.messenger.ui.channels.ChannelCard
+import com.worldmates.messenger.ui.channels.PremiumChannelListItem
+import com.worldmates.messenger.ui.preferences.ChannelViewStyle
 import com.worldmates.messenger.ui.preferences.UIStyle
+import com.worldmates.messenger.ui.preferences.rememberChannelViewStyle
 import com.worldmates.messenger.ui.preferences.rememberUIStyle
 import com.worldmates.messenger.ui.theme.ExpressiveFAB
 import com.worldmates.messenger.ui.theme.ExpressiveIconButton
@@ -951,21 +954,17 @@ fun ChannelListTab(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
+                val channelViewStyle = com.worldmates.messenger.ui.preferences.UIStylePreferences.getChannelViewStyle()
+
                 items(
                     items = channels,
                     key = { it.id }
                 ) { channel ->
-                    // Користувач може вибрати стиль в налаштуваннях
-                    when (uiStyle) {
-                        com.worldmates.messenger.ui.preferences.UIStyle.TELEGRAM -> {
-                            com.worldmates.messenger.ui.channels.TelegramChannelItem(
-                                channel = channel,
-                                onClick = { onChannelClick(channel) },
-                                modifier = Modifier.animateItem()
-                            )
-                        }
-                        com.worldmates.messenger.ui.preferences.UIStyle.WORLDMATES -> {
-                            com.worldmates.messenger.ui.channels.ChannelCard(
+                    // Спершу перевіряємо ChannelViewStyle, потім UIStyle
+                    when (channelViewStyle) {
+                        com.worldmates.messenger.ui.preferences.ChannelViewStyle.PREMIUM -> {
+                            // Преміальний вид каналів
+                            PremiumChannelListItem(
                                 channel = channel,
                                 onClick = { onChannelClick(channel) },
                                 onSubscribeToggle = { isCurrentlySubscribed ->
@@ -992,9 +991,53 @@ fun ChannelListTab(
                                     }
                                 },
                                 modifier = Modifier
-                                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
                                     .animateItem()
                             )
+                        }
+                        com.worldmates.messenger.ui.preferences.ChannelViewStyle.CLASSIC -> {
+                            // Класичний вид — залежить від UIStyle
+                            when (uiStyle) {
+                                com.worldmates.messenger.ui.preferences.UIStyle.TELEGRAM -> {
+                                    com.worldmates.messenger.ui.channels.TelegramChannelItem(
+                                        channel = channel,
+                                        onClick = { onChannelClick(channel) },
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
+                                com.worldmates.messenger.ui.preferences.UIStyle.WORLDMATES -> {
+                                    com.worldmates.messenger.ui.channels.ChannelCard(
+                                        channel = channel,
+                                        onClick = { onChannelClick(channel) },
+                                        onSubscribeToggle = { isCurrentlySubscribed ->
+                                            if (isCurrentlySubscribed) {
+                                                channelsViewModel.unsubscribeChannel(
+                                                    channelId = channel.id,
+                                                    onSuccess = {
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.unsubscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    onError = { error ->
+                                                        android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                )
+                                            } else {
+                                                channelsViewModel.subscribeChannel(
+                                                    channelId = channel.id,
+                                                    onSuccess = {
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.subscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    onError = { error ->
+                                                        android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                                            .animateItem()
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1176,12 +1219,51 @@ fun ChannelListTabWithStories(
                 }
 
                 // Channel list
+                val channelViewStyle = com.worldmates.messenger.ui.preferences.UIStylePreferences.getChannelViewStyle()
+
                 items(channels, key = { it.id }) { channel ->
-                    com.worldmates.messenger.ui.channels.TelegramChannelItem(
-                        channel = channel,
-                        onClick = { onChannelClick(channel) },
-                        modifier = Modifier.animateItem()
-                    )
+                    when (channelViewStyle) {
+                        com.worldmates.messenger.ui.preferences.ChannelViewStyle.PREMIUM -> {
+                            val context = androidx.compose.ui.platform.LocalContext.current
+                            PremiumChannelListItem(
+                                channel = channel,
+                                onClick = { onChannelClick(channel) },
+                                onSubscribeToggle = { isCurrentlySubscribed ->
+                                    if (isCurrentlySubscribed) {
+                                        channelsViewModel.unsubscribeChannel(
+                                            channelId = channel.id,
+                                            onSuccess = {
+                                                android.widget.Toast.makeText(context, context.getString(R.string.unsubscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                            },
+                                            onError = { error ->
+                                                android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    } else {
+                                        channelsViewModel.subscribeChannel(
+                                            channelId = channel.id,
+                                            onSuccess = {
+                                                android.widget.Toast.makeText(context, context.getString(R.string.subscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                            },
+                                            onError = { error ->
+                                                android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    }
+                                },
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                                    .animateItem()
+                            )
+                        }
+                        com.worldmates.messenger.ui.preferences.ChannelViewStyle.CLASSIC -> {
+                            com.worldmates.messenger.ui.channels.TelegramChannelItem(
+                                channel = channel,
+                                onClick = { onChannelClick(channel) },
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -1211,6 +1211,15 @@
     <string name="interface_style_desc">Оберіть стиль відображення чатів та груп</string>
     <string name="interface_modern_desc">Картки з градієнтами та анімаціями</string>
     <string name="interface_classic_desc">Мінімалістичний класичний стиль</string>
+
+    <!-- ===== CHANNEL VIEW STYLE ===== -->
+    <string name="channel_view_style_title">Стиль каналів</string>
+    <string name="channel_view_style_desc">Оберіть вигляд списку каналів</string>
+    <string name="channel_style_classic">Класичний</string>
+    <string name="channel_style_classic_desc">Покращений список з категоріями та іконками</string>
+    <string name="channel_style_premium">Преміум</string>
+    <string name="channel_style_premium_desc">Картки з акцентами, тегами та інлайн-діями</string>
+
     <string name="bubble_style_section">🎨 Стиль бульбашок</string>
     <string name="bubble_style_desc">Оберіть дизайн бульбашок повідомлень</string>
     <string name="quick_reaction_section">❤️ Швидка реакція</string>
