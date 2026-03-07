@@ -465,6 +465,16 @@
     <string name="views_label">переглядів</string>
     <string name="comments_label">Коментарі</string>
     <string name="share_post">Поділитись</string>
+
+    <!-- Channel detail screen -->
+    <string name="channel_detail_subscribers">підписників</string>
+    <string name="channel_detail_posts">постів</string>
+    <string name="channel_detail_pinned">Закріплено</string>
+    <string name="channel_detail_subscribe">Підписатися</string>
+    <string name="channel_detail_subscribed">Підписано</string>
+    <string name="channel_detail_create_post">Створити пост</string>
+    <string name="channel_detail_no_posts">Постів ще немає</string>
+    <string name="channel_detail_create_first">Створіть перший пост!</string>
     <string name="reactions_count">Реакцій</string>
     <string name="subscriber_dynamics">Динаміка підписників</string>
     <string name="views_trend">Тренд переглядів</string>

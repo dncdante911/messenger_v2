@@ -5,8 +5,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,16 +15,19 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,42 +44,15 @@ import java.util.*
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 
-// ==================== PREMIUM COLOR PALETTE ====================
-
-object PremiumColors {
-    // Primary accent colors
-    val TelegramBlue = Color(0xFF0088CC)
-    val TelegramBlueDark = Color(0xFF006699)
-    val TelegramBlueLight = Color(0xFF54A9EB)
-
-    // Gradient colors
-    val GradientStart = Color(0xFF667eea)
-    val GradientMiddle = Color(0xFF764ba2)
-    val GradientEnd = Color(0xFFf093fb)
-
-    // Premium gradients
-    val PremiumGold = Color(0xFFFFD700)
-    val PremiumOrange = Color(0xFFFF8C00)
-
-    // Status colors
-    val SuccessGreen = Color(0xFF00C853)
-    val WarningOrange = Color(0xFFFF9800)
-    val ErrorRed = Color(0xFFFF5252)
-
-    // Neutral colors
-    val SurfaceLight = Color(0xFFF8F9FA)
-    val SurfaceDark = Color(0xFF1E1E1E)
-    val CardLight = Color(0xFFFFFFFF)
-    val CardDark = Color(0xFF2D2D2D)
-
-    // Text colors
-    val TextPrimaryLight = Color(0xFF1A1A1A)
-    val TextSecondaryLight = Color(0xFF6B7280)
-    val TextPrimaryDark = Color(0xFFFFFFFF)
-    val TextSecondaryDark = Color(0xFF9CA3AF)
-}
+/**
+ * Premium Channel UI — radically different design.
+ * Magazine/editorial style: clean typography, generous whitespace,
+ * accent lines instead of cards, full-bleed media, inline actions.
+ * All colors from MaterialTheme — follows app palette.
+ */
 
 // ==================== PREMIUM CHANNEL HEADER ====================
+// Toolbar-style header: avatar + info inline, stats as small text, no big cards
 
 @Composable
 fun PremiumChannelHeader(
@@ -90,509 +64,299 @@ fun PremiumChannelHeader(
     onAddMembersClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val cardColor = if (isDarkTheme) PremiumColors.CardDark else PremiumColors.CardLight
-    val textPrimary = if (isDarkTheme) PremiumColors.TextPrimaryDark else PremiumColors.TextPrimaryLight
-    val textSecondary = if (isDarkTheme) PremiumColors.TextSecondaryDark else PremiumColors.TextSecondaryLight
+    val colorScheme = MaterialTheme.colorScheme
 
-    // Animated gradient offset
-    val infiniteTransition = rememberInfiniteTransition(label = "header_gradient")
-    val gradientOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(10000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "gradient_offset"
-    )
-
-    Box(
-        modifier = modifier.fillMaxWidth()
-    ) {
-        // Animated gradient background
-        Box(
+    Column(modifier = modifier.fillMaxWidth()) {
+        // Top bar — slim, functional
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(380.dp)
-                .drawBehind {
-                    drawRect(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                PremiumColors.GradientStart.copy(alpha = 0.4f),
-                                PremiumColors.GradientMiddle.copy(alpha = 0.3f),
-                                PremiumColors.TelegramBlue.copy(alpha = 0.2f),
-                                if (isDarkTheme) PremiumColors.SurfaceDark else PremiumColors.SurfaceLight
-                            ),
-                            start = Offset(gradientOffset, 0f),
-                            end = Offset(gradientOffset + 500f, size.height)
-                        )
-                    )
-                }
-        )
-
-        // Decorative blur circles
-        Box(
-            modifier = Modifier
-                .offset(x = (-60).dp, y = (-40).dp)
-                .size(200.dp)
-                .blur(80.dp)
-                .background(
-                    color = PremiumColors.TelegramBlue.copy(alpha = 0.3f),
-                    shape = CircleShape
-                )
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 80.dp, y = 60.dp)
-                .size(160.dp)
-                .blur(70.dp)
-                .background(
-                    color = PremiumColors.GradientMiddle.copy(alpha = 0.25f),
-                    shape = CircleShape
-                )
-        )
-
-        Column(
-            modifier = Modifier.fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Top app bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Back button
-                PremiumIconButton(
-                    onClick = onBackClick,
-                    icon = Icons.Default.ArrowBack,
-                    isDarkTheme = isDarkTheme
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                    tint = colorScheme.onSurface
                 )
+            }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (onAddMembersClick != null && channel.isAdmin) {
-                        PremiumIconButton(
-                            onClick = onAddMembersClick,
-                            icon = Icons.Default.PersonAdd,
-                            isDarkTheme = isDarkTheme,
-                            tint = PremiumColors.TelegramBlue
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (onAddMembersClick != null && channel.isAdmin) {
+                    IconButton(onClick = onAddMembersClick) {
+                        Icon(
+                            Icons.Default.PersonAdd,
+                            contentDescription = null,
+                            tint = colorScheme.primary
                         )
                     }
-                    if (onSettingsClick != null && channel.isAdmin) {
-                        PremiumIconButton(
-                            onClick = onSettingsClick,
-                            icon = Icons.Default.Settings,
-                            isDarkTheme = isDarkTheme
+                }
+                if (onSettingsClick != null && channel.isAdmin) {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = null,
+                            tint = colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Channel info section
+        // Hero section — editorial cover style
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+        ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Premium avatar with animated ring
-                PremiumChannelAvatar(
-                    avatarUrl = channel.avatarUrl,
-                    channelName = channel.name,
-                    isVerified = channel.isVerified,
-                    isAdmin = channel.isAdmin,
-                    onAvatarClick = onAvatarClick,
-                    size = 110.dp
-                )
+                // Avatar — clean, no glow, subtle border
+                Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .border(
+                                width = 2.dp,
+                                brush = Brush.sweepGradient(
+                                    colors = listOf(
+                                        colorScheme.primary,
+                                        colorScheme.tertiary,
+                                        colorScheme.secondary,
+                                        colorScheme.primary
+                                    )
+                                ),
+                                shape = CircleShape
+                            )
+                            .padding(3.dp)
+                    ) {
+                        if (channel.avatarUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = channel.avatarUrl.toFullMediaUrl(),
+                                contentDescription = channel.name,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                colorScheme.primary,
+                                                colorScheme.tertiary
+                                            )
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = channel.name.take(2).uppercase(),
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorScheme.onPrimary
+                                )
+                            }
+                        }
+                    }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                    // Camera button for admin
+                    if (onAvatarClick != null && channel.isAdmin) {
+                        Surface(
+                            onClick = onAvatarClick,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(28.dp),
+                            shape = CircleShape,
+                            color = colorScheme.primary,
+                            shadowElevation = 2.dp
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.CameraAlt,
+                                    contentDescription = null,
+                                    tint = colorScheme.onPrimary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
 
-                // Channel name with verified badge
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Channel name — large editorial title
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = channel.name,
-                        fontSize = 28.sp,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = textPrimary,
-                        letterSpacing = (-0.5).sp,
+                        color = colorScheme.onSurface,
                         textAlign = TextAlign.Center,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                     if (channel.isVerified) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        PremiumVerifiedBadge(size = 24.dp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            Icons.Default.Verified,
+                            contentDescription = null,
+                            tint = colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
-                // Username tag
+                // Username
                 if (channel.username != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = PremiumColors.TelegramBlue.copy(alpha = 0.15f)
-                    ) {
-                        Text(
-                            text = "@${channel.username}",
-                            fontSize = 15.sp,
-                            color = PremiumColors.TelegramBlue,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                    }
-                }
-
-                // Category badge
-                if (!channel.category.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = if (isDarkTheme) Color.White.copy(alpha = 0.08f)
-                            else Color.Black.copy(alpha = 0.04f)
-                    ) {
-                        Text(
-                            text = channel.category!!,
-                            fontSize = 12.sp,
-                            color = textSecondary,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "@${channel.username}",
+                        fontSize = 14.sp,
+                        color = colorScheme.primary.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 // Description
                 if (!channel.description.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = channel.description!!,
-                        fontSize = 15.sp,
-                        color = textSecondary,
+                        fontSize = 13.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center,
-                        lineHeight = 22.sp,
-                        maxLines = 3,
+                        lineHeight = 18.sp,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Stats cards row
+                // Stats row — minimal inline text, not big cards
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PremiumStatCard(
-                        icon = Icons.Default.People,
+                    PremiumInlineStat(
                         value = formatCountPremium(channel.subscribersCount),
-                        label = "Subscribers",
-                        color = PremiumColors.TelegramBlue,
-                        onClick = onSubscribersClick,
-                        isDarkTheme = isDarkTheme,
-                        modifier = Modifier.weight(1f)
+                        label = stringResource(R.string.channel_detail_subscribers),
+                        onClick = onSubscribersClick
                     )
-                    PremiumStatCard(
-                        icon = Icons.Default.Article,
+                    // Dot separator
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(colorScheme.onSurface.copy(alpha = 0.2f))
+                    )
+                    PremiumInlineStat(
                         value = formatCountPremium(channel.postsCount),
-                        label = "Posts",
-                        color = PremiumColors.GradientMiddle,
-                        isDarkTheme = isDarkTheme,
-                        modifier = Modifier.weight(1f)
+                        label = stringResource(R.string.channel_detail_posts)
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Divider with gradient
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                PremiumColors.TelegramBlue.copy(alpha = 0.3f),
-                                PremiumColors.TelegramBlue.copy(alpha = 0.3f),
-                                Color.Transparent
-                            )
+                    // Category badge
+                    if (!channel.category.isNullOrBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .size(4.dp)
+                                .clip(CircleShape)
+                                .background(colorScheme.onSurface.copy(alpha = 0.2f))
                         )
-                    )
-            )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                        ) {
+                            Text(
+                                text = channel.category!!,
+                                fontSize = 11.sp,
+                                color = colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+            }
         }
-    }
-}
 
-// ==================== PREMIUM ICON BUTTON ====================
-
-@Composable
-private fun PremiumIconButton(
-    onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    isDarkTheme: Boolean,
-    tint: Color? = null
-) {
-    val bgColor = if (isDarkTheme) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.05f)
-    val iconColor = tint ?: if (isDarkTheme) Color.White else Color.Black.copy(alpha = 0.8f)
-
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = bgColor,
-        modifier = Modifier.size(44.dp)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-// ==================== PREMIUM CHANNEL AVATAR ====================
-
-@Composable
-fun PremiumChannelAvatar(
-    avatarUrl: String,
-    channelName: String,
-    size: Dp = 100.dp,
-    isVerified: Boolean = false,
-    isAdmin: Boolean = false,
-    onAvatarClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
-) {
-    // Animated ring rotation
-    val infiniteTransition = rememberInfiniteTransition(label = "avatar_ring")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(8000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "ring_rotation"
-    )
-
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        // Glow effect
+        // Accent line — thin gradient divider
         Box(
             modifier = Modifier
-                .size(size + 16.dp)
-                .blur(25.dp)
+                .fillMaxWidth()
+                .height(2.dp)
+                .padding(horizontal = 20.dp)
                 .background(
-                    brush = Brush.radialGradient(
+                    brush = Brush.horizontalGradient(
                         colors = listOf(
-                            PremiumColors.TelegramBlue.copy(alpha = 0.5f),
+                            Color.Transparent,
+                            colorScheme.primary.copy(alpha = 0.4f),
+                            colorScheme.tertiary.copy(alpha = 0.4f),
                             Color.Transparent
                         )
                     ),
-                    shape = CircleShape
+                    shape = RoundedCornerShape(1.dp)
                 )
         )
-
-        // Animated gradient ring
-        Box(
-            modifier = Modifier
-                .size(size + 8.dp)
-                .clip(CircleShape)
-                .drawBehind {
-                    drawCircle(
-                        brush = Brush.sweepGradient(
-                            0f to PremiumColors.TelegramBlue,
-                            0.25f to PremiumColors.GradientMiddle,
-                            0.5f to PremiumColors.GradientEnd,
-                            0.75f to PremiumColors.TelegramBlueLight,
-                            1f to PremiumColors.TelegramBlue
-                        )
-                    )
-                }
-                .graphicsLayer { rotationZ = rotation }
-                .padding(4.dp)
-        ) {
-            // White inner circle
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .padding(3.dp)
-            ) {
-                // Avatar image or placeholder
-                if (avatarUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = avatarUrl.toFullMediaUrl(),
-                        contentDescription = channelName,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    // Gradient placeholder
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        PremiumColors.TelegramBlue,
-                                        PremiumColors.GradientMiddle
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = channelName.take(2).uppercase(),
-                            fontSize = (size.value / 2.5f).sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        // Edit avatar button for admin
-        if (isAdmin && onAvatarClick != null) {
-            Surface(
-                onClick = onAvatarClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 4.dp, y = 4.dp)
-                    .size(36.dp),
-                shape = CircleShape,
-                color = PremiumColors.TelegramBlue,
-                shadowElevation = 6.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.CameraAlt,
-                        contentDescription = "Change avatar",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
     }
 }
 
-// ==================== PREMIUM VERIFIED BADGE ====================
+// ==================== INLINE STAT ====================
 
 @Composable
-fun PremiumVerifiedBadge(
-    size: Dp = 22.dp,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.size(size),
-        shape = CircleShape,
-        color = PremiumColors.TelegramBlue,
-        shadowElevation = 3.dp
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                Icons.Default.Check,
-                contentDescription = "Verified",
-                tint = Color.White,
-                modifier = Modifier.size(size * 0.6f)
-            )
-        }
-    }
-}
-
-// ==================== PREMIUM STAT CARD ====================
-
-@Composable
-fun PremiumStatCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun PremiumInlineStat(
     value: String,
     label: String,
-    color: Color,
-    isDarkTheme: Boolean,
-    onClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    onClick: (() -> Unit)? = null
 ) {
-    val cardBg = if (isDarkTheme) PremiumColors.CardDark else PremiumColors.CardLight
-    val textPrimary = if (isDarkTheme) PremiumColors.TextPrimaryDark else PremiumColors.TextPrimaryLight
-    val textSecondary = if (isDarkTheme) PremiumColors.TextSecondaryDark else PremiumColors.TextSecondaryLight
+    val colorScheme = MaterialTheme.colorScheme
+    val mod = if (onClick != null) {
+        Modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = ripple(bounded = false, radius = 40.dp),
+            onClick = onClick
+        )
+    } else Modifier
 
-    Card(
-        onClick = onClick ?: {},
-        enabled = onClick != null,
-        modifier = modifier.shadow(
-            elevation = 8.dp,
-            shape = RoundedCornerShape(20.dp),
-            ambientColor = color.copy(alpha = 0.15f),
-            spotColor = color.copy(alpha = 0.15f)
-        ),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    Row(
+        modifier = mod,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Icon with colored background
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = value,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = textPrimary,
-                letterSpacing = (-0.5).sp
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = label,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = textSecondary
-            )
-        }
+        Text(
+            text = value,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorScheme.onSurface
+        )
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = colorScheme.onSurface.copy(alpha = 0.5f)
+        )
     }
 }
 
 // ==================== PREMIUM POST CARD ====================
+// Full-bleed editorial style: no card borders, accent left bar, clean typography
 
 @Composable
 fun PremiumPostCard(
@@ -605,265 +369,251 @@ fun PremiumPostCard(
     canEdit: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val cardBg = if (isDarkTheme) PremiumColors.CardDark else PremiumColors.CardLight
-    val textPrimary = if (isDarkTheme) PremiumColors.TextPrimaryDark else PremiumColors.TextPrimaryLight
-    val textSecondary = if (isDarkTheme) PremiumColors.TextSecondaryDark else PremiumColors.TextSecondaryLight
+    val colorScheme = MaterialTheme.colorScheme
     val hasReactions = post.reactions?.isNotEmpty() == true
     val reactionsCount = post.reactions?.sumOf { it.count } ?: 0
 
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "post_scale"
-    )
-
-    // Accent gradient stripe color based on pinned state
-    val accentGradient = if (post.isPinned) {
-        Brush.verticalGradient(listOf(PremiumColors.WarningOrange, PremiumColors.TelegramBlue))
-    } else {
-        Brush.verticalGradient(listOf(PremiumColors.TelegramBlue, Color(0xFF7C4DFF)))
-    }
-
-    Card(
-        onClick = onPostClick,
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            },
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(color = colorScheme.primary.copy(alpha = 0.1f)),
+                onClick = onPostClick
+            )
     ) {
-        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-            // Left accent stripe — визуальный акцент Premium стиля
+        // Pinned indicator — subtle top bar
+        if (post.isPinned) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colorScheme.primaryContainer.copy(alpha = 0.3f))
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    Icons.Default.PushPin,
+                    contentDescription = null,
+                    tint = colorScheme.primary,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = stringResource(R.string.channel_detail_pinned),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = colorScheme.primary
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+        ) {
+            // Left accent line — thin, uses theme primary
             Box(
                 modifier = Modifier
-                    .width(4.dp)
+                    .width(3.dp)
                     .fillMaxHeight()
-                    .background(accentGradient, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
+                    .padding(vertical = 8.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = if (post.isPinned) {
+                                listOf(colorScheme.tertiary, colorScheme.primary)
+                            } else {
+                                listOf(
+                                    colorScheme.primary.copy(alpha = 0.6f),
+                                    colorScheme.primary.copy(alpha = 0.1f)
+                                )
+                            }
+                        ),
+                        shape = RoundedCornerShape(2.dp)
+                    )
             )
 
-            Column(modifier = Modifier.weight(1f)) {
-                // Pinned badge
-                if (post.isPinned) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                PremiumColors.TelegramBlue.copy(alpha = 0.08f)
-                            )
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.PushPin,
-                            contentDescription = "Pinned",
-                            tint = PremiumColors.TelegramBlue,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Pinned Post",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = PremiumColors.TelegramBlue
-                        )
-                    }
-                }
-
-                // Post header — увеличенный для удобства 60+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp, end = 20.dp, top = 12.dp, bottom = 8.dp)
+            ) {
+                // Author row — compact
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 10.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Author avatar — крупнее
+                    // Small avatar
                     PremiumSmallAvatar(
                         avatarUrl = post.authorAvatar ?: "",
                         name = post.authorName ?: post.authorUsername ?: "User",
-                        size = 52.dp
+                        size = 36.dp
                     )
 
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
-                    // Author info — крупный шрифт
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = formatPostTime(post.createdTime),
-                            fontSize = 14.sp,
-                            color = textSecondary
+                            fontSize = 12.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.45f)
                         )
                     }
 
-                    // More options button
                     if (canEdit) {
                         IconButton(
                             onClick = onMoreClick,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = "More",
-                                tint = textSecondary,
-                                modifier = Modifier.size(24.dp)
+                                Icons.Default.MoreHoriz,
+                                contentDescription = null,
+                                tint = colorScheme.onSurface.copy(alpha = 0.4f),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 }
 
-                // Post content — крупный шрифт для удобства чтения
+                // Post text
                 if (post.text.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = post.text,
-                        fontSize = 17.sp,
-                        color = textPrimary,
-                        lineHeight = 26.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        fontSize = 15.sp,
+                        color = colorScheme.onSurface,
+                        lineHeight = 22.sp
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
                 }
 
-                // Media content
+                // Media — full-bleed with rounded corners
                 if (!post.media.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
                     PremiumMediaGallery(
                         media = post.media!!,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
-
-                // Views counter
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Outlined.Visibility,
-                        contentDescription = null,
-                        tint = textSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "${formatCountPremium(post.viewsCount)} views",
-                        fontSize = 14.sp,
-                        color = textSecondary
+                            .clip(RoundedCornerShape(12.dp))
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Divider
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
-                )
-
-                // Action buttons — крупные кнопки для удобства нажатия
+                // Bottom action bar — icon-centric, compact
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Like button — с цветным фоном при нажатии
-                    PremiumPostActionButton(
-                        icon = if (hasReactions) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
-                        label = if (hasReactions) "$reactionsCount" else "Like",
-                        onClick = { onReactionClick("\uD83D\uDC4D") },
-                        isActive = hasReactions,
-                        activeColor = PremiumColors.TelegramBlue,
-                        inactiveColor = textSecondary,
-                        isDarkTheme = isDarkTheme
-                    )
+                    // Left: views
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Visibility,
+                            contentDescription = null,
+                            tint = colorScheme.onSurface.copy(alpha = 0.35f),
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = formatCountPremium(post.viewsCount),
+                            fontSize = 12.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.35f)
+                        )
+                    }
 
-                    // Comments button
-                    PremiumPostActionButton(
-                        icon = Icons.Outlined.ChatBubbleOutline,
-                        label = if (post.commentsCount > 0) "${post.commentsCount}" else "Comment",
-                        onClick = onCommentsClick,
-                        isActive = post.commentsCount > 0,
-                        activeColor = PremiumColors.SuccessGreen,
-                        inactiveColor = textSecondary,
-                        isDarkTheme = isDarkTheme
-                    )
+                    // Right: action buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Reaction
+                        PremiumCompactAction(
+                            icon = if (hasReactions) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                            count = if (reactionsCount > 0) reactionsCount else null,
+                            isActive = hasReactions,
+                            activeColor = colorScheme.primary,
+                            onClick = { onReactionClick("\uD83D\uDC4D") }
+                        )
 
-                    // Share button
-                    PremiumPostActionButton(
-                        icon = Icons.Outlined.Share,
-                        label = "Share",
-                        onClick = onShareClick,
-                        isActive = false,
-                        activeColor = PremiumColors.TelegramBlue,
-                        inactiveColor = textSecondary,
-                        isDarkTheme = isDarkTheme
-                    )
+                        // Comments
+                        PremiumCompactAction(
+                            icon = Icons.Outlined.ChatBubbleOutline,
+                            count = if (post.commentsCount > 0) post.commentsCount else null,
+                            isActive = post.commentsCount > 0,
+                            activeColor = colorScheme.tertiary,
+                            onClick = onCommentsClick
+                        )
+
+                        // Share
+                        PremiumCompactAction(
+                            icon = Icons.Outlined.Share,
+                            count = null,
+                            isActive = false,
+                            activeColor = colorScheme.secondary,
+                            onClick = onShareClick
+                        )
+                    }
                 }
             }
         }
+
+        // Subtle separator
+        HorizontalDivider(
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp),
+            color = colorScheme.onSurface.copy(alpha = 0.06f)
+        )
     }
 }
 
-/**
- * Кнопка действия для Premium поста — крупная, удобная для нажатия
- */
+// ==================== COMPACT ACTION BUTTON ====================
+
 @Composable
-private fun PremiumPostActionButton(
+private fun PremiumCompactAction(
     icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
+    count: Int?,
     isActive: Boolean,
     activeColor: Color,
-    inactiveColor: Color,
-    isDarkTheme: Boolean
+    onClick: () -> Unit
 ) {
-    val color = if (isActive) activeColor else inactiveColor
-    val bgColor = if (isActive) activeColor.copy(alpha = 0.1f) else Color.Transparent
+    val colorScheme = MaterialTheme.colorScheme
+    val color = if (isActive) activeColor else colorScheme.onSurface.copy(alpha = 0.4f)
 
-    TextButton(
+    Surface(
         onClick = onClick,
-        modifier = Modifier.height(48.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.textButtonColors(
-            containerColor = bgColor,
-            contentColor = color
-        )
+        shape = RoundedCornerShape(8.dp),
+        color = if (isActive) activeColor.copy(alpha = 0.08f) else Color.Transparent,
+        modifier = Modifier.height(32.dp)
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
-            color = color
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(18.dp)
+            )
+            if (count != null) {
+                Text(
+                    text = formatCountPremium(count),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = color
+                )
+            }
+        }
     }
 }
 
@@ -876,6 +626,8 @@ fun PremiumSmallAvatar(
     size: Dp = 40.dp,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     if (avatarUrl.isNotBlank()) {
         AsyncImage(
             model = avatarUrl.toFullMediaUrl(),
@@ -893,8 +645,8 @@ fun PremiumSmallAvatar(
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            PremiumColors.TelegramBlue,
-                            PremiumColors.GradientMiddle
+                            colorScheme.primary,
+                            colorScheme.tertiary
                         )
                     )
                 ),
@@ -904,40 +656,267 @@ fun PremiumSmallAvatar(
                 text = name.take(1).uppercase(),
                 fontSize = (size.value / 2.5f).sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = colorScheme.onPrimary
             )
         }
     }
 }
 
-// ==================== PREMIUM ACTION BUTTON ====================
+// ==================== PREMIUM SUBSCRIBE BUTTON ====================
+// Pill-shaped, animated, uses theme colors
 
 @Composable
-private fun PremiumActionButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    color: Color,
-    isDarkTheme: Boolean
+fun PremiumSubscribeButton(
+    isSubscribed: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
-    TextButton(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.textButtonColors(
-            contentColor = color
+    val colorScheme = MaterialTheme.colorScheme
+    val bgColor by animateColorAsState(
+        targetValue = if (isSubscribed) colorScheme.surfaceVariant
+        else colorScheme.primary,
+        animationSpec = tween(300),
+        label = "subscribe_bg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSubscribed) colorScheme.onSurfaceVariant
+        else colorScheme.onPrimary,
+        animationSpec = tween(300),
+        label = "subscribe_content"
+    )
+
+    Button(
+        onClick = onToggle,
+        enabled = enabled,
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = bgColor,
+            contentColor = contentColor
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = if (isSubscribed) 0.dp else 3.dp
         )
+    ) {
+        AnimatedContent(
+            targetState = isSubscribed,
+            transitionSpec = {
+                slideInVertically { -it } + fadeIn() togetherWith
+                        slideOutVertically { it } + fadeOut()
+            },
+            label = "subscribe_content"
+        ) { subscribed ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    if (subscribed) Icons.Default.Check else Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (subscribed) stringResource(R.string.channel_detail_subscribed)
+                    else stringResource(R.string.channel_detail_subscribe),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+// ==================== PREMIUM FAB ====================
+// Clean Material3 FAB, no pulsing glow — elegant
+
+@Composable
+fun PremiumFAB(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        containerColor = colorScheme.primary,
+        contentColor = colorScheme.onPrimary,
+        elevation = FloatingActionButtonDefaults.elevation(
+            defaultElevation = 4.dp,
+            pressedElevation = 8.dp
+        )
+    ) {
+        Icon(
+            Icons.Default.Edit,
+            contentDescription = stringResource(R.string.channel_detail_create_post),
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+// ==================== PREMIUM SECTION HEADER ====================
+
+@Composable
+fun PremiumSectionHeader(
+    title: String,
+    count: Int,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Accent bar
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(18.dp)
+                .background(
+                    colorScheme.primary,
+                    RoundedCornerShape(2.dp)
+                )
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = title,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = count.toString(),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = colorScheme.onSurface.copy(alpha = 0.4f)
+        )
+    }
+}
+
+// ==================== PREMIUM EMPTY STATE ====================
+
+@Composable
+fun PremiumEmptyState(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    action: (@Composable () -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             icon,
             contentDescription = null,
-            modifier = Modifier.size(20.dp)
+            tint = colorScheme.onSurface.copy(alpha = 0.25f),
+            modifier = Modifier.size(48.dp)
         )
-        Spacer(modifier = Modifier.width(6.dp))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium
+            text = title,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = colorScheme.onSurface.copy(alpha = 0.6f),
+            textAlign = TextAlign.Center
         )
+
+        if (subtitle != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = subtitle,
+                fontSize = 13.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.4f),
+                textAlign = TextAlign.Center
+            )
+        }
+
+        if (action != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            action()
+        }
+    }
+}
+
+// ==================== PREMIUM MENU ITEM ====================
+
+@Composable
+fun PremiumMenuItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Transparent,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = iconTint.copy(alpha = 0.1f),
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = colorScheme.onSurface
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = colorScheme.onSurface.copy(alpha = 0.3f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 
@@ -950,17 +929,14 @@ fun PremiumMediaGallery(
 ) {
     when (media.size) {
         1 -> {
-            // Single media - full width
             PremiumMediaItem(
                 media = media[0],
                 modifier = modifier
                     .fillMaxWidth()
-                    .heightIn(max = 300.dp)
-                    .clip(RoundedCornerShape(0.dp))
+                    .heightIn(max = 280.dp)
             )
         }
         2 -> {
-            // Two media - side by side
             Row(
                 modifier = modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
@@ -970,26 +946,23 @@ fun PremiumMediaGallery(
                         media = item,
                         modifier = Modifier
                             .weight(1f)
-                            .height(200.dp)
+                            .height(180.dp)
                     )
                 }
             }
         }
         else -> {
-            // 3+ media - grid layout
             Column(
                 modifier = modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                // First row - first image full width
                 PremiumMediaItem(
                     media = media[0],
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
+                        .height(170.dp)
                 )
 
-                // Second row - remaining images
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
@@ -1000,19 +973,18 @@ fun PremiumMediaGallery(
                                 media = item,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(120.dp)
+                                    .height(100.dp)
                             )
-                            // Show +N overlay for remaining
                             if (index == 2 && media.size > 4) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(Color.Black.copy(alpha = 0.6f)),
+                                        .background(Color.Black.copy(alpha = 0.5f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = "+${media.size - 4}",
-                                        fontSize = 24.sp,
+                                        fontSize = 20.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )
@@ -1041,25 +1013,24 @@ private fun PremiumMediaItem(
             contentScale = ContentScale.Crop
         )
 
-        // Video play button overlay
         if (isVideo) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f)),
+                    .background(Color.Black.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
                     shape = CircleShape,
                     color = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.size(56.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Default.PlayArrow,
-                            contentDescription = "Play video",
+                            contentDescription = null,
                             tint = Color.Black,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }
@@ -1068,298 +1039,163 @@ private fun PremiumMediaItem(
     }
 }
 
-// ==================== PREMIUM FAB ====================
+// ==================== PREMIUM VERIFIED BADGE ====================
 
 @Composable
-fun PremiumFAB(
-    onClick: () -> Unit,
+fun PremiumVerifiedBadge(
+    size: Dp = 20.dp,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "fab_pulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "fab_scale"
+    Icon(
+        Icons.Default.Verified,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = modifier.size(size)
     )
+}
 
-    Box(modifier = modifier) {
-        // Glow effect
+// ==================== PREMIUM CHANNEL AVATAR ====================
+// Kept for backward compatibility with other screens
+
+@Composable
+fun PremiumChannelAvatar(
+    avatarUrl: String,
+    channelName: String,
+    size: Dp = 80.dp,
+    isVerified: Boolean = false,
+    isAdmin: Boolean = false,
+    onAvatarClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
-                .blur(20.dp)
-                .graphicsLayer {
-                    scaleX = pulseScale
-                    scaleY = pulseScale
-                }
-                .background(
-                    brush = Brush.radialGradient(
+                .size(size + 6.dp)
+                .clip(CircleShape)
+                .border(
+                    width = 2.dp,
+                    brush = Brush.sweepGradient(
                         colors = listOf(
-                            PremiumColors.TelegramBlue.copy(alpha = 0.6f),
-                            Color.Transparent
+                            colorScheme.primary,
+                            colorScheme.tertiary,
+                            colorScheme.secondary,
+                            colorScheme.primary
                         )
                     ),
                     shape = CircleShape
                 )
-        )
-
-        FloatingActionButton(
-            onClick = onClick,
-            shape = CircleShape,
-            containerColor = PremiumColors.TelegramBlue,
-            contentColor = Color.White,
-            elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 8.dp,
-                pressedElevation = 12.dp
-            )
+                .padding(3.dp)
         ) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = "Create post",
-                modifier = Modifier.size(28.dp)
-            )
+            if (avatarUrl.isNotBlank()) {
+                AsyncImage(
+                    model = avatarUrl.toFullMediaUrl(),
+                    contentDescription = channelName,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    colorScheme.primary,
+                                    colorScheme.tertiary
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = channelName.take(2).uppercase(),
+                        fontSize = (size.value / 2.5f).sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onPrimary,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
         }
-    }
-}
 
-// ==================== PREMIUM SUBSCRIBE BUTTON ====================
-
-@Composable
-fun PremiumSubscribeButton(
-    isSubscribed: Boolean,
-    onToggle: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
-) {
-    val bgColor by animateColorAsState(
-        targetValue = if (isSubscribed)
-            Color(0xFF2D2D2D)
-        else
-            PremiumColors.TelegramBlue,
-        animationSpec = tween(300),
-        label = "subscribe_bg"
-    )
-
-    Button(
-        onClick = onToggle,
-        enabled = enabled,
-        modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = bgColor,
-            contentColor = Color.White
-        ),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = if (isSubscribed) 0.dp else 6.dp
-        )
-    ) {
-        AnimatedContent(
-            targetState = isSubscribed,
-            transitionSpec = {
-                slideInVertically { -it } + fadeIn() togetherWith
-                        slideOutVertically { it } + fadeOut()
-            },
-            label = "subscribe_content"
-        ) { subscribed ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+        if (isAdmin && onAvatarClick != null) {
+            Surface(
+                onClick = onAvatarClick,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(28.dp),
+                shape = CircleShape,
+                color = colorScheme.primary,
+                shadowElevation = 3.dp
             ) {
-                Icon(
-                    if (subscribed) Icons.Default.Check else Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (subscribed) "Subscribed" else "Subscribe",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        tint = colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
     }
 }
 
-// ==================== PREMIUM SECTION HEADER ====================
+// ==================== PREMIUM STAT CARD ====================
+// Kept for backward compatibility with other screens that may use it
 
 @Composable
-fun PremiumSectionHeader(
-    title: String,
-    count: Int,
+fun PremiumStatCard(
+    icon: ImageVector,
+    value: String,
+    label: String,
+    color: Color,
+    isDarkTheme: Boolean,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val cardBg = if (isDarkTheme) PremiumColors.CardDark else PremiumColors.CardLight
-    val textPrimary = if (isDarkTheme) PremiumColors.TextPrimaryDark else PremiumColors.TextPrimaryLight
-    val textSecondary = if (isDarkTheme) PremiumColors.TextSecondaryDark else PremiumColors.TextSecondaryLight
+    val colorScheme = MaterialTheme.colorScheme
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = cardBg
+        onClick = onClick ?: {},
+        enabled = onClick != null,
+        shape = RoundedCornerShape(14.dp),
+        color = color.copy(alpha = 0.08f),
+        modifier = modifier
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = textPrimary
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = PremiumColors.TelegramBlue.copy(alpha = 0.15f)
-            ) {
-                Text(
-                    text = count.toString(),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = PremiumColors.TelegramBlue,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                )
-            }
-        }
-    }
-}
-
-// ==================== PREMIUM EMPTY STATE ====================
-
-@Composable
-fun PremiumEmptyState(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String? = null,
-    action: (@Composable () -> Unit)? = null,
-    modifier: Modifier = Modifier
-) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val textPrimary = if (isDarkTheme) PremiumColors.TextPrimaryDark else PremiumColors.TextPrimaryLight
-    val textSecondary = if (isDarkTheme) PremiumColors.TextSecondaryDark else PremiumColors.TextSecondaryLight
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(PremiumColors.TelegramBlue.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             Icon(
                 icon,
                 contentDescription = null,
-                tint = PremiumColors.TelegramBlue,
-                modifier = Modifier.size(40.dp)
+                tint = color,
+                modifier = Modifier.size(18.dp)
             )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = textPrimary,
-            textAlign = TextAlign.Center
-        )
-
-        if (subtitle != null) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = subtitle,
-                fontSize = 14.sp,
-                color = textSecondary,
-                textAlign = TextAlign.Center
+                text = value,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface
             )
-        }
-
-        if (action != null) {
-            Spacer(modifier = Modifier.height(20.dp))
-            action()
-        }
-    }
-}
-
-// ==================== PREMIUM MENU ITEM ====================
-
-@Composable
-fun PremiumMenuItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String? = null,
-    iconTint: Color = PremiumColors.TelegramBlue,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isDarkTheme = isSystemInDarkTheme()
-
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = Color.Transparent,
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon with tinted background
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = iconTint.copy(alpha = 0.12f),
-                modifier = Modifier.size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isDarkTheme) PremiumColors.TextPrimaryDark
-                        else PremiumColors.TextPrimaryLight
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        fontSize = 12.sp,
-                        color = if (isDarkTheme) PremiumColors.TextSecondaryDark
-                            else PremiumColors.TextSecondaryLight
-                    )
-                }
-            }
-
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = if (isDarkTheme) PremiumColors.TextSecondaryDark
-                    else PremiumColors.TextSecondaryLight,
-                modifier = Modifier.size(20.dp)
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }
     }
@@ -1399,4 +1235,35 @@ fun formatPostTime(timestamp: String?): String {
     } catch (e: Exception) {
         timestamp.take(10)
     }
+}
+
+// ==================== LEGACY COLOR PALETTE ====================
+// Kept for backward compatibility with CreateChannelActivity and other screens.
+// New code should use MaterialTheme.colorScheme instead.
+
+object PremiumColors {
+    val TelegramBlue = Color(0xFF0088CC)
+    val TelegramBlueDark = Color(0xFF006699)
+    val TelegramBlueLight = Color(0xFF54A9EB)
+
+    val GradientStart = Color(0xFF667eea)
+    val GradientMiddle = Color(0xFF764ba2)
+    val GradientEnd = Color(0xFFf093fb)
+
+    val PremiumGold = Color(0xFFFFD700)
+    val PremiumOrange = Color(0xFFFF8C00)
+
+    val SuccessGreen = Color(0xFF00C853)
+    val WarningOrange = Color(0xFFFF9800)
+    val ErrorRed = Color(0xFFFF5252)
+
+    val SurfaceLight = Color(0xFFF8F9FA)
+    val SurfaceDark = Color(0xFF1E1E1E)
+    val CardLight = Color(0xFFFFFFFF)
+    val CardDark = Color(0xFF2D2D2D)
+
+    val TextPrimaryLight = Color(0xFF1A1A1A)
+    val TextSecondaryLight = Color(0xFF6B7280)
+    val TextPrimaryDark = Color(0xFFFFFFFF)
+    val TextSecondaryDark = Color(0xFF9CA3AF)
 }

@@ -705,7 +705,7 @@ fun ModernAdminBadge(modifier: Modifier = Modifier) {
     }
 }
 
-// ==================== STUNNING CHANNEL HEADER ====================
+// ==================== COMPACT CHANNEL HEADER ====================
 
 @Composable
 fun ChannelHeader(
@@ -720,45 +720,21 @@ fun ChannelHeader(
     Box(
         modifier = modifier.fillMaxWidth()
     ) {
-        // Background with gradient layers
+        // Subtle gradient background
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(320.dp)
+                .height(240.dp)
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
                             MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                             MaterialTheme.colorScheme.surface
                         ),
                         startY = 0f,
-                        endY = 800f
+                        endY = 600f
                     )
-                )
-        )
-
-        // Decorative circles
-        Box(
-            modifier = Modifier
-                .offset(x = (-40).dp, y = (-20).dp)
-                .size(150.dp)
-                .blur(60.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    shape = CircleShape
-                )
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 60.dp, y = 40.dp)
-                .size(120.dp)
-                .blur(50.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
-                    shape = CircleShape
                 )
         )
 
@@ -769,18 +745,17 @@ fun ChannelHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back button
                 GlassButton(
                     onClick = onBackClick,
                     icon = Icons.Default.ArrowBack
                 )
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (onAddMembersClick != null && channel.isAdmin) {
                         GlassButton(
@@ -798,37 +773,18 @@ fun ChannelHeader(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Channel info
-            Column(
+            // Channel info — compact horizontal layout
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar with gradient ring and glow
+                // Compact avatar
                 Box {
-                    // Glow effect
                     Box(
                         modifier = Modifier
-                            .size(108.dp)
-                            .blur(20.dp)
-                            .background(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                                        Color.Transparent
-                                    )
-                                ),
-                                shape = CircleShape
-                            )
-                    )
-
-                    // Gradient ring
-                    Box(
-                        modifier = Modifier
-                            .size(104.dp)
+                            .size(72.dp)
                             .clip(CircleShape)
                             .background(
                                 brush = Brush.sweepGradient(
@@ -840,144 +796,124 @@ fun ChannelHeader(
                                     )
                                 )
                             )
-                            .padding(3.dp)
+                            .padding(2.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.surface)
-                                .padding(3.dp)
+                                .padding(2.dp)
                         ) {
                             ModernChannelAvatar(
                                 avatarUrl = channel.avatarUrl,
                                 channelName = channel.name,
-                                size = 92.dp,
+                                size = 64.dp,
                                 isVerified = false
                             )
                         }
                     }
 
-                    // Edit avatar button
                     if (onAvatarClick != null && channel.isAdmin) {
                         Surface(
                             onClick = onAvatarClick,
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .offset(x = 4.dp, y = 4.dp)
-                                .size(32.dp),
+                                .size(26.dp),
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.primary,
-                            shadowElevation = 4.dp
+                            shadowElevation = 2.dp
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     Icons.Default.CameraAlt,
                                     contentDescription = "Change avatar",
                                     tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
                     }
 
-                    // Verified badge
                     if (channel.isVerified) {
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .offset(x = 2.dp, y = 2.dp)
+                                .offset(x = 2.dp, y = (-2).dp)
                         ) {
-                            VerifiedBadge(size = 26.dp)
+                            VerifiedBadge(size = 20.dp)
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
-                // Channel name
-                Text(
-                    text = channel.name,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 0.3.sp,
-                    textAlign = TextAlign.Center
-                )
+                // Channel name + username + description
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = channel.name,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                // Username badge
-                if (channel.username != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                    ) {
+                    if (channel.username != null) {
                         Text(
                             text = "@${channel.username}",
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    if (!channel.description.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = channel.description!!,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            lineHeight = 17.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
-
-                // Description
-                if (channel.description != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = channel.description!!,
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        textAlign = TextAlign.Center,
-                        lineHeight = 20.sp,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Stats cards
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ModernStatCard(
-                        icon = Icons.Default.People,
-                        value = formatCount(channel.subscribersCount),
-                        label = "Subscribers",
-                        onClick = onSubscribersClick,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    ModernStatCard(
-                        icon = Icons.Default.Article,
-                        value = formatCount(channel.postsCount),
-                        label = "Posts",
-                        color = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Divider
-            Box(
+            // Compact inline stats
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(1.dp)
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                Color.Transparent
-                            )
-                        )
-                    )
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CompactStatChip(
+                    icon = Icons.Default.People,
+                    value = formatCount(channel.subscribersCount),
+                    label = "Subscribers",
+                    onClick = onSubscribersClick,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                CompactStatChip(
+                    icon = Icons.Default.Article,
+                    value = formatCount(channel.postsCount),
+                    label = "Posts",
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Divider
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
             )
         }
     }
@@ -1009,10 +945,10 @@ private fun GlassButton(
     }
 }
 
-// ==================== MODERN STAT CARD ====================
+// ==================== COMPACT STAT CHIP ====================
 
 @Composable
-private fun ModernStatCard(
+private fun CompactStatChip(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     value: String,
     label: String,
@@ -1023,58 +959,34 @@ private fun ModernStatCard(
     Surface(
         onClick = onClick ?: {},
         enabled = onClick != null,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(14.dp),
         color = color.copy(alpha = 0.08f),
         modifier = modifier
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
-            // Icon with glow
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .blur(10.dp)
-                        .background(
-                            color = color.copy(alpha = 0.3f),
-                            shape = CircleShape
-                        )
-                )
-                Surface(
-                    shape = CircleShape,
-                    color = color.copy(alpha = 0.15f),
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            icon,
-                            contentDescription = null,
-                            tint = color,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = value,
-                fontSize = 22.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = label,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }
