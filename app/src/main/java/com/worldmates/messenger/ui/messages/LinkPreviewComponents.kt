@@ -1,10 +1,5 @@
 package com.worldmates.messenger.ui.messages
 
-import android.annotation.SuppressLint
-import android.webkit.WebChromeClient
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -22,12 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import com.worldmates.messenger.utils.LinkPreviewData
 import com.worldmates.messenger.utils.extractYouTubeVideoId
@@ -196,130 +189,54 @@ fun YouTubeVideoCard(
     accentColor: Color = Color(0xFFFF0000),
     onOpenUrl: (String) -> Unit = {}
 ) {
-    var playerExpanded by remember { mutableStateOf(false) }
     val thumbnailUrl = remember(videoId) { youTubeThumbnailUrl(videoId) }
 
-    Column(
+    // Thumbnail card — tapping opens the YouTube app / browser (no WebView embed,
+    // because most videos block iframe embedding with error 152).
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 6.dp)
+            .aspectRatio(16f / 9f)
             .clip(RoundedCornerShape(12.dp))
+            .clickable { onOpenUrl(url) },
+        contentAlignment = Alignment.Center
     ) {
-        if (!playerExpanded) {
-            // ── Thumbnail + play overlay ──
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { playerExpanded = true },
-                contentAlignment = Alignment.Center
-            ) {
-                AsyncImage(
-                    model = thumbnailUrl,
-                    contentDescription = "YouTube thumbnail",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                // Dark scrim
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.25f))
-                )
-                // Play button
-                Icon(
-                    imageVector = Icons.Default.PlayCircleFilled,
-                    contentDescription = "Play",
-                    tint = Color.White,
-                    modifier = Modifier.size(56.dp)
-                )
-                // YouTube branding pill
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(8.dp),
-                    shape = RoundedCornerShape(4.dp),
-                    color = Color(0xFFFF0000)
-                ) {
-                    Text(
-                        text = "YouTube",
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-            }
-        } else {
-            // ── Inline WebView YouTube player ──
-            YouTubeWebViewPlayer(
-                videoId = videoId,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(12.dp))
+        AsyncImage(
+            model = thumbnailUrl,
+            contentDescription = "YouTube thumbnail",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        // Dark scrim
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.25f))
+        )
+        // Play button
+        Icon(
+            imageVector = Icons.Default.PlayCircleFilled,
+            contentDescription = "Play",
+            tint = Color.White,
+            modifier = Modifier.size(56.dp)
+        )
+        // YouTube branding pill
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(8.dp),
+            shape = RoundedCornerShape(4.dp),
+            color = Color(0xFFFF0000)
+        ) {
+            Text(
+                text = "YouTube",
+                color = Color.White,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
             )
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// WebView-based YouTube iframe player
-// ─────────────────────────────────────────────────────────────
-
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun YouTubeWebViewPlayer(
-    videoId: String,
-    modifier: Modifier = Modifier
-) {
-    val html = remember(videoId) {
-        """
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            * { margin:0; padding:0; box-sizing:border-box; }
-            body { background:#000; }
-            .container { position:relative; width:100%; padding-top:56.25%; }
-            iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:0; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0"
-              allow="autoplay; encrypted-media" allowfullscreen></iframe>
-          </div>
-        </body>
-        </html>
-        """.trimIndent()
-    }
-
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            WebView(context).apply {
-                settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
-                    mediaPlaybackRequiresUserGesture = false
-                    loadWithOverviewMode = true
-                    useWideViewPort = true
-                    cacheMode = WebSettings.LOAD_DEFAULT
-                }
-                webChromeClient = WebChromeClient()
-                webViewClient = WebViewClient()
-                loadDataWithBaseURL(
-                    "https://www.youtube.com",
-                    html,
-                    "text/html",
-                    "UTF-8",
-                    null
-                )
-            }
-        },
-        update = { /* videoId change will trigger recomposition due to remember(videoId) */ }
-    )
-}
