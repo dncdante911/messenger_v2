@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Unarchive
+import androidx.annotation.StringRes
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -55,6 +56,46 @@ import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Chat
 
 /**
+ * Повертає локалізовану назву системної папки за її id.
+ * Якщо папка кастомна — повертає збережену назву без змін.
+ */
+@Composable
+fun localizedFolderName(folder: ChatFolder): String {
+    return when (folder.id) {
+        "all"      -> stringResource(R.string.folder_all)
+        "personal" -> stringResource(R.string.folder_personal)
+        "channels" -> stringResource(R.string.folder_channels)
+        "groups"   -> stringResource(R.string.folder_groups)
+        "unread"   -> stringResource(R.string.folder_unread)
+        else       -> folder.name
+    }
+}
+
+/**
+ * Повертає локалізовану назву пресетного тегу за рядком-ключем.
+ * Для кастомних тегів повертає ім\'я без змін.
+ */
+@Composable
+fun localizedTagName(tagName: String): String {
+    val resId = presetTagResId(tagName)
+    return if (resId != 0) stringResource(resId) else tagName
+}
+
+/** Маппінг назва-тегу (англ./укр. ключ) → @StringRes */
+@StringRes
+fun presetTagResId(tagName: String): Int = when (tagName) {
+    "Робота", "Работа", "work"          -> R.string.tag_work
+    "Сім'я", "Семья", "family"          -> R.string.tag_family
+    "Друзі", "Друзья", "friends"        -> R.string.tag_friends
+    "Важливе", "Важное", "important"    -> R.string.tag_important
+    "Покупки", "shopping"               -> R.string.tag_shopping
+    "Навчання", "Учёба", "study"        -> R.string.tag_study
+    "Проекти", "Проекты", "projects"    -> R.string.tag_projects
+    "Подорожі", "Путешествия", "travel" -> R.string.tag_travel
+    else                                 -> 0
+}
+
+/**
  * Горизонтальна смуга з табами-папками (Telegram-style).
  * Замінює окремий TabRow + старі папки.
  * Включає системні папки (Усі, Особисті, Канали, Групи, Непрочитані) + кастомні.
@@ -80,6 +121,7 @@ fun ChatFolderTabs(
         folders.forEach { folder ->
             FolderTabChip(
                 folder = folder,
+                displayName = localizedFolderName(folder),
                 isSelected = folder.id == selectedFolderId,
                 onClick = { onFolderSelected(folder.id) }
             )
@@ -89,6 +131,7 @@ fun ChatFolderTabs(
         if (archivedCount.isNotEmpty()) {
             FolderTabChip(
                 folder = ChatFolder("archived", stringResource(R.string.archive), "📦", 99),
+                displayName = stringResource(R.string.archive),
                 isSelected = selectedFolderId == "archived",
                 badge = archivedCount.size,
                 onClick = { onFolderSelected("archived") }
@@ -113,6 +156,7 @@ fun ChatFolderTabs(
 @Composable
 private fun FolderTabChip(
     folder: ChatFolder,
+    displayName: String = folder.name,
     isSelected: Boolean,
     badge: Int = 0,
     onClick: () -> Unit
@@ -139,7 +183,7 @@ private fun FolderTabChip(
             Text(folder.emoji, fontSize = 13.sp)
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = folder.name,
+                text = displayName,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                 color = if (isSelected)
@@ -366,7 +410,7 @@ fun ManageTagsDialog(
                                         ChatOrganizationManager.addTagToChat(chatId, tag)
                                     }
                                 },
-                                label = { Text(tag.name, fontSize = 12.sp) },
+                                label = { Text(localizedTagName(tag.name), fontSize = 12.sp) },
                                 modifier = Modifier.weight(1f)
                             )
                         }
