@@ -198,6 +198,7 @@ class MessagesViewModel(application: Application) :
         startMessagePolling()
         loadDraft()
         markSeen()
+        fetchRecipientStatus()  // initialise header status bar without waiting for socket events
         loadMuteStatusViaNode(viewModelScope, nodeApi, recipientId) { isMuted ->
             _isMutedPrivate.value = isMuted
         }
@@ -1333,6 +1334,33 @@ class MessagesViewModel(application: Application) :
                 _presenceStatus.value = UserPresenceStatus.LastSeen(lastSeen)
             }
             Log.d(TAG, "Last seen for $userId: $lastSeen")
+        }
+    }
+
+    /**
+     * Fetches the recipient's current online/last-seen status from the REST API and
+     * immediately updates the header bar.  Called on chat open so the status dot is
+     * correct from the first frame — without waiting for socket events, which only
+     * fire when a user connects/disconnects.
+     */
+    private fun fetchRecipientStatus() {
+        if (recipientId == 0L) return
+        viewModelScope.launch {
+            try {
+                val resp = nodeApi.getUserStatus(recipientId)
+                if (resp.apiStatus == 200) {
+                    presenceIsOnline    = resp.online
+                    if (resp.lastSeen > 0) presenceLastSeenTs = resp.lastSeen
+                    // Only update the UI if no transient state (typing etc.) is active
+                    val cur = _presenceStatus.value
+                    if (cur is UserPresenceStatus.Offline || cur is UserPresenceStatus.LastSeen) {
+                        _presenceStatus.value = basePresenceStatus()
+                    }
+                    Log.d(TAG, "Recipient $recipientId status: online=${resp.online} last_seen=${resp.lastSeen}")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "fetchRecipientStatus failed: ${e.message}")
+            }
         }
     }
 

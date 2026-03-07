@@ -81,11 +81,17 @@ function registerPrivateChatRoutes(app, ctx, io) {
     app.post('/api/node/chat/fav',      auth, favs.favMessage(ctx, io));
     app.post('/api/node/chat/fav-list', auth, favs.getFavMessages(ctx, io));
 
-    console.log('[Private Chat API] Endpoints registered under /api/node/chat/*');
+    // ── user presence ─────────────────────────────────────────────────────────
+    // Returns current online status + last_seen for any user.
+    // Called by Android MessagesViewModel on chat open to initialise header bar.
+    app.post('/api/node/user/status',   auth, msgs.userStatus(ctx, io));
+
+    console.log('[Private Chat API] Endpoints registered under /api/node/chat/* and /api/node/user/*');
     console.log('  Messages : get, send, send-media, loadmore, edit, search, seen, typing, notify-media');
     console.log('  Actions  : delete, react, pin, pinned, forward');
     console.log('  Chats    : chats, delete-conversation, clear-history, mute-status, archive, mute, pin-chat, color, read');
     console.log('  Favorites: fav, fav-list');
+    console.log('  User     : /api/node/user/status');
 }
 
 module.exports = { registerPrivateChatRoutes };

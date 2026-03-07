@@ -160,6 +160,19 @@ interface NodeApi {
         @Field("action")       action: String
     ): NodeSimpleResponse
 
+    // ═══════════════════════ USER PRESENCE ═══════════════════════════════════
+
+    /**
+     * GET online status + last_seen for any user.
+     * Called when opening a chat to initialise the header status bar immediately,
+     * without waiting for socket events (which only fire on connect/disconnect).
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_USER_STATUS)
+    suspend fun getUserStatus(
+        @Field("user_id") userId: Long
+    ): NodeUserStatusResponse
+
     // ═══════════════════════ ACTIONS ═════════════════════════════════════════
 
     /**
@@ -440,6 +453,14 @@ data class NodeMessageResponse(
 data class NodeSimpleResponse(
     @SerializedName("api_status")   val apiStatus: Int,
     @SerializedName("message")      val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/** Response for GET /api/node/user/status */
+data class NodeUserStatusResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("online")     val online: Boolean  = false,
+    @SerializedName("last_seen")  val lastSeen: Long   = 0L,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 
