@@ -2736,7 +2736,7 @@ fun PostDetailDialog(
     val imageMediaUrls = remember(post.media) {
         post.media
             ?.filter { it.type == "image" || it.type.isNullOrBlank() }
-            ?.map { it.url.toFullMediaUrl() }
+            ?.mapNotNull { it.url.toFullMediaUrl() }
             ?: emptyList()
     }
 
@@ -2872,7 +2872,7 @@ fun PostDetailDialog(
                                         "image", null, "" -> {
                                             val currentImageIdx = imageIndex
                                             AsyncImage(
-                                                model = media.url.toFullMediaUrl(),
+                                                model = media.url.toFullMediaUrl().orEmpty(),
                                                 contentDescription = null,
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -2888,13 +2888,13 @@ fun PostDetailDialog(
                                         }
                                         "video" -> {
                                             com.worldmates.messenger.ui.media.InlineVideoPlayer(
-                                                videoUrl = media.url.toFullMediaUrl(),
+                                                videoUrl = media.url.toFullMediaUrl().orEmpty(),
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .height(220.dp)
                                                     .clip(RoundedCornerShape(12.dp)),
                                                 onFullscreenClick = {
-                                                    videoPlayerUrl = media.url.toFullMediaUrl()
+                                                    videoPlayerUrl = media.url.toFullMediaUrl().orEmpty()
                                                     showVideoPlayer = true
                                                 }
                                             )
@@ -2929,7 +2929,7 @@ fun PostDetailDialog(
                                             }
                                             if (showAudioPlayer) {
                                                 com.worldmates.messenger.ui.media.SimpleAudioPlayer(
-                                                    audioUrl = media.url.toFullMediaUrl(),
+                                                    audioUrl = media.url.toFullMediaUrl().orEmpty(),
                                                     onDismiss = { showAudioPlayer = false }
                                                 )
                                             }
