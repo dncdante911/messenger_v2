@@ -26,8 +26,17 @@ const DisconnectController = async (ctx, reason, io,socket) => {
           raw: true
       })
 
-      for (let follow of followers) {
-          await io.to(follow.following_id).emit("on_user_loggedoff", { user_id: user_id })
+      const notifySet = new Set(followers.map(f => f.following_id));
+
+      // Also notify users who have an open private chat with this user
+      for (const [viewerId, openChats] of Object.entries(ctx.userIdChatOpen)) {
+          if (Array.isArray(openChats) && openChats.includes(user_id) && Number(viewerId) !== user_id) {
+              notifySet.add(Number(viewerId));
+          }
+      }
+
+      for (const recipientId of notifySet) {
+          await io.to(String(recipientId)).emit("on_user_loggedoff", { user_id: user_id })
       }
   }
   if (ctx.userIdSocket[user_id]) {
