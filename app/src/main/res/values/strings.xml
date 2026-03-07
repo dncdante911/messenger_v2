@@ -475,6 +475,26 @@
     <string name="channel_detail_create_post">Створити пост</string>
     <string name="channel_detail_no_posts">Постів ще немає</string>
     <string name="channel_detail_create_first">Створіть перший пост!</string>
+
+    <!-- ===== POST DETAIL DIALOG ===== -->
+    <string name="post_detail_title">Деталі поста</string>
+    <string name="post_detail_views">Переглядів</string>
+    <string name="post_detail_reactions">Реакцій</string>
+    <string name="post_detail_comments_count">Коментарів</string>
+    <string name="post_detail_comments_title">Коментарі (%d)</string>
+    <string name="post_detail_no_comments">Коментарів ще немає</string>
+    <string name="post_detail_be_first">Будьте першим!</string>
+    <string name="post_detail_add_comment">Написати коментар…</string>
+    <string name="post_detail_send">Надіслати</string>
+    <string name="post_detail_close">Закрити</string>
+    <string name="post_detail_more_comments">і ще %d коментарів…</string>
+    <string name="post_detail_user_fallback">Користувач #%d</string>
+    <string name="post_detail_stickers">Стікери</string>
+    <string name="post_detail_emoji">Емоджі</string>
+    <string name="post_detail_gif">GIF</string>
+    <string name="post_detail_voice">Голосове</string>
+    <string name="post_detail_recording">Запис…</string>
+    <string name="post_detail_voice_recorded">Голосове повідомлення записано</string>
     <string name="reactions_count">Реакцій</string>
     <string name="subscriber_dynamics">Динаміка підписників</string>
     <string name="views_trend">Тренд переглядів</string>

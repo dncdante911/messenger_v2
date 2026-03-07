@@ -39,6 +39,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import kotlinx.coroutines.launch
+import androidx.compose.ui.window.Dialog
 
 // ==================== CHANNEL POST CARD ====================
 
@@ -2702,7 +2704,7 @@ fun ChannelSettingsDialog(
 }
 
 /**
- * Діалог детального перегляду поста
+ * Діалог детального перегляду поста — повноекранний, з медіа-переглядачами та Telegram-style коментарями
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2719,289 +2721,670 @@ fun PostDetailDialog(
     onCommentReaction: (commentId: Long, emoji: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var commentText by remember { mutableStateOf("") }
 
-    AlertDialog(
+    // Picker states
+    var showEmojiPicker by remember { mutableStateOf(false) }
+    var showGifPicker by remember { mutableStateOf(false) }
+    var showStrapiPicker by remember { mutableStateOf(false) }
+    var activePickerTab by remember { mutableStateOf<String?>(null) }
+
+    // Media viewer states
+    var showMediaViewer by remember { mutableStateOf(false) }
+    var mediaViewerPage by remember { mutableStateOf(0) }
+    val imageMediaUrls = remember(post.media) {
+        post.media
+            ?.filter { it.type == "image" || it.type.isNullOrBlank() }
+            ?.map { it.url.toFullMediaUrl() }
+            ?: emptyList()
+    }
+
+    // Video player state
+    var showVideoPlayer by remember { mutableStateOf(false) }
+    var videoPlayerUrl by remember { mutableStateOf("") }
+
+    // Voice recording states
+    val voiceRecorder = remember { com.worldmates.messenger.utils.VoiceRecorder(context) }
+    val recordingState by voiceRecorder.recordingState.collectAsState()
+    val recordingDuration by voiceRecorder.recordingDuration.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val isRecording = recordingState is com.worldmates.messenger.utils.VoiceRecorder.RecordingState.Recording
+
+    Dialog(
         onDismissRequest = onDismiss,
-        modifier = modifier.fillMaxWidth(),
-        title = {
-            Text(
-                "Деталі поста",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-            ) {
-                // Автор поста
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (!post.authorAvatar.isNullOrEmpty()) {
-                        AsyncImage(
-                            model = post.authorAvatar.toFullMediaUrl(),
-                            contentDescription = "Author Avatar",
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF667eea)),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF667eea)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = "Author",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
-                        Text(
-                            text = post.authorName ?: post.authorUsername ?: "Користувач #${post.authorId}",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF2C3E50)
-                        )
-                        Text(
-                            text = formatPostTime(post.createdTime),
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-
-                // Текст поста
-                Text(
-                    text = post.text,
-                    fontSize = 15.sp,
-                    color = Color(0xFF2C3E50),
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                // Медіа (якщо є) — clickable для full-screen просмотра
-                var showDetailMediaViewer by remember { mutableStateOf(false) }
-                var detailMediaViewerPage by remember { mutableStateOf(0) }
-                val imageMediaUrls = remember(post.media) {
-                    post.media
-                        ?.filter { it.type == "image" || it.type.isNullOrBlank() }
-                        ?.map { it.url.toFullMediaUrl() }
-                        ?: emptyList()
-                }
-
-                post.media?.forEachIndexed { index, media ->
-                    when (media.type) {
-                        "image", null, "" -> {
-                            AsyncImage(
-                                model = media.url.toFullMediaUrl(),
-                                contentDescription = "Post image",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 300.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        detailMediaViewerPage = index.coerceIn(0, imageMediaUrls.size - 1)
-                                        showDetailMediaViewer = true
-                                    }
-                                    .padding(bottom = 8.dp),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
-                    }
-                }
-
-                if (showDetailMediaViewer && imageMediaUrls.isNotEmpty()) {
-                    com.worldmates.messenger.ui.media.ImageGalleryViewer(
-                        imageUrls = imageMediaUrls,
-                        initialPage = detailMediaViewerPage,
-                        onDismiss = { showDetailMediaViewer = false }
-                    )
-                }
-
-                Divider(modifier = Modifier.padding(vertical = 12.dp))
-
-                // Статистика
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "${post.viewsCount}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2C3E50)
-                        )
-                        Text(
-                            text = "Переглядів",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "${post.reactionsCount}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2C3E50)
-                        )
-                        Text(
-                            text = "Реакцій",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "${post.commentsCount}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2C3E50)
-                        )
-                        Text(
-                            text = "Коментарів",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-
-                // Реакції
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // ── Top bar ──
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ReactionEmojis.DEFAULT_REACTIONS.forEach { emoji ->
-                        OutlinedButton(
-                            onClick = { onReactionClick(emoji) },
-                            modifier = Modifier.size(40.dp),
-                            contentPadding = PaddingValues(0.dp),
-                            shape = CircleShape
-                        ) {
-                            Text(text = emoji, fontSize = 18.sp)
-                        }
-                    }
-                }
-
-                Divider(modifier = Modifier.padding(vertical = 12.dp))
-
-                // Заголовок коментарів
-                Text(
-                    text = "Коментарі (${comments.size})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2C3E50),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                // Список коментарів
-                if (isLoadingComments) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else if (comments.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Коментарів ще немає",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.post_detail_close),
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                } else {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        comments.take(5).forEach { comment ->
-                            CommentItem(
+                    Text(
+                        text = stringResource(R.string.post_detail_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                // ── Scrollable content ──
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(bottom = 8.dp)
+                ) {
+                    // Author info
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (!post.authorAvatar.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = post.authorAvatar.toFullMediaUrl(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(
+                                                    MaterialTheme.colorScheme.primary,
+                                                    MaterialTheme.colorScheme.tertiary
+                                                )
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = post.authorName ?: post.authorUsername
+                                        ?: String.format(stringResource(R.string.post_detail_user_fallback), post.authorId),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = formatPostTime(post.createdTime),
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // Media (images, video, audio)
+                    if (!post.media.isNullOrEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                var imageIndex = 0
+                                post.media?.forEach { media ->
+                                    when (media.type) {
+                                        "image", null, "" -> {
+                                            val currentImageIdx = imageIndex
+                                            AsyncImage(
+                                                model = media.url.toFullMediaUrl(),
+                                                contentDescription = null,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .heightIn(max = 280.dp)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .clickable {
+                                                        mediaViewerPage = currentImageIdx.coerceIn(0, (imageMediaUrls.size - 1).coerceAtLeast(0))
+                                                        showMediaViewer = true
+                                                    },
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            imageIndex++
+                                        }
+                                        "video" -> {
+                                            com.worldmates.messenger.ui.media.InlineVideoPlayer(
+                                                videoUrl = media.url.toFullMediaUrl(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(220.dp)
+                                                    .clip(RoundedCornerShape(12.dp)),
+                                                onFullscreenClick = {
+                                                    videoPlayerUrl = media.url.toFullMediaUrl()
+                                                    showVideoPlayer = true
+                                                }
+                                            )
+                                        }
+                                        "audio" -> {
+                                            var showAudioPlayer by remember { mutableStateOf(false) }
+                                            Surface(
+                                                onClick = { showAudioPlayer = true },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(48.dp),
+                                                shape = RoundedCornerShape(12.dp),
+                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.PlayCircle,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(28.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Audio",
+                                                        fontSize = 14.sp,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                            if (showAudioPlayer) {
+                                                com.worldmates.messenger.ui.media.SimpleAudioPlayer(
+                                                    audioUrl = media.url.toFullMediaUrl(),
+                                                    onDismiss = { showAudioPlayer = false }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Post text
+                    item {
+                        if (post.text.isNotBlank()) {
+                            Text(
+                                text = post.text,
+                                fontSize = 15.sp,
+                                lineHeight = 22.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            )
+                        }
+                    }
+
+                    // Inline stats + reactions row
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Stats chips
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Visibility,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                                Text(
+                                    text = "${post.viewsCount}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.FavoriteBorder,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                                Text(
+                                    text = "${post.reactionsCount}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.ChatBubbleOutline,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                                Text(
+                                    text = "${post.commentsCount}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    }
+
+                    // Reaction buttons
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            ReactionEmojis.DEFAULT_REACTIONS.forEach { emoji ->
+                                Surface(
+                                    onClick = { onReactionClick(emoji) },
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                    ) {
+                                        Text(text = emoji, fontSize = 18.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Divider + comments header
+                    item {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = String.format(stringResource(R.string.post_detail_comments_title), comments.size),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Comments list
+                    if (isLoadingComments) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(80.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(28.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
+                    } else if (comments.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.ChatBubbleOutline,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp),
+                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(R.string.post_detail_no_comments),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = stringResource(R.string.post_detail_be_first),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    } else {
+                        items(comments) { comment ->
+                            PremiumCommentItem(
                                 comment = comment,
                                 canDelete = isAdmin || comment.userId == currentUserId,
                                 onDeleteClick = { onDeleteComment(comment.id) },
-                                onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) }
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                        if (comments.size > 5) {
-                            Text(
-                                text = "і ще ${comments.size - 5} коментарів...",
-                                fontSize = 12.sp,
-                                color = Color.Gray,
-                                modifier = Modifier.padding(vertical = 4.dp)
+                                onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) },
+                                modifier = Modifier.padding(horizontal = 12.dp)
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Поле додавання коментаря
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                // ── Bottom input area ──
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .navigationBarsPadding()
+                        .imePadding()
                 ) {
-                    OutlinedTextField(
-                        value = commentText,
-                        onValueChange = { commentText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Додати коментар...") },
-                        maxLines = 3,
-                        shape = RoundedCornerShape(12.dp)
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    IconButton(
-                        onClick = {
-                            if (commentText.isNotBlank()) {
-                                onAddComment(commentText)
-                                commentText = ""
+                    // Voice recording bar
+                    if (isRecording) {
+                        val voiceLabel = stringResource(R.string.post_detail_voice)
+                        val recordingLabel = stringResource(R.string.post_detail_recording)
+                        val cancelDesc = stringResource(R.string.cancel)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f))
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Mic,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "$recordingLabel ${voiceRecorder.formatDuration(recordingDuration)}",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch { voiceRecorder.cancelRecording() }
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = cancelDesc,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
-                        },
-                        enabled = commentText.isNotBlank()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "Надіслати",
-                            tint = if (commentText.isNotBlank())
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                            Surface(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        voiceRecorder.stopRecording()
+                                        val state = voiceRecorder.recordingState.value
+                                        if (state is com.worldmates.messenger.utils.VoiceRecorder.RecordingState.Completed) {
+                                            onAddComment("[$voiceLabel](file://${state.filePath})")
+                                            voiceRecorder.cancelRecording()
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(horizontal = 12.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.post_detail_send),
+                                        fontSize = 13.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Picker tabs
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.Start,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CommentPickerChip(
+                                icon = Icons.Outlined.EmojiEmotions,
+                                label = stringResource(R.string.post_detail_stickers),
+                                isActive = activePickerTab == "strapi",
+                                onClick = {
+                                    activePickerTab = if (activePickerTab == "strapi") null else "strapi"
+                                    showStrapiPicker = activePickerTab == "strapi"
+                                    showEmojiPicker = false
+                                    showGifPicker = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            CommentPickerChip(
+                                icon = Icons.Outlined.Mood,
+                                label = stringResource(R.string.post_detail_emoji),
+                                isActive = activePickerTab == "emoji",
+                                onClick = {
+                                    activePickerTab = if (activePickerTab == "emoji") null else "emoji"
+                                    showEmojiPicker = activePickerTab == "emoji"
+                                    showStrapiPicker = false
+                                    showGifPicker = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            CommentPickerChip(
+                                icon = Icons.Outlined.Gif,
+                                label = stringResource(R.string.post_detail_gif),
+                                isActive = activePickerTab == "gif",
+                                onClick = {
+                                    activePickerTab = if (activePickerTab == "gif") null else "gif"
+                                    showGifPicker = activePickerTab == "gif"
+                                    showEmojiPicker = false
+                                    showStrapiPicker = false
+                                }
+                            )
+                        }
+
+                        // Input row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                                .padding(bottom = 8.dp),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            // Voice recording button
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch { voiceRecorder.startRecording() }
+                                },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Mic,
+                                    contentDescription = stringResource(R.string.post_detail_voice),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            OutlinedTextField(
+                                value = commentText,
+                                onValueChange = { commentText = it },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 44.dp, max = 120.dp),
+                                placeholder = {
+                                    Text(
+                                        stringResource(R.string.post_detail_add_comment),
+                                        fontSize = 14.sp
+                                    )
+                                },
+                                maxLines = 4,
+                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Send button
+                            val sendEnabled = commentText.isNotBlank()
+                            Surface(
+                                onClick = {
+                                    if (sendEnabled) {
+                                        onAddComment(commentText)
+                                        commentText = ""
+                                    }
+                                },
+                                enabled = sendEnabled,
+                                modifier = Modifier.size(40.dp),
+                                shape = CircleShape,
+                                color = if (sendEnabled)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Send,
+                                        contentDescription = stringResource(R.string.post_detail_send),
+                                        tint = if (sendEnabled)
+                                            Color.White
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Pickers
+                    AnimatedVisibility(visible = showEmojiPicker) {
+                        com.worldmates.messenger.ui.components.EmojiPicker(
+                            onEmojiSelected = { emoji -> commentText += emoji },
+                            onDismiss = {
+                                showEmojiPicker = false
+                                activePickerTab = null
+                            }
+                        )
+                    }
+
+                    AnimatedVisibility(visible = showGifPicker) {
+                        com.worldmates.messenger.ui.components.GifPicker(
+                            onGifSelected = { gifUrl ->
+                                commentText += "\n[GIF]($gifUrl)"
+                                showGifPicker = false
+                                activePickerTab = null
+                            },
+                            onDismiss = {
+                                showGifPicker = false
+                                activePickerTab = null
+                            }
+                        )
+                    }
+
+                    AnimatedVisibility(visible = showStrapiPicker) {
+                        com.worldmates.messenger.ui.strapi.StrapiContentPicker(
+                            onItemSelected = { contentUrl ->
+                                commentText += "\n[Sticker]($contentUrl)"
+                                showStrapiPicker = false
+                                activePickerTab = null
+                            },
+                            onDismiss = {
+                                showStrapiPicker = false
+                                activePickerTab = null
+                            }
                         )
                     }
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Закрити")
-            }
         }
-    )
+    }
+
+    // Media viewers (outside Dialog to avoid nesting issues)
+    if (showMediaViewer && imageMediaUrls.isNotEmpty()) {
+        com.worldmates.messenger.ui.media.ImageGalleryViewer(
+            imageUrls = imageMediaUrls,
+            initialPage = mediaViewerPage,
+            onDismiss = { showMediaViewer = false }
+        )
+    }
+
+    if (showVideoPlayer && videoPlayerUrl.isNotEmpty()) {
+        com.worldmates.messenger.ui.media.FullscreenVideoPlayer(
+            videoUrl = videoPlayerUrl,
+            onDismiss = { showVideoPlayer = false }
+        )
+    }
 }
 
 // ==================== KARMA & TRUST BADGES ====================
