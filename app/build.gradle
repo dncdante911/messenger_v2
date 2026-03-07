@@ -209,6 +209,9 @@ dependencies {
     // Dropbox
     implementation 'com.dropbox.core:dropbox-core-sdk:5.4.5'  // Dropbox Core SDK
 
+    // ==================== HTML PARSING (для превью посилань) ====================
+    implementation 'org.jsoup:jsoup:1.17.2'
+
     // ==================== TESTING ====================
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

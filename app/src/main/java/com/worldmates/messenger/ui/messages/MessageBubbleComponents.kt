@@ -41,6 +41,7 @@ import com.worldmates.messenger.utils.VoicePlayer
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import com.worldmates.messenger.utils.extractFirstUrl
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -476,6 +477,27 @@ fun MessageBubbleComposable(
                                     settings = formattingSettings,
                                     onMentionClick = onMentionClick,
                                     onHashtagClick = onHashtagClick,
+                                    onLinkClick = onLinkClick
+                                )
+                            }
+                        }
+
+                        // 🔗 Link preview — shown for text-only messages containing a URL
+                        if (shouldShowText &&
+                            effectiveMediaUrl.isNullOrEmpty() &&
+                            (message.type == "text" || message.type == null)
+                        ) {
+                            val firstUrl = remember(message.decryptedText) {
+                                message.decryptedText?.let { extractFirstUrl(it) }
+                            }
+                            if (firstUrl != null) {
+                                MessageLinkPreview(
+                                    url = firstUrl,
+                                    accentColor = if (isOwn) {
+                                        MaterialTheme.colorScheme.inversePrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
+                                    },
                                     onLinkClick = onLinkClick
                                 )
                             }
