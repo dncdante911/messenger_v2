@@ -404,15 +404,16 @@ fun PresenceStatusText(status: UserPresenceStatus, textColor: Color) {
     val fontSize = 12.sp
     val context = LocalContext.current
 
-    val recentlyStr = stringResource(R.string.seen_recently)
-    val typingStr = stringResource(R.string.typing)
-    val onlineStr = stringResource(R.string.online)
-    val recordingVoiceStr = stringResource(R.string.recording_voice)
-    val recordingVideoStr = stringResource(R.string.recording_video)
-    val listeningAudioStr = stringResource(R.string.listening_audio)
-    val viewingMediaStr = stringResource(R.string.viewing_media)
-    val choosingStickerStr = stringResource(R.string.choosing_sticker)
-    val userTypingTemplate = stringResource(R.string.user_typing)
+    // Use status_* strings (no trailing "…" — animated dots or the text itself provide feedback)
+    val typingStr         = stringResource(R.string.status_typing)
+    val userTypingTpl     = stringResource(R.string.status_typing_group)
+    val onlineStr         = stringResource(R.string.status_online)
+    val recordingVoiceStr = stringResource(R.string.status_recording_voice)
+    val recordingVideoStr = stringResource(R.string.status_recording_video)
+    val listeningAudioStr = stringResource(R.string.status_listening_audio)
+    val viewingMediaStr   = stringResource(R.string.status_viewing_media)
+    val choosingStickerStr= stringResource(R.string.status_choosing_sticker)
+    val recentlyStr       = stringResource(R.string.status_seen_recently)
 
     when (status) {
         is UserPresenceStatus.Typing -> {
@@ -424,7 +425,7 @@ fun PresenceStatusText(status: UserPresenceStatus, textColor: Color) {
         }
         is UserPresenceStatus.GroupTyping -> {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(String.format(userTypingTemplate, status.userName), fontSize = fontSize, color = textColor)
+                Text(String.format(userTypingTpl, status.userName), fontSize = fontSize, color = textColor)
                 Spacer(Modifier.width(3.dp))
                 TypingDots(color = textColor)
             }
@@ -451,10 +452,10 @@ fun PresenceStatusText(status: UserPresenceStatus, textColor: Color) {
             val lastSeenText = formatLastSeen(
                 ts = status.timestamp,
                 recentlyStr = recentlyStr,
-                minsAgoStr = { mins -> context.getString(R.string.seen_mins_ago, mins) },
-                todayAtStr = { time -> context.getString(R.string.seen_today_at, time) },
-                yesterdayAtStr = { time -> context.getString(R.string.seen_yesterday_at, time) },
-                onDateStr = { date -> context.getString(R.string.seen_on_date, date) }
+                minsAgoStr = { mins -> context.getString(R.string.status_seen_mins_ago, mins) },
+                todayAtStr = { time -> context.getString(R.string.status_seen_today_at, time) },
+                yesterdayAtStr = { time -> context.getString(R.string.status_seen_yesterday_at, time) },
+                onDateStr = { date -> context.getString(R.string.status_seen_on_date, date) }
             )
             if (lastSeenText.isNotEmpty()) {
                 Text(lastSeenText, fontSize = fontSize, color = textColor)

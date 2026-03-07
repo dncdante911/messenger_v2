@@ -1345,12 +1345,12 @@ class MessagesViewModel(application: Application) :
         if (!isRelevant) return
 
         val newStatus: UserPresenceStatus = when (action) {
-            "recording"       -> UserPresenceStatus.RecordingVoice
-            "recording_video" -> UserPresenceStatus.RecordingVideo
-            "listening"       -> UserPresenceStatus.ListeningAudio
-            "viewing"         -> UserPresenceStatus.ViewingMedia
-            "choosing_sticker"-> UserPresenceStatus.ChoosingSticker
-            else              -> basePresenceStatus()
+            Constants.USER_ACTION_RECORDING        -> UserPresenceStatus.RecordingVoice
+            Constants.USER_ACTION_RECORDING_VIDEO  -> UserPresenceStatus.RecordingVideo
+            Constants.USER_ACTION_LISTENING        -> UserPresenceStatus.ListeningAudio
+            Constants.USER_ACTION_VIEWING          -> UserPresenceStatus.ViewingMedia
+            Constants.USER_ACTION_CHOOSING_STICKER -> UserPresenceStatus.ChoosingSticker
+            else                                   -> basePresenceStatus()
         }
         _presenceStatus.value = newStatus
         Log.d(TAG, "User action '$action' from user $userId")
@@ -1478,7 +1478,7 @@ class MessagesViewModel(application: Application) :
      */
     fun sendRecordingStatus() {
         if (groupId > 0L) {
-            sendUserAction("recording")
+            sendUserAction(Constants.USER_ACTION_RECORDING)
         } else if (recipientId != 0L) {
             socketManager?.sendRecordingStatus(recipientId)
             Log.d(TAG, "Recording status emitted for recipient $recipientId")

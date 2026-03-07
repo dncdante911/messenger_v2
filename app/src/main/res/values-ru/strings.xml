@@ -1160,6 +1160,27 @@
     <string name="create_subgroup">Создать подгруппу</string>
     <string name="change_wallpaper">Изменить обои</string>
     <string name="block_user_action">Заблокировать</string>
+    <!-- ═══ Presence/activity status strings for chat header ═══ -->
+    <!-- Private chat: typing (no "…" — animated dots are rendered in UI) -->
+    <string name="status_typing">печатает</string>
+    <!-- Group chat: "%s печатает" — name injected at runtime -->
+    <string name="status_typing_group">%s печатает</string>
+    <!-- Activity statuses -->
+    <string name="status_recording_voice">🎤 записывает голосовое</string>
+    <string name="status_recording_video">🎥 снимает видео</string>
+    <string name="status_listening_audio">🎧 слушает аудио</string>
+    <string name="status_viewing_media">👁 просматривает</string>
+    <string name="status_choosing_sticker">😊 выбирает стикер</string>
+    <!-- Online/offline -->
+    <string name="status_online">в сети</string>
+    <string name="status_offline">не в сети</string>
+    <!-- Last seen — short forms for header subtitle -->
+    <string name="status_seen_recently">недавно</string>
+    <string name="status_seen_mins_ago">%d мин назад</string>
+    <string name="status_seen_today_at">сегодня в %s</string>
+    <string name="status_seen_yesterday_at">вчера в %s</string>
+    <string name="status_seen_on_date">%s</string>
+    <!-- ═══ Legacy aliases kept for backward compatibility ═══ -->
     <string name="user_typing">%s печатает</string>
     <string name="recording_voice">🎤 Записывает голосовое…</string>
     <string name="recording_video">🎥 Снимает видео…</string>
