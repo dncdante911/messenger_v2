@@ -2827,7 +2827,7 @@ fun PostDetailDialog(
 
                 if (showDetailMediaViewer && imageMediaUrls.isNotEmpty()) {
                     com.worldmates.messenger.ui.media.ImageGalleryViewer(
-                        imageUrls = imageMediaUrls,
+                        imageUrls = imageMediaUrls.filterNotNull(),
                         initialPage = detailMediaViewerPage,
                         onDismiss = { showDetailMediaViewer = false }
                     )
@@ -3078,4 +3078,3 @@ fun TrustMiniBadge(
         )
     }
 }
-
