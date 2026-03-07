@@ -34,7 +34,6 @@ import com.worldmates.messenger.utils.extractYouTubeVideoId
 import com.worldmates.messenger.utils.fetchLinkPreview
 import com.worldmates.messenger.utils.isYouTubeUrl
 import com.worldmates.messenger.utils.youTubeThumbnailUrl
-import kotlinx.coroutines.launch
 
 /**
  * Composable that asynchronously loads and displays a link preview.
@@ -64,13 +63,10 @@ fun MessageLinkPreview(
 
     var preview by remember(url) { mutableStateOf<LinkPreviewData?>(null) }
     var loaded by remember(url) { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(url) {
-        scope.launch {
-            preview = fetchLinkPreview(url)
-            loaded = true
-        }
+        preview = fetchLinkPreview(url)
+        loaded = true
     }
 
     AnimatedVisibility(
