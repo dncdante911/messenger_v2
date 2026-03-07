@@ -751,7 +751,10 @@ fun VoiceMessagePlayer(
     }
     val displayTitle = trackInfo.title
     val displayArtist = trackInfo.artist
-    val isVoiceMessage = message.type?.lowercase() == "voice"
+    // Detect voice messages by type OR by server filename pattern (VOICE_*)
+    val isVoiceMessage = message.type?.lowercase() == "voice" ||
+        message.mediaFileName?.startsWith("VOICE_", ignoreCase = true) == true ||
+        mediaUrl.substringAfterLast("/").startsWith("VOICE_", ignoreCase = true)
     val voiceMessageLabel = stringResource(R.string.voice_message)
 
     // Компактний аудіо плеєр (без фону — бульбашка повідомлення вже є контейнером)
