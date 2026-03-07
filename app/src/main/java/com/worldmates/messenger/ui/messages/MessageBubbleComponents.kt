@@ -42,6 +42,9 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.extractFirstUrl
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -482,11 +485,8 @@ fun MessageBubbleComposable(
                             }
                         }
 
-                        // 🔗 Link preview — shown for text-only messages containing a URL
-                        if (shouldShowText &&
-                            effectiveMediaUrl.isNullOrEmpty() &&
-                            (message.type == "text" || message.type == null)
-                        ) {
+                        // 🔗 Link preview — shown for any message containing a URL (no server media)
+                        if (effectiveMediaUrl.isNullOrEmpty()) {
                             val firstUrl = remember(message.decryptedText) {
                                 message.decryptedText?.let { extractFirstUrl(it) }
                             }
@@ -754,17 +754,13 @@ fun VoiceMessagePlayer(
     val isVoiceMessage = message.type?.lowercase() == "voice"
     val voiceMessageLabel = stringResource(R.string.voice_message)
 
-    // Компактний аудіо плеєр
-    Surface(
+    // Компактний аудіо плеєр (без фону — бульбашка повідомлення вже є контейнером)
+    Column(
         modifier = Modifier
             .wrapContentWidth()
-            .widthIn(min = 200.dp, max = 260.dp),
-        shape = RoundedCornerShape(18.dp),
-        color = textColor.copy(alpha = 0.1f)
+            .widthIn(min = 200.dp, max = 260.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-        ) {
             // Назва треку та виконавець (тільки для аудіо, не для голосових)
             if (!isVoiceMessage) {
                 Row(
@@ -844,24 +840,57 @@ fun VoiceMessagePlayer(
 
                 // Прогрес + час
                 Column(modifier = Modifier.weight(1f)) {
-                    Slider(
-                        value = if (isThisTrackLoaded && servicePlaybackState.duration > 0)
-                            servicePlaybackState.currentPosition.toFloat() else 0f,
-                        onValueChange = { newPos ->
-                            if (isThisTrackLoaded) {
-                                com.worldmates.messenger.services.MusicPlaybackService.seekTo(context, newPos.toLong())
+                    if (isVoiceMessage) {
+                        // 🎙️ Waveform bars (like Telegram)
+                        val barCount = 32
+                        val barHeights = remember(message.id) {
+                            val rng = java.util.Random(message.id)
+                            List(barCount) { rng.nextFloat() * 0.7f + 0.3f }
+                        }
+                        val progress = if (isThisTrackLoaded && servicePlaybackState.duration > 0)
+                            servicePlaybackState.currentPosition.toFloat() / servicePlaybackState.duration.toFloat()
+                        else 0f
+                        val playedCount = (barCount * progress).toInt()
+                        val primaryColor = colorScheme.primary
+                        val inactiveColor = textColor.copy(alpha = 0.25f)
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(28.dp)
+                        ) {
+                            val gap = size.width / (barCount * 2 - 1)
+                            barHeights.forEachIndexed { i, h ->
+                                val barH = size.height * h
+                                val x = i * gap * 2
+                                val y = (size.height - barH) / 2f
+                                drawRoundRect(
+                                    color = if (i <= playedCount) primaryColor else inactiveColor,
+                                    topLeft = Offset(x, y),
+                                    size = Size(gap, barH),
+                                    cornerRadius = CornerRadius(gap / 2, gap / 2)
+                                )
                             }
-                        },
-                        valueRange = 0f..(if (isThisTrackLoaded) servicePlaybackState.duration.toFloat().coerceAtLeast(1f) else 1f),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(24.dp),
-                        colors = SliderDefaults.colors(
-                            thumbColor = colorScheme.primary,
-                            activeTrackColor = colorScheme.primary,
-                            inactiveTrackColor = textColor.copy(alpha = 0.2f)
+                        }
+                    } else {
+                        Slider(
+                            value = if (isThisTrackLoaded && servicePlaybackState.duration > 0)
+                                servicePlaybackState.currentPosition.toFloat() else 0f,
+                            onValueChange = { newPos ->
+                                if (isThisTrackLoaded) {
+                                    com.worldmates.messenger.services.MusicPlaybackService.seekTo(context, newPos.toLong())
+                                }
+                            },
+                            valueRange = 0f..(if (isThisTrackLoaded) servicePlaybackState.duration.toFloat().coerceAtLeast(1f) else 1f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(24.dp),
+                            colors = SliderDefaults.colors(
+                                thumbColor = colorScheme.primary,
+                                activeTrackColor = colorScheme.primary,
+                                inactiveTrackColor = textColor.copy(alpha = 0.2f)
+                            )
                         )
-                    )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(4.dp))
@@ -889,7 +918,6 @@ fun VoiceMessagePlayer(
                         modifier = Modifier.size(14.dp)
                     )
                 }
-            }
         }
     }
 
