@@ -22,14 +22,16 @@ const TypingController = async (ctx, data, io,socket) => {
           clearTimeout(ctx.userIdExtra[ctx.userHashUserId[data.user_id]].typingTimeout)
       }
       ctx.userIdExtra[ctx.userHashUserId[data.user_id]].typingTimeout = setTimeout(async () => {
+          ctx.userIdExtra[ctx.userHashUserId[data.user_id]].typingTimeout = null
           await socketEvents.typingDone(ctx, io, data, ctx.userHashUserId[data.user_id])
-      }, 2000)
+      }, 7000)
   }
   else {
       ctx.userIdExtra[ctx.userHashUserId[data.user_id]] = {
           typingTimeout: setTimeout(async () => {
+              ctx.userIdExtra[ctx.userHashUserId[data.user_id]].typingTimeout = null
               await socketEvents.typingDone(ctx, io, data, ctx.userHashUserId[data.user_id])
-          }, 2000)
+          }, 7000)
       }
   }
   // await funcs.Wo_RegisterTyping(data.user_id, data.recipient_id, 1)

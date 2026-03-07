@@ -76,6 +76,7 @@ class MessagesViewModelNode(application: Application) : AndroidViewModel(applica
     // current conversation partner
     private var recipientId: Long = 0
     private var typingJob: Job? = null
+    private var isTypingActive: Boolean = false  // tracks whether "typing:true" was already sent
 
     // ── Initialization ────────────────────────────────────────────────────────
 
@@ -385,13 +386,31 @@ class MessagesViewModelNode(application: Application) : AndroidViewModel(applica
     // ── Typing ────────────────────────────────────────────────────────────────
 
     fun sendTypingStart() {
+        if (isTypingActive) {
+            // Already typing — just reset the auto-stop timer, no new API call
+            typingJob?.cancel()
+            typingJob = viewModelScope.launch {
+                try {
+                    delay(5_000)
+                    isTypingActive = false
+                    api.sendTyping(recipientId, "false")
+                } catch (e: Exception) {
+                    Log.e(TAG, "typing auto-stop error", e)
+                }
+            }
+            return
+        }
+        // First keystroke of a new typing session — send "true" once
+        isTypingActive = true
         typingJob?.cancel()
         typingJob = viewModelScope.launch {
             try {
                 api.sendTyping(recipientId, "true")
-                delay(5000)
+                delay(5_000)
+                isTypingActive = false
                 api.sendTyping(recipientId, "false")
             } catch (e: Exception) {
+                isTypingActive = false
                 Log.e(TAG, "typing error", e)
             }
         }
@@ -399,6 +418,8 @@ class MessagesViewModelNode(application: Application) : AndroidViewModel(applica
 
     fun sendTypingStop() {
         typingJob?.cancel()
+        if (!isTypingActive) return
+        isTypingActive = false
         viewModelScope.launch {
             try { api.sendTyping(recipientId, "false") }
             catch (e: Exception) { Log.e(TAG, "typing stop error", e) }

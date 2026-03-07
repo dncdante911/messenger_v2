@@ -144,18 +144,36 @@ object Constants {
     const val NODE_GROUP_REMOVE_ADMIN  = "api/node/group/remove-admin"
 
     // ==================== SOCKET.IO EVENTS ====================
-    const val SOCKET_EVENT_AUTH = "join"  // Изменено с register_socket на join
-    const val SOCKET_EVENT_PRIVATE_MESSAGE = "private_message"  // Событие личного сообщения от сервера
-    const val SOCKET_EVENT_NEW_MESSAGE = "new_message"  // Оставлено для обратной совместимости
-    const val SOCKET_EVENT_SEND_MESSAGE = "private_message"  // Отправка личного сообщения
-    const val SOCKET_EVENT_TYPING = "typing"  // Изменено с is_typing
-    const val SOCKET_EVENT_TYPING_DONE = "typing_done"  // Окончание набора
-    const val SOCKET_EVENT_LAST_SEEN = "ping_for_lastseen"  // Изменено
-    const val SOCKET_EVENT_MESSAGE_SEEN = "seen_messages"  // Изменено с message_seen
-    const val SOCKET_EVENT_GROUP_MESSAGE = "group_message"
-    const val SOCKET_EVENT_CHANNEL_MESSAGE = "channel_message"  // Новое сообщение в канале
-    const val SOCKET_EVENT_USER_ONLINE = "on_user_loggedin"  // Изменено с user_online
-    const val SOCKET_EVENT_USER_OFFLINE = "on_user_loggedoff"  // ИСПРАВЛЕНО: было user_status_change
+    const val SOCKET_EVENT_AUTH                = "join"
+    const val SOCKET_EVENT_PRIVATE_MESSAGE     = "private_message"
+    const val SOCKET_EVENT_PRIVATE_MESSAGE_PAGE= "private_message_page"
+    const val SOCKET_EVENT_PAGE_MESSAGE        = "page_message"
+    const val SOCKET_EVENT_NEW_MESSAGE         = "new_message"         // legacy compat
+    const val SOCKET_EVENT_SEND_MESSAGE        = "private_message"
+    const val SOCKET_EVENT_TYPING              = "typing"
+    const val SOCKET_EVENT_TYPING_DONE         = "typing_done"
+    const val SOCKET_EVENT_RECORDING           = "recording"
+    // Server emits "lastseen" for BOTH last-seen timestamps AND message-read receipts
+    const val SOCKET_EVENT_LAST_SEEN           = "ping_for_lastseen"   // server → client: recipient's online timestamp
+    const val SOCKET_EVENT_MESSAGE_SEEN        = "lastseen"            // server → client: your message was read (was wrong: "seen_messages")
+    const val SOCKET_EVENT_GROUP_MESSAGE       = "group_message"
+    const val SOCKET_EVENT_GROUP_TYPING        = "group_typing"
+    const val SOCKET_EVENT_GROUP_TYPING_DONE   = "group_typing_done"
+    const val SOCKET_EVENT_USER_ACTION         = "user_action"
+    const val SOCKET_EVENT_GROUP_USER_ACTION   = "group_user_action"
+    const val SOCKET_EVENT_MESSAGE_REACTION    = "message_reaction"
+    const val SOCKET_EVENT_MESSAGE_PINNED      = "message_pinned"
+    const val SOCKET_EVENT_CHANNEL_MESSAGE     = "channel_message"
+    const val SOCKET_EVENT_USER_ONLINE         = "on_user_loggedin"
+    const val SOCKET_EVENT_USER_OFFLINE        = "on_user_loggedoff"
+
+    // ==================== USER ACTION TYPES ====================
+    // Values sent in the "action" field of user_action / group_user_action events
+    const val USER_ACTION_RECORDING        = "recording"
+    const val USER_ACTION_RECORDING_VIDEO  = "recording_video"
+    const val USER_ACTION_LISTENING        = "listening"
+    const val USER_ACTION_VIEWING          = "viewing"
+    const val USER_ACTION_CHOOSING_STICKER = "choosing_sticker"
     
     // ==================== PUSH NOTIFICATIONS ====================
     // Firebase видалений — використовуємо Socket.IO ForegroundService + keep-alive
