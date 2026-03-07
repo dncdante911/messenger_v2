@@ -569,6 +569,7 @@ fun ChannelDetailsScreen(
                                     val imageUrls = post.media
                                         ?.filter { it.type == "image" || it.type.isNullOrBlank() }
                                         ?.map { it.url.toFullMediaUrl() }
+                                        ?.filterNotNull()
                                         ?: emptyList()
                                     if (imageUrls.isNotEmpty()) {
                                         mediaViewerUrls = imageUrls
