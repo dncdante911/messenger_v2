@@ -53,6 +53,7 @@ import com.worldmates.messenger.ui.media.MiniAudioPlayer
 import com.worldmates.messenger.ui.media.FullscreenVideoPlayer
 import com.worldmates.messenger.data.model.Message
 import com.worldmates.messenger.data.model.ReactionGroup
+import com.worldmates.messenger.data.model.isOwner
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.FileManager
 import com.worldmates.messenger.network.NetworkQualityMonitor
