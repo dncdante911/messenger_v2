@@ -465,6 +465,16 @@
     <string name="views_label">просмотров</string>
     <string name="comments_label">Комментарии</string>
     <string name="share_post">Поделиться</string>
+
+    <!-- Channel detail screen -->
+    <string name="channel_detail_subscribers">подписчиков</string>
+    <string name="channel_detail_posts">постов</string>
+    <string name="channel_detail_pinned">Закреплено</string>
+    <string name="channel_detail_subscribe">Подписаться</string>
+    <string name="channel_detail_subscribed">Подписано</string>
+    <string name="channel_detail_create_post">Создать пост</string>
+    <string name="channel_detail_no_posts">Постов ещё нет</string>
+    <string name="channel_detail_create_first">Создайте первый пост!</string>
     <string name="reactions_count">Реакций</string>
     <string name="subscriber_dynamics">Динамика подписчиков</string>
     <string name="views_trend">Тренд просмотров</string>

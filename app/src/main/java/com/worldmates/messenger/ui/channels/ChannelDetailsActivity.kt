@@ -332,7 +332,7 @@ fun ChannelDetailsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
-                            color = PremiumColors.TelegramBlue
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 } else if (channel != null) {
@@ -437,7 +437,7 @@ fun ChannelDetailsScreen(
                         item {
                             if (channelViewStyle == ChannelViewStyle.PREMIUM) {
                                 PremiumSectionHeader(
-                                    title = "Posts",
+                                    title = stringResource(R.string.channel_detail_posts).replaceFirstChar { it.uppercase() },
                                     count = posts.size
                                 )
                             } else {
@@ -472,19 +472,19 @@ fun ChannelDetailsScreen(
                                 if (channelViewStyle == ChannelViewStyle.PREMIUM) {
                                     PremiumEmptyState(
                                         icon = Icons.Outlined.Article,
-                                        title = "No posts yet",
-                                        subtitle = if (channel.isAdmin) "Create your first post!" else null,
+                                        title = stringResource(R.string.channel_detail_no_posts),
+                                        subtitle = if (channel.isAdmin) stringResource(R.string.channel_detail_create_first) else null,
                                         action = if (channel.isAdmin) {
                                             {
                                                 Button(
                                                     onClick = { showCreatePostDialog = true },
                                                     colors = ButtonDefaults.buttonColors(
-                                                        containerColor = PremiumColors.TelegramBlue
+                                                        containerColor = MaterialTheme.colorScheme.primary
                                                     )
                                                 ) {
                                                     Icon(Icons.Default.Add, contentDescription = null)
                                                     Spacer(modifier = Modifier.width(8.dp))
-                                                    Text("Create Post")
+                                                    Text(stringResource(R.string.channel_detail_create_post))
                                                 }
                                             }
                                         } else null
@@ -602,10 +602,7 @@ fun ChannelDetailsScreen(
                                 ) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(32.dp),
-                                        color = if (channelViewStyle == ChannelViewStyle.PREMIUM)
-                                            PremiumColors.TelegramBlue
-                                        else
-                                            MaterialTheme.colorScheme.primary
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -928,7 +925,7 @@ fun ChannelDetailsScreen(
                             icon = Icons.Default.Edit,
                             title = "Edit Info",
                             subtitle = "Name, description, username",
-                            iconTint = PremiumColors.TelegramBlue,
+                            iconTint = MaterialTheme.colorScheme.primary,
                             onClick = {
                                 showChannelMenuDialog = false
                                 showEditChannelDialog = true
@@ -952,7 +949,7 @@ fun ChannelDetailsScreen(
                             icon = Icons.Default.Info,
                             title = "Statistics",
                             subtitle = "Views, growth, engagement",
-                            iconTint = PremiumColors.SuccessGreen,
+                            iconTint = Color(0xFF00C853),
                             onClick = {
                                 showChannelMenuDialog = false
                                 detailsViewModel.loadStatistics(channelId)
@@ -971,7 +968,7 @@ fun ChannelDetailsScreen(
                                 icon = Icons.Default.AccountCircle,
                                 title = "Administrators",
                                 subtitle = "Manage admin roles",
-                                iconTint = PremiumColors.WarningOrange,
+                                iconTint = Color(0xFFFF9800),
                                 onClick = {
                                     showChannelMenuDialog = false
                                     detailsViewModel.loadChannelDetails(channelId)
@@ -996,7 +993,7 @@ fun ChannelDetailsScreen(
                                 icon = Icons.Outlined.Dashboard,
                                 title = "Admin Panel",
                                 subtitle = "Full management dashboard",
-                                iconTint = PremiumColors.ErrorRed,
+                                iconTint = MaterialTheme.colorScheme.error,
                                 onClick = {
                                     showChannelMenuDialog = false
                                     context.startActivity(
@@ -1169,13 +1166,13 @@ fun CreatePostDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = PremiumColors.GradientStart.copy(alpha = 0.12f)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     ) {
                         Text(
                             "${selectedMediaUris.size}/$maxMedia",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = PremiumColors.GradientStart,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
@@ -1200,8 +1197,8 @@ fun CreatePostDialog(
                     maxLines = 6,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PremiumColors.GradientStart,
-                        cursorColor = PremiumColors.GradientStart
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -1358,7 +1355,7 @@ fun CreatePostDialog(
                                 .fillMaxWidth()
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp)),
-                            color = PremiumColors.GradientStart
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -1373,7 +1370,7 @@ fun CreatePostDialog(
                     Text(
                         text = "Maximum $maxMedia files reached",
                         fontSize = 12.sp,
-                        color = PremiumColors.WarningOrange
+                        color = Color(0xFFFF9800)
                     )
                 }
             }
@@ -1427,7 +1424,7 @@ fun CreatePostDialog(
                 },
                 enabled = (text.isNotBlank() || selectedMediaUris.isNotEmpty()) && !isUploadingMedia,
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.GradientStart)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(Icons.Outlined.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))

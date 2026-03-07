@@ -1035,13 +1035,13 @@ fun CommentsBottomSheet(
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = PremiumColors.GradientStart.copy(alpha = 0.12f)
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                         ) {
                             Text(
                                 text = "${comments.size}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = PremiumColors.GradientStart,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
@@ -1122,7 +1122,7 @@ fun CommentsBottomSheet(
                             .size(56.dp)
                             .clip(CircleShape)
                             .background(
-                                PremiumColors.GradientStart.copy(alpha = 0.08f)
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1130,7 +1130,7 @@ fun CommentsBottomSheet(
                             Icons.Outlined.ChatBubbleOutline,
                             contentDescription = null,
                             modifier = Modifier.size(28.dp),
-                            tint = PremiumColors.GradientStart.copy(alpha = 0.5f)
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1245,7 +1245,7 @@ fun CommentsBottomSheet(
                         textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
                         shape = RoundedCornerShape(24.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PremiumColors.GradientStart,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
                             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
@@ -1267,7 +1267,7 @@ fun CommentsBottomSheet(
                         modifier = Modifier.size(44.dp),
                         shape = CircleShape,
                         color = if (sendEnabled)
-                            PremiumColors.GradientStart
+                            MaterialTheme.colorScheme.primary
                         else
                             MaterialTheme.colorScheme.surfaceVariant
                     ) {
@@ -1339,7 +1339,7 @@ private fun CommentPickerChip(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
         color = if (isActive)
-            PremiumColors.GradientStart.copy(alpha = 0.12f)
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
         else
             Color.Transparent
     ) {
@@ -1350,7 +1350,7 @@ private fun CommentPickerChip(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isActive) PremiumColors.GradientStart
+                tint = if (isActive) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(16.dp)
             )
@@ -1359,7 +1359,7 @@ private fun CommentPickerChip(
                 text = label,
                 fontSize = 11.sp,
                 fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isActive) PremiumColors.GradientStart
+                color = if (isActive) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -1500,8 +1500,8 @@ fun PremiumCommentItem(
                     .background(
                         Brush.linearGradient(
                             listOf(
-                                PremiumColors.GradientStart,
-                                PremiumColors.GradientMiddle
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.tertiary
                             )
                         )
                     ),
@@ -1528,7 +1528,7 @@ fun PremiumCommentItem(
                     text = comment.userName ?: comment.username ?: "User #${comment.userId}",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = PremiumColors.GradientStart,
+                    color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -1663,7 +1663,7 @@ fun PostOptionsBottomSheet(
                 icon = Icons.Default.PushPin,
                 text = if (post.isPinned) "Unpin Post" else "Pin Post",
                 subtitle = if (post.isPinned) "Remove from top" else "Show at the top",
-                iconTint = PremiumColors.TelegramBlue,
+                iconTint = MaterialTheme.colorScheme.primary,
                 onClick = {
                     onPinClick()
                     onDismiss()
@@ -1675,7 +1675,7 @@ fun PostOptionsBottomSheet(
                 icon = Icons.Default.Edit,
                 text = "Edit Post",
                 subtitle = "Change text or media",
-                iconTint = PremiumColors.WarningOrange,
+                iconTint = Color(0xFFFF9800),
                 onClick = {
                     onEditClick()
                     onDismiss()
@@ -1691,8 +1691,8 @@ fun PostOptionsBottomSheet(
                 icon = Icons.Default.Delete,
                 text = "Delete Post",
                 subtitle = "This action cannot be undone",
-                iconTint = PremiumColors.ErrorRed,
-                textColor = PremiumColors.ErrorRed,
+                iconTint = MaterialTheme.colorScheme.error,
+                textColor = MaterialTheme.colorScheme.error,
                 onClick = {
                     onDeleteClick()
                     onDismiss()
@@ -1781,7 +1781,7 @@ fun EditPostDialog(
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = null,
-                    tint = PremiumColors.TelegramBlue,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -1806,8 +1806,8 @@ fun EditPostDialog(
                     textStyle = MaterialTheme.typography.bodyMedium,
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PremiumColors.TelegramBlue,
-                        cursorColor = PremiumColors.TelegramBlue
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1824,7 +1824,7 @@ fun EditPostDialog(
                         Text(
                             text = "Modified",
                             fontSize = 12.sp,
-                            color = PremiumColors.TelegramBlue,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -1840,7 +1840,7 @@ fun EditPostDialog(
                 },
                 enabled = hasChanges,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PremiumColors.TelegramBlue
+                    containerColor = MaterialTheme.colorScheme.primary
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -1873,7 +1873,7 @@ fun StatisticsDialog(
                 Icon(
                     Icons.Default.BarChart,
                     contentDescription = null,
-                    tint = PremiumColors.SuccessGreen,
+                    tint = Color(0xFF00C853),
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -1883,7 +1883,7 @@ fun StatisticsDialog(
         text = {
             if (statistics == null) {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = PremiumColors.TelegramBlue)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1895,13 +1895,13 @@ fun StatisticsDialog(
                         StatCard(
                             value = "${statistics.subscribersCount}",
                             label = "Subscribers",
-                            color = PremiumColors.TelegramBlue,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f)
                         )
                         StatCard(
                             value = "${statistics.postsCount}",
                             label = "Posts",
-                            color = PremiumColors.SuccessGreen,
+                            color = Color(0xFF00C853),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -1912,7 +1912,7 @@ fun StatisticsDialog(
                         StatCard(
                             value = "${statistics.postsLastWeek}",
                             label = "This week",
-                            color = PremiumColors.WarningOrange,
+                            color = Color(0xFFFF9800),
                             modifier = Modifier.weight(1f)
                         )
                         StatCard(
@@ -1943,7 +1943,7 @@ fun StatisticsDialog(
                                     text = "${index + 1}",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = PremiumColors.TelegramBlue
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
@@ -2043,7 +2043,7 @@ fun ManageAdminsDialog(
                 Icon(
                     Icons.Default.AdminPanelSettings,
                     contentDescription = null,
-                    tint = PremiumColors.WarningOrange,
+                    tint = Color(0xFFFF9800),
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -2051,13 +2051,13 @@ fun ManageAdminsDialog(
                 Spacer(modifier = Modifier.width(6.dp))
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = PremiumColors.TelegramBlue.copy(alpha = 0.12f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
                     Text(
                         text = "${admins.size}",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = PremiumColors.TelegramBlue,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
@@ -2076,9 +2076,9 @@ fun ManageAdminsDialog(
                     ) {
                         // Role icon
                         val roleColor = when (admin.role) {
-                            "owner" -> PremiumColors.PremiumGold
-                            "admin" -> PremiumColors.TelegramBlue
-                            else -> PremiumColors.SuccessGreen
+                            "owner" -> Color(0xFFFFD700)
+                            "admin" -> MaterialTheme.colorScheme.primary
+                            else -> Color(0xFF00C853)
                         }
                         Surface(
                             shape = CircleShape,
@@ -2129,7 +2129,7 @@ fun ManageAdminsDialog(
         confirmButton = {
             Button(
                 onClick = { showAddDialog = true },
-                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.TelegramBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -2172,7 +2172,7 @@ fun AddAdminDialog(
                 Icon(
                     Icons.Default.PersonAdd,
                     contentDescription = null,
-                    tint = PremiumColors.TelegramBlue,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -2198,8 +2198,8 @@ fun AddAdminDialog(
                         )
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PremiumColors.TelegramBlue,
-                        cursorColor = PremiumColors.TelegramBlue
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -2219,8 +2219,8 @@ fun AddAdminDialog(
                         } else null,
                         shape = RoundedCornerShape(20.dp),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = PremiumColors.TelegramBlue.copy(alpha = 0.15f),
-                            selectedLabelColor = PremiumColors.TelegramBlue
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            selectedLabelColor = MaterialTheme.colorScheme.primary
                         )
                     )
                     FilterChip(
@@ -2232,8 +2232,8 @@ fun AddAdminDialog(
                         } else null,
                         shape = RoundedCornerShape(20.dp),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = PremiumColors.SuccessGreen.copy(alpha = 0.15f),
-                            selectedLabelColor = PremiumColors.SuccessGreen
+                            selectedContainerColor = Color(0xFF00C853).copy(alpha = 0.15f),
+                            selectedLabelColor = Color(0xFF00C853)
                         )
                     )
                 }
@@ -2247,7 +2247,7 @@ fun AddAdminDialog(
                     }
                 },
                 enabled = searchText.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.TelegramBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Add")
@@ -2286,7 +2286,7 @@ fun EditChannelInfoDialog(
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = null,
-                    tint = PremiumColors.TelegramBlue,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -2313,11 +2313,11 @@ fun EditChannelInfoDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     leadingIcon = {
-                        Icon(Icons.Default.Title, contentDescription = null, tint = PremiumColors.TelegramBlue)
+                        Icon(Icons.Default.Title, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PremiumColors.TelegramBlue,
-                        cursorColor = PremiumColors.TelegramBlue
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -2346,11 +2346,11 @@ fun EditChannelInfoDialog(
                         }
                     },
                     leadingIcon = {
-                        Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = PremiumColors.WarningOrange)
+                        Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = Color(0xFFFF9800))
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PremiumColors.TelegramBlue,
-                        cursorColor = PremiumColors.TelegramBlue
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -2366,11 +2366,11 @@ fun EditChannelInfoDialog(
                     maxLines = 4,
                     shape = RoundedCornerShape(14.dp),
                     leadingIcon = {
-                        Icon(Icons.Default.Description, contentDescription = null, tint = PremiumColors.SuccessGreen)
+                        Icon(Icons.Default.Description, contentDescription = null, tint = Color(0xFF00C853))
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PremiumColors.TelegramBlue,
-                        cursorColor = PremiumColors.TelegramBlue
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -2387,7 +2387,7 @@ fun EditChannelInfoDialog(
                     }
                 },
                 enabled = channelName.isNotBlank() && usernameError == null && hasChanges,
-                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.TelegramBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Save")
@@ -2429,7 +2429,7 @@ fun ChannelSettingsDialog(
                 Icon(
                     Icons.Default.Settings,
                     contentDescription = null,
-                    tint = PremiumColors.TelegramBlue,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -2452,7 +2452,7 @@ fun ChannelSettingsDialog(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp,
-                    color = PremiumColors.TelegramBlue
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 // Підпис автора
@@ -2482,7 +2482,7 @@ fun ChannelSettingsDialog(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp,
-                    color = PremiumColors.TelegramBlue
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 // Коментарі
@@ -2552,7 +2552,7 @@ fun ChannelSettingsDialog(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp,
-                    color = PremiumColors.TelegramBlue
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 // Модерація коментарів
@@ -2603,7 +2603,7 @@ fun ChannelSettingsDialog(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp,
-                    color = PremiumColors.TelegramBlue
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 // Сповіщення про нові пости
@@ -2672,7 +2672,7 @@ fun ChannelSettingsDialog(
                     )
                     onSave(updatedSettings)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.TelegramBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Save")
