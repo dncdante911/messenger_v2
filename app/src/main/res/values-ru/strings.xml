@@ -475,6 +475,27 @@
     <string name="channel_detail_create_post">Создать пост</string>
     <string name="channel_detail_no_posts">Постов ещё нет</string>
     <string name="channel_detail_create_first">Создайте первый пост!</string>
+
+    <!-- ===== POST DETAIL DIALOG ===== -->
+    <string name="post_detail_title">Детали поста</string>
+    <string name="post_detail_views">Просмотров</string>
+    <string name="post_detail_reactions">Реакций</string>
+    <string name="post_detail_comments_count">Комментариев</string>
+    <string name="post_detail_comments_title">Комментарии (%d)</string>
+    <string name="post_detail_no_comments">Комментариев ещё нет</string>
+    <string name="post_detail_be_first">Будьте первым!</string>
+    <string name="post_detail_add_comment">Написать комментарий…</string>
+    <string name="post_detail_send">Отправить</string>
+    <string name="post_detail_close">Закрыть</string>
+    <string name="post_detail_more_comments">и ещё %d комментариев…</string>
+    <string name="post_detail_user_fallback">Пользователь #%d</string>
+    <string name="post_detail_stickers">Стикеры</string>
+    <string name="post_detail_emoji">Эмоджи</string>
+    <string name="post_detail_gif">GIF</string>
+    <string name="post_detail_voice">Голосовое</string>
+    <string name="post_detail_recording">Запись…</string>
+    <string name="post_detail_voice_recorded">Голосовое сообщение записано</string>
+
     <string name="reactions_count">Реакций</string>
     <string name="subscriber_dynamics">Динамика подписчиков</string>
     <string name="views_trend">Тренд просмотров</string>
