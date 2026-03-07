@@ -34,6 +34,9 @@ object Constants {
     const val NODE_CHAT_NOTIFY_MEDIA = "api/node/chat/notify-media" // notify after PHP media save
     const val NODE_CHAT_SEND_MEDIA   = "api/node/chat/send-media"   // send media message (replaces PHP send_message for media)
 
+    // User presence
+    const val NODE_USER_STATUS = "api/node/user/status" // online status + last_seen for any user
+
     // Actions
     const val NODE_CHAT_DELETE  = "api/node/chat/delete"   // delete message
     const val NODE_CHAT_REACT   = "api/node/chat/react"    // react to message

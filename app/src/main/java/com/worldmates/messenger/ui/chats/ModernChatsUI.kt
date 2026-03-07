@@ -621,7 +621,9 @@ private fun isOnline(lastActivity: Long): Boolean {
 }
 
 private fun formatGroupTime(timestamp: Long, yesterdayStr: String): String {
-    val groupTime = Date(timestamp)
+    // timestamp is Unix seconds from server; Date() expects milliseconds
+    val tsMs = if (timestamp > 1_000_000_000_000L) timestamp else timestamp * 1000L
+    val groupTime = Date(tsMs)
     val now = Date()
     val diffInDays = ((now.time - groupTime.time) / (1000 * 60 * 60 * 24)).toInt()
 

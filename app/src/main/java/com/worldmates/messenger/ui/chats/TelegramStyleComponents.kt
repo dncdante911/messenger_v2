@@ -241,15 +241,17 @@ fun TelegramGroupItem(
  * Форматування часу для Telegram-style
  */
 private fun formatTime(timestamp: Long): String {
+    // timestamp from server is Unix seconds; convert to ms for Date/diff
+    val tsMs = if (timestamp > 1_000_000_000_000L) timestamp else timestamp * 1000L
     val now = System.currentTimeMillis()
-    val diff = now - timestamp
+    val diff = now - tsMs
 
     return when {
-        diff < 60_000 -> "щойно" // Менше хвилини
-        diff < 3600_000 -> "${diff / 60_000} хв" // Менше години
-        diff < 86400_000 -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp)) // Сьогодні
-        diff < 172800_000 -> "вчора" // Вчора
-        diff < 604800_000 -> SimpleDateFormat("EEE", Locale.getDefault()).format(Date(timestamp)) // Цього тижня
-        else -> SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(Date(timestamp)) // Давно
+        diff < 60_000 -> "щойно"
+        diff < 3600_000 -> "${diff / 60_000} хв"
+        diff < 86400_000 -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(tsMs))
+        diff < 172800_000 -> "вчора"
+        diff < 604800_000 -> SimpleDateFormat("EEE", Locale.getDefault()).format(Date(tsMs))
+        else -> SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(Date(tsMs))
     }
 }

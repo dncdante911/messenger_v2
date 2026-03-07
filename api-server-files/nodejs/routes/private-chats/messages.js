@@ -804,6 +804,44 @@ function userAction(ctx, io) {
     };
 }
 
+// ─── USER PRESENCE STATUS ─────────────────────────────────────────────────────
+// Returns online status + last_seen for any user.
+// Android calls this when opening a chat to initialise the header bar.
+//
+// POST /api/node/user/status  { user_id }
+// Response: { api_status:200, online:bool, last_seen:unix_seconds }
+
+function userStatus(ctx, io) {
+    return async (req, res) => {
+        try {
+            const targetUserId = parseInt(req.body.user_id);
+            if (!targetUserId || isNaN(targetUserId)) {
+                return res.status(400).json({ api_status: 400, error_message: 'user_id is required' });
+            }
+
+            // Check Socket.IO presence map: user is online if they have ≥1 active socket
+            const sockets = ctx.userIdSocket[targetUserId];
+            const isOnline = Array.isArray(sockets) && sockets.length > 0 &&
+                             (ctx.userIdCount[targetUserId] || 0) > 0;
+
+            // Fetch last_seen from DB (stored as Unix seconds in wo_users.lastseen)
+            const user = await ctx.wo_users.findOne({
+                attributes: ['lastseen'],
+                where: { user_id: targetUserId }
+            });
+
+            res.json({
+                api_status: 200,
+                online:     isOnline,
+                last_seen:  user ? (user.lastseen || 0) : 0
+            });
+        } catch (err) {
+            console.error('[Node/user/status]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to get user status' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
-module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing, userAction, notifyMediaMessage, sendMediaMessage };
+module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing, userAction, notifyMediaMessage, sendMediaMessage, userStatus };
