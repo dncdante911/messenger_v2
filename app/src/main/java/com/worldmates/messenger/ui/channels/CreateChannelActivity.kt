@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.LanguageManager
@@ -60,7 +62,7 @@ class CreateChannelActivity : AppCompatActivity() {
                     onChannelCreated = { channel ->
                         Toast.makeText(
                             this,
-                            "Channel \"${channel.name}\" created!",
+                            getString(R.string.channel_created_format, channel.name),
                             Toast.LENGTH_SHORT
                         ).show()
                         finish()
@@ -121,23 +123,23 @@ fun CreateChannelScreen(
                         }) {
                             Icon(
                                 Icons.Default.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.back),
                                 tint = Color.White
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "New Channel",
+                                text = stringResource(R.string.new_channel),
                                 color = Color.White,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = when (currentStep) {
-                                    0 -> "Choose channel type"
-                                    1 -> "Basic information"
-                                    2 -> "Channel avatar"
-                                    else -> "Final settings"
+                                    0 -> stringResource(R.string.channel_step_type)
+                                    1 -> stringResource(R.string.channel_step_info)
+                                    2 -> stringResource(R.string.channel_avatar)
+                                    else -> stringResource(R.string.channel_step_final)
                                 },
                                 color = Color.White.copy(alpha = 0.8f),
                                 fontSize = 13.sp
@@ -311,7 +313,7 @@ fun PremiumChannelTypeStep(
         }
 
         Text(
-            text = "What type of channel\nwould you like to create?",
+            text = stringResource(R.string.channel_type_question),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             lineHeight = 28.sp,
@@ -320,7 +322,7 @@ fun PremiumChannelTypeStep(
         )
 
         Text(
-            text = "Choose the visibility that suits your audience",
+            text = stringResource(R.string.channel_type_subtitle),
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -332,8 +334,8 @@ fun PremiumChannelTypeStep(
         // Public channel card
         PremiumTypeCard(
             icon = Icons.Outlined.Public,
-            title = "Public Channel",
-            description = "Anyone can find and subscribe. Has a unique @username link.",
+            title = stringResource(R.string.public_channel_title),
+            description = stringResource(R.string.public_channel_desc),
             accentColor = PremiumColors.TelegramBlue,
             gradientColors = listOf(Color(0xFF0088CC), Color(0xFF54A9EB)),
             isSelected = selectedType == "public",
@@ -343,8 +345,8 @@ fun PremiumChannelTypeStep(
         // Private channel card
         PremiumTypeCard(
             icon = Icons.Outlined.Lock,
-            title = "Private Channel",
-            description = "Join by invite only. Not visible in search results.",
+            title = stringResource(R.string.private_channel_title),
+            description = stringResource(R.string.private_channel_desc),
             accentColor = PremiumColors.GradientMiddle,
             gradientColors = listOf(Color(0xFF764ba2), Color(0xFFf093fb)),
             isSelected = selectedType == "private",
@@ -493,12 +495,12 @@ fun PremiumChannelInfoStep(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Tell us about your channel",
+            text = stringResource(R.string.channel_tell_us),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "This information will be visible to subscribers",
+            text = stringResource(R.string.channel_info_visible),
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -519,7 +521,7 @@ fun PremiumChannelInfoStep(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Channel Name",
+                        stringResource(R.string.channel_name),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = PremiumColors.GradientStart
@@ -529,7 +531,7 @@ fun PremiumChannelInfoStep(
                 OutlinedTextField(
                     value = channelName,
                     onValueChange = onNameChange,
-                    placeholder = { Text("e.g. My Awesome Channel") },
+                    placeholder = { Text(stringResource(R.string.channel_name_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
@@ -557,13 +559,13 @@ fun PremiumChannelInfoStep(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Description",
+                        stringResource(R.string.channel_description),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = PremiumColors.GradientMiddle
                     )
                     Text(
-                        " (optional)",
+                        stringResource(R.string.optional_label),
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -572,7 +574,7 @@ fun PremiumChannelInfoStep(
                 OutlinedTextField(
                     value = channelDescription,
                     onValueChange = onDescriptionChange,
-                    placeholder = { Text("Briefly describe your channel...") },
+                    placeholder = { Text(stringResource(R.string.channel_desc_placeholder)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(110.dp),
@@ -611,7 +613,7 @@ fun PremiumChannelInfoStep(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "Username",
+                            stringResource(R.string.username),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = PremiumColors.TelegramBlue
@@ -624,7 +626,7 @@ fun PremiumChannelInfoStep(
                             val filtered = value.filter { it.isLetterOrDigit() || it == '_' }
                             onUsernameChange(filtered)
                         },
-                        placeholder = { Text("my_channel") },
+                        placeholder = { Text("my_channel") }, // username format stays the same
                         prefix = {
                             Text(
                                 "@",
@@ -641,7 +643,7 @@ fun PremiumChannelInfoStep(
                         )
                     )
                     Text(
-                        text = "Letters, numbers and underscores only",
+                        text = stringResource(R.string.username_rules),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 6.dp)
@@ -654,7 +656,7 @@ fun PremiumChannelInfoStep(
 
         // Next button
         PremiumGradientButton(
-            text = "Continue",
+            text = stringResource(R.string.continue_btn),
             enabled = isValid,
             onClick = onNext
         )
@@ -698,7 +700,7 @@ fun PremiumChannelAvatarStep(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Give your channel\na face",
+            text = stringResource(R.string.channel_avatar_title),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             lineHeight = 28.sp,
@@ -706,7 +708,7 @@ fun PremiumChannelAvatarStep(
         )
 
         Text(
-            text = "A great avatar helps your channel stand out",
+            text = stringResource(R.string.channel_avatar_subtitle),
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -782,7 +784,7 @@ fun PremiumChannelAvatarStep(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Tap to select",
+                            text = stringResource(R.string.tap_to_select),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -812,7 +814,7 @@ fun PremiumChannelAvatarStep(
                 ) {
                     Icon(
                         Icons.Filled.Edit,
-                        contentDescription = "Change photo",
+                        contentDescription = stringResource(R.string.change_photo),
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
@@ -839,7 +841,7 @@ fun PremiumChannelAvatarStep(
                     MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                 )
             ) {
-                Text("Skip for now", fontSize = 15.sp)
+                Text(stringResource(R.string.skip_for_now), fontSize = 15.sp)
             }
 
             // Continue button
@@ -868,7 +870,7 @@ fun PremiumChannelAvatarStep(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "Continue",
+                        stringResource(R.string.continue_btn),
                         color = Color.White,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
@@ -902,12 +904,12 @@ fun PremiumChannelSettingsStep(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Almost done!",
+            text = stringResource(R.string.channel_final_title),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Configure your channel preferences",
+            text = stringResource(R.string.channel_final_subtitle),
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -951,12 +953,12 @@ fun PremiumChannelSettingsStep(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = channelName.ifBlank { "Channel" },
+                        text = channelName.ifBlank { stringResource(R.string.channel_name) },
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp
                     )
                     Text(
-                        text = if (channelType == "public") "Public channel" else "Private channel",
+                        text = if (channelType == "public") stringResource(R.string.public_channel_title) else stringResource(R.string.private_channel_title),
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -969,8 +971,8 @@ fun PremiumChannelSettingsStep(
         // Settings
         PremiumSettingsToggle(
             icon = Icons.Outlined.ChatBubbleOutline,
-            title = "Allow Comments",
-            description = "Subscribers can comment on posts",
+            title = stringResource(R.string.allow_comments),
+            description = stringResource(R.string.allow_comments_desc),
             checked = allowComments,
             accentColor = PremiumColors.TelegramBlue,
             onCheckedChange = { allowComments = it }
@@ -978,8 +980,8 @@ fun PremiumChannelSettingsStep(
 
         PremiumSettingsToggle(
             icon = Icons.Outlined.EmojiEmotions,
-            title = "Allow Reactions",
-            description = "Subscribers can react to posts with emoji",
+            title = stringResource(R.string.allow_reactions),
+            description = stringResource(R.string.allow_reactions_desc),
             checked = allowReactions,
             accentColor = PremiumColors.WarningOrange,
             onCheckedChange = { allowReactions = it }
@@ -987,8 +989,8 @@ fun PremiumChannelSettingsStep(
 
         PremiumSettingsToggle(
             icon = Icons.Outlined.BarChart,
-            title = "Show Statistics",
-            description = "Display view counts and engagement stats",
+            title = stringResource(R.string.show_statistics),
+            description = stringResource(R.string.show_statistics_desc),
             checked = showStatistics,
             accentColor = PremiumColors.SuccessGreen,
             onCheckedChange = { showStatistics = it }
@@ -1035,7 +1037,7 @@ fun PremiumChannelSettingsStep(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            "Creating channel...",
+                            stringResource(R.string.creating_channel),
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
@@ -1049,7 +1051,7 @@ fun PremiumChannelSettingsStep(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            "Create Channel",
+                            stringResource(R.string.create_channel),
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold

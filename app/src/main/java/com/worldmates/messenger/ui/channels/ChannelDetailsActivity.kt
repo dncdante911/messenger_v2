@@ -569,6 +569,7 @@ fun ChannelDetailsScreen(
                                     val imageUrls = post.media
                                         ?.filter { it.type == "image" || it.type.isNullOrBlank() }
                                         ?.map { it.url.toFullMediaUrl() }
+                                        ?.filterNotNull()
                                         ?: emptyList()
                                     if (imageUrls.isNotEmpty()) {
                                         mediaViewerUrls = imageUrls
@@ -919,7 +920,7 @@ fun ChannelDetailsScreen(
                 title = {
                     Column {
                         Text(
-                            "Channel Management",
+                            stringResource(R.string.channel_management),
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
                         )
@@ -939,8 +940,8 @@ fun ChannelDetailsScreen(
                         // Edit info
                         PremiumMenuItem(
                             icon = Icons.Default.Edit,
-                            title = "Edit Info",
-                            subtitle = "Name, description, username",
+                            title = stringResource(R.string.edit),
+                            subtitle = stringResource(R.string.channel_edit_info_subtitle),
                             iconTint = MaterialTheme.colorScheme.primary,
                             onClick = {
                                 showChannelMenuDialog = false
@@ -951,8 +952,8 @@ fun ChannelDetailsScreen(
                         // Settings
                         PremiumMenuItem(
                             icon = Icons.Default.Settings,
-                            title = "Settings",
-                            subtitle = "Comments, reactions, slow mode",
+                            title = stringResource(R.string.settings),
+                            subtitle = stringResource(R.string.channel_settings_subtitle),
                             iconTint = MaterialTheme.colorScheme.tertiary,
                             onClick = {
                                 showChannelMenuDialog = false
@@ -963,8 +964,8 @@ fun ChannelDetailsScreen(
                         // Statistics
                         PremiumMenuItem(
                             icon = Icons.Default.Info,
-                            title = "Statistics",
-                            subtitle = "Views, growth, engagement",
+                            title = stringResource(R.string.channel_statistics),
+                            subtitle = stringResource(R.string.channel_stats_subtitle),
                             iconTint = Color(0xFF00C853),
                             onClick = {
                                 showChannelMenuDialog = false
@@ -982,8 +983,8 @@ fun ChannelDetailsScreen(
                             // Administrators
                             PremiumMenuItem(
                                 icon = Icons.Default.AccountCircle,
-                                title = "Administrators",
-                                subtitle = "Manage admin roles",
+                                title = stringResource(R.string.admins),
+                                subtitle = stringResource(R.string.channel_admins_subtitle),
                                 iconTint = Color(0xFFFF9800),
                                 onClick = {
                                     showChannelMenuDialog = false
@@ -995,8 +996,8 @@ fun ChannelDetailsScreen(
                             // Formatting
                             PremiumMenuItem(
                                 icon = Icons.Outlined.TextFormat,
-                                title = "Message Formatting",
-                                subtitle = "Text styling permissions",
+                                title = stringResource(R.string.message_formatting_label),
+                                subtitle = stringResource(R.string.message_formatting_subtitle),
                                 iconTint = MaterialTheme.colorScheme.secondary,
                                 onClick = {
                                     showChannelMenuDialog = false
@@ -1007,8 +1008,8 @@ fun ChannelDetailsScreen(
                             // Admin Panel
                             PremiumMenuItem(
                                 icon = Icons.Outlined.Dashboard,
-                                title = "Admin Panel",
-                                subtitle = "Full management dashboard",
+                                title = stringResource(R.string.admin_panel),
+                                subtitle = stringResource(R.string.admin_panel_subtitle),
                                 iconTint = MaterialTheme.colorScheme.error,
                                 onClick = {
                                     showChannelMenuDialog = false
@@ -1025,7 +1026,7 @@ fun ChannelDetailsScreen(
                 confirmButton = {},
                 dismissButton = {
                     TextButton(onClick = { showChannelMenuDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(R.string.close))
                     }
                 }
             )

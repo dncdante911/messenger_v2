@@ -3461,4 +3461,3 @@ fun TrustMiniBadge(
         )
     }
 }
-

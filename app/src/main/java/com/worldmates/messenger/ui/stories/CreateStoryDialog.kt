@@ -28,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.utils.FileUtils
 import kotlinx.coroutines.launch
@@ -119,7 +121,7 @@ fun CreateStoryDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Створити Story",
+                        text = stringResource(R.string.create_story),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -151,7 +153,7 @@ fun CreateStoryDialog(
                         // Кнопка вибору фото
                         MediaPickerButton(
                             icon = Icons.Default.Image,
-                            label = "Фото",
+                            label = stringResource(R.string.photo),
                             onClick = {
                                 photoPickerLauncher.launch(
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -163,7 +165,7 @@ fun CreateStoryDialog(
                         // Кнопка вибору відео
                         MediaPickerButton(
                             icon = Icons.Default.VideoLibrary,
-                            label = "Відео",
+                            label = stringResource(R.string.video),
                             onClick = {
                                 videoPickerLauncher.launch(
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
@@ -193,7 +195,7 @@ fun CreateStoryDialog(
                         OutlinedTextField(
                             value = title,
                             onValueChange = { title = it },
-                            label = { Text("Заголовок (опціонально)") },
+                            label = { Text(stringResource(R.string.story_title_hint)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             colors = TextFieldDefaults.colors(
@@ -207,7 +209,7 @@ fun CreateStoryDialog(
                         OutlinedTextField(
                             value = description,
                             onValueChange = { description = it },
-                            label = { Text("Опис (опціонально)") },
+                            label = { Text(stringResource(R.string.story_description_hint)) },
                             modifier = Modifier.fillMaxWidth(),
                             maxLines = 3,
                             colors = TextFieldDefaults.colors(
@@ -252,7 +254,7 @@ fun CreateStoryDialog(
                     } else {
                         Icon(Icons.Default.Upload, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Опублікувати Story", fontSize = 16.sp)
+                        Text(stringResource(R.string.publish_story), fontSize = 16.sp)
                     }
                 }
             }
@@ -293,7 +295,7 @@ fun LimitsInfoCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = if (isPro) "PRO акаунт" else "Безкоштовний акаунт",
+                    text = if (isPro) stringResource(R.string.pro_account) else stringResource(R.string.free_account),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isPro) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface
@@ -313,9 +315,9 @@ fun LimitsInfoCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "• Макс. відео: $maxVideoDuration сек\n" +
-                        "• Тривалість: $expireHours год\n" +
-                        "• Доступно: ${maxStories - activeCount} stories",
+                text = stringResource(R.string.story_max_video_format, maxVideoDuration) + "\n" +
+                        stringResource(R.string.story_duration_format, expireHours) + "\n" +
+                        stringResource(R.string.story_available_format, maxStories - activeCount),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             )
@@ -323,7 +325,7 @@ fun LimitsInfoCard(
             if (!isPro) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "💎 Оформіть PRO для 15 stories та відео до 45 сек!",
+                    text = stringResource(R.string.story_pro_upgrade),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFFFD700)
@@ -419,7 +421,7 @@ fun MediaPreview(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Відео",
+                        text = stringResource(R.string.video),
                         color = Color.White,
                         fontSize = 12.sp
                     )

@@ -6,7 +6,13 @@ const striptags = require('striptags');
 const moment = require("moment")
 
 const TypingDoneController = async (ctx, data, io,socket) => {
-  await socketEvents.typingDone(ctx, io, data, ctx.userHashUserId[data.user_id])
+  const userId = ctx.userHashUserId[data.user_id]
+  // Cancel the server-side auto-stop timer so it doesn't fire a second time
+  if (ctx.userIdExtra[userId] && ctx.userIdExtra[userId].typingTimeout) {
+      clearTimeout(ctx.userIdExtra[userId].typingTimeout)
+      ctx.userIdExtra[userId].typingTimeout = null
+  }
+  await socketEvents.typingDone(ctx, io, data, userId)
 };
 
 module.exports = { TypingDoneController };

@@ -1201,6 +1201,27 @@
     <string name="create_subgroup">Створити підгрупу</string>
     <string name="change_wallpaper">Змінити обої</string>
     <string name="block_user_action">Заблокувати</string>
+    <!-- ═══ Presence/activity status strings for chat header ═══ -->
+    <!-- Private chat: typing (no "…" — animated dots are rendered in UI) -->
+    <string name="status_typing">друкує</string>
+    <!-- Group chat: "%s друкує" — name injected at runtime -->
+    <string name="status_typing_group">%s друкує</string>
+    <!-- Activity statuses -->
+    <string name="status_recording_voice">🎤 записує голосове</string>
+    <string name="status_recording_video">🎥 знімає відео</string>
+    <string name="status_listening_audio">🎧 слухає аудіо</string>
+    <string name="status_viewing_media">👁 переглядає</string>
+    <string name="status_choosing_sticker">😊 вибирає стикер</string>
+    <!-- Online/offline -->
+    <string name="status_online">в мережі</string>
+    <string name="status_offline">не в мережі</string>
+    <!-- Last seen — short forms for header subtitle -->
+    <string name="status_seen_recently">нещодавно</string>
+    <string name="status_seen_mins_ago">%d хв тому</string>
+    <string name="status_seen_today_at">сьогодні о %s</string>
+    <string name="status_seen_yesterday_at">вчора о %s</string>
+    <string name="status_seen_on_date">%s</string>
+    <!-- ═══ Legacy aliases kept for backward compatibility ═══ -->
     <string name="user_typing">%s друкує</string>
     <string name="recording_voice">🎤 Записує голосове…</string>
     <string name="recording_video">🎥 Знімає відео…</string>
@@ -1591,4 +1612,70 @@
     <!-- ===== GROUP INFO PANEL ===== -->
     <string name="stat_active_label">Активних</string>
     <string name="group_created_date">Створена: %s</string>
+
+    <!-- ===== CHANNEL CREATION WIZARD ===== -->
+    <string name="optional_label"> (опціонально)</string>
+    <string name="new_channel">Новий канал</string>
+    <string name="channel_step_type">Виберіть тип каналу</string>
+    <string name="channel_step_info">Основна інформація</string>
+    <string name="channel_step_final">Фінальні налаштування</string>
+    <string name="channel_type_question">Який тип каналу\nви хочете створити?</string>
+    <string name="channel_type_subtitle">Виберіть видимість, що підходить вашій аудиторії</string>
+    <string name="public_channel_title">Публічний канал</string>
+    <string name="public_channel_desc">Будь-хто може знайти та підписатися. Має унікальне посилання @username.</string>
+    <string name="private_channel_title">Приватний канал</string>
+    <string name="private_channel_desc">Вступ тільки за запрошенням. Не відображається в результатах пошуку.</string>
+    <string name="channel_tell_us">Розкажіть про свій канал</string>
+    <string name="channel_info_visible">Ця інформація буде видима підписникам</string>
+    <string name="channel_name_placeholder">напр. Мій крутий канал</string>
+    <string name="channel_desc_placeholder">Коротко опишіть ваш канал…</string>
+    <string name="username_rules">Тільки літери, цифри та _</string>
+    <string name="channel_avatar_title">Дайте каналу\nобличчя</string>
+    <string name="channel_avatar_subtitle">Гарний аватар допоможе виділити ваш канал</string>
+    <string name="tap_to_select">Натисніть, щоб вибрати</string>
+    <string name="skip_for_now">Пропустити</string>
+    <string name="channel_final_title">Майже готово!</string>
+    <string name="channel_final_subtitle">Налаштуйте параметри вашого каналу</string>
+    <string name="allow_comments">Дозволити коментарі</string>
+    <string name="allow_comments_desc">Підписники можуть коментувати публікації</string>
+    <string name="allow_reactions">Дозволити реакції</string>
+    <string name="allow_reactions_desc">Підписники можуть реагувати на публікації емодзі</string>
+    <string name="show_statistics">Показувати статистику</string>
+    <string name="show_statistics_desc">Відображати кількість переглядів та статистику залученості</string>
+    <string name="creating_channel">Створення каналу…</string>
+    <string name="channel_created_format">Канал «%s» створено!</string>
+
+    <!-- ===== CHANNEL MANAGEMENT DIALOG ===== -->
+    <string name="channel_management">Управління каналом</string>
+    <string name="channel_edit_info_subtitle">Назва, опис, username</string>
+    <string name="channel_settings_subtitle">Коментарі, реакції, повільний режим</string>
+    <string name="channel_stats_subtitle">Перегляди, ріст, залученість</string>
+    <string name="channel_admins_subtitle">Управління ролями адмінів</string>
+    <string name="message_formatting_label">Форматування повідомлень</string>
+    <string name="message_formatting_subtitle">Права форматування тексту</string>
+    <string name="admin_panel_subtitle">Повна панель управління</string>
+
+    <!-- ===== STORIES LIMITS ===== -->
+    <string name="free_account">Безкоштовний акаунт</string>
+    <string name="story_max_video_format">• Макс. відео: %d сек</string>
+    <string name="story_duration_format">• Тривалість: %d год</string>
+    <string name="story_available_format">• Доступно: %d stories</string>
+    <string name="story_pro_upgrade">💎 Оформіть PRO для 15 stories та відео до 45 сек!</string>
+
+    <!-- ===== CHAT TAGS ===== -->
+    <string name="tag_work">Робота</string>
+    <string name="tag_family">Сім\'я</string>
+    <string name="tag_friends">Друзі</string>
+    <string name="tag_important">Важливе</string>
+    <string name="tag_shopping">Покупки</string>
+    <string name="tag_study">Навчання</string>
+    <string name="tag_projects">Проекти</string>
+    <string name="tag_travel">Подорожі</string>
+
+    <!-- ===== SYSTEM FOLDERS ===== -->
+    <string name="folder_all">Усі</string>
+    <string name="folder_personal">Особисті</string>
+    <string name="folder_channels">Канали</string>
+    <string name="folder_groups">Групи</string>
+    <string name="folder_unread">Непрочитані</string>
 </resources>

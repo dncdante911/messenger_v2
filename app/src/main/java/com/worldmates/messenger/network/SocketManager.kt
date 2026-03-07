@@ -173,14 +173,14 @@ class SocketManager(
             }
 
             // 8a. ДОДАТКОВО: Слухаємо всі можливі події повідомлень
-            socket?.on("private_message_page") { args ->
+            socket?.on(Constants.SOCKET_EVENT_PRIVATE_MESSAGE_PAGE) { args ->
                 Log.d("SocketManager", "📨 private_message_page received with ${args.size} args")
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     listener.onNewMessage(args[0] as JSONObject)
                 }
             }
 
-            socket?.on("page_message") { args ->
+            socket?.on(Constants.SOCKET_EVENT_PAGE_MESSAGE) { args ->
                 Log.d("SocketManager", "📨 page_message received with ${args.size} args")
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     listener.onNewMessage(args[0] as JSONObject)
@@ -224,7 +224,7 @@ class SocketManager(
 
             // 8b. Обробка запису голосового повідомлення
             // is_recording: 200 = розпочав запис, 300 = завершив
-            socket?.on("recording") { args ->
+            socket?.on(Constants.SOCKET_EVENT_RECORDING) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     val data = args[0] as? org.json.JSONObject
                     val senderId = data?.let {
@@ -414,7 +414,7 @@ class SocketManager(
 
             // 18d. Group typing indicator
             // Payload: {group_id, user_id}
-            socket?.on("group_typing") { args ->
+            socket?.on(Constants.SOCKET_EVENT_GROUP_TYPING) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     val data    = args[0] as? org.json.JSONObject
                     val groupId = data?.optLong("group_id", 0L) ?: 0L
@@ -426,7 +426,7 @@ class SocketManager(
                 }
             }
 
-            socket?.on("group_typing_done") { args ->
+            socket?.on(Constants.SOCKET_EVENT_GROUP_TYPING_DONE) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     val data    = args[0] as? org.json.JSONObject
                     val groupId = data?.optLong("group_id", 0L) ?: 0L
@@ -440,7 +440,7 @@ class SocketManager(
 
             // 18e. User action status (listening, viewing, choosing_sticker, recording_video, etc.)
             // Private chat payload: {user_id, action}
-            socket?.on("user_action") { args ->
+            socket?.on(Constants.SOCKET_EVENT_USER_ACTION) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     val data   = args[0] as? org.json.JSONObject
                     val userId = data?.optLong("user_id", 0L) ?: 0L
@@ -453,7 +453,7 @@ class SocketManager(
             }
 
             // Group user action payload: {group_id, user_id, action}
-            socket?.on("group_user_action") { args ->
+            socket?.on(Constants.SOCKET_EVENT_GROUP_USER_ACTION) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     val data    = args[0] as? org.json.JSONObject
                     val groupId = data?.optLong("group_id", 0L) ?: 0L
@@ -467,7 +467,7 @@ class SocketManager(
             }
 
             // 18. Обробка реакції на повідомлення в реальному часі
-            socket?.on("message_reaction") { args ->
+            socket?.on(Constants.SOCKET_EVENT_MESSAGE_REACTION) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     val data = args[0] as? org.json.JSONObject
                     val messageId = data?.optLong("message_id", 0L) ?: 0L
@@ -482,7 +482,7 @@ class SocketManager(
             }
 
             // 19. Обробка закріплення/відкріплення повідомлення в реальному часі
-            socket?.on("message_pinned") { args ->
+            socket?.on(Constants.SOCKET_EVENT_MESSAGE_PINNED) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     val data = args[0] as? org.json.JSONObject
                     val messageId = data?.optLong("message_id", 0L) ?: 0L
@@ -750,8 +750,8 @@ class SocketManager(
                 put("user_id", UserSession.accessToken)   // session hash, not numeric ID
                 put("recipient_id", recipientId.toString())
             }
-            socket?.emit("recording", payload)
-            Log.d(TAG, "Emitted 'recording' for recipient $recipientId")
+            socket?.emit(Constants.SOCKET_EVENT_RECORDING, payload)
+            Log.d(TAG, "Emitted '${Constants.SOCKET_EVENT_RECORDING}' for recipient $recipientId")
         }
     }
 
@@ -767,6 +767,36 @@ class SocketManager(
                 put("sender_id", senderId)
             }
             socket?.emit(Constants.SOCKET_EVENT_MESSAGE_SEEN, seenPayload)
+        }
+    }
+
+    /**
+     * Notify server that the user opened a private chat with [recipientId].
+     * Server registers this in userIdChatOpen so that on_user_loggedin events
+     * are delivered even when no follower relationship exists.
+     */
+    fun openChat(recipientId: Long, lastMessageId: Long = 0) {
+        if (socket?.connected() == true && UserSession.accessToken != null) {
+            val payload = JSONObject().apply {
+                put("user_id", UserSession.accessToken)
+                put("recipient_id", recipientId)
+                put("message_id", lastMessageId)
+                put("isGroup", false)
+            }
+            socket?.emit(Constants.SOCKET_EVENT_CHAT_OPEN, payload)
+            Log.d(TAG, "Emitted '${Constants.SOCKET_EVENT_CHAT_OPEN}' for recipient $recipientId")
+        }
+    }
+
+    /** Notify server that the user closed the private chat with [recipientId]. */
+    fun closeChat(recipientId: Long) {
+        if (socket?.connected() == true && UserSession.accessToken != null) {
+            val payload = JSONObject().apply {
+                put("user_id", UserSession.accessToken)
+                put("recipient_id", recipientId)
+            }
+            socket?.emit(Constants.SOCKET_EVENT_CHAT_CLOSE, payload)
+            Log.d(TAG, "Emitted '${Constants.SOCKET_EVENT_CHAT_CLOSE}' for recipient $recipientId")
         }
     }
 

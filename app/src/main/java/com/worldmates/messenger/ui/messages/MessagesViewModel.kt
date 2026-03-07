@@ -198,6 +198,7 @@ class MessagesViewModel(application: Application) :
         startMessagePolling()
         loadDraft()
         markSeen()
+        fetchRecipientStatus()  // initialise header status bar without waiting for socket events
         loadMuteStatusViaNode(viewModelScope, nodeApi, recipientId) { isMuted ->
             _isMutedPrivate.value = isMuted
         }
@@ -1260,6 +1261,12 @@ class MessagesViewModel(application: Application) :
     override fun onSocketConnected() {
         Log.i("MessagesViewModel", "Socket підключено успішно")
         _error.value = null
+        // Register with server that this private chat is open, so on_user_loggedin events
+        // are delivered regardless of follower relationship.
+        if (recipientId > 0L) {
+            val lastId = _messages.value.lastOrNull()?.id ?: 0L
+            socketManager?.openChat(recipientId, lastId)
+        }
     }
 
     override fun onSocketDisconnected() {
@@ -1336,6 +1343,33 @@ class MessagesViewModel(application: Application) :
         }
     }
 
+    /**
+     * Fetches the recipient's current online/last-seen status from the REST API and
+     * immediately updates the header bar.  Called on chat open so the status dot is
+     * correct from the first frame — without waiting for socket events, which only
+     * fire when a user connects/disconnects.
+     */
+    private fun fetchRecipientStatus() {
+        if (recipientId == 0L) return
+        viewModelScope.launch {
+            try {
+                val resp = nodeApi.getUserStatus(recipientId)
+                if (resp.apiStatus == 200) {
+                    presenceIsOnline    = resp.online
+                    if (resp.lastSeen > 0) presenceLastSeenTs = resp.lastSeen
+                    // Only update the UI if no transient state (typing etc.) is active
+                    val cur = _presenceStatus.value
+                    if (cur is UserPresenceStatus.Offline || cur is UserPresenceStatus.LastSeen) {
+                        _presenceStatus.value = basePresenceStatus()
+                    }
+                    Log.d(TAG, "Recipient $recipientId status: online=${resp.online} last_seen=${resp.lastSeen}")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "fetchRecipientStatus failed: ${e.message}")
+            }
+        }
+    }
+
     override fun onUserAction(userId: Long?, groupId: Long?, action: String) {
         val isRelevant = if (this.groupId > 0L) {
             groupId == this.groupId && userId != UserSession.userId
@@ -1345,12 +1379,12 @@ class MessagesViewModel(application: Application) :
         if (!isRelevant) return
 
         val newStatus: UserPresenceStatus = when (action) {
-            "recording"       -> UserPresenceStatus.RecordingVoice
-            "recording_video" -> UserPresenceStatus.RecordingVideo
-            "listening"       -> UserPresenceStatus.ListeningAudio
-            "viewing"         -> UserPresenceStatus.ViewingMedia
-            "choosing_sticker"-> UserPresenceStatus.ChoosingSticker
-            else              -> basePresenceStatus()
+            Constants.USER_ACTION_RECORDING        -> UserPresenceStatus.RecordingVoice
+            Constants.USER_ACTION_RECORDING_VIDEO  -> UserPresenceStatus.RecordingVideo
+            Constants.USER_ACTION_LISTENING        -> UserPresenceStatus.ListeningAudio
+            Constants.USER_ACTION_VIEWING          -> UserPresenceStatus.ViewingMedia
+            Constants.USER_ACTION_CHOOSING_STICKER -> UserPresenceStatus.ChoosingSticker
+            else                                   -> basePresenceStatus()
         }
         _presenceStatus.value = newStatus
         Log.d(TAG, "User action '$action' from user $userId")
@@ -1478,7 +1512,7 @@ class MessagesViewModel(application: Application) :
      */
     fun sendRecordingStatus() {
         if (groupId > 0L) {
-            sendUserAction("recording")
+            sendUserAction(Constants.USER_ACTION_RECORDING)
         } else if (recipientId != 0L) {
             socketManager?.sendRecordingStatus(recipientId)
             Log.d(TAG, "Recording status emitted for recipient $recipientId")
@@ -2428,6 +2462,9 @@ class MessagesViewModel(application: Application) :
 
         // Зупиняємо polling
         messagePollingJob?.cancel()
+
+        // Notify server the chat is no longer open (so status events stop for this chat)
+        if (recipientId > 0L) socketManager?.closeChat(recipientId)
 
         // Зупиняємо Socket.IO
         socketManager?.disconnect()

@@ -22,14 +22,16 @@ const RecordingController = async (ctx, data, io,socket) => {
           clearTimeout(ctx.userIdExtra[ctx.userHashUserId[data.user_id]].recordingTimeout)
       }
       ctx.userIdExtra[ctx.userHashUserId[data.user_id]].recordingTimeout = setTimeout(async () => {
+          ctx.userIdExtra[ctx.userHashUserId[data.user_id]].recordingTimeout = null
           await socketEvents.recordingDone(ctx, io, data, ctx.userHashUserId[data.user_id])
-      }, 2000)
+      }, 30000)
   }
   else {
       ctx.userIdExtra[ctx.userHashUserId[data.user_id]] = {
           recordingTimeout: setTimeout(async () => {
+              ctx.userIdExtra[ctx.userHashUserId[data.user_id]].recordingTimeout = null
               await socketEvents.recordingDone(ctx, io, data, ctx.userHashUserId[data.user_id])
-          }, 2000)
+          }, 30000)
       }
   }
   // await funcs.Wo_RegisterTyping(data.user_id, data.recipient_id, 1)
