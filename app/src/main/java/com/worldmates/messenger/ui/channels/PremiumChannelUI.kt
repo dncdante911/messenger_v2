@@ -106,126 +106,121 @@ fun PremiumChannelHeader(
             }
         }
 
-        // Hero section — editorial cover style
-        Box(
+        // Compact horizontal channel info
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Avatar — clean, no glow, subtle border
-                Box(contentAlignment = Alignment.Center) {
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .border(
-                                width = 2.dp,
-                                brush = Brush.sweepGradient(
-                                    colors = listOf(
-                                        colorScheme.primary,
-                                        colorScheme.tertiary,
-                                        colorScheme.secondary,
-                                        colorScheme.primary
+            // Avatar — clean, subtle border
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .border(
+                            width = 2.dp,
+                            brush = Brush.sweepGradient(
+                                colors = listOf(
+                                    colorScheme.primary,
+                                    colorScheme.tertiary,
+                                    colorScheme.secondary,
+                                    colorScheme.primary
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                        .padding(2.dp)
+                ) {
+                    if (channel.avatarUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = channel.avatarUrl.toFullMediaUrl(),
+                            contentDescription = channel.name,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            colorScheme.primary,
+                                            colorScheme.tertiary
+                                        )
                                     )
                                 ),
-                                shape = CircleShape
-                            )
-                            .padding(3.dp)
-                    ) {
-                        if (channel.avatarUrl.isNotBlank()) {
-                            AsyncImage(
-                                model = channel.avatarUrl.toFullMediaUrl(),
-                                contentDescription = channel.name,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                                    .background(
-                                        brush = Brush.linearGradient(
-                                            colors = listOf(
-                                                colorScheme.primary,
-                                                colorScheme.tertiary
-                                            )
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = channel.name.take(2).uppercase(),
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colorScheme.onPrimary
-                                )
-                            }
-                        }
-                    }
-
-                    // Camera button for admin
-                    if (onAvatarClick != null && channel.isAdmin) {
-                        Surface(
-                            onClick = onAvatarClick,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .size(28.dp),
-                            shape = CircleShape,
-                            color = colorScheme.primary,
-                            shadowElevation = 2.dp
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.CameraAlt,
-                                    contentDescription = null,
-                                    tint = colorScheme.onPrimary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
+                            Text(
+                                text = channel.name.take(2).uppercase(),
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colorScheme.onPrimary
+                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                // Camera button for admin
+                if (onAvatarClick != null && channel.isAdmin) {
+                    Surface(
+                        onClick = onAvatarClick,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(24.dp),
+                        shape = CircleShape,
+                        color = colorScheme.primary,
+                        shadowElevation = 2.dp
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.CameraAlt,
+                                contentDescription = null,
+                                tint = colorScheme.onPrimary,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
+                }
+            }
 
-                // Channel name — large editorial title
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Channel info — name, username, description, stats
+            Column(modifier = Modifier.weight(1f)) {
+                // Name + verified
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = channel.name,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (channel.isVerified) {
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             Icons.Default.Verified,
                             contentDescription = null,
                             tint = colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
 
                 // Username
                 if (channel.username != null) {
-                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "@${channel.username}",
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         color = colorScheme.primary.copy(alpha = 0.8f),
                         fontWeight = FontWeight.Medium
                     )
@@ -233,36 +228,30 @@ fun PremiumChannelHeader(
 
                 // Description
                 if (!channel.description.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = channel.description!!,
-                        fontSize = 13.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.6f),
-                        textAlign = TextAlign.Center,
-                        lineHeight = 18.sp,
+                        fontSize = 12.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.55f),
+                        lineHeight = 16.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                // Stats row — minimal inline text, not big cards
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                // Inline stats
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     PremiumInlineStat(
                         value = formatCountPremium(channel.subscribersCount),
                         label = stringResource(R.string.channel_detail_subscribers),
                         onClick = onSubscribersClick
                     )
-                    // Dot separator
                     Box(
                         modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .size(4.dp)
+                            .padding(horizontal = 10.dp)
+                            .size(3.dp)
                             .clip(CircleShape)
                             .background(colorScheme.onSurface.copy(alpha = 0.2f))
                     )
@@ -270,33 +259,26 @@ fun PremiumChannelHeader(
                         value = formatCountPremium(channel.postsCount),
                         label = stringResource(R.string.channel_detail_posts)
                     )
-                    // Category badge
                     if (!channel.category.isNullOrBlank()) {
                         Box(
                             modifier = Modifier
-                                .padding(horizontal = 16.dp)
-                                .size(4.dp)
+                                .padding(horizontal = 10.dp)
+                                .size(3.dp)
                                 .clip(CircleShape)
                                 .background(colorScheme.onSurface.copy(alpha = 0.2f))
                         )
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                        ) {
-                            Text(
-                                text = channel.category!!,
-                                fontSize = 11.sp,
-                                color = colorScheme.onSecondaryContainer,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
+                        Text(
+                            text = channel.category!!,
+                            fontSize = 11.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.45f),
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(14.dp))
             }
         }
+
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Accent line — thin gradient divider
         Box(
@@ -366,6 +348,7 @@ fun PremiumPostCard(
     onCommentsClick: () -> Unit,
     onShareClick: () -> Unit,
     onMoreClick: () -> Unit,
+    onMediaClick: ((Int) -> Unit)? = null,
     canEdit: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -483,7 +466,19 @@ fun PremiumPostCard(
                     }
                 }
 
-                // Post text
+                // Media first — full-bleed with rounded corners
+                if (!post.media.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    PremiumMediaGallery(
+                        media = post.media!!,
+                        onMediaClick = onMediaClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                }
+
+                // Post text below media
                 if (post.text.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -491,17 +486,6 @@ fun PremiumPostCard(
                         fontSize = 15.sp,
                         color = colorScheme.onSurface,
                         lineHeight = 22.sp
-                    )
-                }
-
-                // Media — full-bleed with rounded corners
-                if (!post.media.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    PremiumMediaGallery(
-                        media = post.media!!,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
                     )
                 }
 
@@ -925,12 +909,14 @@ fun PremiumMenuItem(
 @Composable
 fun PremiumMediaGallery(
     media: List<PostMedia>,
+    onMediaClick: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     when (media.size) {
         1 -> {
             PremiumMediaItem(
                 media = media[0],
+                onClick = { onMediaClick?.invoke(0) },
                 modifier = modifier
                     .fillMaxWidth()
                     .heightIn(max = 280.dp)
@@ -941,9 +927,10 @@ fun PremiumMediaGallery(
                 modifier = modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                media.forEach { item ->
+                media.forEachIndexed { index, item ->
                     PremiumMediaItem(
                         media = item,
+                        onClick = { onMediaClick?.invoke(index) },
                         modifier = Modifier
                             .weight(1f)
                             .height(180.dp)
@@ -958,6 +945,7 @@ fun PremiumMediaGallery(
             ) {
                 PremiumMediaItem(
                     media = media[0],
+                    onClick = { onMediaClick?.invoke(0) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(170.dp)
@@ -971,6 +959,7 @@ fun PremiumMediaGallery(
                         Box(modifier = Modifier.weight(1f)) {
                             PremiumMediaItem(
                                 media = item,
+                                onClick = { onMediaClick?.invoke(index + 1) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(100.dp)
@@ -979,7 +968,8 @@ fun PremiumMediaGallery(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(Color.Black.copy(alpha = 0.5f)),
+                                        .background(Color.Black.copy(alpha = 0.5f))
+                                        .clickable { onMediaClick?.invoke(index + 1) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -1001,11 +991,16 @@ fun PremiumMediaGallery(
 @Composable
 private fun PremiumMediaItem(
     media: PostMedia,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isVideo = media.type == "video"
 
-    Box(modifier = modifier) {
+    Box(
+        modifier = modifier.then(
+            if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+        )
+    ) {
         AsyncImage(
             model = media.url.toFullMediaUrl(),
             contentDescription = null,

@@ -156,6 +156,9 @@ fun ChannelDetailsScreen(
         ?: allChannels.find { it.id == channelId }
 
     // UI States
+    var showMediaViewer by remember { mutableStateOf(false) }
+    var mediaViewerUrls by remember { mutableStateOf<List<String>>(emptyList()) }
+    var mediaViewerInitialPage by remember { mutableStateOf(0) }
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var showChangeAvatarDialog by remember { mutableStateOf(false) }
     var showSubscribersDialog by remember { mutableStateOf(false) }
@@ -562,6 +565,17 @@ fun ChannelDetailsScreen(
                                     selectedPostForOptions = post
                                     showPostOptions = true
                                 }
+                                val onMediaClickHandler: (Int) -> Unit = { index ->
+                                    val imageUrls = post.media
+                                        ?.filter { it.type == "image" || it.type.isNullOrBlank() }
+                                        ?.map { it.url.toFullMediaUrl() }
+                                        ?: emptyList()
+                                    if (imageUrls.isNotEmpty()) {
+                                        mediaViewerUrls = imageUrls
+                                        mediaViewerInitialPage = index.coerceIn(0, imageUrls.size - 1)
+                                        showMediaViewer = true
+                                    }
+                                }
 
                                 when (channelViewStyle) {
                                     ChannelViewStyle.PREMIUM -> {
@@ -572,6 +586,7 @@ fun ChannelDetailsScreen(
                                             onCommentsClick = onCommentsClickHandler,
                                             onShareClick = onShareClickHandler,
                                             onMoreClick = onMoreClickHandler,
+                                            onMediaClick = onMediaClickHandler,
                                             canEdit = channel.isAdmin,
                                             modifier = Modifier.animateItem()
                                         )
@@ -584,6 +599,7 @@ fun ChannelDetailsScreen(
                                             onCommentsClick = onCommentsClickHandler,
                                             onShareClick = onShareClickHandler,
                                             onMoreClick = onMoreClickHandler,
+                                            onMediaClick = onMediaClickHandler,
                                             canEdit = channel.isAdmin,
                                             modifier = Modifier.animateItem()
                                         )
@@ -1103,6 +1119,15 @@ fun ChannelDetailsScreen(
                     )
                 },
                 onDismiss = { showFormattingSettings = false }
+            )
+        }
+
+        // Full-screen media viewer with swipe
+        if (showMediaViewer && mediaViewerUrls.isNotEmpty()) {
+            com.worldmates.messenger.ui.media.ImageGalleryViewer(
+                imageUrls = mediaViewerUrls,
+                initialPage = mediaViewerInitialPage,
+                onDismiss = { showMediaViewer = false }
             )
         }
     }

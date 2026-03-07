@@ -50,6 +50,7 @@ fun ChannelPostCard(
     onCommentsClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     onMoreClick: () -> Unit = {},
+    onMediaClick: ((Int) -> Unit)? = null,
     canEdit: Boolean = false,
     userKarmaScore: Float? = null,
     userTrustLevel: String? = null,
@@ -309,7 +310,10 @@ fun ChannelPostCard(
             // Media Gallery
             if (!post.media.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                PostMediaGallery(media = post.media!!)
+                PostMediaGallery(
+                    media = post.media!!,
+                    onMediaClick = onMediaClick
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -538,6 +542,7 @@ fun ChannelPostCard(
 @Composable
 fun PostMediaGallery(
     media: List<PostMedia>,
+    onMediaClick: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     when (media.size) {
@@ -545,6 +550,7 @@ fun PostMediaGallery(
             // Single media
             PostMediaItem(
                 media = media[0],
+                onClick = { onMediaClick?.invoke(0) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
@@ -559,6 +565,7 @@ fun PostMediaGallery(
             ) {
                 PostMediaItem(
                     media = media[0],
+                    onClick = { onMediaClick?.invoke(0) },
                     modifier = Modifier
                         .weight(1f)
                         .height(200.dp)
@@ -566,6 +573,7 @@ fun PostMediaGallery(
                 )
                 PostMediaItem(
                     media = media[1],
+                    onClick = { onMediaClick?.invoke(1) },
                     modifier = Modifier
                         .weight(1f)
                         .height(200.dp)
@@ -585,6 +593,7 @@ fun PostMediaGallery(
                 ) {
                     PostMediaItem(
                         media = media[0],
+                        onClick = { onMediaClick?.invoke(0) },
                         modifier = Modifier
                             .weight(1f)
                             .height(150.dp)
@@ -592,6 +601,7 @@ fun PostMediaGallery(
                     )
                     PostMediaItem(
                         media = media[1],
+                        onClick = { onMediaClick?.invoke(1) },
                         modifier = Modifier
                             .weight(1f)
                             .height(150.dp)
@@ -605,6 +615,7 @@ fun PostMediaGallery(
                     ) {
                         PostMediaItem(
                             media = media[2],
+                            onClick = { onMediaClick?.invoke(2) },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(150.dp)
@@ -619,6 +630,7 @@ fun PostMediaGallery(
                             ) {
                                 PostMediaItem(
                                     media = media[3],
+                                    onClick = { onMediaClick?.invoke(3) },
                                     modifier = Modifier.fillMaxSize()
                                 )
                                 if (media.size > 4) {
@@ -648,9 +660,14 @@ fun PostMediaGallery(
 @Composable
 fun PostMediaItem(
     media: PostMedia,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier) {
+    Box(
+        modifier = modifier.then(
+            if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+        )
+    ) {
         when (media.type) {
             "image" -> {
                 AsyncImage(
@@ -2777,22 +2794,43 @@ fun PostDetailDialog(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                // Медіа (якщо є)
-                post.media?.forEach { media ->
+                // Медіа (якщо є) — clickable для full-screen просмотра
+                var showDetailMediaViewer by remember { mutableStateOf(false) }
+                var detailMediaViewerPage by remember { mutableStateOf(0) }
+                val imageMediaUrls = remember(post.media) {
+                    post.media
+                        ?.filter { it.type == "image" || it.type.isNullOrBlank() }
+                        ?.map { it.url.toFullMediaUrl() }
+                        ?: emptyList()
+                }
+
+                post.media?.forEachIndexed { index, media ->
                     when (media.type) {
-                        "image" -> {
+                        "image", null, "" -> {
                             AsyncImage(
-                                model = media.url,
+                                model = media.url.toFullMediaUrl(),
                                 contentDescription = "Post image",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(max = 300.dp)
                                     .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        detailMediaViewerPage = index.coerceIn(0, imageMediaUrls.size - 1)
+                                        showDetailMediaViewer = true
+                                    }
                                     .padding(bottom = 8.dp),
                                 contentScale = ContentScale.Crop
                             )
                         }
                     }
+                }
+
+                if (showDetailMediaViewer && imageMediaUrls.isNotEmpty()) {
+                    com.worldmates.messenger.ui.media.ImageGalleryViewer(
+                        imageUrls = imageMediaUrls,
+                        initialPage = detailMediaViewerPage,
+                        onDismiss = { showDetailMediaViewer = false }
+                    )
                 }
 
                 Divider(modifier = Modifier.padding(vertical = 12.dp))
