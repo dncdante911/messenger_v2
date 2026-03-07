@@ -1261,6 +1261,12 @@ class MessagesViewModel(application: Application) :
     override fun onSocketConnected() {
         Log.i("MessagesViewModel", "Socket підключено успішно")
         _error.value = null
+        // Register with server that this private chat is open, so on_user_loggedin events
+        // are delivered regardless of follower relationship.
+        if (recipientId > 0L) {
+            val lastId = _messages.value.lastOrNull()?.id ?: 0L
+            socketManager?.openChat(recipientId, lastId)
+        }
     }
 
     override fun onSocketDisconnected() {
@@ -2456,6 +2462,9 @@ class MessagesViewModel(application: Application) :
 
         // Зупиняємо polling
         messagePollingJob?.cancel()
+
+        // Notify server the chat is no longer open (so status events stop for this chat)
+        if (recipientId > 0L) socketManager?.closeChat(recipientId)
 
         // Зупиняємо Socket.IO
         socketManager?.disconnect()

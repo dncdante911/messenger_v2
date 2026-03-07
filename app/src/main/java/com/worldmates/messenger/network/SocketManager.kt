@@ -771,6 +771,36 @@ class SocketManager(
     }
 
     /**
+     * Notify server that the user opened a private chat with [recipientId].
+     * Server registers this in userIdChatOpen so that on_user_loggedin events
+     * are delivered even when no follower relationship exists.
+     */
+    fun openChat(recipientId: Long, lastMessageId: Long = 0) {
+        if (socket?.connected() == true && UserSession.accessToken != null) {
+            val payload = JSONObject().apply {
+                put("user_id", UserSession.accessToken)
+                put("recipient_id", recipientId)
+                put("message_id", lastMessageId)
+                put("isGroup", false)
+            }
+            socket?.emit(Constants.SOCKET_EVENT_CHAT_OPEN, payload)
+            Log.d(TAG, "Emitted '${Constants.SOCKET_EVENT_CHAT_OPEN}' for recipient $recipientId")
+        }
+    }
+
+    /** Notify server that the user closed the private chat with [recipientId]. */
+    fun closeChat(recipientId: Long) {
+        if (socket?.connected() == true && UserSession.accessToken != null) {
+            val payload = JSONObject().apply {
+                put("user_id", UserSession.accessToken)
+                put("recipient_id", recipientId)
+            }
+            socket?.emit(Constants.SOCKET_EVENT_CHAT_CLOSE, payload)
+            Log.d(TAG, "Emitted '${Constants.SOCKET_EVENT_CHAT_CLOSE}' for recipient $recipientId")
+        }
+    }
+
+    /**
      * Отправляет групповое сообщение
      */
     fun sendGroupMessage(groupId: Long, text: String) {
