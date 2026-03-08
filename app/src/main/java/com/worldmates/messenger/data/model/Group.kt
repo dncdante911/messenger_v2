@@ -531,6 +531,67 @@ data class GroupSimpleResponse(
     @SerializedName("error_message") val errorMessage: String?
 )
 
+// ── Topics ────────────────────────────────────────────────────────────────────
+
+data class GroupTopicData(
+    @SerializedName("id")            val id: Long = 0,
+    @SerializedName("name")          val name: String = "",
+    @SerializedName("created_at")    val createdAt: Long = 0,
+    @SerializedName("created_by")    val createdBy: Long = 0,
+    @SerializedName("is_pinned")     val isPinned: Boolean = false,
+    @SerializedName("is_archived")   val isArchived: Boolean = false,
+    @SerializedName("message_count") val messageCount: Int = 0
+)
+
+data class GroupTopicsResponse(
+    @SerializedName("api_status")    val apiStatus: Int = 0,
+    @SerializedName("topics")        val topics: List<GroupTopicData>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class GroupTopicResponse(
+    @SerializedName("api_status")    val apiStatus: Int = 0,
+    @SerializedName("topic")         val topic: GroupTopicData? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ── Anonymous Admin ───────────────────────────────────────────────────────────
+
+data class GroupAnonAdminResponse(
+    @SerializedName("api_status")    val apiStatus: Int = 0,
+    @SerializedName("anonymous")     val anonymous: Boolean = false,
+    @SerializedName("message")       val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ── Polls ─────────────────────────────────────────────────────────────────────
+
+data class GroupPollOption(
+    @SerializedName("id")         val id: Long = 0,
+    @SerializedName("text")       val text: String = "",
+    @SerializedName("vote_count") val voteCount: Int = 0,
+    @SerializedName("percent")    val percent: Int = 0,
+    @SerializedName("is_voted")   val isVoted: Boolean = false
+)
+
+data class GroupPollData(
+    @SerializedName("id")                      val id: Long = 0,
+    @SerializedName("question")                val question: String = "",
+    @SerializedName("poll_type")               val pollType: String = "regular",
+    @SerializedName("is_anonymous")            val isAnonymous: Boolean = true,
+    @SerializedName("allows_multiple_answers") val allowsMultipleAnswers: Boolean = false,
+    @SerializedName("is_closed")               val isClosed: Boolean = false,
+    @SerializedName("total_votes")             val totalVotes: Int = 0,
+    @SerializedName("created_by")              val createdBy: Long = 0,
+    @SerializedName("options")                 val options: List<GroupPollOption> = emptyList()
+)
+
+data class GroupPollResponse(
+    @SerializedName("api_status")    val apiStatus: Int = 0,
+    @SerializedName("poll")          val poll: GroupPollData? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
 // ==================== EXTENSION FUNCTIONS ====================
 
 /**

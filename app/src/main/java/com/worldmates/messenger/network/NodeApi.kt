@@ -477,6 +477,25 @@ interface NodeApi {
         @Field("phone_number") phoneNumber: String? = null,
         @Field("code")         code: String
     ): QuickVerifyResponse
+
+    // ═══════════════════════ EXPORT CHAT HISTORY ═════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHAT_EXPORT)
+    suspend fun exportPrivateChat(
+        @Field("recipient_id") recipientId: Long,
+        @Field("format")       format: String = "json",
+        @Field("limit")        limit: Int     = 500
+    ): okhttp3.ResponseBody
+
+    // ═══════════════════════ INSTANT VIEW ════════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_INSTANT_VIEW)
+    suspend fun getInstantView(
+        @Field("url") url: String
+    ): NodeInstantViewResponse
+
 }
 
 // ═══════════════════════ RESPONSE MODELS ═════════════════════════════════════
@@ -543,4 +562,16 @@ data class NodeMuteStatusResponse(
     @SerializedName("archive")    val archive: String?  = null,  // "yes" | "no"
     @SerializedName("pin")        val pin: String?      = null,  // "yes" | "no"
     @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class NodeInstantViewResponse(
+    @SerializedName("api_status")       val apiStatus: Int = 0,
+    @SerializedName("url")              val url: String? = null,
+    @SerializedName("title")            val title: String? = null,
+    @SerializedName("description")      val description: String? = null,
+    @SerializedName("site_name")        val siteName: String? = null,
+    @SerializedName("image")            val image: String? = null,
+    @SerializedName("content_html")     val contentHtml: String? = null,
+    @SerializedName("reading_time_min") val readingTimeMin: Int = 1,
+    @SerializedName("error_message")    val errorMessage: String? = null
 )

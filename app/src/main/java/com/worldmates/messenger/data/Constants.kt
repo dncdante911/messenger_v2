@@ -150,6 +150,35 @@ object Constants {
     const val NODE_GROUP_ADD_ADMIN     = "api/node/group/add-admin"
     const val NODE_GROUP_REMOVE_ADMIN  = "api/node/group/remove-admin"
 
+    // ── Export ────────────────────────────────────────────────────────────────
+    const val NODE_CHAT_EXPORT         = "api/node/chat/export"
+    const val NODE_GROUP_EXPORT        = "api/node/group/export"
+
+    // ── Topics ────────────────────────────────────────────────────────────────
+    const val NODE_GROUP_TOPICS_LIST   = "api/node/group/topics/list"
+    const val NODE_GROUP_TOPICS_CREATE = "api/node/group/topics/create"
+    const val NODE_GROUP_TOPICS_UPDATE = "api/node/group/topics/update"
+    const val NODE_GROUP_TOPICS_DELETE = "api/node/group/topics/delete"
+
+    // ── Anonymous Admin ───────────────────────────────────────────────────────
+    const val NODE_GROUP_ANON_ADMIN_SET = "api/node/group/admin/set-anonymous"
+    const val NODE_GROUP_ANON_ADMIN_GET = "api/node/group/admin/get-anonymous"
+
+    // ── Group Polls ───────────────────────────────────────────────────────────
+    const val NODE_GROUP_POLL_CREATE   = "api/node/group/poll/create"
+    const val NODE_GROUP_POLL_GET      = "api/node/group/poll/get"
+    const val NODE_GROUP_POLL_VOTE     = "api/node/group/poll/vote"
+    const val NODE_GROUP_POLL_CLOSE    = "api/node/group/poll/close"
+
+    // ── Channel Polls ─────────────────────────────────────────────────────────
+    const val NODE_CHANNEL_POLL_CREATE = "api/node/channel/poll/create"
+    const val NODE_CHANNEL_POLL_GET    = "api/node/channel/poll/get"
+    const val NODE_CHANNEL_POLL_VOTE   = "api/node/channel/poll/vote"
+    const val NODE_CHANNEL_POLL_CLOSE  = "api/node/channel/poll/close"
+
+    // ── Instant View ──────────────────────────────────────────────────────────
+    const val NODE_INSTANT_VIEW        = "api/node/instant-view"
+
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH                = "join"
     const val SOCKET_EVENT_PRIVATE_MESSAGE     = "private_message"
@@ -175,6 +204,11 @@ object Constants {
     const val SOCKET_EVENT_USER_OFFLINE        = "on_user_loggedoff"
     const val SOCKET_EVENT_CHAT_OPEN           = "is_chat_on"        // client → server: user opened a private chat
     const val SOCKET_EVENT_CHAT_CLOSE          = "close_chat"        // client → server: user closed a private chat
+
+    // ── Live Location ────────────────────────────────────────────────────────
+    const val SOCKET_EVENT_LIVE_LOCATION_START  = "live_location_start"   // client → server → recipient
+    const val SOCKET_EVENT_LIVE_LOCATION_UPDATE = "live_location_update"  // periodic GPS update
+    const val SOCKET_EVENT_LIVE_LOCATION_STOP   = "live_location_stop"    // user stopped sharing
 
     // ==================== USER ACTION TYPES ====================
     // Values sent in the "action" field of user_action / group_user_action events

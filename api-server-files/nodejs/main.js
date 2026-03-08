@@ -31,6 +31,9 @@ const { initializeWallyBot }    = require('./bots/wallybot')
 const { registerSignalRoutes }       = require('./routes/signal')
 const { registerSubscriptionRoutes } = require('./routes/subscription')
 const { createRateLimiter }          = require('./helpers/rateLimiter')
+const { registerSignalRoutes }  = require('./routes/signal')
+const { createRateLimiter }     = require('./helpers/rateLimiter')
+const { instantView }           = require('./routes/instant_view')
 
 let serverPort
 let server
@@ -382,6 +385,8 @@ async function main() {
 
   // Register Subscription/PRO purchase routes (Way4Pay + LiqPay)
   registerSubscriptionRoutes(app, ctx);
+  // Instant View — article reader (no auth required, rate-limited at global level)
+  app.post('/api/node/instant-view', instantView(ctx, io));
 
   // Инициализация WallyBot (встроенный бот-менеджер)
   await initializeWallyBot(ctx, io);

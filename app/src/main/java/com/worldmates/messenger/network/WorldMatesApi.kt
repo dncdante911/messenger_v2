@@ -1442,6 +1442,165 @@ interface WorldMatesApi {
         @Field("user_id") userId: Long,
         @Field("include_details") includeDetails: String = "0" // "1" to include ratings list
     ): com.worldmates.messenger.data.model.GetUserRatingResponse
+
+    // ==================== EXPORT CHAT HISTORY ====================
+
+    @FormUrlEncoded
+    @POST("/api/node/chat/export")
+    suspend fun exportPrivateChat(
+        @Header("access-token") accessToken: String,
+        @Field("recipient_id") recipientId: Long,
+        @Field("format") format: String = "json",
+        @Field("limit") limit: Int = 500
+    ): okhttp3.ResponseBody
+
+    @FormUrlEncoded
+    @POST("/api/node/group/export")
+    suspend fun exportGroupChat(
+        @Header("access-token") accessToken: String,
+        @Field("group_id") groupId: Long,
+        @Field("format") format: String = "json",
+        @Field("limit") limit: Int = 500
+    ): okhttp3.ResponseBody
+
+    // ==================== GROUP TOPICS ====================
+
+    @FormUrlEncoded
+    @POST("/api/node/group/topics/list")
+    suspend fun listGroupTopics(
+        @Header("access-token") accessToken: String,
+        @Field("group_id") groupId: Long
+    ): TopicsResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/group/topics/create")
+    suspend fun createGroupTopic(
+        @Header("access-token") accessToken: String,
+        @Field("group_id") groupId: Long,
+        @Field("name") name: String
+    ): TopicResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/group/topics/update")
+    suspend fun updateGroupTopic(
+        @Header("access-token") accessToken: String,
+        @Field("group_id") groupId: Long,
+        @Field("topic_id") topicId: Long,
+        @Field("name") name: String? = null,
+        @Field("is_pinned") isPinned: String? = null,
+        @Field("is_archived") isArchived: String? = null
+    ): TopicResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/group/topics/delete")
+    suspend fun deleteGroupTopic(
+        @Header("access-token") accessToken: String,
+        @Field("group_id") groupId: Long,
+        @Field("topic_id") topicId: Long
+    ): ApiStatusResponse
+
+    // ==================== ANONYMOUS ADMIN ====================
+
+    @FormUrlEncoded
+    @POST("/api/node/group/admin/set-anonymous")
+    suspend fun setAnonymousAdmin(
+        @Header("access-token") accessToken: String,
+        @Field("group_id") groupId: Long,
+        @Field("anonymous") anonymous: String
+    ): AnonymousAdminResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/group/admin/get-anonymous")
+    suspend fun getAnonymousAdmin(
+        @Header("access-token") accessToken: String,
+        @Field("group_id") groupId: Long
+    ): AnonymousAdminResponse
+
+    // ==================== GROUP POLLS ====================
+
+    @FormUrlEncoded
+    @POST("/api/node/group/poll/create")
+    suspend fun createGroupPoll(
+        @Header("access-token") accessToken: String,
+        @Field("group_id") groupId: Long,
+        @Field("question") question: String,
+        @Field("options[]") options: List<String>,
+        @Field("is_anonymous") isAnonymous: String = "1",
+        @Field("allows_multiple_answers") allowsMultiple: String = "0",
+        @Field("poll_type") pollType: String = "regular"
+    ): PollResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/group/poll/get")
+    suspend fun getGroupPoll(
+        @Header("access-token") accessToken: String,
+        @Field("poll_id") pollId: Long,
+        @Field("group_id") groupId: Long
+    ): PollResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/group/poll/vote")
+    suspend fun voteGroupPoll(
+        @Header("access-token") accessToken: String,
+        @Field("poll_id") pollId: Long,
+        @Field("group_id") groupId: Long,
+        @Field("option_ids[]") optionIds: List<Long>
+    ): PollResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/group/poll/close")
+    suspend fun closeGroupPoll(
+        @Header("access-token") accessToken: String,
+        @Field("poll_id") pollId: Long,
+        @Field("group_id") groupId: Long
+    ): PollResponse
+
+    // ==================== CHANNEL POLLS ====================
+
+    @FormUrlEncoded
+    @POST("/api/node/channel/poll/create")
+    suspend fun createChannelPoll(
+        @Header("access-token") accessToken: String,
+        @Field("page_id") pageId: Long,
+        @Field("question") question: String,
+        @Field("options[]") options: List<String>,
+        @Field("is_anonymous") isAnonymous: String = "1",
+        @Field("allows_multiple_answers") allowsMultiple: String = "0",
+        @Field("poll_type") pollType: String = "regular"
+    ): PollResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/channel/poll/get")
+    suspend fun getChannelPoll(
+        @Header("access-token") accessToken: String,
+        @Field("poll_id") pollId: Long
+    ): PollResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/channel/poll/vote")
+    suspend fun voteChannelPoll(
+        @Header("access-token") accessToken: String,
+        @Field("poll_id") pollId: Long,
+        @Field("page_id") pageId: Long,
+        @Field("option_ids[]") optionIds: List<Long>
+    ): PollResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/channel/poll/close")
+    suspend fun closeChannelPoll(
+        @Header("access-token") accessToken: String,
+        @Field("poll_id") pollId: Long,
+        @Field("page_id") pageId: Long
+    ): PollResponse
+
+    // ==================== INSTANT VIEW ====================
+
+    @FormUrlEncoded
+    @POST("/api/node/instant-view")
+    suspend fun getInstantView(
+        @Header("access-token") accessToken: String,
+        @Field("url") url: String
+    ): InstantViewResponse
 }
 
 // ==================== RESPONSE MODELS ====================
@@ -1905,5 +2064,80 @@ data class SubscriptionStatus(
     val isPro: Int,
     val proType: Int,
     val proExpiresAt: Long
+)
+
+// ==================== NEW FEATURE RESPONSE MODELS ====================
+
+data class ApiStatusResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class GroupTopic(
+    @SerializedName("id") val id: Long = 0,
+    @SerializedName("name") val name: String = "",
+    @SerializedName("created_at") val createdAt: Long = 0,
+    @SerializedName("created_by") val createdBy: Long = 0,
+    @SerializedName("is_pinned") val isPinned: Boolean = false,
+    @SerializedName("is_archived") val isArchived: Boolean = false,
+    @SerializedName("message_count") val messageCount: Int = 0
+)
+
+data class TopicsResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("topics") val topics: List<GroupTopic>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class TopicResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("topic") val topic: GroupTopic? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class AnonymousAdminResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("anonymous") val anonymous: Boolean = false,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class PollOption(
+    @SerializedName("id") val id: Long = 0,
+    @SerializedName("text") val text: String = "",
+    @SerializedName("vote_count") val voteCount: Int = 0,
+    @SerializedName("percent") val percent: Int = 0,
+    @SerializedName("is_voted") val isVoted: Boolean = false
+)
+
+data class Poll(
+    @SerializedName("id") val id: Long = 0,
+    @SerializedName("question") val question: String = "",
+    @SerializedName("poll_type") val pollType: String = "regular",
+    @SerializedName("is_anonymous") val isAnonymous: Boolean = true,
+    @SerializedName("allows_multiple_answers") val allowsMultipleAnswers: Boolean = false,
+    @SerializedName("is_closed") val isClosed: Boolean = false,
+    @SerializedName("total_votes") val totalVotes: Int = 0,
+    @SerializedName("created_by") val createdBy: Long = 0,
+    @SerializedName("options") val options: List<PollOption> = emptyList()
+)
+
+data class PollResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("poll") val poll: Poll? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class InstantViewResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("description") val description: String? = null,
+    @SerializedName("site_name") val siteName: String? = null,
+    @SerializedName("image") val image: String? = null,
+    @SerializedName("content_html") val contentHtml: String? = null,
+    @SerializedName("reading_time_min") val readingTimeMin: Int = 1,
+    @SerializedName("error_message") val errorMessage: String? = null
 )
 

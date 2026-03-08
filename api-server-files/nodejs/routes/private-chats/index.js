@@ -19,6 +19,7 @@ const actions   = require('./actions');
 const chatsList = require('./chats-list');
 const favs      = require('./favorites');
 const secret    = require('./secret');
+const exportChat = require('./export');
 
 // ─── auth middleware ──────────────────────────────────────────────────────────
 
@@ -81,6 +82,9 @@ function registerPrivateChatRoutes(app, ctx, io) {
     // ── favorites ────────────────────────────────────────────────────────────
     app.post('/api/node/chat/fav',      auth, favs.favMessage(ctx, io));
     app.post('/api/node/chat/fav-list', auth, favs.getFavMessages(ctx, io));
+
+    // ── export ────────────────────────────────────────────────────────────────
+    app.post('/api/node/chat/export',  auth, exportChat.exportChat(ctx, io));
 
     // ── user presence ─────────────────────────────────────────────────────────
     // Returns current online status + last_seen for any user.

@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.worldmates.messenger.ui.messages.selection.ForwardRecipient
 import com.worldmates.messenger.data.repository.DraftRepository
+import com.worldmates.messenger.data.repository.LiveLocationManager
+import com.worldmates.messenger.data.repository.LocationRepository
 import com.worldmates.messenger.data.local.entity.Draft
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -188,6 +190,14 @@ class MessagesViewModel(application: Application) :
     private var mediaUploader: MediaUploader? = null
     private var fileManager: FileManager? = null
     private var messagePollingJob: Job? = null
+
+    // ── Live Location ─────────────────────────────────────────────────────────
+    private var liveLocationManager: LiveLocationManager? = null
+    /** Позиції інших учасників, які зараз діляться геолокацією: userId → LatLng. */
+    val liveLocations: StateFlow<Map<Long, com.google.android.gms.maps.model.LatLng>>
+        get() = liveLocationManager?.liveLocations ?: MutableStateFlow(emptyMap())
+    val isSharingLocation: StateFlow<Boolean>
+        get() = liveLocationManager?.isSharingLocation ?: MutableStateFlow(false)
 
     // 🎥 Публічні getters для відеодзвінків
     fun getRecipientId(): Long = recipientId
@@ -1168,6 +1178,12 @@ class MessagesViewModel(application: Application) :
             socketManager = SocketManager(this, context)
             Log.d(TAG, "✅ SocketManager створено з адаптивним моніторингом")
 
+            // Ініціалізуємо Live Location Manager
+            liveLocationManager = LiveLocationManager(
+                locationRepo  = LocationRepository.getInstance(context),
+                socketManager = socketManager!!
+            )
+
             socketManager?.connect()
             Log.d(TAG, "✅ Socket.IO connect() викликано")
 
@@ -1399,6 +1415,47 @@ class MessagesViewModel(application: Application) :
         _presenceStatus.value = newStatus
         Log.d(TAG, "User action '$action' from user $userId")
     }
+
+    // ── Live Location callbacks (from SocketManager.ExtendedSocketListener) ────
+
+    override fun onLiveLocationUpdate(fromId: Long, lat: Double, lng: Double, accuracy: Float) {
+        liveLocationManager?.onIncomingUpdate(fromId, lat, lng)
+    }
+
+    override fun onLiveLocationStarted(fromId: Long) {
+        Log.d(TAG, "📍 User $fromId started sharing location")
+    }
+
+    override fun onLiveLocationStopped(fromId: Long) {
+        liveLocationManager?.onRemoteStop(fromId)
+        Log.d(TAG, "🛑 User $fromId stopped sharing location")
+    }
+
+    // ── Live Location public API ─────────────────────────────────────────────
+
+    /**
+     * Почати ділитись геолокацією з поточним співрозмовником або групою.
+     * Потрібен дозвіл ACCESS_FINE_LOCATION.
+     */
+    fun startLiveLocationSharing() {
+        val manager = liveLocationManager ?: return
+        val (toId, isGroup) = if (groupId != 0L) Pair(groupId, true) else Pair(recipientId, false)
+        if (toId == 0L) return
+        manager.startSharing(toId, isGroup)
+        Log.d(TAG, "📍 startLiveLocationSharing → ${if (isGroup) "group" else "user"}=$toId")
+    }
+
+    /**
+     * Зупинити передачу геолокації.
+     */
+    fun stopLiveLocationSharing() {
+        val manager = liveLocationManager ?: return
+        val (toId, isGroup) = if (groupId != 0L) Pair(groupId, true) else Pair(recipientId, false)
+        if (toId == 0L) return
+        manager.stopSharing(toId, isGroup)
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
 
     override fun onMessageEdited(messageId: Long, newText: String, iv: String?, tag: String?, cipherVersion: String?) {
         val current = _messages.value.toMutableList()
@@ -2545,6 +2602,10 @@ class MessagesViewModel(application: Application) :
 
         // Зупиняємо автозбереження чернетки
         draftAutoSaveJob?.cancel()
+
+        // Зупиняємо Live Location
+        liveLocationManager?.destroy()
+        liveLocationManager = null
 
         // Очищуємо MediaLoader
         mediaLoader.cleanup()

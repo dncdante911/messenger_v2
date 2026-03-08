@@ -495,6 +495,38 @@ class SocketManager(
                 }
             }
 
+            // 20. Live Location — real-time GPS sharing
+            socket?.on(Constants.SOCKET_EVENT_LIVE_LOCATION_UPDATE) { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data   = args[0] as JSONObject
+                    val fromId = data.optLong("from_id", 0L)
+                    val lat    = data.optDouble("lat",  Double.NaN)
+                    val lng    = data.optDouble("lng",  Double.NaN)
+                    if (fromId > 0L && !lat.isNaN() && !lng.isNaN() &&
+                        listener is ExtendedSocketListener) {
+                        listener.onLiveLocationUpdate(fromId, lat, lng, data.optDouble("accuracy", 0.0).toFloat())
+                    }
+                }
+            }
+            socket?.on(Constants.SOCKET_EVENT_LIVE_LOCATION_START) { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data   = args[0] as JSONObject
+                    val fromId = data.optLong("from_id", 0L)
+                    if (fromId > 0L && listener is ExtendedSocketListener) {
+                        listener.onLiveLocationStarted(fromId)
+                    }
+                }
+            }
+            socket?.on(Constants.SOCKET_EVENT_LIVE_LOCATION_STOP) { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data   = args[0] as JSONObject
+                    val fromId = data.optLong("from_id", 0L)
+                    if (fromId > 0L && listener is ExtendedSocketListener) {
+                        listener.onLiveLocationStopped(fromId)
+                    }
+                }
+            }
+
             socket?.connect()
 
         } catch (e: Exception) {
@@ -1068,5 +1100,11 @@ class SocketManager(
         fun onGroupTyping(groupId: Long, userId: Long, isTyping: Boolean) {}
         /** User action: the other party is performing an activity (listening, viewing, etc.) */
         fun onUserAction(userId: Long?, groupId: Long?, action: String) {}
+        /** Live Location: another user sent a GPS update */
+        fun onLiveLocationUpdate(fromId: Long, lat: Double, lng: Double, accuracy: Float) {}
+        /** Live Location: another user started sharing their location */
+        fun onLiveLocationStarted(fromId: Long) {}
+        /** Live Location: another user stopped sharing their location */
+        fun onLiveLocationStopped(fromId: Long) {}
     }
 }

@@ -17,10 +17,14 @@
 const path       = require('path');
 const fs         = require('fs');
 const multer     = require('multer');
-const management = require('./management');
-const members    = require('./members');
-const messages   = require('./messages');
-const admin      = require('./admin');
+const management     = require('./management');
+const members        = require('./members');
+const messages       = require('./messages');
+const admin          = require('./admin');
+const exportGroup    = require('./export');
+const topics         = require('./topics');
+const polls          = require('./polls');
+const anonAdmin      = require('./anonymous_admin');
 
 // ─── Upload directory for group avatars ─────────────────────────────────────
 const configFile       = require('../../config.json');
@@ -121,6 +125,25 @@ function registerGroupRoutes(app, ctx, io) {
     app.post('/api/node/group/statistics',    auth, admin.getStatistics(ctx, io));
     app.post('/api/node/group/add-admin',     auth, admin.addGroupAdmin(ctx, io));
     app.post('/api/node/group/remove-admin',  auth, admin.removeGroupAdmin(ctx, io));
+
+    // ── Anonymous Admin ──────────────────────────────────────────────────────
+    app.post('/api/node/group/admin/set-anonymous', auth, anonAdmin.setAnonymousAdmin(ctx, io));
+    app.post('/api/node/group/admin/get-anonymous', auth, anonAdmin.getAnonymousAdmin(ctx, io));
+
+    // ── Topics ───────────────────────────────────────────────────────────────
+    app.post('/api/node/group/topics/list',   auth, topics.listTopics(ctx, io));
+    app.post('/api/node/group/topics/create', auth, topics.createTopic(ctx, io));
+    app.post('/api/node/group/topics/update', auth, topics.updateTopic(ctx, io));
+    app.post('/api/node/group/topics/delete', auth, topics.deleteTopic(ctx, io));
+
+    // ── Polls ────────────────────────────────────────────────────────────────
+    app.post('/api/node/group/poll/create', auth, polls.createPoll(ctx, io));
+    app.post('/api/node/group/poll/get',    auth, polls.getPoll(ctx, io));
+    app.post('/api/node/group/poll/vote',   auth, polls.votePoll(ctx, io));
+    app.post('/api/node/group/poll/close',  auth, polls.closePoll(ctx, io));
+
+    // ── Export ───────────────────────────────────────────────────────────────
+    app.post('/api/node/group/export',      auth, exportGroup.exportGroupChat(ctx, io));
 
     console.log('[Group API] Endpoints registered on /api/node/group/*');
 }
