@@ -93,7 +93,7 @@ class SignalGroupEncryptionService private constructor(
             }
 
             // Шифрування повідомлення
-            val (newState, encResult) = senderKeyEncrypt(state, plaintext)
+            val (newState, encResult) = senderKeyEncrypt(state, plaintext, groupId, myUserId)
             keyStore.saveMySenderKey(groupId, newState)
 
             val header = GroupSignalHeader(
@@ -162,9 +162,6 @@ class SignalGroupEncryptionService private constructor(
                     Log.e(TAG, "[Group $groupId] Не вдалося перемотати chain до counter=$targetCounter")
                 }
 
-            // Зберегти оновлений стан chain
-            keyStore.updateSenderKey(groupId, senderId, advancedState)
-
             // Розшифрування AES-256-GCM
             val ciphertext = Base64.decode(ciphertextB64, Base64.NO_WRAP)
             val iv         = Base64.decode(ivB64,         Base64.NO_WRAP)
@@ -175,6 +172,12 @@ class SignalGroupEncryptionService private constructor(
                 ?: return@withContext null.also {
                     Log.e(TAG, "[Group $groupId] AES-GCM decrypt failed (auth tag mismatch?)")
                 }
+
+            // Зберегти оновлений стан chain тільки після успішного розшифрування.
+            // Якщо зберегти до перевірки автентифікації, невдача GCM залишить лічильник
+            // в просунутому стані, через що повторні спроби розшифрування завжди матимуть
+            // targetCounter < currentCounter.
+            keyStore.updateSenderKey(groupId, senderId, advancedState)
 
             String(plainBytes, Charsets.UTF_8)
 
@@ -209,18 +212,26 @@ class SignalGroupEncryptionService private constructor(
                 for (item in items) {
                     val decryptedPayload = decryptDistributionPayload(item.distribution, item.senderId)
                     if (decryptedPayload != null) {
-                        keyStore.saveSenderKey(
-                            groupId  = item.groupId,
-                            senderId = item.senderId,
-                            state    = SenderKeyState(
-                                chainKey = decryptedPayload.chainKey,
-                                chainId  = decryptedPayload.chainId,
-                                counter  = decryptedPayload.counter
-                            )
+                        val newState = SenderKeyState(
+                            chainKey = decryptedPayload.chainKey,
+                            chainId  = decryptedPayload.chainId,
+                            counter  = decryptedPayload.counter
                         )
+                        // Не перезаписуємо стан chain з вищим лічильником — це означає,
+                        // що ми вже розшифрували повідомлення і просувати ланцюг назад не потрібно.
+                        val existingState = keyStore.loadSenderKey(item.groupId, item.senderId)
+                        if (existingState == null || existingState.counter <= newState.counter) {
+                            keyStore.saveSenderKey(
+                                groupId  = item.groupId,
+                                senderId = item.senderId,
+                                state    = newState
+                            )
+                            Log.d(TAG, "[Group $groupId] SenderKey від user=${item.senderId} застосовано (counter=${newState.counter})")
+                        } else {
+                            Log.d(TAG, "[Group $groupId] SenderKey від user=${item.senderId} пропущено — chain вже на counter=${existingState.counter}")
+                        }
                         confirmedIds.add(item.id)
                         applied++
-                        Log.d(TAG, "[Group $groupId] SenderKey від user=${item.senderId} застосовано")
                     } else {
                         Log.w(TAG, "[Group $groupId] Не вдалося розшифрувати distribution від ${item.senderId}")
                     }
@@ -378,12 +389,14 @@ class SignalGroupEncryptionService private constructor(
      */
     private fun senderKeyEncrypt(
         state:     SenderKeyState,
-        plaintext: String
+        plaintext: String,
+        groupId:   Long,
+        senderId:  Long
     ): Pair<SenderKeyState, SenderKeyEncResult> {
         val chainKeyBytes = Base64.decode(state.chainKey, Base64.NO_WRAP)
         val (nextChainKey, messageKey) = ckRatchet(chainKeyBytes)
         val aesKey = deriveAesKey(messageKey)
-        val ad     = buildGroupAD(0L, 0L, state.chainId)   // groupId/senderId вже в header
+        val ad     = buildGroupAD(groupId, senderId, state.chainId)
 
         val iv      = ByteArray(12).also { SecureRandom().nextBytes(it) }
         val cipher  = Cipher.getInstance("AES/GCM/NoPadding")
