@@ -1,3 +1,6 @@
+// Завантажуємо змінні оточення з .env до будь-яких require (крім вбудованих)
+require('dotenv').config();
+
 const moment = require("moment");
 var fs = require('fs');
 var express = require('express');
@@ -60,7 +63,7 @@ async function loadConfig(ctx) {
    //
    // if (ctx.globalconfig["redis"] === "Y") {
    //   const redisAdapter = require('socket.io-redis');
-   //   io.adapter(redisAdapter({ host: '127.0.0.1', port: ctx.globalconfig["redis_port"], auth_pass: '3344Frz@q0607Dm$157' }));
+   //   io.adapter(redisAdapter({ host: '127.0.0.1', port: ctx.globalconfig["redis_port"], auth_pass: process.env.REDIS_PASSWORD }));
    // }
 
 
@@ -90,8 +93,14 @@ async function loadLangs(ctx) {
 
 
 async function init() {
-  var sequelize = new Sequelize(configFile.sql_db_name, configFile.sql_db_user, configFile.sql_db_pass, {
-    host: configFile.sql_db_host,
+  // Credentials: пріоритет .env → config.json (fallback)
+  const dbHost = process.env.DB_HOST || configFile.sql_db_host;
+  const dbUser = process.env.DB_USER || configFile.sql_db_user;
+  const dbPass = process.env.DB_PASS || configFile.sql_db_pass;
+  const dbName = process.env.DB_NAME || configFile.sql_db_name;
+
+  var sequelize = new Sequelize(dbName, dbUser, dbPass, {
+    host: dbHost,
     dialect: "mysql",
     logging: function () {},
     pool: {
@@ -166,8 +175,10 @@ async function init() {
   ctx.wo_bot_rate_limits = require("./models/wo_bot_rate_limits")(sequelize, DataTypes)
   ctx.wo_bot_api_keys = require("./models/wo_bot_api_keys")(sequelize, DataTypes)
 
-  // ==================== Signal Protocol Model ====================
-  ctx.signal_keys = require("./models/signal_keys")(sequelize, DataTypes)
+  // ==================== Signal Protocol Models ====================
+  ctx.signal_keys              = require("./models/signal_keys")(sequelize, DataTypes)
+  // Signal Sender Key Distribution для групових E2EE чатів
+  ctx.signal_group_sender_keys = require("./models/signal_group_sender_keys")(sequelize, DataTypes)
 
   ctx.globalconfig = {}
   ctx.globallangs = {}

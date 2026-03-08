@@ -3,20 +3,37 @@
 /**
  * Signal Protocol — REST endpoints.
  *
- * All endpoints require a valid access-token header (same auth as private-chats).
+ * Всі endpoints вимагають валідного access-token заголовку.
  *
- *   POST /api/node/signal/register     — upload identity + pre-key bundle
- *   GET  /api/node/signal/bundle/:id   — fetch pre-key bundle for another user
- *   POST /api/node/signal/replenish    — upload new one-time pre-keys
- *   GET  /api/node/signal/prekey-count — how many OPKs remain on server for me
+ * ── Особисті чати (X3DH + Double Ratchet) ───────────────────────────────────
+ *   POST /api/node/signal/register     — завантажити identity + pre-key bundle
+ *   GET  /api/node/signal/bundle/:id   — отримати pre-key bundle іншого користувача
+ *   POST /api/node/signal/replenish    — завантажити нові one-time pre-keys
+ *   GET  /api/node/signal/prekey-count — скільки OPKs лишилось на сервері
  *
- * The server is a "pre-key server" only — it stores and distributes PUBLIC keys.
- * Private keys never leave devices.
- * Messages encrypted with cipher_version=3 are stored opaque; the server cannot
- * decrypt them (true end-to-end encryption).
+ * ── Групові чати (Sender Key Distribution Protocol) ─────────────────────────
+ *   POST /api/node/signal/group/distribute
+ *       — завантажити SenderKeyDistribution для учасників групи.
+ *         Body: { group_id, distributions: [{recipient_id, distribution}] }
+ *
+ *   GET  /api/node/signal/group/pending-distributions
+ *       — отримати всі невидані distributions для поточного користувача.
+ *         Query: ?group_id=N (опціонально)
+ *
+ *   POST /api/node/signal/group/confirm-delivery
+ *       — підтвердити отримання distributions.
+ *         Body: { distribution_ids: [id, id, ...] }
+ *
+ *   POST /api/node/signal/group/invalidate-sender-key
+ *       — інвалідувати SenderKey учасника (при виході з групи).
+ *         Body: { group_id, sender_id }  (тільки admin або сам sender)
+ *
+ * Сервер зберігає лише ПУБЛІЧНІ ключі та ЗАШИФРОВАНІ distribution payload-и.
+ * Приватні ключі НІКОЛИ не залишають пристрій.
  */
 
-const signalStore = require('../helpers/signal-store');
+const signalStore      = require('../helpers/signal-store');
+const signalGroupStore = require('../helpers/signal-group-store');
 
 // ─── POST /api/node/signal/register ──────────────────────────────────────────
 
@@ -167,6 +184,223 @@ function preKeyCount(ctx) {
     };
 }
 
+// ─── POST /api/node/signal/group/distribute ───────────────────────────────────
+
+/**
+ * Завантажує SenderKeyDistribution від поточного користувача до списку учасників.
+ *
+ * Body:
+ *   group_id       {number}  — ID групи
+ *   distributions  {Array}   — [{recipient_id: number, distribution: string}]
+ *
+ * distributions[].distribution — зашифрований SenderKeyDistributionMessage,
+ *   зашифрований індивідуальним Double Ratchet сеансом між sender і recipient.
+ *   Сервер не може розшифрувати цей payload.
+ */
+function groupDistribute(ctx) {
+    return async (req, res) => {
+        try {
+            const senderId = req.userId;
+            const groupId  = parseInt(req.body.group_id);
+
+            if (!groupId || isNaN(groupId)) {
+                return res.status(400).json({
+                    api_status:    400,
+                    error_message: 'group_id обов\'язковий',
+                });
+            }
+
+            // Перевірити членство в групі
+            const member = await ctx.wo_groupchatusers.findOne({
+                where: { group_id: groupId, user_id: senderId, active: '1' },
+                raw:   true,
+            });
+            if (!member) {
+                return res.status(403).json({
+                    api_status:    403,
+                    error_message: 'Ви не є учасником цієї групи',
+                });
+            }
+
+            let distributionsRaw = req.body.distributions;
+            if (!distributionsRaw) {
+                return res.status(400).json({
+                    api_status:    400,
+                    error_message: 'distributions обов\'язковий',
+                });
+            }
+            if (typeof distributionsRaw === 'string') {
+                try { distributionsRaw = JSON.parse(distributionsRaw); }
+                catch {
+                    return res.status(400).json({
+                        api_status:    400,
+                        error_message: 'distributions має бути JSON масивом',
+                    });
+                }
+            }
+            if (!Array.isArray(distributionsRaw)) {
+                return res.status(400).json({
+                    api_status:    400,
+                    error_message: 'distributions має бути масивом',
+                });
+            }
+
+            const result = await signalGroupStore.saveDistributions(
+                ctx, groupId, senderId, distributionsRaw
+            );
+
+            console.log(`[Signal/group] User ${senderId} розподілив SenderKey у групі ${groupId} (${result.saved} recipients)`);
+            res.json({
+                api_status: 200,
+                message:    'SenderKey distribution збережено',
+                saved:      result.saved,
+            });
+
+        } catch (err) {
+            console.error('[Signal/group/distribute]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Помилка збереження distribution' });
+        }
+    };
+}
+
+// ─── GET /api/node/signal/group/pending-distributions ────────────────────────
+
+/**
+ * Повертає всі невидані SenderKey distributions для поточного користувача.
+ * Опціональний query-параметр group_id для фільтрації по конкретній групі.
+ *
+ * Query: ?group_id=123
+ */
+function groupPendingDistributions(ctx) {
+    return async (req, res) => {
+        try {
+            const userId  = req.userId;
+            const groupId = parseInt(req.query.group_id || req.body.group_id) || 0;
+
+            const distributions = await signalGroupStore.getPendingDistributions(
+                ctx, userId, groupId
+            );
+
+            res.json({
+                api_status:    200,
+                distributions,
+                count:         distributions.length,
+            });
+
+        } catch (err) {
+            console.error('[Signal/group/pending-distributions]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Помилка отримання distributions' });
+        }
+    };
+}
+
+// ─── POST /api/node/signal/group/confirm-delivery ────────────────────────────
+
+/**
+ * Підтверджує отримання SenderKey distributions.
+ * Після цього записи позначаються як delivered=1 (soft-delete).
+ *
+ * Body: { distribution_ids: [id, id, ...] }
+ */
+function groupConfirmDelivery(ctx) {
+    return async (req, res) => {
+        try {
+            const userId = req.userId;
+            let   ids    = req.body.distribution_ids;
+
+            if (!ids) {
+                return res.status(400).json({
+                    api_status:    400,
+                    error_message: 'distribution_ids обов\'язковий',
+                });
+            }
+            if (typeof ids === 'string') {
+                try { ids = JSON.parse(ids); } catch { ids = []; }
+            }
+            if (!Array.isArray(ids)) {
+                return res.status(400).json({
+                    api_status:    400,
+                    error_message: 'distribution_ids має бути масивом',
+                });
+            }
+
+            const result = await signalGroupStore.confirmDelivery(ctx, userId, ids);
+
+            res.json({
+                api_status: 200,
+                message:    `Підтверджено ${result.confirmed} distributions`,
+                confirmed:  result.confirmed,
+            });
+
+        } catch (err) {
+            console.error('[Signal/group/confirm-delivery]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Помилка підтвердження' });
+        }
+    };
+}
+
+// ─── POST /api/node/signal/group/invalidate-sender-key ───────────────────────
+
+/**
+ * Інвалідує SenderKey учасника групи.
+ * Викликається при виході/видаленні учасника — решта учасників
+ * повинні будуть перерозподілити ключі (клієнт сам ініціює re-key).
+ *
+ * Body: { group_id, sender_id }
+ * Дозволено: сам sender_id або admin/owner групи.
+ */
+function groupInvalidateSenderKey(ctx) {
+    return async (req, res) => {
+        try {
+            const userId   = req.userId;
+            const groupId  = parseInt(req.body.group_id);
+            const senderId = parseInt(req.body.sender_id);
+
+            if (!groupId || isNaN(groupId)) {
+                return res.status(400).json({ api_status: 400, error_message: 'group_id обов\'язковий' });
+            }
+            if (!senderId || isNaN(senderId)) {
+                return res.status(400).json({ api_status: 400, error_message: 'sender_id обов\'язковий' });
+            }
+
+            // Перевірка прав: тільки сам sender або адміністратор групи
+            const isSelf = (userId === senderId);
+            const isAdmin = isSelf ? true : await (async () => {
+                const m = await ctx.wo_groupchatusers.findOne({
+                    attributes: ['role'],
+                    where: {
+                        group_id: groupId,
+                        user_id:  userId,
+                        active:   '1',
+                    },
+                    raw: true,
+                });
+                return m && ['owner', 'admin', 'moderator'].includes(m.role);
+            })();
+
+            if (!isAdmin) {
+                return res.status(403).json({
+                    api_status:    403,
+                    error_message: 'Недостатньо прав для інвалідації ключа',
+                });
+            }
+
+            const result = await signalGroupStore.invalidateSenderKey(ctx, groupId, senderId);
+
+            console.log(`[Signal/group] SenderKey user=${senderId} інвалідовано у групі ${groupId} (${result.invalidated} записів)`);
+            res.json({
+                api_status:  200,
+                message:     'SenderKey інвалідовано',
+                invalidated: result.invalidated,
+            });
+
+        } catch (err) {
+            console.error('[Signal/group/invalidate-sender-key]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Помилка інвалідації ключа' });
+        }
+    };
+}
+
 // ─── auth middleware (same logic as private-chats/index.js) ──────────────────
 
 async function authMiddleware(ctx, req, res, next) {
@@ -198,12 +432,20 @@ async function authMiddleware(ctx, req, res, next) {
 function registerSignalRoutes(app, ctx) {
     const auth = (req, res, next) => authMiddleware(ctx, req, res, next);
 
+    // ── Особисті чати (X3DH pre-key server) ─────────────────────────────────
     app.post('/api/node/signal/register',       auth, register(ctx));
     app.get ('/api/node/signal/bundle/:userId',  auth, getBundle(ctx));
     app.post('/api/node/signal/replenish',       auth, replenish(ctx));
     app.get ('/api/node/signal/prekey-count',    auth, preKeyCount(ctx));
 
-    console.log('[Signal] Routes registered: register, bundle, replenish, prekey-count');
+    // ── Групові чати (Sender Key Distribution Protocol) ──────────────────
+    app.post('/api/node/signal/group/distribute',           auth, groupDistribute(ctx));
+    app.get ('/api/node/signal/group/pending-distributions', auth, groupPendingDistributions(ctx));
+    app.post('/api/node/signal/group/pending-distributions', auth, groupPendingDistributions(ctx));
+    app.post('/api/node/signal/group/confirm-delivery',      auth, groupConfirmDelivery(ctx));
+    app.post('/api/node/signal/group/invalidate-sender-key', auth, groupInvalidateSenderKey(ctx));
+
+    console.log('[Signal] Маршрути зареєстровано: register, bundle, replenish, prekey-count, group/distribute, group/pending-distributions, group/confirm-delivery, group/invalidate-sender-key');
 }
 
 module.exports = { registerSignalRoutes };

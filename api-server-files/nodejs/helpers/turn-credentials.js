@@ -5,8 +5,12 @@
 
 const crypto = require('crypto');
 
-// ВАЖНО: Этот секрет совпадает с static-auth-secret в /etc/turnserver.conf
-const TURN_SECRET = 'ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9';
+// ВАЖНО: Цей секрет збігається з static-auth-secret у /etc/turnserver.conf
+// Значення береться з .env (TURN_SECRET). Ніколи не хардкодити тут!
+const TURN_SECRET = process.env.TURN_SECRET || (() => {
+    console.error('[TURN] УВАГА: TURN_SECRET не задано в .env! Використовується небезпечне значення за замовчуванням.');
+    return 'change_me_in_env_file';
+})();
 
 // Конфигурация серверов (внешние IP вашего шлюза с HAProxy)
 const TURN_SERVER_URL = 'worldmates.club';

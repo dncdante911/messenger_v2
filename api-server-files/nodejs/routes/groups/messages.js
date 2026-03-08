@@ -111,27 +111,42 @@ function parseSettings(group) {
 }
 
 /**
- * Build a message object for API response.
- * text field is returned encrypted (GCM) — Android decrypts locally.
+ * Збирає об'єкт повідомлення для відповіді клієнту.
+ *
+ * cipher_version=1 (ECB) / 2 (GCM):
+ *   – text: зашифрований текст (Android розшифрує локально).
+ * cipher_version=3 (Signal Sender Key):
+ *   – text + iv + tag: клієнтський шифротекст (сервер не розшифровує).
+ *   – signal_header: JSON SenderKey-заголовок для розшифровки на пристрої.
  */
 async function buildMessage(ctx, msg, userId) {
     const { position, type } = resolveType(msg, userId);
+    const cipherVersion = Number(msg.cipher_version) || 1;
+    const isSignal      = cipherVersion === 3;
 
     // Reply data
     let replyData = null;
     if (msg.reply_id && msg.reply_id > 0) {
         const r = await ctx.wo_messages.findOne({
-            attributes: ['id', 'from_id', 'text', 'iv', 'tag', 'cipher_version', 'media', 'time'],
+            attributes: ['id', 'from_id', 'text', 'iv', 'tag', 'cipher_version',
+                         'signal_header', 'media', 'time'],
             where: { id: msg.reply_id },
             raw: true,
         });
         if (r) {
+            const replyCv = Number(r.cipher_version) || 1;
+            // Signal-повідомлення сервер не може розшифрувати — передаємо зашифровані поля
+            const replyText = replyCv === 3
+                ? ''
+                : (r.text ? crypto.decryptMessage(r) : '');
             replyData = {
-                id:      r.id,
-                from_id: r.from_id,
-                text:    r.text ? crypto.decryptMessage(r) : '',
-                media:   r.media || '',
-                time:    r.time,
+                id:             r.id,
+                from_id:        r.from_id,
+                text:           replyText,
+                cipher_version: replyCv,
+                signal_header:  r.signal_header || null,
+                media:          r.media || '',
+                time:           r.time,
             };
         }
     }
@@ -143,12 +158,14 @@ async function buildMessage(ctx, msg, userId) {
         from_id:        msg.from_id,
         group_id:       msg.group_id,
         to_id:          msg.to_id || 0,
-        // Encrypted text (GCM) — Android decrypts locally
+        // Зашифрований текст — клієнт розшифровує локально (GCM або Signal Sender Key)
         text:           msg.text           || '',
         iv:             msg.iv             || null,
         tag:            msg.tag            || null,
-        cipher_version: msg.cipher_version != null ? Number(msg.cipher_version) : 1,
-        // Other fields
+        cipher_version: cipherVersion,
+        // Signal Sender Key заголовок (null для version 1/2)
+        signal_header:  isSignal ? (msg.signal_header || null) : null,
+        // Інші поля
         media:          msg.media          || '',
         mediaFileName:  msg.mediaFileName  || '',
         stickers:       msg.stickers       || '',
@@ -215,8 +232,7 @@ function getMessages(ctx, io) {
             }
 
             // Fetch pinned message if set in group settings
-            const group    = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
-            const settings = parseSettings(group);
+            // (group/settings вже завантажено вище — перевикористовуємо)
             let pinnedMessage = null;
             if (settings.pinned_message_id) {
                 const pm = await ctx.wo_messages.findOne({
@@ -239,44 +255,77 @@ function getMessages(ctx, io) {
 function sendMessage(ctx, io) {
     return async (req, res) => {
         try {
-            const userId   = req.userId;
-            const groupId  = parseInt(req.body.group_id);
-            const plaintext = (req.body.text || '').trim();
-            const replyId   = parseInt(req.body.reply_id) || 0;
-            const stickers  = req.body.stickers || '';
-            const lat       = req.body.lat      || '0';
-            const lng       = req.body.lng      || '0';
-            const contact   = req.body.contact  || '';
+            const userId        = req.userId;
+            const groupId       = parseInt(req.body.group_id);
+            const plaintext     = (req.body.text || '').trim();
+            const replyId       = parseInt(req.body.reply_id) || 0;
+            const stickers      = req.body.stickers || '';
+            const lat           = req.body.lat      || '0';
+            const lng           = req.body.lng      || '0';
+            const contact       = req.body.contact  || '';
+            const clientVersion = parseInt(req.body.cipher_version) || 0;
+            const isSignal      = clientVersion === 3;
 
             if (!groupId || isNaN(groupId))
-                return res.status(400).json({ api_status: 400, error_message: 'group_id is required' });
+                return res.status(400).json({ api_status: 400, error_message: 'group_id обов\'язковий' });
 
             const membership = await getGroupMembership(ctx, groupId, userId);
             if (!membership)
-                return res.status(403).json({ api_status: 403, error_message: 'Not a member of this group' });
+                return res.status(403).json({ api_status: 403, error_message: 'Ви не є учасником цієї групи' });
 
             const hasContent = plaintext || stickers || (lat !== '0' && lng !== '0') || contact;
             if (!hasContent)
-                return res.status(400).json({ api_status: 400, error_message: 'Message has no content' });
+                return res.status(400).json({ api_status: 400, error_message: 'Повідомлення не має вмісту' });
 
             const now = Math.floor(Date.now() / 1000);
 
-            // Encrypt text (AES-256-GCM + AES-128-ECB for WoWonder compatibility)
-            const enc = plaintext
-                ? crypto.encryptForStorage(plaintext, now)
-                : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: 1 };
+            let enc;
+            let signalHeader = null;
+
+            if (isSignal) {
+                // ── cipher_version=3: клієнт зашифрував через Signal Sender Key ──
+                // Сервер зберігає payload as-is — без серверного шифрування.
+                // Справжнє E2EE: сервер ніколи не бачить відкритий текст Signal-повідомлень.
+                const clientIv  = req.body.iv    || null;
+                const clientTag = req.body.tag   || null;
+                signalHeader    = req.body.signal_header || null;
+
+                if (!plaintext || !clientIv || !clientTag || !signalHeader) {
+                    return res.status(400).json({
+                        api_status:    400,
+                        error_message: 'cipher_version=3 вимагає: text, iv, tag, signal_header',
+                    });
+                }
+
+                enc = {
+                    text:           plaintext,   // Base64(ciphertext) від клієнта
+                    text_ecb:       '',          // Веб не може читати Signal-повідомлення
+                    text_preview:   '',          // Немає plaintext preview для E2EE
+                    iv:             clientIv,
+                    tag:            clientTag,
+                    cipher_version: 3,
+                };
+            } else {
+                // ── cipher_version=1/2: сервер шифрує (поточна поведінка) ──
+                enc = plaintext
+                    ? crypto.encryptForStorage(plaintext, now)
+                    : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: 1 };
+            }
 
             const row = await ctx.wo_messages.create({
                 from_id:        userId,
                 to_id:          0,
                 group_id:       groupId,
                 page_id:        0,
+                // Зашифровані поля
                 text:           enc.text,
                 text_ecb:       enc.text_ecb,
                 text_preview:   enc.text_preview,
                 iv:             enc.iv,
                 tag:            enc.tag,
                 cipher_version: enc.cipher_version,
+                signal_header:  signalHeader,
+                // Інші поля
                 stickers,
                 media:          '',
                 mediaFileName:  '',
@@ -308,11 +357,11 @@ function sendMessage(ctx, io) {
                 });
             }
 
-            console.log(`[Node/group/messages/send] user=${userId} group=${groupId} msg=${row.id}`);
+            console.log(`[Node/group/messages/send] user=${userId} group=${groupId} msg=${row.id} cipher=${enc.cipher_version}`);
             res.json({ api_status: 200, message_data: msgData });
         } catch (err) {
             console.error('[Node/group/messages/send]', err.message);
-            res.status(500).json({ api_status: 500, error_message: 'Failed to send message' });
+            res.status(500).json({ api_status: 500, error_message: 'Помилка надсилання повідомлення' });
         }
     };
 }
