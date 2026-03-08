@@ -31,9 +31,7 @@ const { initializeWallyBot }    = require('./bots/wallybot')
 const { registerSignalRoutes }       = require('./routes/signal')
 const { registerSubscriptionRoutes } = require('./routes/subscription')
 const { createRateLimiter }          = require('./helpers/rateLimiter')
-const { registerSignalRoutes }  = require('./routes/signal')
-const { createRateLimiter }     = require('./helpers/rateLimiter')
-const { instantView }           = require('./routes/instant_view')
+const { instantView }                = require('./routes/instant_view')
 
 let serverPort
 let server
