@@ -8,6 +8,9 @@ import com.worldmates.messenger.utils.signal.PreKeyBundleResponse
 import com.worldmates.messenger.utils.signal.SignalRegisterRequest
 import com.worldmates.messenger.utils.signal.SignalReplenishRequest
 import com.worldmates.messenger.utils.signal.SignalSimpleResponse
+import com.worldmates.messenger.utils.signal.SignalGroupDistributeResponse
+import com.worldmates.messenger.utils.signal.SignalGroupPendingResponse
+import com.worldmates.messenger.utils.signal.SignalGroupConfirmResponse
 import retrofit2.http.*
 
 /**
@@ -391,6 +394,52 @@ interface NodeApi {
      */
     @GET("api/node/signal/prekey-count")
     suspend fun getSignalPreKeyCount(): SignalSimpleResponse
+
+    // ═══════════════════════ SIGNAL PROTOCOL — ГРУПОВІ ЧАТИ ══════════════════
+
+    /**
+     * Завантажити SenderKeyDistribution від поточного користувача до учасників групи.
+     *
+     * [distributions] = JSON масив: [{"recipient_id": 123, "distribution": "base64..."}, ...]
+     * Кожен distribution зашифрований індивідуальним DR-сеансом з відповідним учасником.
+     */
+    @FormUrlEncoded
+    @POST("api/node/signal/group/distribute")
+    suspend fun distributeGroupSenderKey(
+        @Field("group_id")      groupId:       Long,
+        @Field("distributions") distributions: String   // JSON array
+    ): SignalGroupDistributeResponse
+
+    /**
+     * Отримати всі невидані SenderKey distributions для поточного користувача.
+     * [groupId] = 0 → всі групи; > 0 → тільки ця група.
+     */
+    @FormUrlEncoded
+    @POST("api/node/signal/group/pending-distributions")
+    suspend fun getGroupPendingDistributions(
+        @Field("group_id") groupId: Long = 0
+    ): SignalGroupPendingResponse
+
+    /**
+     * Підтвердити отримання distributions (після успішного розшифрування).
+     * [distributionIds] = JSON масив ID: [1, 2, 3]
+     */
+    @FormUrlEncoded
+    @POST("api/node/signal/group/confirm-delivery")
+    suspend fun confirmGroupDistributionDelivery(
+        @Field("distribution_ids") distributionIds: String   // JSON array of IDs
+    ): SignalGroupConfirmResponse
+
+    /**
+     * Інвалідувати SenderKey учасника групи (при виході/видаленні).
+     * Дозволено: сам senderId або адміністратор групи.
+     */
+    @FormUrlEncoded
+    @POST("api/node/signal/group/invalidate-sender-key")
+    suspend fun invalidateGroupSenderKey(
+        @Field("group_id")  groupId:  Long,
+        @Field("sender_id") senderId: Long
+    ): SignalSimpleResponse
 
     // ═══════════════════════ AUTH (no access-token required) ═════════════════
 

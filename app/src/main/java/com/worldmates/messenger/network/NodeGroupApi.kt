@@ -172,13 +172,29 @@ interface NodeGroupApi {
         @Field("before_message_id") beforeMessageId: Long = 0
     ): GroupMessageListResponse
 
+    /**
+     * Надіслати повідомлення в групу.
+     *
+     * Для cipher_version=2 (за замовчуванням): [text] = plaintext, сервер шифрує.
+     * Для cipher_version=3 (Signal Sender Key): клієнт шифрує заздалегідь.
+     *   [text]          = Base64(ciphertext)
+     *   [iv]            = Base64(IV, 12 bytes)
+     *   [tag]           = Base64(GCM auth tag, 16 bytes)
+     *   [signalHeader]  = JSON GroupSignalHeader
+     *   [cipherVersion] = 3
+     */
     @FormUrlEncoded
     @POST(Constants.NODE_GROUP_MESSAGES_SEND)
     suspend fun sendGroupMessage(
-        @Field("group_id") groupId: Long,
-        @Field("text")     text: String,
-        @Field("reply_id") replyId: Long = 0,
-        @Field("stickers") stickers: String? = null
+        @Field("group_id")       groupId:       Long,
+        @Field("text")           text:          String,
+        @Field("reply_id")       replyId:       Long    = 0,
+        @Field("stickers")       stickers:      String? = null,
+        // ── Signal Sender Key fields (cipher_version=3 only) ─────────────────
+        @Field("iv")             iv:            String? = null,
+        @Field("tag")            tag:           String? = null,
+        @Field("signal_header")  signalHeader:  String? = null,
+        @Field("cipher_version") cipherVersion: Int?    = null
     ): GroupMessageResponse
 
     @FormUrlEncoded

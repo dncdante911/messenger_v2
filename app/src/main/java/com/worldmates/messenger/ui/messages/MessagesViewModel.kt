@@ -19,6 +19,7 @@ import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.utils.DecryptionUtility
 import com.worldmates.messenger.utils.signal.SignalEncryptionService
+import com.worldmates.messenger.utils.signal.SignalGroupEncryptionService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,9 +48,14 @@ class MessagesViewModel(application: Application) :
         private const val DRAFT_AUTO_SAVE_DELAY = 5000L // 5 секунд
     }
 
-    /** Signal Protocol E2EE service — singleton per process. */
+    /** Signal Protocol E2EE service — private chats (Double Ratchet). */
     private val signalService: SignalEncryptionService by lazy {
         SignalEncryptionService.getInstance(getApplication(), nodeApi)
+    }
+
+    /** Signal Sender Key E2EE service — group chats. */
+    private val signalGroupService: SignalGroupEncryptionService by lazy {
+        SignalGroupEncryptionService.getInstance(getApplication(), nodeApi, signalService)
     }
 
     init {
@@ -344,12 +350,15 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                // Використовуємо API для групових повідомлень (з опціональною фільтрацією по топіку)
-                val response = RetrofitClient.apiService.getGroupMessages(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId,
-                    topicId = topicId, // Фільтруємо по топіку якщо вказано
-                    limit = Constants.MESSAGES_PAGE_SIZE,
+                // Застосовуємо pending SenderKey distributions перед завантаженням
+                // (щоб нові повідомлення вже могли бути розшифровані)
+                signalGroupService.fetchAndApplyPendingDistributions(groupId)
+
+                // Node.js: POST /api/node/group/messages/get
+                // (замість PHP — Node.js повертає cipher_version + signal_header)
+                val response = groupApi.getGroupMessages(
+                    groupId         = groupId,
+                    limit           = Constants.MESSAGES_PAGE_SIZE,
                     beforeMessageId = beforeMessageId
                 )
 
@@ -358,15 +367,10 @@ class MessagesViewModel(application: Application) :
 
                     val currentMessages = _messages.value.toMutableList()
                     currentMessages.addAll(decryptedMessages)
-                    // Сортируем по времени (старые сверху, новые внизу)
                     setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
 
                     _error.value = null
-                    if (topicId != 0L) {
-                        Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень топіку $topicId")
-                    } else {
-                        Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень групи")
-                    }
+                    Log.d(TAG, "Завантажено ${decryptedMessages.size} повідомлень групи $groupId")
                 } else {
                     _error.value = response.errorMessage ?: "Помилка завантаження повідомлень"
                 }
@@ -375,7 +379,7 @@ class MessagesViewModel(application: Application) :
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
                 _isLoading.value = false
-                Log.e("MessagesViewModel", "Помилка завантаження повідомлень групи", e)
+                Log.e(TAG, "Помилка завантаження повідомлень групи", e)
             }
         }
     }
@@ -458,67 +462,73 @@ class MessagesViewModel(application: Application) :
                     return@launch
                 }
 
-                // ── Group chat → PHP ──────────────────────────────────────────────
-                val messageHashId = System.currentTimeMillis().toString()
+                // ── Group chat → Node.js (з Signal Sender Key E2EE) ──────────────
+                // Завантажуємо учасників групи для SenderKey distribution
+                val members = runCatching {
+                    groupApi.getGroupMembers(groupId = groupId).members.orEmpty()
+                }.getOrDefault(emptyList())
 
-                val response = if (groupId != 0L) {
-                    // Використовуємо API для відправки в групу (з опціональним топіком)
-                    RetrofitClient.apiService.sendGroupMessage(
-                        accessToken = UserSession.accessToken!!,
-                        groupId = groupId,
-                        topicId = topicId, // Якщо є топік, повідомлення буде прив'язане до нього
-                        text = text,
-                        replyToId = replyToId
+                val myUserId = UserSession.userId ?: 0L
+
+                // Намагаємося зашифрувати через Signal Sender Key (cipher_version=3)
+                val groupSignalPayload = signalGroupService.encryptForGroup(
+                    groupId  = groupId,
+                    plaintext = text,
+                    members  = members,
+                    myUserId = myUserId
+                )
+
+                val groupResp = if (groupSignalPayload != null) {
+                    Log.d(TAG, "📤 [Signal/Group] Sending E2EE msg to group $groupId (counter in header)")
+                    groupApi.sendGroupMessage(
+                        groupId       = groupId,
+                        text          = groupSignalPayload.ciphertext,
+                        replyId       = replyToId ?: 0L,
+                        iv            = groupSignalPayload.iv,
+                        tag           = groupSignalPayload.tag,
+                        signalHeader  = groupSignalPayload.signalHeader,
+                        cipherVersion = SignalGroupEncryptionService.CIPHER_VERSION_SIGNAL
                     )
                 } else {
-                    RetrofitClient.apiService.sendMessage(
-                        accessToken = UserSession.accessToken!!,
-                        recipientId = recipientId,
-                        text = text,
-                        messageHashId = messageHashId,
-                        replyToId = replyToId
+                    // Fallback: сервер шифрує AES-256-GCM (cipher_version=2)
+                    Log.w(TAG, "⚠️ [Signal/Group] Шифрування не вдалося, відправляємо без Signal для групи $groupId")
+                    groupApi.sendGroupMessage(
+                        groupId  = groupId,
+                        text     = text,
+                        replyId  = replyToId ?: 0L
                     )
                 }
 
-                Log.d("MessagesViewModel", "API Response: status=${response.apiStatus}, messages=${response.messages?.size}, message=${response.message}, allMessages=${response.allMessages?.size}, errors=${response.errors}")
-
-                if (response.apiStatus == 200) {
-                    // Если API вернул сообщения, добавляем их в список
-                    val receivedMessages = response.allMessages
-                    Log.d("MessagesViewModel", "receivedMessages: $receivedMessages")
-                    if (receivedMessages != null && receivedMessages.isNotEmpty()) {
-                        val decryptedMessages = receivedMessages.decryptAll()
-
-                        val currentMessages = _messages.value.toMutableList()
-                        currentMessages.addAll(decryptedMessages)
-                        // Сортируем по времени (старые сверху, новые внизу)
-                        setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
-                        Log.d("MessagesViewModel", "Додано ${decryptedMessages.size} нових повідомлень")
-                    } else {
-                        // Если API не вернул сообщения, перезагружаем весь список
-                        Log.d("MessagesViewModel", "API не повернув повідомлення, перезавантажуємо список")
-                        if (groupId != 0L) {
-                            fetchGroupMessages()
-                        } else {
-                            fetchMessages()
+                if (groupResp.apiStatus == 200) {
+                    val rawMsg = groupResp.messageData
+                    val newMsg = when {
+                        rawMsg == null            -> null
+                        groupSignalPayload != null -> {
+                            // Кешуємо відкритий текст — власне повідомлення не можна розшифрувати
+                            signalGroupService.cachePlaintext(rawMsg.id, text)
+                            rawMsg.copy(decryptedText = text)
                         }
+                        else -> decryptMessageFully(rawMsg)
                     }
 
-                    // КРИТИЧНО: Эмитим Socket.IO событие для real-time доставки
-                    if (groupId != 0L) {
-                        socketManager?.sendGroupMessage(groupId, text)
-                        Log.d("MessagesViewModel", "Socket.IO: Відправлено групове повідомлення")
+                    if (newMsg != null) {
+                        val curr = _messages.value
+                        if (!curr.any { it.id == newMsg.id }) {
+                            _messages.value = (curr + newMsg).sortedBy { it.timeStamp }
+                        }
                     } else {
-                        socketManager?.sendMessage(recipientId, text)
-                        Log.d("MessagesViewModel", "Socket.IO: Відправлено приватне повідомлення")
+                        fetchGroupMessages()
                     }
+
+                    // Socket.IO для real-time доставки іншим учасникам
+                    socketManager?.sendGroupMessage(groupId, text)
 
                     _error.value = null
-                    deleteDraft() // Удаляем черновик после успешной отправки
-                    Log.d("MessagesViewModel", "Повідомлення надіслано")
+                    deleteDraft()
+                    Log.d(TAG, "✅ Групове повідомлення надіслано (E2EE=${groupSignalPayload != null})")
                 } else {
-                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати повідомлення"
-                    Log.e("MessagesViewModel", "Send Error: ${response.errors?.errorText ?: response.errorMessage}")
+                    _error.value = groupResp.errorMessage ?: "Не вдалося надіслати повідомлення"
+                    Log.e(TAG, "Group send error: ${groupResp.errorMessage}")
                 }
 
                 _isLoading.value = false
@@ -1559,7 +1569,15 @@ class MessagesViewModel(application: Application) :
     private suspend fun decryptMessageFully(msg: Message): Message =
         withContext(Dispatchers.Default) {
             when (msg.cipherVersion) {
-                3 -> decryptSignalMessage(msg)
+                3 -> {
+                    // cipher_version=3: Signal E2EE
+                    // Розрізняємо групові та приватні повідомлення по groupId
+                    if (msg.groupId != null && msg.groupId!! > 0L) {
+                        decryptGroupSignalMessage(msg)   // Signal Sender Key
+                    } else {
+                        decryptSignalMessage(msg)         // Signal Double Ratchet
+                    }
+                }
                 else -> decryptLegacyMessage(msg)
             }
         }
@@ -1583,6 +1601,59 @@ class MessagesViewModel(application: Application) :
         val finalMediaUrl = decryptedMediaUrl
             ?: DecryptionUtility.extractMediaUrlFromText(decryptedText)
         return msg.copy(decryptedText = decryptedText, decryptedMediaUrl = finalMediaUrl)
+    }
+
+    /**
+     * Decrypt a Signal Sender Key (cipher_version=3) GROUP message.
+     *
+     * Використовує SignalGroupEncryptionService з SenderKey відправника.
+     * Якщо SenderKey не знайдено → намагається завантажити distributions з сервера.
+     */
+    private suspend fun decryptGroupSignalMessage(msg: Message): Message {
+        val msgId    = msg.id
+        val groupId  = msg.groupId ?: 0L
+        val senderId = msg.fromId
+
+        // Перевіряємо кеш — власні відправлені повідомлення кешуються в plaintext
+        val cached = signalGroupService.getCachedPlaintext(msgId)
+        if (cached != null) {
+            Log.d(TAG, "📱 [Signal/Group] msg $msgId від user $senderId — з кешу")
+            return msg.copy(decryptedText = cached)
+        }
+
+        val header     = msg.signalHeader
+        val ciphertext = msg.encryptedText
+        val iv         = msg.iv
+        val tag        = msg.tag
+
+        if (header == null || ciphertext.isNullOrEmpty() || iv == null || tag == null) {
+            Log.w(TAG, "⚠️ [Signal/Group] msg $msgId missing fields")
+            return msg.copy(decryptedText = "🔐 [Signal повідомлення]")
+        }
+
+        // Якщо SenderKey не знайдено — пробуємо завантажити distributions
+        if (!signalGroupService.hasSenderKey(groupId, senderId)) {
+            Log.d(TAG, "🔄 [Signal/Group] SenderKey від user=$senderId не знайдено, завантажуємо distributions...")
+            signalGroupService.fetchAndApplyPendingDistributions(groupId)
+        }
+
+        val plainText = signalGroupService.decryptGroupMessage(
+            groupId       = groupId,
+            senderId      = senderId,
+            ciphertextB64 = ciphertext,
+            ivB64         = iv,
+            tagB64        = tag,
+            headerJson    = header
+        )
+
+        return if (plainText != null) {
+            Log.d(TAG, "🔓 [Signal/Group] msg $msgId OK: \"${plainText.take(40)}\"")
+            signalGroupService.cachePlaintext(msgId, plainText)
+            msg.copy(decryptedText = plainText)
+        } else {
+            Log.e(TAG, "❌ [Signal/Group] msg $msgId — розшифровка не вдалася (SenderKey відсутній або лічильник розійшовся)")
+            msg.copy(decryptedText = "🔐 [Не вдалося розшифрувати]")
+        }
     }
 
     /** Decrypt a Signal Double Ratchet (cipher_version=3) message. */
