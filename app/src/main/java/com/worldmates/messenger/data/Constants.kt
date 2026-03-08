@@ -172,6 +172,11 @@ object Constants {
     const val SOCKET_EVENT_CHAT_OPEN           = "is_chat_on"        // client → server: user opened a private chat
     const val SOCKET_EVENT_CHAT_CLOSE          = "close_chat"        // client → server: user closed a private chat
 
+    // ── Live Location ────────────────────────────────────────────────────────
+    const val SOCKET_EVENT_LIVE_LOCATION_START  = "live_location_start"   // client → server → recipient
+    const val SOCKET_EVENT_LIVE_LOCATION_UPDATE = "live_location_update"  // periodic GPS update
+    const val SOCKET_EVENT_LIVE_LOCATION_STOP   = "live_location_stop"    // user stopped sharing
+
     // ==================== USER ACTION TYPES ====================
     // Values sent in the "action" field of user_action / group_user_action events
     const val USER_ACTION_RECORDING        = "recording"

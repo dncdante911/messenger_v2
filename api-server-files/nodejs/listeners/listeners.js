@@ -60,6 +60,7 @@ const { RemoveGroupMemberController } = require('../controllers/RemoveGroupMembe
 const { SetGroupRoleController } = require('../controllers/SetGroupRoleController');
 const { LeaveGroupController } = require('../controllers/LeaveGroupController');
 const { GetGroupDetailsController } = require('../controllers/GetGroupDetailsController');
+const { LiveLocationController }    = require('../controllers/LiveLocationController');
 
 const redis = require("redis");
 let redisSubscribed = false;
@@ -351,6 +352,18 @@ module.exports.registerListeners = async (socket, io, ctx) => {
     })
 
     // ==================== DISCONNECT ====================
+
+    // ── Live Location ───────────────────────────────────────────────────────────
+    socket.on('live_location_start', async (data) => {
+        LiveLocationController(ctx, data, io, socket, 'live_location_start');
+    });
+    socket.on('live_location_update', async (data) => {
+        LiveLocationController(ctx, data, io, socket, 'live_location_update');
+    });
+    socket.on('live_location_stop', async (data) => {
+        LiveLocationController(ctx, data, io, socket, 'live_location_stop');
+    });
+    // ────────────────────────────────────────────────────────────────────────────
 
     socket.on('disconnect', async (reason) => {
         console.log("❌ User disconnected: socket_id=" + socket.id + " reason=" + reason);

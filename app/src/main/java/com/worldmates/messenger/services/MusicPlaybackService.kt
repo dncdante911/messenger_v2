@@ -57,7 +57,11 @@ class MusicPlaybackService : MediaSessionService() {
 
         // Канал нотифікації
         const val CHANNEL_ID      = "worldmates_music_playback"
-        const val NOTIFICATION_ID = 2001
+        // Використовуємо той самий ID, що і Media3 DefaultMediaNotificationProvider (1001).
+        // Якщо ставити інший ID (наприклад 2001), наш startForeground() перезаписує
+        // foreground-нотифікацію Media3, і кнопки керування (play/pause/stop) зникають.
+        // Media3 потім оновлює слот 1001 своєю нотифікацією з повним набором контролів.
+        const val NOTIFICATION_ID = 1001
 
         // Публічні стани для UI
         private val _playbackState = MutableStateFlow(MusicPlaybackState())
