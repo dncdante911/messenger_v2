@@ -7,8 +7,10 @@ import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import timber.log.Timber
+import com.worldmates.messenger.data.AccountManager
 import com.worldmates.messenger.update.AppUpdateManager
 import com.worldmates.messenger.services.NotificationKeepAliveManager
+import com.worldmates.messenger.services.SecretChatCleanupWorker
 import com.worldmates.messenger.utils.LanguageManager
 
 /**
@@ -29,6 +31,12 @@ class WMApplication : MultiDexApplication(), ImageLoaderFactory {
         // Ініціалізація менеджера мови (до будь-чого іншого)
         LanguageManager.init(this)
         LanguageManager.applyToConfiguration(this)
+
+        // Ініціалізація мультиаккаунтного менеджера
+        AccountManager.init(this)
+
+        // Запуск фонового очищення секретних повідомлень (кожні 15 хвилин)
+        SecretChatCleanupWorker.schedule(this)
 
         // Initialize Timber for logging
         if (BuildConfig.DEBUG) {

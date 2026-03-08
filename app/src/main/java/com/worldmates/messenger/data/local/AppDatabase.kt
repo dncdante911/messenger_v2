@@ -4,30 +4,35 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.worldmates.messenger.data.local.dao.AccountDao
 import com.worldmates.messenger.data.local.dao.DraftDao
 import com.worldmates.messenger.data.local.dao.MessageDao
+import com.worldmates.messenger.data.local.entity.AccountEntity
 import com.worldmates.messenger.data.local.entity.Draft
 import com.worldmates.messenger.data.local.entity.CachedMessage
 
 /**
- * 💾 AppDatabase - локальная база данных приложения
+ * AppDatabase - локальна база даних застосунку.
  *
- * Хранит:
- * - Черновики сообщений (Draft)
- * - Кэш сообщений для офлайн доступа (CachedMessage) 📦 CLOUD BACKUP
+ * Зберігає:
+ * - AccountEntity  - мультиаккаунтна система (v5)
+ * - Draft          - чернетки повідомлень
+ * - CachedMessage  - кеш повідомлень + поля секретних чатів (destroyAt, isSecret) (v5)
  */
 @Database(
     entities = [
+        AccountEntity::class,
         Draft::class,
-        CachedMessage::class  // 📦 CLOUD BACKUP: Кэш сообщений
+        CachedMessage::class
     ],
-    version = 4,  // Увеличена версия до 4 (схема изменилась)
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
+    abstract fun accountDao(): AccountDao
     abstract fun draftDao(): DraftDao
-    abstract fun messageDao(): MessageDao  // 📦 CLOUD BACKUP: DAO для кэша сообщений
+    abstract fun messageDao(): MessageDao
 
     companion object {
         private const val DATABASE_NAME = "worldmates_messenger.db"
@@ -47,13 +52,10 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .fallbackToDestructiveMigration() // При изменении схемы - пересоздаём БД
+                .fallbackToDestructiveMigration()
                 .build()
         }
 
-        /**
-         * Для тестирования - in-memory database
-         */
         fun getInMemoryDatabase(context: Context): AppDatabase {
             return Room.inMemoryDatabaseBuilder(
                 context.applicationContext,

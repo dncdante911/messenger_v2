@@ -188,7 +188,18 @@ data class CachedMessage(
     /**
      * Время создания локальной записи
      */
-    val cachedAt: Long = System.currentTimeMillis()
+    val cachedAt: Long = System.currentTimeMillis(),
+
+    /**
+     * Секретний чат: час самознищення у мілісекундах з epoch (Unix ms).
+     * null = без таймера, > 0 = знищити після цього часу.
+     */
+    val destroyAt: Long? = null,
+
+    /**
+     * Чи є повідомлення частиною секретного чату (з таймером самознищення).
+     */
+    val isSecret: Boolean = false
 ) {
     companion object {
         const val CHAT_TYPE_USER = "user"

@@ -16,7 +16,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * Зберігає дані локально в SharedPreferences.
  */
 object ChatOrganizationManager {
-    private const val PREFS_NAME = "chat_organization"
+    // Prefix includes userId so each account has its own folders/archive/tags
+    private fun prefsName(userId: Long) = "chat_organization_$userId"
+
     private const val KEY_FOLDERS = "folders_v2"
     private const val KEY_ARCHIVED_CHAT_IDS = "archived_chat_ids"
     private const val KEY_CHAT_TAGS = "chat_tags"
@@ -50,7 +52,14 @@ object ChatOrganizationManager {
     private var prefs: SharedPreferences? = null
 
     fun init(context: Context) {
-        prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val userId = UserSession.userId
+        prefs = context.getSharedPreferences(prefsName(userId), Context.MODE_PRIVATE)
+        loadAll()
+    }
+
+    /** Переініціалізація при перемиканні акаунту - завантажує папки нового акаунту */
+    fun reinitForAccount(context: Context, userId: Long) {
+        prefs = context.getSharedPreferences(prefsName(userId), Context.MODE_PRIVATE)
         loadAll()
     }
 

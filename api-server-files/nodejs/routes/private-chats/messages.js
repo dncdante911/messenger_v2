@@ -25,6 +25,7 @@
 const { Op }   = require('sequelize');
 const funcs    = require('../../functions/functions');
 const crypto   = require('../../helpers/crypto');
+const { cleanupExpiredMessages } = require('./secret');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -141,6 +142,7 @@ async function buildMessage(ctx, msg, userId) {
         product_id:     msg.product_id     || 0,
         forward:        msg.forward        || 0,
         edited:         msg.edited         || 0,
+        remove_at:      msg.remove_at      || 0,
         user_data:      sender,
     };
 }
@@ -167,6 +169,9 @@ function getMessages(ctx, io) {
                     { from_id: userId,      to_id: recipientId, deleted_one: '0' },
                 ],
             };
+
+            // Автоматично видаляємо прострочені секретні повідомлення перед поверненням
+            await cleanupExpiredMessages(ctx, userId, recipientId);
 
             if (messageId > 0)        where.id = messageId;
             else if (afterMessageId  > 0) where.id = { [Op.gt]: afterMessageId };
@@ -204,8 +209,10 @@ function sendMessage(ctx, io) {
             const storyId     = parseInt(req.body.story_id) || 0;
             const lat         = req.body.lat      || '0';
             const lng         = req.body.lng      || '0';
-            const stickers    = req.body.stickers || '';
-            const contact     = req.body.contact  || '';
+            const stickers    = req.body.stickers  || '';
+            const contact     = req.body.contact   || '';
+            // remove_at: Unix timestamp (seconds) для самознищення, 0 = без таймеру
+            const removeAt    = parseInt(req.body.remove_at) || 0;
 
             if (!recipientId || isNaN(recipientId))
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
@@ -276,6 +283,7 @@ function sendMessage(ctx, io) {
                 type_two:      contact ? 'contact' : '',
                 forward:       0,
                 edited:        0,
+                remove_at:     removeAt,
             });
 
             // Обновляем метаданные переписки
