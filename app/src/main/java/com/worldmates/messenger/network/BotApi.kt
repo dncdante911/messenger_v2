@@ -137,6 +137,46 @@ interface BotApi {
         @Field("poll_id") pollId: Int
     ): BotPollResponse
 
+    // ==================== RSS FEEDS ====================
+
+    @GET("/api/node/bots/{bot_id}/rss")
+    suspend fun getRssFeeds(
+        @Query("access_token") accessToken: String,
+        @Path("bot_id") botId: String
+    ): RssFeedListResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/bots/{bot_id}/rss")
+    suspend fun addRssFeed(
+        @Query("access_token") accessToken: String,
+        @Path("bot_id") botId: String,
+        @Field("feed_url") feedUrl: String,
+        @Field("chat_id") chatId: String,
+        @Field("feed_name") feedName: String? = null,
+        @Field("check_interval_minutes") checkIntervalMinutes: Int = 30,
+        @Field("max_items_per_check") maxItemsPerCheck: Int = 5,
+        @Field("include_image") includeImage: Int = 1,
+        @Field("include_description") includeDescription: Int = 1
+    ): RssFeedResponse
+
+    @FormUrlEncoded
+    @PUT("/api/node/bots/{bot_id}/rss/{feed_id}")
+    suspend fun updateRssFeed(
+        @Query("access_token") accessToken: String,
+        @Path("bot_id") botId: String,
+        @Path("feed_id") feedId: Int,
+        @Field("is_active") isActive: Int? = null,
+        @Field("check_interval_minutes") checkIntervalMinutes: Int? = null,
+        @Field("max_items_per_check") maxItemsPerCheck: Int? = null
+    ): RssFeedResponse
+
+    @DELETE("/api/node/bots/{bot_id}/rss/{feed_id}")
+    suspend fun deleteRssFeed(
+        @Query("access_token") accessToken: String,
+        @Path("bot_id") botId: String,
+        @Path("feed_id") feedId: Int
+    ): BotGenericResponse
+
     // ==================== WEBHOOK INFO ====================
 
     @FormUrlEncoded

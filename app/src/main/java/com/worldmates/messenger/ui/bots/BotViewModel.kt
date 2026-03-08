@@ -257,6 +257,56 @@ class BotViewModel(
         _myBotsState.value = _myBotsState.value.copy(error = null)
         _createBotState.value = _createBotState.value.copy(error = null)
     }
+
+    // ==================== RSS FEEDS ====================
+
+    private val _rssState = MutableStateFlow(RssFeedsState())
+    val rssState: StateFlow<RssFeedsState> = _rssState.asStateFlow()
+
+    fun loadRssFeeds(botId: String) {
+        viewModelScope.launch {
+            val token = UserSession.accessToken ?: return@launch
+            _rssState.value = _rssState.value.copy(isLoading = true, error = null, botId = botId)
+            botRepository.getRssFeeds(token, botId).fold(
+                onSuccess = { feeds -> _rssState.value = _rssState.value.copy(isLoading = false, feeds = feeds) },
+                onFailure = { e -> _rssState.value = _rssState.value.copy(isLoading = false, error = e.message) }
+            )
+        }
+    }
+
+    fun addRssFeed(feedUrl: String, chatId: String, feedName: String?) {
+        viewModelScope.launch {
+            val token = UserSession.accessToken ?: return@launch
+            val botId = _rssState.value.botId ?: return@launch
+            _rssState.value = _rssState.value.copy(isSaving = true, error = null)
+            botRepository.addRssFeed(token, botId, feedUrl, chatId, feedName).fold(
+                onSuccess = { loadRssFeeds(botId) },
+                onFailure = { e -> _rssState.value = _rssState.value.copy(isSaving = false, error = e.message) }
+            )
+        }
+    }
+
+    fun toggleRssFeed(feedId: Int, isActive: Boolean) {
+        viewModelScope.launch {
+            val token = UserSession.accessToken ?: return@launch
+            val botId = _rssState.value.botId ?: return@launch
+            botRepository.toggleRssFeed(token, botId, feedId, isActive).fold(
+                onSuccess = { loadRssFeeds(botId) },
+                onFailure = { e -> _rssState.value = _rssState.value.copy(error = e.message) }
+            )
+        }
+    }
+
+    fun deleteRssFeed(feedId: Int) {
+        viewModelScope.launch {
+            val token = UserSession.accessToken ?: return@launch
+            val botId = _rssState.value.botId ?: return@launch
+            botRepository.deleteRssFeed(token, botId, feedId).fold(
+                onSuccess = { loadRssFeeds(botId) },
+                onFailure = { e -> _rssState.value = _rssState.value.copy(error = e.message) }
+            )
+        }
+    }
 }
 
 // ==================== UI STATE DATA CLASSES ====================
@@ -295,5 +345,13 @@ data class CreateBotState(
     val isCreating: Boolean = false,
     val createdBot: Bot? = null,
     val createdToken: String? = null,
+    val error: String? = null
+)
+
+data class RssFeedsState(
+    val isLoading: Boolean = false,
+    val isSaving: Boolean = false,
+    val botId: String? = null,
+    val feeds: List<com.worldmates.messenger.data.model.RssFeed> = emptyList(),
     val error: String? = null
 )

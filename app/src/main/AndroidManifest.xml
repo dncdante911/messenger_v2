@@ -330,6 +330,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Geo Discovery Activity -->
+        <activity
+            android:name=".ui.geo.GeoDiscoveryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.chats.ChatsActivity" />
+
         <!-- Dropbox OAuth Callback Activity -->
         <activity
             android:name="com.dropbox.core.android.AuthActivity"

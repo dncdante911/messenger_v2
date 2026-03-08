@@ -109,9 +109,23 @@ class BotStoreActivity : AppCompatActivity() {
                     },
                     onDeleteBot = { botId -> botViewModel.deleteBot(botId) },
                     onRegenerateToken = { botId -> botViewModel.regenerateToken(botId) },
+                    onRssFeeds = { bot ->
+                        botViewModel.loadRssFeeds(bot.botId)
+                        currentScreen = BotScreen.RssFeeds(bot.botId)
+                    },
                     onBack = {
                         currentScreen = BotScreen.Catalog
                     }
+                )
+            }
+            is BotScreen.RssFeeds -> {
+                val rssState by botViewModel.rssState.collectAsState()
+                BotRssFeedsScreen(
+                    state = rssState,
+                    onAddFeed = { url, chatId, name -> botViewModel.addRssFeed(url, chatId, name) },
+                    onToggleFeed = { feedId, isActive -> botViewModel.toggleRssFeed(feedId, isActive) },
+                    onDeleteFeed = { feedId -> botViewModel.deleteRssFeed(feedId) },
+                    onBack = { currentScreen = BotScreen.MyBots }
                 )
             }
             is BotScreen.CreateBot -> {
@@ -146,4 +160,5 @@ sealed class BotScreen {
     data class Detail(val botId: String) : BotScreen()
     object MyBots : BotScreen()
     object CreateBot : BotScreen()
+    data class RssFeeds(val botId: String) : BotScreen()
 }

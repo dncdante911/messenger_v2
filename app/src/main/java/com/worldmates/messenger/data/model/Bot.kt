@@ -271,3 +271,36 @@ data class BotGenericResponse(
     @SerializedName("error_code") val errorCode: Int? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
+
+// ==================== RSS FEEDS ====================
+
+data class RssFeed(
+    @SerializedName("id") val id: Int,
+    @SerializedName("bot_id") val botId: String,
+    @SerializedName("chat_id") val chatId: String,
+    @SerializedName("feed_url") val feedUrl: String,
+    @SerializedName("feed_name") val feedName: String? = null,
+    @SerializedName("feed_language") val feedLanguage: String = "en",
+    @SerializedName("is_active") val isActive: Int = 1,
+    @SerializedName("check_interval_minutes") val checkIntervalMinutes: Int = 30,
+    @SerializedName("max_items_per_check") val maxItemsPerCheck: Int = 5,
+    @SerializedName("include_image") val includeImage: Int = 1,
+    @SerializedName("include_description") val includeDescription: Int = 1,
+    @SerializedName("items_posted") val itemsPosted: Int = 0,
+    @SerializedName("last_check_at") val lastCheckAt: String? = null
+) {
+    val isEnabled: Boolean get() = isActive == 1
+    val displayName: String get() = feedName ?: feedUrl.removePrefix("https://").removePrefix("http://").take(40)
+}
+
+data class RssFeedListResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("feeds") val feeds: List<RssFeed>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class RssFeedResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("feed") val feed: RssFeed? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)

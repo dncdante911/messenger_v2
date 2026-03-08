@@ -26,6 +26,7 @@ fun BotManagementScreen(
     onEditBot: (Bot) -> Unit,
     onDeleteBot: (String) -> Unit,
     onRegenerateToken: (String) -> Unit,
+    onRssFeeds: (Bot) -> Unit = {},
     onBack: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf<Bot?>(null) }
@@ -98,7 +99,8 @@ fun BotManagementScreen(
                             bot = bot,
                             onEdit = { onEditBot(bot) },
                             onDelete = { showDeleteDialog = bot },
-                            onRegenerateToken = { onRegenerateToken(bot.botId) }
+                            onRegenerateToken = { onRegenerateToken(bot.botId) },
+                            onRssFeeds = { onRssFeeds(bot) }
                         )
                     }
                 }
@@ -170,7 +172,8 @@ fun MyBotCard(
     bot: Bot,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onRegenerateToken: () -> Unit
+    onRegenerateToken: () -> Unit,
+    onRssFeeds: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -264,6 +267,15 @@ fun MyBotCard(
                     Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Редагувати")
+                }
+                OutlinedButton(
+                    onClick = onRssFeeds,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.RssFeed, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("RSS")
                 }
                 OutlinedButton(
                     onClick = { expanded = true },
