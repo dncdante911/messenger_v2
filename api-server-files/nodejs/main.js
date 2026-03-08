@@ -29,6 +29,7 @@ const { registerBotRoutes }     = require('./routes/bots/index')
 const { registerCallRoutes }    = require('./routes/calls')
 const { initializeWallyBot }    = require('./bots/wallybot')
 const { registerSignalRoutes }  = require('./routes/signal')
+const { createRateLimiter }     = require('./helpers/rateLimiter')
 
 let serverPort
 let server
@@ -112,6 +113,7 @@ async function init() {
 
 
 
+  ctx.sequelize   = sequelize
   ctx.wo_messages = require("./models/wo_messages")(sequelize, DataTypes)
   ctx.wo_userschat = require("./models/wo_userschat")(sequelize, DataTypes)
   ctx.wo_users = require("./models/wo_users")(sequelize, DataTypes)
@@ -209,6 +211,25 @@ async function main() {
   // Middleware для парсинга application/x-www-form-urlencoded (Retrofit @FormUrlEncoded)
   app.use(express.urlencoded({ extended: true }));
 
+  // ── Rate Limiting ────────────────────────────────────────────────────────────
+  // Global limit: 300 req / min per IP. Covers all /api/* endpoints.
+  const globalLimiter = createRateLimiter({
+      windowMs: 60_000,
+      max:      300,
+      message:  'Rate limit exceeded. Please slow down.',
+  });
+  // Strict limit for unauthenticated / sensitive endpoints: 15 req / 15 min per IP.
+  // Prevents brute-force on login, registration, and password-reset flows.
+  const authLimiter = createRateLimiter({
+      windowMs: 15 * 60_000,
+      max:      15,
+      message:  'Too many attempts. Please try again in 15 minutes.',
+  });
+  app.use(globalLimiter);
+  app.use('/api/node/auth', authLimiter);
+  app.use('/api/node/signal/register', authLimiter);
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // GET /api/ice-servers/:userId - получить ICE серверы с TURN credentials
   app.get('/api/ice-servers/:userId', (req, res) => {
     try {
@@ -265,13 +286,38 @@ async function main() {
     }
   });
 
-  // Health check endpoint
-  app.get('/api/health', (req, res) => {
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      bots: getBotStats(ctx)
+  // Health check endpoint — includes DB ping, memory, socket count
+  app.get('/api/health', async (req, res) => {
+    const start = Date.now();
+
+    // Database connectivity check
+    let db = { status: 'ok', latencyMs: null };
+    try {
+      const t0 = Date.now();
+      await ctx.sequelize.authenticate();
+      db.latencyMs = Date.now() - t0;
+    } catch (e) {
+      db = { status: 'error', error: e.message };
+    }
+
+    const mem  = process.memoryUsage();
+    const overall = db.status === 'ok' ? 'ok' : 'degraded';
+
+    res.status(overall === 'ok' ? 200 : 503).json({
+      status:         overall,
+      timestamp:      new Date().toISOString(),
+      uptime:         Math.floor(process.uptime()),
+      responseTimeMs: Date.now() - start,
+      database:       db,
+      memory: {
+        rssMB:       Math.round(mem.rss       / 1024 / 1024),
+        heapUsedMB:  Math.round(mem.heapUsed  / 1024 / 1024),
+        heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+      },
+      sockets: {
+        connected: io?.engine?.clientsCount ?? 0,
+      },
+      bots: getBotStats(ctx),
     });
   });
 
