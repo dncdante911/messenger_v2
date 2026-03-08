@@ -28,7 +28,8 @@ const { Op } = require('sequelize');
 async function cleanupExpiredMessages(ctx, fromId, toId) {
     const nowUnix = Math.floor(Date.now() / 1000);
     try {
-        await ctx.Wo_Messages.destroy({
+        if (!ctx || !ctx.wo_messages) return;
+        await ctx.wo_messages.destroy({
             where: {
                 remove_at: { [Op.gt]: 0, [Op.lte]: nowUnix },
                 [Op.or]: [
@@ -59,7 +60,7 @@ function cleanupHandler(ctx, io) {
 
         try {
             const nowUnix = Math.floor(Date.now() / 1000);
-            const deleted = await ctx.Wo_Messages.destroy({
+            const deleted = await ctx.wo_messages.destroy({
                 where: {
                     remove_at: { [Op.gt]: 0, [Op.lte]: nowUnix },
                     [Op.or]: [
