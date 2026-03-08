@@ -398,16 +398,6 @@ fun ChatsScreen(
                     },
                     onCreateGroup = {
                         showCreateGroupDialog = true
-                    },
-                    onNavigateToGeoDiscovery = {
-                        context.startActivity(
-                            Intent(context, com.worldmates.messenger.ui.geo.GeoDiscoveryActivity::class.java)
-                        )
-                    },
-                    onNavigateToPremium = {
-                        context.startActivity(
-                            Intent(context, com.worldmates.messenger.ui.premium.PremiumActivity::class.java)
-                        )
                     }
                 )
             }
@@ -811,9 +801,7 @@ fun SettingsDrawerContent(
     onShowContactPicker: () -> Unit = {},
     onShowDrafts: () -> Unit = {},
     onCreateStoryClick: () -> Unit = {},
-    onCreateGroup: () -> Unit = {},
-    onNavigateToGeoDiscovery: () -> Unit = {},
-    onNavigateToPremium: () -> Unit = {}
+    onCreateGroup: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -976,7 +964,9 @@ fun SettingsDrawerContent(
                     title = stringResource(R.string.geo_discovery_title),
                     onClick = {
                         onClose()
-                        onNavigateToGeoDiscovery()
+                        context.startActivity(
+                            android.content.Intent(context, com.worldmates.messenger.ui.geo.GeoDiscoveryActivity::class.java)
+                        )
                     }
                 )
             }
@@ -987,7 +977,9 @@ fun SettingsDrawerContent(
                     title = stringResource(R.string.premium_title),
                     onClick = {
                         onClose()
-                        onNavigateToPremium()
+                        context.startActivity(
+                            android.content.Intent(context, com.worldmates.messenger.ui.premium.PremiumActivity::class.java)
+                        )
                     }
                 )
             }
