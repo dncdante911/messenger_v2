@@ -221,6 +221,38 @@ interface MessageDao {
     @Query("DELETE FROM cached_messages")
     suspend fun clearAllCache()
 
+    // ==================== СЕКРЕТНІ ЧАТИ ====================
+
+    /**
+     * Видалити повідомлення з минулим таймером самознищення.
+     * Викликається фоновим воркером кожні 15 хвилин.
+     * @param nowMs поточний час у мілісекундах (System.currentTimeMillis())
+     */
+    @Query("""
+        DELETE FROM cached_messages
+        WHERE isSecret = 1 AND destroyAt IS NOT NULL AND destroyAt <= :nowMs
+    """)
+    suspend fun deleteExpiredSecretMessages(nowMs: Long)
+
+    /**
+     * Отримати всі секретні повідомлення для конкретного чату.
+     */
+    @Query("""
+        SELECT * FROM cached_messages
+        WHERE chatId = :chatId AND chatType = :chatType AND isSecret = 1 AND isDeleted = 0
+        ORDER BY timestamp ASC
+    """)
+    fun getSecretMessagesForChat(chatId: Long, chatType: String): kotlinx.coroutines.flow.Flow<List<CachedMessage>>
+
+    /**
+     * Кількість прострочених секретних повідомлень (для діагностики).
+     */
+    @Query("""
+        SELECT COUNT(*) FROM cached_messages
+        WHERE isSecret = 1 AND destroyAt IS NOT NULL AND destroyAt <= :nowMs
+    """)
+    suspend fun countExpiredSecretMessages(nowMs: Long): Int
+
     // ==================== СТАТИСТИКА ====================
 
     /**

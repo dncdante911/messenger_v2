@@ -18,6 +18,7 @@ const msgs      = require('./messages');
 const actions   = require('./actions');
 const chatsList = require('./chats-list');
 const favs      = require('./favorites');
+const secret    = require('./secret');
 
 // ─── auth middleware ──────────────────────────────────────────────────────────
 
@@ -86,12 +87,17 @@ function registerPrivateChatRoutes(app, ctx, io) {
     // Called by Android MessagesViewModel on chat open to initialise header bar.
     app.post('/api/node/user/status',   auth, msgs.userStatus(ctx, io));
 
+    // ── secret messages / self-destruct ────────────────────────────────────────
+    app.post('/api/node/chat/secret/cleanup',   auth, secret.cleanupHandler(ctx, io));
+    app.post('/api/node/chat/secret/set-timer', auth, secret.setTimerHandler(ctx, io));
+
     console.log('[Private Chat API] Endpoints registered under /api/node/chat/* and /api/node/user/*');
     console.log('  Messages : get, send, send-media, loadmore, edit, search, seen, typing, notify-media');
     console.log('  Actions  : delete, react, pin, pinned, forward');
     console.log('  Chats    : chats, delete-conversation, clear-history, mute-status, archive, mute, pin-chat, color, read');
     console.log('  Favorites: fav, fav-list');
     console.log('  User     : /api/node/user/status');
+    console.log('  Secret   : secret/cleanup, secret/set-timer');
 }
 
 module.exports = { registerPrivateChatRoutes };
