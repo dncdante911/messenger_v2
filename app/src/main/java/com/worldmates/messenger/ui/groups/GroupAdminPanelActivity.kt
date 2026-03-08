@@ -41,6 +41,7 @@ class GroupAdminPanelActivity : AppCompatActivity() {
         viewModel.loadJoinRequests(groupId)
         viewModel.loadScheduledPosts(groupId)
         viewModel.loadGroupStatistics(groupId)
+        viewModel.loadAnonymousAdmin(groupId)
 
         setContent {
             WorldMatesThemedApp {
@@ -50,6 +51,8 @@ class GroupAdminPanelActivity : AppCompatActivity() {
                 val scheduledPosts by viewModel.scheduledPosts.collectAsState()
                 val statistics by viewModel.groupStatistics.collectAsState()
                 val isLoading by viewModel.isLoading.collectAsState()
+                val isAnonymousAdmin by viewModel.isAnonymousAdmin.collectAsState()
+                val isAnonymousAdminLoading by viewModel.isAnonymousAdminLoading.collectAsState()
 
                 val group = groups.find { it.id == groupId }
 
@@ -108,7 +111,10 @@ class GroupAdminPanelActivity : AppCompatActivity() {
                             viewModel.loadJoinRequests(groupId)
                             viewModel.loadScheduledPosts(groupId)
                             viewModel.loadGroupStatistics(groupId)
-                        }
+                        },
+                        isAnonymousAdmin = isAnonymousAdmin,
+                        isAnonymousAdminLoading = isAnonymousAdminLoading,
+                        onToggleAnonymousAdmin = { viewModel.setAnonymousAdmin(groupId, it) }
                     )
                 }
             }

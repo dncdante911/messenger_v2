@@ -1471,6 +1471,42 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
+    // ═══════════════════════ ANONYMOUS ADMIN ════════════════════════════════════
+
+    private val _isAnonymousAdmin = MutableStateFlow(false)
+    val isAnonymousAdmin: StateFlow<Boolean> = _isAnonymousAdmin
+
+    private val _isAnonymousAdminLoading = MutableStateFlow(false)
+    val isAnonymousAdminLoading: StateFlow<Boolean> = _isAnonymousAdminLoading
+
+    fun loadAnonymousAdmin(groupId: Long) {
+        viewModelScope.launch {
+            _isAnonymousAdminLoading.value = true
+            try {
+                val resp = NodeRetrofitClient.groupApi.getAnonymousAdmin(groupId)
+                _isAnonymousAdmin.value = resp.anonymous
+            } catch (e: Exception) {
+                Log.e("GroupsViewModel", "loadAnonymousAdmin error: ${e.message}")
+            } finally {
+                _isAnonymousAdminLoading.value = false
+            }
+        }
+    }
+
+    fun setAnonymousAdmin(groupId: Long, anonymous: Boolean) {
+        viewModelScope.launch {
+            _isAnonymousAdminLoading.value = true
+            try {
+                val resp = NodeRetrofitClient.groupApi.setAnonymousAdmin(groupId, if (anonymous) "1" else "0")
+                _isAnonymousAdmin.value = resp.anonymous
+            } catch (e: Exception) {
+                Log.e("GroupsViewModel", "setAnonymousAdmin error: ${e.message}")
+            } finally {
+                _isAnonymousAdminLoading.value = false
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         Log.d("GroupsViewModel", "ViewModel очищена")
