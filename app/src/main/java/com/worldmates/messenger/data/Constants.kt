@@ -146,6 +146,35 @@ object Constants {
     const val NODE_GROUP_ADD_ADMIN     = "api/node/group/add-admin"
     const val NODE_GROUP_REMOVE_ADMIN  = "api/node/group/remove-admin"
 
+    // ── Export ────────────────────────────────────────────────────────────────
+    const val NODE_CHAT_EXPORT         = "api/node/chat/export"
+    const val NODE_GROUP_EXPORT        = "api/node/group/export"
+
+    // ── Topics ────────────────────────────────────────────────────────────────
+    const val NODE_GROUP_TOPICS_LIST   = "api/node/group/topics/list"
+    const val NODE_GROUP_TOPICS_CREATE = "api/node/group/topics/create"
+    const val NODE_GROUP_TOPICS_UPDATE = "api/node/group/topics/update"
+    const val NODE_GROUP_TOPICS_DELETE = "api/node/group/topics/delete"
+
+    // ── Anonymous Admin ───────────────────────────────────────────────────────
+    const val NODE_GROUP_ANON_ADMIN_SET = "api/node/group/admin/set-anonymous"
+    const val NODE_GROUP_ANON_ADMIN_GET = "api/node/group/admin/get-anonymous"
+
+    // ── Group Polls ───────────────────────────────────────────────────────────
+    const val NODE_GROUP_POLL_CREATE   = "api/node/group/poll/create"
+    const val NODE_GROUP_POLL_GET      = "api/node/group/poll/get"
+    const val NODE_GROUP_POLL_VOTE     = "api/node/group/poll/vote"
+    const val NODE_GROUP_POLL_CLOSE    = "api/node/group/poll/close"
+
+    // ── Channel Polls ─────────────────────────────────────────────────────────
+    const val NODE_CHANNEL_POLL_CREATE = "api/node/channel/poll/create"
+    const val NODE_CHANNEL_POLL_GET    = "api/node/channel/poll/get"
+    const val NODE_CHANNEL_POLL_VOTE   = "api/node/channel/poll/vote"
+    const val NODE_CHANNEL_POLL_CLOSE  = "api/node/channel/poll/close"
+
+    // ── Instant View ──────────────────────────────────────────────────────────
+    const val NODE_INSTANT_VIEW        = "api/node/instant-view"
+
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH                = "join"
     const val SOCKET_EVENT_PRIVATE_MESSAGE     = "private_message"

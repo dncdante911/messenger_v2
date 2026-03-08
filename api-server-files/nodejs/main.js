@@ -30,6 +30,7 @@ const { registerCallRoutes }    = require('./routes/calls')
 const { initializeWallyBot }    = require('./bots/wallybot')
 const { registerSignalRoutes }  = require('./routes/signal')
 const { createRateLimiter }     = require('./helpers/rateLimiter')
+const { instantView }           = require('./routes/instant_view')
 
 let serverPort
 let server
@@ -378,6 +379,9 @@ async function main() {
 
   // Register Signal Protocol key server (X3DH pre-key distribution)
   registerSignalRoutes(app, ctx);
+
+  // Instant View — article reader (no auth required, rate-limited at global level)
+  app.post('/api/node/instant-view', instantView(ctx, io));
 
   // Инициализация WallyBot (встроенный бот-менеджер)
   await initializeWallyBot(ctx, io);
