@@ -20,12 +20,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.AccountManager
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.local.entity.AccountEntity
@@ -33,13 +35,6 @@ import kotlinx.coroutines.launch
 
 /**
  * AccountSwitcherDialog - діалог перемикання акаунтів (Telegram-style).
- *
- * Показує список збережених акаунтів з можливістю:
- * - Перемкнутись на інший акаунт (одним натисканням)
- * - Видалити акаунт
- * - Додати новий акаунт
- *
- * Ліміти відображаються у підзаголовку.
  */
 @Composable
 fun AccountSwitcherDialog(
@@ -55,6 +50,19 @@ fun AccountSwitcherDialog(
     val canAdd = accounts.size < maxAccounts
 
     var showDeleteConfirm by remember { mutableStateOf<AccountEntity?>(null) }
+
+    val titleText        = stringResource(R.string.multi_account_title)
+    val subtypeLabel     = if (UserSession.isPro > 0)
+        stringResource(R.string.multi_account_subtitle_pro)
+    else
+        stringResource(R.string.multi_account_subtitle_free)
+    val subtitleText     = stringResource(R.string.multi_account_subtitle, accounts.size, maxAccounts) + " $subtypeLabel"
+    val closeCd          = stringResource(R.string.close)
+    val addAccountText   = stringResource(R.string.multi_account_add)
+    val limitReachedText = stringResource(R.string.multi_account_limit_reached, maxAccounts)
+    val deleteTitle      = stringResource(R.string.multi_account_delete_title)
+    val deleteBtn        = stringResource(R.string.delete)
+    val cancelBtn        = stringResource(R.string.cancel)
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -77,18 +85,18 @@ fun AccountSwitcherDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Акаунти",
+                            text = titleText,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${accounts.size} / $maxAccounts${if (UserSession.isPro > 0) " (Pro)" else " (Free)"}",
+                            text = subtitleText,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Закрити")
+                        Icon(Icons.Default.Close, contentDescription = closeCd)
                     }
                 }
 
@@ -113,9 +121,7 @@ fun AccountSwitcherDialog(
                                 }
                                 onDismiss()
                             },
-                            onDelete = {
-                                showDeleteConfirm = account
-                            }
+                            onDelete = { showDeleteConfirm = account }
                         )
                     }
                 }
@@ -154,7 +160,7 @@ fun AccountSwitcherDialog(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Додати акаунт",
+                            text = addAccountText,
                             style = MaterialTheme.typography.bodyLarge,
                             color = if (canAdd)
                                 MaterialTheme.colorScheme.onSurface
@@ -163,7 +169,7 @@ fun AccountSwitcherDialog(
                         )
                         if (!canAdd) {
                             Text(
-                                text = "Досягнуто ліміту ($maxAccounts акаунтів)",
+                                text = limitReachedText,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
@@ -176,27 +182,26 @@ fun AccountSwitcherDialog(
 
     // Delete confirmation
     showDeleteConfirm?.let { account ->
+        val displayName = account.username ?: account.userId.toString()
+        val deleteMessage = stringResource(R.string.multi_account_delete_message, displayName)
+
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = null },
-            title = { Text("Видалити акаунт?") },
-            text = {
-                Text("Акаунт ${account.username ?: account.userId} буде видалено з цього пристрою. Дані залишаться на сервері.")
-            },
+            title = { Text(deleteTitle) },
+            text = { Text(deleteMessage) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        scope.launch {
-                            AccountManager.removeAccount(account.userId)
-                        }
+                        scope.launch { AccountManager.removeAccount(account.userId) }
                         showDeleteConfirm = null
                     }
                 ) {
-                    Text("Видалити", color = MaterialTheme.colorScheme.error)
+                    Text(deleteBtn, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = null }) {
-                    Text("Скасувати")
+                    Text(cancelBtn)
                 }
             }
         )
@@ -210,6 +215,12 @@ private fun AccountItem(
     onSwitch: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val activeText      = stringResource(R.string.multi_account_active)
+    val tapToSwitch     = stringResource(R.string.multi_account_tap_to_switch)
+    val deleteCd        = stringResource(R.string.multi_account_delete_cd)
+    val fallbackName    = stringResource(R.string.multi_account_fallback_name, account.userId.toString())
+    val proBadge        = stringResource(R.string.pro_badge)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -245,7 +256,6 @@ private fun AccountItem(
                 }
             }
 
-            // Active indicator
             if (isActive) {
                 Box(
                     modifier = Modifier
@@ -271,7 +281,7 @@ private fun AccountItem(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = account.username ?: "Акаунт ${account.userId}",
+                    text = account.username ?: fallbackName,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = 1,
@@ -285,7 +295,7 @@ private fun AccountItem(
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
-                            text = "PRO",
+                            text = proBadge,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onTertiary,
@@ -295,7 +305,7 @@ private fun AccountItem(
                 }
             }
             Text(
-                text = if (isActive) "Активний" else "Натисніть для перемикання",
+                text = if (isActive) activeText else tapToSwitch,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (isActive)
                     MaterialTheme.colorScheme.primary
@@ -304,7 +314,6 @@ private fun AccountItem(
             )
         }
 
-        // Delete button (не для активного щоб не було випадкового видалення)
         if (!isActive) {
             IconButton(
                 onClick = onDelete,
@@ -312,7 +321,7 @@ private fun AccountItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Видалити акаунт",
+                    contentDescription = deleteCd,
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                     modifier = Modifier.size(18.dp)
                 )

@@ -19,25 +19,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.SecretChatManager
 
 /**
- * SelfDestructTimerDialog - діалог вибору таймеру самознищення.
- *
- * Аналог Telegram: дає вибрати від 1 секунди до 1 тижня або вимкнути.
- * Відображає поточне значення та сітку опцій 3×3.
- *
- * Використання:
- *   SelfDestructTimerDialog(
- *     currentTimer = SecretChatManager.getTimer(chatId, chatType),
- *     onTimerSelected = { seconds -> SecretChatManager.setTimer(chatId, chatType, seconds) },
- *     onDismiss = { showDialog = false }
- *   )
+ * SelfDestructTimerDialog - діалог вибору таймеру самознищення (Telegram-style).
+ * Варіанти: Вимкнено / 1с / 5с / 30с / 1хв / 5хв / 1г / 1д / 1т
  */
 @Composable
 fun SelfDestructTimerDialog(
@@ -46,6 +39,12 @@ fun SelfDestructTimerDialog(
     onDismiss: () -> Unit
 ) {
     var selected by remember { mutableStateOf(currentTimer) }
+
+    val titleText    = stringResource(R.string.secret_timer_title)
+    val descInactive = stringResource(R.string.secret_timer_inactive_desc)
+    val cancelText   = stringResource(R.string.cancel)
+    val setTimerText = stringResource(R.string.secret_timer_set)
+    val disableText  = stringResource(R.string.secret_timer_disable)
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -89,18 +88,20 @@ fun SelfDestructTimerDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Самознищення",
+                    text = titleText,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                // Recalculates when 'selected' changes
+                val activeDesc = stringResource(
+                    R.string.secret_timer_active_desc,
+                    SecretChatManager.timerLabel(selected)
+                )
                 Text(
-                    text = if (selected > 0L)
-                        "Повідомлення видаляться через ${SecretChatManager.timerLabel(selected)}"
-                    else
-                        "Повідомлення не видаляються автоматично",
+                    text = if (selected > 0L) activeDesc else descInactive,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
@@ -126,7 +127,6 @@ fun SelfDestructTimerDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -135,7 +135,7 @@ fun SelfDestructTimerDialog(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Скасувати")
+                        Text(cancelText)
                     }
                     Button(
                         onClick = {
@@ -150,7 +150,7 @@ fun SelfDestructTimerDialog(
                                 MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Text(if (selected > 0L) "Встановити" else "Вимкнути")
+                        Text(if (selected > 0L) setTimerText else disableText)
                     }
                 }
             }
@@ -173,10 +173,7 @@ private fun TimerOptionChip(
         label = "chip_bg"
     )
     val textColor by animateColorAsState(
-        targetValue = if (isSelected)
-            Color.White
-        else
-            MaterialTheme.colorScheme.onSurface,
+        targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
         label = "chip_text"
     )
 
@@ -216,7 +213,7 @@ private fun TimerOptionChip(
 }
 
 /**
- * Маленький бейдж-іконка таймеру для відображення в хедері чату.
+ * Маленький бейдж-іконка активного таймеру для хедера чату.
  * Натискання відкриває SelfDestructTimerDialog.
  */
 @Composable
