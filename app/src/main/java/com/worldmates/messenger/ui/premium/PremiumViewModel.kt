@@ -60,7 +60,7 @@ class PremiumViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = _uiState.value.copy(isLoading = true)
         viewModelScope.launch {
             try {
-                val api = RetrofitClient.getApi()
+                val api = RetrofitClient.apiService
                 val response = api.getUserData(accessToken = token)
                 if (response.apiStatus == 200) {
                     val user = response.userData
