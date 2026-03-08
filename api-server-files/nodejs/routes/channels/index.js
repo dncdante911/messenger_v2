@@ -32,6 +32,7 @@ const posts        = require('./posts');
 const comments     = require('./comments');
 const reactions    = require('./reactions');
 const admin        = require('./admin');
+const channelPolls = require('./polls');
 
 // ─── Upload base path from config ───────────────────────────────────────────
 // Use site_path from config.json (absolute filesystem path to web root).
@@ -266,6 +267,12 @@ function registerChannelRoutes(app, ctx, io) {
     app.post('/api/node/channel/qr-generate',     auth, admin.generateQr(ctx, io));
     app.post('/api/node/channel/qr-subscribe',    auth, admin.subscribeByQr(ctx, io));
     app.post('/api/node/channel/upload-avatar',   upload.single('avatar'), auth, admin.uploadAvatar(ctx, io));
+
+    // ── Channel Polls ────────────────────────────────────────────────────────
+    app.post('/api/node/channel/poll/create', auth, channelPolls.createChannelPoll(ctx, io));
+    app.post('/api/node/channel/poll/get',    auth, channelPolls.getChannelPoll(ctx, io));
+    app.post('/api/node/channel/poll/vote',   auth, channelPolls.voteChannelPoll(ctx, io));
+    app.post('/api/node/channel/poll/close',  auth, channelPolls.closeChannelPoll(ctx, io));
 
     // Generic media upload (for channel post images/videos/files)
     app.post('/api/node/media/upload',             mediaUpload.single('file'), auth, uploadMedia(ctx));

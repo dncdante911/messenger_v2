@@ -1754,4 +1754,68 @@
     <string name="timer_1h_short">1г</string>
     <string name="timer_1d_short">1д</string>
     <string name="timer_1w_short">1т</string>
+
+    <!-- ===== EXPORT CHAT HISTORY ===== -->
+    <string name="export_chat_title">Експорт чату</string>
+    <string name="export_chat_subtitle">Експортувати переписку з %1$s</string>
+    <string name="export_format_json">JSON</string>
+    <string name="export_format_html">HTML</string>
+    <string name="export_loading">Завантаження…</string>
+    <string name="export_error">Помилка експорту</string>
+    <string name="export_success">Експорт завершено</string>
+    <string name="export_menu_item">Експортувати чат</string>
+
+    <!-- ===== GROUP TOPICS ===== -->
+    <string name="topics_title">Теми</string>
+    <string name="topics_create">Нова тема</string>
+    <string name="topic_name_hint">Назва теми</string>
+    <string name="topic_create_button">Створити</string>
+    <string name="topic_edit_button">Редагувати</string>
+    <string name="topic_delete_button">Видалити</string>
+    <string name="topic_pin">Закріпити тему</string>
+    <string name="topic_unpin">Відкріпити тему</string>
+    <string name="topic_archive">Архівувати тему</string>
+    <string name="topic_messages_count">%1$d повідомлень</string>
+    <string name="topic_delete_confirm">Видалити цю тему?</string>
+    <string name="topic_general">Загальне</string>
+
+    <!-- ===== ANONYMOUS ADMIN ===== -->
+    <string name="anonymous_admin_title">Анонімний адмін</string>
+    <string name="anonymous_admin_description">Надсилати повідомлення від імені групи</string>
+    <string name="anonymous_admin_enabled">Анонімний режим увімкнено</string>
+    <string name="anonymous_admin_disabled">Анонімний режим вимкнено</string>
+
+    <!-- ===== POLLS ===== -->
+    <string name="poll_label">Голосування</string>
+    <string name="poll_closed">Завершено</string>
+    <string name="poll_anonymous">Анонімне</string>
+    <string name="poll_create_title">Нове голосування</string>
+    <string name="poll_question_hint">Питання</string>
+    <string name="poll_options_label">Варіанти відповідей</string>
+    <string name="poll_option_n">Варіант %1$d</string>
+    <string name="poll_add_option">+ Додати варіант</string>
+    <string name="poll_remove_option">Видалити варіант</string>
+    <string name="poll_anonymous_label">Анонімне голосування</string>
+    <string name="poll_multiple_answers">Кілька відповідей</string>
+    <string name="poll_create_button">Створити</string>
+    <string name="poll_votes_count">%1$d голосів</string>
+    <string name="poll_close">Завершити</string>
+    <string name="poll_vote_success">Ваш голос враховано</string>
+    <string name="poll_already_voted">Ви вже голосували</string>
+    <string name="poll_closed_message">Голосування завершено</string>
+    <string name="poll_menu_item">Голосування</string>
+
+    <!-- ===== INSTANT VIEW ===== -->
+    <string name="instant_view_title">Перегляд статті</string>
+    <string name="instant_view_reading_time">%1$d хв читання</string>
+    <string name="instant_view_error">Не вдалося завантажити статтю</string>
+    <string name="instant_view_open_button">Відкрити в браузері</string>
+    <string name="open_in_browser">Відкрити в браузері</string>
+    <string name="instant_view_loading">Завантаження статті…</string>
+
+    <!-- ===== VIDEO STREAMING ===== -->
+    <string name="video_streaming_label">Потокове відео</string>
+    <string name="video_buffering">Буферизація…</string>
+    <string name="video_stream_hls">HLS потік</string>
+    <string name="video_stream_dash">DASH потік</string>
 </resources>

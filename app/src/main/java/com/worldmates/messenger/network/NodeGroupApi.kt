@@ -340,4 +340,96 @@ interface NodeGroupApi {
         @Field("group_id") groupId: Long,
         @Field("user_id")  userId: Long
     ): GroupSimpleResponse
+
+    // ═══════════════════════ EXPORT ══════════════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_EXPORT)
+    suspend fun exportGroupChat(
+        @Field("group_id") groupId: Long,
+        @Field("format")   format: String = "json",
+        @Field("limit")    limit: Int     = 500
+    ): okhttp3.ResponseBody
+
+    // ═══════════════════════ TOPICS ══════════════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_TOPICS_LIST)
+    suspend fun listTopics(
+        @Field("group_id") groupId: Long
+    ): GroupTopicsResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_TOPICS_CREATE)
+    suspend fun createTopic(
+        @Field("group_id") groupId: Long,
+        @Field("name")     name: String
+    ): GroupTopicResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_TOPICS_UPDATE)
+    suspend fun updateTopic(
+        @Field("group_id")    groupId: Long,
+        @Field("topic_id")    topicId: Long,
+        @Field("name")        name: String? = null,
+        @Field("is_pinned")   isPinned: String? = null,
+        @Field("is_archived") isArchived: String? = null
+    ): GroupTopicResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_TOPICS_DELETE)
+    suspend fun deleteTopic(
+        @Field("group_id") groupId: Long,
+        @Field("topic_id") topicId: Long
+    ): GroupSimpleResponse
+
+    // ═══════════════════════ ANONYMOUS ADMIN ═════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_ANON_ADMIN_SET)
+    suspend fun setAnonymousAdmin(
+        @Field("group_id")  groupId: Long,
+        @Field("anonymous") anonymous: String
+    ): GroupAnonAdminResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_ANON_ADMIN_GET)
+    suspend fun getAnonymousAdmin(
+        @Field("group_id") groupId: Long
+    ): GroupAnonAdminResponse
+
+    // ═══════════════════════ POLLS ═══════════════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_POLL_CREATE)
+    suspend fun createPoll(
+        @Field("group_id")                groupId: Long,
+        @Field("question")                question: String,
+        @Field("options[]")               options: List<String>,
+        @Field("is_anonymous")            isAnonymous: String = "1",
+        @Field("allows_multiple_answers") allowsMultiple: String = "0",
+        @Field("poll_type")               pollType: String = "regular"
+    ): GroupPollResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_POLL_GET)
+    suspend fun getPoll(
+        @Field("group_id") groupId: Long,
+        @Field("poll_id")  pollId: Long
+    ): GroupPollResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_POLL_VOTE)
+    suspend fun votePoll(
+        @Field("group_id")     groupId: Long,
+        @Field("poll_id")      pollId: Long,
+        @Field("option_ids[]") optionIds: List<Long>
+    ): GroupPollResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_POLL_CLOSE)
+    suspend fun closePoll(
+        @Field("group_id") groupId: Long,
+        @Field("poll_id")  pollId: Long
+    ): GroupPollResponse
 }
