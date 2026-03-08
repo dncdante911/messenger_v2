@@ -1,10 +1,9 @@
 package com.worldmates.messenger.ui.premium
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -16,37 +15,64 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.worldmates.messenger.R
 import java.text.SimpleDateFormat
 import java.util.*
 
-private val GoldDark   = Color(0xFFB8860B)
-private val GoldLight  = Color(0xFFFFD700)
-private val GoldAccent = Color(0xFFFFF0A0)
+// ─── Brand colors ─────────────────────────────────────────────────────────────
+private val Gold      = Color(0xFFFFD700)
+private val GoldDark  = Color(0xFFB8860B)
+private val GoldDeep  = Color(0xFF7B5800)
+private val GoldLight = Color(0xFFFFF9E0)
 
+// ─── Feature data ─────────────────────────────────────────────────────────────
+private data class Feature(val icon: ImageVector, val title: String, val subtitle: String)
+
+private val FEATURES = listOf(
+    Feature(Icons.Default.PeopleAlt,   "До 10 акаунтів",         "Безкоштовно — лише 5. З PRO — до 10 паралельних акаунтів."),
+    Feature(Icons.Default.Folder,      "Папки чатів",            "Організуй переписку по категоріях: робота, сім'я, друзі."),
+    Feature(Icons.Default.AttachFile,  "Файли до 2 ГБ",          "Надсилай великі відео, архіви та документи без обмежень."),
+    Feature(Icons.Default.AutoStories, "Необмежені Stories",     "Публікуй скільки завгодно сторіз — без добових лімітів."),
+    Feature(Icons.Default.Mic,         "Голосові до 5 хв",       "Звичайним користувачам — 2 хв. PRO — до 5 хвилин."),
+    Feature(Icons.Default.Translate,   "Переклад повідомлень",   "Перекладай будь-яке повідомлення в один дотик."),
+    Feature(Icons.Default.Palette,     "Ексклюзивні теми",       "Унікальні колірні схеми, доступні тільки PRO-користувачам."),
+    Feature(Icons.Default.CloudUpload, "Хмарний бекап",          "Автоматичне резервне копіювання листування у хмару."),
+    Feature(Icons.Default.BarChart,    "Розширена аналітика",    "Статистика читань, реакцій і охоплення твоїх постів."),
+    Feature(Icons.Default.Stars,       "PRO-значок у профілі",   "Золота мітка, що підкреслює твій статус у спільноті."),
+    Feature(Icons.Default.SupportAgent,"Пріоритетна підтримка",  "Відповідь служби підтримки протягом 2 годин."),
+    Feature(Icons.Default.Block,       "Без реклами",            "Жодного рекламного контенту у стрічці та Stories."),
+)
+
+// ─── Root composable ──────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PremiumScreen(
-    viewModel: PremiumViewModel,
-    onBack: () -> Unit
-) {
+fun PremiumScreen(viewModel: PremiumViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
 
+    // Show error snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(state.error) {
+        state.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.premium_screen_title), fontWeight = FontWeight.Bold) },
+                title = { Text("WorldMates PRO", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = null)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -60,286 +86,317 @@ fun PremiumScreen(
                 .padding(padding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Hero section
-            item {
-                PremiumHero(isPro = state.isPro, proExpiresAt = state.proExpiresAt)
-            }
+            // ── Hero ──────────────────────────────────────────────────────────
+            item { HeroSection(isPro = state.isPro, proExpiresAt = state.proExpiresAt, daysLeft = state.daysLeft) }
 
-            // Pricing cards (only for non-pro users)
-            if (!state.isPro) {
+            // ── Current subscriber — just manage button ────────────────────
+            if (state.isPro) {
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    PricingSection(
-                        selected = state.selectedPlan,
-                        onSelect = { viewModel.selectPlan(it) }
-                    )
-                }
-                item {
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Button(
-                        onClick = { viewModel.openPaymentPage() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .height(52.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = GoldDark
-                        ),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(Icons.Default.Stars, contentDescription = null, tint = Color.White)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.premium_cta_trial),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.premium_trial_banner),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            } else {
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(Modifier.height(20.dp))
                     OutlinedButton(
-                        onClick = { viewModel.openPaymentPage() },
+                        onClick = { viewModel.syncSubscription() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(stringResource(R.string.premium_manage))
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Оновити статус підписки")
                     }
+                }
+            } else {
+                // ── Slider + pricing ──────────────────────────────────────
+                item {
+                    Spacer(Modifier.height(12.dp))
+                    MonthSlider(
+                        months       = state.months,
+                        amountUah    = state.amountUah,
+                        perMonthUah  = state.perMonthUah,
+                        onMonthsChange = { viewModel.setMonths(it) }
+                    )
+                }
+                // ── Payment buttons ───────────────────────────────────────
+                item {
+                    Spacer(Modifier.height(20.dp))
+                    PaymentButtons(
+                        isLoading  = state.isLoading,
+                        amountUah  = state.amountUah,
+                        months     = state.months,
+                        onWayForPay = { viewModel.pay(PaymentProvider.WAYFORPAY) },
+                        onLiqPay    = { viewModel.pay(PaymentProvider.LIQPAY) }
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Одноразовий платіж. Без авторекурентних списань.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
 
-            // Feature list
+            // ── Features ─────────────────────────────────────────────────────
             item {
-                Spacer(modifier = Modifier.height(28.dp))
-                FeatureList()
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(Modifier.height(28.dp))
+                FeatureListSection()
+                Spacer(Modifier.height(40.dp))
             }
         }
     }
 }
 
+// ─── Hero ─────────────────────────────────────────────────────────────────────
 @Composable
-private fun PremiumHero(isPro: Boolean, proExpiresAt: Long) {
+private fun HeroSection(isPro: Boolean, proExpiresAt: Long, daysLeft: Int) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(GoldDark.copy(alpha = 0.15f), Color.Transparent)
-                )
-            )
-            .padding(vertical = 24.dp),
+            .background(Brush.verticalGradient(listOf(GoldDark.copy(0.18f), Color.Transparent)))
+            .padding(vertical = 28.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(80.dp)
                     .clip(CircleShape)
-                    .background(Brush.radialGradient(listOf(GoldLight, GoldDark))),
+                    .background(Brush.radialGradient(listOf(Gold, GoldDark))),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Stars,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(36.dp)
-                )
+                Icon(Icons.Default.Stars, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
             }
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                text = "WorldMates PRO",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = GoldDark
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(Modifier.height(14.dp))
+            Text("WorldMates PRO", style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold, color = GoldDark)
+            Spacer(Modifier.height(6.dp))
             if (isPro && proExpiresAt > 0L) {
                 val dateStr = remember(proExpiresAt) {
                     SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(proExpiresAt))
                 }
-                Text(
-                    text = "PRO активний до $dateStr",
+                Text("✓ Активний до $dateStr ($daysLeft дн.)",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = GoldDark,
-                    fontWeight = FontWeight.SemiBold
-                )
+                    color = GoldDark, fontWeight = FontWeight.SemiBold)
             } else {
-                Text(
-                    text = "worldmates.club",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+                Text("Розблокуй всі можливості",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
             }
         }
     }
 }
 
+// ─── Slider ───────────────────────────────────────────────────────────────────
 @Composable
-private fun PricingSection(selected: PricingPlan, onSelect: (PricingPlan) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        PricingCard(
-            modifier = Modifier.weight(1f),
-            title = stringResource(R.string.premium_monthly_label),
-            price = stringResource(R.string.premium_monthly_price),
-            badge = null,
-            isSelected = selected == PricingPlan.MONTHLY,
-            onClick = { onSelect(PricingPlan.MONTHLY) }
-        )
-        PricingCard(
-            modifier = Modifier.weight(1f),
-            title = stringResource(R.string.premium_yearly_label),
-            price = stringResource(R.string.premium_yearly_price),
-            badge = stringResource(R.string.premium_yearly_save),
-            isSelected = selected == PricingPlan.YEARLY,
-            onClick = { onSelect(PricingPlan.YEARLY) }
-        )
-    }
-}
-
-@Composable
-private fun PricingCard(
-    modifier: Modifier,
-    title: String,
-    price: String,
-    badge: String?,
-    isSelected: Boolean,
-    onClick: () -> Unit
+private fun MonthSlider(
+    months: Int,
+    amountUah: Int,
+    perMonthUah: Int,
+    onMonthsChange: (Int) -> Unit
 ) {
-    val borderColor by animateColorAsState(
-        targetValue = if (isSelected) GoldDark else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-        label = "border"
-    )
-    val elevation by animateDpAsState(
-        targetValue = if (isSelected) 4.dp else 0.dp,
-        label = "elevation"
-    )
-
-    Card(
-        modifier = modifier
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(14.dp)
-            )
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) GoldDark.copy(alpha = 0.08f)
-            else MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (badge != null) {
-                Surface(
-                    color = GoldDark,
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        text = badge,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-            }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = price,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-private data class FeatureItem(val icon: ImageVector, val resId: Int)
-
-@Composable
-private fun FeatureList() {
-    val features = listOf(
-        FeatureItem(Icons.Default.PeopleAlt,    R.string.premium_feature_accounts),
-        FeatureItem(Icons.Default.AutoStories,  R.string.premium_feature_stories),
-        FeatureItem(Icons.Default.Folder,       R.string.premium_feature_folders),
-        FeatureItem(Icons.Default.AttachFile,   R.string.premium_feature_files),
-        FeatureItem(Icons.Default.Palette,      R.string.premium_feature_themes),
-        FeatureItem(Icons.Default.CloudUpload,  R.string.premium_feature_backup),
-        FeatureItem(Icons.Default.BarChart,     R.string.premium_feature_analytics),
-        FeatureItem(Icons.Default.Stars,        R.string.premium_feature_badge),
-    )
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp)
+            .padding(horizontal = 24.dp)
     ) {
-        Text(
-            text = "Що входить у PRO",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
+        // Title + months
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Термін підписки", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            val scale by animateFloatAsState(targetValue = 1f, animationSpec = spring(), label = "scale")
+            Box(
+                modifier = Modifier
+                    .scale(scale)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(GoldDark.copy(alpha = 0.12f))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = pluralMonths(months),
+                    color = GoldDeep,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
+        }
+
+        Slider(
+            value = months.toFloat(),
+            onValueChange = { onMonthsChange(it.toInt().coerceIn(1, 24)) },
+            valueRange = 1f..24f,
+            steps = 22, // 24-1-1 = 22 internal steps
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            colors = SliderDefaults.colors(
+                thumbColor       = GoldDark,
+                activeTrackColor = GoldDark
+            )
         )
-        features.forEach { feature ->
+
+        // Min / max labels
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("1 місяць", style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(0.5f))
+            Text("2 роки", style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(0.5f))
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Price breakdown card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = GoldLight),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(GoldLight.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = feature.icon,
-                        contentDescription = null,
-                        tint = GoldDark,
-                        modifier = Modifier.size(16.dp)
-                    )
+                Column {
+                    Text("До сплати", style = MaterialTheme.typography.labelMedium,
+                        color = GoldDeep.copy(alpha = 0.7f))
+                    Text("$amountUah ₴", style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold, color = GoldDeep)
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = stringResource(feature.resId),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
-                )
-            }
-            if (features.last() != feature) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("За місяць", style = MaterialTheme.typography.labelMedium,
+                        color = GoldDeep.copy(alpha = 0.7f))
+                    Text("$perMonthUah ₴/міс", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold, color = GoldDeep)
+                    if (months >= 2) {
+                        val saved = PremiumViewModel.BASE_PRICE_UAH * months - amountUah
+                        Text("економія $saved ₴", style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF2E7D32))
+                    }
+                }
             }
         }
     }
+}
+
+// ─── Payment buttons ──────────────────────────────────────────────────────────
+@Composable
+private fun PaymentButtons(
+    isLoading: Boolean,
+    amountUah: Int,
+    months: Int,
+    onWayForPay: () -> Unit,
+    onLiqPay: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Way4Pay — primary button
+        Button(
+            onClick = onWayForPay,
+            enabled = !isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = GoldDark)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+            } else {
+                Icon(Icons.Default.CreditCard, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text("Оплатити через Way4Pay  •  $amountUah ₴",
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+        }
+
+        // LiqPay — secondary button
+        val liqPayGreen = Color(0xFF00A651)
+        OutlinedButton(
+            onClick = onLiqPay,
+            enabled = !isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.5.dp, liqPayGreen)
+        ) {
+            Icon(Icons.Default.CreditCard, contentDescription = null, tint = liqPayGreen)
+            Spacer(Modifier.width(8.dp))
+            Text("Оплатити через LiqPay  •  $amountUah ₴",
+                color = liqPayGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        }
+    }
+}
+
+// ─── Feature list ─────────────────────────────────────────────────────────────
+@Composable
+private fun FeatureListSection() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+        Text("Що входить у PRO",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp))
+
+        FEATURES.forEachIndexed { idx, feature ->
+            FeatureRow(feature)
+            if (idx < FEATURES.lastIndex) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeatureRow(feature: Feature) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(GoldDark.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(feature.icon, contentDescription = null, tint = GoldDark, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(feature.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(feature.subtitle, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        }
+        Icon(Icons.Default.CheckCircle, contentDescription = null,
+            tint = GoldDark, modifier = Modifier.size(18.dp))
+    }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+private fun pluralMonths(n: Int): String = when {
+    n == 1          -> "1 місяць"
+    n in 2..4       -> "$n місяці"
+    n in 5..20      -> "$n місяців"
+    n % 10 == 1     -> "$n місяць"
+    n % 10 in 2..4  -> "$n місяці"
+    else            -> "$n місяців"
 }

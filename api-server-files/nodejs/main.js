@@ -28,8 +28,9 @@ const { registerGroupRoutes }   = require('./routes/groups/index')
 const { registerBotRoutes }     = require('./routes/bots/index')
 const { registerCallRoutes }    = require('./routes/calls')
 const { initializeWallyBot }    = require('./bots/wallybot')
-const { registerSignalRoutes }  = require('./routes/signal')
-const { createRateLimiter }     = require('./helpers/rateLimiter')
+const { registerSignalRoutes }       = require('./routes/signal')
+const { registerSubscriptionRoutes } = require('./routes/subscription')
+const { createRateLimiter }          = require('./helpers/rateLimiter')
 
 let serverPort
 let server
@@ -378,6 +379,9 @@ async function main() {
 
   // Register Signal Protocol key server (X3DH pre-key distribution)
   registerSignalRoutes(app, ctx);
+
+  // Register Subscription/PRO purchase routes (Way4Pay + LiqPay)
+  registerSubscriptionRoutes(app, ctx);
 
   // Инициализация WallyBot (встроенный бот-менеджер)
   await initializeWallyBot(ctx, io);

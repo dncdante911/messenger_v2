@@ -22,6 +22,10 @@ object Constants {
     // Базовий URL збігається з SOCKET_URL (той самий Node.js сервер)
     const val NODE_BASE_URL = "https://worldmates.club:449/"
 
+    // Subscription / PRO
+    const val NODE_SUBSCRIPTION_STATUS         = "api/node/subscription/status"
+    const val NODE_SUBSCRIPTION_CREATE_PAYMENT = "api/node/subscription/create-payment"
+
     // Messages
     const val NODE_CHAT_GET      = "api/node/chat/get"       // GET history
     const val NODE_CHAT_SEND     = "api/node/chat/send"      // send text

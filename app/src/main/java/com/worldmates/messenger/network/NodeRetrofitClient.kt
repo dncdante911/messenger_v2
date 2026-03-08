@@ -114,4 +114,7 @@ object NodeRetrofitClient {
 
     /** Group API with longer upload timeouts (for avatar uploads). */
     val groupUploadApi: NodeGroupApi = uploadRetrofit.create(NodeGroupApi::class.java)
+
+    /** Subscription / PRO purchase API. */
+    val subscriptionApi: NodeSubscriptionApi = retrofit.create(NodeSubscriptionApi::class.java)
 }
