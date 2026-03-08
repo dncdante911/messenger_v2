@@ -5,21 +5,25 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.worldmates.messenger.data.Constants
 import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
+import com.worldmates.messenger.services.SubscriptionSyncWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-enum class PricingPlan { MONTHLY, YEARLY }
+enum class PaymentProvider { WAYFORPAY, LIQPAY }
 
 data class PremiumUiState(
-    val isPro: Boolean = false,
-    val proExpiresAt: Long = 0L,
-    val selectedPlan: PricingPlan = PricingPlan.YEARLY,
-    val isLoading: Boolean = false,
-    val error: String? = null
+    val isPro:        Boolean = false,
+    val proExpiresAt: Long    = 0L,
+    val daysLeft:     Int     = 0,
+    val months:       Int     = 1,       // slider value 1..24
+    val amountUah:    Int     = 149,     // calculated price
+    val perMonthUah:  Int     = 149,     // price per month
+    val isLoading:    Boolean = false,
+    val paymentUrl:   String? = null,    // set when payment URL is ready
+    val error:        String? = null
 )
 
 class PremiumViewModel(application: Application) : AndroidViewModel(application) {
@@ -28,64 +32,118 @@ class PremiumViewModel(application: Application) : AndroidViewModel(application)
     val uiState: StateFlow<PremiumUiState> = _uiState
 
     init {
+        val now = System.currentTimeMillis()
+        val exp = UserSession.proExpiresAt
         _uiState.value = _uiState.value.copy(
-            isPro = UserSession.isProActive,
-            proExpiresAt = UserSession.proExpiresAt
+            isPro        = UserSession.isProActive,
+            proExpiresAt = exp,
+            daysLeft     = if (exp > now) ((exp - now) / 86_400_000).toInt() else 0
+        )
+        recalcPrice(1)
+    }
+
+    fun setMonths(months: Int) {
+        recalcPrice(months)
+    }
+
+    private fun recalcPrice(months: Int) {
+        val total      = calcPrice(months)
+        val perMonth   = (total.toFloat() / months).toInt()
+        _uiState.value = _uiState.value.copy(
+            months      = months,
+            amountUah   = total,
+            perMonthUah = perMonth
         )
     }
 
-    fun selectPlan(plan: PricingPlan) {
-        _uiState.value = _uiState.value.copy(selectedPlan = plan)
-    }
-
     /**
-     * Відкриває сторінку оплати на сайті. Сервер оброблює транзакцію та встановлює isPro=1.
-     * Після повернення в app SubscriptionSyncWorker синхронізує статус.
+     * Called when user taps a payment button.
+     * Calls Node.js to create payment URL, then opens it in Custom Tab.
      */
-    fun openPaymentPage() {
-        val token = UserSession.accessToken ?: return
-        val plan = if (_uiState.value.selectedPlan == PricingPlan.YEARLY) "yearly" else "monthly"
-        val url = "${Constants.BASE_URL.trimEnd('/')}/../premium?token=$token&plan=$plan&return_url=worldmates://premium_activated"
-        try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    fun pay(provider: PaymentProvider) {
+        val months = _uiState.value.months
+        if (months < 1) return
+        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        viewModelScope.launch {
+            try {
+                val api      = NodeRetrofitClient.subscriptionApi
+                val provStr  = if (provider == PaymentProvider.WAYFORPAY) "wayforpay" else "liqpay"
+                val response = api.createPayment(months = months, provider = provStr)
+                if (response.apiStatus == 200 && response.paymentUrl.isNotBlank()) {
+                    openUrl(response.paymentUrl)
+                    _uiState.value = _uiState.value.copy(isLoading = false, paymentUrl = response.paymentUrl)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = response.errorMessage ?: "Помилка. Спробуйте ще раз."
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "Немає зв'язку. Перевірте інтернет."
+                )
             }
-            getApplication<Application>().startActivity(intent)
-        } catch (_: Exception) { /* Browser not available */ }
+        }
     }
 
-    /** Синхронізація статусу підписки після повернення з оплати */
+    private fun openUrl(url: String) {
+        try {
+            getApplication<Application>().startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: Exception) {}
+    }
+
+    /** Called in onResume after user returns from browser */
     fun syncSubscription() {
-        val token = UserSession.accessToken ?: return
         _uiState.value = _uiState.value.copy(isLoading = true)
         viewModelScope.launch {
             try {
-                val api = RetrofitClient.apiService
-                val response = api.getUserData(accessToken = token)
+                val api      = NodeRetrofitClient.subscriptionApi
+                val response = api.getStatus()
                 if (response.apiStatus == 200) {
-                    val user = response.userData
-                    if (user != null) {
-                        val expiresMs = parseExpiresAt(user.proExpiresAt)
-                        UserSession.updateProStatus(user.isPro, user.proType, expiresMs)
-                        _uiState.value = _uiState.value.copy(
-                            isPro = UserSession.isProActive,
-                            proExpiresAt = expiresMs,
-                            isLoading = false
-                        )
-                    }
+                    val expMs = response.proTime * 1000L
+                    UserSession.updateProStatus(response.isPro, response.proType, expMs)
+                    val now = System.currentTimeMillis()
+                    _uiState.value = _uiState.value.copy(
+                        isPro        = UserSession.isProActive,
+                        proExpiresAt = expMs,
+                        daysLeft     = if (expMs > now) ((expMs - now) / 86_400_000).toInt() else 0,
+                        isLoading    = false
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
                 }
             } catch (_: Exception) {
+                // Fallback to WorkManager sync
+                SubscriptionSyncWorker.runOnce(getApplication())
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }
 
-    /** Парсить рядок дати "YYYY-MM-DD HH:mm:ss" → Unix timestamp в мс. */
-    private fun parseExpiresAt(raw: String?): Long {
-        if (raw.isNullOrBlank()) return 0L
-        return try {
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
-            sdf.parse(raw)?.time ?: 0L
-        } catch (_: Exception) { 0L }
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    companion object {
+        /**
+         * Mirrors the server-side calcPrice() in routes/subscription.js.
+         * Discounts: 1m=0%, 2-3m=5%, 4-6m=10%, 7-12m=15%, 13-24m=20%
+         */
+        const val BASE_PRICE_UAH = 149
+
+        fun calcPrice(months: Int): Int {
+            val discount = when {
+                months >= 13 -> 0.80f
+                months >= 7  -> 0.85f
+                months >= 4  -> 0.90f
+                months >= 2  -> 0.95f
+                else         -> 1.00f
+            }
+            return (BASE_PRICE_UAH * months * discount).toInt()
+        }
     }
 }
