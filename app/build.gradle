@@ -211,6 +211,10 @@ dependencies {
     // Dropbox
     implementation 'com.dropbox.core:dropbox-core-sdk:5.4.5'  // Dropbox Core SDK
 
+    // ==================== VIDEO COMPRESSION ====================
+    // FFmpegKit — стиснення відео перед відправкою (min = без GPL кодеків)
+    implementation 'com.arthenica:ffmpeg-kit-min:6.0-2'
+
     // ==================== HTML PARSING (для превью посилань) ====================
     implementation 'org.jsoup:jsoup:1.17.2'
 

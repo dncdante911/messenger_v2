@@ -165,6 +165,29 @@
     <string name="filter">Фільтр</string>
     <string name="saved_messages">Збережені повідомлення</string>
     <string name="geo_discovery_title">Люди поруч</string>
+
+    <!-- ===== ЛЮДИ ПОРУЧ (GeoDiscovery) ===== -->
+    <string name="geo_nearby_subtitle">У радіусі %d км</string>
+    <string name="geo_permission_needed_title">Потрібен доступ до геолокації</string>
+    <string name="geo_permission_needed_desc">Дозвольте доступ до геолокації, щоб знаходити людей поруч</string>
+    <string name="geo_permission_allow_btn">Дозволити геолокацію</string>
+    <string name="geo_permission_denied_toast">Доступ до геолокації відхилено</string>
+    <string name="geo_nobody_nearby_title">Нікого поруч</string>
+    <string name="geo_nobody_nearby_desc">Користувачів у цьому районі не знайдено. Спробуйте збільшити радіус пошуку.</string>
+    <string name="geo_error_retry_btn">Повторити</string>
+    <string name="geo_not_authenticated">Користувач не авторизований</string>
+    <string name="geo_load_failed">Не вдалося завантажити список користувачів</string>
+    <string name="geo_network_error">Помилка мережі: %s</string>
+    <string name="geo_location_error">Помилка геолокації: %s</string>
+    <string name="geo_radius_dialog_title">Радіус пошуку</string>
+    <string name="geo_radius_km_format">%d км</string>
+    <string name="geo_btn_ok">ОК</string>
+    <string name="geo_btn_cancel">Скасувати</string>
+    <string name="geo_content_desc_back">Назад</string>
+    <string name="geo_content_desc_filter">Фільтр</string>
+    <string name="geo_content_desc_refresh">Оновити</string>
+    <string name="geo_distance_meters">%d м</string>
+    <string name="geo_distance_km">%.1f км</string>
     <string name="premium_title">WorldMates PRO</string>
     <string name="invite_friends">Запросити друзів</string>
     <string name="view_profile">Переглянути профіль</string>

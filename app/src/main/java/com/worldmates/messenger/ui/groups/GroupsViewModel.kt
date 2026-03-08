@@ -1351,7 +1351,7 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    // ==================== 📱 SUBGROUPS / TOPICS (PHP — backend stub, Node.js endpoint TBD) ====================
+    // ==================== 📱 SUBGROUPS / TOPICS (Node.js — /api/node/group/topics/*) ====================
 
     private val _subgroups = MutableStateFlow<List<com.worldmates.messenger.data.model.Subgroup>>(emptyList())
     val subgroups: StateFlow<List<com.worldmates.messenger.data.model.Subgroup>> = _subgroups
@@ -1361,32 +1361,27 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getSubgroups(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                val response = NodeRetrofitClient.groupApi.listTopics(groupId = groupId)
 
-                if (response.apiStatus == 200 && response.subgroups != null) {
-                    _subgroups.value = response.subgroups.map { sub ->
+                if (response.apiStatus == 200 && response.topics != null) {
+                    _subgroups.value = response.topics.map { topic ->
                         com.worldmates.messenger.data.model.Subgroup(
-                            id = sub.id,
-                            parentGroupId = sub.parentGroupId,
-                            name = sub.name,
-                            description = sub.description,
-                            color = sub.color,
-                            isPrivate = sub.isPrivate,
-                            membersCount = sub.membersCount,
-                            messagesCount = sub.messagesCount,
-                            createdBy = sub.createdBy,
-                            createdTime = sub.createdTime
+                            id            = topic.id,
+                            parentGroupId = groupId,
+                            name          = topic.name,
+                            description   = null,
+                            messagesCount = topic.messageCount,
+                            isClosed      = topic.isArchived,
+                            createdBy     = topic.createdBy,
+                            createdTime   = topic.createdAt
                         )
                     }
-                    Log.d("GroupsViewModel", "📱 Loaded ${response.subgroups.size} subgroups for group $groupId")
+                    Log.d("GroupsViewModel", "✅ Завантажено ${response.topics.size} топіків для групи $groupId")
                 } else {
                     _subgroups.value = emptyList()
                 }
             } catch (e: Exception) {
-                Log.e("GroupsViewModel", "❌ Error loading subgroups", e)
+                Log.e("GroupsViewModel", "❌ Помилка завантаження топіків", e)
                 _subgroups.value = emptyList()
             }
         }
@@ -1408,28 +1403,35 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.createSubgroup(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.groupApi.createTopic(
                     groupId = groupId,
-                    name = name,
-                    description = description,
-                    color = color,
-                    isPrivate = if (isPrivate) 1 else 0
+                    name    = name
                 )
 
-                if (response.apiStatus == 200) {
-                    loadSubgroups(groupId)
+                if (response.apiStatus == 200 && response.topic != null) {
+                    val newSubgroup = com.worldmates.messenger.data.model.Subgroup(
+                        id            = response.topic.id,
+                        parentGroupId = groupId,
+                        name          = response.topic.name,
+                        description   = description,
+                        isPrivate     = isPrivate,
+                        color         = color,
+                        messagesCount = 0,
+                        createdBy     = response.topic.createdBy,
+                        createdTime   = response.topic.createdAt
+                    )
+                    _subgroups.value = _subgroups.value + newSubgroup
                     onSuccess()
-                    Log.d("GroupsViewModel", "📱 Created subgroup '$name' in group $groupId via API")
+                    Log.d("GroupsViewModel", "✅ Створено топік '$name' у групі $groupId")
                 } else {
-                    val errorMsg = response.errorMessage ?: "Не вдалося створити підгрупу"
+                    val errorMsg = response.errorMessage ?: "Не вдалося створити топік"
                     onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ API error creating subgroup: $errorMsg")
+                    Log.e("GroupsViewModel", "❌ Помилка API при створенні топіку: $errorMsg")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
                 onError(errorMsg)
-                Log.e("GroupsViewModel", "❌ Error creating subgroup", e)
+                Log.e("GroupsViewModel", "❌ Помилка створення топіку", e)
             }
         }
     }
@@ -1447,25 +1449,24 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.deleteSubgroup(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.groupApi.deleteTopic(
                     groupId = groupId,
-                    subgroupId = subgroupId
+                    topicId = subgroupId
                 )
 
                 if (response.apiStatus == 200) {
                     _subgroups.value = _subgroups.value.filter { it.id != subgroupId }
                     onSuccess()
-                    Log.d("GroupsViewModel", "🗑️ Deleted subgroup $subgroupId via API")
+                    Log.d("GroupsViewModel", "🗑️ Видалено топік $subgroupId")
                 } else {
-                    val errorMsg = response.errorMessage ?: "Не вдалося видалити підгрупу"
+                    val errorMsg = response.errorMessage ?: "Не вдалося видалити топік"
                     onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ API error deleting subgroup: $errorMsg")
+                    Log.e("GroupsViewModel", "❌ Помилка API при видаленні топіку: $errorMsg")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
                 onError(errorMsg)
-                Log.e("GroupsViewModel", "❌ Error deleting subgroup", e)
+                Log.e("GroupsViewModel", "❌ Помилка видалення топіку", e)
             }
         }
     }

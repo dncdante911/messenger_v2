@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,6 +36,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.repository.LocationRepository
 import com.worldmates.messenger.network.RetrofitClient
@@ -105,9 +107,9 @@ class GeoDiscoveryViewModel : ViewModel() {
         _state.value = _state.value.copy(radiusKm = radius)
     }
 
-    fun loadNearbyUsers(lat: Double, lon: Double) {
+    fun loadNearbyUsers(lat: Double, lon: Double, notAuthMsg: String, loadFailedMsg: String) {
         val token = UserSession.accessToken ?: run {
-            _state.value = _state.value.copy(error = "Not authenticated")
+            _state.value = _state.value.copy(error = notAuthMsg)
             return
         }
         val radius = _state.value.radiusKm
@@ -128,13 +130,13 @@ class GeoDiscoveryViewModel : ViewModel() {
                 } else {
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        error = response.errorMessage ?: "Failed to load nearby users"
+                        error = response.errorMessage ?: loadFailedMsg
                     )
                 }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    error = "Network error: ${e.message}"
+                    error = e.message ?: loadFailedMsg
                 )
             }
         }
@@ -195,14 +197,18 @@ fun GeoDiscoveryScreen(
     val state by viewModel.state.collectAsState()
     var showRadiusDialog by remember { mutableStateOf(false) }
 
+    val notAuthMsg    = stringResource(R.string.geo_not_authenticated)
+    val loadFailedMsg = stringResource(R.string.geo_load_failed)
+    val permDeniedMsg = stringResource(R.string.geo_permission_denied_toast)
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         viewModel.setLocationGranted(granted)
         if (granted) {
-            fetchAndLoad(context, locationRepository, viewModel)
+            fetchAndLoad(context, locationRepository, viewModel, notAuthMsg, loadFailedMsg)
         } else {
-            Toast.makeText(context, "Location permission denied", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, permDeniedMsg, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -213,7 +219,7 @@ fun GeoDiscoveryScreen(
 
         if (hasPermission) {
             viewModel.setLocationGranted(true)
-            fetchAndLoad(context, locationRepository, viewModel)
+            fetchAndLoad(context, locationRepository, viewModel, notAuthMsg, loadFailedMsg)
         } else {
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -224,9 +230,12 @@ fun GeoDiscoveryScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Nearby People", fontWeight = FontWeight.SemiBold)
                         Text(
-                            text = "Within ${state.radiusKm} km",
+                            text = stringResource(R.string.geo_discovery_title),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = stringResource(R.string.geo_nearby_subtitle, state.radiusKm),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -234,19 +243,28 @@ fun GeoDiscoveryScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.geo_content_desc_back)
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { showRadiusDialog = true }) {
-                        Icon(Icons.Default.Tune, contentDescription = "Filter")
+                        Icon(
+                            Icons.Default.Tune,
+                            contentDescription = stringResource(R.string.geo_content_desc_filter)
+                        )
                     }
                     IconButton(onClick = {
                         if (state.locationGranted) {
-                            fetchAndLoad(context, locationRepository, viewModel)
+                            fetchAndLoad(context, locationRepository, viewModel, notAuthMsg, loadFailedMsg)
                         }
                     }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.geo_content_desc_refresh)
+                        )
                     }
                 }
             )
@@ -273,21 +291,18 @@ fun GeoDiscoveryScreen(
                     GeoErrorPlaceholder(
                         error = state.error!!,
                         modifier = Modifier.align(Alignment.Center),
-                        onRetry = { fetchAndLoad(context, locationRepository, viewModel) }
+                        onRetry = {
+                            fetchAndLoad(context, locationRepository, viewModel, notAuthMsg, loadFailedMsg)
+                        }
                     )
                 }
                 state.users.isEmpty() -> {
                     GeoEmptyPlaceholder(modifier = Modifier.align(Alignment.Center))
                 }
                 else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(vertical = 8.dp)
-                    ) {
+                    LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
                         items(state.users, key = { it.userId }) { user ->
-                            NearbyUserRow(
-                                user = user,
-                                onClick = { onOpenChat(user) }
-                            )
+                            NearbyUserRow(user = user, onClick = { onOpenChat(user) })
                         }
                     }
                 }
@@ -302,7 +317,7 @@ fun GeoDiscoveryScreen(
                 viewModel.setRadius(radius)
                 showRadiusDialog = false
                 if (state.locationGranted) {
-                    fetchAndLoad(context, locationRepository, viewModel)
+                    fetchAndLoad(context, locationRepository, viewModel, notAuthMsg, loadFailedMsg)
                 }
             },
             onDismiss = { showRadiusDialog = false }
@@ -315,16 +330,18 @@ fun GeoDiscoveryScreen(
 private fun fetchAndLoad(
     context: android.content.Context,
     locationRepository: LocationRepository,
-    viewModel: GeoDiscoveryViewModel
+    viewModel: GeoDiscoveryViewModel,
+    notAuthMsg: String,
+    loadFailedMsg: String
 ) {
     viewModel.viewModelScope.launch {
         locationRepository.getCurrentLocation()
             .fold(
                 onSuccess = { latLng ->
-                    viewModel.loadNearbyUsers(latLng.latitude, latLng.longitude)
+                    viewModel.loadNearbyUsers(latLng.latitude, latLng.longitude, notAuthMsg, loadFailedMsg)
                 },
                 onFailure = { e ->
-                    viewModel.setError("Location error: ${e.message}")
+                    viewModel.setError(e.message ?: loadFailedMsg)
                 }
             )
     }
@@ -388,29 +405,32 @@ private fun NearbyUserRow(user: NearbyUser, onClick: () -> Unit) {
             )
         }
 
-        Column(horizontalAlignment = Alignment.End) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
+        // Відстань
+        val distanceLabel = if (user.distanceKm < 1)
+            stringResource(R.string.geo_distance_meters, (user.distanceKm * 1000).toInt())
+        else
+            stringResource(R.string.geo_distance_km, user.distanceKm)
+
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = if (user.distanceKm < 1) "${(user.distanceKm * 1000).toInt()} m"
-                               else "${"%.1f".format(user.distanceKm)} km",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                Icon(
+                    Icons.Default.LocationOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = distanceLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -418,7 +438,10 @@ private fun NearbyUserRow(user: NearbyUser, onClick: () -> Unit) {
 
 @Composable
 private fun GeoPermissionPlaceholder(modifier: Modifier, onRequestPermission: () -> Unit) {
-    Column(modifier = modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Icon(
             Icons.Default.LocationOff,
             contentDescription = null,
@@ -426,23 +449,30 @@ private fun GeoPermissionPlaceholder(modifier: Modifier, onRequestPermission: ()
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Location access needed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = stringResource(R.string.geo_permission_needed_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Allow location access to find people nearby",
+            text = stringResource(R.string.geo_permission_needed_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(20.dp))
         Button(onClick = onRequestPermission) {
-            Text("Allow Location")
+            Text(stringResource(R.string.geo_permission_allow_btn))
         }
     }
 }
 
 @Composable
 private fun GeoEmptyPlaceholder(modifier: Modifier) {
-    Column(modifier = modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Icon(
             Icons.Default.PeopleAlt,
             contentDescription = null,
@@ -450,10 +480,14 @@ private fun GeoEmptyPlaceholder(modifier: Modifier) {
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text("No one nearby", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = stringResource(R.string.geo_nobody_nearby_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "No users found in this area. Try increasing the search radius.",
+            text = stringResource(R.string.geo_nobody_nearby_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -462,7 +496,10 @@ private fun GeoEmptyPlaceholder(modifier: Modifier) {
 
 @Composable
 private fun GeoErrorPlaceholder(error: String, modifier: Modifier, onRetry: () -> Unit) {
-    Column(modifier = modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Icon(
             Icons.Default.ErrorOutline,
             contentDescription = null,
@@ -470,9 +507,15 @@ private fun GeoErrorPlaceholder(error: String, modifier: Modifier, onRetry: () -
             tint = MaterialTheme.colorScheme.error
         )
         Spacer(modifier = Modifier.height(12.dp))
-        Text(error, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        Text(
+            text = error,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error
+        )
         Spacer(modifier = Modifier.height(16.dp))
-        OutlinedButton(onClick = onRetry) { Text("Retry") }
+        OutlinedButton(onClick = onRetry) {
+            Text(stringResource(R.string.geo_error_retry_btn))
+        }
     }
 }
 
@@ -483,7 +526,7 @@ private fun RadiusPickerDialog(current: Int, onConfirm: (Int) -> Unit, onDismiss
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Search radius") },
+        title = { Text(stringResource(R.string.geo_radius_dialog_title)) },
         text = {
             Column {
                 options.forEach { km ->
@@ -496,16 +539,20 @@ private fun RadiusPickerDialog(current: Int, onConfirm: (Int) -> Unit, onDismiss
                     ) {
                         RadioButton(selected = selected == km, onClick = { selected = km })
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("$km km")
+                        Text(stringResource(R.string.geo_radius_km_format, km))
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(selected) }) { Text("OK") }
+            TextButton(onClick = { onConfirm(selected) }) {
+                Text(stringResource(R.string.geo_btn_ok))
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.geo_btn_cancel))
+            }
         }
     )
 }

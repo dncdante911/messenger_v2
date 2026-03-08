@@ -26,6 +26,7 @@ const { registerStoryRoutes } = require('./routes/stories/index')
 const { registerChannelRoutes } = require('./routes/channels/index')
 const { registerGroupRoutes }   = require('./routes/groups/index')
 const { registerBotRoutes }     = require('./routes/bots/index')
+const { registerUserRoutes }    = require('./routes/users')
 const { registerCallRoutes }    = require('./routes/calls')
 const { initializeWallyBot }    = require('./bots/wallybot')
 const { registerSignalRoutes }       = require('./routes/signal')
@@ -371,6 +372,9 @@ async function main() {
   registerStoryRoutes(app, ctx, io);
   registerChannelRoutes(app, ctx, io);
   registerGroupRoutes(app, ctx, io);
+
+  // Register User REST API (nearby people, etc.)
+  registerUserRoutes(app, ctx, io);
 
   // Register Bot REST API (полная замена PHP bot_api.php)
   registerBotRoutes(app, ctx, io);

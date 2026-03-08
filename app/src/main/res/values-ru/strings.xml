@@ -1805,6 +1805,30 @@
     <string name="open_in_browser">Открыть в браузере</string>
     <string name="instant_view_loading">Загрузка статьи…</string>
 
+    <!-- ===== ЛЮДИ РЯДОМ (GeoDiscovery) ===== -->
+    <string name="geo_discovery_title">Люди рядом</string>
+    <string name="geo_nearby_subtitle">В радиусе %d км</string>
+    <string name="geo_permission_needed_title">Требуется доступ к геолокации</string>
+    <string name="geo_permission_needed_desc">Разрешите доступ к геолокации, чтобы находить людей рядом</string>
+    <string name="geo_permission_allow_btn">Разрешить геолокацию</string>
+    <string name="geo_permission_denied_toast">Доступ к геолокации отклонён</string>
+    <string name="geo_nobody_nearby_title">Никого рядом</string>
+    <string name="geo_nobody_nearby_desc">Пользователей в этом районе не найдено. Попробуйте увеличить радиус поиска.</string>
+    <string name="geo_error_retry_btn">Повторить</string>
+    <string name="geo_not_authenticated">Пользователь не авторизован</string>
+    <string name="geo_load_failed">Не удалось загрузить список пользователей</string>
+    <string name="geo_network_error">Ошибка сети: %s</string>
+    <string name="geo_location_error">Ошибка геолокации: %s</string>
+    <string name="geo_radius_dialog_title">Радиус поиска</string>
+    <string name="geo_radius_km_format">%d км</string>
+    <string name="geo_btn_ok">ОК</string>
+    <string name="geo_btn_cancel">Отмена</string>
+    <string name="geo_content_desc_back">Назад</string>
+    <string name="geo_content_desc_filter">Фильтр</string>
+    <string name="geo_content_desc_refresh">Обновить</string>
+    <string name="geo_distance_meters">%d м</string>
+    <string name="geo_distance_km">%.1f км</string>
+
     <!-- ===== VIDEO STREAMING ===== -->
     <string name="video_streaming_label">Потоковое видео</string>
     <string name="video_buffering">Буферизация…</string>
