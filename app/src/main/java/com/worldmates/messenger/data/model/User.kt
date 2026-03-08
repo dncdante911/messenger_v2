@@ -33,6 +33,7 @@ data class User(
     @SerializedName("email_code") val emailCode: String?,
     @SerializedName("is_pro") val isPro: Int = 0,
     @SerializedName("pro_type") val proType: Int = 0,
+    @SerializedName("pro_expires_at") val proExpiresAt: String? = null,
     @SerializedName("joined") val joined: String?,
     @SerializedName("timezone") val timezone: String?,
     @SerializedName("referrer") val referrer: Long?,

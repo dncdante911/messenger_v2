@@ -179,6 +179,13 @@ class SettingsActivity : AppCompatActivity() {
                             onBackClick = { currentScreen = SettingsScreen.Main }
                         )
                     }
+                    SettingsScreen.Premium -> {
+                        startActivity(
+                            Intent(this@SettingsActivity,
+                                com.worldmates.messenger.ui.premium.PremiumActivity::class.java)
+                        )
+                        currentScreen = SettingsScreen.Main
+                    }
                 }
             }
         }
@@ -199,6 +206,7 @@ sealed class SettingsScreen {
     object CloudBackup : SettingsScreen()
     object BlockedUsers : SettingsScreen()
     object Language : SettingsScreen()
+    object Premium : SettingsScreen()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -517,13 +525,15 @@ fun SettingsScreen(
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // Account Info (if Pro)
-            if (userData?.isPro == 1) {
-                item {
+            // Account Info — PRO card (для Pro) або Get PRO (для Free)
+            item {
+                if (userData?.isPro == 1) {
+                    // Active PRO — golden thank-you card
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp)
+                            .clickable { onNavigate(SettingsScreen.Premium) },
                         colors = CardDefaults.cardColors(
                             containerColor = Color(0xFFFFD700)
                         )
@@ -539,7 +549,7 @@ fun SettingsScreen(
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     stringResource(R.string.pro_account),
                                     fontWeight = FontWeight.Bold,
@@ -552,6 +562,56 @@ fun SettingsScreen(
                                     fontSize = 14.sp
                                 )
                             }
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                } else {
+                    // Free user — ненав'язливий Get PRO banner
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .clickable { onNavigate(SettingsScreen.Premium) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFB8860B).copy(alpha = 0.10f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, Color(0xFFB8860B).copy(alpha = 0.4f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Stars,
+                                contentDescription = null,
+                                tint = Color(0xFFB8860B),
+                                modifier = Modifier.size(26.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.premium_get_pro_title),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFB8860B),
+                                    fontSize = 15.sp
+                                )
+                                Text(
+                                    stringResource(R.string.premium_get_pro_subtitle),
+                                    color = Color(0xFFB8860B).copy(alpha = 0.7f),
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = Color(0xFFB8860B).copy(alpha = 0.7f)
+                            )
                         }
                     }
                 }

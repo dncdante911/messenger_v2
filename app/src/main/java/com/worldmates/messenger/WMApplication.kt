@@ -11,6 +11,7 @@ import com.worldmates.messenger.data.AccountManager
 import com.worldmates.messenger.update.AppUpdateManager
 import com.worldmates.messenger.services.NotificationKeepAliveManager
 import com.worldmates.messenger.services.SecretChatCleanupWorker
+import com.worldmates.messenger.services.SubscriptionSyncWorker
 import com.worldmates.messenger.utils.LanguageManager
 
 /**
@@ -37,6 +38,9 @@ class WMApplication : MultiDexApplication(), ImageLoaderFactory {
 
         // Запуск фонового очищення секретних повідомлень (кожні 15 хвилин)
         SecretChatCleanupWorker.schedule(this)
+
+        // Синхронізація статусу підписки раз на 24 год
+        SubscriptionSyncWorker.schedule(this)
 
         // Initialize Timber for logging
         if (BuildConfig.DEBUG) {

@@ -176,6 +176,24 @@ object AccountManager {
         }
     }
 
+    /**
+     * Оновити isPro поточного акаунту в Room (викликається з SubscriptionSyncWorker).
+     */
+    fun refreshCurrentAccountProStatus(isPro: Int) {
+        val userId = UserSession.userId
+        if (userId <= 0) return
+        scope.launch {
+            db.accountDao().updateAccount(
+                userId = userId,
+                token = UserSession.accessToken ?: "",
+                username = UserSession.username,
+                avatar = UserSession.avatar,
+                isPro = isPro
+            )
+            loadAccounts()
+        }
+    }
+
     // ==================== INTERNAL ====================
 
     private suspend fun loadAccounts() {

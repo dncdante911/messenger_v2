@@ -49,6 +49,13 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
     private val _userLimits = MutableStateFlow(StoryLimits.forUser(false))
     val userLimits: StateFlow<StoryLimits> = _userLimits
 
+    /**
+     * Soft-hint: true коли free-юзер знаходиться за 1 крок до ліміту stories.
+     * UI показує ненав'язливий inline-підказ "X/Y stories. З PRO — до N".
+     */
+    private val _showUpgradeHint = MutableStateFlow(false)
+    val showUpgradeHint: StateFlow<Boolean> = _showUpgradeHint
+
     init {
         updateUserLimits()
         loadStories()
@@ -95,10 +102,13 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         // Перевірка обмежень
         if (!canCreateStory()) {
-            _error.value = if (UserSession.isPro == 1) {
-                "Ви досягли максимуму ${_userLimits.value.maxStories} stories"
+            val ctx = getApplication<android.app.Application>()
+            val active = stories.value.count { it.userId == UserSession.userId && !it.isExpired() }
+            val max = _userLimits.value.maxStories
+            _error.value = if (UserSession.isProActive) {
+                ctx.getString(com.worldmates.messenger.R.string.premium_hint_stories, active, max, max)
             } else {
-                "Безкоштовні користувачі можуть мати макс. ${_userLimits.value.maxStories} stories. Оформіть підписку!"
+                ctx.getString(com.worldmates.messenger.R.string.premium_hint_stories, active, max, StoryLimits.forProUser().maxStories)
             }
             return
         }
@@ -106,11 +116,10 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
         // Перевірка тривалості відео
         if (fileType == "video" && videoDuration != null) {
             if (videoDuration > _userLimits.value.maxVideoDuration) {
-                _error.value = if (UserSession.isPro == 1) {
-                    "Максимальна тривалість відео: ${_userLimits.value.maxVideoDuration} сек"
-                } else {
-                    "Безкоштовні користувачі можуть завантажити відео до ${_userLimits.value.maxVideoDuration} сек. Оформіть підписку!"
-                }
+                _error.value = getApplication<android.app.Application>()
+                    .getString(com.worldmates.messenger.R.string.premium_hint_stories,
+                        videoDuration, _userLimits.value.maxVideoDuration,
+                        StoryLimits.forProUser().maxVideoDuration)
                 return
             }
         }
@@ -139,11 +148,16 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Перевірити, чи може користувач створити ще одну story
+     * Перевірити, чи може користувач створити ще одну story,
+     * та оновити стан soft-hint'у.
      */
     fun canCreateStory(): Boolean {
-        val activeStories = stories.value.count { it.userId == UserSession.userId && !it.isExpired() }
-        return activeStories < _userLimits.value.maxStories
+        val activeCount = stories.value.count { it.userId == UserSession.userId && !it.isExpired() }
+        val max = _userLimits.value.maxStories
+        val canCreate = activeCount < max
+        // Показуємо hint коли free-юзер на останньому дозволеному кроці
+        _showUpgradeHint.value = canCreate && !UserSession.isProActive && activeCount >= max - 1
+        return canCreate
     }
 
     /**
