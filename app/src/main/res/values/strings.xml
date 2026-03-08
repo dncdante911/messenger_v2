@@ -1768,7 +1768,6 @@
     <!-- ===== GROUP TOPICS ===== -->
     <string name="topics_title">Теми</string>
     <string name="topics_create">Нова тема</string>
-    <string name="topic_name_hint">Назва теми</string>
     <string name="topic_create_button">Створити</string>
     <string name="topic_edit_button">Редагувати</string>
     <string name="topic_delete_button">Видалити</string>
