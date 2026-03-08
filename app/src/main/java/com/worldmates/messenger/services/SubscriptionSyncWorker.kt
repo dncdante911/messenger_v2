@@ -29,7 +29,7 @@ class SubscriptionSyncWorker(
     override suspend fun doWork(): Result {
         val token = UserSession.accessToken ?: return Result.success()
         return try {
-            val api = RetrofitClient.getApi()
+            val api = RetrofitClient.apiService
             val response = api.getUserData(accessToken = token)
             if (response.apiStatus == 200) {
                 val user = response.userData ?: return Result.success()
