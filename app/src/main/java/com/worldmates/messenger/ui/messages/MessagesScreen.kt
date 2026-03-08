@@ -84,6 +84,9 @@ import com.worldmates.messenger.ui.groups.components.PinnedMessageBanner
 // 🔍 Імпорт компонента пошуку
 import com.worldmates.messenger.ui.messages.components.GroupSearchBar
 import com.worldmates.messenger.ui.search.MediaSearchScreen
+import com.worldmates.messenger.ui.messages.components.ExportChatBottomSheet
+import com.worldmates.messenger.ui.messages.components.CreatePollDialog
+import com.worldmates.messenger.network.NodeRetrofitClient
 
 // 📝 Імпорти системи форматування тексту
 import com.worldmates.messenger.ui.components.formatting.FormattedText
@@ -155,6 +158,11 @@ fun MessagesScreen(
     // 🔍 Media search state
     var showSearchTypeDialog by remember { mutableStateOf(false) }
     var showMediaSearch by remember { mutableStateOf(false) }
+
+    // 📤 Export chat sheet
+    var showExportSheet by remember { mutableStateOf(false) }
+    // 📊 Create poll dialog
+    var showCreatePollDialog by remember { mutableStateOf(false) }
 
     var messageText by remember { mutableStateOf("") }
 
@@ -288,19 +296,8 @@ fun MessagesScreen(
     }
 
     val onLinkClick: (String) -> Unit = { url ->
-        // Відкриття URL в браузері
         Log.d("MessagesScreen", "Клік на посилання: $url")
-        try {
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            Log.e("MessagesScreen", "Помилка відкриття URL: ${e.message}")
-            android.widget.Toast.makeText(
-                context,
-                context.getString(R.string.open_link_failed),
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
-        }
+        InstantViewActivity.start(context, url, UserSession.accessToken ?: "")
     }
 
     // 📜 Auto-scroll для автоматичної прокрутки до нових повідомлень
@@ -697,6 +694,7 @@ fun MessagesScreen(
                     val intent = android.content.Intent(context, com.worldmates.messenger.ui.theme.ThemeSettingsActivity::class.java)
                     context.startActivity(intent)
                 },
+                onExportClick = { showExportSheet = true },
                 isMuted = if (isGroup) currentGroup?.isMuted == true else isMutedPrivate,
                 // 🔥 Group-specific parameters
                 isGroup = isGroup,
@@ -1534,6 +1532,7 @@ fun MessagesScreen(
                     onToggleContactPicker = { showContactPicker = !showContactPicker },
                     showStrapiPicker = showStrapiPicker,
                     onToggleStrapiPicker = { showStrapiPicker = !showStrapiPicker },
+                    onPollClick = if (isGroup) { { showCreatePollDialog = true } } else null,
                     onRequestAudioPermission = onRequestAudioPermission,
                     viewModel = viewModel,
                     formattingSettings = formattingSettings
@@ -1555,6 +1554,45 @@ fun MessagesScreen(
                     }
                 }
             }  // Закриття if (!isSelectionMode)
+
+            // 📤 Export chat bottom sheet
+            if (showExportSheet) {
+                ExportChatBottomSheet(
+                    chatName = recipientName,
+                    isGroup = isGroup,
+                    onDismiss = { showExportSheet = false },
+                    onExport = { format ->
+                        if (isGroup) {
+                            NodeRetrofitClient.groupApi.exportGroupChat(viewModel.getGroupId(), format)
+                        } else {
+                            NodeRetrofitClient.api.exportPrivateChat(viewModel.getRecipientId(), format)
+                        }
+                    }
+                )
+            }
+
+            // 📊 Create poll dialog (groups only)
+            if (showCreatePollDialog) {
+                CreatePollDialog(
+                    onDismiss = { showCreatePollDialog = false },
+                    onCreate = { question, options, isAnonymous, allowsMultiple ->
+                        showCreatePollDialog = false
+                        scope.launch {
+                            try {
+                                NodeRetrofitClient.groupApi.createPoll(
+                                    groupId = viewModel.getGroupId(),
+                                    question = question,
+                                    options = options,
+                                    isAnonymous = if (isAnonymous) "1" else "0",
+                                    allowsMultiple = if (allowsMultiple) "1" else "0"
+                                )
+                            } catch (e: Exception) {
+                                Log.e("MessagesScreen", "Помилка створення опитування: ${e.message}")
+                            }
+                        }
+                    }
+                )
+            }
 
             MessagesMediaPickersAndDialogs(
                 showEmojiPicker = showEmojiPicker,

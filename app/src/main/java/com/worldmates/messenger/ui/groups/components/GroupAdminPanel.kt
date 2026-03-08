@@ -50,7 +50,10 @@ fun GroupAdminPanelScreen(
     onDeleteScheduledPost: (ScheduledPost) -> Unit,
     onPublishScheduledPost: (ScheduledPost) -> Unit,
     onOpenStatistics: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    isAnonymousAdmin: Boolean = false,
+    isAnonymousAdminLoading: Boolean = false,
+    onToggleAnonymousAdmin: (Boolean) -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf(
@@ -122,7 +125,10 @@ fun GroupAdminPanelScreen(
                         group = group,
                         settings = group.settings ?: GroupSettings(),
                         onSettingsChange = onSettingsChange,
-                        onPrivacyChange = onPrivacyChange
+                        onPrivacyChange = onPrivacyChange,
+                        isAnonymousAdmin = isAnonymousAdmin,
+                        isAnonymousAdminLoading = isAnonymousAdminLoading,
+                        onToggleAnonymousAdmin = onToggleAnonymousAdmin
                     )
                     1 -> PermissionsTab(
                         settings = group.settings ?: GroupSettings(),
@@ -164,7 +170,10 @@ private fun GeneralSettingsTab(
     group: Group,
     settings: GroupSettings,
     onSettingsChange: (GroupSettings) -> Unit,
-    onPrivacyChange: (Boolean) -> Unit
+    onPrivacyChange: (Boolean) -> Unit,
+    isAnonymousAdmin: Boolean = false,
+    isAnonymousAdminLoading: Boolean = false,
+    onToggleAnonymousAdmin: (Boolean) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -194,6 +203,13 @@ private fun GeneralSettingsTab(
             settings = settings,
             onSettingsChange = onSettingsChange,
             isAdmin = true
+        )
+
+        // Anonymous admin toggle
+        AnonymousAdminToggle(
+            isAnonymous = isAnonymousAdmin,
+            isLoading = isAnonymousAdminLoading,
+            onToggle = onToggleAnonymousAdmin
         )
     }
 }

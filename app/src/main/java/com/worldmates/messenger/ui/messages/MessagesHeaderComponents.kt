@@ -43,6 +43,7 @@ fun MessagesHeaderBar(
     onMuteClick: () -> Unit = {},
     onClearHistoryClick: () -> Unit = {},
     onChangeWallpaperClick: () -> Unit = {},
+    onExportClick: () -> Unit = {},
     onBlockClick: () -> Unit = {},
     isUserBlocked: Boolean = false,
     isMuted: Boolean = false,
@@ -287,6 +288,17 @@ fun MessagesHeaderBar(
                             },
                             leadingIcon = {
                                 Icon(Icons.Default.Delete, contentDescription = null)
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.export_menu_item)) },
+                            onClick = {
+                                showUserMenu = false
+                                onExportClick()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Download, contentDescription = null)
                             }
                         )
 

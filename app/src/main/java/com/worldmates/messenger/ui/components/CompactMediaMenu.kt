@@ -45,6 +45,7 @@ fun CompactMediaMenu(
     onGifClick: () -> Unit,
     onEmojiClick: () -> Unit,
     onStrapiClick: () -> Unit,
+    onPollClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -80,126 +81,33 @@ fun CompactMediaMenu(
                 val labelEmoji = stringResource(R.string.emoji)
                 val labelStickers = stringResource(R.string.stickers_label)
                 val labelGif = stringResource(R.string.gif)
+                val labelPoll = stringResource(R.string.poll_label)
 
                 // Сітка опцій 3x4
+                val mediaItems = buildList {
+                    add(MediaOption(Icons.Default.Image, labelGallery, Color(0xFF2196F3)) { onPhotoClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.PhotoCamera, labelCamera, Color(0xFFE91E63)) { onCameraClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.VideoLibrary, labelVideo, Color(0xFF9C27B0)) { onVideoClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.Videocam, labelRecordVoice, Color(0xFFFF5722)) { onVideoCameraClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.AudioFile, labelAudio, Color(0xFF00BCD4)) { onAudioClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.InsertDriveFile, labelFile, Color(0xFF607D8B)) { onFileClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.LocationOn, labelLocation, Color(0xFF4CAF50)) { onLocationClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.Person, labelContact, Color(0xFFFF9800)) { onContactClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.EmojiEmotions, labelEmoji, Color(0xFFFFEB3B)) { onEmojiClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.StickyNote2, labelStickers, Color(0xFF795548)) { onStickerClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.Gif, labelGif, Color(0xFF3F51B5)) { onGifClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.Store, "Strapi CDN", Color(0xFF009688)) { onStrapiClick(); onDismiss() })
+                    if (onPollClick != null) {
+                        add(MediaOption(Icons.Default.HowToVote, labelPoll, Color(0xFF673AB7)) { onPollClick(); onDismiss() })
+                    }
+                }
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(
-                        listOf(
-                            MediaOption(
-                                icon = Icons.Default.Image,
-                                label = labelGallery,
-                                color = Color(0xFF2196F3), // Blue
-                                onClick = {
-                                    onPhotoClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.PhotoCamera,
-                                label = labelCamera,
-                                color = Color(0xFFE91E63), // Pink
-                                onClick = {
-                                    onCameraClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.VideoLibrary,
-                                label = labelVideo,
-                                color = Color(0xFF9C27B0), // Purple
-                                onClick = {
-                                    onVideoClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.Videocam,
-                                label = labelRecordVoice,
-                                color = Color(0xFFFF5722), // Deep Orange
-                                onClick = {
-                                    onVideoCameraClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.AudioFile,
-                                label = labelAudio,
-                                color = Color(0xFF00BCD4), // Cyan
-                                onClick = {
-                                    onAudioClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.InsertDriveFile,
-                                label = labelFile,
-                                color = Color(0xFF607D8B), // Blue Grey
-                                onClick = {
-                                    onFileClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.LocationOn,
-                                label = labelLocation,
-                                color = Color(0xFF4CAF50), // Green
-                                onClick = {
-                                    onLocationClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.Person,
-                                label = labelContact,
-                                color = Color(0xFFFF9800), // Orange
-                                onClick = {
-                                    onContactClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.EmojiEmotions,
-                                label = labelEmoji,
-                                color = Color(0xFFFFEB3B), // Yellow
-                                onClick = {
-                                    onEmojiClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.StickyNote2,
-                                label = labelStickers,
-                                color = Color(0xFF795548), // Brown
-                                onClick = {
-                                    onStickerClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.Gif,
-                                label = labelGif,
-                                color = Color(0xFF3F51B5), // Indigo
-                                onClick = {
-                                    onGifClick()
-                                    onDismiss()
-                                }
-                            ),
-                            MediaOption(
-                                icon = Icons.Default.Store,
-                                label = "Strapi CDN",
-                                color = Color(0xFF009688), // Teal
-                                onClick = {
-                                    onStrapiClick()
-                                    onDismiss()
-                                }
-                            )
-                        )
-                    ) { option ->
+                    items(mediaItems) { option ->
                         CompactMediaOptionItem(option)
                     }
                 }
