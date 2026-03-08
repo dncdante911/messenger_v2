@@ -1078,6 +1078,301 @@ function legacyBotApi(ctx, io) {
     };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── RSS FEEDS ────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/node/bots/:bot_id/rss — list RSS feeds for a bot
+function getRssFeeds(ctx) {
+    return async (req, res) => {
+        const { bot_id } = req.params;
+        try {
+            const bot = await ctx.wo_bots.findOne({ where: { bot_id }, raw: true });
+            if (!bot) return res.json({ api_status: 404, error_message: 'Bot not found' });
+            if (bot.owner_id !== req.userId) return res.json({ api_status: 403, error_message: 'Forbidden' });
+
+            const feeds = await ctx.wo_bot_rss_feeds.findAll({
+                where: { bot_id },
+                order: [['id', 'ASC']],
+                raw: true
+            });
+            return res.json({ api_status: 200, feeds });
+        } catch (err) {
+            console.error('[RSS/getRssFeeds]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// POST /api/node/bots/:bot_id/rss — add RSS feed
+function addRssFeed(ctx) {
+    return async (req, res) => {
+        const { bot_id } = req.params;
+        const {
+            feed_url, chat_id, feed_name = null, feed_language = 'en',
+            check_interval_minutes = 30, max_items_per_check = 5,
+            include_image = 1, include_description = 1
+        } = req.body;
+
+        if (!feed_url || !chat_id)
+            return res.json({ api_status: 400, error_message: 'feed_url and chat_id are required' });
+
+        try {
+            const bot = await ctx.wo_bots.findOne({ where: { bot_id }, raw: true });
+            if (!bot) return res.json({ api_status: 404, error_message: 'Bot not found' });
+            if (bot.owner_id !== req.userId) return res.json({ api_status: 403, error_message: 'Forbidden' });
+
+            const existingCount = await ctx.wo_bot_rss_feeds.count({ where: { bot_id } });
+            if (existingCount >= 20)
+                return res.json({ api_status: 400, error_message: 'Maximum 20 RSS feeds per bot' });
+
+            const feed = await ctx.wo_bot_rss_feeds.create({
+                bot_id,
+                chat_id: String(chat_id),
+                feed_url: feed_url.trim(),
+                feed_name: feed_name ? sanitize(feed_name) : null,
+                feed_language,
+                check_interval_minutes: Math.max(5, parseInt(check_interval_minutes) || 30),
+                max_items_per_check: Math.min(10, Math.max(1, parseInt(max_items_per_check) || 5)),
+                include_image: include_image ? 1 : 0,
+                include_description: include_description ? 1 : 0,
+                is_active: 1
+            });
+            return res.json({ api_status: 200, feed });
+        } catch (err) {
+            console.error('[RSS/addRssFeed]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// PUT /api/node/bots/:bot_id/rss/:feed_id — update RSS feed
+function updateRssFeed(ctx) {
+    return async (req, res) => {
+        const { bot_id, feed_id } = req.params;
+        try {
+            const bot = await ctx.wo_bots.findOne({ where: { bot_id }, raw: true });
+            if (!bot) return res.json({ api_status: 404, error_message: 'Bot not found' });
+            if (bot.owner_id !== req.userId) return res.json({ api_status: 403, error_message: 'Forbidden' });
+
+            const feed = await ctx.wo_bot_rss_feeds.findOne({ where: { id: feed_id, bot_id } });
+            if (!feed) return res.json({ api_status: 404, error_message: 'Feed not found' });
+
+            const allowed = ['is_active', 'feed_name', 'check_interval_minutes',
+                             'max_items_per_check', 'include_image', 'include_description'];
+            const updates = {};
+            for (const key of allowed) {
+                if (req.body[key] !== undefined) updates[key] = req.body[key];
+            }
+            await feed.update(updates);
+            return res.json({ api_status: 200, feed });
+        } catch (err) {
+            console.error('[RSS/updateRssFeed]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// DELETE /api/node/bots/:bot_id/rss/:feed_id — delete RSS feed
+function deleteRssFeed(ctx) {
+    return async (req, res) => {
+        const { bot_id, feed_id } = req.params;
+        try {
+            const bot = await ctx.wo_bots.findOne({ where: { bot_id }, raw: true });
+            if (!bot) return res.json({ api_status: 404, error_message: 'Bot not found' });
+            if (bot.owner_id !== req.userId) return res.json({ api_status: 403, error_message: 'Forbidden' });
+
+            const deleted = await ctx.wo_bot_rss_feeds.destroy({ where: { id: feed_id, bot_id } });
+            if (!deleted) return res.json({ api_status: 404, error_message: 'Feed not found' });
+
+            await ctx.wo_bot_rss_items.destroy({ where: { feed_id } });
+            return res.json({ api_status: 200, ok: true });
+        } catch (err) {
+            console.error('[RSS/deleteRssFeed]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── RSS Poller ───────────────────────────────────────────────────────────────
+
+function fetchUrl(url) {
+    return new Promise((resolve, reject) => {
+        const mod = url.startsWith('https') ? https : http;
+        const req = mod.get(url, { timeout: 10000, headers: { 'User-Agent': 'WorldMatesBot/1.0 RSS Reader' } }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                return fetchUrl(res.headers.location).then(resolve).catch(reject);
+            }
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => resolve(data));
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+    });
+}
+
+function parseRssFeed(xml) {
+    const items = [];
+
+    // RSS 2.0
+    const rssItems = [...xml.matchAll(/<item[\s>]([\s\S]*?)<\/item>/gi)];
+    for (const match of rssItems) {
+        const block = match[1];
+        const title = (block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i) || [])[1];
+        const link  = (block.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i) ||
+                       block.match(/<link[^>]+href=["'](.*?)["']/i) || [])[1];
+        const desc  = (block.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i) || [])[1];
+        const imgUrl = (block.match(/<enclosure[^>]+url=["'](.*?)["'][^>]*type=["']image/i) ||
+                        block.match(/<media:content[^>]+url=["'](.*?)["']/i) ||
+                        block.match(/<media:thumbnail[^>]+url=["'](.*?)["']/i) || [])[1];
+        if (title || link) items.push({
+            title: title ? title.trim().replace(/&amp;/g, '&') : '',
+            link:  link  ? link.trim() : '',
+            description: desc ? desc.replace(/<[^>]+>/g, '').trim().slice(0, 300) : null,
+            imageUrl: imgUrl || null
+        });
+    }
+
+    // Atom feed
+    if (items.length === 0) {
+        const atomEntries = [...xml.matchAll(/<entry[\s>]([\s\S]*?)<\/entry>/gi)];
+        for (const match of atomEntries) {
+            const block = match[1];
+            const title = (block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i) || [])[1];
+            const link  = (block.match(/<link[^>]+href=["'](.*?)["']/i) || [])[1];
+            const desc  = (block.match(/<summary[^>]*>([\s\S]*?)<\/summary>/i) ||
+                           block.match(/<content[^>]*>([\s\S]*?)<\/content>/i) || [])[1];
+            if (title || link) items.push({
+                title: title ? title.trim() : '',
+                link:  link  ? link.trim() : '',
+                description: desc ? desc.replace(/<[^>]+>/g, '').trim().slice(0, 300) : null,
+                imageUrl: null
+            });
+        }
+    }
+
+    return items;
+}
+
+async function processSingleFeed(ctx, io, feed) {
+    try {
+        const xml = await fetchUrl(feed.feed_url);
+        const items = parseRssFeed(xml);
+        if (!items.length) return;
+
+        // Load already-posted hashes for this feed
+        const postedHashes = new Set(
+            (await ctx.wo_bot_rss_items.findAll({
+                where: { feed_id: feed.id },
+                attributes: ['item_hash'],
+                raw: true
+            })).map(r => r.item_hash)
+        );
+
+        const newItems = items
+            .map(item => ({
+                ...item,
+                hash: crypto.createHash('md5').update(item.title + item.link).digest('hex')
+            }))
+            .filter(item => !postedHashes.has(item.hash))
+            .slice(0, feed.max_items_per_check);
+
+        for (const item of newItems) {
+            let text = `*${item.title}*`;
+            if (feed.include_description && item.description) {
+                text += `\n\n${item.description}`;
+            }
+            if (item.link) text += `\n\n${item.link}`;
+
+            const media = (feed.include_image && item.imageUrl)
+                ? { type: 'image', url: item.imageUrl }
+                : null;
+
+            // Create bot message
+            const msg = await ctx.wo_bot_messages.create({
+                bot_id:       feed.bot_id,
+                chat_id:      feed.chat_id,
+                chat_type:    'channel',
+                direction:    'outgoing',
+                text,
+                media_type:   media ? media.type : null,
+                media_url:    media ? media.url  : null,
+                processed:    1,
+                processed_at: new Date()
+            });
+
+            // Emit real-time
+            if (io) {
+                const payload = {
+                    event:      'bot_message',
+                    bot_id:     feed.bot_id,
+                    message_id: msg.id,
+                    text,
+                    media:      media,
+                    timestamp:  Date.now()
+                };
+                io.to(String(feed.chat_id)).emit('bot_message', payload);
+            }
+
+            // Record posted item
+            await ctx.wo_bot_rss_items.create({
+                feed_id:   feed.id,
+                item_hash: item.hash,
+                title:     item.title.slice(0, 512),
+                link:      item.link.slice(0, 512)
+            });
+        }
+
+        await ctx.wo_bot_rss_feeds.update(
+            {
+                last_check_at: new Date(),
+                items_posted:  feed.items_posted + newItems.length,
+                last_item_hash: newItems.length ? newItems[0].hash : feed.last_item_hash
+            },
+            { where: { id: feed.id } }
+        );
+
+        if (newItems.length > 0) {
+            console.log(`[RSS] Feed #${feed.id} (${feed.feed_url}): posted ${newItems.length} new items to chat ${feed.chat_id}`);
+        }
+    } catch (err) {
+        console.error(`[RSS] Feed #${feed.id} error:`, err.message);
+    }
+}
+
+async function processRssFeeds(ctx, io) {
+    try {
+        const now = new Date();
+        const feeds = await ctx.wo_bot_rss_feeds.findAll({
+            where: { is_active: 1 },
+            raw: true
+        });
+
+        for (const feed of feeds) {
+            const intervalMs = (feed.check_interval_minutes || 30) * 60 * 1000;
+            const lastCheck  = feed.last_check_at ? new Date(feed.last_check_at) : new Date(0);
+            if ((now - lastCheck) >= intervalMs) {
+                await processSingleFeed(ctx, io, feed);
+            }
+        }
+    } catch (err) {
+        console.error('[RSS/processRssFeeds]', err.message);
+    }
+}
+
+let rssSchedulerStarted = false;
+
+function startRssScheduler(ctx, io) {
+    if (rssSchedulerStarted) return;
+    rssSchedulerStarted = true;
+    // Check every 5 minutes; each feed has its own check_interval_minutes
+    setInterval(() => processRssFeeds(ctx, io), 5 * 60 * 1000);
+    // Also run once on startup after 30s delay
+    setTimeout(() => processRssFeeds(ctx, io), 30 * 1000);
+    console.log('[RSS] Scheduler started (checking every 5 min)');
+}
+
 // ─── Запуск обработчика webhook-ов каждые 5 секунд ───────────────────────────
 
 let webhookProcessorStarted = false;
@@ -1123,16 +1418,24 @@ function registerBotRoutes(app, ctx, io) {
     app.get(    '/api/node/bot/getUserState',         bAuth, getUserState(ctx));
     app.post(   '/api/node/bot/getUserState',         bAuth, getUserState(ctx));
 
+    // ── RSS feeds (user token) ───────────────────────────────────────────────
+    app.get(    '/api/node/bots/:bot_id/rss',             uAuth, getRssFeeds(ctx));
+    app.post(   '/api/node/bots/:bot_id/rss',             uAuth, addRssFeed(ctx));
+    app.put(    '/api/node/bots/:bot_id/rss/:feed_id',    uAuth, updateRssFeed(ctx));
+    app.delete( '/api/node/bots/:bot_id/rss/:feed_id',    uAuth, deleteRssFeed(ctx));
+
     // ── Legacy PHP SDK совместимость ─────────────────────────────────────────
     app.post(   '/api/node/bots/api', legacyBotApi(ctx, io));
 
-    // Запускаем обработчик webhook-ов
+    // Запускаем обработчик webhook-ов и RSS планировщик
     startWebhookProcessor(ctx);
+    startRssScheduler(ctx, io);
 
     console.log('[Bots API] Registered:');
-    console.log('  POST/GET /api/node/bots           — управление ботами');
-    console.log('  POST     /api/node/bot/*           — операции бота');
-    console.log('  POST     /api/node/bots/api        — legacy PHP SDK совместимость');
+    console.log('  POST/GET /api/node/bots             — управление ботами');
+    console.log('  POST     /api/node/bot/*             — операции бота');
+    console.log('  GET/POST /api/node/bots/:id/rss     — RSS feeds управление');
+    console.log('  POST     /api/node/bots/api          — legacy PHP SDK совместимость');
 }
 
 module.exports = { registerBotRoutes };

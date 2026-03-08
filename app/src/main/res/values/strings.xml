@@ -164,6 +164,8 @@
     <string name="favorites">Вибране</string>
     <string name="filter">Фільтр</string>
     <string name="saved_messages">Збережені повідомлення</string>
+    <string name="geo_discovery_title">Люди поруч</string>
+    <string name="premium_title">WorldMates PRO</string>
     <string name="invite_friends">Запросити друзів</string>
     <string name="view_profile">Переглянути профіль</string>
     <string name="unarchive">Розархівувати</string>

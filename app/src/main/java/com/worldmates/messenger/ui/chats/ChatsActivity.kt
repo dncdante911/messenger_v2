@@ -392,14 +392,22 @@ fun ChatsScreen(
                         showContactPicker = true
                     },
                     onShowDrafts = {
-                        // Открываем экран черновиков
                         context.startActivity(
                             Intent(context, com.worldmates.messenger.ui.drafts.DraftsActivity::class.java)
                         )
                     },
                     onCreateGroup = {
-                        // Open create group dialog
                         showCreateGroupDialog = true
+                    },
+                    onNavigateToGeoDiscovery = {
+                        context.startActivity(
+                            Intent(context, com.worldmates.messenger.ui.geo.GeoDiscoveryActivity::class.java)
+                        )
+                    },
+                    onNavigateToPremium = {
+                        context.startActivity(
+                            Intent(context, com.worldmates.messenger.ui.premium.PremiumActivity::class.java)
+                        )
                     }
                 )
             }
@@ -803,7 +811,9 @@ fun SettingsDrawerContent(
     onShowContactPicker: () -> Unit = {},
     onShowDrafts: () -> Unit = {},
     onCreateStoryClick: () -> Unit = {},
-    onCreateGroup: () -> Unit = {}
+    onCreateGroup: () -> Unit = {},
+    onNavigateToGeoDiscovery: () -> Unit = {},
+    onNavigateToPremium: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -956,6 +966,28 @@ fun SettingsDrawerContent(
                     onClick = {
                         onClose()
                         Toast.makeText(context, context.getString(R.string.saved_label), Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+
+            item {
+                DrawerMenuItem(
+                    icon = Icons.Default.LocationOn,
+                    title = stringResource(R.string.geo_discovery_title),
+                    onClick = {
+                        onClose()
+                        onNavigateToGeoDiscovery()
+                    }
+                )
+            }
+
+            item {
+                DrawerMenuItem(
+                    icon = Icons.Default.WorkspacePremium,
+                    title = stringResource(R.string.premium_title),
+                    onClick = {
+                        onClose()
+                        onNavigateToPremium()
                     }
                 )
             }

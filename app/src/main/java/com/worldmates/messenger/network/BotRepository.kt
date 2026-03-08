@@ -213,6 +213,47 @@ class BotRepository(
             Result.failure(e)
         }
     }
+
+    // ==================== RSS FEEDS ====================
+
+    suspend fun getRssFeeds(accessToken: String, botId: String): Result<List<com.worldmates.messenger.data.model.RssFeed>> {
+        return try {
+            val response = botApi.getRssFeeds(accessToken, botId)
+            if (response.apiStatus == 200) Result.success(response.feeds ?: emptyList())
+            else Result.failure(BotApiException(0, response.errorMessage ?: "Failed"))
+        } catch (e: Exception) { Log.e(TAG, "getRssFeeds", e); Result.failure(e) }
+    }
+
+    suspend fun addRssFeed(
+        accessToken: String, botId: String, feedUrl: String, chatId: String,
+        feedName: String? = null, intervalMinutes: Int = 30,
+        maxItems: Int = 5, includeImage: Boolean = true, includeDesc: Boolean = true
+    ): Result<com.worldmates.messenger.data.model.RssFeed> {
+        return try {
+            val response = botApi.addRssFeed(
+                accessToken, botId, feedUrl, chatId, feedName,
+                intervalMinutes, maxItems, if (includeImage) 1 else 0, if (includeDesc) 1 else 0
+            )
+            if (response.apiStatus == 200 && response.feed != null) Result.success(response.feed)
+            else Result.failure(BotApiException(0, response.errorMessage ?: "Failed"))
+        } catch (e: Exception) { Log.e(TAG, "addRssFeed", e); Result.failure(e) }
+    }
+
+    suspend fun toggleRssFeed(accessToken: String, botId: String, feedId: Int, isActive: Boolean): Result<Unit> {
+        return try {
+            val response = botApi.updateRssFeed(accessToken, botId, feedId, isActive = if (isActive) 1 else 0)
+            if (response.apiStatus == 200) Result.success(Unit)
+            else Result.failure(BotApiException(0, response.errorMessage ?: "Failed"))
+        } catch (e: Exception) { Log.e(TAG, "toggleRssFeed", e); Result.failure(e) }
+    }
+
+    suspend fun deleteRssFeed(accessToken: String, botId: String, feedId: Int): Result<Unit> {
+        return try {
+            val response = botApi.deleteRssFeed(accessToken, botId, feedId)
+            if (response.apiStatus == 200) Result.success(Unit)
+            else Result.failure(BotApiException(0, response.errorMessage ?: "Failed"))
+        } catch (e: Exception) { Log.e(TAG, "deleteRssFeed", e); Result.failure(e) }
+    }
 }
 
 /**
