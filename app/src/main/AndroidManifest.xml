@@ -307,6 +307,21 @@
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
             android:parentActivityName=".ui.chats.ChatsActivity" />
 
+        <!-- Premium Subscription Screen -->
+        <activity
+            android:name=".ui.premium.PremiumActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="worldmates" android:host="premium_activated" />
+            </intent-filter>
+        </activity>
+
         <!-- Dropbox OAuth Callback Activity -->
         <activity
             android:name="com.dropbox.core.android.AuthActivity"

@@ -14,6 +14,8 @@ object UserSession {
     private const val KEY_USERNAME = "username"
     private const val KEY_AVATAR = "avatar"
     private const val KEY_IS_PRO = "is_pro"
+    private const val KEY_PRO_TYPE = "pro_type"
+    private const val KEY_PRO_EXPIRES_AT = "pro_expires_at"
 
     private val prefs: SharedPreferences by lazy {
         WMApplication.instance.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -46,6 +48,19 @@ object UserSession {
         get() = prefs.getInt(KEY_IS_PRO, 0)
         set(value) = prefs.edit().putInt(KEY_IS_PRO, value).apply()
 
+    /** Тип підписки: 0=free, 1=monthly, 2=yearly */
+    var proType: Int
+        get() = prefs.getInt(KEY_PRO_TYPE, 0)
+        set(value) = prefs.edit().putInt(KEY_PRO_TYPE, value).apply()
+
+    /** Unix-timestamp (мс) закінчення підписки, 0 = не встановлено */
+    var proExpiresAt: Long
+        get() = prefs.getLong(KEY_PRO_EXPIRES_AT, 0L)
+        set(value) = prefs.edit().putLong(KEY_PRO_EXPIRES_AT, value).apply()
+
+    val isProActive: Boolean
+        get() = isPro > 0 && (proExpiresAt == 0L || proExpiresAt > System.currentTimeMillis())
+
     val isLoggedIn: Boolean
         get() = !accessToken.isNullOrEmpty() && userId > 0
 
@@ -54,17 +69,36 @@ object UserSession {
         _avatarFlow.value = prefs.getString(KEY_AVATAR, null)
     }
 
-    fun saveSession(token: String, id: Long, username: String? = null, avatar: String? = null, isPro: Int = 0) {
+    fun saveSession(
+        token: String,
+        id: Long,
+        username: String? = null,
+        avatar: String? = null,
+        isPro: Int = 0,
+        proType: Int = 0,
+        proExpiresAt: Long = 0L
+    ) {
         prefs.edit().apply {
             putString(KEY_ACCESS_TOKEN, token)
             putLong(KEY_USER_ID, id)
             putString(KEY_USERNAME, username)
             putString(KEY_AVATAR, avatar)
             putInt(KEY_IS_PRO, isPro)
-            commit() // Синхронное сохранение, чтобы токен гарантированно записался
+            putInt(KEY_PRO_TYPE, proType)
+            putLong(KEY_PRO_EXPIRES_AT, proExpiresAt)
+            commit() // Синхронне збереження — токен гарантованно записаний
         }
-        // Update avatar flow
         _avatarFlow.value = avatar
+    }
+
+    /** Оновити лише статус підписки (без перезапису сесії) */
+    fun updateProStatus(isPro: Int, proType: Int = 0, proExpiresAt: Long = 0L) {
+        prefs.edit().apply {
+            putInt(KEY_IS_PRO, isPro)
+            putInt(KEY_PRO_TYPE, proType)
+            putLong(KEY_PRO_EXPIRES_AT, proExpiresAt)
+            apply()
+        }
     }
 
     fun clearSession() {

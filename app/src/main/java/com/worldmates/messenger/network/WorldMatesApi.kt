@@ -1898,3 +1898,12 @@ data class PasswordResetResponse(
     @SerializedName("error_message") val errorMessage: String? = null
 )
 
+// ==================== SUBSCRIPTION SYNC ====================
+// Для синхронізації підписки використовується існуючий getUserData().
+// SubscriptionSyncWorker викликає getUserData() та оновлює UserSession.updateProStatus().
+data class SubscriptionStatus(
+    val isPro: Int,
+    val proType: Int,
+    val proExpiresAt: Long
+)
+

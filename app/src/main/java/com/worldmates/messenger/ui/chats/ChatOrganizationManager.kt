@@ -87,6 +87,17 @@ object ChatOrganizationManager {
         return getCustomFolderCount() < getMaxCustomFolders()
     }
 
+    /**
+     * Soft-hint: true коли free-юзер на останньому кроці перед лімітом папок.
+     * UI показує ненав'язливий підказ "X/Y папок. PRO: до 50".
+     */
+    fun shouldShowFolderUpgradeHint(): Boolean {
+        if (UserSession.isProActive) return false
+        val current = getCustomFolderCount()
+        val max = getMaxCustomFolders()
+        return current >= max - 1
+    }
+
     // ==================== FOLDERS ====================
 
     private fun loadFolders() {

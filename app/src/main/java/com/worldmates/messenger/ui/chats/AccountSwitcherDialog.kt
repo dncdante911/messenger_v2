@@ -60,6 +60,7 @@ fun AccountSwitcherDialog(
     val closeCd          = stringResource(R.string.close)
     val addAccountText   = stringResource(R.string.multi_account_add)
     val limitReachedText = stringResource(R.string.multi_account_limit_reached, maxAccounts)
+    val proHintAccounts  = stringResource(R.string.premium_hint_accounts, AccountManager.MAX_ACCOUNTS_PRO)
     val deleteTitle      = stringResource(R.string.multi_account_delete_title)
     val deleteBtn        = stringResource(R.string.delete)
     val cancelBtn        = stringResource(R.string.cancel)
@@ -168,11 +169,20 @@ fun AccountSwitcherDialog(
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         )
                         if (!canAdd) {
-                            Text(
-                                text = limitReachedText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
+                            // Якщо free-юзер — показуємо soft-hint про PRO
+                            if (!UserSession.isProActive) {
+                                Text(
+                                    text = proHintAccounts,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFFB8860B)
+                                )
+                            } else {
+                                Text(
+                                    text = limitReachedText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
                         }
                     }
                 }
