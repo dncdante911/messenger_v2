@@ -1,64 +1,64 @@
 package com.worldmates.messenger.utils
 
 import android.content.Context
+import android.media.MediaCodec
+import android.media.MediaCodecInfo
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
+import android.media.MediaMuxer
 import android.net.Uri
 import android.util.Log
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.ReturnCode
 import com.worldmates.messenger.data.Constants
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.coroutines.resume
+import java.nio.ByteBuffer
 
 /**
- * Утиліта для стиснення відео перед відправкою.
- *
- * Залежність (вже додана в build.gradle):
- *   implementation 'com.arthenica:ffmpeg-kit-min:6.0-2'
+ * Стискає відео перед відправкою, використовуючи вбудований Android MediaCodec.
  *
  * Стратегія:
  *  - Файли менше MAX_VIDEO_SIZE відправляються без змін.
- *  - Більші файли стискаються через FFmpegKit:
- *    libx264 + AAC, 2 Мбіт/с відео, 128 кбіт/с аудіо.
- *  - Вихідний файл кешується в context.cacheDir і видаляється
- *    після відправки (відповідальність виклику).
+ *  - Більші файли перекодуються: H.264 + пасивне копіювання аудіо.
+ *  - Роздільна здатність обмежується MAX_WIDTH=1280 зі збереженням пропорцій.
+ *  - Бітрейт відео розраховується так, щоб вихідний файл вмістився в maxSize.
  */
 class VideoCompressor(private val context: Context) {
 
     sealed class CompressionResult {
-        /** Стиснення виконано успішно. */
         data class Success(
             val compressedFile: File,
             val originalSize: Long,
             val compressedSize: Long
         ) : CompressionResult()
 
-        /** Файл менше ліміту — стиснення не потрібне. */
         data class NoCompressionNeeded(val file: File, val size: Long) : CompressionResult()
 
-        /** Помилка стиснення або отримання файлу. */
         data class Error(val message: String) : CompressionResult()
     }
 
+    private data class VideoMetadata(
+        val duration: Long,  // мс
+        val width: Int,
+        val height: Int,
+        val bitrate: Int
+    )
+
     companion object {
-        private const val TAG = "VideoCompressor"
-        private const val TARGET_VIDEO_BITRATE = 2_000_000   // 2 Мбіт/с
-        private const val TARGET_AUDIO_BITRATE = "128k"
-        private const val VIDEO_CODEC         = "libx264"
-        private const val AUDIO_CODEC         = "aac"
-        private const val PRESET              = "fast"       // баланс швидкість/якість
+        private const val TAG              = "VideoCompressor"
+        private const val TIMEOUT_US       = 10_000L
+        private const val MAX_WIDTH        = 1280
+        private const val MIN_VIDEO_BITRATE = 500_000   // 500 кбіт/с
+        private const val MAX_VIDEO_BITRATE = 2_000_000 // 2 Мбіт/с
+        private const val AUDIO_BITRATE    = 128_000    // резерв для аудіо
+        private const val FRAME_RATE       = 30
+        private const val I_FRAME_INTERVAL = 2
     }
 
-    /**
-     * Перевіряє, чи потрібне стиснення, і за необхідності стискає.
-     *
-     * @param videoUri   URI вихідного відео
-     * @param maxSize    максимально допустимий розмір у байтах
-     * @param onProgress колбек прогресу 0‥100 (виконується в основному потоці)
-     */
+    // ─────────────────────────────────────────────────────────────────────────
+
     suspend fun compressIfNeeded(
         videoUri: Uri,
         maxSize: Long = Constants.MAX_VIDEO_SIZE,
@@ -69,154 +69,260 @@ class VideoCompressor(private val context: Context) {
                 ?: return@withContext CompressionResult.Error("Не вдалося отримати файл із URI")
 
             val fileSize = inputFile.length()
-            Log.d(TAG, "Розмір відео: ${fileSize / 1_048_576} МБ, ліміт: ${maxSize / 1_048_576} МБ")
+            Log.d(TAG, "Вхідний файл: ${fileSize / 1_048_576} МБ, ліміт: ${maxSize / 1_048_576} МБ")
 
             if (fileSize <= maxSize) {
                 Log.d(TAG, "Стиснення не потрібне")
                 return@withContext CompressionResult.NoCompressionNeeded(inputFile, fileSize)
             }
 
-            val metadata = extractMetadata(inputFile)
-            Log.d(TAG, "Метадані: duration=${metadata.duration}мс, bitrate=${metadata.bitrate}")
+            val meta = extractMetadata(inputFile)
+            val durationSec = meta.duration / 1000.0
+            if (durationSec <= 0) {
+                return@withContext CompressionResult.Error("Не вдалося визначити тривалість відео")
+            }
 
-            compressVideoWithFFmpeg(inputFile, metadata, onProgress)
+            // Цільовий бітрейт відео: влізти в maxSize мінус резерв під аудіо
+            val targetBitrate = ((maxSize * 8L / durationSec).toLong() - AUDIO_BITRATE)
+                .coerceIn(MIN_VIDEO_BITRATE.toLong(), MAX_VIDEO_BITRATE.toLong())
+                .toInt()
+
+            val (tW, tH) = scaleDimensions(meta.width, meta.height, MAX_WIDTH)
+            Log.d(TAG, "Ціль: ${tW}x${tH} @ ${targetBitrate / 1000}kbps")
+
+            val outputFile = File(context.cacheDir, "compressed_${System.currentTimeMillis()}.mp4")
+
+            ensureActive()
+            transcode(inputFile, outputFile, tW, tH, targetBitrate, meta.duration, onProgress)
+
+            if (!outputFile.exists() || outputFile.length() == 0L) {
+                return@withContext CompressionResult.Error("Вихідний файл порожній або не існує")
+            }
+
+            val compressed = outputFile.length()
+            val ratio = 100 - compressed * 100L / fileSize
+            Log.d(TAG, "Готово: ${fileSize / 1_048_576}МБ → ${compressed / 1_048_576}МБ (−$ratio%)")
+
+            CompressionResult.Success(outputFile, fileSize, compressed)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Помилка стиснення: ${e.message}", e)
+            Log.e(TAG, "Помилка стиснення", e)
             CompressionResult.Error("Помилка стиснення: ${e.message}")
         }
     }
 
-    // ─── FFmpeg ───────────────────────────────────────────────────────────────
+    // ─── Транскодування ───────────────────────────────────────────────────────
 
-    private suspend fun compressVideoWithFFmpeg(
+    private fun transcode(
         inputFile: File,
-        metadata: VideoMetadata,
+        outputFile: File,
+        targetWidth: Int,
+        targetHeight: Int,
+        targetBitrate: Int,
+        durationMs: Long,
         onProgress: ((Int) -> Unit)?
-    ): CompressionResult = suspendCancellableCoroutine { cont ->
+    ) {
+        val extractor = MediaExtractor()
+        var encoder: MediaCodec? = null
+        var decoder: MediaCodec? = null
+        var muxer: MediaMuxer? = null
 
-        val outputFile = File(
-            context.cacheDir,
-            "compressed_${System.currentTimeMillis()}.mp4"
-        )
+        try {
+            extractor.setDataSource(inputFile.absolutePath)
 
-        // Розраховуємо цільовий scale: якщо ширина > 1280 — зменшуємо
-        val scaleFilter = if (metadata.width > 1280) {
-            "-vf scale=1280:-2"
-        } else {
-            ""
-        }
-
-        // Будуємо команду FFmpeg
-        val command = buildString {
-            append("-i \"${inputFile.absolutePath}\" ")
-            append("-c:v $VIDEO_CODEC ")
-            append("-preset $PRESET ")
-            append("-b:v $TARGET_VIDEO_BITRATE ")
-            if (scaleFilter.isNotEmpty()) append("$scaleFilter ")
-            append("-c:a $AUDIO_CODEC ")
-            append("-b:a $TARGET_AUDIO_BITRATE ")
-            append("-movflags +faststart ")   // веб-сумісність (MP4 stream)
-            append("-y ")                     // перезаписати якщо існує
-            append("\"${outputFile.absolutePath}\"")
-        }
-
-        Log.d(TAG, "FFmpeg команда: $command")
-
-        val session = FFmpegKit.executeAsync(
-            command,
-            { completedSession ->
-                // Колбек завершення
+            // Знаходимо відео- та аудіодоріжки
+            var videoTrack = -1
+            var audioTrack = -1
+            for (i in 0 until extractor.trackCount) {
+                val mime = extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME) ?: continue
                 when {
-                    ReturnCode.isSuccess(completedSession.returnCode) -> {
-                        val originalSize   = inputFile.length()
-                        val compressedSize = outputFile.length()
-                        val ratio = if (originalSize > 0)
-                            100 - (compressedSize * 100L / originalSize) else 0L
-                        Log.d(
-                            TAG,
-                            "Стиснення успішне: ${originalSize / 1_048_576} МБ → " +
-                            "${compressedSize / 1_048_576} МБ (−$ratio%)"
-                        )
-                        if (!cont.isCompleted)
-                            cont.resume(CompressionResult.Success(outputFile, originalSize, compressedSize))
-                    }
-                    ReturnCode.isCancel(completedSession.returnCode) -> {
-                        outputFile.delete()
-                        if (!cont.isCompleted)
-                            cont.resume(CompressionResult.Error("Стиснення скасовано"))
-                    }
-                    else -> {
-                        outputFile.delete()
-                        val log = completedSession.failStackTrace ?: "невідома помилка"
-                        Log.e(TAG, "FFmpeg помилка: $log")
-                        if (!cont.isCompleted)
-                            cont.resume(CompressionResult.Error("FFmpeg помилка: $log"))
-                    }
-                }
-            },
-            null, // log callback — null (пишеться в LogCat автоматично)
-            { statistics ->
-                // Колбек прогресу
-                if (onProgress != null && metadata.duration > 0) {
-                    val timeMs = statistics.time.toLong()
-                    val progress = ((timeMs * 100L) / metadata.duration).coerceIn(0L, 100L).toInt()
-                    onProgress(progress)
+                    mime.startsWith("video/") && videoTrack < 0 -> videoTrack = i
+                    mime.startsWith("audio/") && audioTrack < 0 -> audioTrack = i
                 }
             }
-        )
+            if (videoTrack < 0) throw IllegalStateException("Відеодоріжку не знайдено")
 
-        // Якщо корутина скасована — зупиняємо FFmpeg
-        cont.invokeOnCancellation {
-            session.cancel()
-            outputFile.delete()
+            val videoInputFmt = extractor.getTrackFormat(videoTrack)
+            val videoMime = videoInputFmt.getString(MediaFormat.KEY_MIME)!!
+
+            // Кодувальник H.264 з Surface-входом
+            val encoderFmt = MediaFormat.createVideoFormat(
+                MediaFormat.MIMETYPE_VIDEO_AVC, targetWidth, targetHeight
+            ).apply {
+                setInteger(MediaFormat.KEY_COLOR_FORMAT,
+                    MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+                setInteger(MediaFormat.KEY_BIT_RATE,      targetBitrate)
+                setInteger(MediaFormat.KEY_FRAME_RATE,    FRAME_RATE)
+                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, I_FRAME_INTERVAL)
+            }
+            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+            encoder.configure(encoderFmt, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            val encoderSurface = encoder.createInputSurface()
+            encoder.start()
+
+            // Декодувальник → виводить кадри на Surface кодувальника
+            decoder = MediaCodec.createDecoderByType(videoMime)
+            decoder.configure(videoInputFmt, encoderSurface, null, 0)
+            decoder.start()
+
+            muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+
+            extractor.selectTrack(videoTrack)
+
+            val bufInfo = MediaCodec.BufferInfo()
+            var muxVideoTrack = -1
+            var muxAudioTrack = -1
+            var muxerStarted  = false
+            var audioAddedToMuxer = false
+            var decInputDone  = false
+            var decOutputDone = false
+            var encOutputDone = false
+
+            // ── Основний цикл decode→encode ──────────────────────────────────
+            while (!encOutputDone) {
+
+                // 1. Подаємо дані у декодувальник
+                if (!decInputDone) {
+                    val idx = decoder.dequeueInputBuffer(TIMEOUT_US)
+                    if (idx >= 0) {
+                        val buf = decoder.getInputBuffer(idx)!!
+                        val n = extractor.readSampleData(buf, 0)
+                        if (n < 0) {
+                            decoder.queueInputBuffer(idx, 0, 0, 0,
+                                MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            decInputDone = true
+                        } else {
+                            decoder.queueInputBuffer(idx, 0, n, extractor.sampleTime, 0)
+                            extractor.advance()
+                        }
+                    }
+                }
+
+                // 2. Декодувальник → Surface кодувальника
+                if (!decOutputDone) {
+                    val idx = decoder.dequeueOutputBuffer(bufInfo, TIMEOUT_US)
+                    if (idx >= 0) {
+                        val render = bufInfo.size > 0
+                        decoder.releaseOutputBuffer(idx, render)
+                        if (bufInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                            decOutputDone = true
+                            encoder.signalEndOfInputStream()
+                        }
+                    }
+                }
+
+                // 3. Кодувальник → мукслер
+                val eIdx = encoder.dequeueOutputBuffer(bufInfo, TIMEOUT_US)
+                when {
+                    eIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        muxVideoTrack = muxer.addTrack(encoder.outputFormat)
+                        if (audioTrack >= 0 && !audioAddedToMuxer) {
+                            muxAudioTrack = muxer.addTrack(extractor.getTrackFormat(audioTrack))
+                            audioAddedToMuxer = true
+                        }
+                        muxer.start()
+                        muxerStarted = true
+                    }
+                    eIdx >= 0 -> {
+                        val encoded = encoder.getOutputBuffer(eIdx)!!
+                        val isConfig = bufInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0
+                        if (!isConfig && muxerStarted) {
+                            muxer.writeSampleData(muxVideoTrack, encoded, bufInfo)
+                            if (onProgress != null && durationMs > 0) {
+                                val pct = (bufInfo.presentationTimeUs / 1000L * 100L / durationMs)
+                                    .coerceIn(0L, 99L).toInt()
+                                onProgress(pct)
+                            }
+                        }
+                        encoder.releaseOutputBuffer(eIdx, false)
+                        if (bufInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                            encOutputDone = true
+                        }
+                    }
+                }
+            }
+
+            // ── Копіюємо аудіодоріжку без перекодування ─────────────────────
+            if (audioTrack >= 0 && muxerStarted && muxAudioTrack >= 0) {
+                extractor.unselectTrack(videoTrack)
+                extractor.selectTrack(audioTrack)
+                extractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+
+                val audioBuf = ByteBuffer.allocate(256 * 1024)
+                val audioBufInfo = MediaCodec.BufferInfo()
+                while (true) {
+                    audioBuf.clear()
+                    val n = extractor.readSampleData(audioBuf, 0)
+                    if (n < 0) break
+                    audioBufInfo.offset = 0
+                    audioBufInfo.size   = n
+                    audioBufInfo.presentationTimeUs = extractor.sampleTime
+                    audioBufInfo.flags  =
+                        if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0)
+                            MediaCodec.BUFFER_FLAG_SYNC_FRAME else 0
+                    muxer.writeSampleData(muxAudioTrack, audioBuf, audioBufInfo)
+                    extractor.advance()
+                }
+            }
+
+            onProgress?.invoke(100)
+
+        } finally {
+            runCatching { decoder?.stop(); decoder?.release() }
+            runCatching { encoder?.stop(); encoder?.release() }
+            runCatching { muxer?.stop(); muxer?.release() }
+            runCatching { extractor.release() }
         }
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
+    // ─── Допоміжні функції ────────────────────────────────────────────────────
 
-    /**
-     * Отримує File з URI. Підтримує file:// шляхи та content:// через ContentResolver.
-     */
+    /** Масштабує розміри зі збереженням пропорцій, ширина ≤ maxW, парні значення. */
+    private fun scaleDimensions(w: Int, h: Int, maxW: Int): Pair<Int, Int> {
+        if (w <= 0 || h <= 0) return Pair(maxW, maxW * 9 / 16)  // fallback 16:9
+        if (w <= maxW) return Pair(makeEven(w), makeEven(h))
+        val scale = maxW.toFloat() / w
+        return Pair(maxW, makeEven((h * scale).toInt()))
+    }
+
+    private fun makeEven(v: Int) = if (v % 2 == 0) v else v + 1
+
+    /** Копіює content:// URI в кеш; повертає File або null при помилці. */
     private fun resolveFileFromUri(uri: Uri): File? {
-        // Прямий file:// шлях
         if (uri.scheme == "file") {
-            val path = uri.path ?: return null
-            val f = File(path)
+            val f = File(uri.path ?: return null)
             return if (f.exists()) f else null
         }
-
-        // content:// — копіюємо в кеш
         return try {
-            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-            val tempFile = File(context.cacheDir, "video_input_${System.currentTimeMillis()}.mp4")
-            tempFile.outputStream().use { out -> inputStream.copyTo(out) }
-            tempFile
+            val input = context.contentResolver.openInputStream(uri) ?: return null
+            val tmp = File(context.cacheDir, "video_input_${System.currentTimeMillis()}.mp4")
+            tmp.outputStream().use { input.copyTo(it) }
+            tmp
         } catch (e: Exception) {
-            Log.e(TAG, "Помилка отримання файлу з content URI: ${e.message}")
+            Log.e(TAG, "resolveFileFromUri помилка: ${e.message}")
             null
         }
     }
 
-    private data class VideoMetadata(
+    private data class VideoMetadataInternal(
         val duration: Long,
-        val width:    Int,
-        val height:   Int,
-        val bitrate:  Int
+        val width: Int,
+        val height: Int,
+        val bitrate: Int
     )
 
-    private fun extractMetadata(file: File): VideoMetadata {
-        val retriever = MediaMetadataRetriever()
+    private fun extractMetadata(file: File): VideoMetadataInternal {
+        val r = MediaMetadataRetriever()
         return try {
-            retriever.setDataSource(file.absolutePath)
-            VideoMetadata(
-                duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L,
-                width    = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0,
-                height   = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0,
-                bitrate  = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull() ?: 0
+            r.setDataSource(file.absolutePath)
+            VideoMetadataInternal(
+                duration = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L,
+                width    = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0,
+                height   = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0,
+                bitrate  = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull() ?: 0
             )
         } finally {
-            retriever.release()
+            r.release()
         }
     }
 }
