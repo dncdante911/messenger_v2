@@ -1678,4 +1678,49 @@
     <string name="folder_channels">Канали</string>
     <string name="folder_groups">Групи</string>
     <string name="folder_unread">Непрочитані</string>
+
+    <!-- ===== MULTI-ACCOUNT ===== -->
+    <string name="multi_account_title">Акаунти</string>
+    <string name="multi_account_subtitle">%1$d / %2$d</string>
+    <string name="multi_account_subtitle_pro">(Pro)</string>
+    <string name="multi_account_subtitle_free">(Free)</string>
+    <string name="multi_account_add">Додати акаунт</string>
+    <string name="multi_account_limit_reached">Досягнуто ліміту (%d акаунтів)</string>
+    <string name="multi_account_delete_title">Видалити акаунт?</string>
+    <string name="multi_account_delete_message">Акаунт %s буде видалено з цього пристрою. Дані залишаться на сервері.</string>
+    <string name="multi_account_delete_cd">Видалити акаунт</string>
+    <string name="multi_account_fallback_name">Акаунт %s</string>
+    <string name="multi_account_active">Активний</string>
+    <string name="multi_account_tap_to_switch">Натисніть для перемикання</string>
+    <string name="pro_badge">PRO</string>
+
+    <!-- ===== SECRET CHAT / SELF-DESTRUCT ===== -->
+    <string name="secret_timer_title">Самознищення</string>
+    <string name="secret_timer_active_desc">Повідомлення видаляться через %s</string>
+    <string name="secret_timer_inactive_desc">Повідомлення не видаляються автоматично</string>
+    <string name="secret_timer_set">Встановити</string>
+    <string name="secret_timer_disable">Вимкнути</string>
+
+    <!-- Timer options (full labels) -->
+    <string name="timer_off">Вимкнено</string>
+    <string name="timer_1s">1 секунда</string>
+    <string name="timer_5s">5 секунд</string>
+    <string name="timer_30s">30 секунд</string>
+    <string name="timer_1m">1 хвилина</string>
+    <string name="timer_5m">5 хвилин</string>
+    <string name="timer_1h">1 година</string>
+    <string name="timer_1d">1 день</string>
+    <string name="timer_1w">1 тиждень</string>
+    <string name="timer_custom_s">%dс</string>
+
+    <!-- Timer options (short labels for badge) -->
+    <string name="timer_off_short">Вимк.</string>
+    <string name="timer_1s_short">1с</string>
+    <string name="timer_5s_short">5с</string>
+    <string name="timer_30s_short">30с</string>
+    <string name="timer_1m_short">1хв</string>
+    <string name="timer_5m_short">5хв</string>
+    <string name="timer_1h_short">1г</string>
+    <string name="timer_1d_short">1д</string>
+    <string name="timer_1w_short">1т</string>
 </resources>

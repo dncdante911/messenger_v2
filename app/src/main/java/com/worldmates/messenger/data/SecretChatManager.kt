@@ -2,60 +2,63 @@ package com.worldmates.messenger.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.worldmates.messenger.R
 import com.worldmates.messenger.WMApplication
 
 /**
  * SecretChatManager - менеджер секретних чатів з самознищенням.
  *
- * Функціонал (аналог Telegram):
- * - Встановлення таймеру самознищення для кожного чату окремо
- * - Таймер визначає, через скільки секунд повідомлення буде видалено
- * - Таймер зберігається локально в SharedPreferences (per-account, per-chat)
- * - Видалення відбувається через SecretChatCleanupWorker (WorkManager, кожні 15 хв)
- *   + одразу після закриття чату (in MessagesViewModel)
- *
- * Варіанти таймерів (як в Telegram):
- *   OFF, 1s, 5s, 30s, 1m, 5m, 1h, 1d, 1w
+ * Варіанти таймерів (як в Telegram): OFF, 1s, 5s, 30s, 1m, 5m, 1h, 1d, 1w
+ * Таймер зберігається per-account, per-chat у SharedPreferences.
+ * Видалення: WorkManager кожні 15 хв (SecretChatCleanupWorker) + Node.js auto-cleanup.
  */
 object SecretChatManager {
 
     // Варіанти таймеру (в секундах). 0L = вимкнено.
     val TIMER_OPTIONS: List<Long> = listOf(
-        0L,          // Вимкнено
-        1L,          // 1 секунда
-        5L,          // 5 секунд
-        30L,         // 30 секунд
-        60L,         // 1 хвилина
-        300L,        // 5 хвилин
-        3_600L,      // 1 година
-        86_400L,     // 1 день
-        604_800L     // 1 тиждень
+        0L,
+        1L,
+        5L,
+        30L,
+        60L,
+        300L,
+        3_600L,
+        86_400L,
+        604_800L
     )
 
-    fun timerLabel(seconds: Long): String = when (seconds) {
-        0L -> "Вимкнено"
-        1L -> "1 секунда"
-        5L -> "5 секунд"
-        30L -> "30 секунд"
-        60L -> "1 хвилина"
-        300L -> "5 хвилин"
-        3_600L -> "1 година"
-        86_400L -> "1 день"
-        604_800L -> "1 тиждень"
-        else -> "${seconds}с"
+    /** Повна локалізована назва таймеру (використовує системний Context для i18n). */
+    fun timerLabel(seconds: Long): String {
+        val ctx = WMApplication.instance
+        return when (seconds) {
+            0L       -> ctx.getString(R.string.timer_off)
+            1L       -> ctx.getString(R.string.timer_1s)
+            5L       -> ctx.getString(R.string.timer_5s)
+            30L      -> ctx.getString(R.string.timer_30s)
+            60L      -> ctx.getString(R.string.timer_1m)
+            300L     -> ctx.getString(R.string.timer_5m)
+            3_600L   -> ctx.getString(R.string.timer_1h)
+            86_400L  -> ctx.getString(R.string.timer_1d)
+            604_800L -> ctx.getString(R.string.timer_1w)
+            else     -> ctx.getString(R.string.timer_custom_s, seconds.toInt())
+        }
     }
 
-    fun timerLabelShort(seconds: Long): String = when (seconds) {
-        0L -> "Вимк."
-        1L -> "1с"
-        5L -> "5с"
-        30L -> "30с"
-        60L -> "1хв"
-        300L -> "5хв"
-        3_600L -> "1г"
-        86_400L -> "1д"
-        604_800L -> "1т"
-        else -> "${seconds}с"
+    /** Скорочена локалізована назва для бейджа в хедері чату. */
+    fun timerLabelShort(seconds: Long): String {
+        val ctx = WMApplication.instance
+        return when (seconds) {
+            0L       -> ctx.getString(R.string.timer_off_short)
+            1L       -> ctx.getString(R.string.timer_1s_short)
+            5L       -> ctx.getString(R.string.timer_5s_short)
+            30L      -> ctx.getString(R.string.timer_30s_short)
+            60L      -> ctx.getString(R.string.timer_1m_short)
+            300L     -> ctx.getString(R.string.timer_5m_short)
+            3_600L   -> ctx.getString(R.string.timer_1h_short)
+            86_400L  -> ctx.getString(R.string.timer_1d_short)
+            604_800L -> ctx.getString(R.string.timer_1w_short)
+            else     -> ctx.getString(R.string.timer_custom_s, seconds.toInt())
+        }
     }
 
     private fun prefs(): SharedPreferences =
@@ -64,41 +67,22 @@ object SecretChatManager {
             Context.MODE_PRIVATE
         )
 
-    /**
-     * Отримати поточний таймер для чату (у секундах, 0 = вимкнено).
-     */
-    fun getTimer(chatId: Long, chatType: String): Long {
-        return prefs().getLong("${chatType}_$chatId", 0L)
-    }
+    fun getTimer(chatId: Long, chatType: String): Long =
+        prefs().getLong("${chatType}_$chatId", 0L)
 
-    /**
-     * Встановити таймер для чату.
-     * @param seconds 0 = вимкнено, > 0 = кількість секунд до видалення
-     */
     fun setTimer(chatId: Long, chatType: String, seconds: Long) {
         prefs().edit().putLong("${chatType}_$chatId", seconds).apply()
     }
 
-    /**
-     * Чи є активний таймер для цього чату.
-     */
-    fun isSecretChat(chatId: Long, chatType: String): Boolean {
-        return getTimer(chatId, chatType) > 0L
-    }
+    fun isSecretChat(chatId: Long, chatType: String): Boolean =
+        getTimer(chatId, chatType) > 0L
 
-    /**
-     * Обчислити час знищення нового повідомлення.
-     * @return Unix-timestamp у мілісекундах або null якщо таймер вимкнено
-     */
     fun computeDestroyAt(chatId: Long, chatType: String): Long? {
         val seconds = getTimer(chatId, chatType)
         if (seconds <= 0L) return null
         return System.currentTimeMillis() + seconds * 1_000L
     }
 
-    /**
-     * Очистити таймер при виході з секретного режиму.
-     */
     fun clearTimer(chatId: Long, chatType: String) {
         prefs().edit().remove("${chatType}_$chatId").apply()
     }
