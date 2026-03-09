@@ -150,9 +150,26 @@ class WebRTCManager(private val context: Context) {
             return EglBaseProvider.context
         }
 
+        /** EglBase instance для ScreenSharingManager. */
+        fun getEglBase(): EglBase {
+            if (EglBaseProvider.eglBase == null) EglBaseProvider.context // force init
+            return EglBaseProvider.eglBase!!
+        }
+
+        /** PeerConnectionFactory для ScreenSharingManager.startScreenSharing(). */
+        fun getPeerConnectionFactory(context: Context): PeerConnectionFactory? {
+            return try {
+                // Отримуємо з активного екземпляра WebRTCManager (якщо дзвінок активний)
+                activeInstance?.peerConnectionFactory
+            } catch (e: Exception) { null }
+        }
+
+        /** Поточний активний екземпляр (встановлюється при ініціалізації дзвінка). */
+        @Volatile var activeInstance: WebRTCManager? = null
+
         // Помощник для инициализации EGL контекста
         object EglBaseProvider {
-            private var eglBase: EglBase? = null
+            internal var eglBase: EglBase? = null
 
             val context: EglBase.Context
                 get() {
@@ -187,6 +204,7 @@ class WebRTCManager(private val context: Context) {
     var onIceConnectionStateChangeListener: ((PeerConnection.IceConnectionState) -> Unit)? = null
 
     init {
+        activeInstance = this
         initializePeerConnectionFactory()
     }
 
@@ -705,12 +723,45 @@ class WebRTCManager(private val context: Context) {
     }
 
     /**
-     * Отключить/включить видео
-     * Если видео трек не существует, просто выключаем (не создаем новый)
+     * Відключити/увімкнути відео
+     * Якщо відео трек не існує, просто вимикаємо (не створюємо новий)
      */
     fun setVideoEnabled(enabled: Boolean) {
         localVideoTrack?.setEnabled(enabled)
         Log.d("WebRTCManager", "Video enabled: $enabled (track exists: ${localVideoTrack != null})")
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Демонстрація екрану (Screen Sharing)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    private var screenVideoTrackSender: org.webrtc.RtpSender? = null
+
+    /**
+     * Додати screen video track до PeerConnection (викликається з ScreenSharingIntegration).
+     */
+    fun addScreenTrack(screenTrack: org.webrtc.VideoTrack) {
+        try {
+            val stream = peerConnectionFactory.createLocalMediaStream("SCREEN_SHARE")
+            stream.addTrack(screenTrack)
+            screenVideoTrackSender = peerConnection?.addTrack(screenTrack, listOf("SCREEN_SHARE"))
+            Log.d("WebRTCManager", "Screen track added to PeerConnection")
+        } catch (e: Exception) {
+            Log.e("WebRTCManager", "Failed to add screen track", e)
+        }
+    }
+
+    /**
+     * Видалити screen video track з PeerConnection.
+     */
+    fun removeScreenTrack() {
+        try {
+            screenVideoTrackSender?.let { peerConnection?.removeTrack(it) }
+            screenVideoTrackSender = null
+            Log.d("WebRTCManager", "Screen track removed from PeerConnection")
+        } catch (e: Exception) {
+            Log.e("WebRTCManager", "Failed to remove screen track", e)
+        }
     }
 
     /**

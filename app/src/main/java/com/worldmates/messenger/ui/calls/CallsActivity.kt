@@ -85,6 +85,7 @@ class CallsActivity : ComponentActivity() {
     // Screen sharing & recording managers
     private var screenSharingManager: ScreenSharingManager? = null
     private var callRecordingManager: CallRecordingManager? = null
+    lateinit var screenSharingIntegration: ScreenSharingIntegration
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -118,6 +119,10 @@ class CallsActivity : ComponentActivity() {
         ThemeManager.initialize(this)
 
         callsViewModel = ViewModelProvider(this).get(CallsViewModel::class.java)
+
+        // Initialize screen sharing integration (must be before setContent)
+        screenSharingIntegration = ScreenSharingIntegration(this, callsViewModel)
+        screenSharingIntegration.register()
 
         // Initialize managers
         callRecordingManager = CallRecordingManager(this)
@@ -302,6 +307,7 @@ class CallsActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         screenSharingManager?.release()
+        if (::screenSharingIntegration.isInitialized) screenSharingIntegration.release()
         callRecordingManager?.release()
     }
 }
@@ -729,7 +735,15 @@ fun ActiveCallScreen(
                 viewModel.toggleSpeaker(speakerEnabled)
             },
             onSwitchCamera = { viewModel.switchCamera() },
-            onToggleScreenShare = { isScreenSharing = !isScreenSharing },
+            onToggleScreenShare = {
+                val act = context as? CallsActivity
+                if (act != null) {
+                    act.screenSharingIntegration.toggle()
+                    isScreenSharing = act.screenSharingIntegration.isSharing
+                } else {
+                    isScreenSharing = !isScreenSharing
+                }
+            },
             onToggleRecording = { isRecording = !isRecording },
             onToggleNoiseCancellation = { noiseCancellation = !noiseCancellation },
             onEndCall = { viewModel.endCall() },

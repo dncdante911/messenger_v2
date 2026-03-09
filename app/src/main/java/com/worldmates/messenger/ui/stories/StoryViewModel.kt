@@ -214,11 +214,24 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Зареєструвати перегляд story
+     * Якщо [anonymousView]=true — перегляд реєструється без user_id (через окремий endpoint).
      */
-    fun markStoryViewed(storyId: Long) {
+    fun markStoryViewed(storyId: Long, anonymousView: Boolean = false) {
         viewModelScope.launch {
-            repository.markStoryViewed(storyId)
+            if (anonymousView) {
+                repository.markStoryViewedAnonymous(storyId)
+            } else {
+                repository.markStoryViewed(storyId)
+            }
         }
+    }
+
+    /** Стан налаштування анонімного перегляду (зберігається у SharedPreferences). */
+    private val _isAnonymousView = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isAnonymousView: kotlinx.coroutines.flow.StateFlow<Boolean> = _isAnonymousView
+
+    fun setAnonymousView(enabled: Boolean) {
+        _isAnonymousView.value = enabled
     }
 
     /**

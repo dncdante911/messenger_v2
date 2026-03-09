@@ -71,4 +71,11 @@ interface NodeStoriesApi {
         @Field("story_id") storyId: Long,
         @Field("text") text: String
     ): CreateStoryCommentResponse
+
+    /** Анонімний перегляд сторіс (без прив'язки до user_id) */
+    @FormUrlEncoded
+    @POST("api/node/stories/mark-viewed-anonymous")
+    suspend fun markStoryViewedAnonymous(
+        @Field("story_id") storyId: Long
+    ): NodeSimpleResponse
 }

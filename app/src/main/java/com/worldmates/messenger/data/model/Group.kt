@@ -648,8 +648,14 @@ val GroupMember.isAdmin: Boolean
 val GroupMember.isModerator: Boolean
     get() = role == "moderator"
 
+/**
+ * Онлайн-статус учасника отримується з [GroupOnlineStatusManager].
+ * Оскільки GroupMember — data class без groupId, виклик іде через companion-хелпер.
+ * Для реактивного UI використовуйте GroupOnlineStatusManager.onlineByGroup як StateFlow.
+ */
 val GroupMember.isOnline: Boolean
-    get() = false // TODO: Implement online status tracking
+    get() = com.worldmates.messenger.ui.groups.GroupOnlineStatusManager
+        .onlineByGroup.value.values.any { it.contains(userId) }
 
 val GroupMember.avatar: String
     get() = avatarUrl

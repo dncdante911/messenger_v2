@@ -810,6 +810,37 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         return success
     }
 
+    // ─── Screen sharing ───────────────────────────────────────────────────────
+
+    /** LiveData: чи активна трансляція екрану */
+    val isScreenSharing = androidx.lifecycle.MutableLiveData(false)
+
+    fun setScreenSharingState(active: Boolean) {
+        isScreenSharing.postValue(active)
+    }
+
+    fun addScreenTrack(screenTrack: org.webrtc.VideoTrack) {
+        webRTCManager.addScreenTrack(screenTrack)
+    }
+
+    fun removeScreenTrack() {
+        webRTCManager.removeScreenTrack()
+    }
+
+    /** Надіслати socket-подію про початок/зупинку трансляції. */
+    fun emitScreenSharingEvent(started: Boolean) {
+        try {
+            val event = if (started) "screen:start" else "screen:stop"
+            val payload = org.json.JSONObject().apply {
+                put("user_id", getUserId())
+            }
+            socketManager.emit(event, payload)
+            Log.d("CallsViewModel", "Screen sharing event: $event")
+        } catch (e: Exception) {
+            Log.e("CallsViewModel", "Failed to emit screen sharing event", e)
+        }
+    }
+
     /**
      * Socket.IO слушатели
      */

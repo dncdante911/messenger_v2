@@ -120,6 +120,14 @@ function initializeBotNamespace(io, ctx) {
             BotUpdateMarkupController(ctx, data, io, socket);
         });
 
+        // Bot answers inline query via socket (альтернатива REST answerInlineQuery)
+        socket.on('answer_inline_query', (data) => {
+            const { attachInlineBotSocketHandlers } = require('../routes/bots/inline');
+            attachInlineBotSocketHandlers(socket, io);
+            // Передаємо подію повторно щоб handler спрацював
+            socket.emit('answer_inline_query', data);
+        });
+
         // Bot disconnect
         socket.on('disconnect', async (reason) => {
             BotDisconnectController(ctx, reason, io, socket);

@@ -8,6 +8,7 @@ const registerCallsListeners = require('./calls-listener');
 const registerChannelsListeners = require('./channels-listener');
 const registerStoriesListeners = require('./stories-listener');
 const registerBotsListeners = require('./bots-listener');
+const { attachGroupOnlineHandlers } = require('../routes/groups/online');
 
 
 const { AvatarChangedController } = require('../controllers/AvatarChangedController');
@@ -149,7 +150,11 @@ module.exports.registerListeners = async (socket, io, ctx) => {
 
     socket.on("join", async (data, callback) => {
         console.log("🔥 JOIN event received:", data);
-        JoinController(ctx, data, io, socket, callback);
+        await JoinController(ctx, data, io, socket, callback);
+        // Реєструємо обробники групового онлайн-статусу після ідентифікації користувача
+        if (socket.userId) {
+            attachGroupOnlineHandlers(socket, socket.userId, io, ctx);
+        }
     })
 
     socket.on("ping_for_lastseen", async (data) => {
