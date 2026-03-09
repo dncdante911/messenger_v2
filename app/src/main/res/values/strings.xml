@@ -1842,4 +1842,51 @@
     <string name="video_buffering">Буферизація…</string>
     <string name="video_stream_hls">HLS потік</string>
     <string name="video_stream_dash">DASH потік</string>
+
+    <!-- ===== GROUP ONLINE STATUS ===== -->
+    <string name="group_online_members">%d учасників онлайн</string>
+    <string name="group_one_online_member">1 учасник онлайн</string>
+    <string name="group_member_online">Онлайн</string>
+    <string name="group_member_offline">Не в мережі</string>
+    <string name="group_member_last_seen">Був(ла) о %s</string>
+    <string name="group_online_status_updated">Статус учасників оновлено</string>
+
+    <!-- ===== SCREEN SHARING ===== -->
+    <string name="screen_sharing_start">Демонстрація екрану</string>
+    <string name="screen_sharing_stop">Зупинити трансляцію</string>
+    <string name="screen_sharing_active">Ви транслюєте екран</string>
+    <string name="screen_sharing_permission_title">Демонстрація екрану</string>
+    <string name="screen_sharing_permission_message">Дозволити трансляцію екрану під час дзвінка?</string>
+    <string name="screen_sharing_remote">%s транслює екран</string>
+    <string name="screen_sharing_error">Не вдалося розпочати трансляцію екрану</string>
+    <string name="screen_sharing_stopped">Трансляцію зупинено</string>
+
+    <!-- ===== STORY REACTIONS ===== -->
+    <string name="story_reaction_like">Подобається</string>
+    <string name="story_reaction_love">Любов</string>
+    <string name="story_reaction_haha">Ха-ха</string>
+    <string name="story_reaction_wow">Ого</string>
+    <string name="story_reaction_sad">Сумно</string>
+    <string name="story_reaction_angry">Злість</string>
+    <string name="story_reactions_count">%d реакцій</string>
+    <string name="story_reaction_added">Реакцію додано</string>
+    <string name="story_reaction_removed">Реакцію знято</string>
+    <string name="story_anonymous_view">Анонімний перегляд</string>
+    <string name="story_anonymous_view_hint">Переглядати сторіс анонімно</string>
+
+    <!-- ===== INLINE BOTS ===== -->
+    <string name="inline_bot_placeholder">Введіть запит для бота…</string>
+    <string name="inline_bot_searching">Пошук результатів…</string>
+    <string name="inline_bot_no_results">Результатів не знайдено</string>
+    <string name="inline_bot_send">Надіслати</string>
+    <string name="inline_bot_switch_pm">Перейти до бота</string>
+    <string name="inline_bot_error">Помилка запиту до бота</string>
+
+    <!-- ===== BOT WEBHOOKS ===== -->
+    <string name="bot_webhook_set">Вебхук встановлено</string>
+    <string name="bot_webhook_deleted">Вебхук видалено</string>
+    <string name="bot_webhook_error">Помилка вебхуку</string>
+    <string name="bot_webhook_url_hint">URL вебхуку (https://…)</string>
+    <string name="bot_webhook_secret_hint">Секретний ключ (необов\'язково)</string>
+    <string name="bot_webhook_pending">%d очікуваних оновлень</string>
 </resources>

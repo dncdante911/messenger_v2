@@ -25,6 +25,7 @@ const exportGroup    = require('./export');
 const topics         = require('./topics');
 const polls          = require('./polls');
 const anonAdmin      = require('./anonymous_admin');
+const onlineStatus   = require('./online');
 
 // ─── Upload directory for group avatars ─────────────────────────────────────
 const configFile       = require('../../config.json');
@@ -145,7 +146,10 @@ function registerGroupRoutes(app, ctx, io) {
     // ── Export ───────────────────────────────────────────────────────────────
     app.post('/api/node/group/export',      auth, exportGroup.exportGroupChat(ctx, io));
 
+    // ── Online members ───────────────────────────────────────────────────────
+    onlineStatus.registerOnlineMembersRoute(app, ctx);
+
     console.log('[Group API] Endpoints registered on /api/node/group/*');
 }
 
-module.exports = { registerGroupRoutes };
+module.exports = { registerGroupRoutes, attachGroupOnlineHandlers: require('./online').attachGroupOnlineHandlers };

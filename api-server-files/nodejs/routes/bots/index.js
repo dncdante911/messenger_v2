@@ -1427,13 +1427,17 @@ function registerBotRoutes(app, ctx, io) {
     // ── Legacy PHP SDK совместимость ─────────────────────────────────────────
     app.post(   '/api/node/bots/api', legacyBotApi(ctx, io));
 
+    // ── Inline bots ───────────────────────────────────────────────────────────
+    const { registerInlineBotRoutes } = require('./inline');
+    registerInlineBotRoutes(app, ctx, io, uAuth, bAuth);
+
     // Запускаем обработчик webhook-ов и RSS планировщик
     startWebhookProcessor(ctx);
     startRssScheduler(ctx, io);
 
     console.log('[Bots API] Registered:');
     console.log('  POST/GET /api/node/bots             — управление ботами');
-    console.log('  POST     /api/node/bot/*             — операции бота');
+    console.log('  POST     /api/node/bot/*             — операции бота (включно inline)');
     console.log('  GET/POST /api/node/bots/:id/rss     — RSS feeds управление');
     console.log('  POST     /api/node/bots/api          — legacy PHP SDK совместимость');
 }

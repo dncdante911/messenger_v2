@@ -22,6 +22,12 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(20),
       allowNull: false,
       defaultValue: "0"
+    },
+    // SHA-256 хеш IP+UA для анонімних переглядів (user_id = 0)
+    anonymous_hash: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+      defaultValue: null
     }
   }, {
     sequelize,

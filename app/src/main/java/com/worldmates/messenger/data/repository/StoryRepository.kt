@@ -304,6 +304,16 @@ class StoryRepository(private val context: Context) {
         }
     }
 
+    /** Анонімний перегляд — не передає user_id на сервер. */
+    suspend fun markStoryViewedAnonymous(storyId: Long) {
+        try {
+            nodeStoriesApi.markStoryViewedAnonymous(storyId)
+            Log.d(TAG, "Story $storyId marked as anonymous view")
+        } catch (e: Exception) {
+            Log.e(TAG, "markStoryViewedAnonymous error: ${e.message}")
+        }
+    }
+
     /**
      * Встановити поточну story
      */

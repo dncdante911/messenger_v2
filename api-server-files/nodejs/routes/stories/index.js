@@ -719,6 +719,57 @@ function createStoryComment(ctx) {
     };
 }
 
+// ─── POST /api/node/stories/mark-viewed-anonymous ────────────────────────────
+// Анонімний перегляд: записує перегляд без прив'язки до user_id (зберігає IP-хеш)
+
+function markStoryViewedAnonymous(ctx) {
+    return async (req, res) => {
+        try {
+            const storyId = parseInt(req.body.story_id);
+            if (!storyId) {
+                return res.status(400).json({ api_status: 400, error_message: 'story_id is required' });
+            }
+
+            const story = await ctx.wo_userstory.findOne({
+                where: { id: storyId }, attributes: ['id', 'user_id'], raw: true,
+            });
+            if (!story) return res.json({ api_status: 200, message: 'not_found' });
+
+            // Замість user_id використовуємо анонімний ідентифікатор на основі IP+UA
+            const ip  = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const ua  = req.headers['user-agent'] || '';
+            const anonId = crypto.createHash('sha256').update(ip + ua + storyId).digest('hex');
+
+            // Зберігаємо в wo_story_seen з псевдо user_id = 0 (анонімний)
+            // і поміщаємо хеш в поле 'anonymous_hash' якщо він є, або просто рахуємо
+            const existing = await ctx.wo_story_seen.findOne({
+                where: { story_id: storyId, user_id: 0, anonymous_hash: anonId },
+            }).catch(() => null); // поле може не існувати в старій схемі
+
+            if (!existing) {
+                await ctx.wo_story_seen.create({
+                    story_id: storyId,
+                    user_id: 0,
+                    anonymous_hash: anonId,
+                    time: String(Math.floor(Date.now() / 1000)),
+                }).catch(async () => {
+                    // Fallback: якщо anonymous_hash не існує в схемі — просто create без нього
+                    await ctx.wo_story_seen.create({
+                        story_id: storyId,
+                        user_id: 0,
+                        time: String(Math.floor(Date.now() / 1000)),
+                    }).catch(() => {});
+                });
+            }
+
+            res.json({ api_status: 200, message: 'anonymous_view_recorded' });
+        } catch (err) {
+            console.error('[Stories/mark-viewed-anonymous]', err.message);
+            res.status(500).json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
 // ─── register routes ────────────────────────────────────────────────────────
 
 function registerStoryRoutes(app, ctx, io) {
@@ -753,9 +804,11 @@ function registerStoryRoutes(app, ctx, io) {
     app.post('/api/node/stories/get',              auth, getStories(ctx));
     app.post('/api/node/stories/get-user-stories', auth, getUserStories(ctx));
     app.post('/api/node/stories/mark-viewed',      auth, markStoryViewed(ctx));
-    app.post('/api/node/stories/react',            auth, reactToStory(ctx));
-    app.post('/api/node/stories/get-comments',     auth, getStoryComments(ctx));
-    app.post('/api/node/stories/create-comment',   auth, createStoryComment(ctx));
+    app.post('/api/node/stories/react',                    auth, reactToStory(ctx));
+    app.post('/api/node/stories/get-comments',             auth, getStoryComments(ctx));
+    app.post('/api/node/stories/create-comment',           auth, createStoryComment(ctx));
+    // Анонімний перегляд — не потребує авторизації
+    app.post('/api/node/stories/mark-viewed-anonymous',    markStoryViewedAnonymous(ctx));
 
     console.log('[Stories API] Endpoints registered under /api/node/stories/*');
     console.log('  Stories: create, get, get-user-stories, mark-viewed, react, get-comments, create-comment');
