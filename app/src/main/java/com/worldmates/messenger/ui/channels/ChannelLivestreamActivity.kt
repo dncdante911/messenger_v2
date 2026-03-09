@@ -203,10 +203,10 @@ private fun HostSetupScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.livestream_close), tint = Color.White)
             }
             Text(
-                text = "Start Livestream",
+                text = stringResource(R.string.livestream_title),
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -225,7 +225,7 @@ private fun HostSetupScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(20.dp))
-                Text("Premium channel — up to 1080p @ 60 fps", color = Color(0xFFFFD700), fontSize = 13.sp)
+                Text(stringResource(R.string.livestream_premium_hint), color = Color(0xFFFFD700), fontSize = 13.sp)
             }
         }
 
@@ -233,7 +233,7 @@ private fun HostSetupScreen(
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
-            label = { Text("Stream title (optional)", color = Color.Gray) },
+            label = { Text(stringResource(R.string.livestream_title_hint), color = Color.Gray) },
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFFE91E8C),
@@ -245,7 +245,7 @@ private fun HostSetupScreen(
         )
 
         // Quality selector
-        Text("Video Quality", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.livestream_quality_label), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             qualities.forEach { quality ->
@@ -269,7 +269,7 @@ private fun HostSetupScreen(
         ) {
             Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Go Live", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.livestream_go_live_btn), fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -277,12 +277,12 @@ private fun HostSetupScreen(
 @Composable
 private fun QualityOption(quality: String, selected: Boolean, isPremium: Boolean, onClick: () -> Unit) {
     val qualityLabels = mapOf(
-        "240p"    to "240p — Low (360×240)",
-        "360p"    to "360p — Standard (640×360)",
-        "480p"    to "480p — Good (854×480)",
-        "720p"    to "720p — HD (1280×720)",
-        "1080p"   to "1080p — Full HD (1920×1080)",
-        "1080p60" to "1080p 60fps — Premium Full HD"
+        "240p"    to stringResource(R.string.quality_240p),
+        "360p"    to stringResource(R.string.quality_360p),
+        "480p"    to stringResource(R.string.quality_480p),
+        "720p"    to stringResource(R.string.quality_720p),
+        "1080p"   to stringResource(R.string.quality_1080p),
+        "1080p60" to stringResource(R.string.quality_1080p60)
     )
 
     Row(
@@ -310,7 +310,7 @@ private fun QualityOption(quality: String, selected: Boolean, isPremium: Boolean
         )
         if (isPremium) {
             Text(
-                "PRO",
+                stringResource(R.string.livestream_quality_pro_badge),
                 color      = Color(0xFFFFD700),
                 fontSize   = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -354,7 +354,7 @@ private fun HostingScreen(
             )
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { showEndConfirm = true }) {
-                Icon(Icons.Default.Close, "End stream", tint = Color.White)
+                Icon(Icons.Default.Close, stringResource(R.string.livestream_end_stream_desc), tint = Color.White)
             }
         }
 
@@ -370,7 +370,7 @@ private fun HostingScreen(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.Videocam, null, tint = Color.Gray, modifier = Modifier.size(48.dp))
-                Text("Camera preview", color = Color.Gray, fontSize = 14.sp)
+                Text(stringResource(R.string.livestream_camera_preview), color = Color.Gray, fontSize = 14.sp)
             }
         }
 
@@ -386,22 +386,22 @@ private fun HostingScreen(
         ) {
             Icon(Icons.Default.Stop, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text("End Stream", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.livestream_end_stream), fontWeight = FontWeight.Bold)
         }
     }
 
     if (showEndConfirm) {
         AlertDialog(
             onDismissRequest = { showEndConfirm = false },
-            title = { Text("End stream?") },
-            text  = { Text("This will end the live broadcast for all viewers.") },
+            title = { Text(stringResource(R.string.livestream_end_stream_title)) },
+            text  = { Text(stringResource(R.string.livestream_end_stream_message)) },
             confirmButton = {
                 TextButton(onClick = { showEndConfirm = false; onEnd() }) {
-                    Text("End", color = Color(0xFFFF4444))
+                    Text(stringResource(R.string.livestream_end_confirm), color = Color(0xFFFF4444))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showEndConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showEndConfirm = false }) { Text(stringResource(R.string.livestream_cancel)) }
             }
         )
     }
@@ -426,13 +426,13 @@ private fun ViewingScreen(
             LiveBadge()
             Spacer(Modifier.width(8.dp))
             Text(
-                text  = "👁 ${info.viewer_count}",
+                text  = stringResource(R.string.livestream_viewer_count, info.viewer_count),
                 color = Color.White,
                 fontSize = 13.sp
             )
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onLeave) {
-                Text("Leave", color = Color(0xFFE91E8C))
+                Text(stringResource(R.string.livestream_leave), color = Color(0xFFE91E8C))
             }
         }
 
@@ -452,7 +452,7 @@ private fun ViewingScreen(
         Spacer(Modifier.weight(1f))
 
         Text(
-            text     = "Watching in ${info.quality}",
+            text     = stringResource(R.string.livestream_watching_quality, info.quality),
             color    = Color.Gray,
             fontSize = 12.sp,
             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -465,7 +465,7 @@ private fun ViewingScreen(
 @Composable
 private fun LiveBadge() {
     Text(
-        text     = "● LIVE",
+        text     = stringResource(R.string.livestream_badge_live),
         color    = Color.White,
         fontSize = 13.sp,
         fontWeight = FontWeight.Bold,
@@ -484,11 +484,11 @@ private fun WaitingScreen(channelName: String, onClose: () -> Unit) {
     ) {
         Icon(Icons.Default.LiveTv, null, tint = Color.Gray, modifier = Modifier.size(64.dp))
         Spacer(Modifier.height(16.dp))
-        Text("No active stream", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.livestream_no_active), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
-        Text("$channelName is not live right now.", color = Color.Gray, fontSize = 14.sp)
+        Text(stringResource(R.string.livestream_not_live_now, channelName), color = Color.Gray, fontSize = 14.sp)
         Spacer(Modifier.height(24.dp))
-        OutlinedButton(onClick = onClose) { Text("Go Back") }
+        OutlinedButton(onClick = onClose) { Text(stringResource(R.string.livestream_go_back)) }
     }
 }
 
@@ -503,6 +503,6 @@ private fun ErrorStreamScreen(message: String, onClose: () -> Unit) {
         Spacer(Modifier.height(16.dp))
         Text(message, color = Color.White, fontSize = 15.sp)
         Spacer(Modifier.height(24.dp))
-        OutlinedButton(onClick = onClose) { Text("Close") }
+        OutlinedButton(onClick = onClose) { Text(stringResource(R.string.livestream_close)) }
     }
 }
