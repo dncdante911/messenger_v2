@@ -1,6 +1,7 @@
 package com.worldmates.messenger.data.model
 
 import com.google.gson.annotations.SerializedName
+import com.worldmates.messenger.network.Poll
 
 // ==================== CHANNEL MODELS ====================
 
@@ -36,6 +37,7 @@ data class ChannelPost(
     @SerializedName("author_name") val authorName: String? = null,
     @SerializedName("author_avatar") val authorAvatar: String? = null,
     @SerializedName("text") val text: String = "",
+    @SerializedName("poll") val poll: Poll? = null,
     @SerializedName("media") val media: List<PostMedia>? = null,
     @SerializedName("created_time") val createdTime: Long = 0,
     @SerializedName("is_edited") val isEdited: Boolean = false,

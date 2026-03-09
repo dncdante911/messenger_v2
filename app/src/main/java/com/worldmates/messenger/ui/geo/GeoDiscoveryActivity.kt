@@ -48,7 +48,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Query
 
 // ─── Data model ──────────────────────────────────────────────────────────────
@@ -78,6 +81,15 @@ interface GeoApi {
         @Query("lon") lon: Double,
         @Query("radius_km") radiusKm: Int = 10
     ): NearbyUsersResponse
+
+    @FormUrlEncoded
+    @POST("/api/node/users/update-location")
+    suspend fun updateLocation(
+        @Field("access_token") accessToken: String,
+        @Field("lat") lat: Double,
+        @Field("lng") lng: Double,
+        @Field("share_my_location") shareMyLocation: Int = 1
+    ): retrofit2.Response<Unit>
 }
 
 // ─── ViewModel ────────────────────────────────────────────────────────────────
@@ -116,6 +128,9 @@ class GeoDiscoveryViewModel : ViewModel() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
+                // First update current user's location in the DB
+                runCatching { geoApi.updateLocation(token, lat, lon) }
+
                 val response = geoApi.getNearbyUsers(
                     accessToken = token,
                     lat = lat,

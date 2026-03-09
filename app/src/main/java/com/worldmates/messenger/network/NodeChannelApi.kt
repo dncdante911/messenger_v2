@@ -291,6 +291,32 @@ interface NodeChannelApi {
         @Field("offset") offset: Int = 0
     ): ChannelBannedMembersResponse
 
+    // ═══════════════════════ POLLS ══════════════════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_POLL_CREATE)
+    suspend fun createChannelPoll(
+        @Field("channel_id") channelId: Long,
+        @Field("question") question: String,
+        @Field("options") options: String,
+        @Field("poll_type") pollType: String = "regular",
+        @Field("is_anonymous") isAnonymous: Int = 1,
+        @Field("allows_multiple") allowsMultiple: Int = 0
+    ): PollResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_POLL_VOTE)
+    suspend fun voteChannelPoll(
+        @Field("poll_id") pollId: Long,
+        @Field("option_ids") optionIds: String
+    ): PollResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_POLL_CLOSE)
+    suspend fun closeChannelPoll(
+        @Field("poll_id") pollId: Long
+    ): PollResponse
+
     // ═══════════════════════ GENERAL MEDIA UPLOAD ═══════════════════════════════
 
     @Multipart

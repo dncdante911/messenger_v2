@@ -43,6 +43,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import com.worldmates.messenger.ui.messages.components.PollMessageComponent
 
 /**
  * Premium Channel UI — radically different design.
@@ -349,6 +350,7 @@ fun PremiumPostCard(
     onShareClick: () -> Unit,
     onMoreClick: () -> Unit,
     onMediaClick: ((Int) -> Unit)? = null,
+    onPollVote: (pollId: Long, optionId: Long) -> Unit = { _, _ -> },
     canEdit: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -478,8 +480,15 @@ fun PremiumPostCard(
                     )
                 }
 
-                // Post text below media
-                if (post.text.isNotBlank()) {
+                // Poll or post text
+                if (post.poll != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PollMessageComponent(
+                        poll = post.poll,
+                        isMine = false,
+                        onVote = { optionId -> onPollVote(post.poll.id, optionId) }
+                    )
+                } else if (post.text.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = post.text,

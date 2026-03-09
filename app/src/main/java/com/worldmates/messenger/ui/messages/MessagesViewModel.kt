@@ -1219,6 +1219,11 @@ class MessagesViewModel(application: Application) :
         }
     }
 
+    /** Group messages (polls, regular text, media) come through this socket event */
+    override fun onGroupMessage(messageJson: JSONObject) {
+        onNewMessage(messageJson)
+    }
+
     override fun onNewMessage(messageJson: JSONObject) {
         // Run in a coroutine so we can call suspend functions (Signal decryption)
         viewModelScope.launch {
@@ -1239,6 +1244,7 @@ class MessagesViewModel(application: Application) :
                     " iv=${iv?.take(8)} signal=${signalHeader?.take(30)}")
 
                 val stickers = messageJson.optString("stickers", null)?.takeIf { it.isNotEmpty() }
+                val typeTwo  = messageJson.optString("type_two", null)?.takeIf { it.isNotEmpty() }
 
                 // Build raw Message object with encrypted payload
                 val rawMessage = Message(
@@ -1256,7 +1262,8 @@ class MessagesViewModel(application: Application) :
                     tag           = tag,
                     cipherVersion = cipherVersion,
                     signalHeader  = signalHeader,
-                    stickers      = stickers
+                    stickers      = stickers,
+                    typeTwo       = typeTwo
                 )
 
                 // Decrypt (suspend — handles Signal v3 and legacy GCM/ECB)

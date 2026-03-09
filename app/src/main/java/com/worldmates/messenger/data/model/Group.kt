@@ -81,6 +81,7 @@ data class Message(
     @SerializedName("reactions") val reactions: List<MessageReaction>? = null,
     // Polls: JSON-encoded GroupPollData embedded when type_two == 'poll'
     @SerializedName("stickers") val stickers: String? = null,
+    @SerializedName("type_two") val typeTwo: String? = null,
     // Локальные поля (не приходят с сервера)
     val decryptedText: String? = null,
     val decryptedMediaUrl: String? = null, // Розшифрований URL медіа (для веб-версії)

@@ -176,6 +176,42 @@ function getNearbyUsers(ctx) {
     };
 }
 
+// ─── Update location ──────────────────────────────────────────────────────────
+
+function updateLocation(ctx) {
+    return async (req, res) => {
+        const currentUserId = req.user && req.user.user_id;
+        if (!currentUserId) return res.json({ api_status: 401, error_message: 'Unauthorized' });
+
+        try {
+            const lat   = parseFloat(req.body.lat);
+            const lng   = parseFloat(req.body.lng);
+            const share = parseInt(req.body.share_my_location, 10);
+
+            if (isNaN(lat) || isNaN(lng))
+                return res.json({ api_status: 400, error_message: 'lat and lng are required' });
+            if (Math.abs(lat) > 90 || Math.abs(lng) > 180)
+                return res.json({ api_status: 400, error_message: 'Invalid coordinates' });
+
+            const nowUnix = String(Math.floor(Date.now() / 1000));
+            await ctx.wo_users.update(
+                {
+                    lat:                  lat.toFixed(6),
+                    lng:                  lng.toFixed(6),
+                    share_my_location:    isNaN(share) ? 1 : share,
+                    last_location_update: nowUnix
+                },
+                { where: { user_id: currentUserId } }
+            );
+
+            return res.json({ api_status: 200 });
+        } catch (err) {
+            console.error('[Users/update-location]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 function registerUserRoutes(app, ctx, io) {
@@ -184,8 +220,9 @@ function registerUserRoutes(app, ctx, io) {
     // Підтримуємо обидва методи: GET (зручніше для мобільних) та POST (уніфіковано з іншими)
     app.get('/api/node/users/nearby',  auth, getNearbyUsers(ctx));
     app.post('/api/node/users/nearby', auth, getNearbyUsers(ctx));
+    app.post('/api/node/users/update-location', auth, updateLocation(ctx));
 
-    console.log('[User API] Endpoints registered: GET|POST /api/node/users/nearby');
+    console.log('[User API] Endpoints registered: GET|POST /api/node/users/nearby, POST /api/node/users/update-location');
 }
 
 module.exports = { registerUserRoutes };

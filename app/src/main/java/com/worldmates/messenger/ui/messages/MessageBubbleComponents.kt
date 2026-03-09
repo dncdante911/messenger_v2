@@ -216,7 +216,7 @@ fun MessageBubbleComposable(
             }
 
             // ── 📊 POLL MESSAGE ──────────────────────────────────────────────
-            val isPollMessage = message.type?.contains("poll") == true && !message.stickers.isNullOrEmpty()
+            val isPollMessage = (message.type?.contains("poll") == true || message.typeTwo == "poll") && !message.stickers.isNullOrEmpty()
             if (isPollMessage) {
                 val pollData = runCatching {
                     Gson().fromJson(message.stickers, GroupPollData::class.java)

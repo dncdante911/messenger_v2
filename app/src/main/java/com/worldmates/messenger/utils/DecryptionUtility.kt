@@ -201,9 +201,10 @@ object DecryptionUtility {
             Log.d(TAG, "Успешно расшифровано")
             decrypted
         } else {
-            // Иначе возвращаем исходный текст (возможно он не был зашифрован)
-            Log.d(TAG, "Не удалось расшифровать, возвращаю исходный текст")
-            text
+            // Decryption failed — show a human-readable placeholder instead of garbled Base64.
+            // Keys are lost (reinstall) or session mismatch.
+            Log.w(TAG, "Не удалось расшифровать, показываю заглушку")
+            "🔐 [Не вдалося розшифрувати]"
         }
     }
 

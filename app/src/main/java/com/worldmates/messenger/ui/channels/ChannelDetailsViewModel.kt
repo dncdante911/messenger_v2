@@ -1158,6 +1158,50 @@ class ChannelDetailsViewModel : ViewModel() {
         Log.d("ChannelDetailsVM", "Socket.IO connected for channel $channelId")
     }
 
+    // ==================== POLLS ====================
+
+    fun createChannelPoll(
+        channelId: Long,
+        question: String,
+        options: List<String>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val optionsJson = com.google.gson.Gson().toJson(options)
+                val response = NodeRetrofitClient.channelApi.createChannelPoll(
+                    channelId = channelId,
+                    question = question,
+                    options = optionsJson
+                )
+                if (response.apiStatus == 200) onSuccess()
+                else onError(response.errorMessage ?: "Failed to create poll")
+            } catch (e: Exception) {
+                onError("Error: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun voteOnChannelPoll(pollId: Long, optionId: Long) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.channelApi.voteChannelPoll(
+                    pollId = pollId,
+                    optionIds = optionId.toString()
+                )
+                if (response.apiStatus == 200 && response.poll != null) {
+                    val updatedPoll = response.poll
+                    _posts.value = _posts.value.map { post ->
+                        if (post.poll?.id == pollId) post.copy(poll = updatedPoll) else post
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ChannelDetailsVM", "Poll vote failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
     /**
      * Disconnect Socket.IO. Call from Activity's onPause/onDestroy.
      */
