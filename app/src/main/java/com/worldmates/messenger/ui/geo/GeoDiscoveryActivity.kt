@@ -39,7 +39,7 @@ import coil.compose.AsyncImage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.repository.LocationRepository
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.ui.messages.MessagesActivity
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
@@ -96,7 +96,7 @@ class GeoDiscoveryViewModel : ViewModel() {
     val state: StateFlow<GeoDiscoveryState> = _state.asStateFlow()
 
     private val geoApi: GeoApi by lazy {
-        RetrofitClient.retrofit.create(GeoApi::class.java)
+        NodeRetrofitClient.createService(GeoApi::class.java)
     }
 
     fun setLocationGranted(granted: Boolean) {

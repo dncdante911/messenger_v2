@@ -152,7 +152,7 @@ private suspend fun saveAndShare(context: Context, bytes: ByteArray, fileName: S
 
         val uri: Uri = FileProvider.getUriForFile(
             context,
-            "${context.packageName}.provider",
+            "${context.packageName}.fileprovider",
             exportFile
         )
 

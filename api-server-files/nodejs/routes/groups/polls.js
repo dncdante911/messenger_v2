@@ -64,7 +64,7 @@ async function buildPollResponse(ctx, pollId, userId) {
         const voteCount = await ctx.wo_bot_poll_votes.count({ where: { poll_id: pollId, option_id: opt.id } });
         return {
             id:           opt.id,
-            text:         opt.text,
+            text:         opt.option_text,
             vote_count:   voteCount,
             percent:      totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0,
             is_voted:     myOptionIds.includes(opt.id),
@@ -124,7 +124,7 @@ function createPoll(ctx, io) {
             for (let i = 0; i < optionTexts.length; i++) {
                 await ctx.wo_bot_poll_options.create({
                     poll_id:      poll.id,
-                    text:         optionTexts[i],
+                    option_text:  optionTexts[i],
                     option_index: i,
                 });
             }
