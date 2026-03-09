@@ -1760,7 +1760,6 @@
     <!-- ===== GROUP TOPICS ===== -->
     <string name="topics_title">Темы</string>
     <string name="topics_create">Новая тема</string>
-    <string name="topic_name_hint">Название темы</string>
     <string name="topic_create_button">Создать</string>
     <string name="topic_edit_button">Редактировать</string>
     <string name="topic_delete_button">Удалить</string>
@@ -1806,7 +1805,6 @@
     <string name="instant_view_loading">Загрузка статьи…</string>
 
     <!-- ===== ЛЮДИ РЯДОМ (GeoDiscovery) ===== -->
-    <string name="geo_discovery_title">Люди рядом</string>
     <string name="geo_nearby_subtitle">В радиусе %d км</string>
     <string name="geo_permission_needed_title">Требуется доступ к геолокации</string>
     <string name="geo_permission_needed_desc">Разрешите доступ к геолокации, чтобы находить людей рядом</string>
