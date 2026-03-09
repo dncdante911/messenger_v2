@@ -37,6 +37,7 @@ import coil.compose.AsyncImage
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Group
 import com.worldmates.messenger.data.model.GroupMember
+import com.worldmates.messenger.data.model.isOwner
 import com.worldmates.messenger.ui.groups.components.ChangeAvatarDialog
 import com.worldmates.messenger.ui.groups.components.GroupQrDialog
 import com.worldmates.messenger.ui.groups.components.JoinGroupByQrDialog
@@ -429,7 +430,7 @@ fun GroupDetailsScreen(
                             putExtra("topic_id", subgroup.id)
                             putExtra("topic_name", subgroup.name)
                             putExtra("recipient_name", "${group.name} > ${subgroup.name}")
-                            putExtra("recipient_avatar", group.avatar)
+                            putExtra("recipient_avatar", group.avatarUrl)
                             putExtra("is_group", true)
                         }
                         context.startActivity(intent)
