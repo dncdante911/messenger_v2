@@ -30,9 +30,15 @@ fun JoinGroupByQrDialog(
     onDismiss: () -> Unit,
     onJoin: (String) -> Unit,
     onScanClick: (() -> Unit)? = null,
+    scannedCode: String? = null,
     isLoading: Boolean = false
 ) {
     var qrCode by remember { mutableStateOf("") }
+
+    // Auto-fill when QR scanner returns a result
+    LaunchedEffect(scannedCode) {
+        if (!scannedCode.isNullOrBlank()) qrCode = scannedCode
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(

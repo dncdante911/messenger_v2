@@ -191,6 +191,14 @@
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
             android:parentActivityName=".ui.groups.GroupDetailsActivity" />
 
+        <!-- QR Scanner Activity -->
+        <activity
+            android:name=".ui.groups.QrScannerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.groups.GroupDetailsActivity" />
+
         <!-- Instant View Article Reader -->
         <activity
             android:name=".ui.messages.InstantViewActivity"

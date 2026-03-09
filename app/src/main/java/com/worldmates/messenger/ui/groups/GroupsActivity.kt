@@ -2,9 +2,12 @@
 
 package com.worldmates.messenger.ui.groups
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -18,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
@@ -37,6 +41,7 @@ import com.worldmates.messenger.data.model.Group
 import com.worldmates.messenger.ui.messages.MessagesActivity
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
+import com.worldmates.messenger.ui.groups.components.JoinGroupByQrDialog
 import com.worldmates.messenger.utils.LanguageManager
 
 class GroupsActivity : AppCompatActivity() {
@@ -92,9 +97,23 @@ fun GroupsScreenWrapper(
     val isCreatingGroup by viewModel.isCreatingGroup.collectAsState()
 
     var showCreateDialog by remember { mutableStateOf(false) }
+    var showJoinByQrDialog by remember { mutableStateOf(false) }
+    var scannedQrCode by remember { mutableStateOf<String?>(null) }
     var groupToEdit by remember { mutableStateOf<Group?>(null) }
 
     val context = LocalContext.current
+
+    val qrScanLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val code = result.data?.getStringExtra(QrScannerActivity.QR_RESULT_KEY)
+            if (!code.isNullOrBlank()) {
+                scannedQrCode = code
+                showJoinByQrDialog = true
+            }
+        }
+    }
 
     // Load available users when screen opens
     LaunchedEffect(Unit) {
@@ -108,6 +127,14 @@ fun GroupsScreenWrapper(
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showJoinByQrDialog = true }) {
+                        Icon(
+                            Icons.Default.QrCodeScanner,
+                            contentDescription = stringResource(R.string.scan_qr_code)
+                        )
                     }
                 }
             )
@@ -130,6 +157,27 @@ fun GroupsScreenWrapper(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Join Group by QR Dialog
+            if (showJoinByQrDialog) {
+                JoinGroupByQrDialog(
+                    onDismiss = {
+                        showJoinByQrDialog = false
+                        scannedQrCode = null
+                    },
+                    onJoin = { code ->
+                        viewModel.joinGroupByQr(
+                            qrCode = code,
+                            onSuccess = { showJoinByQrDialog = false; scannedQrCode = null },
+                            onError = {}
+                        )
+                    },
+                    onScanClick = {
+                        qrScanLauncher.launch(QrScannerActivity.createIntent(context))
+                    },
+                    scannedCode = scannedQrCode
+                )
+            }
+
             // Create Group Dialog
             if (showCreateDialog) {
                 CreateGroupDialog(

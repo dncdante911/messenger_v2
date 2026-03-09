@@ -829,6 +829,17 @@
     <!-- Заголовки секции фонов -->
     <string name="bg_section_title">Фоновое изображение</string>
     <string name="bg_section_desc">Собственный фон для чатов</string>
+    <!-- Animated background variants -->
+    <string name="animated_bg_section_title">Анимированный фон</string>
+    <string name="animated_bg_section_desc">Живой Canvas-фон для чата</string>
+    <string name="animated_bg_none">Без анимации</string>
+    <string name="animated_bg_aurora">Аврора</string>
+    <string name="animated_bg_ocean">Океан</string>
+    <string name="animated_bg_cosmic">Космос</string>
+    <string name="animated_bg_sunset">Закат солнца</string>
+    <string name="animated_bg_neon">Неон</string>
+    <string name="animated_bg_forest">Лес</string>
+    <string name="animated_bg_fire">Огонь</string>
     <string name="bg_presets_title">Готовые фоны</string>
     <string name="bg_no_background">Нет фона</string>
     <string name="bg_pick">Выбрать фон</string>

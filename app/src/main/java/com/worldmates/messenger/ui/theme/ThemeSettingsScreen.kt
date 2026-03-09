@@ -375,6 +375,21 @@ fun ThemeSettingsScreen(
             }
 
             // ══════════════════════════════════════════════════════════════════
+            // 4b. АНІМОВАНИЙ ФОН — Canvas-варіанти
+            // ══════════════════════════════════════════════════════════════════
+            item {
+                ThemeSectionHeader(
+                    emoji = "✨",
+                    title = stringResource(R.string.animated_bg_section_title),
+                    subtitle = stringResource(R.string.animated_bg_section_desc),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                AnimatedBackgroundPickerRow()
+            }
+
+            // ══════════════════════════════════════════════════════════════════
             // 5. СТИЛЬ БУЛЬБАШОК — горизонтальний скрол
             // ══════════════════════════════════════════════════════════════════
             item {
