@@ -111,7 +111,7 @@ function getNearbyUsers(ctx) {
             const users = await ctx.wo_users.findAll({
                 attributes: [
                     'user_id', 'username', 'first_name', 'last_name',
-                    'avatar', 'last_seen', 'lat', 'lng',
+                    'avatar', 'lastseen', 'lat', 'lng',
                 ],
                 where: {
                     user_id:           { [Op.ne]: currentUserId },
@@ -155,7 +155,7 @@ function getNearbyUsers(ctx) {
                                           ? u.avatar
                                           : null,
                         distance_km:  Math.round(distanceKm * 10) / 10,  // 1 знак після коми
-                        last_seen:    u.last_seen || null,
+                        last_seen:    u.lastseen || null,
                     };
                 })
                 .filter(Boolean)

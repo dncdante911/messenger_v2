@@ -131,10 +131,73 @@ function createPoll(ctx, io) {
 
             const pollData = await buildPollResponse(ctx, poll.id, userId);
 
-            // Emit to group room
-            io.to('group' + groupId).emit('group_poll_created', { group_id: groupId, poll: pollData });
+            // Create a chat message so the poll appears in the group timeline
+            const now = Math.floor(Date.now() / 1000);
+            const msgRow = await ctx.wo_messages.create({
+                from_id:        userId,
+                to_id:          0,
+                group_id:       groupId,
+                page_id:        0,
+                text:           null,
+                text_ecb:       null,
+                text_preview:   null,
+                iv:             null,
+                tag:            null,
+                cipher_version: 1,
+                stickers:       JSON.stringify(pollData),
+                media:          '',
+                mediaFileName:  '',
+                time:           now,
+                seen:           now,
+                reply_id:       0,
+                story_id:       0,
+                lat:            '0',
+                lng:            '0',
+                type_two:       'poll',
+                forward:        0,
+                edited:         0,
+            });
+            await ctx.wo_groupchat.update({ time: String(now) }, { where: { group_id: groupId } });
 
-            return res.json({ api_status: 200, poll: pollData });
+            const sender = await ctx.wo_users.findOne({
+                attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar'],
+                where: { user_id: userId },
+                raw: true,
+            });
+            const msgData = {
+                id:             msgRow.id,
+                from_id:        userId,
+                to_id:          0,
+                group_id:       groupId,
+                text:           '',
+                iv:             null,
+                tag:            null,
+                cipher_version: 1,
+                stickers:       JSON.stringify(pollData),
+                media:          '',
+                mediaFileName:  '',
+                time:           now,
+                time_text:      '',
+                seen:           now,
+                position:       'right',
+                type:           'right_poll',
+                type_two:       'poll',
+                lat:            '0',
+                lng:            '0',
+                reply_id:       0,
+                reply:          null,
+                story_id:       0,
+                product_id:     0,
+                forward:        0,
+                edited:         0,
+                user_data:      sender,
+                messageUser:    sender,
+            };
+
+            // Use 'group_' + groupId (with underscore) to match the messages.js room convention
+            io.to('group_' + groupId).emit('group_message', msgData);
+
+            return res.json({ api_status: 200, poll: pollData, message_id: msgRow.id });
         } catch (err) {
             console.error('[Node/group/poll/create]', err.message);
             return res.json({ api_status: 500, error_message: 'Server error' });
