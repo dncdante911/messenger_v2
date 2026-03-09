@@ -178,7 +178,36 @@ async function registerCallsListeners(socket, io, ctx) {
                 }
 
             } else if (groupId) {
-                // ===== Групповой звонок =====
+                // ===== Групповий дзвінок =====
+
+                // Check initiator's pro status and enforce participant limits
+                const now = Math.floor(Date.now() / 1000);
+                const initiatorProData = await ctx.wo_users.findOne({
+                    where: { user_id: fromId },
+                    attributes: ['is_pro', 'pro_time'],
+                    raw: true
+                });
+                const isPro = initiatorProData &&
+                    parseInt(initiatorProData.is_pro) === 1 &&
+                    initiatorProData.pro_time > now;
+                const maxParticipants = isPro ? 25 : 5;
+
+                const memberCount = await ctx.wo_groupchatusers.count({
+                    where: { group_id: groupId, active: 1 }
+                });
+
+                if (memberCount > maxParticipants) {
+                    socket.emit('call:error', {
+                        type: 'PARTICIPANT_LIMIT_EXCEEDED',
+                        message: isPro
+                            ? `Group calls support up to 25 participants`
+                            : `Group calls support up to 5 participants. Upgrade to Premium for up to 25.`,
+                        maxParticipants,
+                        isPro
+                    });
+                    console.log(`[CALLS] ❌ Group call rejected: ${memberCount} members > limit ${maxParticipants} (isPro=${isPro})`);
+                    return;
+                }
 
                 // Сохранить в БД
                 await ctx.wo_group_calls.create({
@@ -187,6 +216,7 @@ async function registerCallsListeners(socket, io, ctx) {
                     call_type: callType,
                     status: 'ringing',
                     room_name: roomName,
+                    max_participants: maxParticipants,
                     created_at: new Date()
                 });
 
@@ -225,7 +255,9 @@ async function registerCallsListeners(socket, io, ctx) {
                                 callType: callType,
                                 roomName: roomName,
                                 sdpOffer: sdpOffer,
-                                iceServers: iceServers  // ✅ Добавлены TURN credentials
+                                iceServers: iceServers,
+                                maxParticipants: maxParticipants,
+                                isPremiumCall: isPro
                             };
 
                             memberSockets.forEach(memberSocket => {

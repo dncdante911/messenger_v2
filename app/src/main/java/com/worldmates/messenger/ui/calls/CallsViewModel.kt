@@ -39,6 +39,12 @@ data class IceCandidateData(
     val sdpMid: String
 )
 
+data class ParticipantLimitError(
+    val message: String,
+    val maxParticipants: Int,
+    val isPro: Boolean
+)
+
 class CallsViewModel(application: Application) : AndroidViewModel(application), SocketManager.SocketListener {
 
     private val webRTCManager = WebRTCManager(application)
@@ -50,6 +56,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     val callConnected = MutableLiveData<Boolean>()
     val callEnded = MutableLiveData<Boolean>()
     val callError = MutableLiveData<String>()
+    /** Non-null when server rejected the group call due to participant count limit. */
+    val participantLimitError = MutableLiveData<ParticipantLimitError?>()
     val remoteStreamAdded = MutableLiveData<MediaStream>()
     val localStreamAdded = MutableLiveData<MediaStream>()
     val connectionState = MutableLiveData<String>()
@@ -234,6 +242,29 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         }
 
         // 📴 Дзвінок завершено
+        // ❌ Server-side call error (e.g. participant limit exceeded)
+        socketManager.on("call:error") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                val type = data.optString("type", "")
+                val message = data.optString("message", "Call error")
+                Log.w("CallsViewModel", "📵 call:error type=$type message=$message")
+                if (type == "PARTICIPANT_LIMIT_EXCEEDED") {
+                    participantLimitError.postValue(
+                        ParticipantLimitError(
+                            message = message,
+                            maxParticipants = data.optInt("maxParticipants", 5),
+                            isPro = data.optBoolean("isPro", false)
+                        )
+                    )
+                } else {
+                    callError.postValue(message)
+                }
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing call:error", e)
+            }
+        }
+
         socketManager.on("call:ended") { args ->
             try {
                 if (args.isNotEmpty()) {
