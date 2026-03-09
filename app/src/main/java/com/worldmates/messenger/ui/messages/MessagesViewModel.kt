@@ -2640,4 +2640,32 @@ class MessagesViewModel(application: Application) :
             }
         }
     }
+
+    // ==================== POLLS ====================
+
+    fun voteOnGroupPoll(message: Message, optionId: Long) {
+        val pollId = message.stickers?.let {
+            runCatching {
+                com.google.gson.Gson().fromJson(it, com.worldmates.messenger.data.model.GroupPollData::class.java).id
+            }.getOrNull()
+        } ?: return
+
+        viewModelScope.launch {
+            try {
+                val response = groupApi.votePoll(
+                    groupId   = groupId,
+                    pollId    = pollId,
+                    optionIds = listOf(optionId)
+                )
+                if (response.apiStatus == 200 && response.poll != null) {
+                    val updatedPollJson = com.google.gson.Gson().toJson(response.poll)
+                    _messages.value = _messages.value.map { msg ->
+                        if (msg.id == message.id) msg.copy(stickers = updatedPollJson) else msg
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "voteOnGroupPoll error: ${e.localizedMessage}")
+            }
+        }
+    }
 }

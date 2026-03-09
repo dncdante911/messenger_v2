@@ -180,7 +180,7 @@ function getNearbyUsers(ctx) {
 
 function updateLocation(ctx) {
     return async (req, res) => {
-        const currentUserId = req.user && req.user.user_id;
+        const currentUserId = req.userId;
         if (!currentUserId) return res.json({ api_status: 401, error_message: 'Unauthorized' });
 
         try {
