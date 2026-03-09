@@ -14,6 +14,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -726,6 +729,9 @@ object AnimatedBgPrefs {
     private const val PREFS_NAME = "theme_prefs"
     private const val KEY_VARIANT = "animated_bg_variant"
 
+    private val _variantFlow = MutableStateFlow(AnimatedBgVariant.NONE)
+    val variantFlow: StateFlow<AnimatedBgVariant> = _variantFlow.asStateFlow()
+
     fun getVariant(context: Context): AnimatedBgVariant {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val name = prefs.getString(KEY_VARIANT, AnimatedBgVariant.NONE.name)
@@ -741,5 +747,11 @@ object AnimatedBgPrefs {
             .edit()
             .putString(KEY_VARIANT, variant.name)
             .apply()
+        _variantFlow.value = variant
+    }
+
+    /** Call once when the chat screen enters composition to sync the flow from SharedPreferences. */
+    fun syncFromPrefs(context: Context) {
+        _variantFlow.value = getVariant(context)
     }
 }
