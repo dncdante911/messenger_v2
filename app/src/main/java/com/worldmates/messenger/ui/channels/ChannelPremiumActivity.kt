@@ -21,10 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.worldmates.messenger.ui.theme.ThemeManager
@@ -140,7 +142,7 @@ private fun ChannelPremiumScreen(
                     Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
                 }
                 Text(
-                    text       = "Channel Premium",
+                    text       = stringResource(R.string.channel_premium_title),
                     color      = Color.White,
                     fontSize   = 20.sp,
                     fontWeight = FontWeight.Bold,
@@ -163,7 +165,7 @@ private fun ChannelPremiumScreen(
                             Text(state.message, color = Color.White, textAlign = TextAlign.Center)
                             Spacer(Modifier.height(16.dp))
                             OutlinedButton(onClick = { viewModel.loadStatus(channelId) }) {
-                                Text("Retry")
+                                Text(stringResource(R.string.channel_premium_retry))
                             }
                         }
                     }
@@ -189,7 +191,7 @@ private fun ChannelPremiumScreen(
                     if (isOwner) {
                         // Plan selector
                         Text(
-                            "Choose a plan",
+                            stringResource(R.string.channel_premium_choose_plan),
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -204,11 +206,23 @@ private fun ChannelPremiumScreen(
                         )
 
                         plans.forEach { (key, info) ->
+                            val planLabel = when (key) {
+                                "monthly"   -> stringResource(R.string.plan_monthly)
+                                "quarterly" -> stringResource(R.string.plan_quarterly)
+                                "annual"    -> stringResource(R.string.plan_annual)
+                                else        -> key
+                            }
+                            val planDiscount = when (key) {
+                                "monthly"   -> stringResource(R.string.plan_discount_monthly)
+                                "quarterly" -> stringResource(R.string.plan_discount_quarterly)
+                                "annual"    -> stringResource(R.string.plan_discount_annual)
+                                else        -> ""
+                            }
                             ChannelPlanCard(
                                 planKey    = key,
                                 info       = info,
-                                label      = ChannelPremiumViewModel.PLAN_LABELS[key] ?: key,
-                                discount   = ChannelPremiumViewModel.PLAN_DISCOUNTS[key] ?: "",
+                                label      = planLabel,
+                                discount   = planDiscount,
                                 selected   = selectedPlan == key,
                                 onClick    = { selectedPlan = key }
                             )
@@ -219,7 +233,7 @@ private fun ChannelPremiumScreen(
 
                         // Provider selector
                         Text(
-                            "Payment method",
+                            stringResource(R.string.channel_premium_payment_method),
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -249,7 +263,7 @@ private fun ChannelPremiumScreen(
                             Icon(Icons.Default.Star, null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text       = "Subscribe for $priceStr",
+                                text       = stringResource(R.string.channel_premium_subscribe_btn, priceStr),
                                 fontSize   = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -265,7 +279,7 @@ private fun ChannelPremiumScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "Only the channel owner can manage the Premium subscription.",
+                                stringResource(R.string.channel_premium_owner_only),
                                 color       = Color.Gray,
                                 textAlign   = TextAlign.Center,
                                 fontSize    = 14.sp
@@ -303,14 +317,14 @@ private fun ChannelPremiumHero(channelName: String) {
             Text("★", fontSize = 52.sp, color = Color(0xFFFFD700))
             Spacer(Modifier.height(8.dp))
             Text(
-                text       = "Channel Premium",
+                text       = stringResource(R.string.channel_premium_title),
                 color      = Color.White,
                 fontSize   = 26.sp,
                 fontWeight = FontWeight.ExtraBold
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text    = "Unlock full potential for «$channelName»",
+                text    = stringResource(R.string.channel_premium_subtitle, channelName),
                 color   = Color.LightGray,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
@@ -333,9 +347,9 @@ private fun ActiveSubscriptionBanner(status: ChannelPremiumStatus) {
     ) {
         Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(28.dp))
         Column(Modifier.weight(1f)) {
-            Text("Premium Active", color = Color(0xFF4CAF50), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.channel_premium_active_label), color = Color(0xFF4CAF50), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Text(
-                "Plan: ${status.plan?.replaceFirstChar { it.uppercase() }} · ${status.days_left} days remaining",
+                stringResource(R.string.channel_premium_active_info, status.plan?.replaceFirstChar { it.uppercase() } ?: "", status.days_left),
                 color    = Color(0xFFA5D6A7),
                 fontSize = 12.sp
             )
@@ -346,11 +360,11 @@ private fun ActiveSubscriptionBanner(status: ChannelPremiumStatus) {
 @Composable
 private fun PremiumFeatureList() {
     val features = listOf(
-        Triple(Icons.Default.Videocam,       "1080p @ 60fps Livestreams", "Crystal-clear broadcasts"),
-        Triple(Icons.Default.BarChart,       "Advanced Analytics",        "Detailed channel statistics"),
-        Triple(Icons.Default.Star,           "Premium Badge",             "Stands out in channel lists"),
-        Triple(Icons.Default.Notifications,  "Priority Notifications",    "Viewers see you first"),
-        Triple(Icons.Default.HighQuality,    "HD Media Quality",          "Photos & videos in max quality")
+        Triple(Icons.Default.Videocam,       stringResource(R.string.channel_premium_feat_stream),        stringResource(R.string.channel_premium_feat_stream_desc)),
+        Triple(Icons.Default.BarChart,       stringResource(R.string.channel_premium_feat_analytics),     stringResource(R.string.channel_premium_feat_analytics_desc)),
+        Triple(Icons.Default.Star,           stringResource(R.string.channel_premium_feat_badge),         stringResource(R.string.channel_premium_feat_badge_desc)),
+        Triple(Icons.Default.Notifications,  stringResource(R.string.channel_premium_feat_notifications), stringResource(R.string.channel_premium_feat_notifications_desc)),
+        Triple(Icons.Default.HighQuality,    stringResource(R.string.channel_premium_feat_hd),            stringResource(R.string.channel_premium_feat_hd_desc))
     )
 
     Column(
@@ -409,7 +423,7 @@ private fun ChannelPlanCard(
                 Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 if (isPopular) {
                     Text(
-                        "POPULAR",
+                        stringResource(R.string.channel_premium_popular_badge),
                         color = Color.White,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,

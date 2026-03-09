@@ -1905,4 +1905,74 @@
     <string name="bot_webhook_url_hint">URL вебхуку (https://…)</string>
     <string name="bot_webhook_secret_hint">Секретний ключ (необов\'язково)</string>
     <string name="bot_webhook_pending">%d очікуваних оновлень</string>
+
+    <!-- ── Group Call ──────────────────────────────────────────────────────── -->
+    <string name="call_you">Ви</string>
+    <string name="call_participant_limit_title">Ліміт учасників</string>
+    <string name="call_participant_limit_message_regular">Груповий дзвінок підтримує до 5 учасників. Оформіть Premium для збільшення до 25.</string>
+    <string name="call_participant_limit_message_pro">Груповий дзвінок підтримує до 25 учасників.</string>
+    <string name="call_get_premium">Отримати Premium</string>
+
+    <!-- ── Channel Admin Panel additions ─────────────────────────────────── -->
+    <string name="channel_livestream_section">Пряма трансляція</string>
+    <string name="channel_go_live">Почати трансляцію</string>
+    <string name="channel_premium_label">Channel Premium</string>
+
+    <!-- ── Channel Livestream ──────────────────────────────────────────────── -->
+    <string name="livestream_title">Розпочати трансляцію</string>
+    <string name="livestream_badge_live">● НАЖИВО</string>
+    <string name="livestream_quality_pro_badge">PRO</string>
+    <string name="livestream_premium_hint">Преміум-канал — до 1080p @ 60 кадрів/с</string>
+    <string name="livestream_title_hint">Назва трансляції (необов\'язково)</string>
+    <string name="livestream_quality_label">Якість відео</string>
+    <string name="livestream_go_live_btn">Вийти в ефір</string>
+    <string name="livestream_camera_preview">Попередній перегляд камери</string>
+    <string name="livestream_end_stream">Завершити трансляцію</string>
+    <string name="livestream_end_stream_title">Завершити трансляцію?</string>
+    <string name="livestream_end_stream_message">Це завершить прямий ефір для всіх глядачів.</string>
+    <string name="livestream_end_confirm">Завершити</string>
+    <string name="livestream_cancel">Скасувати</string>
+    <string name="livestream_watching_quality">Перегляд у якості %s</string>
+    <string name="livestream_viewer_count">👁 %d</string>
+    <string name="livestream_leave">Залишити</string>
+    <string name="livestream_no_active">Немає активної трансляції</string>
+    <string name="livestream_not_live_now">«%s» зараз не веде ефір.</string>
+    <string name="livestream_go_back">Назад</string>
+    <string name="livestream_close">Закрити</string>
+    <string name="livestream_end_stream_desc">Закрити трансляцію</string>
+    <string name="quality_240p">240p — Низька (360×240)</string>
+    <string name="quality_360p">360p — Стандартна (640×360)</string>
+    <string name="quality_480p">480p — Хороша (854×480)</string>
+    <string name="quality_720p">720p — HD (1280×720)</string>
+    <string name="quality_1080p">1080p — Full HD (1920×1080)</string>
+    <string name="quality_1080p60">1080p 60 кадрів/с — Преміум Full HD</string>
+
+    <!-- ── Channel Premium ────────────────────────────────────────────────── -->
+    <string name="channel_premium_title">Channel Premium</string>
+    <string name="channel_premium_subtitle">Розкрийте повний потенціал «%s»</string>
+    <string name="channel_premium_retry">Повторити</string>
+    <string name="channel_premium_choose_plan">Виберіть тариф</string>
+    <string name="channel_premium_payment_method">Спосіб оплати</string>
+    <string name="channel_premium_owner_only">Лише власник каналу може керувати підпискою Premium.</string>
+    <string name="channel_premium_active_label">Premium активний</string>
+    <string name="channel_premium_active_info">Тариф: %1$s · залишилось %2$d днів</string>
+    <string name="channel_premium_subscribe_btn">Підписатися за %s</string>
+    <string name="channel_premium_popular_badge">ПОПУЛЯРНЕ</string>
+    <string name="channel_premium_feat_stream">Трансляції 1080p @ 60 кадрів/с</string>
+    <string name="channel_premium_feat_stream_desc">Чіткий ефір кристальної якості</string>
+    <string name="channel_premium_feat_analytics">Розширена аналітика</string>
+    <string name="channel_premium_feat_analytics_desc">Детальна статистика каналу</string>
+    <string name="channel_premium_feat_badge">Преміум-значок</string>
+    <string name="channel_premium_feat_badge_desc">Виділяється у списку каналів</string>
+    <string name="channel_premium_feat_notifications">Пріоритетні сповіщення</string>
+    <string name="channel_premium_feat_notifications_desc">Глядачі бачать вас першими</string>
+    <string name="channel_premium_feat_hd">HD-якість медіа</string>
+    <string name="channel_premium_feat_hd_desc">Фото та відео в максимальній якості</string>
+    <string name="plan_monthly">Щомісяця</string>
+    <string name="plan_quarterly">Щоквартально (3 місяці)</string>
+    <string name="plan_annual">Щорічно (12 місяців)</string>
+    <string name="plan_discount_monthly">Повна ціна</string>
+    <string name="plan_discount_quarterly">Знижка 10%</string>
+    <string name="plan_discount_annual">Знижка 25%</string>
+    <string name="plan_price_per_month">%s/міс</string>
 </resources>

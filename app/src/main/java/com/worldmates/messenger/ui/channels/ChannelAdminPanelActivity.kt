@@ -302,7 +302,7 @@ private fun InfoTab(
             HorizontalDivider()
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                "Livestream",
+                stringResource(R.string.channel_livestream_section),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -324,7 +324,7 @@ private fun InfoTab(
             ) {
                 Icon(Icons.Default.Videocam, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Go Live")
+                Text(stringResource(R.string.channel_go_live))
             }
         }
 
@@ -346,7 +346,7 @@ private fun InfoTab(
             ) {
                 Icon(Icons.Default.Star, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Channel Premium")
+                Text(stringResource(R.string.channel_premium_label))
             }
             Spacer(modifier = Modifier.height(8.dp))
         }

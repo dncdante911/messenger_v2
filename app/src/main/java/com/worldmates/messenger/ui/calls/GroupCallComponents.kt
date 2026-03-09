@@ -20,10 +20,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import com.worldmates.messenger.network.WebRTCManager
@@ -213,7 +215,7 @@ fun CompactParticipantTile(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (isLocal) "You" else participant.name.split(" ").first(),
+                text = if (isLocal) stringResource(R.string.call_you) else participant.name.split(" ").first(),
                 color = Color.White,
                 fontSize = 9.sp,
                 maxLines = 1,
