@@ -16,6 +16,7 @@ object UserSession {
     private const val KEY_IS_PRO = "is_pro"
     private const val KEY_PRO_TYPE = "pro_type"
     private const val KEY_PRO_EXPIRES_AT = "pro_expires_at"
+    private const val KEY_REGISTERED_AT = "registered_at"
 
     private val prefs: SharedPreferences by lazy {
         WMApplication.instance.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -61,6 +62,27 @@ object UserSession {
     val isProActive: Boolean
         get() = isPro > 0 && (proExpiresAt == 0L || proExpiresAt > System.currentTimeMillis())
 
+    /** Unix-timestamp (мс) першої реєстрації / першого входу */
+    var registeredAt: Long
+        get() = prefs.getLong(KEY_REGISTERED_AT, 0L)
+        private set(value) = prefs.edit().putLong(KEY_REGISTERED_AT, value).apply()
+
+    /** true якщо акаунт зареєстровано менше 5 діб тому */
+    val isNewUser: Boolean
+        get() {
+            val ts = registeredAt
+            if (ts == 0L) return false
+            return System.currentTimeMillis() - ts < 5L * 24 * 60 * 60 * 1000
+        }
+
+    /**
+     * Доступ до анімованих фонів чату:
+     *  - активна Pro-підписка, АБО
+     *  - перші 5 днів після реєстрації (trial)
+     */
+    val canUseAnimatedBackground: Boolean
+        get() = isProActive || isNewUser
+
     val isLoggedIn: Boolean
         get() = !accessToken.isNullOrEmpty() && userId > 0
 
@@ -86,6 +108,10 @@ object UserSession {
             putInt(KEY_IS_PRO, isPro)
             putInt(KEY_PRO_TYPE, proType)
             putLong(KEY_PRO_EXPIRES_AT, proExpiresAt)
+            // Запам'ятовуємо дату першого входу один раз
+            if (!prefs.contains(KEY_REGISTERED_AT)) {
+                putLong(KEY_REGISTERED_AT, System.currentTimeMillis())
+            }
             commit() // Синхронне збереження — токен гарантованно записаний
         }
         _avatarFlow.value = avatar

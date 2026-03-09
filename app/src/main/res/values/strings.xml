@@ -863,6 +863,10 @@
     <string name="animated_bg_neon">Неон</string>
     <string name="animated_bg_forest">Ліс</string>
     <string name="animated_bg_fire">Вогонь</string>
+    <string name="animated_bg_premium_title">Функція Pro та нових користувачів</string>
+    <string name="animated_bg_premium_desc">Доступно з підпискою Pro або перші 5 днів після реєстрації</string>
+    <string name="animated_bg_get_pro">Отримати Pro</string>
+    <string name="animated_bg_trial_banner">✨ Пробний доступ: %d дн. залишилось — спробуйте анімовані фони!</string>
     <string name="bg_presets_title">Готові фони</string>
     <string name="bg_no_background">Немає фону</string>
     <string name="bg_pick">Вибрати фон</string>
