@@ -232,7 +232,7 @@ private fun InfoTab(
             OutlinedTextField(
                 value = editName,
                 onValueChange = { editName = it },
-                label = { Text("Channel Name") },
+                label = { Text(stringResource(R.string.channel_info_name_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -242,7 +242,7 @@ private fun InfoTab(
             OutlinedTextField(
                 value = editUsername,
                 onValueChange = { editUsername = it.filter { c -> c.isLetterOrDigit() || c == '_' } },
-                label = { Text("Username (@)") },
+                label = { Text(stringResource(R.string.channel_info_username_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 prefix = { Text("@") }
@@ -253,7 +253,7 @@ private fun InfoTab(
             OutlinedTextField(
                 value = editDesc,
                 onValueChange = { editDesc = it },
-                label = { Text("Description") },
+                label = { Text(stringResource(R.string.channel_info_description_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
                 maxLines = 6
@@ -271,7 +271,7 @@ private fun InfoTab(
                         username = editUsername.takeIf { it.isNotBlank() },
                         onSuccess = {
                             isSaving = false
-                            Toast.makeText(context, "Saved!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.channel_info_saved_toast), Toast.LENGTH_SHORT).show()
                         },
                         onError = { err ->
                             isSaving = false
@@ -291,7 +291,7 @@ private fun InfoTab(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Save Changes")
+                Text(stringResource(R.string.channel_info_save_changes))
             }
         }
 
@@ -356,7 +356,7 @@ private fun InfoTab(
             HorizontalDivider()
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                "Danger Zone",
+                stringResource(R.string.channel_danger_zone),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 color = Color(0xFFCC0000),
@@ -376,7 +376,7 @@ private fun InfoTab(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Delete Channel")
+                Text(stringResource(R.string.channel_delete))
             }
         }
     }
@@ -385,9 +385,9 @@ private fun InfoTab(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFCC0000)) },
-            title = { Text("Delete Channel") },
+            title = { Text(stringResource(R.string.channel_delete)) },
             text = {
-                Text("Are you sure you want to permanently delete \"${channel?.name}\"? This action cannot be undone. All posts and subscriber data will be lost.")
+                Text(stringResource(R.string.channel_delete_confirm, channel?.name ?: ""))
             },
             confirmButton = {
                 Button(
@@ -396,7 +396,7 @@ private fun InfoTab(
                         viewModel.deleteChannel(
                             channelId = channelId,
                             onSuccess = {
-                                Toast.makeText(context, "Channel deleted", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.channel_deleted_toast), Toast.LENGTH_SHORT).show()
                                 onChannelDeleted()
                             },
                             onError = { err ->
@@ -406,12 +406,12 @@ private fun InfoTab(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCC0000))
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.channel_delete_btn))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.channel_delete_cancel))
                 }
             }
         )
@@ -446,30 +446,30 @@ private fun SettingsTab(
     ) {
         item {
             Text(
-                "Content Settings",
+                stringResource(R.string.channel_settings_content_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
         }
-        item { SettingToggle("Allow Comments", "Subscribers can comment on posts", allowComments) { allowComments = it } }
-        item { SettingToggle("Allow Reactions", "Subscribers can react to posts", allowReactions) { allowReactions = it } }
-        item { SettingToggle("Allow Shares", "Posts can be forwarded", allowShares) { allowShares = it } }
-        item { SettingToggle("Allow Forwarding", "Posts can be forwarded to chats", allowForwarding) { allowForwarding = it } }
+        item { SettingToggle(stringResource(R.string.channel_settings_allow_comments), stringResource(R.string.channel_settings_allow_comments_desc), allowComments) { allowComments = it } }
+        item { SettingToggle(stringResource(R.string.channel_settings_allow_reactions), stringResource(R.string.channel_settings_allow_reactions_desc), allowReactions) { allowReactions = it } }
+        item { SettingToggle(stringResource(R.string.channel_settings_allow_shares), stringResource(R.string.channel_settings_allow_shares_desc), allowShares) { allowShares = it } }
+        item { SettingToggle(stringResource(R.string.channel_settings_allow_forwarding), stringResource(R.string.channel_settings_allow_forwarding_desc), allowForwarding) { allowForwarding = it } }
 
         item {
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Moderation", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.channel_settings_moderation), fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 8.dp))
         }
-        item { SettingToggle("Comment Moderation", "Comments require approval", moderation) { moderation = it } }
-        item { SettingToggle("Author Signature", "Show author name on posts", signature) { signature = it } }
+        item { SettingToggle(stringResource(R.string.channel_settings_comment_moderation), stringResource(R.string.channel_settings_comment_moderation_desc), moderation) { moderation = it } }
+        item { SettingToggle(stringResource(R.string.channel_settings_author_signature), stringResource(R.string.channel_settings_author_signature_desc), signature) { signature = it } }
 
         item {
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Notifications & Privacy", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.channel_settings_notifications), fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 8.dp))
         }
-        item { SettingToggle("Notify on New Post", "Push notifications for new posts", notifyNew) { notifyNew = it } }
-        item { SettingToggle("Show Statistics", "Subscribers can see view counts", showStats) { showStats = it } }
+        item { SettingToggle(stringResource(R.string.channel_settings_notify_new_post), stringResource(R.string.channel_settings_notify_new_post_desc), notifyNew) { notifyNew = it } }
+        item { SettingToggle(stringResource(R.string.channel_settings_show_statistics), stringResource(R.string.channel_settings_show_statistics_desc), showStats) { showStats = it } }
 
         item {
             Spacer(modifier = Modifier.height(16.dp))
@@ -491,7 +491,7 @@ private fun SettingsTab(
                         settings = settings,
                         onSuccess = {
                             isSaving = false
-                            Toast.makeText(context, "Settings saved!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.channel_settings_saved_toast), Toast.LENGTH_SHORT).show()
                         },
                         onError = { err ->
                             isSaving = false
@@ -507,7 +507,7 @@ private fun SettingsTab(
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Save Settings")
+                Text(stringResource(R.string.channel_settings_save))
             }
         }
     }
@@ -674,11 +674,11 @@ private fun AdminsTab(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Admins (${admins.size})", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(stringResource(R.string.channel_admins_header, admins.size), fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 FilledTonalButton(onClick = { showAddDialog = true }, shape = RoundedCornerShape(12.dp)) {
                     Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Add")
+                    Text(stringResource(R.string.channel_admins_add))
                 }
             }
         }
@@ -787,7 +787,7 @@ private fun MembersTab(
                     modifier = Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No subscribers yet", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text(stringResource(R.string.channel_no_subscribers), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             }
         } else {
@@ -909,7 +909,7 @@ private fun MemberRow(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Make Admin") },
+                        text = { Text(stringResource(R.string.channel_make_admin)) },
                         leadingIcon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = null) },
                         onClick = {
                             showMenu = false
@@ -917,7 +917,7 @@ private fun MemberRow(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Kick") },
+                        text = { Text(stringResource(R.string.channel_kick_member)) },
                         leadingIcon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
                         onClick = {
                             showMenu = false
@@ -925,7 +925,7 @@ private fun MemberRow(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Ban", color = Color(0xFFFF4444)) },
+                        text = { Text(stringResource(R.string.channel_ban_member), color = Color(0xFFFF4444)) },
                         leadingIcon = { Icon(Icons.Default.Block, contentDescription = null, tint = Color(0xFFFF4444)) },
                         onClick = {
                             showMenu = false
@@ -955,7 +955,7 @@ private fun BannedTab(
     ) {
         item {
             Text(
-                "Banned Members (${bannedMembers.size})",
+                stringResource(R.string.channel_banned_members_header, bannedMembers.size),
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -968,7 +968,7 @@ private fun BannedTab(
                     modifier = Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No banned members", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text(stringResource(R.string.channel_no_banned), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             }
         } else {
@@ -1020,19 +1020,19 @@ private fun BannedMemberRow(
                     fontSize = 14.sp
                 )
                 val banInfo = if (banned.isPermanent) {
-                    "Permanent ban"
+                    stringResource(R.string.channel_ban_info_permanent)
                 } else {
                     val remainingSecs = banned.expireTime - (System.currentTimeMillis() / 1000)
                     if (remainingSecs > 0) {
-                        "Expires in ${formatBanDuration(remainingSecs)}"
+                        stringResource(R.string.channel_ban_expires_in, formatBanDuration(remainingSecs))
                     } else {
-                        "Expired"
+                        stringResource(R.string.channel_ban_expired)
                     }
                 }
                 Text(banInfo, fontSize = 12.sp, color = Color(0xFFFF4444))
                 if (!banned.reason.isNullOrBlank()) {
                     Text(
-                        "Reason: ${banned.reason}",
+                        stringResource(R.string.channel_ban_reason_label, banned.reason),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -1042,7 +1042,7 @@ private fun BannedMemberRow(
                 onClick = onUnban,
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text("Unban")
+                Text(stringResource(R.string.channel_unban))
             }
         }
     }
@@ -1071,11 +1071,11 @@ private fun BanDurationDialog(
     data class BanOption(val label: String, val seconds: Int)
 
     val options = listOf(
-        BanOption("1 hour",    3600),
-        BanOption("24 hours",  86400),
-        BanOption("7 days",    604800),
-        BanOption("30 days",   2592000),
-        BanOption("Permanent", 0)
+        BanOption(stringResource(R.string.channel_ban_1h),        3600),
+        BanOption(stringResource(R.string.channel_ban_24h),       86400),
+        BanOption(stringResource(R.string.channel_ban_7d),        604800),
+        BanOption(stringResource(R.string.channel_ban_30d),       2592000),
+        BanOption(stringResource(R.string.channel_ban_permanent), 0)
     )
     var selectedOption by remember { mutableStateOf(options[1]) } // default: 24h
     var reason by remember { mutableStateOf("") }
@@ -1083,10 +1083,10 @@ private fun BanDurationDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Block, contentDescription = null, tint = Color(0xFFFF4444)) },
-        title = { Text("Ban $memberName") },
+        title = { Text(stringResource(R.string.channel_ban_dialog_title, memberName)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Select ban duration:", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.channel_ban_duration_label), fontSize = 14.sp, fontWeight = FontWeight.Medium)
 
                 options.forEach { option ->
                     Row(
@@ -1114,7 +1114,7 @@ private fun BanDurationDialog(
                 OutlinedTextField(
                     value = reason,
                     onValueChange = { reason = it },
-                    label = { Text("Reason (optional)") },
+                    label = { Text(stringResource(R.string.channel_ban_reason_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -1125,11 +1125,11 @@ private fun BanDurationDialog(
                 onClick = { onBan(selectedOption.seconds, reason.trim()) },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4444))
             ) {
-                Text("Ban")
+                Text(stringResource(R.string.channel_ban_btn))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.channel_delete_cancel)) }
         }
     )
 }

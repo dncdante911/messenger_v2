@@ -1964,4 +1964,71 @@
     <string name="plan_discount_quarterly">Скидка 10%</string>
     <string name="plan_discount_annual">Скидка 25%</string>
     <string name="plan_price_per_month">%s/мес</string>
+
+    <!-- ── Channel Admin Panel - Info tab ──────────────────────────────── -->
+    <string name="channel_info_name_label">Название канала</string>
+    <string name="channel_info_username_label">Имя пользователя (@)</string>
+    <string name="channel_info_description_label">Описание</string>
+    <string name="channel_info_save_changes">Сохранить изменения</string>
+    <string name="channel_info_saved_toast">Сохранено!</string>
+    <string name="channel_danger_zone">Опасная зона</string>
+    <string name="channel_delete">Удалить канал</string>
+    <string name="channel_delete_confirm">Вы уверены, что хотите навсегда удалить «%s»? Это действие нельзя отменить. Все публикации и данные подписчиков будут потеряны.</string>
+    <string name="channel_delete_btn">Удалить</string>
+    <string name="channel_delete_cancel">Отмена</string>
+    <string name="channel_deleted_toast">Канал удалён</string>
+
+    <!-- ── Channel Admin Panel - Settings tab ───────────────────────────── -->
+    <string name="channel_settings_content_title">Настройки контента</string>
+    <string name="channel_settings_allow_comments">Разрешить комментарии</string>
+    <string name="channel_settings_allow_comments_desc">Подписчики могут комментировать публикации</string>
+    <string name="channel_settings_allow_reactions">Разрешить реакции</string>
+    <string name="channel_settings_allow_reactions_desc">Подписчики могут реагировать на публикации</string>
+    <string name="channel_settings_allow_shares">Разрешить поделиться</string>
+    <string name="channel_settings_allow_shares_desc">Публикации можно пересылать</string>
+    <string name="channel_settings_allow_forwarding">Разрешить пересылку</string>
+    <string name="channel_settings_allow_forwarding_desc">Публикации можно пересылать в чаты</string>
+    <string name="channel_settings_moderation">Модерация</string>
+    <string name="channel_settings_comment_moderation">Модерация комментариев</string>
+    <string name="channel_settings_comment_moderation_desc">Комментарии требуют одобрения</string>
+    <string name="channel_settings_author_signature">Подпись автора</string>
+    <string name="channel_settings_author_signature_desc">Показывать имя автора в публикациях</string>
+    <string name="channel_settings_notifications">Уведомления и конфиденциальность</string>
+    <string name="channel_settings_notify_new_post">Уведомлять о новых публикациях</string>
+    <string name="channel_settings_notify_new_post_desc">Push-уведомления для новых публикаций</string>
+    <string name="channel_settings_show_statistics">Показывать статистику</string>
+    <string name="channel_settings_show_statistics_desc">Подписчики видят количество просмотров</string>
+    <string name="channel_settings_save">Сохранить настройки</string>
+    <string name="channel_settings_saved_toast">Настройки сохранены!</string>
+
+    <!-- ── Channel Admin Panel - Admins tab ─────────────────────────────── -->
+    <string name="channel_admins_header">Администраторы (%d)</string>
+    <string name="channel_admins_add">Добавить</string>
+
+    <!-- ── Channel Admin Panel - Members/Banned tabs ────────────────────── -->
+    <string name="channel_no_subscribers">Подписчиков ещё нет</string>
+    <string name="channel_make_admin">Сделать администратором</string>
+    <string name="channel_kick_member">Исключить</string>
+    <string name="channel_ban_member">Заблокировать</string>
+    <string name="channel_banned_members_header">Заблокированные (%d)</string>
+    <string name="channel_no_banned">Заблокированных участников нет</string>
+    <string name="channel_unban">Разблокировать</string>
+    <string name="channel_ban_dialog_title">Заблокировать %s</string>
+    <string name="channel_ban_duration_label">Выберите длительность блокировки:</string>
+    <string name="channel_ban_reason_hint">Причина (необязательно)</string>
+    <string name="channel_ban_btn">Заблокировать</string>
+    <string name="channel_ban_1h">1 час</string>
+    <string name="channel_ban_24h">24 часа</string>
+    <string name="channel_ban_7d">7 дней</string>
+    <string name="channel_ban_30d">30 дней</string>
+    <string name="channel_ban_permanent">Навсегда</string>
+    <string name="channel_ban_info_permanent">Заблокирован навсегда</string>
+    <string name="channel_ban_expires_in">Истекает через %s</string>
+    <string name="channel_ban_expired">Срок истёк</string>
+    <string name="channel_ban_reason_label">Причина: %s</string>
+
+    <!-- ── Channel Statistics ────────────────────────────────────────────── -->
+    <string name="channel_stats_media_post">[Медиа-пост]</string>
+    <string name="channel_stats_empty_post">[Пост без текста]</string>
+    <string name="channel_stats_poll_post">📊 %s</string>
 </resources>

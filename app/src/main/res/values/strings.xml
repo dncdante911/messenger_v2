@@ -1975,4 +1975,71 @@
     <string name="plan_discount_quarterly">Знижка 10%</string>
     <string name="plan_discount_annual">Знижка 25%</string>
     <string name="plan_price_per_month">%s/міс</string>
+
+    <!-- ── Channel Admin Panel - Info tab ──────────────────────────────── -->
+    <string name="channel_info_name_label">Назва каналу</string>
+    <string name="channel_info_username_label">Ім\'я користувача (@)</string>
+    <string name="channel_info_description_label">Опис</string>
+    <string name="channel_info_save_changes">Зберегти зміни</string>
+    <string name="channel_info_saved_toast">Збережено!</string>
+    <string name="channel_danger_zone">Небезпечна зона</string>
+    <string name="channel_delete">Видалити канал</string>
+    <string name="channel_delete_confirm">Ви впевнені, що хочете назавжди видалити «%s»? Цю дію неможливо скасувати. Усі публікації та дані підписників буде втрачено.</string>
+    <string name="channel_delete_btn">Видалити</string>
+    <string name="channel_delete_cancel">Скасувати</string>
+    <string name="channel_deleted_toast">Канал видалено</string>
+
+    <!-- ── Channel Admin Panel - Settings tab ───────────────────────────── -->
+    <string name="channel_settings_content_title">Налаштування контенту</string>
+    <string name="channel_settings_allow_comments">Дозволити коментарі</string>
+    <string name="channel_settings_allow_comments_desc">Підписники можуть коментувати публікації</string>
+    <string name="channel_settings_allow_reactions">Дозволити реакції</string>
+    <string name="channel_settings_allow_reactions_desc">Підписники можуть реагувати на публікації</string>
+    <string name="channel_settings_allow_shares">Дозволити поширення</string>
+    <string name="channel_settings_allow_shares_desc">Публікації можна переслати</string>
+    <string name="channel_settings_allow_forwarding">Дозволити пересилання</string>
+    <string name="channel_settings_allow_forwarding_desc">Публікації можна пересилати в чати</string>
+    <string name="channel_settings_moderation">Модерація</string>
+    <string name="channel_settings_comment_moderation">Модерація коментарів</string>
+    <string name="channel_settings_comment_moderation_desc">Коментарі потребують схвалення</string>
+    <string name="channel_settings_author_signature">Підпис автора</string>
+    <string name="channel_settings_author_signature_desc">Показувати ім\'я автора у публікаціях</string>
+    <string name="channel_settings_notifications">Сповіщення та конфіденційність</string>
+    <string name="channel_settings_notify_new_post">Сповіщати про нові публікації</string>
+    <string name="channel_settings_notify_new_post_desc">Push-сповіщення для нових публікацій</string>
+    <string name="channel_settings_show_statistics">Показувати статистику</string>
+    <string name="channel_settings_show_statistics_desc">Підписники бачать кількість переглядів</string>
+    <string name="channel_settings_save">Зберегти налаштування</string>
+    <string name="channel_settings_saved_toast">Налаштування збережено!</string>
+
+    <!-- ── Channel Admin Panel - Admins tab ─────────────────────────────── -->
+    <string name="channel_admins_header">Адміни (%d)</string>
+    <string name="channel_admins_add">Додати</string>
+
+    <!-- ── Channel Admin Panel - Members/Banned tabs ────────────────────── -->
+    <string name="channel_no_subscribers">Підписників ще немає</string>
+    <string name="channel_make_admin">Зробити адміном</string>
+    <string name="channel_kick_member">Вигнати</string>
+    <string name="channel_ban_member">Заблокувати</string>
+    <string name="channel_banned_members_header">Заблоковані (%d)</string>
+    <string name="channel_no_banned">Заблокованих учасників немає</string>
+    <string name="channel_unban">Розблокувати</string>
+    <string name="channel_ban_dialog_title">Заблокувати %s</string>
+    <string name="channel_ban_duration_label">Виберіть тривалість блокування:</string>
+    <string name="channel_ban_reason_hint">Причина (необов\'язково)</string>
+    <string name="channel_ban_btn">Заблокувати</string>
+    <string name="channel_ban_1h">1 година</string>
+    <string name="channel_ban_24h">24 години</string>
+    <string name="channel_ban_7d">7 днів</string>
+    <string name="channel_ban_30d">30 днів</string>
+    <string name="channel_ban_permanent">Назавжди</string>
+    <string name="channel_ban_info_permanent">Назавжди заблоковано</string>
+    <string name="channel_ban_expires_in">Закінчується через %s</string>
+    <string name="channel_ban_expired">Термін дії закінчився</string>
+    <string name="channel_ban_reason_label">Причина: %s</string>
+
+    <!-- ── Channel Statistics ────────────────────────────────────────────── -->
+    <string name="channel_stats_media_post">[Медіа-пост]</string>
+    <string name="channel_stats_empty_post">[Пост без тексту]</string>
+    <string name="channel_stats_poll_post">📊 %s</string>
 </resources>
