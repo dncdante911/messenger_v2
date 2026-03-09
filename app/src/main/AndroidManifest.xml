@@ -251,7 +251,7 @@
         <activity
             android:name=".ui.channels.ChannelLivestreamActivity"
             android:exported="false"
-            android:screenOrientation="landscape"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar" />
 
         <!-- Channel Premium Subscription Activity -->

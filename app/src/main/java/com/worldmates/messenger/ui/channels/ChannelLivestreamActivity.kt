@@ -2,10 +2,13 @@ package com.worldmates.messenger.ui.channels
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -86,6 +89,18 @@ class ChannelLivestreamActivity : AppCompatActivity() {
         if (channelId == 0L) { finish(); return }
 
         viewModel = ViewModelProvider(this)[ChannelLivestreamViewModel::class.java]
+
+        // Lock portrait for setup; unlock rotation once streaming/viewing starts
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        lifecycleScope.launch {
+            viewModel.uiState.collect { state ->
+                requestedOrientation = when (state) {
+                    is LivestreamUiState.Hosting,
+                    is LivestreamUiState.Viewing -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+                    else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                }
+            }
+        }
 
         // Viewer: check if a stream is already active
         if (!isHost) {
