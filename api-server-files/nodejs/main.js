@@ -31,6 +31,8 @@ const { registerCallRoutes }    = require('./routes/calls')
 const { initializeWallyBot }    = require('./bots/wallybot')
 const { registerSignalRoutes }       = require('./routes/signal')
 const { registerSubscriptionRoutes } = require('./routes/subscription')
+const registerLivestreamRoutes       = require('./routes/channels/livestream')
+const registerChannelPremiumRoutes   = require('./routes/channels/channel-premium')
 const { createRateLimiter }          = require('./helpers/rateLimiter')
 const { instantView }                = require('./routes/instant_view')
 
@@ -179,6 +181,11 @@ async function init() {
   ctx.wo_bot_rss_items = require("./models/wo_bot_rss_items")(sequelize, DataTypes)
   ctx.wo_bot_rate_limits = require("./models/wo_bot_rate_limits")(sequelize, DataTypes)
   ctx.wo_bot_api_keys = require("./models/wo_bot_api_keys")(sequelize, DataTypes)
+
+  // ==================== Channel Livestream + Premium Models ====================
+  ctx.wm_channel_livestreams             = require("./models/wm_channel_livestreams")(sequelize, DataTypes)
+  ctx.wm_channel_subscriptions           = require("./models/wm_channel_subscriptions")(sequelize, DataTypes)
+  ctx.wm_channel_subscription_payments   = require("./models/wm_channel_subscription_payments")(sequelize, DataTypes)
 
   // ==================== Signal Protocol Models ====================
   ctx.signal_keys              = require("./models/signal_keys")(sequelize, DataTypes)
@@ -397,6 +404,12 @@ async function main() {
 
   // Register Subscription/PRO purchase routes (Way4Pay + LiqPay)
   registerSubscriptionRoutes(app, ctx);
+
+  // Register Channel Livestream routes
+  registerLivestreamRoutes(app, ctx);
+
+  // Register Channel Premium Subscription routes
+  registerChannelPremiumRoutes(app, ctx);
   // Instant View — article reader (no auth required, rate-limited at global level)
   app.post('/api/node/instant-view', instantView(ctx, io));
 

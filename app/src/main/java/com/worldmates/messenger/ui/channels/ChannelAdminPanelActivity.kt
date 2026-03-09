@@ -297,6 +297,60 @@ private fun InfoTab(
 
         item { Spacer(modifier = Modifier.height(8.dp)) }
 
+        // Livestream button
+        item {
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                "Livestream",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Button(
+                onClick = {
+                    val intent = ChannelLivestreamActivity.createIntent(
+                        context     = context,
+                        channelId   = channelId,
+                        isHost      = true,
+                        isPremium   = false, // TODO: pass real premium status
+                        channelName = channel?.name ?: ""
+                    )
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape    = RoundedCornerShape(12.dp),
+                colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E8C))
+            ) {
+                Icon(Icons.Default.Videocam, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Go Live")
+            }
+        }
+
+        // Channel Premium button
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            OutlinedButton(
+                onClick = {
+                    val intent = ChannelPremiumActivity.createIntent(
+                        context     = context,
+                        channelId   = channelId,
+                        channelName = channel?.name ?: "",
+                        isOwner     = true
+                    )
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape    = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Star, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Channel Premium")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         // Delete channel — danger zone
         item {
             HorizontalDivider()

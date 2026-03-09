@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import com.worldmates.messenger.network.WebRTCManager
+import org.webrtc.EglBase
 import org.webrtc.MediaStream
 import org.webrtc.SurfaceViewRenderer
 
@@ -104,10 +105,10 @@ fun GroupCallGrid(
                 }
             }
         }
-        else -> {
-            // 5+ учасників - адаптивна сітка 3 колонки
+        in 5..9 -> {
+            // 5–9 учасників — 3 колонки
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 120.dp),
+                columns = GridCells.Fixed(3),
                 modifier = modifier.fillMaxSize(),
                 contentPadding = PaddingValues(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -117,12 +118,117 @@ fun GroupCallGrid(
                     ParticipantTile(
                         participant = participant,
                         isLocal = participant == localParticipant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(0.75f)
+                        modifier = Modifier.fillMaxWidth().aspectRatio(0.75f)
                     )
                 }
             }
+        }
+        else -> {
+            // 10–25 учасників — компактна сітка 4 колонки з аватарами
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                modifier = modifier.fillMaxSize(),
+                contentPadding = PaddingValues(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                items(allParticipants) { participant ->
+                    CompactParticipantTile(
+                        participant = participant,
+                        isLocal = participant == localParticipant,
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ==================== COMPACT TILE (10–25 participants) ====================
+
+@Composable
+fun CompactParticipantTile(
+    participant: GroupCallParticipant,
+    isLocal: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0xFF1A1A1A))
+            .border(
+                width = if (participant.isSpeaking) 2.dp else 0.dp,
+                color = if (participant.isSpeaking) Color(0xFF4CAF50) else Color.Transparent,
+                shape = RoundedCornerShape(6.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (participant.videoEnabled && participant.mediaStream != null) {
+            AndroidView(
+                factory = { ctx ->
+                    SurfaceViewRenderer(ctx).apply {
+                        val eglBase = EglBase.create()
+                        init(eglBase.eglBaseContext, null)
+                        setMirror(isLocal)
+                        setEnableHardwareScaler(true)
+                        participant.mediaStream.videoTracks.firstOrNull()?.addSink(this)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            // Avatar fallback
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF3A3A4A)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (participant.avatar != null) {
+                    AsyncImage(
+                        model = participant.avatar,
+                        contentDescription = participant.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = participant.name.take(1).uppercase(),
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Name overlay
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .padding(2.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (isLocal) "You" else participant.name.split(" ").first(),
+                color = Color.White,
+                fontSize = 9.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        // Muted indicator
+        if (!participant.audioEnabled) {
+            Icon(
+                imageVector = Icons.Default.MicOff,
+                contentDescription = "Muted",
+                tint = Color(0xFFFF5252),
+                modifier = Modifier.align(Alignment.TopEnd).size(12.dp).padding(end = 2.dp, top = 2.dp)
+            )
         }
     }
 }
