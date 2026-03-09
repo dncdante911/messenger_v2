@@ -45,6 +45,11 @@ import com.worldmates.messenger.utils.extractFirstUrl
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import com.google.gson.Gson
+import com.worldmates.messenger.data.model.GroupPollData
+import com.worldmates.messenger.network.Poll
+import com.worldmates.messenger.network.PollOption
+import com.worldmates.messenger.ui.messages.components.PollMessageComponent
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -207,6 +212,35 @@ fun MessageBubbleComposable(
                             modifier = Modifier.size(24.dp)
                         )
                     }
+                }
+            }
+
+            // ── 📊 POLL MESSAGE ──────────────────────────────────────────────
+            val isPollMessage = message.type?.contains("poll") == true && !message.stickers.isNullOrEmpty()
+            if (isPollMessage) {
+                val pollData = runCatching {
+                    Gson().fromJson(message.stickers, GroupPollData::class.java)
+                }.getOrNull()
+                if (pollData != null) {
+                    val poll = Poll(
+                        id           = pollData.id,
+                        question     = pollData.question,
+                        pollType     = pollData.pollType,
+                        isAnonymous  = pollData.isAnonymous,
+                        isClosed     = pollData.isClosed,
+                        totalVotes   = pollData.totalVotes,
+                        createdBy    = pollData.createdBy,
+                        options      = pollData.options.map {
+                            PollOption(it.id, it.text, it.voteCount, it.percent, it.isVoted)
+                        }
+                    )
+                    PollMessageComponent(
+                        poll    = poll,
+                        isMine  = isOwn,
+                        onVote  = {},
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                    return@Row
                 }
             }
 

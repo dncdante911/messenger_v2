@@ -79,6 +79,8 @@ data class Message(
     @SerializedName("signal_header") val signalHeader: String? = null,     // JSON DR+X3DH header для E2EE декриптування
     // Реакції емоджі
     @SerializedName("reactions") val reactions: List<MessageReaction>? = null,
+    // Polls: JSON-encoded GroupPollData embedded when type_two == 'poll'
+    @SerializedName("stickers") val stickers: String? = null,
     // Локальные поля (не приходят с сервера)
     val decryptedText: String? = null,
     val decryptedMediaUrl: String? = null, // Розшифрований URL медіа (для веб-версії)

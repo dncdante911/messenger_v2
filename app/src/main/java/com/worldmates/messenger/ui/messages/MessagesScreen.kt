@@ -1555,19 +1555,13 @@ fun MessagesScreen(
                 }
             }  // Закриття if (!isSelectionMode)
 
-            // 📤 Export chat bottom sheet
+            // 📤 Export chat bottom sheet (client-side, uses already-decrypted messages)
             if (showExportSheet) {
                 ExportChatBottomSheet(
                     chatName = recipientName,
                     isGroup = isGroup,
-                    onDismiss = { showExportSheet = false },
-                    onExport = { format ->
-                        if (isGroup) {
-                            NodeRetrofitClient.groupApi.exportGroupChat(viewModel.getGroupId(), format)
-                        } else {
-                            NodeRetrofitClient.api.exportPrivateChat(viewModel.getRecipientId(), format)
-                        }
-                    }
+                    messages = messages,
+                    onDismiss = { showExportSheet = false }
                 )
             }
 

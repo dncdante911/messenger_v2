@@ -200,6 +200,16 @@ async function init() {
   await loadConfig(ctx)
   await loadLangs(ctx)
 
+  // ── Auto-migrations (idempotent) ─────────────────────────────────────────────
+  try {
+    await ctx.sequelize.query(
+      'ALTER TABLE Wo_GroupAdmins ADD COLUMN IF NOT EXISTS is_anonymous_admin TINYINT NOT NULL DEFAULT 0'
+    );
+    console.log('[Migration] Wo_GroupAdmins.is_anonymous_admin ensured');
+  } catch (e) {
+    console.warn('[Migration] is_anonymous_admin:', e.message);
+  }
+
 }
 
 

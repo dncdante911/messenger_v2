@@ -51,6 +51,7 @@ function resolveType(msg, userId) {
     if (msg.type_two === 'contact')                                 type = 'contact';
     if (msg.lng && msg.lat && msg.lng !== '0' && msg.lat !== '0')  type = 'map';
     if (msg.product_id && msg.product_id > 0)                      type = 'product';
+    if (msg.type_two === 'poll')                                    type = 'poll';
     return { position: pos, type: pos + '_' + type };
 }
 

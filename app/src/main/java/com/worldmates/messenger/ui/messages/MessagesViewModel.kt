@@ -1238,6 +1238,8 @@ class MessagesViewModel(application: Application) :
                 Log.d(TAG, "📨 [Socket.IO] cipher_v=$cipherVersion" +
                     " iv=${iv?.take(8)} signal=${signalHeader?.take(30)}")
 
+                val stickers = messageJson.optString("stickers", null)?.takeIf { it.isNotEmpty() }
+
                 // Build raw Message object with encrypted payload
                 val rawMessage = Message(
                     id            = messageJson.getLong("id"),
@@ -1253,7 +1255,8 @@ class MessagesViewModel(application: Application) :
                     iv            = iv,
                     tag           = tag,
                     cipherVersion = cipherVersion,
-                    signalHeader  = signalHeader
+                    signalHeader  = signalHeader,
+                    stickers      = stickers
                 )
 
                 // Decrypt (suspend — handles Signal v3 and legacy GCM/ECB)
