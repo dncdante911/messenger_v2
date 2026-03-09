@@ -17,9 +17,9 @@
 const { Op } = require('sequelize');
 
 async function isChannelAdmin(ctx, pageId, userId) {
-    const page = await ctx.wo_page.findOne({
+    const page = await ctx.wo_pages.findOne({
         attributes: ['user_id'],
-        where: { id: pageId },
+        where: { page_id: pageId },
         raw: true,
     }).catch(() => null);
     if (page && Number(page.user_id) === Number(userId)) return true;
@@ -63,12 +63,18 @@ async function buildPollResponse(ctx, pollId, userId) {
         const voteCount = await ctx.wo_bot_poll_votes.count({ where: { poll_id: pollId, option_id: opt.id } });
         return {
             id:         opt.id,
-            text:       opt.text,
+            text:       opt.option_text,   // fixed: was opt.text (wrong column)
             vote_count: voteCount,
             percent:    totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0,
             is_voted:   myOptionIds.includes(opt.id),
         };
     }));
+
+    // Extract creator user_id from bot_id format "channel_<userId>"
+    let createdBy = 0;
+    if (poll.bot_id && poll.bot_id.startsWith('channel_')) {
+        createdBy = parseInt(poll.bot_id.replace('channel_', '')) || 0;
+    }
 
     return {
         id:                      poll.id,
@@ -78,6 +84,7 @@ async function buildPollResponse(ctx, pollId, userId) {
         allows_multiple_answers: !!poll.allows_multiple_answers,
         is_closed:               !!poll.is_closed,
         total_votes:             totalVotes,
+        created_by:              createdBy,
         options:                 optionsWithCounts,
     };
 }
@@ -88,10 +95,10 @@ function createChannelPoll(ctx, io) {
     return async (req, res) => {
         try {
             const userId = req.userId;
-            const pageId = parseInt(req.body.page_id);
+            const pageId = parseInt(req.body.channel_id || req.body.page_id);
 
             if (!pageId || isNaN(pageId))
-                return res.json({ api_status: 400, error_message: 'page_id is required' });
+                return res.json({ api_status: 400, error_message: 'channel_id is required' });
 
             if (!await isChannelAdmin(ctx, pageId, userId))
                 return res.json({ api_status: 403, error_message: 'Only channel admins can create polls' });
@@ -100,7 +107,11 @@ function createChannelPoll(ctx, io) {
             if (!question)
                 return res.json({ api_status: 400, error_message: 'question is required' });
 
-            const rawOptions  = Array.isArray(req.body.options) ? req.body.options : [];
+            let rawOptions = req.body.options;
+            if (typeof rawOptions === 'string') {
+                try { rawOptions = JSON.parse(rawOptions); } catch { rawOptions = []; }
+            }
+            if (!Array.isArray(rawOptions)) rawOptions = [];
             const optionTexts = rawOptions.map(o => String(o).trim()).filter(Boolean);
             if (optionTexts.length < 2)
                 return res.json({ api_status: 400, error_message: 'At least 2 options required' });
@@ -122,17 +133,45 @@ function createChannelPoll(ctx, io) {
             for (let i = 0; i < optionTexts.length; i++) {
                 await ctx.wo_bot_poll_options.create({
                     poll_id:      poll.id,
-                    text:         optionTexts[i],
+                    option_text:  optionTexts[i],   // fixed: was "text" (wrong column name)
                     option_index: i,
                 });
             }
 
             const pollData = await buildPollResponse(ctx, poll.id, userId);
 
-            // Emit to channel subscribers via page room
+            // Create a channel post so the poll appears in the channel feed
+            const now = Math.floor(Date.now() / 1000);
+            const d = new Date(now * 1000);
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year  = String(d.getFullYear()).slice(-2);
+            const postRow = await ctx.wo_posts.create({
+                user_id:  userId,
+                page_id:  pageId,
+                postText: `__poll__${JSON.stringify(pollData)}`,
+                time:     now,
+                registered: `${month}/${year}`,
+                active:   1,
+            }).catch(() => null);
+
+            // Emit the new post (with poll data) so subscribers see it in real-time
+            if (postRow) {
+                const formattedPost = {
+                    id:             postRow.id,
+                    author_id:      userId,
+                    text:           '',
+                    poll:           pollData,
+                    media:          null,
+                    created_time:   now,
+                    is_pinned:      false,
+                    reactions_count: 0,
+                    comments_count: 0,
+                };
+                io.to(`channel_${pageId}`).emit('channel:post_created', { channelId: pageId, post: formattedPost });
+            }
             io.to('page' + pageId).emit('channel_poll_created', { page_id: pageId, poll: pollData });
 
-            return res.json({ api_status: 200, poll: pollData });
+            return res.json({ api_status: 200, poll: pollData, post_id: postRow ? postRow.id : null });
         } catch (err) {
             console.error('[Node/channel/poll/create]', err.message);
             return res.json({ api_status: 500, error_message: 'Server error' });

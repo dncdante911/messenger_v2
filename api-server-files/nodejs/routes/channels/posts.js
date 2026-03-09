@@ -120,13 +120,20 @@ async function formatPost(ctx, post, io) {
         where: { post_id: post.id, page_id: post.page_id, active: '1' }
     }) > 0;
 
+    const isPollPost = post.postText && post.postText.startsWith('__poll__');
+    let pollData = null;
+    if (isPollPost) {
+        try { pollData = JSON.parse(post.postText.slice(8)); } catch {}
+    }
+
     return {
         id: post.id,
         author_id: post.user_id,
         author_username: author ? author.username : null,
         author_name: authorName,
         author_avatar: authorAvatar,
-        text: post.postText || '',
+        text: isPollPost ? '' : (post.postText || ''),
+        poll: pollData,
         media: media.length > 0 ? media : null,
         created_time: post.time || 0,
         is_edited: false,

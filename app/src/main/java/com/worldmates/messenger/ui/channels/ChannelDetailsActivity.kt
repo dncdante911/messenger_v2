@@ -22,6 +22,7 @@ import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -160,6 +161,7 @@ fun ChannelDetailsScreen(
     var mediaViewerUrls by remember { mutableStateOf<List<String>>(emptyList()) }
     var mediaViewerInitialPage by remember { mutableStateOf(0) }
     var showCreatePostDialog by remember { mutableStateOf(false) }
+    var showCreatePollDialog by remember { mutableStateOf(false) }
     var showChangeAvatarDialog by remember { mutableStateOf(false) }
     var showSubscribersDialog by remember { mutableStateOf(false) }
     var showAddMembersDialog by remember { mutableStateOf(false) }
@@ -290,16 +292,27 @@ fun ChannelDetailsScreen(
             containerColor = Color.Transparent, // Прозорий фон щоб був видно BackgroundImage
             floatingActionButton = {
                 if (channel?.isAdmin == true) {
-                    if (channelViewStyle == ChannelViewStyle.PREMIUM) {
-                        PremiumFAB(
-                            onClick = { showCreatePostDialog = true }
-                        )
-                    } else {
-                        FloatingActionButton(
-                            onClick = { showCreatePostDialog = true },
-                            containerColor = MaterialTheme.colorScheme.primary
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        SmallFloatingActionButton(
+                            onClick = { showCreatePollDialog = true },
+                            containerColor = MaterialTheme.colorScheme.secondary
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Create Post")
+                            Icon(Icons.Default.HowToVote, contentDescription = "Create Poll")
+                        }
+                        if (channelViewStyle == ChannelViewStyle.PREMIUM) {
+                            PremiumFAB(
+                                onClick = { showCreatePostDialog = true }
+                            )
+                        } else {
+                            FloatingActionButton(
+                                onClick = { showCreatePostDialog = true },
+                                containerColor = MaterialTheme.colorScheme.primary
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Create Post")
+                            }
                         }
                     }
                 }
@@ -578,6 +591,10 @@ fun ChannelDetailsScreen(
                                     }
                                 }
 
+                                val onPollVoteHandler: (Long, Long) -> Unit = { pollId, optionId ->
+                                    detailsViewModel.voteOnChannelPoll(pollId, optionId)
+                                }
+
                                 when (channelViewStyle) {
                                     ChannelViewStyle.PREMIUM -> {
                                         PremiumPostCard(
@@ -588,6 +605,7 @@ fun ChannelDetailsScreen(
                                             onShareClick = onShareClickHandler,
                                             onMoreClick = onMoreClickHandler,
                                             onMediaClick = onMediaClickHandler,
+                                            onPollVote = onPollVoteHandler,
                                             canEdit = channel.isAdmin,
                                             modifier = Modifier.animateItem()
                                         )
@@ -601,6 +619,7 @@ fun ChannelDetailsScreen(
                                             onShareClick = onShareClickHandler,
                                             onMoreClick = onMoreClickHandler,
                                             onMediaClick = onMediaClickHandler,
+                                            onPollVote = onPollVoteHandler,
                                             canEdit = channel.isAdmin,
                                             modifier = Modifier.animateItem()
                                         )
@@ -662,6 +681,29 @@ fun ChannelDetailsScreen(
                         }
                     )
                     showCreatePostDialog = false
+                }
+            )
+        }
+
+        // Діалог створення опитування (для адмінів)
+        if (showCreatePollDialog && channel?.isAdmin == true) {
+            CreateChannelPollDialog(
+                channelId = channelId,
+                onDismiss = { showCreatePollDialog = false },
+                onCreate = { question, options ->
+                    detailsViewModel.createChannelPoll(
+                        channelId = channelId,
+                        question = question,
+                        options = options,
+                        onSuccess = {
+                            Toast.makeText(context, "Poll created!", Toast.LENGTH_SHORT).show()
+                            detailsViewModel.loadChannelPosts(channelId)
+                        },
+                        onError = { error ->
+                            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                        }
+                    )
+                    showCreatePollDialog = false
                 }
             )
         }
@@ -1883,6 +1925,90 @@ fun AddMembersDialog(
             TextButton(onClick = onDismiss) {
                 Text("Закрити")
             }
+        }
+    )
+}
+
+/**
+ * Діалог для створення опитування в каналі (тільки для адмінів)
+ */
+@Composable
+fun CreateChannelPollDialog(
+    channelId: Long,
+    onDismiss: () -> Unit,
+    onCreate: (question: String, options: List<String>) -> Unit
+) {
+    var question by remember { mutableStateOf("") }
+    var options by remember { mutableStateOf(listOf("", "")) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create Poll", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = question,
+                    onValueChange = { question = it },
+                    placeholder = { Text("Poll question", fontSize = 14.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                    shape = RoundedCornerShape(12.dp),
+                    label = { Text("Question") }
+                )
+
+                options.forEachIndexed { index, option ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = option,
+                            onValueChange = { value -> options = options.toMutableList().also { it[index] = value } },
+                            placeholder = { Text("Option ${index + 1}", fontSize = 14.sp) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        if (options.size > 2) {
+                            IconButton(onClick = { options = options.toMutableList().also { it.removeAt(index) } }) {
+                                Icon(Icons.Default.Close, contentDescription = "Remove option", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
+
+                if (options.size < 10) {
+                    TextButton(
+                        onClick = { options = options + "" },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add option")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val validOptions = options.map { it.trim() }.filter { it.isNotEmpty() }
+                    if (question.isBlank() || validOptions.size < 2) return@Button
+                    onCreate(question.trim(), validOptions)
+                    onDismiss()
+                },
+                enabled = question.isNotBlank() && options.count { it.isNotBlank() } >= 2
+            ) {
+                Text("Create Poll")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }

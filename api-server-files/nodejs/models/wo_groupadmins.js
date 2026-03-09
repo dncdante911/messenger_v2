@@ -57,6 +57,7 @@ module.exports = function(sequelize, DataTypes) {
     }
   }, {
     sequelize,
-    tableName: 'Wo_GroupAdmins'
+    tableName: 'Wo_GroupAdmins',
+    timestamps: false
   });
 };

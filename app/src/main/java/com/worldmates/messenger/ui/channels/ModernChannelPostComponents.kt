@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.model.*
+import com.worldmates.messenger.ui.messages.components.PollMessageComponent
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.res.stringResource
@@ -53,6 +54,7 @@ fun ChannelPostCard(
     onShareClick: () -> Unit = {},
     onMoreClick: () -> Unit = {},
     onMediaClick: ((Int) -> Unit)? = null,
+    onPollVote: (pollId: Long, optionId: Long) -> Unit = { _, _ -> },
     canEdit: Boolean = false,
     userKarmaScore: Float? = null,
     userTrustLevel: String? = null,
@@ -299,15 +301,23 @@ fun ChannelPostCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Post Text - улучшенная типографика
-            Text(
-                text = post.text,
-                fontSize = 15.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 24.sp,
-                letterSpacing = 0.15.sp,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            // Poll or regular text content
+            if (post.poll != null) {
+                PollMessageComponent(
+                    poll = post.poll,
+                    isMine = false,
+                    onVote = { optionId -> onPollVote(post.poll.id, optionId) }
+                )
+            } else if (post.text.isNotEmpty()) {
+                Text(
+                    text = post.text,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 24.sp,
+                    letterSpacing = 0.15.sp,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
 
             // Media Gallery
             if (!post.media.isNullOrEmpty()) {

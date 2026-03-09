@@ -102,7 +102,7 @@ function setTimerHandler(ctx, io) {
             // Якщо таймер вимкнено - скидаємо remove_at у 0 для повідомлень
             // що ще не видалились (мали б видалитись раніше, але не встигли)
             if (timerSeconds === 0) {
-                await ctx.Wo_Messages.update(
+                await ctx.wo_messages.update(
                     { remove_at: 0 },
                     {
                         where: {
