@@ -118,6 +118,9 @@ object NodeRetrofitClient {
     /** Subscription / PRO purchase API. */
     val subscriptionApi: NodeSubscriptionApi = retrofit.create(NodeSubscriptionApi::class.java)
 
+    /** Bot Store & management API via Node.js. */
+    val botApi: NodeBotApi = retrofit.create(NodeBotApi::class.java)
+
     /** Creates any Retrofit service backed by the Node.js base URL + auth interceptor. */
     fun <T> createService(cls: Class<T>): T = retrofit.create(cls)
 }
