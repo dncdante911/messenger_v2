@@ -59,6 +59,9 @@ import com.worldmates.messenger.network.FileManager
 import com.worldmates.messenger.network.NetworkQualityMonitor
 import com.worldmates.messenger.ui.theme.rememberThemeState
 import com.worldmates.messenger.ui.theme.PresetBackground
+import com.worldmates.messenger.ui.theme.AnimatedBgPrefs
+import com.worldmates.messenger.ui.theme.AnimatedBgVariant
+import com.worldmates.messenger.ui.theme.ChatAnimatedBackground
 import com.worldmates.messenger.ui.components.UserProfileMenuSheet
 import com.worldmates.messenger.ui.components.UserMenuData
 import com.worldmates.messenger.ui.components.UserMenuAction
@@ -235,6 +238,10 @@ fun MessagesScreen(
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val themeState = rememberThemeState()
+
+    // Sync animated background variant from SharedPreferences into the StateFlow
+    LaunchedEffect(Unit) { AnimatedBgPrefs.syncFromPrefs(context) }
+    val animatedBgVariant by AnimatedBgPrefs.variantFlow.collectAsState()
 
     // 📝 Налаштування форматування тексту
     // Для особистих чатів - всі функції доступні
@@ -550,6 +557,14 @@ fun MessagesScreen(
                         )
                 )
             }
+        }
+
+        // Animated background layer (shown over the static background if selected)
+        if (animatedBgVariant != AnimatedBgVariant.NONE) {
+            ChatAnimatedBackground(
+                variant = animatedBgVariant,
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
         // Контент поверх фону

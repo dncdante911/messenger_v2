@@ -9,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 
 /**
  * Динамический анимированный фон для мессенджера
@@ -73,8 +72,7 @@ fun ParticleEffect(
     modifier: Modifier = Modifier,
     particleColor: Color = Color.White.copy(alpha = 0.3f)
 ) {
-    val context = LocalContext.current
-    val variant = remember { AnimatedBgPrefs.getVariant(context) }
+    val variant by AnimatedBgPrefs.variantFlow.collectAsState()
     if (variant != AnimatedBgVariant.NONE) {
         ChatAnimatedBackground(variant = variant, modifier = modifier)
     }
