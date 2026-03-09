@@ -974,7 +974,7 @@ fun SettingsDrawerContent(
 
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.LocationOn,
+                    icon = Icons.Default.Place,
                     title = stringResource(R.string.geo_discovery_title),
                     onClick = {
                         onClose()
@@ -987,7 +987,7 @@ fun SettingsDrawerContent(
 
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.WorkspacePremium,
+                    icon = Icons.Default.Star,
                     title = stringResource(R.string.premium_title),
                     onClick = {
                         onClose()

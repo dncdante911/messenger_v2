@@ -356,7 +356,7 @@ interface NodeGroupApi {
 
     @FormUrlEncoded
     @POST("api/node/group/topics/list")
-    suspend fun getTopics(@Field("group_id") groupId: Long): TopicsResponse
+    suspend fun getTopics(@Field("group_id") groupId: Long): NodeTopicsResponse
 
     /** Alias used by GroupsViewModel (returns existing GroupTopicsResponse type) */
     @FormUrlEncoded
@@ -465,7 +465,7 @@ data class TopicDto(
     )
 }
 
-data class TopicsResponse(
+data class NodeTopicsResponse(
     @SerializedName("api_status")    val apiStatus: Int = 0,
     @SerializedName("topics")        val topics: List<TopicDto>? = null,
     @SerializedName("error_message") val errorMessage: String? = null
