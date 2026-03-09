@@ -840,6 +840,10 @@
     <string name="animated_bg_neon">Неон</string>
     <string name="animated_bg_forest">Лес</string>
     <string name="animated_bg_fire">Огонь</string>
+    <string name="animated_bg_premium_title">Функция Pro и новых пользователей</string>
+    <string name="animated_bg_premium_desc">Доступно с подпиской Pro или первые 5 дней после регистрации</string>
+    <string name="animated_bg_get_pro">Получить Pro</string>
+    <string name="animated_bg_trial_banner">✨ Пробный доступ: %d дн. осталось — попробуйте анимированные фоны!</string>
     <string name="bg_presets_title">Готовые фоны</string>
     <string name="bg_no_background">Нет фона</string>
     <string name="bg_pick">Выбрать фон</string>
