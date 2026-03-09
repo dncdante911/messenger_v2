@@ -6,84 +6,92 @@ import retrofit2.http.*
 /**
  * Node.js Bot API — Retrofit interface.
  *
- * Всі запити йдуть через NodeRetrofitClient (access-token header).
- * Жодних викликів до bot_api.php (PHP).
+ * Точно соответствует route-регистрации в api-server-files/nodejs/routes/bots/index.js:
+ *
+ *  GET    /api/node/bots/search?q=...   — публичный поиск ботов
+ *  GET    /api/node/bots                — мои боты (uAuth)
+ *  POST   /api/node/bots                — создать бота (uAuth)
+ *  GET    /api/node/bots/:bot_id        — инфо о боте + commands (публичный)
+ *  PUT    /api/node/bots/:bot_id        — обновить бота (uAuth)
+ *  DELETE /api/node/bots/:bot_id        — удалить бота (uAuth)
+ *  POST   /api/node/bots/:bot_id/regenerate-token  (uAuth)
+ *  GET    /api/node/bots/:bot_id/rss                (uAuth)
+ *  POST   /api/node/bots/:bot_id/rss                (uAuth)
+ *  PUT    /api/node/bots/:bot_id/rss/:feed_id       (uAuth)
+ *  DELETE /api/node/bots/:bot_id/rss/:feed_id       (uAuth)
+ *
+ * Auth: access-token header (добавляется NodeAuthInterceptor в NodeRetrofitClient).
  */
 interface NodeBotApi {
 
-    // ── Каталог / пошук ──────────────────────────────────────────────────────
-
-    @FormUrlEncoded
-    @POST("api/node/bot/catalog")
+    // ── Пошук ─────────────────────────────────────────────────────────────────
+    // GET /api/node/bots/search?q=...&limit=...&offset=...
+    // Обязательный параметр q; возвращает { api_status, bots, count }
+    @GET("api/node/bots/search")
     suspend fun searchBots(
-        @Field("query")    query: String? = null,
-        @Field("category") category: String? = null,
-        @Field("limit")    limit: Int = 30,
-        @Field("offset")   offset: Int = 0
+        @Query("q")      q: String,
+        @Query("limit")  limit: Int = 30,
+        @Query("offset") offset: Int = 0
     ): BotSearchResponse
 
-    // ── Інформація про бота ───────────────────────────────────────────────────
-
-    @FormUrlEncoded
-    @POST("api/node/bot/info")
-    suspend fun getBotInfo(
-        @Field("bot_id")   botId: String? = null,
-        @Field("username") username: String? = null
-    ): BotInfoResponse
-
-    @FormUrlEncoded
-    @POST("api/node/bot/commands")
-    suspend fun getBotCommands(
-        @Field("bot_id") botId: String
-    ): BotCommandsResponse
-
-    // ── Мої боти (CRUD) ───────────────────────────────────────────────────────
-
-    @FormUrlEncoded
-    @POST("api/node/bot/my")
+    // ── Мої боти ──────────────────────────────────────────────────────────────
+    // GET /api/node/bots?limit=...&offset=...
+    @GET("api/node/bots")
     suspend fun getMyBots(
-        @Field("limit")  limit: Int = 20,
-        @Field("offset") offset: Int = 0
+        @Query("limit")  limit: Int = 20,
+        @Query("offset") offset: Int = 0
     ): BotListResponse
 
+    // ── Інформація (+ commands вбудовані) ─────────────────────────────────────
+    // GET /api/node/bots/:bot_id
+    @GET("api/node/bots/{bot_id}")
+    suspend fun getBotInfo(
+        @Path("bot_id") botId: String
+    ): BotInfoResponse
+
+    // ── Створення ─────────────────────────────────────────────────────────────
+    // POST /api/node/bots
     @FormUrlEncoded
-    @POST("api/node/bot/create")
+    @POST("api/node/bots")
     suspend fun createBot(
-        @Field("username")       username: String,
-        @Field("display_name")   displayName: String,
-        @Field("description")    description: String? = null,
-        @Field("about")          about: String? = null,
-        @Field("category")       category: String? = "general",
+        @Field("username")        username: String,
+        @Field("display_name")    displayName: String,
+        @Field("description")     description: String? = null,
+        @Field("about")           about: String? = null,
+        @Field("category")        category: String? = "general",
         @Field("can_join_groups") canJoinGroups: Int = 1,
-        @Field("is_public")      isPublic: Int = 1
+        @Field("is_public")       isPublic: Int = 1
     ): CreateBotResponse
 
+    // ── Оновлення ─────────────────────────────────────────────────────────────
+    // PUT /api/node/bots/:bot_id
     @FormUrlEncoded
-    @POST("api/node/bot/update")
+    @PUT("api/node/bots/{bot_id}")
     suspend fun updateBot(
-        @Field("bot_id")         botId: String,
-        @Field("display_name")   displayName: String? = null,
-        @Field("description")    description: String? = null,
-        @Field("about")          about: String? = null,
-        @Field("category")       category: String? = null,
-        @Field("is_public")      isPublic: Int? = null,
+        @Path("bot_id")           botId: String,
+        @Field("display_name")    displayName: String? = null,
+        @Field("description")     description: String? = null,
+        @Field("about")           about: String? = null,
+        @Field("category")        category: String? = null,
+        @Field("is_public")       isPublic: Int? = null,
         @Field("can_join_groups") canJoinGroups: Int? = null
     ): BotGenericResponse
 
-    @FormUrlEncoded
-    @POST("api/node/bot/delete")
+    // ── Видалення ─────────────────────────────────────────────────────────────
+    // DELETE /api/node/bots/:bot_id
+    @DELETE("api/node/bots/{bot_id}")
     suspend fun deleteBot(
-        @Field("bot_id") botId: String
+        @Path("bot_id") botId: String
     ): BotGenericResponse
 
-    @FormUrlEncoded
-    @POST("api/node/bot/regenerate-token")
+    // ── Regenerate token ──────────────────────────────────────────────────────
+    // POST /api/node/bots/:bot_id/regenerate-token
+    @POST("api/node/bots/{bot_id}/regenerate-token")
     suspend fun regenerateBotToken(
-        @Field("bot_id") botId: String
+        @Path("bot_id") botId: String
     ): BotTokenResponse
 
-    // ── RSS ───────────────────────────────────────────────────────────────────
-
+    // ── RSS Feeds ─────────────────────────────────────────────────────────────
     @GET("api/node/bots/{bot_id}/rss")
     suspend fun getRssFeeds(
         @Path("bot_id") botId: String
@@ -92,21 +100,21 @@ interface NodeBotApi {
     @FormUrlEncoded
     @POST("api/node/bots/{bot_id}/rss")
     suspend fun addRssFeed(
-        @Path("bot_id")                botId: String,
-        @Field("feed_url")             feedUrl: String,
-        @Field("chat_id")              chatId: String,
-        @Field("feed_name")            feedName: String? = null,
+        @Path("bot_id")                  botId: String,
+        @Field("feed_url")               feedUrl: String,
+        @Field("chat_id")                chatId: String,
+        @Field("feed_name")              feedName: String? = null,
         @Field("check_interval_minutes") intervalMinutes: Int = 30,
-        @Field("max_items_per_check")  maxItems: Int = 5,
-        @Field("include_image")        includeImage: Int = 1,
-        @Field("include_description")  includeDesc: Int = 1
+        @Field("max_items_per_check")    maxItems: Int = 5,
+        @Field("include_image")          includeImage: Int = 1,
+        @Field("include_description")    includeDesc: Int = 1
     ): RssFeedResponse
 
     @FormUrlEncoded
     @PUT("api/node/bots/{bot_id}/rss/{feed_id}")
     suspend fun updateRssFeed(
-        @Path("bot_id")  botId: String,
-        @Path("feed_id") feedId: Int,
+        @Path("bot_id")                  botId: String,
+        @Path("feed_id")                 feedId: Int,
         @Field("is_active")              isActive: Int? = null,
         @Field("check_interval_minutes") intervalMinutes: Int? = null,
         @Field("max_items_per_check")    maxItems: Int? = null

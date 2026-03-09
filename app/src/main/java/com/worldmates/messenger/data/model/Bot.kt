@@ -191,9 +191,10 @@ data class BotListResponse(
 )
 
 data class BotInfoResponse(
-    @SerializedName("api_status") val apiStatus: Int,
-    @SerializedName("bot") val bot: Bot? = null,
-    @SerializedName("error_code") val errorCode: Int? = null,
+    @SerializedName("api_status")   val apiStatus: Int,
+    @SerializedName("bot")          val bot: Bot? = null,
+    @SerializedName("commands")     val commands: List<BotCommand>? = null,
+    @SerializedName("error_code")   val errorCode: Int? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 
