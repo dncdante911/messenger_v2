@@ -212,7 +212,9 @@ function voteChannelPoll(ctx, io) {
             const pageId   = parseInt(req.body.page_id);
             const optionIds = Array.isArray(req.body.option_ids)
                 ? req.body.option_ids.map(id => parseInt(id)).filter(n => !isNaN(n))
-                : (req.body.option_id ? [parseInt(req.body.option_id)] : []);
+                : req.body.option_ids  ? [parseInt(req.body.option_ids)].filter(n => !isNaN(n))
+                : req.body.option_id   ? [parseInt(req.body.option_id)].filter(n => !isNaN(n))
+                : [];
 
             if (!pollId || isNaN(pollId))
                 return res.json({ api_status: 400, error_message: 'poll_id is required' });
@@ -288,4 +290,4 @@ function closeChannelPoll(ctx, io) {
     };
 }
 
-module.exports = { createChannelPoll, getChannelPoll, voteChannelPoll, closeChannelPoll };
+module.exports = { createChannelPoll, getChannelPoll, voteChannelPoll, closeChannelPoll, buildPollResponse };

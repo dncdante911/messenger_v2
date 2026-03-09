@@ -15,6 +15,7 @@
 
 const { Op, Sequelize } = require('sequelize');
 const funcs = require('../../functions/functions');
+const { buildPollResponse } = require('./polls');
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ async function isChannelAdmin(ctx, channelId, userId) {
     return admin > 0;
 }
 
-async function formatPost(ctx, post, io) {
+async function formatPost(ctx, post, io, userId) {
     const author = await ctx.wo_users.findOne({
         where: { user_id: post.user_id },
         attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar'],
@@ -123,7 +124,14 @@ async function formatPost(ctx, post, io) {
     const isPollPost = post.postText && post.postText.startsWith('__poll__');
     let pollData = null;
     if (isPollPost) {
-        try { pollData = JSON.parse(post.postText.slice(8)); } catch {}
+        try {
+            const stored = JSON.parse(post.postText.slice(8));
+            if (stored && stored.id) {
+                // Re-query for live vote counts and is_voted status
+                pollData = await buildPollResponse(ctx, stored.id, userId || 0).catch(() => stored);
+            }
+            if (!pollData) pollData = stored;
+        } catch {}
     }
 
     return {
@@ -187,7 +195,7 @@ function getPosts(ctx, io) {
 
             const posts = [];
             for (const rawPost of rawPosts) {
-                const formatted = await formatPost(ctx, rawPost, io);
+                const formatted = await formatPost(ctx, rawPost, io, userId);
                 // Set user_reacted for current user
                 if (formatted.reactions) {
                     for (const r of formatted.reactions) {
@@ -288,7 +296,7 @@ function createPost(ctx, io) {
                 active: 1
             });
 
-            const formatted = await formatPost(ctx, newPost, io);
+            const formatted = await formatPost(ctx, newPost, io, userId);
 
             // Broadcast via Socket.IO
             if (io) {
@@ -373,7 +381,7 @@ function updatePost(ctx, io) {
                 where: { id: postId },
                 raw: true
             });
-            const formatted = await formatPost(ctx, updatedPost, io);
+            const formatted = await formatPost(ctx, updatedPost, io, userId);
 
             // Broadcast update via Socket.IO
             if (io) {

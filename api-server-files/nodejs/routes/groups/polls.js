@@ -329,4 +329,4 @@ function closePoll(ctx, io) {
     };
 }
 
-module.exports = { createPoll, getPoll, votePoll, closePoll };
+module.exports = { createPoll, getPoll, votePoll, closePoll, buildPollResponse };
