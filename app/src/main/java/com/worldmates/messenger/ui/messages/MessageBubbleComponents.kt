@@ -237,7 +237,7 @@ fun MessageBubbleComposable(
                     PollMessageComponent(
                         poll    = poll,
                         isMine  = isOwn,
-                        onVote  = {},
+                        onVote  = { optionId -> viewModel?.voteOnGroupPoll(message, optionId) },
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                     return@Row
