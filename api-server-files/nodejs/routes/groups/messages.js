@@ -26,6 +26,7 @@
 const { Op } = require('sequelize');
 const funcs  = require('../../functions/functions');
 const crypto = require('../../helpers/crypto');
+const { buildPollResponse } = require('./polls');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -169,7 +170,18 @@ async function buildMessage(ctx, msg, userId) {
         // Інші поля
         media:          msg.media          || '',
         mediaFileName:  msg.mediaFileName  || '',
-        stickers:       msg.stickers       || '',
+        stickers:       await (async () => {
+            if (msg.type_two === 'poll' && msg.stickers) {
+                try {
+                    const stored = JSON.parse(msg.stickers);
+                    if (stored && stored.id) {
+                        const fresh = await buildPollResponse(ctx, stored.id, userId);
+                        if (fresh) return JSON.stringify(fresh);
+                    }
+                } catch {}
+            }
+            return msg.stickers || '';
+        })(),
         time:           msg.time,
         time_text:      fmtTime(msg.time),
         seen:           msg.seen,
