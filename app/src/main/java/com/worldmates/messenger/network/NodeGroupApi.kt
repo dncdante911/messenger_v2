@@ -1,5 +1,6 @@
 package com.worldmates.messenger.network
 
+import com.google.gson.annotations.SerializedName
 import com.worldmates.messenger.data.Constants
 import com.worldmates.messenger.data.model.*
 import okhttp3.MultipartBody
@@ -351,37 +352,43 @@ interface NodeGroupApi {
         @Field("limit")    limit: Int     = 500
     ): okhttp3.ResponseBody
 
-    // ═══════════════════════ TOPICS ══════════════════════════════════════════
+    // ═══════════════════════ TOPICS / SUBGROUPS ═══════════════════════════════
 
     @FormUrlEncoded
-    @POST(Constants.NODE_GROUP_TOPICS_LIST)
-    suspend fun listTopics(
-        @Field("group_id") groupId: Long
-    ): GroupTopicsResponse
+    @POST("api/node/group/topics/list")
+    suspend fun getTopics(@Field("group_id") groupId: Long): TopicsResponse
+
+    /** Alias used by GroupsViewModel (returns existing GroupTopicsResponse type) */
+    @FormUrlEncoded
+    @POST("api/node/group/topics/list")
+    suspend fun listTopics(@Field("group_id") groupId: Long): com.worldmates.messenger.data.model.GroupTopicsResponse
 
     @FormUrlEncoded
-    @POST(Constants.NODE_GROUP_TOPICS_CREATE)
+    @POST("api/node/group/topics/create")
     suspend fun createTopic(
-        @Field("group_id") groupId: Long,
-        @Field("name")     name: String
-    ): GroupTopicResponse
+        @Field("group_id")   groupId: Long,
+        @Field("name")       name: String,
+        @Field("description") description: String? = null,
+        @Field("color")      color: String? = null,
+        @Field("is_private") isPrivate: Int = 0
+    ): TopicActionResponse
 
     @FormUrlEncoded
-    @POST(Constants.NODE_GROUP_TOPICS_UPDATE)
+    @POST("api/node/group/topics/update")
     suspend fun updateTopic(
         @Field("group_id")    groupId: Long,
         @Field("topic_id")    topicId: Long,
         @Field("name")        name: String? = null,
-        @Field("is_pinned")   isPinned: String? = null,
-        @Field("is_archived") isArchived: String? = null
-    ): GroupTopicResponse
+        @Field("description") description: String? = null,
+        @Field("color")       color: String? = null
+    ): TopicActionResponse
 
     @FormUrlEncoded
-    @POST(Constants.NODE_GROUP_TOPICS_DELETE)
+    @POST("api/node/group/topics/delete")
     suspend fun deleteTopic(
         @Field("group_id") groupId: Long,
         @Field("topic_id") topicId: Long
-    ): GroupSimpleResponse
+    ): TopicActionResponse
 
     // ═══════════════════════ ANONYMOUS ADMIN ═════════════════════════════════
 
@@ -433,3 +440,39 @@ interface NodeGroupApi {
         @Field("poll_id")  pollId: Long
     ): GroupPollResponse
 }
+
+// ─── Topics response data classes ────────────────────────────────────────────
+
+data class TopicDto(
+    @SerializedName("id")            val id: Long = 0,
+    @SerializedName("name")          val name: String = "",
+    @SerializedName("description")   val description: String? = null,
+    @SerializedName("color")         val color: String = "#0088CC",
+    @SerializedName("is_private")    val isPrivate: Int = 0,
+    @SerializedName("created_at")    val createdAt: String = "",
+    @SerializedName("messages_count") val messagesCount: Int = 0
+) {
+    fun toSubgroup(groupId: Long) = com.worldmates.messenger.ui.groups.components.Subgroup(
+        id = id,
+        parentGroupId = groupId,
+        name = name,
+        description = description,
+        membersCount = 0,
+        messagesCount = messagesCount,
+        isPrivate = isPrivate == 1,
+        createdAt = createdAt,
+        color = color
+    )
+}
+
+data class TopicsResponse(
+    @SerializedName("api_status")    val apiStatus: Int = 0,
+    @SerializedName("topics")        val topics: List<TopicDto>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class TopicActionResponse(
+    @SerializedName("api_status")    val apiStatus: Int = 0,
+    @SerializedName("topic")         val topic: TopicDto? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)

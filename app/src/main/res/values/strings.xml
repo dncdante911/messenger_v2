@@ -706,6 +706,7 @@
     <string name="totp_code">TOTP-код</string>
     <string name="enter_totp">Введіть TOTP-код</string>
     <string name="scan_qr_code">Сканувати QR-код</string>
+    <string name="qr_scanner_title">Сканер QR-коду</string>
     <string name="backup_codes">Резервні коди</string>
     <string name="i_saved_codes">Я зберіг коди</string>
     <string name="enable_2fa">Увімкнути 2FA</string>
@@ -851,6 +852,17 @@
     <!-- Заголовки секції фонів -->
     <string name="bg_section_title">Фонове зображення</string>
     <string name="bg_section_desc">Власний фон для чатів</string>
+    <!-- Animated background variants -->
+    <string name="animated_bg_section_title">Анімований фон</string>
+    <string name="animated_bg_section_desc">Живий Canvas-фон для чату</string>
+    <string name="animated_bg_none">Без анімації</string>
+    <string name="animated_bg_aurora">Аврора</string>
+    <string name="animated_bg_ocean">Океан</string>
+    <string name="animated_bg_cosmic">Космос</string>
+    <string name="animated_bg_sunset">Захід сонця</string>
+    <string name="animated_bg_neon">Неон</string>
+    <string name="animated_bg_forest">Ліс</string>
+    <string name="animated_bg_fire">Вогонь</string>
     <string name="bg_presets_title">Готові фони</string>
     <string name="bg_no_background">Немає фону</string>
     <string name="bg_pick">Вибрати фон</string>

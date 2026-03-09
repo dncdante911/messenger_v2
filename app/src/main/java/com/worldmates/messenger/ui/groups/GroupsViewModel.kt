@@ -1417,8 +1417,8 @@ class GroupsViewModel : ViewModel() {
                         isPrivate     = isPrivate,
                         color         = color,
                         messagesCount = 0,
-                        createdBy     = response.topic.createdBy,
-                        createdTime   = response.topic.createdAt
+                        createdBy     = 0L,
+                        createdTime   = System.currentTimeMillis() / 1000
                     )
                     _subgroups.value = _subgroups.value + newSubgroup
                     onSuccess()

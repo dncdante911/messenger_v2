@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -942,6 +943,19 @@ fun SettingsDrawerContent(
                         onClose()
                         context.startActivity(
                             android.content.Intent(context, com.worldmates.messenger.ui.calls.CallHistoryActivity::class.java)
+                        )
+                    }
+                )
+            }
+
+            item {
+                DrawerMenuItem(
+                    icon = Icons.Default.SmartToy,
+                    title = stringResource(R.string.bot_store),
+                    onClick = {
+                        onClose()
+                        context.startActivity(
+                            android.content.Intent(context, com.worldmates.messenger.ui.bots.BotStoreActivity::class.java)
                         )
                     }
                 )
