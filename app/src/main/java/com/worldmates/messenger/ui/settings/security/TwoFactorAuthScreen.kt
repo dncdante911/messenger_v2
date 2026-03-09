@@ -235,7 +235,7 @@ private fun MainStep(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (is2FAEnabled) stringResource(R.string.`2fa_status_enabled`) else stringResource(R.string.`2fa_status_disabled`),
+                            text = if (is2FAEnabled) stringResource(R.string.`two_status_enabled`) else stringResource(R.string.`two_status_disabled`),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF2C3E50)
