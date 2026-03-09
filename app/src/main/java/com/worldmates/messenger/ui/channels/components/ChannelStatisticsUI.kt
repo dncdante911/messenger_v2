@@ -24,11 +24,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.ChannelStatistics
 import com.worldmates.messenger.data.model.TopPostStatistic
 import java.text.SimpleDateFormat
@@ -601,7 +603,17 @@ private fun TopPostItem(rank: Int, post: TopPostStatistic) {
 
         Column(modifier = Modifier.weight(1f)) {
             // Post text preview
-            val preview = post.text.trim().ifEmpty { if (post.hasMedia) "[Медіа-пост]" else "[Пост без тексту]" }
+            val rawText = post.text.trim()
+            val preview = when {
+                rawText.startsWith("__poll__") -> {
+                    val question = try {
+                        org.json.JSONObject(rawText.removePrefix("__poll__")).optString("question", rawText)
+                    } catch (e: Exception) { rawText }
+                    stringResource(R.string.channel_stats_poll_post, question)
+                }
+                rawText.isEmpty() -> if (post.hasMedia) stringResource(R.string.channel_stats_media_post) else stringResource(R.string.channel_stats_empty_post)
+                else -> rawText
+            }
             Text(preview, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(5.dp))
 

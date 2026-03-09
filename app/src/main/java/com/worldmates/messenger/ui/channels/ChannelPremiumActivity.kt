@@ -420,7 +420,7 @@ private fun ChannelPlanCard(
         )
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 if (isPopular) {
                     Text(
                         stringResource(R.string.channel_premium_popular_badge),
@@ -438,7 +438,7 @@ private fun ChannelPlanCard(
         Column(horizontalAlignment = Alignment.End) {
             Text("${info.price_uah} ₴", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             if (info.months > 1) {
-                Text("${info.price_uah / info.months} ₴/mo", color = Color.Gray, fontSize = 11.sp)
+                Text(stringResource(R.string.plan_price_per_month, "${info.price_uah / info.months} ₴"), color = Color.Gray, fontSize = 11.sp)
             }
         }
     }
