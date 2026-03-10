@@ -390,6 +390,39 @@ async function main() {
     },
   });
 
+  // ── Redis Adapter (Socket.IO cluster / multi-server) ──────────────────────
+  // Обязателен при PM2 cluster mode (instances: 'max' = все ядра) и при
+  // горизонтальном масштабировании на 2+ серверах.
+  //
+  // Почему НЕ socket.io-redis (старый):
+  //   Он хранил socket rooms в Redis. При реконнекте Redis комнаты терялись
+  //   → io.to(room).emit() попадал в пустоту, сообщения пропадали молча.
+  //
+  // Почему @socket.io/redis-adapter (новый, v8):
+  //   Комнаты хранятся В ПАМЯТИ каждого воркера.
+  //   Redis используется ТОЛЬКО для роутинга emit()-ов между воркерами/серверами.
+  //   Реконнект Redis ≠ потеря комнат. Проблема старого адаптера устранена.
+  {
+    const { createAdapter } = require('@socket.io/redis-adapter');
+    const { createClient }  = require('redis');
+    const redisOpts = {
+      socket: {
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: parseInt(process.env.REDIS_PORT) || 6379,
+        reconnectStrategy: (retries) => Math.min(retries * 100, 3000), // экспоненциальный backoff
+      },
+      password: process.env.REDIS_PASSWORD,
+    };
+    const pubClient = createClient(redisOpts);
+    const subClient = pubClient.duplicate();
+    pubClient.on('error', err => console.error('[Redis Adapter] pub error:', err.message));
+    subClient.on('error', err => console.error('[Redis Adapter] sub error:', err.message));
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('[Redis Adapter] Socket.IO Redis adapter active — cluster/multi-server ready');
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // Initialize Bot API /bots namespace (bot-side connections)
   initializeBotNamespace(io, ctx);
 
