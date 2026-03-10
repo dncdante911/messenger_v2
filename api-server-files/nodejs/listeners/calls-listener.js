@@ -245,6 +245,20 @@ async function registerCallsListeners(socket, io, ctx) {
 
                 const initiatorName = initiator ?
                     `${initiator.first_name} ${initiator.last_name}` : 'Unknown';
+                const initiatorAvatar = initiator?.avatar || '';
+
+                // Зареєструвати ініціатора в кімнаті — без цього перший participant_joined
+                // ніколи не знайде нікого в existingParticipantIds і WebRTC offer не буде
+                if (!ctx.activeGroupCalls.has(roomName)) {
+                    ctx.activeGroupCalls.set(roomName, new Map());
+                }
+                ctx.activeGroupCalls.get(roomName).set(fromId, {
+                    userName:   initiatorName,
+                    userAvatar: initiatorAvatar,
+                    socketId:   socket.id
+                });
+                socket.join(roomName);
+                console.log(`[CALLS] 👥 Initiator ${fromId} joined room ${roomName}`);
 
                 // Отправить всем участникам кроме инициатора
                 members.forEach(member => {
