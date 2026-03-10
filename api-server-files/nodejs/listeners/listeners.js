@@ -69,9 +69,11 @@ const { LiveLocationController }    = require('../controllers/LiveLocationContro
 const redis = require("redis");
 let redisSubscribed = false;
 let redisConnecting = false;
+const _redisPass = process.env.REDIS_PASSWORD || '';
 const sub = redis.createClient({
     socket: { host: process.env.REDIS_HOST || '127.0.0.1', port: parseInt(process.env.REDIS_PORT) || 6379 },
-    password: process.env.REDIS_PASSWORD
+    // Only pass password when explicitly configured; undefined triggers NOAUTH error
+    ...(_redisPass ? { password: _redisPass } : {}),
 });
 
 sub.on('error', (err) => console.log('Redis Sub Error:', err));
