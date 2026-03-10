@@ -80,6 +80,8 @@ data class Message(
     // Реакції емоджі
     @SerializedName("reactions") val reactions: List<MessageReaction>? = null,
     // Polls: JSON-encoded GroupPollData embedded when type_two == 'poll'
+    // System message type: 'group_call' = group call notification card
+    @SerializedName("type_two") val typeTwo: String? = null,
     @SerializedName("stickers") val stickers: String? = null,
     @SerializedName("type_two") val typeTwo: String? = null,
     // Локальные поля (не приходят с сервера)

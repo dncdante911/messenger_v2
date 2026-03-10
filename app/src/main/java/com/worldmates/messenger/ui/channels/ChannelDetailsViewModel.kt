@@ -45,6 +45,10 @@ class ChannelDetailsViewModel : ViewModel() {
     private val _statistics = MutableStateFlow<ChannelStatistics?>(null)
     val statistics: StateFlow<ChannelStatistics?> = _statistics
 
+    /** Room name of the currently active livestream for this channel, or null if none. */
+    private val _activeStreamRoomName = MutableStateFlow<String?>(null)
+    val activeStreamRoomName: StateFlow<String?> = _activeStreamRoomName
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -1153,6 +1157,17 @@ class ChannelDetailsViewModel : ViewModel() {
                     Log.d("ChannelDetailsVM", "RT: New comment on post $postId")
                 }
             }
+
+            onStreamStarted = { roomName ->
+                viewModelScope.launch { _activeStreamRoomName.value = roomName }
+            }
+            onStreamEnded = {
+                viewModelScope.launch { _activeStreamRoomName.value = null }
+            }
+        }
+        // Check if the channel is already live (set by a previous socket event)
+        if (LiveChannelTracker.isLive(channelId)) {
+            _activeStreamRoomName.value = ""  // live but roomName not yet known from this session
         }
         socketHandler?.connect(channelId)
         Log.d("ChannelDetailsVM", "Socket.IO connected for channel $channelId")

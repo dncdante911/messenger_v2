@@ -1936,6 +1936,16 @@
     <string name="group_call_add_participant">Додати</string>
     <string name="group_call_participant_fallback">Учасник</string>
     <string name="group_default_name">Група</string>
+    <string name="group_call_started_video">📹 Розпочато відеоконференцію</string>
+    <string name="group_call_started_audio">🎤 Розпочато аудіоконференцію</string>
+    <string name="group_call_join_btn">Приєднатися</string>
+    <string name="group_call_invite_title">Запросити учасника</string>
+    <string name="group_call_invite_copy_link">Скопіювати посилання</string>
+    <string name="group_call_link_copied">Посилання скопійовано</string>
+    <string name="group_call_up_to_n">до %d учасників</string>
+    <string name="channel_live_now">🔴 НАЖИВО</string>
+    <string name="channel_live_watch">Дивитися</string>
+    <string name="channel_live_hosting">Ви ведете ефір</string>
 
     <!-- ── Channel Admin Panel additions ─────────────────────────────────── -->
     <string name="channel_livestream_section">Пряма трансляція</string>

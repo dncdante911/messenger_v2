@@ -49,7 +49,8 @@ import com.worldmates.messenger.util.toFullMediaUrl
 fun TelegramChannelItem(
     channel: Channel,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLive: Boolean = false
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -185,6 +186,36 @@ fun TelegramChannelItem(
                                 modifier = Modifier.size(10.dp)
                             )
                         }
+                    }
+                }
+
+                // LIVE badge — pulsing red overlay at top-end of avatar
+                if (isLive) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "live_pulse")
+                    val pulseAlpha by infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 0.4f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(700, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "live_alpha"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFE53935).copy(alpha = pulseAlpha))
+                            .padding(horizontal = 3.dp, vertical = 1.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "LIVE",
+                            fontSize = 7.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            lineHeight = 9.sp
+                        )
                     }
                 }
             }

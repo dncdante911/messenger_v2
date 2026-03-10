@@ -42,6 +42,10 @@ class ChannelSocketHandler(context: Context) {
     var onCommentAdded: ((Long, ChannelComment) -> Unit)? = null  // postId, comment
     var onCommentDeleted: ((Long, Long) -> Unit)? = null  // postId, commentId
     var onReactionChanged: ((Long, String, String) -> Unit)? = null  // postId, emoji, action
+    /** Fired when a livestream starts on the currently watched channel. */
+    var onStreamStarted: ((roomName: String) -> Unit)? = null
+    /** Fired when the livestream ends on the currently watched channel. */
+    var onStreamEnded: (() -> Unit)? = null
 
     init {
         val listener = object : SocketManager.SocketListener {
@@ -268,6 +272,20 @@ class ChannelSocketHandler(context: Context) {
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing comment", e)
                 }
+            }
+        }
+
+        // Track live channel state globally + notify this handler if it's for our channel
+        socketManager.onChannelStreamStarted { chId, roomName, _ ->
+            LiveChannelTracker.markLive(chId)
+            if (chId == channelId) {
+                scope.launch { onStreamStarted?.invoke(roomName) }
+            }
+        }
+        socketManager.onChannelStreamEnded { chId ->
+            LiveChannelTracker.markEnded(chId)
+            if (chId == channelId) {
+                scope.launch { onStreamEnded?.invoke() }
             }
         }
     }

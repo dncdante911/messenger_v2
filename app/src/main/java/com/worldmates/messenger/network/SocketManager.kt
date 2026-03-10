@@ -961,6 +961,32 @@ class SocketManager(
     }
 
     /**
+     * Listen for livestream start/end events on any subscribed channel.
+     * The server emits channel:stream_started when an admin starts a stream.
+     */
+    fun onChannelStreamStarted(callback: (channelId: Long, roomName: String, quality: String) -> Unit) {
+        socket?.on("channel:stream_started") { args ->
+            if (args.isNotEmpty() && args[0] is JSONObject) {
+                val data = args[0] as JSONObject
+                val chId = data.optLong("channelId")
+                val room = data.optString("roomName", "")
+                val quality = data.optString("quality", "720p")
+                if (chId > 0) callback(chId, room, quality)
+            }
+        }
+    }
+
+    fun onChannelStreamEnded(callback: (channelId: Long) -> Unit) {
+        socket?.on("channel:stream_ended") { args ->
+            if (args.isNotEmpty() && args[0] is JSONObject) {
+                val data = args[0] as JSONObject
+                val chId = data.optLong("channelId")
+                if (chId > 0) callback(chId)
+            }
+        }
+    }
+
+    /**
      * Відправити typing в каналі (коментарі)
      */
     fun sendChannelTyping(channelId: Long, postId: Long, isTyping: Boolean) {

@@ -14,6 +14,27 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
+/**
+ * Singleton that tracks which channels currently have an active livestream.
+ * Updated from ChannelSocketHandler and ChannelLivestreamViewModel.
+ */
+object LiveChannelTracker {
+    private val _liveChannelIds = MutableStateFlow<Set<Long>>(emptySet())
+    val liveChannelIds: StateFlow<Set<Long>> = _liveChannelIds
+
+    /** Call this when a channel:stream_started event is received for [channelId]. */
+    fun markLive(channelId: Long) {
+        _liveChannelIds.value = _liveChannelIds.value + channelId
+    }
+
+    /** Call this when a channel:stream_ended event is received for [channelId]. */
+    fun markEnded(channelId: Long) {
+        _liveChannelIds.value = _liveChannelIds.value - channelId
+    }
+
+    fun isLive(channelId: Long) = channelId in _liveChannelIds.value
+}
+
 class ChannelsViewModel : ViewModel() {
 
     private val _channelList = MutableStateFlow<List<Channel>>(emptyList())
@@ -36,6 +57,9 @@ class ChannelsViewModel : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
+
+    /** Exposes live channel IDs from the singleton tracker */
+    val liveChannelIds: StateFlow<Set<Long>> = LiveChannelTracker.liveChannelIds
 
     init {
         // Загружаем каналы сразу при инициализации

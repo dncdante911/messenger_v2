@@ -215,6 +215,42 @@ fun MessageBubbleComposable(
                 }
             }
 
+            // ── 📞 GROUP CALL CARD ────────────────────────────────────────────
+            if (message.typeTwo == "group_call" && !message.encryptedText.isNullOrEmpty()) {
+                val ctx = LocalContext.current
+                val meta = runCatching {
+                    org.json.JSONObject(message.encryptedText)
+                }.getOrNull()
+                if (meta != null) {
+                    val roomName = meta.optString("roomName", "")
+                    GroupCallMessageCard(
+                        callType        = meta.optString("callType", "audio"),
+                        initiatorName   = meta.optString("initiatorName", ""),
+                        maxParticipants = meta.optInt("maxParticipants", 5),
+                        isPremium       = meta.optBoolean("isPremiumCall", false),
+                        onJoin          = {
+                            if (roomName.isNotEmpty()) {
+                                val intent = android.content.Intent(
+                                    ctx,
+                                    com.worldmates.messenger.ui.calls.CallsActivity::class.java
+                                ).apply {
+                                    putExtra("isGroup", true)
+                                    putExtra("group_room_name", roomName)
+                                    putExtra("is_incoming_group", true)
+                                    putExtra("group_id", message.groupId?.toString() ?: "0")
+                                    putExtra("recipient_name", meta.optString("initiatorName", ""))
+                                    putExtra("call_type", meta.optString("callType", "audio"))
+                                    putExtra("group_max_participants", meta.optInt("maxParticipants", 5))
+                                }
+                                ctx.startActivity(intent)
+                            }
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                    return@Row
+                }
+            }
+
             // ── 📊 POLL MESSAGE ──────────────────────────────────────────────
             val isPollMessage = (message.type?.contains("poll") == true || message.typeTwo == "poll") && !message.stickers.isNullOrEmpty()
             if (isPollMessage) {
@@ -1379,6 +1415,110 @@ fun EditIndicator(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+    }
+}
+
+// ─── Group Call Message Card ──────────────────────────────────────────────────
+
+/**
+ * Card shown in group chat when a conference call has been started.
+ * Clicking "Join" opens CallsActivity for the active call.
+ */
+@Composable
+fun GroupCallMessageCard(
+    callType: String,
+    initiatorName: String,
+    maxParticipants: Int,
+    isPremium: Boolean,
+    onJoin: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isVideo    = callType == "video"
+    val accentColor = Color(0xFF7C4DFF)
+
+    Surface(
+        modifier  = modifier.widthIn(max = 280.dp),
+        shape     = RoundedCornerShape(16.dp),
+        color     = accentColor.copy(alpha = 0.08f),
+        border    = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.3f))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(accentColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isVideo) Icons.Default.Videocam else Icons.Default.Call,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(
+                            if (isVideo) R.string.group_call_started_video
+                            else R.string.group_call_started_audio
+                        ),
+                        fontWeight = FontWeight.Bold,
+                        fontSize   = 13.sp,
+                        color      = accentColor
+                    )
+                    if (initiatorName.isNotEmpty()) {
+                        Text(
+                            text  = initiatorName,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                if (isPremium) {
+                    Text(
+                        text = "PRO",
+                        color = Color(0xFFFFD700),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .background(Color(0xFFFFD700).copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            Text(
+                text  = stringResource(R.string.group_call_up_to_n, maxParticipants),
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            Button(
+                onClick  = onJoin,
+                modifier = Modifier.fillMaxWidth(),
+                shape    = RoundedCornerShape(10.dp),
+                colors   = ButtonDefaults.buttonColors(containerColor = accentColor),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.group_call_join_btn),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

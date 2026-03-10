@@ -1760,8 +1760,11 @@ fun GroupCallScreen(
     var videoEnabled by remember { mutableStateOf(callType == "video") }
     var speakerOn by remember { mutableStateOf(true) }
     var callSeconds by remember { mutableStateOf(0) }
+    var showInviteSheet by remember { mutableStateOf(false) }
     val maxParticipants = viewModel.getCurrentGroupMaxParticipants()
     val isPremium = maxParticipants > 5
+    val context = LocalContext.current
+    val roomName = viewModel.currentGroupRoomName ?: ""
 
     // Таймер звонка
     LaunchedEffect(Unit) {
@@ -1774,7 +1777,7 @@ fun GroupCallScreen(
     // Локальный участник
     val localParticipant = GroupCallParticipant(
         userId = viewModel.getUserId().toLong(),
-        name = "Вы",
+        name = stringResource(R.string.call_you),
         audioEnabled = audioEnabled,
         videoEnabled = videoEnabled,
         mediaStream = localStream,
@@ -1855,9 +1858,19 @@ fun GroupCallScreen(
                         viewModel.leaveGroupCall()
                     }
                     onCallEnd()
-                }
+                },
+                onInvite = { showInviteSheet = true }
             )
         }
+    }
+
+    // ── Invite / Share sheet ───────────────────────────────────────────────────
+    if (showInviteSheet) {
+        GroupCallInviteSheet(
+            roomName    = roomName,
+            groupName   = groupName,
+            onDismiss   = { showInviteSheet = false }
+        )
     }
 }
 
@@ -1937,7 +1950,8 @@ private fun GroupCallControls(
     onAudioToggle: () -> Unit,
     onVideoToggle: () -> Unit,
     onSpeakerToggle: () -> Unit,
-    onLeave: () -> Unit
+    onLeave: () -> Unit,
+    onInvite: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -1972,6 +1986,15 @@ private fun GroupCallControls(
                     else stringResource(R.string.group_call_speaker_off),
             active = speakerOn,
             onClick = onSpeakerToggle
+        )
+
+        // Запросити учасника
+        GroupControlButton(
+            icon   = Icons.Default.PersonAdd,
+            label  = stringResource(R.string.group_call_invite_title),
+            active = true,
+            onClick = onInvite,
+            activeColor = Color(0xFF2196F3)
         )
 
         // Завершить звонок
@@ -2010,7 +2033,8 @@ private fun GroupControlButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     active: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    activeColor: Color = Color(0xFFAA80FF)
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -2029,7 +2053,7 @@ private fun GroupControlButton(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (active) Color(0xFFAA80FF) else Color.Gray,
+                tint = if (active) activeColor else Color.Gray,
                 modifier = Modifier.size(26.dp)
             )
         }
@@ -2042,4 +2066,93 @@ private fun GroupControlButton(
             modifier = Modifier.width(64.dp)
         )
     }
+}
+
+// ─── Invite / Share Sheet ─────────────────────────────────────────────────────
+
+@Composable
+private fun GroupCallInviteSheet(
+    roomName: String,
+    groupName: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val clipboardManager = remember {
+        context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    }
+    val callLink = "worldmates://group_call/$roomName"
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor   = Color(0xFF1A1A3A),
+        title = {
+            Text(
+                text  = stringResource(R.string.group_call_invite_title),
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Call link display
+                Surface(
+                    color  = Color.White.copy(alpha = 0.08f),
+                    shape  = RoundedCornerShape(10.dp)
+                ) {
+                    Text(
+                        text     = callLink,
+                        color    = Color(0xFFAA80FF),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
+                // Copy link button
+                OutlinedButton(
+                    onClick = {
+                        val clip = android.content.ClipData.newPlainText("Group Call Link", callLink)
+                        clipboardManager.setPrimaryClip(clip)
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.group_call_link_copied),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    border   = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF7C4DFF)),
+                    shape    = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, tint = Color(0xFF7C4DFF))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text  = stringResource(R.string.group_call_invite_copy_link),
+                        color = Color(0xFF7C4DFF)
+                    )
+                }
+                // Share via system share sheet
+                Button(
+                    onClick = {
+                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_TEXT, callLink)
+                        }
+                        context.startActivity(
+                            android.content.Intent.createChooser(shareIntent, groupName)
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape    = RoundedCornerShape(10.dp),
+                    colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF))
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, tint = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    Text(text = stringResource(R.string.share), color = Color.White)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel), color = Color(0xFF7C4DFF))
+            }
+        }
+    )
 }
