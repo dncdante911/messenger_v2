@@ -349,7 +349,8 @@ fun ChatsScreenModern(
                             onChannelClick = onChannelClick,
                             onCreateChannelStoryClick = {
                                 showCreateChannelStoryDialog = true
-                            }
+                            },
+                            liveChannelIds = liveChannelIds
                         )
                     }
                     2 -> {
@@ -866,7 +867,8 @@ fun ChannelListTab(
     uiStyle: UIStyle,
     channelsViewModel: com.worldmates.messenger.ui.channels.ChannelsViewModel,
     onRefresh: () -> Unit,
-    onChannelClick: (com.worldmates.messenger.data.model.Channel) -> Unit
+    onChannelClick: (com.worldmates.messenger.data.model.Channel) -> Unit,
+    liveChannelIds: Set<Long> = emptySet()
 ) {
     val context = LocalContext.current
     val refreshing by remember { mutableStateOf(false) }
@@ -1148,7 +1150,8 @@ fun ChannelListTabWithStories(
     channelsViewModel: com.worldmates.messenger.ui.channels.ChannelsViewModel,
     onRefresh: () -> Unit,
     onChannelClick: (com.worldmates.messenger.data.model.Channel) -> Unit,
-    onCreateChannelStoryClick: () -> Unit = {}
+    onCreateChannelStoryClick: () -> Unit = {},
+    liveChannelIds: Set<Long> = emptySet()
 ) {
     val refreshing by remember { mutableStateOf(false) }
     val channelViewStyle = rememberChannelViewStyle()
