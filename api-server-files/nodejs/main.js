@@ -449,7 +449,8 @@ async function main() {
   registerSubscriptionRoutes(app, ctx);
 
   // Register Channel Livestream routes
-  registerLivestreamRoutes(app, ctx);
+  ctx.io = io;   // needed by livestream routes and anywhere ctx.io is used
+  registerLivestreamRoutes(app, ctx, io);
 
   // Register Channel Premium Subscription routes
   registerChannelPremiumRoutes(app, ctx);

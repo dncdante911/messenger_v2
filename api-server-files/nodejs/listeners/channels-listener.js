@@ -359,6 +359,226 @@ async function registerChannelsListeners(socket, io, ctx) {
         }
     });
 
+    // ==================== LIVESTREAM WebRTC SIGNALING ====================
+
+    /**
+     * Viewer is ready for WebRTC — notifies the streamer to send an offer.
+     * Data: { roomName, userId, channelId }
+     */
+    socket.on('stream:viewer_join', async (data) => {
+        try {
+            const { roomName, userId, channelId } = data;
+            if (!roomName || !userId) return;
+
+            socket.join(roomName);
+
+            // Get viewer display info
+            let userName = 'Viewer', userAvatar = '';
+            try {
+                const u = await ctx.wo_users.findOne({
+                    where: { user_id: userId },
+                    attributes: ['first_name', 'last_name', 'username', 'avatar'],
+                    raw: true,
+                });
+                if (u) {
+                    userName = (u.first_name || u.last_name)
+                        ? `${u.first_name || ''} ${u.last_name || ''}`.trim()
+                        : (u.username || 'Viewer');
+                    userAvatar = u.avatar || '';
+                }
+            } catch (_) {}
+
+            // Find host socket and notify them to create an offer for this viewer
+            if (channelId) {
+                const stream = await ctx.wm_channel_livestreams.findOne({
+                    where: { channel_id: channelId, status: 'live', room_name: roomName },
+                    attributes: ['host_user_id'],
+                    raw: true,
+                }).catch(() => null);
+
+                if (stream) {
+                    const hostSockets = ctx.userIdSocket[stream.host_user_id];
+                    if (hostSockets && hostSockets.length > 0) {
+                        hostSockets.forEach(s => s.emit('stream:viewer_joined', {
+                            roomName,
+                            userId,
+                            userName,
+                            userAvatar,
+                        }));
+                    }
+                }
+            }
+
+            console.log(`[Livestream] Viewer ${userId} joined stream room ${roomName}`);
+        } catch (e) {
+            console.error('[Livestream] stream:viewer_join error:', e.message);
+        }
+    });
+
+    /**
+     * Relay WebRTC offer (streamer → specific viewer).
+     * Data: { roomName, toUserId, sdpOffer }
+     */
+    socket.on('stream:offer', (data) => {
+        const { roomName, toUserId, sdpOffer } = data;
+        if (!toUserId || !sdpOffer) return;
+
+        const fromUserId = ctx.socketIdUserHash
+            ? ctx.userHashUserId?.[ctx.socketIdUserHash[socket.id]]
+            : null;
+
+        const recipientSockets = ctx.userIdSocket[toUserId];
+        if (recipientSockets && recipientSockets.length > 0) {
+            recipientSockets.forEach(s => s.emit('stream:offer', {
+                roomName,
+                fromUserId,
+                sdpOffer,
+            }));
+        }
+    });
+
+    /**
+     * Relay WebRTC answer (viewer → streamer).
+     * Data: { roomName, toUserId, sdpAnswer }
+     */
+    socket.on('stream:answer', (data) => {
+        const { roomName, toUserId, sdpAnswer } = data;
+        if (!toUserId || !sdpAnswer) return;
+
+        const fromUserId = ctx.socketIdUserHash
+            ? ctx.userHashUserId?.[ctx.socketIdUserHash[socket.id]]
+            : null;
+
+        const recipientSockets = ctx.userIdSocket[toUserId];
+        if (recipientSockets && recipientSockets.length > 0) {
+            recipientSockets.forEach(s => s.emit('stream:answer', {
+                roomName,
+                fromUserId,
+                sdpAnswer,
+            }));
+        }
+    });
+
+    /**
+     * Relay ICE candidate between streamer and viewer.
+     * Data: { roomName, toUserId, candidate }
+     */
+    socket.on('stream:ice', (data) => {
+        const { roomName, toUserId, candidate } = data;
+        if (!candidate) return;
+
+        const fromUserId = ctx.socketIdUserHash
+            ? ctx.userHashUserId?.[ctx.socketIdUserHash[socket.id]]
+            : null;
+
+        if (toUserId) {
+            const recipientSockets = ctx.userIdSocket[toUserId];
+            if (recipientSockets && recipientSockets.length > 0) {
+                recipientSockets.forEach(s => s.emit('stream:ice', {
+                    roomName,
+                    fromUserId,
+                    candidate,
+                }));
+            }
+        } else {
+            // Broadcast to entire room (fallback)
+            socket.to(roomName).emit('stream:ice', { fromUserId, candidate });
+        }
+    });
+
+    /**
+     * Adaptive quality feedback from viewer.
+     * Viewer reports its connection stats → server decides if streamer should lower bitrate.
+     * Data: { roomName, userId, bandwidth (kbps), rtt (ms), loss (0-1) }
+     */
+    socket.on('stream:quality', async (data) => {
+        try {
+            const { roomName, userId, bandwidth, rtt, loss } = data;
+            if (!roomName) return;
+
+            // Simple adaptive logic:
+            // Good:   bandwidth > 2000 && rtt < 150 && loss < 0.02
+            // Medium: bandwidth > 800  && rtt < 300 && loss < 0.05
+            // Poor:   otherwise
+            let suggestedQuality = null;
+            let suggestedBitrate = null;
+
+            if (bandwidth > 0) {
+                if (bandwidth < 500 || loss > 0.05 || rtt > 500) {
+                    suggestedQuality = '240p';
+                    suggestedBitrate = 300;
+                } else if (bandwidth < 1000 || rtt > 300) {
+                    suggestedQuality = '360p';
+                    suggestedBitrate = 700;
+                } else if (bandwidth < 2000) {
+                    suggestedQuality = '480p';
+                    suggestedBitrate = 1200;
+                }
+                // otherwise keep current quality — don't downgrade unnecessarily
+            }
+
+            if (suggestedBitrate !== null) {
+                // Find the streamer for this room and tell them to adjust
+                const stream = await ctx.wm_channel_livestreams.findOne({
+                    where: { room_name: roomName, status: 'live' },
+                    attributes: ['host_user_id'],
+                    raw: true,
+                }).catch(() => null);
+
+                if (stream) {
+                    const hostSockets = ctx.userIdSocket[stream.host_user_id];
+                    if (hostSockets && hostSockets.length > 0) {
+                        hostSockets.forEach(s => s.emit('stream:quality_adjust', {
+                            roomName,
+                            reportedBy: userId,
+                            suggestedQuality,
+                            suggestedBitrate,
+                            viewerStats: { bandwidth, rtt, loss },
+                        }));
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[Livestream] stream:quality error:', e.message);
+        }
+    });
+
+    /**
+     * Viewer leaves the stream.
+     * Data: { roomName, userId, channelId }
+     */
+    socket.on('stream:viewer_leave', async (data) => {
+        try {
+            const { roomName, userId, channelId } = data;
+            if (!roomName || !userId) return;
+
+            socket.leave(roomName);
+
+            // Notify streamer
+            if (channelId) {
+                const stream = await ctx.wm_channel_livestreams.findOne({
+                    where: { channel_id: channelId, status: 'live', room_name: roomName },
+                    attributes: ['host_user_id', 'id', 'viewer_count'],
+                    raw: true,
+                }).catch(() => null);
+
+                if (stream) {
+                    if (stream.viewer_count > 0) {
+                        await ctx.wm_channel_livestreams.decrement('viewer_count', { where: { id: stream.id } });
+                    }
+                    const hostSockets = ctx.userIdSocket[stream.host_user_id];
+                    if (hostSockets && hostSockets.length > 0) {
+                        hostSockets.forEach(s => s.emit('stream:viewer_left', { roomName, userId }));
+                    }
+                }
+            }
+
+            console.log(`[Livestream] Viewer ${userId} left stream room ${roomName}`);
+        } catch (e) {
+            console.error('[Livestream] stream:viewer_leave error:', e.message);
+        }
+    });
+
     // ==================== CLEANUP ====================
 
     /**
