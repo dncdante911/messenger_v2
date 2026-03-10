@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
+import org.webrtc.MediaStream
 import org.webrtc.SurfaceViewRenderer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -139,7 +140,9 @@ private fun LivestreamScreen(
     channelIsPremium: Boolean,
     onClose: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState     by viewModel.uiState.collectAsStateWithLifecycle()
+    val localStream by viewModel.localStream.collectAsStateWithLifecycle()
+    val remoteStream by viewModel.remoteStream.collectAsStateWithLifecycle()
 
     Box(
         modifier = Modifier
@@ -173,16 +176,21 @@ private fun LivestreamScreen(
 
             is LivestreamUiState.Hosting -> {
                 HostingScreen(
-                    info    = state.info,
-                    onEnd   = { viewModel.endStream(); onClose() },
-                    onClose = onClose
+                    info        = state.info,
+                    localStream = localStream,
+                    onEnd       = { viewModel.endStream(); onClose() },
+                    onClose     = onClose,
+                    onToggleCamera  = { viewModel.switchCamera() },
+                    onToggleAudio   = { enabled -> viewModel.toggleAudio(enabled) },
+                    onToggleVideo   = { enabled -> viewModel.toggleVideo(enabled) }
                 )
             }
 
             is LivestreamUiState.Viewing -> {
                 ViewingScreen(
-                    info    = state.info,
-                    onLeave = { viewModel.leaveStream(); onClose() }
+                    info         = state.info,
+                    remoteStream = remoteStream,
+                    onLeave      = { viewModel.leaveStream(); onClose() }
                 )
             }
 
@@ -349,31 +357,41 @@ private fun QualityOption(quality: String, selected: Boolean, isPremium: Boolean
 @Composable
 private fun HostingScreen(
     info: LivestreamInfo,
+    localStream: MediaStream?,
     onEnd: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onToggleCamera: () -> Unit,
+    onToggleAudio: (Boolean) -> Unit,
+    onToggleVideo: (Boolean) -> Unit
 ) {
     var showEndConfirm by remember { mutableStateOf(false) }
+    var audioEnabled   by remember { mutableStateOf(true) }
+    var videoEnabled   by remember { mutableStateOf(true) }
 
     // Full-screen layout: camera fills the screen, controls overlay on top/bottom
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // Camera preview — fills entire screen
+        // Local camera preview — fills entire screen
+        val eglContext = remember { com.worldmates.messenger.network.WebRTCManager.getEglContext() }
         AndroidView(
             factory = { ctx ->
                 SurfaceViewRenderer(ctx).apply {
                     try {
-                        val eglBase = org.webrtc.EglBase.create()
-                        init(eglBase.eglBaseContext, null)
+                        init(eglContext, null)
                         setMirror(true)
                         setEnableHardwareScaler(true)
-                        // Attach local video track if WebRTC is active
-                        com.worldmates.messenger.network.WebRTCManager.activeInstance
-                            ?.getLocalMediaStream()
-                            ?.videoTracks?.firstOrNull()?.addSink(this)
+                        setZOrderMediaOverlay(false)
+                        localStream?.videoTracks?.firstOrNull()?.addSink(this)
                     } catch (e: Exception) {
-                        // WebRTC not yet ready — will show black
+                        android.util.Log.e("Livestream", "SurfaceViewRenderer init error", e)
                     }
                 }
+            },
+            update = { renderer ->
+                // Re-attach when localStream changes
+                try {
+                    localStream?.videoTracks?.firstOrNull()?.addSink(renderer)
+                } catch (e: Exception) { /* ignore */ }
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -427,22 +445,80 @@ private fun HostingScreen(
                 )
         )
 
-        // Bottom: End stream button
-        OutlinedButton(
-            onClick  = { showEndConfirm = true },
+        // Bottom controls row
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
-                .padding(horizontal = 24.dp)
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
-            colors   = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF4444)),
-            border   = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFFF4444)),
-            shape    = RoundedCornerShape(14.dp)
+                .padding(horizontal = 20.dp, bottom = 24.dp, top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Stop, null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.livestream_end_stream), fontWeight = FontWeight.Bold)
+            // Mic toggle
+            IconButton(
+                onClick = {
+                    audioEnabled = !audioEnabled
+                    onToggleAudio(audioEnabled)
+                },
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(
+                        if (audioEnabled) Color.White.copy(alpha = 0.15f) else Color(0xFFFF4444).copy(alpha = 0.8f),
+                        CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = if (audioEnabled) Icons.Default.Mic else Icons.Default.MicOff,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Camera flip
+            IconButton(
+                onClick = onToggleCamera,
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(Color.White.copy(alpha = 0.15f), CircleShape)
+            ) {
+                Icon(Icons.Default.Cameraswitch, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+
+            // Video toggle
+            IconButton(
+                onClick = {
+                    videoEnabled = !videoEnabled
+                    onToggleVideo(videoEnabled)
+                },
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(
+                        if (videoEnabled) Color.White.copy(alpha = 0.15f) else Color(0xFFFF4444).copy(alpha = 0.8f),
+                        CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = if (videoEnabled) Icons.Default.Videocam else Icons.Default.VideocamOff,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            // End stream button
+            OutlinedButton(
+                onClick  = { showEndConfirm = true },
+                colors   = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF4444)),
+                border   = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFFF4444)),
+                shape    = RoundedCornerShape(14.dp)
+            ) {
+                Icon(Icons.Default.Stop, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.livestream_end_stream), fontWeight = FontWeight.Bold)
+            }
         }
     }
 
@@ -468,21 +544,47 @@ private fun HostingScreen(
 @Composable
 private fun ViewingScreen(
     info: LivestreamInfo,
+    remoteStream: MediaStream?,
     onLeave: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        // Remote stream fills screen (placeholder spinner while buffering)
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(color = Color(0xFFE91E8C))
-            Text(
-                text     = stringResource(R.string.livestream_watching_quality, info.quality),
-                color    = Color.Gray,
-                fontSize = 12.sp,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp)
+        if (remoteStream != null) {
+            // Remote stream renders full-screen
+            val eglContext = remember { com.worldmates.messenger.network.WebRTCManager.getEglContext() }
+            AndroidView(
+                factory = { ctx ->
+                    SurfaceViewRenderer(ctx).apply {
+                        try {
+                            init(eglContext, null)
+                            setEnableHardwareScaler(true)
+                            setZOrderMediaOverlay(false)
+                            remoteStream.videoTracks?.firstOrNull()?.addSink(this)
+                        } catch (e: Exception) {
+                            android.util.Log.e("Livestream", "ViewingScreen renderer init error", e)
+                        }
+                    }
+                },
+                update = { renderer ->
+                    try {
+                        remoteStream.videoTracks?.firstOrNull()?.addSink(renderer)
+                    } catch (e: Exception) { /* ignore */ }
+                },
+                modifier = Modifier.fillMaxSize()
             )
+        } else {
+            // Waiting for stream to connect
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFFE91E8C))
+                Text(
+                    text     = stringResource(R.string.livestream_watching_quality, info.quality),
+                    color    = Color.Gray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp)
+                )
+            }
         }
 
         // Dark top gradient
