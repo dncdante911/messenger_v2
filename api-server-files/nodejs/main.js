@@ -133,8 +133,7 @@ async function init() {
   ctx.wo_langs = require("./models/wo_langs")(sequelize, DataTypes)
   ctx.wo_config = require("./models/wo_config")(sequelize, DataTypes)
   ctx.wo_blocks = require("./models/wo_blocks")(sequelize, DataTypes)
-  // [WoWonder social] wo_followers — нужен только для follow/unfollow уведомлений соцсети
-  // ctx.wo_followers = require("./models/wo_followers")(sequelize, DataTypes)
+  ctx.wo_followers = require("./models/wo_followers")(sequelize, DataTypes)
   ctx.wo_hashtags = require("./models/wo_hashtags")(sequelize, DataTypes)  // нужен в functions.js для разбора хэштегов в сообщениях
   ctx.wo_posts = require("./models/wo_posts")(sequelize, DataTypes)          // нужен! каналы хранят публикации в wo_posts
   ctx.wo_comments = require("./models/wo_comments")(sequelize, DataTypes)    // нужен! комментарии к постам каналов
