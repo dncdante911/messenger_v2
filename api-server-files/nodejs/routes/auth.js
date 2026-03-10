@@ -23,10 +23,15 @@ const crypto     = require('crypto');
 // mail.sthost.pro DNS resolves to the server's own external IPs (195.22.131.11,
 // 46.232.232.38). Hairpin NAT is blocked ⇒ we try localhost/127.0.0.1 first,
 // then fall back to the external hostname if the mail daemon is reachable.
+//
+// Credentials are read from environment variables.
+// Set in /etc/environment or pm2 ecosystem.config.js:
+//   SMTP_USER=support@worldmates.club
+//   SMTP_PASS=<password>
 
 const SMTP_AUTH = {
-    user: 'support@worldmates.club',
-    pass: '3344Frz@q0607'
+    user: process.env.SMTP_USER || 'support@worldmates.club',
+    pass: process.env.SMTP_PASS || '',
 };
 
 const SMTP_CANDIDATES = [
@@ -113,8 +118,9 @@ function codeBlock(code) {
 
 // ─── OTP store ────────────────────────────────────────────────────────────────
 
-// key: `${type}:${normalised_contact}` → { code, userId, expiresAt, ... }
+// key: `${type}:${normalised_contact}` → { code, userId, expiresAt, attempts }
 const otpStore = new Map();
+const OTP_MAX_ATTEMPTS = 5;   // lock after 5 wrong guesses
 
 // Auto-clean expired entries every 5 minutes
 setInterval(() => {
@@ -122,7 +128,7 @@ setInterval(() => {
     for (const [k, v] of otpStore) {
         if (v.expiresAt < now) otpStore.delete(k);
     }
-}, 5 * 60 * 1000);
+}, 5 * 60 * 1000).unref();
 
 function otpKey(type, contact) {
     return `${type}:${contact.toLowerCase().trim()}`;
@@ -130,8 +136,9 @@ function otpKey(type, contact) {
 
 function storeOtp(type, contact, code, extra = {}) {
     otpStore.set(otpKey(type, contact), {
-        code: String(code),
+        code:     String(code),
         expiresAt: Date.now() + 10 * 60 * 1000,
+        attempts: 0,
         ...extra
     });
 }
@@ -144,7 +151,14 @@ function checkOtp(type, contact, code) {
         otpStore.delete(key);
         return { ok: false, reason: 'expired' };
     }
-    if (entry.code !== String(code).trim()) return { ok: false, reason: 'invalid' };
+    if (entry.attempts >= OTP_MAX_ATTEMPTS) {
+        otpStore.delete(key);
+        return { ok: false, reason: 'locked' };
+    }
+    if (entry.code !== String(code).trim()) {
+        entry.attempts += 1;
+        return { ok: false, reason: 'invalid', attemptsLeft: OTP_MAX_ATTEMPTS - entry.attempts };
+    }
     otpStore.delete(key);
     return { ok: true, entry };
 }
@@ -243,9 +257,16 @@ function resetPassword(ctx) {
         const result  = checkOtp('reset', contact, code);
 
         if (!result.ok) {
-            const msg = result.reason === 'invalid'
-                ? 'Невірний код підтвердження'
-                : 'Код прострочений. Запросіть новий.';
+            let msg;
+            if (result.reason === 'invalid') {
+                msg = result.attemptsLeft > 0
+                    ? `Невірний код. Залишилось спроб: ${result.attemptsLeft}`
+                    : 'Забагато невірних спроб. Запросіть новий код.';
+            } else if (result.reason === 'locked') {
+                msg = 'Код заблоковано через забагато невірних спроб. Запросіть новий.';
+            } else {
+                msg = 'Код прострочений. Запросіть новий.';
+            }
             return res.json({ api_status: 400, error_message: msg });
         }
 
@@ -393,9 +414,16 @@ function quickVerify(ctx) {
         const result  = checkOtp('quick', contact, code);
 
         if (!result.ok) {
-            const msg = result.reason === 'invalid'
-                ? 'Невірний код підтвердження'
-                : 'Код прострочений. Запросіть новий.';
+            let msg;
+            if (result.reason === 'invalid') {
+                msg = result.attemptsLeft > 0
+                    ? `Невірний код. Залишилось спроб: ${result.attemptsLeft}`
+                    : 'Забагато невірних спроб. Запросіть новий код.';
+            } else if (result.reason === 'locked') {
+                msg = 'Код заблоковано через забагато невірних спроб. Запросіть новий.';
+            } else {
+                msg = 'Код прострочений. Запросіть новий.';
+            }
             return res.json({ api_status: 400, error_message: msg });
         }
 

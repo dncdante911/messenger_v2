@@ -133,20 +133,18 @@ async function getHistory(ctx, req, res) {
 
         const sequelize = ctx.wo_calls.sequelize;
 
-        let filterSql;
-        switch (filter) {
-            case 'missed':
-                filterSql = `c.to_id = :userId AND c.status IN ('missed', 'rejected')`;
-                break;
-            case 'incoming':
-                filterSql = `c.to_id = :userId`;
-                break;
-            case 'outgoing':
-                filterSql = `c.from_id = :userId`;
-                break;
-            default:
-                filterSql = `(c.from_id = :userId OR c.to_id = :userId)`;
-        }
+        // Safe whitelist: filter value → fixed SQL fragment.
+        // The filter key is never interpolated — only looked up in a closed Map.
+        // Unknown values fall back to 'all', preventing any injection path.
+        const FILTER_SQL = {
+            missed:   `c.to_id = :userId AND c.status IN ('missed', 'rejected')`,
+            incoming: `c.to_id = :userId`,
+            outgoing: `c.from_id = :userId`,
+            all:      `(c.from_id = :userId OR c.to_id = :userId)`,
+        };
+        const filterSql = Object.prototype.hasOwnProperty.call(FILTER_SQL, filter)
+            ? FILTER_SQL[filter]
+            : FILTER_SQL.all;
 
         // 1-on-1 calls
         const calls = await sequelize.query(`
