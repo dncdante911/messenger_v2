@@ -405,16 +405,20 @@ async function main() {
   //   Комнаты хранятся В ПАМЯТИ каждого воркера.
   //   Redis используется ТОЛЬКО для роутинга emit()-ов между воркерами/серверами.
   //   Реконнект Redis ≠ потеря комнат. Проблема старого адаптера устранена.
-  {
+  try {
     const { createAdapter } = require('@socket.io/redis-adapter');
     const { createClient }  = require('redis');
+    const redisPass = process.env.REDIS_PASSWORD || '';
     const redisOpts = {
       socket: {
         host: process.env.REDIS_HOST || '127.0.0.1',
         port: parseInt(process.env.REDIS_PORT) || 6379,
-        reconnectStrategy: (retries) => Math.min(retries * 100, 3000), // экспоненциальный backoff
+        reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
       },
-      password: process.env.REDIS_PASSWORD,
+      // Only include password key when a non-empty value is configured.
+      // Passing password:undefined causes the client to send AUTH with an
+      // empty string, which Redis rejects with NOAUTH.
+      ...(redisPass ? { password: redisPass } : {}),
     };
     const pubClient = createClient(redisOpts);
     const subClient = pubClient.duplicate();
@@ -423,6 +427,10 @@ async function main() {
     await Promise.all([pubClient.connect(), subClient.connect()]);
     io.adapter(createAdapter(pubClient, subClient));
     console.log('[Redis Adapter] Socket.IO Redis adapter active — cluster/multi-server ready');
+  } catch (redisErr) {
+    // Non-fatal: server works fine without the adapter (single-process mode).
+    // Fix: set REDIS_PASSWORD in environment if Redis requires authentication.
+    console.error('[Redis Adapter] DISABLED — could not connect:', redisErr.message);
   }
   // ─────────────────────────────────────────────────────────────────────────────
 
