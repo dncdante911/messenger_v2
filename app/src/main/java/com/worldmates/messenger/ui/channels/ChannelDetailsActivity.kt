@@ -160,6 +160,8 @@ fun ChannelDetailsScreen(
     var showMediaViewer by remember { mutableStateOf(false) }
     var mediaViewerUrls by remember { mutableStateOf<List<String>>(emptyList()) }
     var mediaViewerInitialPage by remember { mutableStateOf(0) }
+    var showVideoPlayer by remember { mutableStateOf(false) }
+    var videoPlayerUrl by remember { mutableStateOf("") }
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var showCreatePollDialog by remember { mutableStateOf(false) }
     var showChangeAvatarDialog by remember { mutableStateOf(false) }
@@ -579,15 +581,24 @@ fun ChannelDetailsScreen(
                                     showPostOptions = true
                                 }
                                 val onMediaClickHandler: (Int) -> Unit = { index ->
-                                    val imageUrls = post.media
-                                        ?.filter { it.type == "image" || it.type.isNullOrBlank() }
-                                        ?.map { it.url.toFullMediaUrl() }
-                                        ?.filterNotNull()
-                                        ?: emptyList()
-                                    if (imageUrls.isNotEmpty()) {
-                                        mediaViewerUrls = imageUrls
-                                        mediaViewerInitialPage = index.coerceIn(0, imageUrls.size - 1)
-                                        showMediaViewer = true
+                                    val allMedia = post.media ?: emptyList()
+                                    val clicked = allMedia.getOrNull(index)
+                                    if (clicked?.type == "video") {
+                                        val url = clicked.url.toFullMediaUrl()
+                                        if (!url.isNullOrBlank()) {
+                                            videoPlayerUrl = url
+                                            showVideoPlayer = true
+                                        }
+                                    } else {
+                                        val imageUrls = allMedia
+                                            .filter { it.type == "image" || it.type.isNullOrBlank() }
+                                            .map { it.url.toFullMediaUrl() }
+                                            .filterNotNull()
+                                        if (imageUrls.isNotEmpty()) {
+                                            mediaViewerUrls = imageUrls
+                                            mediaViewerInitialPage = index.coerceIn(0, imageUrls.size - 1)
+                                            showMediaViewer = true
+                                        }
                                     }
                                 }
 
@@ -1171,6 +1182,14 @@ fun ChannelDetailsScreen(
                 imageUrls = mediaViewerUrls,
                 initialPage = mediaViewerInitialPage,
                 onDismiss = { showMediaViewer = false }
+            )
+        }
+
+        // Full-screen video player
+        if (showVideoPlayer && videoPlayerUrl.isNotEmpty()) {
+            com.worldmates.messenger.ui.media.FullscreenVideoPlayer(
+                videoUrl = videoPlayerUrl,
+                onDismiss = { showVideoPlayer = false }
             )
         }
     }

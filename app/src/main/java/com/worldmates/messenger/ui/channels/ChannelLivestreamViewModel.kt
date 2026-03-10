@@ -9,6 +9,8 @@ import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import retrofit2.HttpException
 import retrofit2.http.*
 
 // ─── API models ───────────────────────────────────────────────────────────────
@@ -153,6 +155,34 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     _uiState.value = LivestreamUiState.Error(resp.error_message ?: "Failed to start stream")
                 }
+            } catch (e: HttpException) {
+                if (e.code() == 409) {
+                    // Stream already active — resume it as host
+                    try {
+                        val body = e.response()?.errorBody()?.string()
+                        val stream = JSONObject(body ?: "{}").optJSONObject("stream")
+                        val roomName = stream?.optString("room_name", "") ?: ""
+                        if (roomName.isNotEmpty()) {
+                            currentRoomName = roomName
+                            _uiState.value = LivestreamUiState.Hosting(
+                                LivestreamInfo(
+                                    stream_id  = stream?.optInt("id"),
+                                    room_name  = roomName,
+                                    quality    = stream?.optString("quality", quality) ?: quality,
+                                    is_premium = (stream?.optInt("is_premium") ?: 0) == 1,
+                                    ice_servers = null,
+                                    allowed_qualities = null
+                                )
+                            )
+                            Log.d(TAG, "Resumed existing stream: room=$roomName")
+                            return@launch
+                        }
+                    } catch (parseEx: Exception) {
+                        Log.w(TAG, "Failed to parse 409 body", parseEx)
+                    }
+                }
+                Log.e(TAG, "startStream error", e)
+                _uiState.value = LivestreamUiState.Error(e.message ?: "Network error")
             } catch (e: Exception) {
                 Log.e(TAG, "startStream error", e)
                 _uiState.value = LivestreamUiState.Error(e.message ?: "Network error")
