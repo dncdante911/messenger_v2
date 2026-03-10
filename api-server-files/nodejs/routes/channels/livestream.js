@@ -3,24 +3,50 @@
 /**
  * Channel Livestream API
  *
- * Endpoints:
- *   POST   /api/node/channels/:channel_id/livestream/start  — start a stream (admin/owner only)
- *   POST   /api/node/channels/:channel_id/livestream/end    — end the stream
- *   GET    /api/node/channels/:channel_id/livestream/active — get current active stream (if any)
- *   POST   /api/node/channels/:channel_id/livestream/join   — viewer joins (returns ICE config)
- *   POST   /api/node/channels/:channel_id/livestream/leave  — viewer leaves
+ * HTTP endpoints:
+ *   POST  /api/node/channels/:channel_id/livestream/start   — start stream (admin/owner)
+ *   POST  /api/node/channels/:channel_id/livestream/end     — end stream
+ *   GET   /api/node/channels/:channel_id/livestream/active  — get active stream info
+ *   POST  /api/node/channels/:channel_id/livestream/join    — viewer joins (returns ICE + room)
+ *   POST  /api/node/channels/:channel_id/livestream/leave   — viewer leaves
  *
- * Quality limits:
- *   regular channel: 240p | 360p | 480p | 720p
- *   premium channel: 360p | 480p | 720p | 1080p | 1080p60
+ * Socket.IO events (streamer → server):
+ *   stream:offer      { roomName, toUserId, sdpOffer }   — streamer sends offer to viewer
+ *   stream:ice        { roomName, toUserId, candidate }  — ICE candidate exchange
+ *
+ * Socket.IO events (viewer → server):
+ *   stream:viewer_join  { roomName, userId, channelId }  — viewer ready for WebRTC
+ *   stream:answer       { roomName, toUserId, sdpAnswer } — viewer answer to streamer
+ *   stream:ice          { roomName, toUserId, candidate } — ICE candidate exchange
+ *   stream:quality      { roomName, userId, bandwidth, rtt, loss } — adaptive quality feedback
+ *   stream:viewer_leave { roomName, userId }             — viewer disconnecting
+ *
+ * Socket.IO events (server → client):
+ *   channel:stream_started  { channelId, streamId, roomName, quality, title, hostUserId, hostName, hostAvatar, isPremium }
+ *   channel:stream_ended    { channelId, streamId, roomName }
+ *   stream:viewer_joined    { roomName, userId, userName, userAvatar } → to streamer
+ *   stream:offer            { roomName, fromUserId, sdpOffer }          → to viewer
+ *   stream:answer           { roomName, fromUserId, sdpAnswer }         → to streamer
+ *   stream:ice              { roomName, fromUserId, candidate }         → to peer
+ *   stream:viewer_left      { roomName, userId }                        → to streamer
+ *   stream:quality_adjust   { bitrate, quality }                        → to streamer
  */
 
-const crypto = require('crypto');
+const crypto     = require('crypto');
 const turnHelper = require('../../helpers/turn-credentials');
 
-// Allowed quality values per tier
 const REGULAR_QUALITIES = ['240p', '360p', '480p', '720p'];
 const PREMIUM_QUALITIES = ['360p', '480p', '720p', '1080p', '1080p60'];
+
+// Bitrate targets (kbps) per quality tier
+const QUALITY_BITRATE = {
+    '240p':   400,
+    '360p':   800,
+    '480p':  1500,
+    '720p':  2500,
+    '1080p': 4500,
+    '1080p60': 6000,
+};
 
 function generateRoomName(channelId) {
     return `stream_ch${channelId}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
@@ -43,8 +69,8 @@ async function isChannelAdmin(ctx, channelId, userId) {
     const page = await ctx.wo_pages.findOne({ where: { page_id: channelId }, attributes: ['user_id'], raw: true });
     if (!page) return false;
     if (page.user_id == userId) return true;
-    const adminCount = await ctx.wo_pageadmins.count({ where: { page_id: channelId, user_id: userId } });
-    return adminCount > 0;
+    const cnt = await ctx.wo_pageadmins.count({ where: { page_id: channelId, user_id: userId } });
+    return cnt > 0;
 }
 
 async function channelIsPremium(ctx, channelId) {
@@ -58,7 +84,22 @@ async function channelIsPremium(ctx, channelId) {
     return !sub.expires_at || new Date(sub.expires_at) > new Date();
 }
 
-module.exports = function registerLivestreamRoutes(app, ctx) {
+async function getHostInfo(ctx, userId) {
+    try {
+        const u = await ctx.wo_users.findOne({
+            where: { user_id: userId },
+            attributes: ['first_name', 'last_name', 'username', 'avatar'],
+            raw: true,
+        });
+        if (!u) return { name: 'Unknown', avatar: '' };
+        const name = (u.first_name || u.last_name)
+            ? `${u.first_name || ''} ${u.last_name || ''}`.trim()
+            : u.username;
+        return { name, avatar: u.avatar || '' };
+    } catch { return { name: 'Unknown', avatar: '' }; }
+}
+
+module.exports = function registerLivestreamRoutes(app, ctx, io) {
 
     // ── Start stream ─────────────────────────────────────────────────────────
     app.post('/api/node/channels/:channel_id/livestream/start',
@@ -68,64 +109,65 @@ module.exports = function registerLivestreamRoutes(app, ctx) {
             const { quality, title } = req.body;
             const userId = req.userId;
             try {
-                // Only admin or owner can start
-                if (!await isChannelAdmin(ctx, channelId, userId)) {
+                if (!await isChannelAdmin(ctx, channelId, userId))
                     return res.status(403).json({ api_status: 403, error_message: 'Not a channel admin' });
-                }
 
                 const isPremium = await channelIsPremium(ctx, channelId);
                 const allowedQualities = isPremium ? PREMIUM_QUALITIES : REGULAR_QUALITIES;
-                const chosenQuality = allowedQualities.includes(quality) ? quality : allowedQualities[allowedQualities.length - 1];
+                const chosenQuality = allowedQualities.includes(quality)
+                    ? quality
+                    : allowedQualities[allowedQualities.length - 1];
 
-                // Only one active stream per channel allowed
-                if (ctx.wm_channel_livestreams) {
-                    const existing = await ctx.wm_channel_livestreams.findOne({
-                        where: { channel_id: channelId, status: 'live' },
-                        raw: true
-                    });
-                    if (existing) {
-                        return res.status(409).json({ api_status: 409, error_message: 'Stream already active', stream: existing });
-                    }
-                }
+                // Only one active stream per channel
+                const existing = await ctx.wm_channel_livestreams.findOne({
+                    where: { channel_id: channelId, status: 'live' },
+                    raw: true,
+                });
+                if (existing)
+                    return res.status(409).json({ api_status: 409, error_message: 'Stream already active', stream: existing });
 
-                const roomName = generateRoomName(channelId);
+                const roomName  = generateRoomName(channelId);
                 const iceServers = turnHelper.getIceServers(userId);
 
-                let streamId = null;
-                if (ctx.wm_channel_livestreams) {
-                    const stream = await ctx.wm_channel_livestreams.create({
-                        channel_id:   channelId,
-                        host_user_id: userId,
-                        room_name:    roomName,
-                        title:        title || null,
-                        quality:      chosenQuality,
-                        is_premium:   isPremium ? 1 : 0,
-                        status:       'live',
-                        started_at:   new Date()
-                    });
-                    streamId = stream.id;
-                }
+                const stream = await ctx.wm_channel_livestreams.create({
+                    channel_id:   channelId,
+                    host_user_id: userId,
+                    room_name:    roomName,
+                    title:        title || null,
+                    quality:      chosenQuality,
+                    is_premium:   isPremium ? 1 : 0,
+                    status:       'live',
+                    started_at:   new Date(),
+                });
+                const streamId = stream.id;
 
-                // Notify channel subscribers via Socket.IO (if available)
-                if (ctx.io) {
-                    ctx.io.to(`channel_${channelId}`).emit('channel:stream_started', {
-                        channelId,
-                        streamId,
-                        roomName,
-                        quality: chosenQuality,
-                        isPremium,
-                        hostUserId: userId
-                    });
-                }
+                // Notify all channel subscribers (Android shows pinned LIVE banner)
+                const host = await getHostInfo(ctx, userId);
+                io.to(`channel_${channelId}`).emit('channel:stream_started', {
+                    channelId,
+                    streamId,
+                    roomName,
+                    quality:      chosenQuality,
+                    title:        title || null,
+                    isPremium,
+                    hostUserId:   userId,
+                    hostName:     host.name,
+                    hostAvatar:   host.avatar,
+                    startedAt:    Math.floor(Date.now() / 1000),
+                    targetBitrate: QUALITY_BITRATE[chosenQuality] || 2500,
+                });
+
+                console.log(`[Livestream] Stream started: channel=${channelId} room=${roomName} quality=${chosenQuality}`);
 
                 return res.json({
-                    api_status: 200,
-                    stream_id:  streamId,
-                    room_name:  roomName,
-                    quality:    chosenQuality,
-                    is_premium: isPremium,
-                    ice_servers: iceServers,
-                    allowed_qualities: allowedQualities
+                    api_status:        200,
+                    stream_id:         streamId,
+                    room_name:         roomName,
+                    quality:           chosenQuality,
+                    is_premium:        isPremium,
+                    ice_servers:       iceServers,
+                    allowed_qualities: allowedQualities,
+                    target_bitrate:    QUALITY_BITRATE[chosenQuality] || 2500,
                 });
             } catch (e) {
                 console.error('[Livestream] start error:', e);
@@ -141,27 +183,26 @@ module.exports = function registerLivestreamRoutes(app, ctx) {
             const channelId = parseInt(req.params.channel_id);
             const userId = req.userId;
             try {
-                if (!await isChannelAdmin(ctx, channelId, userId)) {
+                if (!await isChannelAdmin(ctx, channelId, userId))
                     return res.status(403).json({ api_status: 403, error_message: 'Not a channel admin' });
-                }
 
-                if (ctx.wm_channel_livestreams) {
-                    const stream = await ctx.wm_channel_livestreams.findOne({
-                        where: { channel_id: channelId, status: 'live', host_user_id: userId },
-                        raw: true
+                const stream = await ctx.wm_channel_livestreams.findOne({
+                    where: { channel_id: channelId, status: 'live', host_user_id: userId },
+                    raw: true,
+                });
+                if (stream) {
+                    await ctx.wm_channel_livestreams.update(
+                        { status: 'ended', ended_at: new Date() },
+                        { where: { id: stream.id } }
+                    );
+                    io.to(`channel_${channelId}`).emit('channel:stream_ended', {
+                        channelId,
+                        streamId:  stream.id,
+                        roomName:  stream.room_name,
                     });
-                    if (stream) {
-                        await ctx.wm_channel_livestreams.update(
-                            { status: 'ended', ended_at: new Date() },
-                            { where: { id: stream.id } }
-                        );
-
-                        if (ctx.io) {
-                            ctx.io.to(`channel_${channelId}`).emit('channel:stream_ended', {
-                                channelId, streamId: stream.id, roomName: stream.room_name
-                            });
-                        }
-                    }
+                    // Kick all viewers from the stream room
+                    io.in(stream.room_name).disconnectSockets(false);
+                    console.log(`[Livestream] Stream ended: channel=${channelId} room=${stream.room_name}`);
                 }
 
                 return res.json({ api_status: 200 });
@@ -178,14 +219,22 @@ module.exports = function registerLivestreamRoutes(app, ctx) {
         async (req, res) => {
             const channelId = parseInt(req.params.channel_id);
             try {
-                let stream = null;
-                if (ctx.wm_channel_livestreams) {
-                    stream = await ctx.wm_channel_livestreams.findOne({
-                        where: { channel_id: channelId, status: 'live' },
-                        raw: true
-                    });
-                }
-                return res.json({ api_status: 200, stream: stream || null });
+                const stream = await ctx.wm_channel_livestreams.findOne({
+                    where: { channel_id: channelId, status: 'live' },
+                    raw: true,
+                });
+                if (!stream) return res.json({ api_status: 200, stream: null });
+
+                const host = await getHostInfo(ctx, stream.host_user_id);
+                return res.json({
+                    api_status: 200,
+                    stream: {
+                        ...stream,
+                        host_name:    host.name,
+                        host_avatar:  host.avatar,
+                        target_bitrate: QUALITY_BITRATE[stream.quality] || 2500,
+                    }
+                });
             } catch (e) {
                 console.error('[Livestream] active error:', e);
                 return res.status(500).json({ api_status: 500, error_message: e.message });
@@ -200,39 +249,35 @@ module.exports = function registerLivestreamRoutes(app, ctx) {
             const channelId = parseInt(req.params.channel_id);
             const userId = req.userId;
             try {
-                let stream = null;
-                if (ctx.wm_channel_livestreams) {
-                    stream = await ctx.wm_channel_livestreams.findOne({
-                        where: { channel_id: channelId, status: 'live' },
-                        raw: true
-                    });
-                }
-                if (!stream) {
+                const stream = await ctx.wm_channel_livestreams.findOne({
+                    where: { channel_id: channelId, status: 'live' },
+                    raw: true,
+                });
+                if (!stream)
                     return res.status(404).json({ api_status: 404, error_message: 'No active stream' });
-                }
 
-                // Increment viewer count
-                if (ctx.wm_channel_livestreams) {
-                    await ctx.wm_channel_livestreams.increment('viewer_count', { where: { id: stream.id } });
-                    // Update peak if needed - we'll do a simple check
-                    const current = await ctx.wm_channel_livestreams.findOne({ where: { id: stream.id }, raw: true });
-                    if (current && current.viewer_count > current.peak_viewers) {
-                        await ctx.wm_channel_livestreams.update(
-                            { peak_viewers: current.viewer_count },
-                            { where: { id: stream.id } }
-                        );
-                    }
+                // Increment viewer count + update peak
+                await ctx.wm_channel_livestreams.increment('viewer_count', { where: { id: stream.id } });
+                const current = await ctx.wm_channel_livestreams.findOne({ where: { id: stream.id }, raw: true });
+                if (current && current.viewer_count > current.peak_viewers) {
+                    await ctx.wm_channel_livestreams.update(
+                        { peak_viewers: current.viewer_count },
+                        { where: { id: stream.id } }
+                    );
                 }
 
                 const iceServers = turnHelper.getIceServers(userId);
 
                 return res.json({
-                    api_status:  200,
-                    stream_id:   stream.id,
-                    room_name:   stream.room_name,
-                    quality:     stream.quality,
-                    is_premium:  stream.is_premium,
-                    ice_servers: iceServers
+                    api_status:     200,
+                    stream_id:      stream.id,
+                    room_name:      stream.room_name,
+                    quality:        stream.quality,
+                    is_premium:     stream.is_premium,
+                    ice_servers:    iceServers,
+                    host_user_id:   stream.host_user_id,
+                    target_bitrate: QUALITY_BITRATE[stream.quality] || 2500,
+                    viewer_count:   current ? current.viewer_count : stream.viewer_count,
                 });
             } catch (e) {
                 console.error('[Livestream] join error:', e);
@@ -247,14 +292,12 @@ module.exports = function registerLivestreamRoutes(app, ctx) {
         async (req, res) => {
             const channelId = parseInt(req.params.channel_id);
             try {
-                if (ctx.wm_channel_livestreams) {
-                    const stream = await ctx.wm_channel_livestreams.findOne({
-                        where: { channel_id: channelId, status: 'live' },
-                        raw: true
-                    });
-                    if (stream && stream.viewer_count > 0) {
-                        await ctx.wm_channel_livestreams.decrement('viewer_count', { where: { id: stream.id } });
-                    }
+                const stream = await ctx.wm_channel_livestreams.findOne({
+                    where: { channel_id: channelId, status: 'live' },
+                    raw: true,
+                });
+                if (stream && stream.viewer_count > 0) {
+                    await ctx.wm_channel_livestreams.decrement('viewer_count', { where: { id: stream.id } });
                 }
                 return res.json({ api_status: 200 });
             } catch (e) {
@@ -263,4 +306,6 @@ module.exports = function registerLivestreamRoutes(app, ctx) {
             }
         }
     );
+
+    console.log('[Livestream API] Endpoints registered on /api/node/channels/:id/livestream/*');
 };
