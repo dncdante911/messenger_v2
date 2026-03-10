@@ -1913,6 +1913,30 @@
     <string name="call_participant_limit_message_pro">Груповий дзвінок підтримує до 25 учасників.</string>
     <string name="call_get_premium">Отримати Premium</string>
 
+    <!-- ── Group Call UI ─────────────────────────────────────────────────── -->
+    <string name="group_call_badge">ГРУПОВИЙ ДЗВІНОК</string>
+    <string name="group_call_badge_short">ГРУПА</string>
+    <string name="group_call_pro_up_to">PRO · до %d</string>
+    <string name="group_call_up_to_participants">до %d учасників</string>
+    <string name="group_call_invites_you">%s запрошує вас</string>
+    <string name="group_call_video">📹 Відеодзвінок</string>
+    <string name="group_call_audio">🎤 Аудіодзвінок</string>
+    <string name="group_call_decline">Відхилити</string>
+    <string name="group_call_accept">Прийняти</string>
+    <string name="group_call_waiting">Чекаємо учасників…</string>
+    <string name="group_call_participants_count">%1$d / %2$d учасників</string>
+    <string name="group_call_mic_on">Мікрофон</string>
+    <string name="group_call_mic_off">Вимк. мікрофон</string>
+    <string name="group_call_camera_on">Камера</string>
+    <string name="group_call_camera_off">Камера вимк.</string>
+    <string name="group_call_speaker_on">Динамік</string>
+    <string name="group_call_speaker_off">Навушники</string>
+    <string name="group_call_end">Завершити</string>
+    <string name="group_call_leave">Вийти</string>
+    <string name="group_call_add_participant">Додати</string>
+    <string name="group_call_participant_fallback">Учасник</string>
+    <string name="group_default_name">Група</string>
+
     <!-- ── Channel Admin Panel additions ─────────────────────────────────── -->
     <string name="channel_livestream_section">Пряма трансляція</string>
     <string name="channel_go_live">Почати трансляцію</string>

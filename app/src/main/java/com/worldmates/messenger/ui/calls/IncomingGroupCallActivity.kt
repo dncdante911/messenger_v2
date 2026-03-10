@@ -28,10 +28,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.LanguageManager
 
@@ -58,7 +60,7 @@ class IncomingGroupCallActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val groupId = intent.getIntExtra("group_id", 0)
-        val groupName = intent.getStringExtra("group_name") ?: "Группа"
+        val groupName = intent.getStringExtra("group_name") ?: getString(R.string.group_default_name)
         val initiatedBy = intent.getIntExtra("initiated_by", 0)
         val initiatorName = intent.getStringExtra("initiator_name") ?: "Unknown"
         val initiatorAvatar = intent.getStringExtra("initiator_avatar") ?: ""
@@ -236,7 +238,7 @@ fun IncomingGroupCallScreen(
             // Бейджи
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "ГРУППОВОЙ ЗВОНОК",
+                    text = stringResource(R.string.group_call_badge),
                     color = Color.White,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
@@ -246,7 +248,7 @@ fun IncomingGroupCallScreen(
                 )
                 if (isPremiumCall) {
                     Text(
-                        text = "PRO · до $maxParticipants",
+                        text = stringResource(R.string.group_call_pro_up_to, maxParticipants),
                         color = Color(0xFFFFD700),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -256,7 +258,7 @@ fun IncomingGroupCallScreen(
                     )
                 } else {
                     Text(
-                        text = "до $maxParticipants участников",
+                        text = stringResource(R.string.group_call_up_to_participants, maxParticipants),
                         color = Color(0xFF9E9EC0),
                         fontSize = 10.sp,
                         modifier = Modifier
@@ -276,14 +278,15 @@ fun IncomingGroupCallScreen(
 
             // Кто звонит
             Text(
-                text = "$initiatorName приглашает вас",
+                text = stringResource(R.string.group_call_invites_you, initiatorName),
                 fontSize = 15.sp,
                 color = Color(0xFF9E9EC0)
             )
 
             // Тип звонка
             Text(
-                text = if (callType == "video") "📹 Видеозвонок" else "🎤 Аудиозвонок",
+                text = if (callType == "video") stringResource(R.string.group_call_video)
+                       else stringResource(R.string.group_call_audio),
                 fontSize = 14.sp,
                 color = Color(0xFF7C4DFF)
             )
@@ -304,16 +307,16 @@ fun IncomingGroupCallScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CallEnd,
-                            contentDescription = "Отклонить",
+                            contentDescription = stringResource(R.string.group_call_decline),
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("Отклонить", color = Color(0xFFFF4444), fontSize = 13.sp)
+                    Text(stringResource(R.string.group_call_decline), color = Color(0xFFFF4444), fontSize = 13.sp)
                 }
 
-                // Принять
+                // Прийняти
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     FloatingActionButton(
                         onClick = onAccept,
@@ -322,13 +325,13 @@ fun IncomingGroupCallScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Call,
-                            contentDescription = "Принять",
+                            contentDescription = stringResource(R.string.group_call_accept),
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("Принять", color = Color(0xFF4CAF50), fontSize = 13.sp)
+                    Text(stringResource(R.string.group_call_accept), color = Color(0xFF4CAF50), fontSize = 13.sp)
                 }
             }
         }
