@@ -68,7 +68,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
     // ───── Group Call WebRTC ─────────────────────────────────────────────────
     val groupWebRTCManager = GroupWebRTCManager(application)
-    private var currentGroupRoomName: String? = null
+    var currentGroupRoomName: String? = null
+        private set
     private var currentGroupId: Int = 0
     private var currentGroupMaxParticipants: Int = 5
     private var isGroupCallInitiator = false

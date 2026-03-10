@@ -67,6 +67,8 @@ import com.worldmates.messenger.util.toFullMediaUrl
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.LanguageManager
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 
 /**
  * Активність для перегляду деталей каналу та його постів
@@ -149,6 +151,8 @@ fun ChannelDetailsScreen(
     val posts by detailsViewModel.posts.collectAsState()
     val isLoadingPosts by detailsViewModel.isLoading.collectAsState()
     val error by detailsViewModel.error.collectAsState()
+    val liveChannelIds by LiveChannelTracker.liveChannelIds.collectAsState()
+    val isChannelLive = channelId in liveChannelIds
 
     // Знаходимо канал — primary source: detailsViewModel (fresh from API)
     val channel = detailsChannel
@@ -435,6 +439,17 @@ fun ChannelDetailsScreen(
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+
+                        // LIVE pinned banner — shown when the channel is currently streaming
+                        if (isChannelLive) {
+                            item(key = "live_banner") {
+                                ChannelLiveBanner(
+                                    isAdmin = channel.isAdmin,
+                                    channelId = channelId,
+                                    channelName = channel.name
+                                )
                             }
                         }
 
@@ -1149,6 +1164,92 @@ fun ChannelDetailsScreen(
                 videoUrl = videoPlayerUrl,
                 onDismiss = { showVideoPlayer = false }
             )
+        }
+    }
+}
+
+/**
+ * Pinned LIVE banner shown at top of channel feed when a stream is active.
+ */
+@Composable
+private fun ChannelLiveBanner(
+    isAdmin: Boolean,
+    channelId: Long,
+    channelName: String
+) {
+    val context = LocalContext.current
+    val infiniteTransition = rememberInfiniteTransition(label = "live_banner_pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.55f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "live_banner_alpha"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFB71C1C).copy(alpha = 0.12f)),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFE53935).copy(alpha = pulseAlpha))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE53935).copy(alpha = pulseAlpha))
+                )
+                Column {
+                    Text(
+                        text = stringResource(R.string.channel_live_now),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFE53935)
+                    )
+                    Text(
+                        text = channelName,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            Button(
+                onClick = {
+                    val intent = Intent(context, ChannelLivestreamActivity::class.java).apply {
+                        putExtra(ChannelLivestreamActivity.EXTRA_CHANNEL_ID, channelId)
+                        putExtra(ChannelLivestreamActivity.EXTRA_IS_HOST, isAdmin)
+                        putExtra(ChannelLivestreamActivity.EXTRA_CHANNEL_NAME, channelName)
+                    }
+                    context.startActivity(intent)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = if (isAdmin) stringResource(R.string.channel_live_hosting)
+                           else stringResource(R.string.channel_live_watch),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
         }
     }
 }

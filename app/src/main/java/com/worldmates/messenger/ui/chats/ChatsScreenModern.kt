@@ -73,6 +73,7 @@ fun ChatsScreenModern(
     val chats by viewModel.chatList.collectAsState()
     val groups by groupsViewModel.groupList.collectAsState()
     val channels by channelsViewModel.subscribedChannels.collectAsState()
+    val liveChannelIds by channelsViewModel.liveChannelIds.collectAsState()
     val isLoadingChats by viewModel.isLoading.collectAsState()
     val isLoadingGroups by groupsViewModel.isLoading.collectAsState()
     val isLoadingChannels by channelsViewModel.isLoading.collectAsState()
@@ -1001,7 +1002,8 @@ fun ChannelListTab(
                                     com.worldmates.messenger.ui.channels.TelegramChannelItem(
                                         channel = channel,
                                         onClick = { onChannelClick(channel) },
-                                        modifier = Modifier.animateItem()
+                                        modifier = Modifier.animateItem(),
+                                        isLive = channel.id in liveChannelIds
                                     )
                                 }
                                 com.worldmates.messenger.ui.preferences.UIStyle.WORLDMATES -> {
@@ -1258,7 +1260,8 @@ fun ChannelListTabWithStories(
                             com.worldmates.messenger.ui.channels.TelegramChannelItem(
                                 channel = channel,
                                 onClick = { onChannelClick(channel) },
-                                modifier = Modifier.animateItem()
+                                modifier = Modifier.animateItem(),
+                                isLive = channel.id in liveChannelIds
                             )
                         }
                     }

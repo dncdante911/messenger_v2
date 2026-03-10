@@ -273,6 +273,42 @@ async function registerCallsListeners(socket, io, ctx) {
                     }
                 });
 
+                // ── Send a system message to the group so members see a call card in chat ──
+                try {
+                    const callMeta = JSON.stringify({
+                        callType,
+                        roomName,
+                        initiatorName,
+                        maxParticipants,
+                        isPremiumCall: isPro
+                    });
+
+                    const sysMsg = await ctx.wo_messages.create({
+                        from_id: fromId,
+                        group_id: groupId,
+                        text:     callMeta,
+                        type_two: 'group_call',
+                        time:     Math.floor(Date.now() / 1000),
+                        seen:     0
+                    });
+
+                    // Broadcast the message to everyone in the group room
+                    const groupRoom = `group_${groupId}`;
+                    io.to(groupRoom).emit('group_message', {
+                        id:          sysMsg.id,
+                        from_id:     fromId,
+                        group_id:    groupId,
+                        text:        callMeta,
+                        type_two:    'group_call',
+                        time:        sysMsg.time,
+                        sender_name: initiatorName,
+                        sender_avatar: initiator?.avatar || ''
+                    });
+                } catch (msgErr) {
+                    // Non-fatal: call still works even if the message fails
+                    console.warn('[CALLS] Could not send group call system message:', msgErr.message);
+                }
+
                 console.log(`[CALLS] Group call initiated for group ${groupId} with TURN credentials`);
             }
 
