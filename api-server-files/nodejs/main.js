@@ -6,6 +6,7 @@ var fs = require('fs');
 var express = require('express');
 var app = express();
 const path = require('path');
+const compiledTemplates = require('./compiledTemplates/compiledTemplates');
 
 let ctx = {};
 
@@ -108,11 +109,12 @@ async function init() {
   var sequelize = new Sequelize(dbName, dbUser, dbPass, {
     host: dbHost,
     dialect: "mysql",
-    logging: function () {},
+    logging: false,
     pool: {
         max: 20,
-        min: 0,
-        idle: 10000
+        min: 2,        // держим 2 соединения всегда открытыми — меньше задержка на первый запрос
+        idle: 30000,   // закрывать idle-соединение через 30 с
+        acquire: 15000 // timeout на получение соединения из пула (мс) — не висеть вечно
     }
   });
 
@@ -131,14 +133,17 @@ async function init() {
   ctx.wo_langs = require("./models/wo_langs")(sequelize, DataTypes)
   ctx.wo_config = require("./models/wo_config")(sequelize, DataTypes)
   ctx.wo_blocks = require("./models/wo_blocks")(sequelize, DataTypes)
-  ctx.wo_followers = require("./models/wo_followers")(sequelize, DataTypes)
-  ctx.wo_hashtags = require("./models/wo_hashtags")(sequelize, DataTypes)
-  ctx.wo_posts = require("./models/wo_posts")(sequelize, DataTypes)
-  ctx.wo_comments = require("./models/wo_comments")(sequelize, DataTypes)
-  ctx.wo_comment_replies = require("./models/wo_comment_replies")(sequelize, DataTypes)
-  ctx.wo_pages = require("./models/wo_pages")(sequelize, DataTypes)
-  ctx.wo_groups = require("./models/wo_groups")(sequelize, DataTypes)
-  ctx.wo_events = require("./models/wo_events")(sequelize, DataTypes)
+  // [WoWonder social] wo_followers — нужен только для follow/unfollow уведомлений соцсети
+  // ctx.wo_followers = require("./models/wo_followers")(sequelize, DataTypes)
+  ctx.wo_hashtags = require("./models/wo_hashtags")(sequelize, DataTypes)  // нужен в functions.js для разбора хэштегов в сообщениях
+  ctx.wo_posts = require("./models/wo_posts")(sequelize, DataTypes)          // нужен! каналы хранят публикации в wo_posts
+  ctx.wo_comments = require("./models/wo_comments")(sequelize, DataTypes)    // нужен! комментарии к постам каналов
+  ctx.wo_comment_replies = require("./models/wo_comment_replies")(sequelize, DataTypes) // нужен! ответы на комментарии каналов
+  ctx.wo_pages = require("./models/wo_pages")(sequelize, DataTypes)          // нужен! каналы — это wo_pages
+  // [WoWonder social] wo_groups — группы соцсети (НЕ чат-группы; чат-группы это wo_groupchat)
+  // ctx.wo_groups = require("./models/wo_groups")(sequelize, DataTypes)
+  // [WoWonder social] wo_events — события/мероприятия соцсети, в мессенджере не используются
+  // ctx.wo_events = require("./models/wo_events")(sequelize, DataTypes)
   ctx.wo_userstory = require("./models/wo_userstory")(sequelize, DataTypes)
   ctx.wo_userstorymedia = require("./models/wo_userstorymedia")(sequelize, DataTypes)
   ctx.wo_storyreactions = require("./models/wo_storyreactions")(sequelize, DataTypes)
@@ -147,7 +152,8 @@ async function init() {
   ctx.wo_mute_story = require("./models/wo_mute_story")(sequelize, DataTypes)
   ctx.wo_reactions_types = require("./models/wo_reactions_types")(sequelize, DataTypes)
   ctx.wo_reactions = require("./models/wo_reactions")(sequelize, DataTypes)
-  ctx.wo_blog_reaction = require("./models/wo_blog_reaction")(sequelize, DataTypes)
+  // [WoWonder social] wo_blog_reaction — реакции к блог-постам соцсети
+  // ctx.wo_blog_reaction = require("./models/wo_blog_reaction")(sequelize, DataTypes)
   ctx.wo_mute = require("./models/wo_mute")(sequelize, DataTypes)
   ctx.wo_calls = require("./models/wo_calls")(sequelize, DataTypes)
   ctx.wo_group_calls = require("./models/wo_group_calls")(sequelize, DataTypes)
@@ -206,6 +212,11 @@ async function init() {
 
   await loadConfig(ctx)
   await loadLangs(ctx)
+
+  // Компилируем Handlebars-шаблоны один раз при старте, а не на каждый WebSocket-коннект.
+  // Это убирает синхронное чтение файлов с диска при каждом подключении пользователя.
+  await compiledTemplates.DefineTemplates(ctx)
+  console.log('[Init] Handlebars templates compiled');
 
   // ── Auto-migrations (idempotent) ─────────────────────────────────────────────
   try {
@@ -424,5 +435,34 @@ async function main() {
     console.log('server up and running at %s port', serverPort);
   });
 }
+
+// ── Graceful Shutdown ─────────────────────────────────────────────────────────
+// При SIGTERM/SIGINT (pm2 restart, kill, Docker stop) даём активным соединениям
+// завершиться корректно, закрываем пул БД и HTTP-сервер.
+function gracefulShutdown(signal) {
+  console.log(`[Shutdown] ${signal} received — closing server gracefully…`);
+  if (server) {
+    server.close(async () => {
+      console.log('[Shutdown] HTTP server closed');
+      try {
+        await ctx.sequelize.close();
+        console.log('[Shutdown] DB pool closed');
+      } catch (e) {
+        console.error('[Shutdown] DB close error:', e.message);
+      }
+      process.exit(0);
+    });
+    // Принудительный выход если за 10 с сервер не закрылся (висящие соединения)
+    setTimeout(() => {
+      console.error('[Shutdown] Forced exit after timeout');
+      process.exit(1);
+    }, 10_000).unref();
+  } else {
+    process.exit(0);
+  }
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+// ─────────────────────────────────────────────────────────────────────────────
 
 main()
