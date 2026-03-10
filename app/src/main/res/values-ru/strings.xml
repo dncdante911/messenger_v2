@@ -2031,4 +2031,40 @@
     <string name="channel_stats_media_post">[Медиа-пост]</string>
     <string name="channel_stats_empty_post">[Пост без текста]</string>
     <string name="channel_stats_poll_post">📊 %s</string>
+
+    <!-- ── Group Calls ──────────────────────────────────────────────────── -->
+    <string name="group_call_badge">ГРУППОВОЙ ЗВОНОК</string>
+    <string name="group_call_badge_short">ГРУППА</string>
+    <string name="group_call_pro_up_to">PRO · до %d</string>
+    <string name="group_call_up_to_participants">до %d участников</string>
+    <string name="group_call_invites_you">%s приглашает вас</string>
+    <string name="group_call_video">📹 Видеозвонок</string>
+    <string name="group_call_audio">🎤 Аудиозвонок</string>
+    <string name="group_call_decline">Отклонить</string>
+    <string name="group_call_accept">Принять</string>
+    <string name="group_call_waiting">Ожидаем участников…</string>
+    <string name="group_call_participants_count">%1$d / %2$d участников</string>
+    <string name="group_call_mic_on">Микрофон</string>
+    <string name="group_call_mic_off">Откл. микрофон</string>
+    <string name="group_call_camera_on">Камера</string>
+    <string name="group_call_camera_off">Камера откл.</string>
+    <string name="group_call_speaker_on">Динамик</string>
+    <string name="group_call_speaker_off">Наушники</string>
+    <string name="group_call_end">Завершить</string>
+    <string name="group_call_leave">Выйти</string>
+    <string name="group_call_add_participant">Добавить</string>
+    <string name="group_call_participant_fallback">Участник</string>
+    <string name="group_default_name">Группа</string>
+    <string name="group_call_started_video">📹 Начата видеоконференция</string>
+    <string name="group_call_started_audio">🎤 Начата аудиоконференция</string>
+    <string name="group_call_join_btn">Присоединиться</string>
+    <string name="group_call_invite_title">Пригласить участника</string>
+    <string name="group_call_invite_copy_link">Скопировать ссылку</string>
+    <string name="group_call_link_copied">Ссылка скопирована</string>
+    <string name="group_call_up_to_n">до %d участников</string>
+
+    <!-- ── Channel Livestream ────────────────────────────────────────────── -->
+    <string name="channel_live_now">🔴 В ЭФИРЕ</string>
+    <string name="channel_live_watch">Смотреть</string>
+    <string name="channel_live_hosting">Вы ведёте эфир</string>
 </resources>
