@@ -805,19 +805,26 @@ async function registerCallsListeners(socket, io, ctx) {
 
             console.log(`[CALLS] 👥 Room ${roomName} now has ${roomParticipants.size} participants: ${[...roomParticipants.keys()].join(', ')}`);
 
-            // Отправить новому участнику список уже подключённых участников
+            // Отправить новому участнику список уже подключённых участников + ICE серверы
+            // shouldCreateOffer: true — новый участник СРАЗУ создаёт offers ко всем существующим,
+            // не ждёт пассивно. Это исправляет "Ожидание участников" на стороне присоединяющегося.
+            const joinerIceServers = turnHelper.getIceServers(userId);
             const existingList = existingParticipantIds.map(uid => ({
                 userId: uid,
                 userName: roomParticipants.get(uid)?.userName || 'Unknown',
-                userAvatar: roomParticipants.get(uid)?.userAvatar || ''
+                userAvatar: roomParticipants.get(uid)?.userAvatar || '',
+                shouldCreateOffer: true,  // новый участник создаёт offer к каждому существующему
+                iceServers: joinerIceServers,
             }));
 
             socket.emit('group_call:current_participants', {
                 roomName,
-                participants: existingList
+                participants: existingList,
+                iceServers: joinerIceServers,
             });
 
-            // Уведомить каждого существующего участника о новом — чтобы создал offer
+            // Уведомить каждого существующего участника о новом — чтобы тоже создал offer
+            // (оба конца инициируют; при коллизии Android-клиент откатывается через perfect negotiation)
             for (const existingUserId of existingParticipantIds) {
                 const existingSockets = ctx.userIdSocket[existingUserId];
                 if (existingSockets && existingSockets.length > 0) {
@@ -829,7 +836,7 @@ async function registerCallsListeners(socket, io, ctx) {
                             userName,
                             userAvatar,
                             iceServers,
-                            shouldCreateOffer: true // существующий участник создаёт offer
+                            shouldCreateOffer: true,
                         });
                     });
                 }

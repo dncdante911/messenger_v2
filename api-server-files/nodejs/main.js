@@ -33,6 +33,7 @@ const { initializeWallyBot }    = require('./bots/wallybot')
 const { registerSignalRoutes }       = require('./routes/signal')
 const { registerSubscriptionRoutes } = require('./routes/subscription')
 const registerLivestreamRoutes       = require('./routes/channels/livestream')
+const registerRecordingRoutes        = require('./routes/recordings')
 const registerChannelPremiumRoutes   = require('./routes/channels/channel-premium')
 const { createRateLimiter }          = require('./helpers/rateLimiter')
 const { instantView }                = require('./routes/instant_view')
@@ -188,6 +189,7 @@ async function init() {
   ctx.wo_bot_api_keys = require("./models/wo_bot_api_keys")(sequelize, DataTypes)
 
   // ==================== Channel Livestream + Premium Models ====================
+  ctx.wm_call_recordings                 = require("./models/wm_call_recordings")(sequelize, DataTypes)
   ctx.wm_channel_livestreams             = require("./models/wm_channel_livestreams")(sequelize, DataTypes)
   ctx.wm_channel_subscriptions           = require("./models/wm_channel_subscriptions")(sequelize, DataTypes)
   ctx.wm_channel_subscription_payments   = require("./models/wm_channel_subscription_payments")(sequelize, DataTypes)
@@ -451,6 +453,9 @@ async function main() {
   // Register Channel Livestream routes
   ctx.io = io;   // needed by livestream routes and anywhere ctx.io is used
   registerLivestreamRoutes(app, ctx, io);
+
+  // Register Call & Stream Recording routes
+  registerRecordingRoutes(app, ctx);
 
   // Register Channel Premium Subscription routes
   registerChannelPremiumRoutes(app, ctx);

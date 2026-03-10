@@ -143,6 +143,7 @@ module.exports = function registerLivestreamRoutes(app, ctx, io) {
 
                 // Notify all channel subscribers (Android shows pinned LIVE banner)
                 const host = await getHostInfo(ctx, userId);
+                const startedAt = Math.floor(Date.now() / 1000);
                 io.to(`channel_${channelId}`).emit('channel:stream_started', {
                     channelId,
                     streamId,
@@ -153,8 +154,65 @@ module.exports = function registerLivestreamRoutes(app, ctx, io) {
                     hostUserId:   userId,
                     hostName:     host.name,
                     hostAvatar:   host.avatar,
-                    startedAt:    Math.floor(Date.now() / 1000),
+                    startedAt,
                     targetBitrate: QUALITY_BITRATE[chosenQuality] || 2500,
+                });
+
+                // Push notification to channel subscribers who are NOT currently online.
+                // We insert Wo_Notifications rows — the PHP push daemon picks them up and sends FCM.
+                // Fire-and-forget: don't block the response if this fails.
+                setImmediate(async () => {
+                    try {
+                        const streamTitle = title || host.name;
+                        // Get all channel subscribers (paginate to avoid huge IN clauses)
+                        const BATCH = 500;
+                        let offset = 0;
+                        while (true) {
+                            const followers = await ctx.wo_pages_likes.findAll({
+                                where: { page_id: channelId, active: '1' },
+                                attributes: ['user_id'],
+                                limit: BATCH,
+                                offset,
+                                raw: true,
+                            });
+                            if (!followers.length) break;
+                            offset += BATCH;
+
+                            const rows = followers
+                                .filter(f => f.user_id !== userId)  // skip the streamer themselves
+                                .map(f => ({
+                                    notifier_id:  userId,
+                                    recipient_id: f.user_id,
+                                    post_id:      0,
+                                    page_id:      channelId,
+                                    group_id:     0,
+                                    group_chat_id: 0,
+                                    event_id:     0,
+                                    thread_id:    0,
+                                    blog_id:      0,
+                                    story_id:     0,
+                                    reply_id:     null,
+                                    comment_id:   null,
+                                    seen_pop:     0,
+                                    type:         'channel_live',
+                                    type2:        'channel_live',
+                                    text:         streamTitle,
+                                    url:          `channel?id=${channelId}`,
+                                    full_link:    `channel?id=${channelId}&stream=${streamId}`,
+                                    seen:         0,
+                                    sent_push:    0,
+                                    time:         startedAt,
+                                }));
+
+                            if (rows.length) {
+                                await ctx.wo_notification.bulkCreate(rows, { ignoreDuplicates: true });
+                            }
+                            if (followers.length < BATCH) break;
+                        }
+                        console.log(`[Livestream] Queued push notifications for channel ${channelId} stream ${streamId}`);
+                    } catch (pushErr) {
+                        console.error('[Livestream] push notification insert error:', pushErr.message);
+                    }
                 });
 
                 console.log(`[Livestream] Stream started: channel=${channelId} room=${roomName} quality=${chosenQuality}`);
