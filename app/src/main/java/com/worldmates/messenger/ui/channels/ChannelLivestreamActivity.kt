@@ -26,6 +26,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import org.webrtc.SurfaceViewRenderer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.worldmates.messenger.R
@@ -88,6 +91,9 @@ class ChannelLivestreamActivity : AppCompatActivity() {
 
         if (channelId == 0L) { finish(); return }
 
+        // Enable edge-to-edge layout so we can draw behind system bars
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         viewModel = ViewModelProvider(this)[ChannelLivestreamViewModel::class.java]
 
         // Lock portrait for setup; unlock rotation once streaming/viewing starts
@@ -141,6 +147,7 @@ private fun LivestreamScreen(
             .background(
                 Brush.verticalGradient(listOf(Color(0xFF0A0A1A), Color(0xFF1A1A2E)))
             )
+            .systemBarsPadding()
     ) {
         when (val state = uiState) {
             is LivestreamUiState.Idle -> {
@@ -209,8 +216,8 @@ private fun HostSetupScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header
         Row(
@@ -347,14 +354,48 @@ private fun HostingScreen(
 ) {
     var showEndConfirm by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Top bar
+    // Full-screen layout: camera fills the screen, controls overlay on top/bottom
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // Camera preview — fills entire screen
+        AndroidView(
+            factory = { ctx ->
+                SurfaceViewRenderer(ctx).apply {
+                    try {
+                        val eglBase = org.webrtc.EglBase.create()
+                        init(eglBase.eglBaseContext, null)
+                        setMirror(true)
+                        setEnableHardwareScaler(true)
+                        // Attach local video track if WebRTC is active
+                        com.worldmates.messenger.network.WebRTCManager.activeInstance
+                            ?.getLocalMediaStream()
+                            ?.videoTracks?.firstOrNull()?.addSink(this)
+                    } catch (e: Exception) {
+                        // WebRTC not yet ready — will show black
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Dark gradient at top for readability
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)
+                    )
+                )
+        )
+
+        // Top bar overlay
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .align(Alignment.TopCenter),
             verticalAlignment = Alignment.CenterVertically
         ) {
             LiveBadge()
@@ -364,7 +405,7 @@ private fun HostingScreen(
                 color    = Color.White,
                 fontSize = 13.sp,
                 modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             )
             Spacer(Modifier.weight(1f))
@@ -373,28 +414,28 @@ private fun HostingScreen(
             }
         }
 
-        Spacer(Modifier.weight(1f))
-
-        // Stream preview placeholder (actual WebRTC video would go here)
+        // Dark gradient at bottom for readability
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .background(Color(0xFF111111), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Videocam, null, tint = Color.Gray, modifier = Modifier.size(48.dp))
-                Text(stringResource(R.string.livestream_camera_preview), color = Color.Gray, fontSize = 14.sp)
-            }
-        }
+                .height(120.dp)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
+                    )
+                )
+        )
 
-        Spacer(Modifier.height(24.dp))
-
-        // End button
+        // Bottom: End stream button
         OutlinedButton(
             onClick  = { showEndConfirm = true },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .padding(horizontal = 24.dp)
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp),
             colors   = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF4444)),
             border   = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFFF4444)),
             shape    = RoundedCornerShape(14.dp)
@@ -429,13 +470,39 @@ private fun ViewingScreen(
     info: LivestreamInfo,
     onLeave: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Remote stream fills screen (placeholder spinner while buffering)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = Color(0xFFE91E8C))
+            Text(
+                text     = stringResource(R.string.livestream_watching_quality, info.quality),
+                color    = Color.Gray,
+                fontSize = 12.sp,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp)
+            )
+        }
+
+        // Dark top gradient
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)
+                    )
+                )
+        )
+
+        // Top bar overlay
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .align(Alignment.TopCenter),
             verticalAlignment = Alignment.CenterVertically
         ) {
             LiveBadge()
@@ -446,32 +513,14 @@ private fun ViewingScreen(
                 fontSize = 13.sp
             )
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onLeave) {
+            TextButton(
+                onClick = onLeave,
+                modifier = Modifier
+                    .background(Color(0xFFE91E8C).copy(alpha = 0.18f), RoundedCornerShape(8.dp))
+            ) {
                 Text(stringResource(R.string.livestream_leave), color = Color(0xFFE91E8C))
             }
         }
-
-        Spacer(Modifier.weight(1f))
-
-        // Stream view placeholder
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .background(Color(0xFF111111), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(color = Color(0xFFE91E8C))
-        }
-
-        Spacer(Modifier.weight(1f))
-
-        Text(
-            text     = stringResource(R.string.livestream_watching_quality, info.quality),
-            color    = Color.Gray,
-            fontSize = 12.sp,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
     }
 }
 

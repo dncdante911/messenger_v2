@@ -24,6 +24,12 @@ async function registerCallsListeners(socket, io, ctx) {
         ctx.activeCalls = new Map(); // roomName -> { initiator, recipient, callType }
     }
 
+    // ===== Хранилище участников групповых звонков =====
+    // roomName -> Map<userId, { userName, userAvatar }>
+    if (!ctx.activeGroupCalls) {
+        ctx.activeGroupCalls = new Map();
+    }
+
     /**
      * Регистрация пользователя для звонков
      * Data: { userId }
@@ -703,6 +709,253 @@ async function registerCallsListeners(socket, io, ctx) {
             });
         } catch (error) {
             console.error('[CALLS] Error in call:noise_cancellation:', error);
+        }
+    });
+
+    // ==================== GROUP CALL MESH SIGNALING ====================
+
+    /**
+     * Участник принимает групповой звонок и присоединяется к комнате.
+     * Сервер уведомляет всех существующих участников, чтобы они создали
+     * WebRTC offer для нового участника (mesh архитектура).
+     *
+     * Data: { roomName, userId, groupId }
+     */
+    socket.on('group_call:join', async (data) => {
+        try {
+            const { roomName, userId, groupId } = data;
+            if (!roomName || !userId) return;
+
+            console.log(`[CALLS] 👥 group_call:join — user ${userId} joining room ${roomName}`);
+
+            // Получить данные пользователя
+            let userName = 'Unknown';
+            let userAvatar = '';
+            try {
+                const user = await ctx.wo_users.findOne({
+                    where: { user_id: userId },
+                    attributes: ['first_name', 'last_name', 'avatar'],
+                    raw: true
+                });
+                if (user) {
+                    userName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown';
+                    userAvatar = user.avatar || '';
+                }
+            } catch (e) { /* ignore */ }
+
+            // Зарегистрировать участника в комнате
+            if (!ctx.activeGroupCalls.has(roomName)) {
+                ctx.activeGroupCalls.set(roomName, new Map());
+            }
+            const roomParticipants = ctx.activeGroupCalls.get(roomName);
+            const existingParticipantIds = [...roomParticipants.keys()];
+
+            roomParticipants.set(userId, { userName, userAvatar, socketId: socket.id });
+            socket.join(roomName);
+
+            console.log(`[CALLS] 👥 Room ${roomName} now has ${roomParticipants.size} participants: ${[...roomParticipants.keys()].join(', ')}`);
+
+            // Отправить новому участнику список уже подключённых участников
+            const existingList = existingParticipantIds.map(uid => ({
+                userId: uid,
+                userName: roomParticipants.get(uid)?.userName || 'Unknown',
+                userAvatar: roomParticipants.get(uid)?.userAvatar || ''
+            }));
+
+            socket.emit('group_call:current_participants', {
+                roomName,
+                participants: existingList
+            });
+
+            // Уведомить каждого существующего участника о новом — чтобы создал offer
+            for (const existingUserId of existingParticipantIds) {
+                const existingSockets = ctx.userIdSocket[existingUserId];
+                if (existingSockets && existingSockets.length > 0) {
+                    const iceServers = turnHelper.getIceServers(existingUserId);
+                    existingSockets.forEach(s => {
+                        s.emit('group_call:participant_joined', {
+                            roomName,
+                            userId,
+                            userName,
+                            userAvatar,
+                            iceServers,
+                            shouldCreateOffer: true // существующий участник создаёт offer
+                        });
+                    });
+                }
+            }
+
+            console.log(`[CALLS] ✅ Notified ${existingParticipantIds.length} existing participants about user ${userId}`);
+        } catch (error) {
+            console.error('[CALLS] Error in group_call:join:', error);
+        }
+    });
+
+    /**
+     * Передать WebRTC offer конкретному участнику групповогозвонка.
+     * Отправляется существующим участником новому (при mesh соединении).
+     *
+     * Data: { roomName, fromUserId, toUserId, sdpOffer }
+     */
+    socket.on('group_call:offer', (data) => {
+        try {
+            const { roomName, fromUserId, toUserId, sdpOffer } = data;
+            if (!toUserId || !sdpOffer) return;
+
+            console.log(`[CALLS] 📤 group_call:offer from ${fromUserId} to ${toUserId} in room ${roomName}`);
+
+            const recipientSockets = ctx.userIdSocket[toUserId];
+            if (recipientSockets && recipientSockets.length > 0) {
+                const iceServers = turnHelper.getIceServers(toUserId);
+                recipientSockets.forEach(s => {
+                    s.emit('group_call:offer', {
+                        roomName,
+                        fromUserId,
+                        sdpOffer,
+                        iceServers
+                    });
+                });
+                console.log(`[CALLS] ✅ Offer relayed to user ${toUserId}`);
+            } else {
+                console.warn(`[CALLS] ⚠️ No sockets found for user ${toUserId} to relay offer`);
+            }
+        } catch (error) {
+            console.error('[CALLS] Error in group_call:offer:', error);
+        }
+    });
+
+    /**
+     * Передать WebRTC answer обратно инициатору offer.
+     *
+     * Data: { roomName, fromUserId, toUserId, sdpAnswer }
+     */
+    socket.on('group_call:answer', (data) => {
+        try {
+            const { roomName, fromUserId, toUserId, sdpAnswer } = data;
+            if (!toUserId || !sdpAnswer) return;
+
+            console.log(`[CALLS] 📥 group_call:answer from ${fromUserId} to ${toUserId} in room ${roomName}`);
+
+            const recipientSockets = ctx.userIdSocket[toUserId];
+            if (recipientSockets && recipientSockets.length > 0) {
+                recipientSockets.forEach(s => {
+                    s.emit('group_call:answer', {
+                        roomName,
+                        fromUserId,
+                        sdpAnswer
+                    });
+                });
+                console.log(`[CALLS] ✅ Answer relayed to user ${toUserId}`);
+            } else {
+                console.warn(`[CALLS] ⚠️ No sockets found for user ${toUserId} to relay answer`);
+            }
+        } catch (error) {
+            console.error('[CALLS] Error in group_call:answer:', error);
+        }
+    });
+
+    /**
+     * Участник покидает групповой звонок.
+     * Data: { roomName, userId }
+     */
+    socket.on('group_call:leave', async (data) => {
+        try {
+            const { roomName, userId } = data;
+            if (!roomName || !userId) return;
+
+            console.log(`[CALLS] 🚪 group_call:leave — user ${userId} leaving room ${roomName}`);
+
+            socket.leave(roomName);
+
+            if (ctx.activeGroupCalls.has(roomName)) {
+                ctx.activeGroupCalls.get(roomName).delete(userId);
+                if (ctx.activeGroupCalls.get(roomName).size === 0) {
+                    ctx.activeGroupCalls.delete(roomName);
+                }
+            }
+
+            // Уведомить остальных участников
+            socket.to(roomName).emit('group_call:participant_left', {
+                roomName,
+                userId
+            });
+
+            console.log(`[CALLS] ✅ User ${userId} left group call room ${roomName}`);
+        } catch (error) {
+            console.error('[CALLS] Error in group_call:leave:', error);
+        }
+    });
+
+    /**
+     * Инициатор завершает весь групповой звонок.
+     * Data: { roomName, userId }
+     */
+    socket.on('group_call:end', async (data) => {
+        try {
+            const { roomName, userId } = data;
+            if (!roomName) return;
+
+            console.log(`[CALLS] 🔴 group_call:end — user ${userId} ending room ${roomName}`);
+
+            // Уведомить всех участников
+            io.in(roomName).emit('group_call:ended', {
+                roomName,
+                endedBy: userId
+            });
+
+            // Очистить комнату
+            ctx.activeGroupCalls.delete(roomName);
+
+            // Обновить БД
+            try {
+                await ctx.wo_group_calls.update(
+                    { status: 'ended', ended_at: new Date() },
+                    { where: { room_name: roomName } }
+                );
+            } catch (e) {
+                console.warn('[CALLS] Could not update group call status in DB:', e.message);
+            }
+
+            console.log(`[CALLS] ✅ Group call ${roomName} ended by user ${userId}`);
+        } catch (error) {
+            console.error('[CALLS] Error in group_call:end:', error);
+        }
+    });
+
+    /**
+     * ICE candidate для конкретного участника группового звонка.
+     * Дополняет существующий ice:candidate handler для групп.
+     * Data: { roomName, fromUserId, toUserId, candidate, sdpMLineIndex, sdpMid }
+     */
+    socket.on('group_call:ice_candidate', (data) => {
+        try {
+            const { roomName, fromUserId, toUserId, candidate, sdpMLineIndex, sdpMid } = data;
+
+            if (toUserId) {
+                // Отправить конкретному участнику
+                const recipientSockets = ctx.userIdSocket[toUserId];
+                if (recipientSockets && recipientSockets.length > 0) {
+                    recipientSockets.forEach(s => {
+                        s.emit('group_call:ice_candidate', {
+                            roomName,
+                            fromUserId,
+                            candidate,
+                            sdpMLineIndex,
+                            sdpMid
+                        });
+                    });
+                }
+            } else {
+                // Broadcast всем в комнате
+                socket.to(roomName).emit('group_call:ice_candidate', {
+                    fromUserId,
+                    candidate,
+                    sdpMLineIndex,
+                    sdpMid
+                });
+            }
+        } catch (error) {
+            console.error('[CALLS] Error in group_call:ice_candidate:', error);
         }
     });
 

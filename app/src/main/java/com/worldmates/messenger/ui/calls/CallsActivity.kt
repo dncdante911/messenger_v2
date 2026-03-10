@@ -159,7 +159,6 @@ class CallsActivity : ComponentActivity() {
             // Викликаємо acceptCall() - ViewModel зачекає на Socket і виконає все необхідне
             callsViewModel.acceptCall(callData)
         } else {
-            // ✅ Вихідний дзвінок - ініціюємо звонок
             recipientId = intent.getLongExtra("recipientId", 0)
             recipientName = intent.getStringExtra("recipientName") ?: "Користувач"
             recipientAvatar = intent.getStringExtra("recipientAvatar") ?: ""
@@ -167,10 +166,37 @@ class CallsActivity : ComponentActivity() {
             isGroup = intent.getBooleanExtra("isGroup", false)
             groupId = intent.getLongExtra("groupId", 0)
 
-            // Якщо є recipientId або groupId - потрібно ініціювати дзвінок
-            shouldInitiateCall = (recipientId > 0 || groupId > 0)
+            val isIncomingGroup = intent.getBooleanExtra("is_incoming_group", false)
 
-            android.util.Log.d("CallsActivity", "✅ Outgoing call to: $recipientName (ID: $recipientId)")
+            if (isIncomingGroup && isGroup) {
+                // Входящий групповой звонок — нужно присоединиться к существующей комнате
+                val groupRoomName = intent.getStringExtra("group_room_name") ?: ""
+                val groupInitiatedBy = intent.getIntExtra("group_initiated_by", 0)
+                val groupMaxParticipants = intent.getIntExtra("group_max_participants", 5)
+
+                android.util.Log.d("CallsActivity", "✅ Joining incoming group call: room=$groupRoomName, group=$groupId")
+
+                val groupCallData = GroupCallIncomingData(
+                    groupId = groupId.toInt(),
+                    groupName = recipientName,
+                    initiatedBy = groupInitiatedBy,
+                    initiatorName = intent.getStringExtra("group_initiator_name") ?: "Unknown",
+                    initiatorAvatar = "",
+                    callType = callType,
+                    roomName = groupRoomName,
+                    maxParticipants = groupMaxParticipants,
+                    isPremiumCall = groupMaxParticipants > 5
+                )
+
+                // Присоединиться к звонку через ViewModel
+                callsViewModel.joinGroupCall(groupCallData)
+                shouldInitiateCall = false
+            } else {
+                // Якщо є recipientId або groupId - потрібно ініціювати дзвінок
+                shouldInitiateCall = (recipientId > 0 || groupId > 0)
+            }
+
+            android.util.Log.d("CallsActivity", "✅ Outgoing call to: $recipientName (ID: $recipientId), isGroup=$isGroup")
         }
 
         // Налаштувати Socket.IO listeners
@@ -181,20 +207,37 @@ class CallsActivity : ComponentActivity() {
 
         setContent {
             WorldMatesThemedApp {
-                CallsScreen(
-                    callsViewModel,
-                    this,
-                    isInitiating = shouldInitiateCall && !callInitiated,
-                    isIncoming = isIncomingCall,  // ✅ Передаємо флаг вхідного дзвінка
-                    calleeName = recipientName,
-                    calleeAvatar = recipientAvatar,
-                    callType = callType
-                )
+                if (isGroup) {
+                    GroupCallScreen(
+                        viewModel = callsViewModel,
+                        groupName = recipientName,
+                        groupId = groupId.toInt(),
+                        callType = callType,
+                        onCallEnd = { finish() }
+                    )
+                } else {
+                    CallsScreen(
+                        callsViewModel,
+                        this,
+                        isInitiating = shouldInitiateCall && !callInitiated,
+                        isIncoming = isIncomingCall,
+                        calleeName = recipientName,
+                        calleeAvatar = recipientAvatar,
+                        callType = callType
+                    )
+                }
             }
         }
 
-        // Обробити завершення дзвінка
+        // Обробити завершення дзвінка (1-на-1)
         callsViewModel.callEnded.observe(this) { ended ->
+            if (ended == true) {
+                finish()
+            }
+        }
+
+        // Обробити завершення групового дзвінка
+        callsViewModel.groupCallEnded.observe(this) { ended ->
             if (ended == true) {
                 finish()
             }
@@ -1691,5 +1734,307 @@ fun formatDuration(seconds: Int): String {
         String.format("%02d:%02d:%02d", hours, minutes, secs)
     } else {
         String.format("%02d:%02d", minutes, secs)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GROUP CALL SCREEN — Групповой звонок (mesh P2P, до 5 или 25 участников)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Главный экран группового звонка.
+ * Использует фиолетово-синий градиент для визуального отличия от 1-на-1 звонков.
+ */
+@Composable
+fun GroupCallScreen(
+    viewModel: CallsViewModel,
+    groupName: String,
+    groupId: Int,
+    callType: String,
+    onCallEnd: () -> Unit
+) {
+    val participants by viewModel.groupCallParticipants.observeAsState(emptyList())
+    val localStream by viewModel.localStreamAdded.observeAsState(null)
+
+    var audioEnabled by remember { mutableStateOf(true) }
+    var videoEnabled by remember { mutableStateOf(callType == "video") }
+    var speakerOn by remember { mutableStateOf(true) }
+    var callSeconds by remember { mutableStateOf(0) }
+    val maxParticipants = viewModel.getCurrentGroupMaxParticipants()
+    val isPremium = maxParticipants > 5
+
+    // Таймер звонка
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            callSeconds++
+        }
+    }
+
+    // Локальный участник
+    val localParticipant = GroupCallParticipant(
+        userId = viewModel.getUserId().toLong(),
+        name = "Вы",
+        audioEnabled = audioEnabled,
+        videoEnabled = videoEnabled,
+        mediaStream = localStream,
+        connectionState = "connected"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF0D0D2B), Color(0xFF1A0A3D), Color(0xFF0D1F3D))
+                )
+            )
+            .systemBarsPadding()
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+
+            // ─── Шапка группового звонка ──────────────────────────────────
+            GroupCallTopBar(
+                groupName = groupName,
+                participantCount = participants.size + 1, // +1 = local
+                maxParticipants = maxParticipants,
+                isPremium = isPremium,
+                callDuration = callSeconds
+            )
+
+            // ─── Сетка участников ─────────────────────────────────────────
+            Box(modifier = Modifier.weight(1f)) {
+                GroupCallGrid(
+                    participants = participants,
+                    localParticipant = localParticipant,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Если никого нет — показать подсказку
+                if (participants.isEmpty()) {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF7C4DFF),
+                            modifier = Modifier.size(40.dp)
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "Ждём участников...",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 15.sp
+                        )
+                    }
+                }
+            }
+
+            // ─── Панель управления ────────────────────────────────────────
+            GroupCallControls(
+                audioEnabled = audioEnabled,
+                videoEnabled = videoEnabled,
+                speakerOn = speakerOn,
+                isInitiator = viewModel.isGroupCallInitiator(),
+                onAudioToggle = {
+                    audioEnabled = !audioEnabled
+                    viewModel.toggleGroupAudio(audioEnabled)
+                },
+                onVideoToggle = {
+                    videoEnabled = !videoEnabled
+                    viewModel.toggleGroupVideo(videoEnabled)
+                },
+                onSpeakerToggle = {
+                    speakerOn = !speakerOn
+                    viewModel.toggleSpeaker(speakerOn)
+                },
+                onLeave = {
+                    if (viewModel.isGroupCallInitiator()) {
+                        viewModel.endGroupCallForAll()
+                    } else {
+                        viewModel.leaveGroupCall()
+                    }
+                    onCallEnd()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun GroupCallTopBar(
+    groupName: String,
+    participantCount: Int,
+    maxParticipants: Int,
+    isPremium: Boolean,
+    callDuration: Int
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Бейдж "ГРУППА"
+                Text(
+                    text = "ГРУППА",
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .background(Color(0xFF7C4DFF), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+                if (isPremium) {
+                    Text(
+                        text = "PRO",
+                        color = Color(0xFFFFD700),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .background(Color(0xFFFFD700).copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = groupName,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            Text(
+                text = "$participantCount / $maxParticipants участников",
+                color = Color(0xFF9E9EC0),
+                fontSize = 12.sp
+            )
+        }
+
+        // Таймер
+        Text(
+            text = formatDuration(callDuration),
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun GroupCallControls(
+    audioEnabled: Boolean,
+    videoEnabled: Boolean,
+    speakerOn: Boolean,
+    isInitiator: Boolean,
+    onAudioToggle: () -> Unit,
+    onVideoToggle: () -> Unit,
+    onSpeakerToggle: () -> Unit,
+    onLeave: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.4f))
+            .padding(horizontal = 20.dp, vertical = 20.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Микрофон
+        GroupControlButton(
+            icon = if (audioEnabled) Icons.Default.Mic else Icons.Default.MicOff,
+            label = if (audioEnabled) "Микрофон" else "Выкл. микрофон",
+            active = audioEnabled,
+            onClick = onAudioToggle
+        )
+
+        // Камера
+        GroupControlButton(
+            icon = if (videoEnabled) Icons.Default.Videocam else Icons.Default.VideocamOff,
+            label = if (videoEnabled) "Камера" else "Камера выкл.",
+            active = videoEnabled,
+            onClick = onVideoToggle
+        )
+
+        // Динамик
+        GroupControlButton(
+            icon = if (speakerOn) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+            label = if (speakerOn) "Динамик" else "Наушники",
+            active = speakerOn,
+            onClick = onSpeakerToggle
+        )
+
+        // Завершить звонок
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFF4444))
+                    .clickable(onClick = onLeave),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isInitiator) Icons.Default.CallEnd else Icons.Default.CallEnd,
+                    contentDescription = if (isInitiator) "Завершить" else "Выйти",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Text(
+                text = if (isInitiator) "Завершить" else "Выйти",
+                color = Color(0xFFFF4444),
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun GroupControlButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(
+                    if (active) Color(0xFF2A2A5A) else Color(0xFF444444)
+                )
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (active) Color(0xFFAA80FF) else Color.Gray,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+        Text(
+            text = label,
+            color = Color.Gray,
+            fontSize = 10.sp,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(64.dp)
+        )
     }
 }

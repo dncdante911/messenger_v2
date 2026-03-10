@@ -322,6 +322,18 @@
             android:excludeFromRecents="true"
             tools:ignore="MissingClass" />
 
+        <!-- Incoming Group Call Activity -->
+        <activity
+            android:name=".ui.calls.IncomingGroupCallActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            tools:ignore="MissingClass" />
+
         <!-- Drafts Activity -->
         <activity
             android:name=".ui.drafts.DraftsActivity"
