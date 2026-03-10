@@ -1,0 +1,20 @@
+[
+  {
+    "user_id":      "1001",
+    "access_token": "SESSION_ID_FROM_WO_APPSSESSIONS_TABLE",
+    "contacts":     ["1002", "1003", "1004", "1005"],
+    "group_ids":    ["10", "11"]
+  },
+  {
+    "user_id":      "1002",
+    "access_token": "SESSION_ID_FROM_WO_APPSSESSIONS_TABLE",
+    "contacts":     ["1001", "1003", "1004"],
+    "group_ids":    ["10"]
+  },
+  {
+    "user_id":      "1003",
+    "access_token": "SESSION_ID_FROM_WO_APPSSESSIONS_TABLE",
+    "contacts":     ["1001", "1002", "1005"],
+    "group_ids":    ["11"]
+  }
+]
