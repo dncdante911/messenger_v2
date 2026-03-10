@@ -11,6 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.model.*
+import com.worldmates.messenger.network.GroupWebRTCManager
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.network.WebRTCManager
 import kotlinx.coroutines.*
@@ -45,11 +46,31 @@ data class ParticipantLimitError(
     val isPro: Boolean
 )
 
+/** Данные для отображения входящего группового звонка */
+data class GroupCallIncomingData(
+    val groupId: Int,
+    val groupName: String,
+    val initiatedBy: Int,
+    val initiatorName: String,
+    val initiatorAvatar: String,
+    val callType: String,
+    val roomName: String,
+    val maxParticipants: Int = 5,
+    val isPremiumCall: Boolean = false
+)
+
 class CallsViewModel(application: Application) : AndroidViewModel(application), SocketManager.SocketListener {
 
     private val webRTCManager = WebRTCManager(application)
     val socketManager = SocketManager(this, application)  // ✅ public для доступу з CallsActivity
     private val gson = Gson()
+
+    // ───── Group Call WebRTC ─────────────────────────────────────────────────
+    val groupWebRTCManager = GroupWebRTCManager(application)
+    private var currentGroupRoomName: String? = null
+    private var currentGroupId: Int = 0
+    private var currentGroupMaxParticipants: Int = 5
+    private var isGroupCallInitiator = false
 
     // LiveData для UI
     val incomingCall = MutableLiveData<CallData?>()
@@ -63,11 +84,24 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     val connectionState = MutableLiveData<String>()
     val socketConnected = MutableLiveData<Boolean>(false)  // ✅ Додано для відстеження підключення
 
+    // ───── Group Call LiveData ────────────────────────────────────────────────
+    /** Список участников текущего группового звонка (обновляется в реальном времени) */
+    val groupCallParticipants = MutableLiveData<List<GroupCallParticipant>>(emptyList())
+    /** Входящий групповой звонок — показать уведомление */
+    val incomingGroupCall = MutableLiveData<GroupCallIncomingData?>()
+    /** Групповой звонок начался (после joinGroupCall) */
+    val groupCallStarted = MutableLiveData<Boolean>()
+    /** Групповой звонок завершён */
+    val groupCallEnded = MutableLiveData<Boolean>()
+
     private var currentCallData: CallData? = null
     private var currentCallId: Int = 0
     private var isInitiator = false
     private var pendingCallInitiation: (() -> Unit)? = null  // ✅ Очікуючий вихідний виклик
     private var pendingCallAcceptance: (() -> Unit)? = null  // ✅ Очікуюче прийняття вхідного виклику
+
+    // Вспомогательная карта: userId → info участника (для обновления состояния)
+    private val groupParticipantInfoMap = mutableMapOf<Long, GroupCallParticipant>()
 
     // 🔊 Audio management
     private val audioManager: AudioManager by lazy {
@@ -282,10 +316,315 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
             }
         }
 
+        // ==================== GROUP CALL SOCKET LISTENERS ====================
+
+        // 📞 Входящий групповой звонок
+        socketManager.on("group_call:incoming") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                Log.d("CallsViewModel", "📞 Group call incoming")
+
+                val groupId = data.optInt("groupId", 0)
+                val initiatedBy = data.optInt("initiatedBy", 0)
+                val initiatorName = data.optString("initiatorName", "Unknown")
+                val callType = data.optString("callType", "audio")
+                val roomName = data.optString("roomName", "")
+                val maxParticipants = data.optInt("maxParticipants", 5)
+                val isPremiumCall = data.optBoolean("isPremiumCall", false)
+                val groupName = data.optString("groupName", "Групповой звонок")
+
+                if (initiatedBy == getUserId()) return@on // Не уведомлять инициатора
+                if (roomName.isEmpty()) return@on
+
+                val iceServersArray = data.optJSONArray("iceServers")
+                if (iceServersArray != null) {
+                    val iceServers = parseIceServers(iceServersArray)
+                    groupWebRTCManager.setIceServers(iceServers)
+                }
+
+                val groupIncoming = GroupCallIncomingData(
+                    groupId = groupId,
+                    groupName = groupName,
+                    initiatedBy = initiatedBy,
+                    initiatorName = initiatorName,
+                    initiatorAvatar = data.optString("initiatorAvatar", ""),
+                    callType = callType,
+                    roomName = roomName,
+                    maxParticipants = maxParticipants,
+                    isPremiumCall = isPremiumCall
+                )
+                incomingGroupCall.postValue(groupIncoming)
+
+                // Запустить Activity входящего группового звонка
+                val intent = android.content.Intent(
+                    getApplication(), IncomingGroupCallActivity::class.java
+                ).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra("group_id", groupId)
+                    putExtra("group_name", groupName)
+                    putExtra("initiated_by", initiatedBy)
+                    putExtra("initiator_name", initiatorName)
+                    putExtra("initiator_avatar", data.optString("initiatorAvatar", ""))
+                    putExtra("call_type", callType)
+                    putExtra("room_name", roomName)
+                    putExtra("max_participants", maxParticipants)
+                    putExtra("is_premium_call", isPremiumCall)
+                }
+                getApplication<Application>().startActivity(intent)
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing group_call:incoming", e)
+            }
+        }
+
+        // 👥 Список текущих участников (получает новый участник при присоединении)
+        socketManager.on("group_call:current_participants") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                val participants = data.optJSONArray("participants") ?: return@on
+                Log.d("CallsViewModel", "👥 Current participants: ${participants.length()}")
+
+                for (i in 0 until participants.length()) {
+                    val p = participants.getJSONObject(i)
+                    val userId = p.optLong("userId", 0L)
+                    val userName = p.optString("userName", "Unknown")
+                    val userAvatar = p.optString("userAvatar", "")
+                    if (userId > 0) {
+                        addOrUpdateGroupParticipant(userId, userName, userAvatar.ifEmpty { null })
+                        // Каждый существующий участник пришлёт нам offer — ждём
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing group_call:current_participants", e)
+            }
+        }
+
+        // 🔔 Новый участник присоединился — создать offer для него (существующие участники)
+        socketManager.on("group_call:participant_joined") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                val userId = data.optLong("userId", 0L)
+                val userName = data.optString("userName", "Unknown")
+                val userAvatar = data.optString("userAvatar", "")
+                val shouldCreateOffer = data.optBoolean("shouldCreateOffer", false)
+                val roomName = data.optString("roomName", "")
+                val iceServersArray = data.optJSONArray("iceServers")
+
+                if (userId == getUserId().toLong()) return@on
+                Log.d("CallsViewModel", "👤 Participant joined: $userName ($userId)")
+
+                addOrUpdateGroupParticipant(userId, userName, userAvatar.ifEmpty { null })
+
+                if (shouldCreateOffer) {
+                    if (iceServersArray != null) {
+                        val iceServers = parseIceServers(iceServersArray)
+                        groupWebRTCManager.setIceServers(iceServers)
+                    }
+                    groupWebRTCManager.createPeerConnectionForPeer(userId)
+                    groupWebRTCManager.createOfferForPeer(userId)
+                }
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing group_call:participant_joined", e)
+            }
+        }
+
+        // 📤 Получен offer от существующего участника (новый участник создаёт answer)
+        socketManager.on("group_call:offer") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                val fromUserId = data.optLong("fromUserId", 0L)
+                val sdpOffer = data.optString("sdpOffer", "")
+                val iceServersArray = data.optJSONArray("iceServers")
+
+                if (fromUserId == 0L || sdpOffer.isEmpty()) return@on
+                Log.d("CallsViewModel", "📤 Received group offer from $fromUserId")
+
+                if (iceServersArray != null) {
+                    val iceServers = parseIceServers(iceServersArray)
+                    groupWebRTCManager.setIceServers(iceServers)
+                }
+
+                groupWebRTCManager.handleOfferAndCreateAnswer(fromUserId, sdpOffer)
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing group_call:offer", e)
+            }
+        }
+
+        // 📥 Получен answer от участника (после отправки ему offer)
+        socketManager.on("group_call:answer") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                val fromUserId = data.optLong("fromUserId", 0L)
+                val sdpAnswer = data.optString("sdpAnswer", "")
+
+                if (fromUserId == 0L || sdpAnswer.isEmpty()) return@on
+                Log.d("CallsViewModel", "📥 Received group answer from $fromUserId")
+
+                groupWebRTCManager.handleAnswer(fromUserId, sdpAnswer)
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing group_call:answer", e)
+            }
+        }
+
+        // 🧊 ICE candidate для конкретного участника группового звонка
+        socketManager.on("group_call:ice_candidate") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                val fromUserId = data.optLong("fromUserId", 0L)
+                val candidateSdp = data.optString("candidate", "")
+                val sdpMLineIndex = data.optInt("sdpMLineIndex", 0)
+                val sdpMid = data.optString("sdpMid", "")
+
+                if (fromUserId == 0L || candidateSdp.isEmpty()) return@on
+
+                val candidate = IceCandidate(sdpMid, sdpMLineIndex, candidateSdp)
+                groupWebRTCManager.addIceCandidateForPeer(fromUserId, candidate)
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing group_call:ice_candidate", e)
+            }
+        }
+
+        // 🚪 Участник покинул групповой звонок
+        socketManager.on("group_call:participant_left") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                val userId = data.optLong("userId", 0L)
+                if (userId == 0L) return@on
+                Log.d("CallsViewModel", "🚪 Participant left: $userId")
+
+                groupWebRTCManager.removePeer(userId)
+                removeGroupParticipant(userId)
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing group_call:participant_left", e)
+            }
+        }
+
+        // 🔴 Групповой звонок завершён инициатором
+        socketManager.on("group_call:ended") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                val roomName = data.optString("roomName", "")
+                Log.d("CallsViewModel", "🔴 Group call ended: $roomName")
+
+                cleanupGroupCall()
+                groupCallEnded.postValue(true)
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing group_call:ended", e)
+            }
+        }
+
+        // 🔊 Изменение медиа участника
+        socketManager.on("user:media_changed") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject ?: return@on
+                val userId = data.optLong("userId", 0L)
+                val audio = data.optBoolean("audio", true)
+                val video = data.optBoolean("video", false)
+
+                val existing = groupParticipantInfoMap[userId] ?: return@on
+                groupParticipantInfoMap[userId] = existing.copy(
+                    audioEnabled = audio,
+                    videoEnabled = video
+                )
+                groupCallParticipants.postValue(groupParticipantInfoMap.values.toList())
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing user:media_changed", e)
+            }
+        }
+
         Log.d("CallsViewModel", "✅ Call Socket.IO listeners configured")
     }
 
+    private fun setupGroupWebRTCCallbacks() {
+        groupWebRTCManager.onIceCandidateReady = { toUserId, candidate ->
+            val roomName = currentGroupRoomName ?: return@onIceCandidateReady
+            val event = JSONObject().apply {
+                put("roomName", roomName)
+                put("fromUserId", getUserId())
+                put("toUserId", toUserId)
+                put("candidate", candidate.sdp)
+                put("sdpMLineIndex", candidate.sdpMLineIndex)
+                put("sdpMid", candidate.sdpMid ?: "")
+            }
+            socketManager.emit("group_call:ice_candidate", event)
+        }
+
+        groupWebRTCManager.onOfferReady = { toUserId, sdp ->
+            val roomName = currentGroupRoomName ?: return@onOfferReady
+            Log.d("CallsViewModel", "📤 Sending group_call:offer to user $toUserId")
+            val event = JSONObject().apply {
+                put("roomName", roomName)
+                put("fromUserId", getUserId())
+                put("toUserId", toUserId)
+                put("sdpOffer", sdp.description)
+            }
+            socketManager.emit("group_call:offer", event)
+        }
+
+        groupWebRTCManager.onAnswerReady = { toUserId, sdp ->
+            val roomName = currentGroupRoomName ?: return@onAnswerReady
+            Log.d("CallsViewModel", "📥 Sending group_call:answer to user $toUserId")
+            val event = JSONObject().apply {
+                put("roomName", roomName)
+                put("fromUserId", getUserId())
+                put("toUserId", toUserId)
+                put("sdpAnswer", sdp.description)
+            }
+            socketManager.emit("group_call:answer", event)
+        }
+
+        groupWebRTCManager.onRemoteStreamAdded = { userId, stream ->
+            Log.d("CallsViewModel", "✅ Group: remote stream from user $userId")
+            updateGroupParticipantStream(userId, stream)
+        }
+
+        groupWebRTCManager.onRemoteStreamRemoved = { userId ->
+            Log.d("CallsViewModel", "🔴 Group: remote stream removed from user $userId")
+            removeGroupParticipant(userId)
+        }
+    }
+
+    private fun updateGroupParticipantStream(userId: Long, stream: MediaStream) {
+        val existing = groupParticipantInfoMap[userId]
+        if (existing != null) {
+            groupParticipantInfoMap[userId] = existing.copy(
+                mediaStream = stream,
+                videoEnabled = stream.videoTracks.isNotEmpty() && stream.videoTracks[0].enabled(),
+                connectionState = "connected"
+            )
+        } else {
+            groupParticipantInfoMap[userId] = GroupCallParticipant(
+                userId = userId,
+                name = "Участник",
+                mediaStream = stream,
+                videoEnabled = stream.videoTracks.isNotEmpty(),
+                connectionState = "connected"
+            )
+        }
+        groupCallParticipants.postValue(groupParticipantInfoMap.values.toList())
+    }
+
+    private fun removeGroupParticipant(userId: Long) {
+        groupParticipantInfoMap.remove(userId)
+        groupCallParticipants.postValue(groupParticipantInfoMap.values.toList())
+    }
+
+    private fun addOrUpdateGroupParticipant(userId: Long, name: String, avatar: String?, connectionState: String = "connecting") {
+        val existing = groupParticipantInfoMap[userId]
+        groupParticipantInfoMap[userId] = existing?.copy(
+            name = name,
+            avatar = avatar,
+            connectionState = connectionState
+        ) ?: GroupCallParticipant(
+            userId = userId,
+            name = name,
+            avatar = avatar,
+            connectionState = connectionState
+        )
+        groupCallParticipants.postValue(groupParticipantInfoMap.values.toList())
+    }
+
     private fun setupWebRTCListeners() {
+        setupGroupWebRTCCallbacks()
         webRTCManager.onIceCandidateListener = { candidate ->
             currentCallData?.let {
                 // ✅ Використовуємо org.json.JSONObject для Socket.IO
@@ -478,74 +817,186 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     }
 
     /**
-     * Ініціювати групповой вызов
+     * Ініціювати груповий дзвінок (mesh архітектура).
+     * Ініціатор заходить у кімнату та чекає поки інші приймуть дзвінок.
      */
     fun initiateGroupCall(groupId: Int, groupName: String, callType: String = "audio") {
         val callLogic: () -> Unit = {
-            // 🔊 CRITICAL: Setup audio for calls BEFORE creating WebRTC connection
             setupCallAudio(isVideoCall = callType == "video")
-
             viewModelScope.launch {
                 try {
-                    // ✅ Fetch ICE servers from API FIRST
                     val iceServers = fetchIceServersFromApi()
                     if (iceServers != null) {
-                        webRTCManager.setIceServers(iceServers)
-                        Log.d("CallsViewModel", "✅ ICE servers set for group call: ${iceServers.size} servers")
+                        groupWebRTCManager.setIceServers(iceServers)
                     }
 
-                    webRTCManager.createPeerConnection()
-                    webRTCManager.createLocalMediaStream(audioEnabled = true, videoEnabled = (callType == "video"))
+                    val audioOnly = callType != "video"
+                    groupWebRTCManager.setupLocalMedia(audioOnly = audioOnly)
 
-                    // Опубліковати локальний стрім
-                    getLocalStream()?.let { localStreamAdded.postValue(it) }
+                    val localStream = groupWebRTCManager.getLocalMediaStream()
+                    localStream?.let { localStreamAdded.postValue(it) }
 
-                    webRTCManager.createOffer(
-                        onSuccess = { offer ->
-                            val roomName = generateRoomName()
-                            currentCallData = CallData(
-                                callId = 0,
-                                fromId = getUserId(),
-                                fromName = getUserName(),
-                                fromAvatar = getUserAvatar(),
-                                groupId = groupId,
-                                callType = callType,
-                                roomName = roomName,
-                                sdpOffer = offer.description
-                            )
-                            isInitiator = true
+                    val roomName = generateRoomName()
+                    currentGroupRoomName = roomName
+                    currentGroupId = groupId
+                    isGroupCallInitiator = true
 
-                            // ✅ Використовуємо org.json.JSONObject для Socket.IO
-                            val groupCallEvent = JSONObject().apply {
-                                put("groupId", groupId)
-                                put("initiatedBy", getUserId())
-                                put("callType", callType)
-                                put("roomName", roomName)
-                                put("sdpOffer", offer.description)
-                            }
+                    // Уведомить сервер о начале группового звонка (без SDP — mesh)
+                    val groupCallEvent = JSONObject().apply {
+                        put("fromId", getUserId())
+                        put("groupId", groupId)
+                        put("callType", callType)
+                        put("roomName", roomName)
+                        put("groupName", groupName)
+                    }
+                    socketManager.emit("call:initiate", groupCallEvent)
+                    Log.d("CallsViewModel", "Group call initiated for group $groupId, room=$roomName")
 
-                            socketManager.emit("group_call:initiate", groupCallEvent)
-                            Log.d("CallsViewModel", "Group call initiated for group $groupId")
-                        },
-                        onError = { error ->
-                            callError.postValue(error)
-                        }
-                    )
+                    // Инициатор также присоединяется к комнате
+                    joinGroupCallRoom(roomName, groupId)
+
                 } catch (e: Exception) {
                     callError.postValue(e.message)
+                    Log.e("CallsViewModel", "Error initiating group call", e)
                 }
             }
         }
 
-        // ✅ Перевірити чи Socket підключений
         if (socketConnected.value == true) {
-            Log.d("CallsViewModel", "Socket ready, initiating group call immediately")
             callLogic()
         } else {
-            Log.d("CallsViewModel", "Socket not ready, pending group call initiation...")
             pendingCallInitiation = callLogic
         }
     }
+
+    /**
+     * Принять входящий групповой звонок.
+     * Вызывается когда пользователь нажимает "Принять" в уведомлении.
+     */
+    fun joinGroupCall(groupCallData: GroupCallIncomingData) {
+        val joinLogic: () -> Unit = {
+            setupCallAudio(isVideoCall = groupCallData.callType == "video")
+            viewModelScope.launch {
+                try {
+                    val iceServers = fetchIceServersFromApi()
+                    if (iceServers != null) {
+                        groupWebRTCManager.setIceServers(iceServers)
+                    }
+
+                    val audioOnly = groupCallData.callType != "video"
+                    groupWebRTCManager.setupLocalMedia(audioOnly = audioOnly)
+
+                    val localStream = groupWebRTCManager.getLocalMediaStream()
+                    localStream?.let { localStreamAdded.postValue(it) }
+
+                    currentGroupRoomName = groupCallData.roomName
+                    currentGroupId = groupCallData.groupId
+                    currentGroupMaxParticipants = groupCallData.maxParticipants
+                    isGroupCallInitiator = false
+
+                    // Присоединиться к комнате
+                    joinGroupCallRoom(groupCallData.roomName, groupCallData.groupId)
+
+                    incomingGroupCall.postValue(null)
+                    groupCallStarted.postValue(true)
+                } catch (e: Exception) {
+                    callError.postValue(e.message)
+                    Log.e("CallsViewModel", "Error joining group call", e)
+                }
+            }
+        }
+
+        if (socketConnected.value == true) {
+            joinLogic()
+        } else {
+            pendingCallInitiation = joinLogic
+        }
+    }
+
+    private fun joinGroupCallRoom(roomName: String, groupId: Int) {
+        val event = JSONObject().apply {
+            put("roomName", roomName)
+            put("userId", getUserId())
+            put("groupId", groupId)
+        }
+        socketManager.emit("group_call:join", event)
+        Log.d("CallsViewModel", "📍 Joined group call room: $roomName")
+    }
+
+    /**
+     * Участник покидает групповой звонок (остальные продолжают).
+     */
+    fun leaveGroupCall() {
+        val roomName = currentGroupRoomName ?: return
+        val event = JSONObject().apply {
+            put("roomName", roomName)
+            put("userId", getUserId())
+        }
+        socketManager.emit("group_call:leave", event)
+
+        cleanupGroupCall()
+        groupCallEnded.postValue(true)
+        Log.d("CallsViewModel", "Left group call room: $roomName")
+    }
+
+    /**
+     * Инициатор завершает весь групповой звонок для всех.
+     */
+    fun endGroupCallForAll() {
+        val roomName = currentGroupRoomName ?: run {
+            leaveGroupCall()
+            return
+        }
+        val event = JSONObject().apply {
+            put("roomName", roomName)
+            put("userId", getUserId())
+        }
+        socketManager.emit("group_call:end", event)
+
+        cleanupGroupCall()
+        groupCallEnded.postValue(true)
+        Log.d("CallsViewModel", "Ended group call for all: $roomName")
+    }
+
+    private fun cleanupGroupCall() {
+        groupWebRTCManager.close()
+        groupParticipantInfoMap.clear()
+        groupCallParticipants.postValue(emptyList())
+        currentGroupRoomName = null
+        currentGroupId = 0
+        isGroupCallInitiator = false
+        releaseCallAudio()
+    }
+
+    fun toggleGroupAudio(enabled: Boolean) {
+        groupWebRTCManager.setAudioEnabled(enabled)
+        val roomName = currentGroupRoomName ?: return
+        val event = JSONObject().apply {
+            put("roomName", roomName)
+            put("userId", getUserId())
+            put("audio", enabled)
+            put("video", groupWebRTCManager.isVideoEnabled())
+        }
+        socketManager.emit("call:toggle_media", event)
+    }
+
+    fun toggleGroupVideo(enabled: Boolean) {
+        groupWebRTCManager.setVideoEnabled(enabled)
+        val roomName = currentGroupRoomName ?: return
+        val event = JSONObject().apply {
+            put("roomName", roomName)
+            put("userId", getUserId())
+            put("audio", groupWebRTCManager.isAudioEnabled())
+            put("video", enabled)
+        }
+        socketManager.emit("call:toggle_media", event)
+    }
+
+    fun getGroupLocalStream(): MediaStream? = groupWebRTCManager.getLocalMediaStream()
+
+    fun isGroupCallInitiator(): Boolean = isGroupCallInitiator
+
+    fun getCurrentGroupMaxParticipants(): Int = currentGroupMaxParticipants
 
     /**
      * Прийняти вхідний вызов
@@ -1159,6 +1610,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     override fun onCleared() {
         super.onCleared()
         webRTCManager.close()
+        groupWebRTCManager.close()
         socketManager.disconnect()
     }
 }
