@@ -92,8 +92,9 @@ function registerPrivateChatRoutes(app, ctx, io) {
     app.post('/api/node/user/status',   auth, msgs.userStatus(ctx, io));
 
     // ── secret messages / self-destruct ────────────────────────────────────────
-    app.post('/api/node/chat/secret/cleanup',   auth, secret.cleanupHandler(ctx, io));
-    app.post('/api/node/chat/secret/set-timer', auth, secret.setTimerHandler(ctx, io));
+    app.post('/api/node/chat/secret/cleanup',     auth, secret.cleanupHandler(ctx, io));
+    app.post('/api/node/chat/secret/set-timer',   auth, secret.setTimerHandler(ctx, io));
+    app.get( '/api/node/chat/secret/timer/:userId', auth, secret.getTimerHandler(ctx));
 
     console.log('[Private Chat API] Endpoints registered under /api/node/chat/* and /api/node/user/*');
     console.log('  Messages : get, send, send-media, loadmore, edit, search, seen, typing, notify-media');
@@ -101,7 +102,7 @@ function registerPrivateChatRoutes(app, ctx, io) {
     console.log('  Chats    : chats, delete-conversation, clear-history, mute-status, archive, mute, pin-chat, color, read');
     console.log('  Favorites: fav, fav-list');
     console.log('  User     : /api/node/user/status');
-    console.log('  Secret   : secret/cleanup, secret/set-timer');
+    console.log('  Secret   : secret/cleanup, secret/set-timer, secret/timer/:userId');
 }
 
 module.exports = { registerPrivateChatRoutes };

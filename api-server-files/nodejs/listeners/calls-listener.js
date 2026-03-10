@@ -30,6 +30,12 @@ async function registerCallsListeners(socket, io, ctx) {
         ctx.activeGroupCalls = new Map();
     }
 
+    // ===== Шумоподавление: состояние по комнате =====
+    // roomName -> Map<userId, boolean>  (true = включено)
+    if (!ctx.noiseCancellationState) {
+        ctx.noiseCancellationState = new Map();
+    }
+
     /**
      * Регистрация пользователя для звонков
      * Data: { userId }
@@ -716,10 +722,18 @@ async function registerCallsListeners(socket, io, ctx) {
             const { roomName, userId, enabled } = data;
             console.log(`[CALLS] 🔇 Noise cancellation ${enabled ? 'ON' : 'OFF'} for user ${userId} in room ${roomName}`);
 
+            // Persist state so late joiners know who has it on
+            if (roomName) {
+                if (!ctx.noiseCancellationState.has(roomName)) {
+                    ctx.noiseCancellationState.set(roomName, new Map());
+                }
+                ctx.noiseCancellationState.get(roomName).set(String(userId), !!enabled);
+            }
+
             socket.to(roomName).emit('call:noise_cancellation', {
-                userId: userId,
-                enabled: enabled,
-                roomName: roomName
+                userId,
+                enabled,
+                roomName
             });
         } catch (error) {
             console.error('[CALLS] Error in call:noise_cancellation:', error);
@@ -781,10 +795,16 @@ async function registerCallsListeners(socket, io, ctx) {
                 iceServers: joinerIceServers,
             }));
 
+            // Include noise-cancellation states so the joiner knows which participants have it on
+            const ncStates = {};
+            const ncRoom = ctx.noiseCancellationState?.get(roomName);
+            if (ncRoom) ncRoom.forEach((v, k) => { ncStates[k] = v; });
+
             socket.emit('group_call:current_participants', {
                 roomName,
                 participants: existingList,
                 iceServers: joinerIceServers,
+                noiseCancellationStates: ncStates,
             });
 
             // Уведомить каждого существующего участника о новом — чтобы тоже создал offer
@@ -926,6 +946,7 @@ async function registerCallsListeners(socket, io, ctx) {
 
             // Очистить комнату
             ctx.activeGroupCalls.delete(roomName);
+            ctx.noiseCancellationState?.delete(roomName);
 
             // Обновить БД
             try {

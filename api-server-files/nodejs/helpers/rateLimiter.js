@@ -71,9 +71,19 @@ function createRateLimiter({
 }
 
 function defaultKeyFn(req) {
-    // Respect X-Forwarded-For if behind a reverse proxy (nginx/apache).
+    // Respect X-Forwarded-For only if behind a trusted reverse proxy (nginx/apache).
+    // We read from the rightmost position (set by our own proxy), not the leftmost
+    // (which is client-controlled and can be spoofed).
+    // Set TRUSTED_PROXY_COUNT=1 in env if there is exactly one proxy in front.
     const forwarded = req.headers['x-forwarded-for'];
-    if (forwarded) return forwarded.split(',')[0].trim();
+    if (forwarded) {
+        const parts = forwarded.split(',').map(s => s.trim()).filter(Boolean);
+        const trustCount = Math.max(1, parseInt(process.env.TRUSTED_PROXY_COUNT) || 1);
+        // The IP at (length - trustCount) is the rightmost one our proxy inserted
+        const idx = parts.length - trustCount;
+        const ip  = parts[idx >= 0 ? idx : 0];
+        if (ip && ip !== 'unknown') return ip;
+    }
     return req.socket.remoteAddress || 'unknown';
 }
 

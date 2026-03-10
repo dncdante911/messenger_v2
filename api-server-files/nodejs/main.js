@@ -23,6 +23,7 @@ const { initializeBotNamespace, getBotStats } = require('./listeners/bots-listen
 const { registerAuthRoutes } = require('./routes/auth')
 const { registerMessagingRoutes } = require('./routes/messaging')
 const { registerPrivateChatRoutes } = require('./routes/private-chats/index')
+const { startSecretSweeper }        = require('./routes/private-chats/secret')
 const { registerStoryRoutes } = require('./routes/stories/index')
 const { registerChannelRoutes } = require('./routes/channels/index')
 const { registerGroupRoutes }   = require('./routes/groups/index')
@@ -189,6 +190,7 @@ async function init() {
   ctx.wo_bot_api_keys = require("./models/wo_bot_api_keys")(sequelize, DataTypes)
 
   // ==================== Channel Livestream + Premium Models ====================
+  ctx.wm_chat_timers                     = require("./models/wm_chat_timers")(sequelize, DataTypes)
   ctx.wm_call_recordings                 = require("./models/wm_call_recordings")(sequelize, DataTypes)
   ctx.wm_channel_livestreams             = require("./models/wm_channel_livestreams")(sequelize, DataTypes)
   ctx.wm_channel_subscriptions           = require("./models/wm_channel_subscriptions")(sequelize, DataTypes)
@@ -431,6 +433,7 @@ async function main() {
   registerAuthRoutes(app, ctx);
   registerMessagingRoutes(app, ctx, io);
   registerPrivateChatRoutes(app, ctx, io);
+  startSecretSweeper(ctx, io); // global 60 s sweeper for self-destructing messages
   registerStoryRoutes(app, ctx, io);
   registerChannelRoutes(app, ctx, io);
   registerGroupRoutes(app, ctx, io);
