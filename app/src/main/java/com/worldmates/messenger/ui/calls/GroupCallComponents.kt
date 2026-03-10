@@ -310,7 +310,7 @@ fun ParticipantTile(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                text = if (isLocal) "Ви" else participant.name,
+                text = if (isLocal) stringResource(R.string.call_you) else participant.name,
                 fontSize = 12.sp,
                 color = Color.White,
                 maxLines = 1,
@@ -350,7 +350,7 @@ fun ParticipantTile(
         // Local badge
         if (isLocal) {
             Text(
-                text = "Ви",
+                text = stringResource(R.string.call_you),
                 fontSize = 10.sp,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
@@ -471,7 +471,7 @@ fun GroupCallHeader(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "$participantCount / $maxParticipants учасників",
+                text = stringResource(R.string.group_call_participants_count, participantCount, maxParticipants),
                 fontSize = 12.sp,
                 color = Color(0xFF8899AA)
             )
@@ -515,7 +515,7 @@ fun AddParticipantTile(
             ) {
                 Icon(
                     imageVector = Icons.Default.PersonAdd,
-                    contentDescription = "Додати",
+                    contentDescription = stringResource(R.string.group_call_add_participant),
                     tint = Color(0xFF2196F3),
                     modifier = Modifier.size(24.dp)
                 )
@@ -524,7 +524,7 @@ fun AddParticipantTile(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Додати",
+                text = stringResource(R.string.group_call_add_participant),
                 fontSize = 12.sp,
                 color = Color(0xFF2196F3)
             )

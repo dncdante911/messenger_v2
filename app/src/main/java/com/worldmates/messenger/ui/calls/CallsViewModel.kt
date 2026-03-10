@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.network.GroupWebRTCManager
 import com.worldmates.messenger.network.SocketManager
@@ -536,40 +537,43 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
     private fun setupGroupWebRTCCallbacks() {
         groupWebRTCManager.onIceCandidateReady = { toUserId, candidate ->
-            val roomName = currentGroupRoomName ?: return@onIceCandidateReady
-            val event = JSONObject().apply {
-                put("roomName", roomName)
-                put("fromUserId", getUserId())
-                put("toUserId", toUserId)
-                put("candidate", candidate.sdp)
-                put("sdpMLineIndex", candidate.sdpMLineIndex)
-                put("sdpMid", candidate.sdpMid ?: "")
+            currentGroupRoomName?.let { roomName ->
+                val event = JSONObject().apply {
+                    put("roomName", roomName)
+                    put("fromUserId", getUserId())
+                    put("toUserId", toUserId)
+                    put("candidate", candidate.sdp)
+                    put("sdpMLineIndex", candidate.sdpMLineIndex)
+                    put("sdpMid", candidate.sdpMid ?: "")
+                }
+                socketManager.emit("group_call:ice_candidate", event)
             }
-            socketManager.emit("group_call:ice_candidate", event)
         }
 
         groupWebRTCManager.onOfferReady = { toUserId, sdp ->
-            val roomName = currentGroupRoomName ?: return@onOfferReady
-            Log.d("CallsViewModel", "📤 Sending group_call:offer to user $toUserId")
-            val event = JSONObject().apply {
-                put("roomName", roomName)
-                put("fromUserId", getUserId())
-                put("toUserId", toUserId)
-                put("sdpOffer", sdp.description)
+            currentGroupRoomName?.let { roomName ->
+                Log.d("CallsViewModel", "📤 Sending group_call:offer to user $toUserId")
+                val event = JSONObject().apply {
+                    put("roomName", roomName)
+                    put("fromUserId", getUserId())
+                    put("toUserId", toUserId)
+                    put("sdpOffer", sdp.description)
+                }
+                socketManager.emit("group_call:offer", event)
             }
-            socketManager.emit("group_call:offer", event)
         }
 
         groupWebRTCManager.onAnswerReady = { toUserId, sdp ->
-            val roomName = currentGroupRoomName ?: return@onAnswerReady
-            Log.d("CallsViewModel", "📥 Sending group_call:answer to user $toUserId")
-            val event = JSONObject().apply {
-                put("roomName", roomName)
-                put("fromUserId", getUserId())
-                put("toUserId", toUserId)
-                put("sdpAnswer", sdp.description)
+            currentGroupRoomName?.let { roomName ->
+                Log.d("CallsViewModel", "📥 Sending group_call:answer to user $toUserId")
+                val event = JSONObject().apply {
+                    put("roomName", roomName)
+                    put("fromUserId", getUserId())
+                    put("toUserId", toUserId)
+                    put("sdpAnswer", sdp.description)
+                }
+                socketManager.emit("group_call:answer", event)
             }
-            socketManager.emit("group_call:answer", event)
         }
 
         groupWebRTCManager.onRemoteStreamAdded = { userId, stream ->
@@ -594,7 +598,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         } else {
             groupParticipantInfoMap[userId] = GroupCallParticipant(
                 userId = userId,
-                name = "Участник",
+                name = application.getString(R.string.group_call_participant_fallback),
                 mediaStream = stream,
                 videoEnabled = stream.videoTracks.isNotEmpty(),
                 connectionState = "connected"

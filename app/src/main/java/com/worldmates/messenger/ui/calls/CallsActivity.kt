@@ -1822,7 +1822,7 @@ fun GroupCallScreen(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "Ждём участников...",
+                            text = stringResource(R.string.group_call_waiting),
                             color = Color.White.copy(alpha = 0.7f),
                             fontSize = 15.sp
                         )
@@ -1880,9 +1880,9 @@ private fun GroupCallTopBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Бейдж "ГРУППА"
+                // Бейдж "ГРУПА"
                 Text(
-                    text = "ГРУППА",
+                    text = stringResource(R.string.group_call_badge_short),
                     color = Color.White,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
@@ -1912,7 +1912,7 @@ private fun GroupCallTopBar(
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
             Text(
-                text = "$participantCount / $maxParticipants участников",
+                text = stringResource(R.string.group_call_participants_count, participantCount, maxParticipants),
                 color = Color(0xFF9E9EC0),
                 fontSize = 12.sp
             )
@@ -1947,10 +1947,11 @@ private fun GroupCallControls(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Микрофон
+        // Мікрофон
         GroupControlButton(
             icon = if (audioEnabled) Icons.Default.Mic else Icons.Default.MicOff,
-            label = if (audioEnabled) "Микрофон" else "Выкл. микрофон",
+            label = if (audioEnabled) stringResource(R.string.group_call_mic_on)
+                    else stringResource(R.string.group_call_mic_off),
             active = audioEnabled,
             onClick = onAudioToggle
         )
@@ -1958,15 +1959,17 @@ private fun GroupCallControls(
         // Камера
         GroupControlButton(
             icon = if (videoEnabled) Icons.Default.Videocam else Icons.Default.VideocamOff,
-            label = if (videoEnabled) "Камера" else "Камера выкл.",
+            label = if (videoEnabled) stringResource(R.string.group_call_camera_on)
+                    else stringResource(R.string.group_call_camera_off),
             active = videoEnabled,
             onClick = onVideoToggle
         )
 
-        // Динамик
+        // Динамік
         GroupControlButton(
             icon = if (speakerOn) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-            label = if (speakerOn) "Динамик" else "Наушники",
+            label = if (speakerOn) stringResource(R.string.group_call_speaker_on)
+                    else stringResource(R.string.group_call_speaker_off),
             active = speakerOn,
             onClick = onSpeakerToggle
         )
@@ -1985,14 +1988,16 @@ private fun GroupCallControls(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isInitiator) Icons.Default.CallEnd else Icons.Default.CallEnd,
-                    contentDescription = if (isInitiator) "Завершить" else "Выйти",
+                    imageVector = Icons.Default.CallEnd,
+                    contentDescription = if (isInitiator) stringResource(R.string.group_call_end)
+                                         else stringResource(R.string.group_call_leave),
                     tint = Color.White,
                     modifier = Modifier.size(28.dp)
                 )
             }
             Text(
-                text = if (isInitiator) "Завершить" else "Выйти",
+                text = if (isInitiator) stringResource(R.string.group_call_end)
+                       else stringResource(R.string.group_call_leave),
                 color = Color(0xFFFF4444),
                 fontSize = 11.sp
             )
