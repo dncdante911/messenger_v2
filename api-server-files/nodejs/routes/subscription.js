@@ -5,9 +5,10 @@
  *
  * Endpoints:
  *   GET  /api/node/subscription/status              — check current subscription
- *   POST /api/node/subscription/create-payment      — initiate Way4Pay or LiqPay payment
+ *   POST /api/node/subscription/create-payment      — initiate Way4Pay / LiqPay / Monobank payment
  *   POST /api/node/subscription/wayforpay-webhook   — Way4Pay server callback (no auth)
  *   POST /api/node/subscription/liqpay-webhook      — LiqPay server callback (no auth)
+ *   POST /api/node/subscription/monobank-webhook    — Monobank server callback (no auth)
  *
  * Config (set in .env):
  *   WAYFORPAY_MERCHANT_ACCOUNT   — merchant login in Way4Pay cabinet
@@ -15,6 +16,8 @@
  *   WAYFORPAY_MERCHANT_DOMAIN    — your domain, e.g. worldmates.club
  *   LIQPAY_PUBLIC_KEY            — public key from LiqPay cabinet
  *   LIQPAY_PRIVATE_KEY           — private key from LiqPay cabinet
+ *   MONOBANK_TOKEN               — Monobank Merchant API token (X-Token header)
+ *   MONOBANK_WEBHOOK_SECRET      — optional HMAC-SHA256 secret for webhook verification
  *   SUBSCRIPTION_PRICE_UAH       — base price per month in UAH (default: 149)
  *   SITE_URL                     — your site URL, e.g. https://worldmates.club
  */
@@ -181,6 +184,73 @@ function createLiqpayPayment({ orderId, amountUAH, months }) {
     return { checkoutUrl, data, signature };
 }
 
+// ─── Monobank helpers ─────────────────────────────────────────────────────────
+/**
+ * Creates a Monobank invoice and returns the checkout URL.
+ * Monobank Merchant API: https://api.monobank.ua/docs/acquiring.html
+ * Returns { invoiceUrl, invoiceId }
+ */
+async function createMonobankPayment({ orderId, amountUAH, months }) {
+    const token   = process.env.MONOBANK_TOKEN;
+    const siteUrl = process.env.SITE_URL || 'https://worldmates.club';
+
+    if (!token) {
+        throw new Error('MONOBANK_TOKEN not configured');
+    }
+
+    // Monobank uses kopecks (UAH * 100)
+    const amountKopecks = Math.round(amountUAH * 100);
+
+    const payload = JSON.stringify({
+        amount:      amountKopecks,
+        ccy:         980, // UAH currency code
+        merchantPaymInfo: {
+            reference:   orderId,
+            destination: `WorldMates PRO ${months} міс.`,
+            basketOrder: [{
+                name:   `WorldMates PRO ${months} міс.`,
+                qty:    1,
+                sum:    amountKopecks,
+                icon:   `${siteUrl}/favicon.ico`,
+                unit:   'шт',
+            }],
+        },
+        redirectUrl: `${siteUrl}/premium/success?order=${orderId}&provider=monobank`,
+        webHookUrl:  `${siteUrl}/api/node/subscription/monobank-webhook`,
+        validity:    600, // 10 minutes
+        paymentType: 'debit',
+    });
+
+    return new Promise((resolve, reject) => {
+        const req = https.request({
+            hostname: 'api.monobank.ua',
+            path:     '/api/merchant/invoice/create',
+            method:   'POST',
+            headers:  {
+                'X-Token':       token,
+                'Content-Type':  'application/json',
+                'Content-Length': Buffer.byteLength(payload),
+            },
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.invoiceId && json.pageUrl) {
+                        resolve({ invoiceUrl: json.pageUrl, invoiceId: json.invoiceId });
+                    } else {
+                        reject(new Error(json.errText || JSON.stringify(json)));
+                    }
+                } catch (e) { reject(e); }
+            });
+        });
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+    });
+}
+
 // ─── DB helper: activate subscription ────────────────────────────────────────
 async function activateSubscription(ctx, userId, months) {
     const now = Math.floor(Date.now() / 1000);
@@ -276,8 +346,22 @@ function registerSubscriptionRoutes(app, ctx) {
                     months
                 });
 
+            } else if (provider === 'monobank') {
+                const { invoiceUrl, invoiceId } = await createMonobankPayment({
+                    orderId, amountUAH: amount, months
+                });
+                return res.json({
+                    api_status:   200,
+                    provider:     'monobank',
+                    payment_url:  invoiceUrl,
+                    invoice_id:   invoiceId,
+                    order_id:     orderId,
+                    amount_uah:   amount,
+                    months
+                });
+
             } else {
-                return res.status(400).json({ api_status: 400, error_message: 'Unknown provider. Use wayforpay or liqpay' });
+                return res.status(400).json({ api_status: 400, error_message: 'Unknown provider. Use wayforpay, liqpay or monobank' });
             }
 
         } catch (err) {
@@ -375,6 +459,52 @@ function registerSubscriptionRoutes(app, ctx) {
         } catch (err) {
             console.error('[Subscription/LiqPay] webhook error:', err);
             return res.status(500).send('Error');
+        }
+    });
+
+    // POST /api/node/subscription/monobank-webhook
+    // Called by Monobank server after invoice status change
+    app.post('/api/node/subscription/monobank-webhook', async (req, res) => {
+        try {
+            // Optional: verify webhook signature if MONOBANK_WEBHOOK_SECRET is set
+            const secret = process.env.MONOBANK_WEBHOOK_SECRET;
+            if (secret) {
+                const xSign    = req.headers['x-sign'];
+                const rawBody  = req.body ? JSON.stringify(req.body) : '';
+                const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
+                if (xSign !== expected) {
+                    console.warn('[Subscription/Monobank] Invalid webhook signature');
+                    return res.status(400).json({ status: 'fail', code: 'INVALID_SIGNATURE' });
+                }
+            }
+
+            const { status, reference, amount, invoiceId } = req.body;
+
+            // status 'success' means payment completed
+            if (status === 'success') {
+                // reference = orderId = WM-{userId}-{timestamp}
+                const parts     = (reference || '').split('-');
+                const userId    = parseInt(parts[1]);
+                // Monobank amount is in kopecks (1/100 UAH)
+                const amountUAH = Math.round((amount || 0) / 100);
+
+                let months = 1;
+                for (let m = 1; m <= 24; m++) {
+                    if (calcPrice(m) === amountUAH) { months = m; break; }
+                }
+
+                if (userId > 0) {
+                    await activateSubscription(ctx, userId, months);
+                    console.log(`[Subscription/Monobank] PRO activated user=${userId} months=${months} invoiceId=${invoiceId}`);
+                }
+            }
+
+            // Monobank expects 200 OK
+            return res.status(200).json({ status: 'ok' });
+
+        } catch (err) {
+            console.error('[Subscription/Monobank] webhook error:', err);
+            return res.status(500).json({ status: 'fail' });
         }
     });
 

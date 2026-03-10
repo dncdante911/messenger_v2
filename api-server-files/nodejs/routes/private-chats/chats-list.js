@@ -425,6 +425,23 @@ function getMuteStatus(ctx, io) {
     };
 }
 
+// ─── ARCHIVED CHATS COUNT (for badge in UI) ───────────────────────────────────
+
+function archivedCount(ctx) {
+    return async (req, res) => {
+        try {
+            const userId = req.userId;
+            const archived = await ctx.wo_mute.count({
+                where: { user_id: userId, type: 'user', archive: 'yes' },
+            });
+            res.json({ api_status: 200, count: archived });
+        } catch (err) {
+            console.error('[Node/chat/archive-count]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to get archive count' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -433,6 +450,7 @@ module.exports = {
     clearHistory,
     getMuteStatus,
     archiveChat,
+    archivedCount,
     muteChat,
     pinChat,
     changeChatColor,

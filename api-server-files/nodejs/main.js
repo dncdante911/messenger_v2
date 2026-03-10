@@ -38,6 +38,8 @@ const registerRecordingRoutes        = require('./routes/recordings')
 const registerChannelPremiumRoutes   = require('./routes/channels/channel-premium')
 const { createRateLimiter }          = require('./helpers/rateLimiter')
 const { instantView }                = require('./routes/instant_view')
+const registerNotesRoutes            = require('./routes/notes')
+const registerTranslatorRoutes       = require('./routes/translator')
 
 let serverPort
 let server
@@ -195,6 +197,10 @@ async function init() {
   ctx.wm_channel_livestreams             = require("./models/wm_channel_livestreams")(sequelize, DataTypes)
   ctx.wm_channel_subscriptions           = require("./models/wm_channel_subscriptions")(sequelize, DataTypes)
   ctx.wm_channel_subscription_payments   = require("./models/wm_channel_subscription_payments")(sequelize, DataTypes)
+
+  // ==================== Notes + User Storage Models ====================
+  ctx.wm_notes        = require("./models/wm_notes")(sequelize, DataTypes)
+  ctx.wm_user_storage = require("./models/wm_user_storage")(sequelize, DataTypes)
 
   // ==================== Signal Protocol Models ====================
   ctx.signal_keys              = require("./models/signal_keys")(sequelize, DataTypes)
@@ -470,6 +476,12 @@ async function main() {
 
   // Register Channel Premium Subscription routes
   registerChannelPremiumRoutes(app, ctx);
+  // Register Notes (Saved Messages) routes
+  registerNotesRoutes(app, ctx);
+
+  // Register Message Translator routes
+  registerTranslatorRoutes(app, ctx);
+
   // Instant View — article reader (no auth required, rate-limited at global level)
   app.post('/api/node/instant-view', instantView(ctx, io));
 

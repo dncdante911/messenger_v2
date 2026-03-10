@@ -16,7 +16,7 @@
 
 const msgs      = require('./messages');
 const actions   = require('./actions');
-const chatsList = require('./chats-list');
+const chatsList  = require('./chats-list');
 const favs      = require('./favorites');
 const secret    = require('./secret');
 const exportChat = require('./export');
@@ -79,6 +79,9 @@ function registerPrivateChatRoutes(app, ctx, io) {
     app.post('/api/node/chat/color',                auth, chatsList.changeChatColor(ctx, io));
     app.post('/api/node/chat/read',                 auth, chatsList.readChats(ctx, io));
 
+    // ── archive count ─────────────────────────────────────────────────────────
+    app.get('/api/node/chat/archive/count', auth, chatsList.archivedCount(ctx));
+
     // ── favorites ────────────────────────────────────────────────────────────
     app.post('/api/node/chat/fav',      auth, favs.favMessage(ctx, io));
     app.post('/api/node/chat/fav-list', auth, favs.getFavMessages(ctx, io));
@@ -99,7 +102,7 @@ function registerPrivateChatRoutes(app, ctx, io) {
     console.log('[Private Chat API] Endpoints registered under /api/node/chat/* and /api/node/user/*');
     console.log('  Messages : get, send, send-media, loadmore, edit, search, seen, typing, notify-media');
     console.log('  Actions  : delete, react, pin, pinned, forward');
-    console.log('  Chats    : chats, delete-conversation, clear-history, mute-status, archive, mute, pin-chat, color, read');
+    console.log('  Chats    : chats, delete-conversation, clear-history, mute-status, archive, archive/count, mute, pin-chat, color, read');
     console.log('  Favorites: fav, fav-list');
     console.log('  User     : /api/node/user/status');
     console.log('  Secret   : secret/cleanup, secret/set-timer, secret/timer/:userId');
