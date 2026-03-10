@@ -35,11 +35,14 @@ const { LoadmoreGroupController } = require('../controllers/LoadmoreGroupControl
 const { LoadmoreGroupPageController } = require('../controllers/LoadmoreGroupPageController');
 const { OnNameChangedController } = require('../controllers/OnNameChangedController');
 const { OnUserLoggedinController } = require('../controllers/OnUserLoggedinController');
-const { EventNotificationController } = require('../controllers/EventNotificationController');
+// [WoWonder social] EventNotificationController — события соцсети (wo_events), отключено
+// const { EventNotificationController } = require('../controllers/EventNotificationController');
 const { GroupNotificationController } = require('../controllers/GroupNotificationController');
 const { PageNotificationController } = require('../controllers/PageNotificationController');
-const { UserFollowersNotificationController } = require('../controllers/UserFollowersNotificationController');
-const { UpdateNewPostsController } = require('../controllers/UpdateNewPostsController');
+// [WoWonder social] UserFollowersNotificationController — подписки соцсети, отключено
+// const { UserFollowersNotificationController } = require('../controllers/UserFollowersNotificationController');
+// [WoWonder social] UpdateNewPostsController — io.emit() по всем, опасно, отключено
+// const { UpdateNewPostsController } = require('../controllers/UpdateNewPostsController');
 const { DeclineCallController } = require('../controllers/DeclineCallController');
 const { UserNotificationController } = require('../controllers/UserNotificationController');
 const { RegisterReactionController } = require('../controllers/RegisterReactionController');
@@ -67,8 +70,8 @@ const redis = require("redis");
 let redisSubscribed = false;
 let redisConnecting = false;
 const sub = redis.createClient({
-    socket: { host: '127.0.0.1', port: 6379 },
-    password: '3344Frz@q0607Dm$157'
+    socket: { host: process.env.REDIS_HOST || '127.0.0.1', port: parseInt(process.env.REDIS_PORT) || 6379 },
+    password: process.env.REDIS_PASSWORD
 });
 
 sub.on('error', (err) => console.log('Redis Sub Error:', err));
@@ -139,7 +142,8 @@ module.exports.registerListeners = async (socket, io, ctx) => {
 
     initRedisSub(io);
 
-    await compiledTemplates.DefineTemplates(ctx);
+    // NOTE: compiledTemplates.DefineTemplates(ctx) moved to main.js startup —
+    // no need to recompile Handlebars templates + read files on every connection.
     await registerCallsListeners(socket, io, ctx);
     await registerChannelsListeners(socket, io, ctx);
     await registerStoriesListeners(socket, io, ctx);
@@ -257,25 +261,30 @@ module.exports.registerListeners = async (socket, io, ctx) => {
         OnUserLoggedinController(ctx, data, io, socket);
     })
 
-    socket.on("event_notification", async (data) => {
-        EventNotificationController(ctx, data, io, socket);
-    })
+    // [WoWonder social] wo_events: мероприятия/события соцсети — не нужны в мессенджере
+    // socket.on("event_notification", async (data) => {
+    //     EventNotificationController(ctx, data, io, socket);
+    // })
 
     socket.on("group_notification", async (data) => {
         GroupNotificationController(ctx, data, io, socket);
     })
 
     socket.on("page_notification", async (data) => {
+        // Нужен для уведомлений каналов (каналы = wo_pages в WoWonder)
         PageNotificationController(ctx, data, io, socket);
     })
 
-    socket.on("user_followers_notification", async (data) => {
-        UserFollowersNotificationController(ctx, data, io, socket);
-    })
+    // [WoWonder social] wo_followers: уведомления о подписке/отписке в соцсети
+    // socket.on("user_followers_notification", async (data) => {
+    //     UserFollowersNotificationController(ctx, data, io, socket);
+    // })
 
-    socket.on("update_new_posts", async (data) => {
-        UpdateNewPostsController(ctx, data, io, socket);
-    })
+    // [WoWonder social] update_new_posts: broadcast io.emit() по всем сокетам — опасно для масштаба!
+    // Шлёт событие ВСЕМ подключённым пользователям при каждом новом посте в соцсети.
+    // socket.on("update_new_posts", async (data) => {
+    //     UpdateNewPostsController(ctx, data, io, socket);
+    // })
 
     socket.on("decline_call", async (data) => {
         DeclineCallController(ctx, data, io, socket);
@@ -297,15 +306,23 @@ module.exports.registerListeners = async (socket, io, ctx) => {
         MainNotificationController(ctx, data, io, socket);
     })
 
+    // [WoWonder social] post_notification: уведомление о лайке/реакции на пост соцсети
+    // Если используете каналы — проверьте, нужен ли этот ивент для публикаций в каналах.
+    // Если нет — раскомментируйте отключение:
+    // socket.on("post_notification", async (data) => {
+    //     PostNotificationController(ctx, data, io, socket);
+    // })
     socket.on("post_notification", async (data) => {
         PostNotificationController(ctx, data, io, socket);
     })
 
     socket.on("comment_notification", async (data) => {
+        // Нужен для комментариев к постам каналов
         CommentNotificationController(ctx, data, io, socket);
     })
 
     socket.on("reply_notification", async (data) => {
+        // Нужен для ответов на комментарии в каналах
         ReplyNotificationController(ctx, data, io, socket);
     })
 
