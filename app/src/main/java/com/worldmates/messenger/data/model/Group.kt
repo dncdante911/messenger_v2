@@ -83,7 +83,6 @@ data class Message(
     // System message type: 'group_call' = group call notification card
     @SerializedName("type_two") val typeTwo: String? = null,
     @SerializedName("stickers") val stickers: String? = null,
-    @SerializedName("type_two") val typeTwo: String? = null,
     // Локальные поля (не приходят с сервера)
     val decryptedText: String? = null,
     val decryptedMediaUrl: String? = null, // Розшифрований URL медіа (для веб-версії)
