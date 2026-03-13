@@ -12,12 +12,31 @@
  * Email: SMTP support@worldmates.club, port 465 SSL.
  * mail.sthost.pro resolves to the server's own external IPs on this host,
  * so we attempt a cascade of SMTP endpoints (localhost first).
- * OTP:  6-digit, 10-minute TTL, in-memory Map (replace with Redis for HA).
+ * OTP:  6-digit, 10-minute TTL, stored in Redis (survives PM2 restarts).
  */
 
 const nodemailer = require('nodemailer');
 const md5        = require('md5');
 const crypto     = require('crypto');
+const redis      = require('redis');
+
+// ─── Redis OTP client ──────────────────────────────────────────────────────────
+// Окремий клієнт тільки для OTP — не заважає pub/sub клієнту в listeners.js.
+// Підключається до того самого Redis що й основний сервер.
+const _redisPass = process.env.REDIS_PASSWORD || '';
+const otpRedis = redis.createClient({
+    socket: { host: '127.0.0.1', port: 6379 },
+    ...(_redisPass ? { password: _redisPass } : {}),
+});
+otpRedis.on('error', err => console.error('[Auth/Redis] Client error:', err.message));
+otpRedis.connect().then(() => {
+    console.log('[Auth/Redis] OTP Redis client connected');
+}).catch(err => {
+    console.error('[Auth/Redis] Failed to connect:', err.message);
+});
+
+const OTP_TTL_SECONDS = 10 * 60;   // 10 хвилин
+const OTP_KEY_PREFIX  = 'wm:otp:'; // namespace key
 
 // ─── SMTP — cascading hosts ────────────────────────────────────────────────────
 // mail.sthost.pro DNS resolves to the server's own external IPs (195.22.131.11,
@@ -116,50 +135,48 @@ function codeBlock(code) {
     </p>`;
 }
 
-// ─── OTP store ────────────────────────────────────────────────────────────────
+// ─── OTP store (Redis) ────────────────────────────────────────────────────────
+// Формат ключа: wm:otp:{type}:{contact}
+// Значення: JSON { code, userId, isNew, attempts }
+// TTL: OTP_TTL_SECONDS секунд (встановлюється при SET, оновлюється при кожній
+//       невдалій спробі щоб не дати часу на brute-force).
 
-// key: `${type}:${normalised_contact}` → { code, userId, expiresAt, attempts }
-const otpStore = new Map();
-const OTP_MAX_ATTEMPTS = 5;   // lock after 5 wrong guesses
+const OTP_MAX_ATTEMPTS = 5;
 
-// Auto-clean expired entries every 5 minutes
-setInterval(() => {
-    const now = Date.now();
-    for (const [k, v] of otpStore) {
-        if (v.expiresAt < now) otpStore.delete(k);
-    }
-}, 5 * 60 * 1000).unref();
-
-function otpKey(type, contact) {
-    return `${type}:${contact.toLowerCase().trim()}`;
+function otpRedisKey(type, contact) {
+    return `${OTP_KEY_PREFIX}${type}:${contact.toLowerCase().trim()}`;
 }
 
-function storeOtp(type, contact, code, extra = {}) {
-    otpStore.set(otpKey(type, contact), {
-        code:     String(code),
-        expiresAt: Date.now() + 10 * 60 * 1000,
-        attempts: 0,
-        ...extra
-    });
+async function storeOtp(type, contact, code, extra = {}) {
+    const key  = otpRedisKey(type, contact);
+    const data = JSON.stringify({ code: String(code), attempts: 0, ...extra });
+    // SET key value EX ttl — атомарна операція, TTL скидається при кожному новому запиті
+    await otpRedis.set(key, data, { EX: OTP_TTL_SECONDS });
 }
 
-function checkOtp(type, contact, code) {
-    const key   = otpKey(type, contact);
-    const entry = otpStore.get(key);
-    if (!entry) return { ok: false, reason: 'expired' };
-    if (Date.now() > entry.expiresAt) {
-        otpStore.delete(key);
-        return { ok: false, reason: 'expired' };
-    }
+async function checkOtp(type, contact, code) {
+    const key = otpRedisKey(type, contact);
+    const raw = await otpRedis.get(key);
+
+    if (!raw) return { ok: false, reason: 'expired' };
+
+    let entry;
+    try { entry = JSON.parse(raw); } catch { return { ok: false, reason: 'expired' }; }
+
     if (entry.attempts >= OTP_MAX_ATTEMPTS) {
-        otpStore.delete(key);
+        await otpRedis.del(key);
         return { ok: false, reason: 'locked' };
     }
+
     if (entry.code !== String(code).trim()) {
         entry.attempts += 1;
+        // Зберігаємо оновлену кількість спроб; TTL залишаємо без змін (KEEPTTL)
+        await otpRedis.set(key, JSON.stringify(entry), { KEEPTTL: true });
         return { ok: false, reason: 'invalid', attemptsLeft: OTP_MAX_ATTEMPTS - entry.attempts };
     }
-    otpStore.delete(key);
+
+    // Код правильний — видаляємо ключ
+    await otpRedis.del(key);
     return { ok: true, entry };
 }
 
@@ -216,7 +233,7 @@ function requestPasswordReset(ctx) {
             const contact    = email || phone;
             const targetEmail = email || user.email;
 
-            storeOtp('reset', contact, code, { userId: user.user_id });
+            await storeOtp('reset', contact, code, { userId: user.user_id });
 
             await sendEmail(
                 targetEmail,
@@ -254,7 +271,7 @@ function resetPassword(ctx) {
         }
 
         const contact = email || phone;
-        const result  = checkOtp('reset', contact, code);
+        const result  = await checkOtp('reset', contact, code);
 
         if (!result.ok) {
             let msg;
@@ -369,7 +386,7 @@ function quickRegister(ctx) {
             const contact     = email || phone;
             const targetEmail = email || user.email;
 
-            storeOtp('quick', contact, code, { userId: user.user_id, isNew });
+            await storeOtp('quick', contact, code, { userId: user.user_id, isNew });
 
             await sendEmail(
                 targetEmail,
@@ -411,7 +428,7 @@ function quickVerify(ctx) {
         }
 
         const contact = email || phone;
-        const result  = checkOtp('quick', contact, code);
+        const result  = await checkOtp('quick', contact, code);
 
         if (!result.ok) {
             let msg;

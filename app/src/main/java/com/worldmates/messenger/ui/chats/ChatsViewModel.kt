@@ -30,9 +30,19 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
     private val _needsRelogin = MutableStateFlow(false)
     val needsRelogin: StateFlow<Boolean> = _needsRelogin
 
+    // ─── Пагінація ────────────────────────────────────────────────────────────
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore
+
+    private val _hasMoreChats = MutableStateFlow(true)
+    val hasMoreChats: StateFlow<Boolean> = _hasMoreChats
+
+    private val PAGE_SIZE   = 50
+    private var chatsOffset = 0   // зміщення для наступного запиту
+
     private val hiddenChatIds = mutableSetOf<Long>()
     private var socketManager: SocketManager? = null
-    private var authErrorCount = 0 // Счетчик ошибок авторизации
+    private var authErrorCount = 0
 
     init {
         // Добавляем задержку перед первым запросом
@@ -45,7 +55,7 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
     }
 
     /**
-     * Завантажує список чатів з сервера
+     * Завантажує перші [PAGE_SIZE] чатів з сервера (скидає пагінацію).
      */
     fun fetchChats() {
         if (UserSession.accessToken == null) {
@@ -55,20 +65,20 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
         }
 
         Log.d("ChatsViewModel", "Початок завантаження чатів...")
-        Log.d("ChatsViewModel", "Access token: ${UserSession.accessToken}")
-        Log.d("ChatsViewModel", "User ID: ${UserSession.userId}")
 
+        chatsOffset = 0
+        _hasMoreChats.value = true
         _isLoading.value = true
         _error.value = null
 
         viewModelScope.launch {
             try {
-                // Виклик API для отримання ТІЛЬКИ особистих чатів (не груп!)
                 val response = RetrofitClient.apiService.getChats(
                     accessToken = UserSession.accessToken!!,
-                    limit = 50,
-                    dataType = "users", // ТІЛЬКИ особисті чати, без груп
-                    setOnline = 1
+                    limit       = PAGE_SIZE,
+                    dataType    = "users",
+                    setOnline   = 1,
+                    offset      = 0
                 )
 
                 Log.d("ChatsViewModel", "API Response Status: ${response.apiStatus}")
@@ -150,12 +160,16 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                         }
 
                         _chatList.value = decryptedChats
+                        chatsOffset = decryptedChats.size
+                        // Якщо повернено менше PAGE_SIZE — більше немає
+                        _hasMoreChats.value = response.chats.size >= PAGE_SIZE
                         _error.value = null
                         Log.d("ChatsViewModel", "✅ Завантажено ${decryptedChats.size} чатів успішно")
                     } else {
                         Log.w("ChatsViewModel", "⚠️ API повернуло 200, але чатів немає")
                         _chatList.value = emptyList()
-                        _error.value = null // Не помилка, просто порожньо
+                        _hasMoreChats.value = false
+                        _error.value = null
                     }
                 } else if (response.apiStatus == 404) {
                     // WoWonder повертає 404 коли чатів просто немає — це нормально, не помилка авторизації
@@ -203,6 +217,65 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                 _error.value = errorMsg
                 _isLoading.value = false
                 Log.e("ChatsViewModel", "❌ Помилка завантаження чатів", e)
+            }
+        }
+    }
+
+    /**
+     * Дозавантажує наступну сторінку чатів (infinite scroll).
+     * Безпечно викликати кілька разів — повторний запит ігнорується.
+     */
+    fun loadMoreChats() {
+        if (_isLoadingMore.value || !_hasMoreChats.value) return
+        if (UserSession.accessToken == null) return
+
+        _isLoadingMore.value = true
+        Log.d("ChatsViewModel", "📄 loadMoreChats: offset=$chatsOffset")
+
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.apiService.getChats(
+                    accessToken = UserSession.accessToken!!,
+                    limit       = PAGE_SIZE,
+                    dataType    = "users",
+                    setOnline   = 0, // не встановлюємо online при підвантаженні
+                    offset      = chatsOffset
+                )
+
+                if (response.apiStatus == 200 && !response.chats.isNullOrEmpty()) {
+                    val newDecrypted = response.chats
+                        .filter { !it.isGroup && !hiddenChatIds.contains(it.userId) }
+                        .map { chat ->
+                            val lastMessage = chat.lastMessage?.let { msg ->
+                                val displayText = convertMediaUrlToLabel(
+                                    DecryptionUtility.decryptMessageOrOriginal(
+                                        text          = msg.encryptedText ?: "",
+                                        timestamp     = msg.timeStamp,
+                                        iv            = msg.iv,
+                                        tag           = msg.tag,
+                                        cipherVersion = msg.cipherVersion
+                                    )
+                                )
+                                msg.copy(decryptedText = displayText)
+                            }
+                            chat.copy(lastMessage = lastMessage)
+                        }
+
+                    // Додаємо нові чати до існуючих, уникаємо дублікатів за id
+                    val existingIds = _chatList.value.map { it.id }.toSet()
+                    val unique      = newDecrypted.filter { it.id !in existingIds }
+                    _chatList.value = _chatList.value + unique
+                    chatsOffset    += response.chats.size
+                    _hasMoreChats.value = response.chats.size >= PAGE_SIZE
+                    Log.d("ChatsViewModel", "📄 loadMoreChats: +${unique.size} чатів, offset=$chatsOffset")
+                } else {
+                    _hasMoreChats.value = false
+                    Log.d("ChatsViewModel", "📄 loadMoreChats: більше чатів немає")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ loadMoreChats error", e)
+            } finally {
+                _isLoadingMore.value = false
             }
         }
     }
