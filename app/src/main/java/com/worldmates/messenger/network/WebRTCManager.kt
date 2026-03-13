@@ -75,8 +75,6 @@ class WebRTCManager(private val context: Context) {
     private val PACKET_LOSS_UPGRADE   = 0.02  // <2% — кандидат на підвищення
 
     companion object {
-
-    companion object {
         private const val TAG = "WebRTCManager"
 
         // 🔐 TURN Server Credentials (worldmates.club)
