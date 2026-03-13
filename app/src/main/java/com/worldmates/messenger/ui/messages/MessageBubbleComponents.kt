@@ -438,10 +438,14 @@ fun MessageBubbleComposable(
                                                 fontSize = 11.sp
                                             )
                                             if (isOwn) {
-                                                MessageStatusIcon(
-                                                    isRead = message.isRead ?: false,
-                                                    modifier = Modifier
-                                                )
+                                                if (message.isLocalPending) {
+                                                    PendingMessageIcon()
+                                                } else {
+                                                    MessageStatusIcon(
+                                                        isRead = message.isRead ?: false,
+                                                        modifier = Modifier
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -687,10 +691,14 @@ fun MessageBubbleComposable(
                             // ✓✓ Галочки прочитано (тільки для власних повідомлень)
                             if (isOwn) {
                                 Spacer(modifier = Modifier.width(3.dp))
-                                MessageStatusIcon(
-                                    isRead = message.isRead ?: false,
-                                    modifier = Modifier.padding(top = 2.dp)
-                                )
+                                if (message.isLocalPending) {
+                                    PendingMessageIcon(modifier = Modifier.padding(top = 2.dp))
+                                } else {
+                                    MessageStatusIcon(
+                                        isRead = message.isRead ?: false,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -1006,6 +1014,19 @@ fun VoiceMessagePlayer(
             onDismiss = { showAdvancedPlayer = false }
         )
     }
+}
+
+/**
+ * Clock icon shown for locally-queued messages waiting for network connectivity.
+ */
+@Composable
+fun PendingMessageIcon(modifier: Modifier = Modifier) {
+    Icon(
+        imageVector = Icons.Default.Schedule,
+        contentDescription = null,
+        tint = Color(0xFF8E8E93),
+        modifier = modifier.size(14.dp)
+    )
 }
 
 @Composable

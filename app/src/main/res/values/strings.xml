@@ -2091,6 +2091,11 @@
     <string name="upload_done">Файл надіслано</string>
     <string name="upload_failed">Помилка завантаження</string>
 
+    <!-- ── Offline Queue ─────────────────────────────────────────────────── -->
+    <string name="message_queued_offline">Немає з\'єднання — повідомлення буде надіслано при відновленні</string>
+    <string name="message_pending_indicator">Надсилається…</string>
+    <string name="connection_lost">Втрачено з\'єднання з сервером</string>
+
     <!-- ── Channel Statistics ────────────────────────────────────────────── -->
     <string name="channel_stats_media_post">[Медіа-пост]</string>
     <string name="channel_stats_empty_post">[Пост без тексту]</string>

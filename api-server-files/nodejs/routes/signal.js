@@ -79,7 +79,16 @@ function register(ctx) {
                 prekeys,
             });
 
-            console.log(`[Signal] User ${userId} registered key bundle (OPKs: ${prekeys.length})`);
+            console.log(`[Signal] User ${userId} registered key bundle (OPKs: ${prekeys.length}, identityKeyChanged: ${result.identityKeyChanged})`);
+
+            // Notify contacts via Socket.IO when identity key changed (device change).
+            // Other devices that have a DR session with this user must clear it and
+            // re-establish X3DH on the next message, otherwise decryption will fail.
+            if (result.identityKeyChanged && ctx.io) {
+                ctx.io.to(`user_${userId}`).emit('signal:identity_changed', { user_id: userId });
+                console.log(`[Signal] Emitted signal:identity_changed for user ${userId}`);
+            }
+
             res.json({ api_status: 200, message: 'Key bundle registered', opk_count: result.opk_count });
 
         } catch (err) {

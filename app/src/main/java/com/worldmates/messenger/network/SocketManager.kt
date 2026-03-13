@@ -527,6 +527,43 @@ class SocketManager(
                 }
             }
 
+            // ── E2EE: Signal identity key changed (user re-registered on new device) ──
+            socket?.on("signal:identity_changed") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data   = args[0] as JSONObject
+                    val userId = data.optLong("user_id", 0L)
+                    if (userId > 0L && listener is ExtendedSocketListener) {
+                        Log.d(TAG, "signal:identity_changed for user $userId — clearing DR session")
+                        listener.onSignalIdentityChanged(userId)
+                    }
+                }
+            }
+
+            // ── Group E2EE: member joined / left (re-distribute / invalidate sender keys) ──
+            socket?.on("group:member_joined") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data    = args[0] as JSONObject
+                    val groupId = data.optLong("group_id", 0L)
+                    val userId  = data.optLong("user_id",  0L)
+                    if (groupId > 0L && userId > 0L && listener is ExtendedSocketListener) {
+                        Log.d(TAG, "group:member_joined group=$groupId user=$userId")
+                        listener.onGroupMemberJoined(groupId, userId)
+                    }
+                }
+            }
+
+            socket?.on("group:member_left") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data    = args[0] as JSONObject
+                    val groupId = data.optLong("group_id", 0L)
+                    val userId  = data.optLong("user_id",  0L)
+                    if (groupId > 0L && userId > 0L && listener is ExtendedSocketListener) {
+                        Log.d(TAG, "group:member_left group=$groupId user=$userId")
+                        listener.onGroupMemberLeft(groupId, userId)
+                    }
+                }
+            }
+
             socket?.connect()
 
         } catch (e: Exception) {
@@ -1132,5 +1169,15 @@ class SocketManager(
         fun onLiveLocationStarted(fromId: Long) {}
         /** Live Location: another user stopped sharing their location */
         fun onLiveLocationStopped(fromId: Long) {}
+        /**
+         * E2EE: a contact registered a NEW identity key (logged in on a new device).
+         * The existing DR session with [userId] is now stale — delete it immediately
+         * so that the next message triggers a fresh X3DH key exchange.
+         */
+        fun onSignalIdentityChanged(userId: Long) {}
+        /** Group E2EE: a new member joined [groupId] — sender keys must be re-distributed. */
+        fun onGroupMemberJoined(groupId: Long, userId: Long) {}
+        /** Group E2EE: a member left [groupId] — their sender key must be invalidated. */
+        fun onGroupMemberLeft(groupId: Long, userId: Long) {}
     }
 }
