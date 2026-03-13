@@ -1367,14 +1367,24 @@ fun MessagesScreen(
                 )
             }
 
-            // Upload Progress
-            if (uploadProgress > 0 && uploadProgress < 100) {
-                LinearProgressIndicator(
-                    progress = uploadProgress / 100f,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                )
+            // ── Upload Progress ────────────────────────────────────────────
+            AnimatedVisibility(visible = uploadProgress in 1..99) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    LinearProgressIndicator(
+                        progress    = { uploadProgress / 100f },
+                        modifier    = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp),
+                        trackColor  = MaterialTheme.colorScheme.surfaceVariant,
+                        color       = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text     = stringResource(R.string.upload_progress_label, uploadProgress),
+                        style    = MaterialTheme.typography.labelSmall,
+                        color    = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                    )
+                }
             }
 
             // Reply Indicator

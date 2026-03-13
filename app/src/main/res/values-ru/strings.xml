@@ -2063,6 +2063,25 @@
     <string name="group_call_link_copied">Ссылка скопирована</string>
     <string name="group_call_up_to_n">до %d участников</string>
 
+    <!-- ── WebRTC Adaptive Bitrate ──────────────────────────────────────── -->
+    <string name="call_quality_low">Низкое качество (240p)</string>
+    <string name="call_quality_medium">Среднее качество (480p)</string>
+    <string name="call_quality_high">Высокое качество (720p)</string>
+    <string name="call_quality_full_hd">Full HD (1080p)</string>
+    <string name="call_quality_adapting">Адаптация качества видео…</string>
+    <string name="call_quality_poor_network">Слабое соединение — качество снижено</string>
+    <string name="call_quality_good_network">Соединение стабилизировалось</string>
+
+    <!-- ── Chat List Pagination ──────────────────────────────────────────── -->
+    <string name="chats_loading_more">Загрузка чатов…</string>
+    <string name="chats_all_loaded">Все чаты загружены</string>
+
+    <!-- ── File Upload Progress ──────────────────────────────────────────── -->
+    <string name="upload_progress_label">Загрузка: %d%%</string>
+    <string name="upload_preparing">Подготовка файла…</string>
+    <string name="upload_done">Файл отправлен</string>
+    <string name="upload_failed">Ошибка загрузки</string>
+
     <!-- ── Channel Livestream ────────────────────────────────────────────── -->
     <string name="channel_live_now">🔴 В ЭФИРЕ</string>
     <string name="channel_live_watch">Смотреть</string>

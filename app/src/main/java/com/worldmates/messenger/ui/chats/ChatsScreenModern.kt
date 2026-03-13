@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -311,6 +312,8 @@ fun ChatsScreenModern(
                     0 -> {
                         // Вкладка "Чати" з pull-to-refresh + Stories
                         Column(modifier = Modifier.fillMaxSize()) {
+                            val isLoadingMore by viewModel.isLoadingMore.collectAsState()
+                            val hasMoreChats  by viewModel.hasMoreChats.collectAsState()
                             // Список чатів (вже відфільтрований)
                             ChatListTabWithStories(
                                 chats = filteredChats,
@@ -329,7 +332,10 @@ fun ChatsScreenModern(
                                 },
                                 onCreateStoryClick = {
                                     showCreateStoryDialog = true
-                                }
+                                },
+                                isLoadingMore = isLoadingMore,
+                                hasMoreChats  = hasMoreChats,
+                                onLoadMore    = { viewModel.loadMoreChats() }
                             )
                         }
                     }
@@ -1070,7 +1076,10 @@ fun ChatListTabWithStories(
     onRefresh: () -> Unit,
     onChatClick: (Chat) -> Unit,
     onChatLongPress: (Chat) -> Unit = {},
-    onCreateStoryClick: () -> Unit = {}
+    onCreateStoryClick: () -> Unit = {},
+    isLoadingMore: Boolean = false,
+    hasMoreChats: Boolean = false,
+    onLoadMore: () -> Unit = {}
 ) {
     val refreshing by remember { mutableStateOf(false) }
     val pullRefreshState = rememberPullRefreshState(
@@ -1079,6 +1088,24 @@ fun ChatListTabWithStories(
     )
     val context = LocalContext.current
     val nicknameRepository = remember { ContactNicknameRepository(context) }
+    val listState = rememberLazyListState()
+
+    // Infinite scroll: коли останній видимий елемент — передостанній у списку — завантажуємо ще
+    val shouldLoadMore = remember {
+        androidx.compose.runtime.derivedStateOf {
+            val layoutInfo   = listState.layoutInfo
+            val totalItems   = layoutInfo.totalItemsCount
+            val lastVisible  = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            // triggerThreshold: 3 елементи до кінця
+            lastVisible >= totalItems - 3 && totalItems > 1
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value && hasMoreChats && !isLoadingMore && !isLoading) {
+            onLoadMore()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -1086,6 +1113,7 @@ fun ChatListTabWithStories(
             .pullRefresh(pullRefreshState)
     ) {
         LazyColumn(
+            state    = listState,
             modifier = Modifier.fillMaxSize()
         ) {
             // Stories row вгорі
@@ -1123,6 +1151,46 @@ fun ChatListTabWithStories(
                     ChatTagsRow(
                         chatId = chat.userId,
                         modifier = Modifier.padding(start = 76.dp, bottom = 2.dp)
+                    )
+                }
+            }
+
+            // Індикатор завантаження наступної сторінки
+            if (isLoadingMore) {
+                item(key = "loading_more") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier  = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text  = stringResource(R.string.chats_loading_more),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+            } else if (!hasMoreChats && chats.isNotEmpty()) {
+                // Підказка що всі чати завантажено
+                item(key = "all_loaded") {
+                    Text(
+                        text     = stringResource(R.string.chats_all_loaded),
+                        style    = MaterialTheme.typography.bodySmall,
+                        color    = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        textAlign = TextAlign.Center
                     )
                 }
             }

@@ -2,26 +2,39 @@ package com.worldmates.messenger.network
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.webrtc.*
 import org.webrtc.audio.AudioDeviceModule
 import org.webrtc.audio.JavaAudioDeviceModule
 
 /**
- * 📹 Качество видео для разных условий сети
+ * 📹 Якість відео для різних умов мережі
  */
 enum class VideoQuality(
     val width: Int,
     val height: Int,
     val fps: Int,
-    val minBitrate: Int,  // Кбит/с
-    val maxBitrate: Int,  // Кбит/с
+    val minBitrate: Int,  // Кбіт/с
+    val maxBitrate: Int,  // Кбіт/с
     val label: String
 ) {
-    LOW(320, 240, 15, 100, 200, "Низкое (240p)"),             // Для очень медленного интернета
-    MEDIUM(640, 480, 24, 300, 600, "Среднее (480p)"),         // Для мобильного интернета
-    HIGH(1280, 720, 30, 800, 1500, "Высокое (720p)"),         // Стандартное качество (стабильное)
-    FULL_HD(1920, 1080, 30, 1500, 2500, "Full HD (1080p)")    // Для быстрого WiFi
+    LOW(320, 240, 15, 100, 200, "Низька (240p)"),
+    MEDIUM(640, 480, 24, 300, 600, "Середня (480p)"),
+    HIGH(1280, 720, 30, 800, 1500, "Висока (720p)"),
+    FULL_HD(1920, 1080, 30, 1500, 2500, "Full HD (1080p)")
 }
+
+/** Напрямок зміни якості під час адаптивного управління бітрейтом */
+enum class BitrateAdaptDirection { UPGRADE, DOWNGRADE, STABLE }
 
 /**
  * WebRTCManager - управление WebRTC соединениями для аудио/видео вызовов
@@ -40,10 +53,28 @@ class WebRTCManager(private val context: Context) {
     private var videoSource: VideoSource? = null
     private var surfaceTextureHelper: SurfaceTextureHelper? = null  // ✅ Зберігаємо для правильного cleanup
 
-    // 📹 Текущее качество видео (по умолчанию HIGH - 720p)
+    // 📹 Поточна якість відео (за замовчуванням HIGH - 720p)
     private var currentVideoQuality: VideoQuality = VideoQuality.HIGH
 
     private var iceServers: List<PeerConnection.IceServer> = createDefaultIceServers()
+
+    // ─── Адаптивний бітрейт ───────────────────────────────────────────────────
+    private val _adaptiveBitrateQuality = MutableStateFlow(VideoQuality.HIGH)
+    /** Поточна якість після адаптації (для відображення в UI). */
+    val adaptiveBitrateQuality: StateFlow<VideoQuality> = _adaptiveBitrateQuality
+
+    private val adaptiveScope   = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var adaptiveJob: Job? = null
+
+    // Стан для прийняття рішень: скільки разів підряд спостерігаємо "добрі" умови
+    private var goodStatsCount = 0
+    private val GOOD_STATS_THRESHOLD = 3   // 3 × 5сек = 15сек стабільності перед апгрейдом
+
+    // Поріг packet loss для реакції
+    private val PACKET_LOSS_DOWNGRADE = 0.08  // >8% — знижуємо якість
+    private val PACKET_LOSS_UPGRADE   = 0.02  // <2% — кандидат на підвищення
+
+    companion object {
 
     companion object {
         private const val TAG = "WebRTCManager"
@@ -365,6 +396,13 @@ class WebRTCManager(private val context: Context) {
                     override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
                         Log.d("WebRTCManager", "PeerConnectionState: $newState")
                         onConnectionStateChangeListener?.invoke(newState)
+                        when (newState) {
+                            PeerConnection.PeerConnectionState.CONNECTED -> startBitrateAdaptation()
+                            PeerConnection.PeerConnectionState.DISCONNECTED,
+                            PeerConnection.PeerConnectionState.FAILED,
+                            PeerConnection.PeerConnectionState.CLOSED     -> stopBitrateAdaptation()
+                            else -> Unit
+                        }
                     }
 
                     override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState) {}
@@ -664,6 +702,113 @@ class WebRTCManager(private val context: Context) {
         peerConnection?.addIceCandidate(iceCandidate)
     }
 
+    // ─── Адаптивний бітрейт ───────────────────────────────────────────────────
+
+    /**
+     * Запускає фоновий цикл збору RTCStats кожні 5 секунд.
+     * Аналізує packet loss і автоматично переключає VideoQuality.
+     * Виклик: після того як PeerConnection перейшов у стан CONNECTED.
+     */
+    fun startBitrateAdaptation() {
+        if (adaptiveJob?.isActive == true) return
+        goodStatsCount = 0
+        Log.d(TAG, "📊 Adaptive bitrate: started (interval=5s)")
+
+        adaptiveJob = adaptiveScope.launch {
+            while (isActive) {
+                delay(5_000L)
+                val pc = peerConnection ?: break
+                collectAndAdaptBitrate(pc)
+            }
+        }
+    }
+
+    /** Зупиняє адаптивний бітрейт (при закінченні дзвінка). */
+    fun stopBitrateAdaptation() {
+        adaptiveJob?.cancel()
+        adaptiveJob = null
+        goodStatsCount = 0
+        Log.d(TAG, "📊 Adaptive bitrate: stopped")
+    }
+
+    /**
+     * Збирає RTCStatsReport, дістає fractionLost з remote-inbound-rtp,
+     * і приймає рішення про підвищення / зниження якості.
+     */
+    private fun collectAndAdaptBitrate(pc: PeerConnection) {
+        pc.getStats { report ->
+            var fractionLost = 0.0
+            var foundStats   = false
+
+            for (stats in report.statsMap.values) {
+                // remote-inbound-rtp — серверна сторона повідомляє нас про втрати
+                if (stats.type == "remote-inbound-rtp") {
+                    val lost = stats.members["fractionLost"] as? Double
+                    if (lost != null) {
+                        fractionLost = maxOf(fractionLost, lost)
+                        foundStats   = true
+                    }
+                }
+            }
+
+            if (!foundStats) {
+                // Статистика ще не доступна — чекаємо наступний цикл
+                return@getStats
+            }
+
+            val direction = decide(fractionLost)
+            Log.d(TAG, "📊 Stats: fractionLost=%.3f → %s (quality=%s)".format(
+                fractionLost, direction, currentVideoQuality))
+
+            when (direction) {
+                BitrateAdaptDirection.DOWNGRADE -> {
+                    goodStatsCount = 0
+                    val lower = lowerQuality(currentVideoQuality)
+                    if (lower != currentVideoQuality) {
+                        Log.i(TAG, "📉 Bitrate adapt: ${currentVideoQuality} → $lower (loss=%.1f%%)".format(fractionLost * 100))
+                        setVideoQuality(lower)
+                        _adaptiveBitrateQuality.value = lower
+                    }
+                }
+                BitrateAdaptDirection.UPGRADE -> {
+                    goodStatsCount++
+                    if (goodStatsCount >= GOOD_STATS_THRESHOLD) {
+                        goodStatsCount = 0
+                        val higher = higherQuality(currentVideoQuality)
+                        if (higher != currentVideoQuality) {
+                            Log.i(TAG, "📈 Bitrate adapt: ${currentVideoQuality} → $higher (loss=%.1f%%)".format(fractionLost * 100))
+                            setVideoQuality(higher)
+                            _adaptiveBitrateQuality.value = higher
+                        }
+                    }
+                }
+                BitrateAdaptDirection.STABLE -> {
+                    // Нічого не змінюємо; якщо йдемо до upgrade — зберігаємо лічильник
+                }
+            }
+        }
+    }
+
+    private fun decide(fractionLost: Double): BitrateAdaptDirection = when {
+        fractionLost > PACKET_LOSS_DOWNGRADE -> BitrateAdaptDirection.DOWNGRADE
+        fractionLost < PACKET_LOSS_UPGRADE   -> BitrateAdaptDirection.UPGRADE
+        else                                 -> BitrateAdaptDirection.STABLE
+    }
+
+    private fun lowerQuality(q: VideoQuality): VideoQuality = when (q) {
+        VideoQuality.FULL_HD -> VideoQuality.HIGH
+        VideoQuality.HIGH    -> VideoQuality.MEDIUM
+        VideoQuality.MEDIUM  -> VideoQuality.LOW
+        VideoQuality.LOW     -> VideoQuality.LOW
+    }
+
+    private fun higherQuality(q: VideoQuality): VideoQuality = when (q) {
+        VideoQuality.LOW     -> VideoQuality.MEDIUM
+        VideoQuality.MEDIUM  -> VideoQuality.HIGH
+        VideoQuality.HIGH    -> VideoQuality.FULL_HD
+        VideoQuality.FULL_HD -> VideoQuality.FULL_HD
+    }
+
     /**
      * Закрыть соединение
      */
@@ -712,6 +857,9 @@ class WebRTCManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e("WebRTCManager", "Error closing PeerConnection", e)
         }
+
+        stopBitrateAdaptation()
+        adaptiveScope.cancel()
     }
 
     /**

@@ -410,19 +410,31 @@ private class ProgressRequestBody(
     override fun contentLength() = file.length()
 
     override fun writeTo(sink: okio.BufferedSink) {
-        val fileInputStream = file.inputStream()
         val totalBytes = file.length()
+        if (totalBytes == 0L) {
+            onProgress?.invoke(100)
+            return
+        }
         var uploadedBytes = 0L
+        var lastReportedProgress = -1
 
-        fileInputStream.use { input ->
-            val buffer = ByteArray(8192)
+        file.inputStream().use { input ->
+            val buffer = ByteArray(16 * 1024) // 16 KB чанки для плавнішого прогресу
             var read: Int
             while (input.read(buffer).also { read = it } != -1) {
-                uploadedBytes += read
                 sink.write(buffer, 0, read)
-                val progress = (uploadedBytes * 100 / totalBytes).toInt()
-                onProgress?.invoke(progress)
+                // flush() змушує OkHttp відправляти дані порціями, а не буферизувати всі
+                sink.flush()
+                uploadedBytes += read
+                val progress = (uploadedBytes * 100 / totalBytes).toInt().coerceIn(0, 99)
+                // Повідомляємо UI тільки при реальній зміні відсотку
+                if (progress != lastReportedProgress) {
+                    lastReportedProgress = progress
+                    onProgress?.invoke(progress)
+                }
             }
         }
+        // Гарантуємо 100% тільки після повного запису
+        onProgress?.invoke(100)
     }
 }

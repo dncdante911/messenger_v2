@@ -2072,6 +2072,25 @@
     <string name="channel_ban_expired">Термін дії закінчився</string>
     <string name="channel_ban_reason_label">Причина: %s</string>
 
+    <!-- ── WebRTC Adaptive Bitrate ──────────────────────────────────────── -->
+    <string name="call_quality_low">Низька якість (240p)</string>
+    <string name="call_quality_medium">Середня якість (480p)</string>
+    <string name="call_quality_high">Висока якість (720p)</string>
+    <string name="call_quality_full_hd">Full HD (1080p)</string>
+    <string name="call_quality_adapting">Адаптація якості відео…</string>
+    <string name="call_quality_poor_network">Слабке з\'єднання — якість знижено</string>
+    <string name="call_quality_good_network">З\'єднання стабілізувалось</string>
+
+    <!-- ── Chat List Pagination ──────────────────────────────────────────── -->
+    <string name="chats_loading_more">Завантаження чатів…</string>
+    <string name="chats_all_loaded">Усі чати завантажено</string>
+
+    <!-- ── File Upload Progress ──────────────────────────────────────────── -->
+    <string name="upload_progress_label">Завантаження: %d%%</string>
+    <string name="upload_preparing">Підготовка файлу…</string>
+    <string name="upload_done">Файл надіслано</string>
+    <string name="upload_failed">Помилка завантаження</string>
+
     <!-- ── Channel Statistics ────────────────────────────────────────────── -->
     <string name="channel_stats_media_post">[Медіа-пост]</string>
     <string name="channel_stats_empty_post">[Пост без тексту]</string>
