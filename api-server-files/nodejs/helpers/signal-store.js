@@ -39,6 +39,11 @@ async function saveKeyBundle(ctx, userId, bundle) {
 
     const merged = mergePrekeys(existingPrekeys, prekeys);
 
+    // Detect identity key change (device change)
+    const identityKeyChanged = existing
+        ? (existing.identity_key !== identityKey)
+        : false;
+
     if (existing) {
         await ctx.signal_keys.update(
             {
@@ -63,7 +68,7 @@ async function saveKeyBundle(ctx, userId, bundle) {
         });
     }
 
-    return { saved: true, opk_count: merged.length };
+    return { saved: true, opk_count: merged.length, identityKeyChanged };
 }
 
 // ─── get key bundle (pops one OPK) ───────────────────────────────────────────

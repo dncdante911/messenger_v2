@@ -31,6 +31,8 @@ import com.worldmates.messenger.ui.messages.selection.ForwardRecipient
 import com.worldmates.messenger.data.repository.DraftRepository
 import com.worldmates.messenger.data.repository.LiveLocationManager
 import com.worldmates.messenger.data.repository.LocationRepository
+import com.worldmates.messenger.data.local.AppDatabase
+import com.worldmates.messenger.data.local.entity.CachedMessage
 import com.worldmates.messenger.data.local.entity.Draft
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -44,6 +46,7 @@ class MessagesViewModel(application: Application) :
     private val context = application
     private val nodeApi = NodeRetrofitClient.api
     private val groupApi = NodeRetrofitClient.groupApi
+    private val db by lazy { AppDatabase.getInstance(application) }
 
     companion object {
         private const val TAG = "MessagesViewModel"
@@ -543,9 +546,140 @@ class MessagesViewModel(application: Application) :
 
                 _isLoading.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                // Network unavailable or timeout → queue the message locally
+                val isNetworkError = e is java.io.IOException ||
+                    e is java.net.UnknownHostException ||
+                    e is java.net.SocketTimeoutException ||
+                    e.cause is java.io.IOException
+                if (isNetworkError && UserSession.userId != null) {
+                    queueMessageLocally(text)
+                    _error.value = getApplication<android.app.Application>().getString(
+                        com.worldmates.messenger.R.string.message_queued_offline
+                    )
+                    Log.w(TAG, "Network error — message queued for later delivery: ${e.message}")
+                } else {
+                    _error.value = "Помилка: ${e.localizedMessage}"
+                    Log.e(TAG, "Помилка надсилання повідомлення", e)
+                }
                 _isLoading.value = false
-                Log.e("MessagesViewModel", "Помилка надсилання повідомлення", e)
+            }
+        }
+    }
+
+    /**
+     * Saves a text message to Room as a local pending entry (isSynced=false).
+     * It will be shown in the chat with a "pending" indicator and sent when connectivity returns.
+     */
+    private suspend fun queueMessageLocally(text: String) {
+        val localId  = -(System.currentTimeMillis())   // negative = local-only
+        val myId     = UserSession.userId ?: return
+        val chatId   = if (groupId != 0L) groupId else recipientId
+        val chatType = if (groupId != 0L) CachedMessage.CHAT_TYPE_GROUP else CachedMessage.CHAT_TYPE_USER
+        val pending = CachedMessage(
+            id            = localId,
+            chatId        = chatId,
+            chatType      = chatType,
+            fromId        = myId,
+            toId          = if (groupId != 0L) 0L else recipientId,
+            groupId       = if (groupId != 0L) groupId else null,
+            encryptedText = text,       // store plaintext; will be encrypted on send
+            iv            = null,
+            tag           = null,
+            cipherVersion = null,
+            decryptedText = text,
+            timestamp     = System.currentTimeMillis(),
+            isSynced      = false
+        )
+        db.messageDao().insertMessage(pending)
+        // Show immediately in UI with pending flag
+        val pendingMsg = Message(
+            id            = localId,
+            fromId        = myId,
+            toId          = if (groupId != 0L) 0L else recipientId,
+            groupId       = if (groupId != 0L) groupId else null,
+            encryptedText = text,
+            timeStamp     = System.currentTimeMillis(),
+            decryptedText = text,
+            isLocalPending = true
+        )
+        val curr = _messages.value
+        if (!curr.any { it.id == localId }) {
+            _messages.value = (curr + pendingMsg).sortedBy { it.timeStamp }
+        }
+        Log.d(TAG, "Message queued locally (id=$localId) for later delivery")
+    }
+
+    /**
+     * Attempts to send all locally-queued (isSynced=false) messages for the current chat.
+     * Called automatically when the socket reconnects.
+     */
+    private fun drainOfflineQueue() {
+        if (UserSession.accessToken == null) return
+        val chatId   = if (groupId != 0L) groupId else recipientId
+        val chatType = if (groupId != 0L) CachedMessage.CHAT_TYPE_GROUP else CachedMessage.CHAT_TYPE_USER
+        if (chatId == 0L) return
+        viewModelScope.launch {
+            val pending = db.messageDao().getUnsyncedMessages()
+                .filter { it.chatId == chatId && it.chatType == chatType }
+            if (pending.isEmpty()) return@launch
+            Log.i(TAG, "Draining ${pending.size} offline-queued messages")
+            for (queued in pending) {
+                val text = queued.decryptedText ?: queued.encryptedText ?: continue
+                try {
+                    val resp = if (groupId == 0L) {
+                        val signalPayload = signalService.encryptForSend(recipientId, text)
+                        if (signalPayload != null) {
+                            nodeApi.sendMessage(
+                                recipientId   = recipientId,
+                                text          = signalPayload.ciphertext,
+                                iv            = signalPayload.iv,
+                                tag           = signalPayload.tag,
+                                signalHeader  = signalPayload.signalHeader,
+                                cipherVersion = SignalEncryptionService.CIPHER_VERSION_SIGNAL
+                            )
+                        } else {
+                            nodeApi.sendMessage(recipientId = recipientId, text = text)
+                        }
+                    } else {
+                        val members = runCatching {
+                            groupApi.getGroupMembers(groupId = groupId).members.orEmpty()
+                        }.getOrDefault(emptyList())
+                        val myUserId = UserSession.userId ?: 0L
+                        val groupPayload = signalGroupService.encryptForGroup(groupId, text, members, myUserId)
+                        if (groupPayload != null) {
+                            groupApi.sendGroupMessage(
+                                groupId       = groupId,
+                                text          = groupPayload.ciphertext,
+                                iv            = groupPayload.iv,
+                                tag           = groupPayload.tag,
+                                signalHeader  = groupPayload.signalHeader,
+                                cipherVersion = SignalGroupEncryptionService.CIPHER_VERSION_SIGNAL
+                            )
+                        } else {
+                            groupApi.sendGroupMessage(groupId = groupId, text = text)
+                        }
+                    }
+                    if (resp.apiStatus == 200) {
+                        // Remove pending local entry + add the real server message
+                        db.messageDao().hardDeleteMessage(queued.id)
+                        // Remove the optimistic pending UI entry
+                        _messages.value = _messages.value.filter { it.id != queued.id }
+                        val rawMsg = resp.messageData
+                        if (rawMsg != null) {
+                            val newMsg = rawMsg.copy(decryptedText = text)
+                            val curr = _messages.value
+                            if (!curr.any { it.id == newMsg.id }) {
+                                _messages.value = (curr + newMsg).sortedBy { it.timeStamp }
+                            }
+                        }
+                        Log.d(TAG, "Offline-queued message delivered (local=${queued.id}, server=${resp.messageData?.id})")
+                    } else {
+                        Log.w(TAG, "Failed to deliver queued message ${queued.id}: ${resp.errorMessage}")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not deliver queued message ${queued.id}: ${e.message}")
+                    // Leave in queue for next reconnect
+                }
             }
         }
     }
@@ -1303,11 +1437,15 @@ class MessagesViewModel(application: Application) :
             val lastId = _messages.value.lastOrNull()?.id ?: 0L
             socketManager?.openChat(recipientId, lastId)
         }
+        // Drain any messages that were queued while offline
+        drainOfflineQueue()
     }
 
     override fun onSocketDisconnected() {
         Log.w("MessagesViewModel", "Socket відключено")
-        _error.value = "Втрачено з'єднання з сервером"
+        _error.value = getApplication<android.app.Application>().getString(
+            com.worldmates.messenger.R.string.connection_lost
+        )
     }
 
     override fun onSocketError(error: String) {
@@ -1439,6 +1577,55 @@ class MessagesViewModel(application: Application) :
     override fun onLiveLocationStopped(fromId: Long) {
         liveLocationManager?.onRemoteStop(fromId)
         Log.d(TAG, "🛑 User $fromId stopped sharing location")
+    }
+
+    // ── E2EE: Signal identity key change (device change) ────────────────────
+
+    /**
+     * Called when a contact registered a new Signal identity key (logged in on new device).
+     * Their old DR session is now invalid — delete it so the next message triggers fresh X3DH.
+     */
+    override fun onSignalIdentityChanged(userId: Long) {
+        viewModelScope.launch {
+            val keyStore = com.worldmates.messenger.utils.signal.SignalKeyStore(getApplication())
+            keyStore.deleteSession(userId)
+            Log.i(TAG, "🔑 [Signal] DR session cleared for user=$userId (identity key changed on new device)")
+            // If this is the current private chat, we'll re-establish X3DH on next send automatically.
+        }
+    }
+
+    // ── Group E2EE: member join / leave ──────────────────────────────────────
+
+    /**
+     * A new member joined the current group.
+     * Force re-distribution of our SenderKey so the new member can decrypt future messages.
+     */
+    override fun onGroupMemberJoined(groupId: Long, userId: Long) {
+        if (this.groupId != groupId) return
+        viewModelScope.launch {
+            // Invalidate the "distributed" flag — encryptForGroup will re-distribute on next send
+            signalGroupService.invalidateMyKey(groupId)
+            Log.i(TAG, "🔑 [Signal/Group] SenderKey invalidated for group=$groupId (new member userId=$userId)")
+        }
+    }
+
+    /**
+     * A member left the current group.
+     * Remove their SenderKey locally and tell the server to invalidate it.
+     */
+    override fun onGroupMemberLeft(groupId: Long, userId: Long) {
+        if (this.groupId != groupId) return
+        signalGroupService.invalidateMemberKey(groupId, userId)
+        Log.i(TAG, "🔑 [Signal/Group] SenderKey of user=$userId removed for group=$groupId (member left)")
+        viewModelScope.launch {
+            runCatching {
+                nodeApi.invalidateGroupSenderKey(groupId = groupId, senderId = userId)
+            }.onFailure {
+                Log.w(TAG, "invalidateGroupSenderKey API call failed: ${it.message}")
+            }
+        }
+        // Force re-distribution on next send (new chain key won't include the removed member)
+        signalGroupService.invalidateMyKey(groupId)
     }
 
     // ── Live Location public API ─────────────────────────────────────────────

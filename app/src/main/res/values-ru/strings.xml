@@ -2082,6 +2082,11 @@
     <string name="upload_done">Файл отправлен</string>
     <string name="upload_failed">Ошибка загрузки</string>
 
+    <!-- ── Offline Queue ─────────────────────────────────────────────────── -->
+    <string name="message_queued_offline">Нет соединения — сообщение будет отправлено при восстановлении</string>
+    <string name="message_pending_indicator">Отправляется…</string>
+    <string name="connection_lost">Потеряно соединение с сервером</string>
+
     <!-- ── Channel Livestream ────────────────────────────────────────────── -->
     <string name="channel_live_now">🔴 В ЭФИРЕ</string>
     <string name="channel_live_watch">Смотреть</string>

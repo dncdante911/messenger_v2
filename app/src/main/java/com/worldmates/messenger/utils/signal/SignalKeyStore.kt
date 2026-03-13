@@ -209,6 +209,39 @@ class SignalKeyStore(private val context: Context) {
     fun hasSession(remoteUserId: Long): Boolean =
         prefs.contains(sessionKey(remoteUserId))
 
+    /**
+     * Clear ALL Double Ratchet sessions.
+     * Called when the remote user changes device (identity key changed) — every
+     * session becomes invalid because the remote private key is gone from the old device.
+     * Next message to/from each contact will trigger a fresh X3DH.
+     */
+    @Synchronized
+    fun clearAllSessions() {
+        val editor = prefs.edit()
+        prefs.all.keys
+            .filter { it.startsWith("session_") }
+            .forEach { editor.remove(it) }
+        editor.apply()
+        Log.i(TAG, "All DR sessions cleared (identity key rotation)")
+    }
+
+    /**
+     * Clear registration flag and all keys so the next [SignalEncryptionService.ensureRegistered]
+     * call generates and uploads a completely fresh key bundle.
+     * Used when logging out of one device and into another.
+     */
+    @Synchronized
+    fun clearForDeviceChange() {
+        prefs.edit()
+            .remove(KEY_REGISTERED)
+            .remove(KEY_IK_PRIV).remove(KEY_IK_PUB)
+            .remove(KEY_SPK_ID).remove(KEY_SPK_PRIV).remove(KEY_SPK_PUB).remove(KEY_SPK_SIG)
+            .remove(KEY_OPK_POOL).remove(KEY_NEXT_OPK_ID)
+            .apply()
+        clearAllSessions()
+        Log.i(TAG, "Signal state cleared for device change (new keys will be generated on next register)")
+    }
+
     // ─── Plaintext message cache ──────────────────────────────────────────────
 
     /**
