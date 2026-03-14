@@ -41,6 +41,13 @@ object Constants {
     // User presence
     const val NODE_USER_STATUS = "api/node/user/status" // online status + last_seen for any user
 
+    // Multi-avatar
+    const val NODE_AVATAR_LIST     = "api/node/user/avatars/{userId}" // GET
+    const val NODE_AVATAR_UPLOAD   = "api/node/user/avatars/upload"   // POST multipart
+    const val NODE_AVATAR_SET_MAIN = "api/node/user/avatars/{id}/set-main" // POST
+    const val NODE_AVATAR_REORDER  = "api/node/user/avatars/reorder"  // POST
+    const val NODE_AVATAR_DELETE   = "api/node/user/avatars/{id}"     // DELETE
+
     // Actions
     const val NODE_CHAT_DELETE  = "api/node/chat/delete"   // delete message
     const val NODE_CHAT_REACT   = "api/node/chat/react"    // react to message

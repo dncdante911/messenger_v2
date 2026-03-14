@@ -136,3 +136,38 @@ data class UpdateUserDataResponse(
     @SerializedName("error_code") val errorCode: Int?,
     @SerializedName("error_message") val errorMessage: String?
 )
+
+// ─── Multi-avatar models ──────────────────────────────────────────────────────
+
+/** Single user avatar entry (photo or animated GIF/APNG/WebP). */
+data class UserAvatar(
+    @SerializedName("id")          val id: Long,
+    @SerializedName("url")         val url: String,
+    @SerializedName("file_path")   val filePath: String,
+    @SerializedName("is_animated") val isAnimated: Boolean = false,
+    @SerializedName("mime_type")   val mimeType: String = "image/jpeg",
+    @SerializedName("position")    val position: Int = 0,
+    @SerializedName("created_at")  val createdAt: Long = 0
+)
+
+data class UserAvatarListResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("avatars")    val avatars: List<UserAvatar>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class UserAvatarUploadResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("avatar")     val avatar: UserAvatar? = null,
+    @SerializedName("is_main")    val isMain: Boolean = false,
+    @SerializedName("count")      val count: Int = 0,
+    @SerializedName("limit")      val limit: Int = 10,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class UserAvatarSimpleResponse(
+    @SerializedName("api_status")     val apiStatus: Int,
+    @SerializedName("url")            val url: String? = null,
+    @SerializedName("remaining_count") val remainingCount: Int? = null,
+    @SerializedName("error_message")  val errorMessage: String? = null
+)

@@ -27,7 +27,7 @@ class NetworkQualityMonitor(private val context: Context) {
         private const val TAG = "NetworkQualityMonitor"
         private const val PING_INTERVAL_MS = 10000L // Перевірка кожні 10 секунд
         private const val PING_TIMEOUT_MS = 5000L // Таймаут пінгу 5 секунд
-        private const val PING_URL = "https://worldmates.club/api/v2/ping.php"
+        private const val PING_URL = "https://worldmates.club:449/api/health"
 
         // Пороги для визначення якості (в мілісекундах)
         private const val EXCELLENT_THRESHOLD_MS = 200L // < 200ms = відмінно

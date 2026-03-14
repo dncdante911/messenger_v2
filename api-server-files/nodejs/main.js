@@ -40,6 +40,7 @@ const { createRateLimiter }          = require('./helpers/rateLimiter')
 const { instantView }                = require('./routes/instant_view')
 const registerNotesRoutes            = require('./routes/notes')
 const registerTranslatorRoutes       = require('./routes/translator')
+const { registerAvatarRoutes }       = require('./routes/users/avatars')
 
 let serverPort
 let server
@@ -157,7 +158,8 @@ async function init() {
   ctx.wo_reactions = require("./models/wo_reactions")(sequelize, DataTypes)
   // [WoWonder social] wo_blog_reaction — реакции к блог-постам соцсети
   // ctx.wo_blog_reaction = require("./models/wo_blog_reaction")(sequelize, DataTypes)
-  ctx.wo_mute = require("./models/wo_mute")(sequelize, DataTypes)
+  ctx.wo_mute         = require("./models/wo_mute")(sequelize, DataTypes)
+  ctx.wo_user_avatars = require("./models/wo_user_avatars")(sequelize, DataTypes)
   ctx.wo_calls = require("./models/wo_calls")(sequelize, DataTypes)
   ctx.wo_group_calls = require("./models/wo_group_calls")(sequelize, DataTypes)
   ctx.wo_group_call_participants = require("./models/wo_group_call_participants")(sequelize, DataTypes)
@@ -452,8 +454,9 @@ async function main() {
   registerChannelRoutes(app, ctx, io);
   registerGroupRoutes(app, ctx, io);
 
-  // Register User REST API (nearby people, etc.)
+  // Register User REST API (nearby people, multi-avatars, etc.)
   registerUserRoutes(app, ctx, io);
+  registerAvatarRoutes(app, ctx);
 
   // Register Bot REST API (полная замена PHP bot_api.php)
   registerBotRoutes(app, ctx, io);

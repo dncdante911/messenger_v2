@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.User
@@ -321,17 +322,14 @@ fun UserProfileContent(
                         )
                 )
 
-                // Avatar at bottom
-                AsyncImage(
-                    model = user.avatar,
-                    contentDescription = "Avatar",
+                // Avatar pager at bottom (supports multiple photos)
+                UserAvatarPagerInProfile(
+                    userId = user.userId,
+                    fallbackUrl = user.avatar,
                     modifier = Modifier
                         .size(100.dp)
                         .align(Alignment.BottomStart)
                         .padding(start = 16.dp, bottom = 16.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface),
-                    contentScale = ContentScale.Crop
                 )
             }
         }
