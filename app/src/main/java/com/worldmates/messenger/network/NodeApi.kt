@@ -4,6 +4,11 @@ import com.google.gson.annotations.SerializedName
 import com.worldmates.messenger.data.Constants
 import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.data.model.Message
+import com.worldmates.messenger.data.model.UserAvatar
+import com.worldmates.messenger.data.model.UserAvatarListResponse
+import com.worldmates.messenger.data.model.UserAvatarSimpleResponse
+import com.worldmates.messenger.data.model.UserAvatarUploadResponse
+import okhttp3.MultipartBody
 import com.worldmates.messenger.utils.signal.PreKeyBundleResponse
 import com.worldmates.messenger.utils.signal.SignalRegisterRequest
 import com.worldmates.messenger.utils.signal.SignalReplenishRequest
@@ -175,6 +180,41 @@ interface NodeApi {
     suspend fun getUserStatus(
         @Field("user_id") userId: Long
     ): NodeUserStatusResponse
+
+    // ═══════════════════════ MULTI-AVATAR ════════════════════════════════════
+
+    /** Get all avatars for a user (gallery). */
+    @GET(Constants.NODE_AVATAR_LIST)
+    suspend fun getUserAvatars(
+        @Path("userId") userId: Long
+    ): UserAvatarListResponse
+
+    /** Upload a new avatar photo or animated GIF/WebP. */
+    @Multipart
+    @POST(Constants.NODE_AVATAR_UPLOAD)
+    suspend fun uploadAvatar(
+        @Part avatar: MultipartBody.Part,
+        @Part("set_as_main") setAsMain: okhttp3.RequestBody = okhttp3.RequestBody.create(null, "true")
+    ): UserAvatarUploadResponse
+
+    /** Set an avatar as the main profile photo. */
+    @POST(Constants.NODE_AVATAR_SET_MAIN)
+    suspend fun setMainAvatar(
+        @Path("id") avatarId: Long
+    ): UserAvatarSimpleResponse
+
+    /** Reorder avatars by providing an ordered list of IDs. */
+    @FormUrlEncoded
+    @POST(Constants.NODE_AVATAR_REORDER)
+    suspend fun reorderAvatars(
+        @Field("ids[]") ids: List<Long>
+    ): UserAvatarSimpleResponse
+
+    /** Delete an avatar by ID. */
+    @DELETE(Constants.NODE_AVATAR_DELETE)
+    suspend fun deleteAvatar(
+        @Path("id") avatarId: Long
+    ): UserAvatarSimpleResponse
 
     // ═══════════════════════ ACTIONS ═════════════════════════════════════════
 

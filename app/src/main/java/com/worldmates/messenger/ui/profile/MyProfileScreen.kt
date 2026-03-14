@@ -72,6 +72,7 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,6 +98,7 @@ import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.worldmates.messenger.data.model.User
 import kotlinx.coroutines.delay
 
@@ -113,10 +115,18 @@ fun MyProfileScreen(
     onAvatarSelected: (Uri) -> Unit,
     onQrCodeClick: () -> Unit = {},
     onMoreClick: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    avatarGalleryViewModel: AvatarGalleryViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    var showQrDialog by remember { mutableStateOf(false) }
+    var showQrDialog     by remember { mutableStateOf(false) }
+    var showAvatarSheet  by remember { mutableStateOf(false) }
+
+    val avatars by avatarGalleryViewModel.avatars.collectAsState()
+
+    LaunchedEffect(user.userId) {
+        avatarGalleryViewModel.loadAvatars(user.userId)
+    }
 
     // Staggered entrance animation states
     var avatarVisible  by remember { mutableStateOf(false) }
@@ -163,11 +173,22 @@ fun MyProfileScreen(
                     )
                 ) + fadeIn(tween(380))
             ) {
-                ProfileAvatarSection(
-                    avatarUrl  = user.avatar,
-                    isPro      = user.isPro > 0,
-                    onCameraClick = { avatarPicker.launch("image/*") }
-                )
+                if (avatars.isEmpty()) {
+                    // Fallback to single-avatar view until gallery loads
+                    ProfileAvatarSection(
+                        avatarUrl  = user.avatar,
+                        isPro      = user.isPro > 0,
+                        onCameraClick = { showAvatarSheet = true }
+                    )
+                } else {
+                    AvatarPager(
+                        avatars       = avatars,
+                        isOwnProfile  = true,
+                        modifier      = Modifier.padding(vertical = 4.dp),
+                        onAddPhotoClick = { showAvatarSheet = true },
+                        onManageClick   = { showAvatarSheet = true }
+                    )
+                }
             }
         }
 
@@ -232,6 +253,16 @@ fun MyProfileScreen(
     // ── QR Dialog ──────────────────────────────────────────────────────────
     if (showQrDialog) {
         ProfileQrDialog(user = user, onDismiss = { showQrDialog = false })
+    }
+
+    // ── Avatar Gallery Management Sheet ────────────────────────────────────
+    if (showAvatarSheet) {
+        AvatarManagementSheet(
+            viewModel  = avatarGalleryViewModel,
+            userId     = user.userId,
+            isPremium  = user.isPro > 0,
+            onDismiss  = { showAvatarSheet = false }
+        )
     }
 }
 

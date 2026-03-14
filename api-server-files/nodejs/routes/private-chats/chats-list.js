@@ -66,6 +66,7 @@ function getChats(ctx, io) {
             const limit     = Math.min(parseInt(req.body.limit  || req.body.user_limit)  || 30, 100);
             const offset    = parseInt(req.body.offset || req.body.user_offset) || 0;
             const showArchived = req.body.show_archived === 'true';
+            const siteUrl   = (ctx.globalconfig?.site_url || '').replace(/\/$/, '');
 
             // base: user's direct conversations
             const chatRows = await ctx.wo_userschat.findAll({
@@ -141,6 +142,14 @@ function getChats(ctx, io) {
                     };
                 }
 
+                let avatarUrl = partner?.avatar || '';
+                if (avatarUrl && !avatarUrl.startsWith('http')) {
+                    avatarUrl = siteUrl + '/' + avatarUrl;
+                }
+                if (partner?.last_avatar_mod) {
+                    avatarUrl += '?cache=' + partner.last_avatar_mod;
+                }
+
                 result.push({
                     id:            chat.id,   // Android Chat.id (@SerializedName("id"))
                     chat_id:       chat.id,
@@ -148,7 +157,7 @@ function getChats(ctx, io) {
                     chat_type:     'user',
                     user_id:       partnerId,
                     username:      partner?.username   || partner?.name || '',
-                    avatar:        partner?.avatar     || '',
+                    avatar:        avatarUrl,
                     chat_color:    chatColor,
                     mute:          muteRow,
                     user_data:     partner,
