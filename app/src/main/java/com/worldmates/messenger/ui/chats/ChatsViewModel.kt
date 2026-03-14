@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Chat
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.DecryptionUtility
@@ -73,29 +73,22 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChats(
-                    accessToken = UserSession.accessToken!!,
-                    limit       = PAGE_SIZE,
-                    dataType    = "users",
-                    setOnline   = 1,
-                    offset      = 0
+                val response = NodeRetrofitClient.api.getChats(
+                    limit  = PAGE_SIZE,
+                    offset = 0
                 )
 
                 Log.d("ChatsViewModel", "API Response Status: ${response.apiStatus}")
-                Log.d("ChatsViewModel", "Chats count: ${response.chats?.size ?: 0}")
-                Log.d("ChatsViewModel", "Error code: ${response.errorCode}")
-                Log.d("ChatsViewModel", "Error message: ${response.errorMessage}")
+                Log.d("ChatsViewModel", "Chats count: ${response.data?.size ?: 0}")
 
                 if (response.apiStatus == 200) {
                     authErrorCount = 0  // Reset on success
-                    if (response.chats != null && response.chats.isNotEmpty()) {
-                        Log.d("ChatsViewModel", "Отримано ${response.chats.size} особистих чатів")
+                    if (response.data != null && response.data.isNotEmpty()) {
+                        Log.d("ChatsViewModel", "Отримано ${response.data.size} особистих чатів (Node.js)")
 
                         // Дешифруємо останнє повідомлення у кожному чаті
-                        // API вже повернуло тільки особисті чати (dataType="users")
-                        // Залишаємо подвійний захист: виключаємо групи та приховані чати
-                        val decryptedChats = response.chats
-                            .filter { !it.isGroup && !hiddenChatIds.contains(it.userId) } // Подвійний захист
+                        val decryptedChats = response.data
+                            .filter { !it.isGroup && !hiddenChatIds.contains(it.userId) }
                             .map { chat ->
                             Log.d("ChatsViewModel", "✅ Особистий чат: ${chat.username}, last_msg: ${chat.lastMessage?.encryptedText}")
 
@@ -161,44 +154,31 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
                         _chatList.value = decryptedChats
                         chatsOffset = decryptedChats.size
-                        // Якщо повернено менше PAGE_SIZE — більше немає
-                        _hasMoreChats.value = response.chats.size >= PAGE_SIZE
+                        _hasMoreChats.value = response.data.size >= PAGE_SIZE
                         _error.value = null
-                        Log.d("ChatsViewModel", "✅ Завантажено ${decryptedChats.size} чатів успішно")
+                        Log.d("ChatsViewModel", "✅ Завантажено ${decryptedChats.size} чатів успішно (Node.js)")
                     } else {
-                        Log.w("ChatsViewModel", "⚠️ API повернуло 200, але чатів немає")
+                        Log.w("ChatsViewModel", "⚠️ Node.js повернуло 200, але чатів немає")
                         _chatList.value = emptyList()
                         _hasMoreChats.value = false
                         _error.value = null
                     }
-                } else if (response.apiStatus == 404) {
-                    // WoWonder повертає 404 коли чатів просто немає — це нормально, не помилка авторизації
-                    authErrorCount = 0
-                    _chatList.value = emptyList()
-                    _error.value = null
-                    Log.d("ChatsViewModel", "ℹ️ Чатів ще немає (api_status=404 = no data)")
-                } else {
-                    // Auth errors: api_status 0 = "Access is not allowed" (WoWonder),
-                    // 401/403 = invalid/expired token.
-                    // WoWonder НІКОЛИ не повертає 404 для auth-помилок — він повертає 0 або 400.
-                    // 404 тут означає "немає даних" і вже оброблено вище.
-                    if (response.apiStatus == 0 || response.apiStatus == 401 || response.apiStatus == 403) {
-                        authErrorCount++
-                        Log.e("ChatsViewModel", "❌ Auth error #$authErrorCount (status=${response.apiStatus})")
-                        if (authErrorCount >= 3) {
-                            Log.e("ChatsViewModel", "❌ 3 consecutive auth errors — forcing re-login")
-                            UserSession.clearSession()
-                            _needsRelogin.value = true
-                            _error.value = "Сесія застаріла. Будь ласка, увійдіть знову"
-                        } else {
-                            _error.value = response.errorMessage ?: "Помилка авторизації. Повторна спроба..."
-                        }
+                } else if (response.apiStatus == 401 || response.apiStatus == 403) {
+                    authErrorCount++
+                    Log.e("ChatsViewModel", "❌ Auth error #$authErrorCount (status=${response.apiStatus})")
+                    if (authErrorCount >= 3) {
+                        Log.e("ChatsViewModel", "❌ 3 consecutive auth errors — forcing re-login")
+                        UserSession.clearSession()
+                        _needsRelogin.value = true
+                        _error.value = "Сесія застаріла. Будь ласка, увійдіть знову"
                     } else {
-                        authErrorCount = 0
-                        val errorMsg = response.errorMessage ?: "Невідома помилка (${response.apiStatus})"
-                        _error.value = errorMsg
-                        Log.e("ChatsViewModel", "❌ Помилка API: ${response.apiStatus} - $errorMsg")
+                        _error.value = response.errorMessage ?: "Помилка авторизації. Повторна спроба..."
                     }
+                } else {
+                    authErrorCount = 0
+                    val errorMsg = response.errorMessage ?: "Невідома помилка (${response.apiStatus})"
+                    _error.value = errorMsg
+                    Log.e("ChatsViewModel", "❌ Помилка Node.js API: ${response.apiStatus} - $errorMsg")
                 }
 
                 _isLoading.value = false
@@ -234,16 +214,13 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChats(
-                    accessToken = UserSession.accessToken!!,
-                    limit       = PAGE_SIZE,
-                    dataType    = "users",
-                    setOnline   = 0, // не встановлюємо online при підвантаженні
-                    offset      = chatsOffset
+                val response = NodeRetrofitClient.api.getChats(
+                    limit  = PAGE_SIZE,
+                    offset = chatsOffset
                 )
 
-                if (response.apiStatus == 200 && !response.chats.isNullOrEmpty()) {
-                    val newDecrypted = response.chats
+                if (response.apiStatus == 200 && !response.data.isNullOrEmpty()) {
+                    val newDecrypted = response.data
                         .filter { !it.isGroup && !hiddenChatIds.contains(it.userId) }
                         .map { chat ->
                             val lastMessage = chat.lastMessage?.let { msg ->
@@ -261,13 +238,12 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                             chat.copy(lastMessage = lastMessage)
                         }
 
-                    // Додаємо нові чати до існуючих, уникаємо дублікатів за id
                     val existingIds = _chatList.value.map { it.id }.toSet()
                     val unique      = newDecrypted.filter { it.id !in existingIds }
                     _chatList.value = _chatList.value + unique
-                    chatsOffset    += response.chats.size
-                    _hasMoreChats.value = response.chats.size >= PAGE_SIZE
-                    Log.d("ChatsViewModel", "📄 loadMoreChats: +${unique.size} чатів, offset=$chatsOffset")
+                    chatsOffset    += response.data.size
+                    _hasMoreChats.value = response.data.size >= PAGE_SIZE
+                    Log.d("ChatsViewModel", "📄 loadMoreChats: +${unique.size} чатів, offset=$chatsOffset (Node.js)")
                 } else {
                     _hasMoreChats.value = false
                     Log.d("ChatsViewModel", "📄 loadMoreChats: більше чатів немає")
