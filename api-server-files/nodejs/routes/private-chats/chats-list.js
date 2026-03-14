@@ -142,10 +142,13 @@ function getChats(ctx, io) {
                 }
 
                 result.push({
+                    id:            chat.id,   // Android Chat.id (@SerializedName("id"))
                     chat_id:       chat.id,
                     chat_time:     chat.time,
                     chat_type:     'user',
                     user_id:       partnerId,
+                    username:      partner?.username   || partner?.name || '',
+                    avatar:        partner?.avatar     || '',
                     chat_color:    chatColor,
                     mute:          muteRow,
                     user_data:     partner,

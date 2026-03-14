@@ -654,7 +654,7 @@ fun ChatListTab(
             LazyColumn(
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(chats, key = { it.id }) { chat ->
+                items(chats, key = { it.userId }) { chat ->
                     val nickname by nicknameRepository.getNickname(chat.userId).collectAsState(initial = null)
 
                     // Користувач може вибрати стиль в налаштуваннях
@@ -1125,7 +1125,7 @@ fun ChatListTabWithStories(
             }
 
             // Чати
-            items(chats, key = { it.id }) { chat ->
+            items(chats, key = { it.userId }) { chat ->
                 val nickname by nicknameRepository.getNickname(chat.userId).collectAsState(initial = null)
 
                 Column {
