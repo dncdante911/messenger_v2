@@ -393,6 +393,43 @@ interface NodeApi {
         @Field("offset")  offset: Int = 0
     ): NodeMessageListResponse
 
+    // ═══════════════════════ SAVED MESSAGES (server-side bookmarks) ══════════
+
+    /** Bookmark a message. Idempotent — safe to call even if already saved. */
+    @FormUrlEncoded
+    @POST(Constants.NODE_SAVED_SAVE)
+    suspend fun saveMessage(
+        @Field("message_id")    messageId: Long,
+        @Field("chat_type")     chatType: String,
+        @Field("chat_id")       chatId: Long,
+        @Field("chat_name")     chatName: String,
+        @Field("sender_name")   senderName: String,
+        @Field("text")          text: String? = null,
+        @Field("media_url")     mediaUrl: String? = null,
+        @Field("media_type")    mediaType: String? = null,
+        @Field("original_time") originalTime: Long = 0
+    ): NodeSavedMessageResponse
+
+    /** Remove a bookmark. */
+    @FormUrlEncoded
+    @POST(Constants.NODE_SAVED_UNSAVE)
+    suspend fun unsaveMessage(
+        @Field("message_id") messageId: Long,
+        @Field("chat_type")  chatType: String
+    ): NodeSimpleResponse
+
+    /** Fetch all saved messages for the current user. */
+    @FormUrlEncoded
+    @POST(Constants.NODE_SAVED_LIST)
+    suspend fun listSaved(
+        @Field("limit")  limit: Int = 200,
+        @Field("offset") offset: Int = 0
+    ): NodeSavedListResponse
+
+    /** Remove all bookmarks for the current user. */
+    @POST(Constants.NODE_SAVED_CLEAR)
+    suspend fun clearSaved(): NodeSimpleResponse
+
     // ═══════════════════════ SIGNAL PROTOCOL ════════════════════════════════
 
     /**
@@ -868,4 +905,35 @@ data class NodeInstantViewResponse(
     @SerializedName("content_html")     val contentHtml: String? = null,
     @SerializedName("reading_time_min") val readingTimeMin: Int = 1,
     @SerializedName("error_message")    val errorMessage: String? = null
+)
+
+// ─── Saved Messages ────────────────────────────────────────────────────────────
+
+/** A single saved-message entry as returned by the server. */
+data class ServerSavedItem(
+    @SerializedName("id")            val id: Long,
+    @SerializedName("message_id")    val messageId: Long,
+    @SerializedName("chat_type")     val chatType: String,
+    @SerializedName("chat_id")       val chatId: Long,
+    @SerializedName("chat_name")     val chatName: String,
+    @SerializedName("sender_name")   val senderName: String,
+    @SerializedName("text")          val text: String?,
+    @SerializedName("media_url")     val mediaUrl: String?,
+    @SerializedName("media_type")    val mediaType: String?,
+    @SerializedName("saved_at")      val savedAt: Long,
+    @SerializedName("original_time") val originalTime: Long
+)
+
+data class NodeSavedMessageResponse(
+    @SerializedName("api_status")    val apiStatus: Int,
+    @SerializedName("saved")         val saved: ServerSavedItem? = null,
+    @SerializedName("created")       val created: Boolean? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class NodeSavedListResponse(
+    @SerializedName("api_status")    val apiStatus: Int,
+    @SerializedName("saved")         val saved: List<ServerSavedItem>? = null,
+    @SerializedName("total")         val total: Int = 0,
+    @SerializedName("error_message") val errorMessage: String? = null
 )

@@ -18,6 +18,7 @@ const msgs      = require('./messages');
 const actions   = require('./actions');
 const chatsList  = require('./chats-list');
 const favs      = require('./favorites');
+const saved     = require('./saved');
 const secret    = require('./secret');
 const exportChat = require('./export');
 
@@ -86,6 +87,12 @@ function registerPrivateChatRoutes(app, ctx, io) {
     app.post('/api/node/chat/fav',      auth, favs.favMessage(ctx, io));
     app.post('/api/node/chat/fav-list', auth, favs.getFavMessages(ctx, io));
 
+    // ── saved messages (server-side bookmarks) ────────────────────────────────
+    app.post('/api/node/chat/saved/save',   auth, saved.saveMessage(ctx));
+    app.post('/api/node/chat/saved/unsave', auth, saved.unsaveMessage(ctx));
+    app.post('/api/node/chat/saved/list',   auth, saved.listSaved(ctx));
+    app.post('/api/node/chat/saved/clear',  auth, saved.clearSaved(ctx));
+
     // ── export ────────────────────────────────────────────────────────────────
     app.post('/api/node/chat/export',  auth, exportChat.exportChat(ctx, io));
 
@@ -104,6 +111,7 @@ function registerPrivateChatRoutes(app, ctx, io) {
     console.log('  Actions  : delete, react, pin, pinned, forward');
     console.log('  Chats    : chats, delete-conversation, clear-history, mute-status, archive, archive/count, mute, pin-chat, color, read');
     console.log('  Favorites: fav, fav-list');
+    console.log('  Saved    : saved/save, saved/unsave, saved/list, saved/clear');
     console.log('  User     : /api/node/user/status');
     console.log('  Secret   : secret/cleanup, secret/set-timer, secret/timer/:userId');
 }

@@ -166,6 +166,7 @@ async function init() {
 
   // ==================== Scheduled Messages + Chat Folders Models ====================
   ctx.wm_scheduled_messages = require("./models/wm_scheduled_messages")(sequelize, DataTypes)
+  ctx.wm_saved_messages     = require("./models/wm_saved_messages")(sequelize, DataTypes)
   const _folderModels = require("./models/wm_chat_folders")
   ctx.wm_chat_folders        = _folderModels.Folder(sequelize, DataTypes)
   ctx.wm_chat_folder_items   = _folderModels.FolderItem(sequelize, DataTypes)
