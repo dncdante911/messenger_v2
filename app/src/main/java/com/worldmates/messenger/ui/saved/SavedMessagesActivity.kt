@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.SavedMessageItem
 import com.worldmates.messenger.data.SavedMessagesManager
-import com.worldmates.messenger.ui.theme.WorldMatesMessengerTheme
+import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -42,7 +42,7 @@ class SavedMessagesActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            WorldMatesMessengerTheme {
+            WorldMatesThemedApp {
                 SavedMessagesScreen(onBack = { finish() })
             }
         }
