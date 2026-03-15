@@ -95,6 +95,26 @@ interface NodeApi {
     ): NodeMessageResponse
 
     /**
+     * UPLOAD CHAT MEDIA — replaces PHP /xhr/upload_*.php endpoints.
+     * Single unified endpoint for image / video / audio / voice / file uploads.
+     *
+     * @param type  one of: "image", "video", "audio", "voice", "file"
+     * @param file  multipart part with field name "file"
+     *
+     * Returns XhrUploadResponse-compatible JSON:
+     *   { status: 200, image: "url", image_src: "path" }  for images
+     *   { status: 200, video: "url", video_src: "path" }  for videos
+     *   { status: 200, audio: "url", audio_src: "path" }  for audio/voice
+     *   { status: 200, file:  "url", file_src:  "path" }  for documents
+     */
+    @Multipart
+    @POST("api/node/chat/upload")
+    suspend fun uploadChatMedia(
+        @Part("type") type: okhttp3.RequestBody,
+        @Part         file: MultipartBody.Part
+    ): XhrUploadResponse
+
+    /**
      * NOTIFY-MEDIA — called after PHP saves a voice/video/audio message.
      * Node.js fetches the saved message and broadcasts it via Socket.IO to
      * both sender and recipient for real-time delivery.

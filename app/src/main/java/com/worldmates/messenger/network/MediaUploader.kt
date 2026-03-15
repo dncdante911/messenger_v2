@@ -219,7 +219,8 @@ class MediaUploader(private val context: Context) {
     }
 
     /**
-     * Загружает файл на сервер через соответствующий xhr endpoint
+     * Uploads a file to the server via Node.js /api/node/chat/upload
+     * (replaces PHP /xhr/upload_*.php endpoints).
      */
     private suspend fun uploadFileToServer(
         accessToken: String,
@@ -228,54 +229,13 @@ class MediaUploader(private val context: Context) {
         onProgress: ((Int) -> Unit)? = null
     ): XhrUploadResponse {
         val requestBody = ProgressRequestBody(file, getMimeType(mediaType), onProgress)
+        val filePart    = MultipartBody.Part.createFormData("file", file.name, requestBody)
+        val typePart    = mediaType.toRequestBody("text/plain".toMediaType())
 
-        // Создаем MultipartBody.Part с правильным именем параметра для каждого типа
-        val filePart = when (mediaType) {
-            Constants.MESSAGE_TYPE_IMAGE -> {
-                MultipartBody.Part.createFormData("image", file.name, requestBody)
-            }
-            Constants.MESSAGE_TYPE_VIDEO -> {
-                MultipartBody.Part.createFormData("video", file.name, requestBody)
-            }
-            Constants.MESSAGE_TYPE_AUDIO, Constants.MESSAGE_TYPE_VOICE -> {
-                MultipartBody.Part.createFormData("audio", file.name, requestBody)
-            }
-            else -> {
-                MultipartBody.Part.createFormData("file", file.name, requestBody)
-            }
-        }
-
-        // Вызываем соответствующий xhr endpoint
-        return when (mediaType) {
-            Constants.MESSAGE_TYPE_IMAGE -> {
-                RetrofitClient.apiService.uploadImage(
-                    accessToken = accessToken,
-                    serverKey = com.worldmates.messenger.data.Constants.SERVER_KEY,
-                    image = filePart
-                )
-            }
-            Constants.MESSAGE_TYPE_VIDEO -> {
-                RetrofitClient.apiService.uploadVideo(
-                    accessToken = accessToken,
-                    serverKey = com.worldmates.messenger.data.Constants.SERVER_KEY,
-                    video = filePart
-                )
-            }
-            Constants.MESSAGE_TYPE_AUDIO, Constants.MESSAGE_TYPE_VOICE -> {
-                RetrofitClient.apiService.uploadAudio(
-                    accessToken = accessToken,
-                    serverKey = com.worldmates.messenger.data.Constants.SERVER_KEY,
-                    audio = filePart
-                )
-            }
-            else -> {
-                RetrofitClient.apiService.uploadFile(
-                    accessToken = accessToken,
-                    serverKey = com.worldmates.messenger.data.Constants.SERVER_KEY,
-                    file = filePart
-                )
-            }
-        }
+        return NodeRetrofitClient.chatUploadApi.uploadChatMedia(
+            type = typePart,
+            file = filePart,
+        )
     }
 
     /**
