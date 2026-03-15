@@ -1411,8 +1411,7 @@ fun UserSearchDialog(
                             // Perform search
                             coroutineScope.launch {
                                 try {
-                                    val response = com.worldmates.messenger.network.RetrofitClient.apiService.searchUsers(
-                                        accessToken = com.worldmates.messenger.data.UserSession.accessToken ?: "",
+                                    val response = com.worldmates.messenger.network.NodeRetrofitClient.profileApi.searchUsers(
                                         query = searchQuery
                                     )
                                     if (response.apiStatus == 200 && response.users != null) {

@@ -1,7 +1,6 @@
 // ============ GroupsViewModel.kt ============
 // All group operations migrated from PHP (RetrofitClient.apiService)
-// to Node.js (NodeRetrofitClient.groupApi) as per claude.md architecture.
-// Exception: searchUsers, scheduled posts, subgroups — still PHP (no Node endpoint yet).
+// to Node.js (NodeRetrofitClient.groupApi / profileApi) as per claude.md architecture.
 
 package com.worldmates.messenger.ui.groups
 
@@ -14,7 +13,6 @@ import com.worldmates.messenger.data.model.Group
 import com.worldmates.messenger.data.model.GroupMember
 import com.worldmates.messenger.data.model.TopContributor
 import com.worldmates.messenger.network.NodeRetrofitClient
-import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SearchUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -130,8 +128,7 @@ class GroupsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.searchUsers(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.profileApi.searchUsers(
                     query = query,
                     limit = 50
                 )

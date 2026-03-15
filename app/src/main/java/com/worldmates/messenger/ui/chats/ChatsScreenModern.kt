@@ -791,8 +791,7 @@ fun UserSearchDialogForChats(
                                 isSearching = true
                                 errorMessage = null
                                 try {
-                                    val response = com.worldmates.messenger.network.RetrofitClient.apiService.searchUsers(
-                                        accessToken = com.worldmates.messenger.data.UserSession.accessToken ?: "",
+                                    val response = com.worldmates.messenger.network.NodeRetrofitClient.profileApi.searchUsers(
                                         query = it,
                                         limit = 20
                                     )

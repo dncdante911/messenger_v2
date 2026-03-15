@@ -201,17 +201,25 @@ function serializeUser(ctx, u, { isSelf = false, extra = {} } = {}) {
 function serializeUserCard(ctx, u, relationship = {}) {
     const now      = Math.floor(Date.now() / 1000);
     const isOnline = u.lastseen && (now - Number(u.lastseen)) < ONLINE_TIMEOUT;
+    const showSeen = u.showlastseen !== '0';
     return {
-        user_id:    u.user_id,
-        username:   u.username,
-        first_name: u.first_name || '',
-        last_name:  u.last_name  || '',
-        avatar:     mediaUrl(ctx, u.avatar),
-        verified:   u.verified  || '0',
-        is_pro:     u.is_pro    || '0',
+        user_id:         u.user_id,
+        username:        u.username,
+        first_name:      u.first_name || '',
+        last_name:       u.last_name  || '',
+        // Combined full name (Android SearchUser + BlockedUser models expect this)
+        name:            `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || '',
+        avatar:          mediaUrl(ctx, u.avatar),
+        about:           u.about || '',
+        verified:        u.verified  || '0',
+        is_pro:          u.is_pro    || '0',
+        // Flat lastseen fields (BlockedUser, SearchUser models use these)
+        lastseen:        showSeen ? (u.lastseen ? Number(u.lastseen) : 0) : 0,
+        lastseen_status: showSeen ? (isOnline ? 'online' : 'offline') : 'offline',
+        // Nested online object (older clients use this)
         online: {
-            is_online: u.showlastseen !== '0' ? isOnline : false,
-            last_seen: u.showlastseen !== '0' ? (u.lastseen ? Number(u.lastseen) : 0) : 0,
+            is_online: showSeen ? isOnline : false,
+            last_seen: showSeen ? (u.lastseen ? Number(u.lastseen) : 0) : 0,
         },
         ...relationship,
     };

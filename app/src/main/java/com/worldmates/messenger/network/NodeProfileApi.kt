@@ -1,6 +1,7 @@
 package com.worldmates.messenger.network
 
 import com.google.gson.annotations.SerializedName
+import com.worldmates.messenger.data.model.BlockedUser
 import com.worldmates.messenger.data.model.GetUserDataResponse
 import com.worldmates.messenger.data.model.GetUserRatingResponse
 import com.worldmates.messenger.data.model.RateUserResponse
@@ -159,7 +160,8 @@ interface NodeProfileApi {
 
 data class NodeSearchUsersResponse(
     @SerializedName("api_status")    val apiStatus:    Int,
-    @SerializedName("users")         val users:        List<User>?,
+    // Returns SearchUser (matches PHP UserSearchResponse) so existing UI code doesn't need changes
+    @SerializedName("users")         val users:        List<SearchUser>?,
     @SerializedName("count")         val count:        Int?,
     @SerializedName("offset")        val offset:       Int?,
     @SerializedName("error_message") val errorMessage: String? = null,
@@ -169,7 +171,8 @@ data class NodeFollowListResponse(
     @SerializedName("api_status")    val apiStatus:    Int,
     @SerializedName("followers")     val followers:    List<User>? = null,
     @SerializedName("following")     val following:    List<User>? = null,
-    @SerializedName("blocked")       val blocked:      List<User>? = null,
+    // Returns BlockedUser so BlockedUsersViewModel doesn't need type adaptation
+    @SerializedName("blocked")       val blocked:      List<com.worldmates.messenger.data.model.BlockedUser>? = null,
     @SerializedName("count")         val count:        Int?        = null,
     @SerializedName("error_message") val errorMessage: String?     = null,
 )
