@@ -82,16 +82,10 @@ class CloudBackupViewModel(application: Application) : AndroidViewModel(applicat
     private fun loadBackupStatistics() {
         viewModelScope.launch {
             try {
-                val accessToken = com.worldmates.messenger.data.UserSession.accessToken
-                    ?: return@launch
-
-                val response = com.worldmates.messenger.network.RetrofitClient.apiService.getBackupStatistics(
-                    accessToken = accessToken
-                )
+                val response = com.worldmates.messenger.network.NodeRetrofitClient.api.getBackupStatistics()
 
                 if (response.apiStatus == 200) {
                     _backupStatistics.value = response.statistics
-                    // Оновити також _cacheSize з реальних даних
                     _cacheSize.value = response.statistics.totalStorageBytes
                     Log.d(TAG, "✅ Backup statistics loaded: ${response.statistics.totalStorageMb} MB")
                 } else {
