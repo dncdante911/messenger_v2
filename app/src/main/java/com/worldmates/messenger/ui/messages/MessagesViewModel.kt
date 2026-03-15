@@ -262,10 +262,7 @@ class MessagesViewModel(application: Application) :
     private fun fetchGroupDetails(groupId: Long) {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getGroupDetails(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                val response = groupApi.getGroupDetails(groupId)
 
                 if (response.apiStatus == 200 && response.group != null) {
                     _currentGroup.value = response.group
@@ -894,70 +891,21 @@ class MessagesViewModel(application: Application) :
                     return@launch
                 }
 
-                // Group/PHP path
-                // Перевіряємо, чи вже є реакція від поточного користувача
-                val message = _messages.value.find { it.id == messageId }
-                val existingReactions = message?.reactions ?: emptyList()
-                val hasMyReaction = existingReactions.any {
-                    it.userId == UserSession.userId && it.reaction == emoji
-                }
-
-                val response = if (hasMyReaction) {
-                    // Видаляємо реакцію
-                    RetrofitClient.apiService.removeReaction(
-                        accessToken = UserSession.accessToken!!,
-                        messageId = messageId,
-                        reaction = emoji
-                    )
+                // Group path — Node.js (same toggle endpoint as private chats)
+                val resp = nodeApi.reactToMessage(messageId, emoji)
+                if (resp.apiStatus == 200) {
+                    val action = resp.action ?: "added"
+                    val finalReaction = resp.reaction ?: emoji
+                    updateLocalReaction(messageId, UserSession.userId, finalReaction, action)
+                    Log.d("MessagesViewModel", "Реакцію оновлено (Node.js group): $action $finalReaction")
                 } else {
-                    // Додаємо реакцію
-                    RetrofitClient.apiService.addReaction(
-                        accessToken = UserSession.accessToken!!,
-                        messageId = messageId,
-                        reaction = emoji
-                    )
-                }
-
-                if (response.apiStatus == 200) {
-                    // Оновлюємо реакції для повідомлення
-                    fetchReactionsForMessage(messageId)
-                    Log.d("MessagesViewModel", "Реакцію ${if (hasMyReaction) "видалено" else "додано"}")
-                } else {
-                    _error.value = response.errorMessage ?: "Не вдалося оновити реакцію"
-                    Log.e("MessagesViewModel", "Reaction Error: ${response.errorMessage}")
+                    _error.value = resp.errorMessage ?: "Не вдалося оновити реакцію"
+                    Log.e("MessagesViewModel", "Reaction Error: ${resp.errorMessage}")
                 }
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
                 Log.e("MessagesViewModel", "Помилка оновлення реакції", e)
             }
-        }
-    }
-
-    /**
-     * Завантажує реакції для конкретного повідомлення
-     */
-    private suspend fun fetchReactionsForMessage(messageId: Long) {
-        try {
-            val response = RetrofitClient.apiService.getReactions(
-                accessToken = UserSession.accessToken!!,
-                messageId = messageId
-            )
-
-            if (response.apiStatus == 200 && response.reactions != null) {
-                // Оновлюємо список повідомлень з новими реакціями
-                val currentMessages = _messages.value.toMutableList()
-                val messageIndex = currentMessages.indexOfFirst { it.id == messageId }
-
-                if (messageIndex != -1) {
-                    val updatedMessage = currentMessages[messageIndex].copy(
-                        reactions = response.reactions
-                    )
-                    currentMessages[messageIndex] = updatedMessage
-                    _messages.value = currentMessages
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("MessagesViewModel", "Помилка завантаження реакцій", e)
         }
     }
 
@@ -1077,16 +1025,10 @@ class MessagesViewModel(application: Application) :
         }
 
         if (groupId != 0L) {
-            // Групи — PHP
             viewModelScope.launch {
                 try {
                     val locationText = "📍 ${locationData.address}\n${locationData.latLng.latitude},${locationData.latLng.longitude}"
-                    RetrofitClient.apiService.sendGroupMessage(
-                        accessToken = UserSession.accessToken!!,
-                        groupId = groupId,
-                        text = locationText,
-                        replyToId = null
-                    )
+                    groupApi.sendGroupMessage(groupId = groupId, text = locationText)
                     fetchGroupMessages()
                 } catch (e: Exception) {
                     _error.value = "Помилка: ${e.localizedMessage}"
@@ -1122,15 +1064,9 @@ class MessagesViewModel(application: Application) :
         val vCardString = contact.toVCard()
 
         if (groupId != 0L) {
-            // Групи — PHP
             viewModelScope.launch {
                 try {
-                    RetrofitClient.apiService.sendGroupMessage(
-                        accessToken = UserSession.accessToken!!,
-                        groupId = groupId,
-                        text = "📇 VCARD\n$vCardString",
-                        replyToId = null
-                    )
+                    groupApi.sendGroupMessage(groupId = groupId, text = "📇 VCARD\n$vCardString")
                     fetchGroupMessages()
                 } catch (e: Exception) {
                     _error.value = "Помилка: ${e.localizedMessage}"
@@ -2056,11 +1992,7 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getGroups(
-                    accessToken = UserSession.accessToken!!,
-                    type = "get_list",
-                    limit = 100
-                )
+                val response = groupApi.getGroups(limit = 100)
 
                 if (response.apiStatus == 200) {
                     // Конвертуємо групи в ForwardRecipient
@@ -2107,13 +2039,8 @@ class MessagesViewModel(application: Application) :
                         val message = _messages.value.find { it.id == messageId }
                         if (message != null) {
                             groupIds.forEach { gId ->
-                                RetrofitClient.apiService.sendGroupMessage(
-                                    accessToken = UserSession.accessToken!!,
-                                    type = "send_message",
-                                    groupId = gId,
-                                    text = message.decryptedText ?: ""
-                                )
-                                Log.d("MessagesViewModel", "Forwarded msg $messageId to group $gId via PHP")
+                                groupApi.sendGroupMessage(groupId = gId, text = message.decryptedText ?: "")
+                                Log.d("MessagesViewModel", "Forwarded msg $messageId to group $gId via Node.js")
                             }
                         }
                     }
@@ -2369,8 +2296,7 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.searchGroupMessages(
-                    accessToken = UserSession.accessToken!!,
+                val response = groupApi.searchGroupMessages(
                     groupId = groupId,
                     query = query,
                     limit = 100
@@ -2379,11 +2305,11 @@ class MessagesViewModel(application: Application) :
                 if (response.apiStatus == 200) {
                     val messages = response.messages ?: emptyList()
                     _searchResults.value = messages
-                    _searchTotalCount.value = response.totalCount
+                    _searchTotalCount.value = response.count
                     _currentSearchIndex.value = if (messages.isNotEmpty()) 0 else -1
-                    Log.d(TAG, "🔍 Search completed: found ${response.totalCount} results for '$query'")
+                    Log.d(TAG, "🔍 Search completed: found ${response.count} results for '$query'")
                 } else {
-                    Log.e(TAG, "❌ Search failed: ${response.message}")
+                    Log.e(TAG, "❌ Search failed: ${response.errorMessage}")
                     _searchResults.value = emptyList()
                     _searchTotalCount.value = 0
                 }
@@ -2713,16 +2639,13 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.blockUser(
-                    accessToken = UserSession.accessToken!!,
-                    userId = recipientId
-                )
+                val response = NodeRetrofitClient.profileApi.blockUser(recipientId)
 
                 if (response.apiStatus == 200) {
                     onSuccess()
                     Log.d(TAG, "🚫 User $recipientId blocked")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося заблокувати користувача"
+                    val errorMsg = response.errorMessage ?: "Не вдалося заблокувати користувача"
                     onError(errorMsg)
                     Log.e(TAG, "❌ Failed to block user: $errorMsg")
                 }
@@ -2798,15 +2721,9 @@ class MessagesViewModel(application: Application) :
                     return@launch
                 }
 
-                // ── Group chat → PHP ──────────────────────────────────────────
+                // ── Group chat → Node.js ──────────────────────────────────────
                 if (groupId == 0L) return@launch
-                val response = RetrofitClient.apiService.getGroupMessages(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId,
-                    topicId = topicId,
-                    limit = 15,
-                    beforeMessageId = 0
-                )
+                val response = groupApi.getGroupMessages(groupId = groupId, limit = 15)
                 if (response.apiStatus == 200 && response.messages != null) {
                     val newMessages = response.messages!!.decryptAll()
                     val currentIds = _messages.value.map { it.id }.toSet()

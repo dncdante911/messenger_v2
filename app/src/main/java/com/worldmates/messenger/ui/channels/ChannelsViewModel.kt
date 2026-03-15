@@ -8,7 +8,6 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Channel
 import com.worldmates.messenger.data.model.CreateChannelRequest
 import com.worldmates.messenger.network.NodeRetrofitClient
-import com.worldmates.messenger.network.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -409,8 +408,7 @@ class ChannelsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.searchUsers(
-                    accessToken = UserSession.accessToken!!,
+                val response = NodeRetrofitClient.profileApi.searchUsers(
                     query = query,
                     limit = 30
                 )

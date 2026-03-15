@@ -69,7 +69,8 @@ data class User(
     @SerializedName("following_count") val followingCount: String?,
     @SerializedName("likes_count") val likesCount: String?,
     @SerializedName("groups_count") val groupsCount: String?,
-    @SerializedName("details") val details: UserDetails?
+    @SerializedName("details")      val details:      UserDetails?        = null,
+    @SerializedName("relationship") val relationship: UserRelationship?   = null,
 )
 
 /**
@@ -82,6 +83,16 @@ data class UserDetails(
     @SerializedName("followers_count") val followersCount: Int?,
     @SerializedName("groups_count") val groupsCount: Int?,
     @SerializedName("likes_count") val likesCount: Int?
+)
+
+/** Social graph relationship between the viewer and this user (returned by Node.js profile API). */
+data class UserRelationship(
+    @SerializedName("is_following")    val isFollowing:   Boolean = false,
+    @SerializedName("is_following_me") val isFollowingMe: Boolean = false,
+    @SerializedName("follow_pending")  val followPending: Boolean = false,
+    @SerializedName("is_blocked")      val isBlocked:     Boolean = false,
+    @SerializedName("can_follow")      val canFollow:     Boolean = true,
+    @SerializedName("can_message")     val canMessage:    Boolean = true,
 )
 
 /**

@@ -3,9 +3,8 @@ package com.worldmates.messenger.ui.settings
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.BlockedUser
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,17 +39,11 @@ class BlockedUsersViewModel : ViewModel() {
                 _isLoading.value = true
                 _errorMessage.value = null
 
-                val accessToken = UserSession.accessToken
-                if (accessToken.isNullOrEmpty()) {
-                    _errorMessage.value = "Помилка авторизації"
-                    return@launch
-                }
-
-                val response = RetrofitClient.apiService.getBlockedUsers(accessToken)
+                val response = NodeRetrofitClient.profileApi.getBlockedUsers()
 
                 if (response.apiStatus == 200) {
-                    _blockedUsers.value = response.blockedUsers
-                    Log.d(TAG, "Loaded ${response.blockedUsers.size} blocked users")
+                    _blockedUsers.value = response.blocked ?: emptyList()
+                    Log.d(TAG, "Loaded ${_blockedUsers.value.size} blocked users")
                 } else {
                     _errorMessage.value = response.errorMessage ?: "Помилка завантаження"
                     Log.e(TAG, "Failed to load blocked users: ${response.errorMessage}")
@@ -72,18 +65,9 @@ class BlockedUsersViewModel : ViewModel() {
             try {
                 _errorMessage.value = null
 
-                val accessToken = UserSession.accessToken
-                if (accessToken.isNullOrEmpty()) {
-                    _errorMessage.value = "Помилка авторизації"
-                    return@launch
-                }
+                val response = NodeRetrofitClient.profileApi.blockUser(userId)
 
-                val response = RetrofitClient.apiService.blockUser(
-                    accessToken = accessToken,
-                    userId = userId
-                )
-
-                if (response.apiStatus == 200 && response.blockStatus == "blocked") {
+                if (response.apiStatus == 200) {
                     _successMessage.value = "Користувача заблоковано"
                     Log.d(TAG, "User $userId blocked successfully")
 
@@ -111,22 +95,9 @@ class BlockedUsersViewModel : ViewModel() {
                 _unblockingUsers.value = _unblockingUsers.value + userId
                 _errorMessage.value = null
 
-                val accessToken = UserSession.accessToken
-                if (accessToken.isNullOrEmpty()) {
-                    _errorMessage.value = "Помилка авторизації"
-                    _unblockingUsers.value = _unblockingUsers.value - userId
-                    return@launch
-                }
+                val response = NodeRetrofitClient.profileApi.unblockUser(userId)
 
-                val response = RetrofitClient.apiService.unblockUser(
-                    accessToken = accessToken,
-                    userId = userId
-                )
-
-                if (response.apiStatus == 200 &&
-                    (response.blockStatus == "unblocked" || response.blockStatus == "un-blocked" ||
-                            response.blockStatus == "already_unblocked")
-                ) {
+                if (response.apiStatus == 200) {
                     _successMessage.value = "Користувача розблоковано"
                     Log.d(TAG, "User $userId unblocked successfully")
 
@@ -152,24 +123,10 @@ class BlockedUsersViewModel : ViewModel() {
     fun checkBlockStatus(userId: Long, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
-                val accessToken = UserSession.accessToken
-                if (accessToken.isNullOrEmpty()) {
-                    onResult(false)
-                    return@launch
-                }
-
-                val response = RetrofitClient.apiService.checkIsBlocked(
-                    accessToken = accessToken,
-                    userId = userId
-                )
-
-                if (response.apiStatus == 200) {
-                    onResult(response.blockedByMe)
-                    Log.d(TAG, "Block status for user $userId: ${response.blockedByMe}")
-                } else {
-                    onResult(false)
-                    Log.e(TAG, "Failed to check block status: ${response.errorMessage}")
-                }
+                val response = NodeRetrofitClient.profileApi.getUserProfile(userId)
+                val isBlocked = response.userData?.relationship?.isBlocked ?: false
+                onResult(isBlocked)
+                Log.d(TAG, "Block status for user $userId: $isBlocked")
             } catch (e: Exception) {
                 onResult(false)
                 Log.e(TAG, "Error checking block status", e)

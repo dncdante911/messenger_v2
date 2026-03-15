@@ -7,19 +7,12 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.model.Message
-import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.data.Constants
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.utils.EncryptedMediaHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Field
-import retrofit2.http.FormUrlEncoded
-import retrofit2.http.POST
-import com.google.gson.annotations.SerializedName
 import java.io.File
 import java.net.URL
 
@@ -63,14 +56,6 @@ class MediaSearchViewModel : ViewModel() {
     private val _searchCache = mutableMapOf<String, List<Message>>()
     private var currentChatId: Long? = null
     private var currentGroupId: Long? = null
-
-    private val apiService: MediaSearchApiService by lazy {
-        val retrofit = Retrofit.Builder()
-            .baseUrl(Constants.BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-        retrofit.create(MediaSearchApiService::class.java)
-    }
 
     /**
      * Установить ID чата или группы
@@ -164,15 +149,9 @@ class MediaSearchViewModel : ViewModel() {
                 _isLoading.value = true
                 Log.d(TAG, "🔍 Searching: query='$query'")
 
-                val accessToken = UserSession.accessToken
-                if (accessToken.isNullOrEmpty()) {
-                    Log.e(TAG, "❌ No access token")
-                    return@launch
-                }
-
                 val results = when {
-                    currentGroupId != null -> searchInGroup(accessToken, currentGroupId!!, query)
-                    currentChatId != null -> searchInChat(accessToken, currentChatId!!, query)
+                    currentGroupId != null -> searchInGroup(currentGroupId!!, query)
+                    currentChatId != null -> searchInChat(currentChatId!!, query)
                     else -> {
                         Log.w(TAG, "⚠️ No chat or group ID set")
                         emptyList()
@@ -205,13 +184,12 @@ class MediaSearchViewModel : ViewModel() {
     /**
      * Поиск в группе
      */
-    private suspend fun searchInGroup(accessToken: String, groupId: Long, query: String): List<Message> {
+    private suspend fun searchInGroup(groupId: Long, query: String): List<Message> {
         return try {
-            val response = apiService.searchGroupMessages(
-                accessToken = accessToken,
+            val response = NodeRetrofitClient.groupApi.searchGroupMessages(
                 groupId = groupId,
                 query = query,
-                limit = 500  // Увеличено для лучших результатов
+                limit = 500
             )
 
             if (response.apiStatus == 200) {
@@ -229,11 +207,10 @@ class MediaSearchViewModel : ViewModel() {
     /**
      * Поиск в личном чате
      */
-    private suspend fun searchInChat(accessToken: String, chatId: Long, query: String): List<Message> {
+    private suspend fun searchInChat(chatId: Long, query: String): List<Message> {
         return try {
-            val response = apiService.searchChatMessages(
-                accessToken = accessToken,
-                chatId = chatId,
+            val response = NodeRetrofitClient.api.searchMessages(
+                recipientId = chatId,
                 query = query,
                 limit = 500
             )
@@ -386,39 +363,3 @@ class MediaSearchViewModel : ViewModel() {
     }
 }
 
-/**
- * 🌐 API Service для поиска медиа
- */
-interface MediaSearchApiService {
-    @FormUrlEncoded
-    @POST("v2/endpoints/search_group_messages.php")
-    suspend fun searchGroupMessages(
-        @Field("access_token") accessToken: String,
-        @Field("group_id") groupId: Long,
-        @Field("query") query: String,
-        @Field("limit") limit: Int = 500,
-        @Field("offset") offset: Int = 0
-    ): SearchMessagesResponse
-
-    @FormUrlEncoded
-    @POST("v2/endpoints/search_chat_messages.php")
-    suspend fun searchChatMessages(
-        @Field("access_token") accessToken: String,
-        @Field("chat_id") chatId: Long,
-        @Field("query") query: String,
-        @Field("limit") limit: Int = 500,
-        @Field("offset") offset: Int = 0
-    ): SearchMessagesResponse
-}
-
-/**
- * 📦 Response для поиска сообщений
- */
-data class SearchMessagesResponse(
-    @SerializedName("api_status") val apiStatus: Int,
-    @SerializedName("messages") val messages: List<Message>? = null,
-    @SerializedName("total_count") val totalCount: Int? = null,
-    @SerializedName("query") val query: String? = null,
-    @SerializedName("message") val message: String? = null,
-    @SerializedName("error_message") val errorMessage: String? = null
-)
