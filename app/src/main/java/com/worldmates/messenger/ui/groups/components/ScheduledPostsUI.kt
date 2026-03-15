@@ -208,7 +208,7 @@ private fun ScheduledPostItem(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = post.mediaType ?: "Медіа",
+                        text = post.mediaType ?: stringResource(R.string.media_type_label),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -228,10 +228,10 @@ private fun ScheduledPostItem(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = when (post.repeatType) {
-                            "daily" -> "Щодня"
-                            "weekly" -> "Щотижня"
-                            "monthly" -> "Щомісяця"
-                            else -> post.repeatType
+                            "daily"   -> stringResource(R.string.schedule_repeat_daily)
+                            "weekly"  -> stringResource(R.string.schedule_repeat_weekly)
+                            "monthly" -> stringResource(R.string.schedule_repeat_monthly)
+                            else      -> post.repeatType ?: ""
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
@@ -241,12 +241,16 @@ private fun ScheduledPostItem(
 
             // Status badge
             val statusColor = when (post.status) {
-                "scheduled" -> MaterialTheme.colorScheme.primary
-                "published" -> Color(0xFF4CAF50)
-                "failed" -> MaterialTheme.colorScheme.error
-                "cancelled" -> MaterialTheme.colorScheme.onSurfaceVariant
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                "scheduled", "pending" -> MaterialTheme.colorScheme.primary
+                "published", "sent"    -> Color(0xFF4CAF50)
+                "failed"               -> MaterialTheme.colorScheme.error
+                "cancelled"            -> MaterialTheme.colorScheme.onSurfaceVariant
+                else                   -> MaterialTheme.colorScheme.onSurfaceVariant
             }
+            val statusScheduled  = stringResource(R.string.status_scheduled)
+            val statusPublished  = stringResource(R.string.status_published)
+            val statusFailed     = stringResource(R.string.status_failed)
+            val statusCancelled  = stringResource(R.string.status_cancelled)
             Spacer(modifier = Modifier.height(4.dp))
             Surface(
                 color = statusColor.copy(alpha = 0.2f),
@@ -254,11 +258,11 @@ private fun ScheduledPostItem(
             ) {
                 Text(
                     text = when (post.status) {
-                        "scheduled" -> "Заплановано"
-                        "published" -> "Опубліковано"
-                        "failed" -> "Помилка"
-                        "cancelled" -> "Скасовано"
-                        else -> post.status
+                        "scheduled", "pending" -> statusScheduled
+                        "published", "sent"    -> statusPublished
+                        "failed"               -> statusFailed
+                        "cancelled"            -> statusCancelled
+                        else                   -> post.status
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = statusColor,
@@ -407,7 +411,7 @@ fun CreateScheduledPostDialog(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Час публікації",
+                                text = stringResource(R.string.schedule_time_of_pub),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -465,10 +469,10 @@ fun CreateScheduledPostDialog(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 listOf(
-                                    "1 год" to 3600000L,
-                                    "3 год" to 10800000L,
-                                    "Завтра" to 86400000L,
-                                    "Тиждень" to 604800000L
+                                    stringResource(R.string.schedule_quick_1h)       to 3600000L,
+                                    stringResource(R.string.schedule_quick_3h)       to 10800000L,
+                                    stringResource(R.string.schedule_quick_tomorrow) to 86400000L,
+                                    stringResource(R.string.schedule_quick_week)     to 604800000L
                                 ).forEach { (label, offset) ->
                                     FilterChip(
                                         selected = false,
@@ -490,7 +494,7 @@ fun CreateScheduledPostDialog(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Повторення",
+                                text = stringResource(R.string.schedule_repeat_label),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -501,12 +505,13 @@ fun CreateScheduledPostDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                listOf(
-                                    "none" to "Одноразово",
-                                    "daily" to "Щодня",
-                                    "weekly" to "Щотижня",
-                                    "monthly" to "Щомісяця"
-                                ).forEach { (type, label) ->
+                                val repeatLabels = mapOf(
+                                    "none"    to stringResource(R.string.schedule_repeat_none),
+                                    "daily"   to stringResource(R.string.schedule_repeat_daily),
+                                    "weekly"  to stringResource(R.string.schedule_repeat_weekly),
+                                    "monthly" to stringResource(R.string.schedule_repeat_monthly)
+                                )
+                                repeatLabels.forEach { (type, label) ->
                                     FilterChip(
                                         selected = repeatType == type,
                                         onClick = { repeatType = type },
@@ -525,7 +530,7 @@ fun CreateScheduledPostDialog(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Опції",
+                                text = stringResource(R.string.schedule_options_label),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -538,11 +543,11 @@ fun CreateScheduledPostDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Закріпити пост",
+                                        text = stringResource(R.string.schedule_pin_label),
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                     Text(
-                                        text = "Пост буде закріплено після публікації",
+                                        text = stringResource(R.string.schedule_pin_hint),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -561,11 +566,11 @@ fun CreateScheduledPostDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Сповістити учасників",
+                                        text = stringResource(R.string.schedule_notify_members),
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                     Text(
-                                        text = "Надіслати push-сповіщення",
+                                        text = stringResource(R.string.schedule_notify_hint),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -675,10 +680,12 @@ fun ScheduledPostsScreen(
                         .format(Date(post.scheduledTime))
                 }
 
+                val todayStr    = stringResource(R.string.today_label)
+                val tomorrowStr = stringResource(R.string.tomorrow_label)
                 groupedPosts.forEach { (date, dayPosts) ->
                     item {
                         Text(
-                            text = formatDateHeader(date),
+                            text = formatDateHeader(date, todayStr, tomorrowStr),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -736,17 +743,18 @@ private fun ScheduledPostCard(
                 // Status & repeat
                 Column(modifier = Modifier.weight(1f)) {
                     val statusColor = when (post.status) {
-                        "scheduled" -> MaterialTheme.colorScheme.primary
-                        "published" -> Color(0xFF4CAF50)
-                        "failed" -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        "scheduled", "pending" -> MaterialTheme.colorScheme.primary
+                        "published", "sent"    -> Color(0xFF4CAF50)
+                        "failed"               -> MaterialTheme.colorScheme.error
+                        else                   -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
                     Text(
                         text = when (post.status) {
-                            "scheduled" -> "Заплановано"
-                            "published" -> "Опубліковано"
-                            "failed" -> "Помилка"
-                            else -> post.status
+                            "scheduled", "pending" -> stringResource(R.string.status_scheduled)
+                            "published", "sent"    -> stringResource(R.string.status_published)
+                            "failed"               -> stringResource(R.string.status_failed)
+                            "cancelled"            -> stringResource(R.string.status_cancelled)
+                            else                   -> post.status
                         },
                         style = MaterialTheme.typography.labelMedium,
                         color = statusColor
@@ -762,10 +770,10 @@ private fun ScheduledPostCard(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = when (post.repeatType) {
-                                    "daily" -> "Щодня"
-                                    "weekly" -> "Щотижня"
-                                    "monthly" -> "Щомісяця"
-                                    else -> ""
+                                    "daily"   -> stringResource(R.string.schedule_repeat_daily)
+                                    "weekly"  -> stringResource(R.string.schedule_repeat_weekly)
+                                    "monthly" -> stringResource(R.string.schedule_repeat_monthly)
+                                    else      -> ""
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -775,7 +783,7 @@ private fun ScheduledPostCard(
                 }
 
                 // Actions
-                if (post.status == "scheduled") {
+                if (post.status == "scheduled" || post.status == "pending") {
                     IconButton(onClick = onPublishNow) {
                         Icon(
                             Icons.Default.Send,
@@ -825,7 +833,7 @@ private fun ScheduledPostCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Вкладення",
+                        text = stringResource(R.string.badge_attachment),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -852,7 +860,7 @@ private fun ScheduledPostCard(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Закріплено",
+                                    text = stringResource(R.string.badge_pinned),
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -874,7 +882,7 @@ private fun ScheduledPostCard(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Сповіщення",
+                                    text = stringResource(R.string.badge_notifications),
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -931,20 +939,20 @@ private fun showTimePicker(
     ).show()
 }
 
-private fun formatDateHeader(dateString: String): String {
+private fun formatDateHeader(dateString: String, todayLabel: String, tomorrowLabel: String): String {
     return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val inputFormat  = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val outputFormat = SimpleDateFormat("d MMMM", Locale("uk"))
-        val date = inputFormat.parse(dateString)
+        val date         = inputFormat.parse(dateString)
 
-        val today = Calendar.getInstance()
+        val today    = Calendar.getInstance()
         val postDate = Calendar.getInstance().apply { time = date!! }
 
         when {
             today.get(Calendar.DAY_OF_YEAR) == postDate.get(Calendar.DAY_OF_YEAR) &&
-                    today.get(Calendar.YEAR) == postDate.get(Calendar.YEAR) -> "Сьогодні"
+                    today.get(Calendar.YEAR) == postDate.get(Calendar.YEAR)     -> todayLabel
             today.get(Calendar.DAY_OF_YEAR) + 1 == postDate.get(Calendar.DAY_OF_YEAR) &&
-                    today.get(Calendar.YEAR) == postDate.get(Calendar.YEAR) -> "Завтра"
+                    today.get(Calendar.YEAR) == postDate.get(Calendar.YEAR)     -> tomorrowLabel
             else -> outputFormat.format(date!!)
         }
     } catch (e: Exception) {

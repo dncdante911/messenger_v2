@@ -41,6 +41,8 @@ const { instantView }                = require('./routes/instant_view')
 const registerNotesRoutes            = require('./routes/notes')
 const registerTranslatorRoutes       = require('./routes/translator')
 const { registerAvatarRoutes }       = require('./routes/users/avatars')
+const { registerScheduledRoutes }    = require('./routes/scheduled')
+const { registerFolderRoutes }       = require('./routes/folders')
 
 let serverPort
 let server
@@ -159,7 +161,15 @@ async function init() {
   // [WoWonder social] wo_blog_reaction — реакции к блог-постам соцсети
   // ctx.wo_blog_reaction = require("./models/wo_blog_reaction")(sequelize, DataTypes)
   ctx.wo_mute         = require("./models/wo_mute")(sequelize, DataTypes)
-  ctx.wo_user_avatars = require("./models/wo_user_avatars")(sequelize, DataTypes)
+  ctx.wo_user_avatars       = require("./models/wo_user_avatars")(sequelize, DataTypes)
+  ctx.wo_channel_comments   = require("./models/wo_channel_comments")(sequelize, DataTypes)
+
+  // ==================== Scheduled Messages + Chat Folders Models ====================
+  ctx.wm_scheduled_messages = require("./models/wm_scheduled_messages")(sequelize, DataTypes)
+  const _folderModels = require("./models/wm_chat_folders")
+  ctx.wm_chat_folders        = _folderModels.Folder(sequelize, DataTypes)
+  ctx.wm_chat_folder_items   = _folderModels.FolderItem(sequelize, DataTypes)
+  ctx.wm_chat_folder_members = _folderModels.FolderMember(sequelize, DataTypes)
   ctx.wo_calls = require("./models/wo_calls")(sequelize, DataTypes)
   ctx.wo_group_calls = require("./models/wo_group_calls")(sequelize, DataTypes)
   ctx.wo_group_call_participants = require("./models/wo_group_call_participants")(sequelize, DataTypes)
@@ -484,6 +494,12 @@ async function main() {
 
   // Register Message Translator routes
   registerTranslatorRoutes(app, ctx);
+
+  // Register Scheduled Messages routes + background scheduler
+  registerScheduledRoutes(app, ctx, io);
+
+  // Register Shared Chat Folders routes
+  registerFolderRoutes(app, ctx);
 
   // Instant View — article reader (no auth required, rate-limited at global level)
   app.post('/api/node/instant-view', instantView(ctx, io));
