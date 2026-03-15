@@ -67,6 +67,10 @@ function serializeUser(ctx, u, { isSelf = false, extra = {} } = {}) {
     const details = parseDetails(u.details);
     const isOnline = u.lastseen && (now - Number(u.lastseen)) < ONLINE_TIMEOUT;
 
+    // Counts also exposed as top-level strings — Android User model reads them directly
+    const followersCount = String(parseInt(details.followers_count) || 0);
+    const followingCount = String(parseInt(details.following_count) || 0);
+
     const base = {
         user_id:    u.user_id,
         username:   u.username,
@@ -80,7 +84,21 @@ function serializeUser(ctx, u, { isSelf = false, extra = {} } = {}) {
         address:    u.address || '',
         city:       u.city    || '',
         state:      u.state   || '',
+        zip:        u.zip     || '',
         website:    u.website || '',
+        working:    u.working || '',
+        working_link: u.working_link || '',
+        school:     u.school  || '',
+        country_id: String(u.country_id || 0),
+        timezone:   u.timezone || '',
+        language:   u.language || 'english',
+        // Social links (also kept flat for Android compat)
+        facebook:   u.facebook  || '',
+        twitter:    u.twitter   || '',
+        instagram:  u.instagram || '',
+        linkedin:   u.linkedin  || '',
+        youtube:    u.youtube   || '',
+        // Grouped social (for web/future clients)
         social: {
             facebook:  u.facebook  || '',
             twitter:   u.twitter   || '',
@@ -88,20 +106,42 @@ function serializeUser(ctx, u, { isSelf = false, extra = {} } = {}) {
             linkedin:  u.linkedin  || '',
             youtube:   u.youtube   || '',
         },
+        // Counts — top-level strings (Android reads followers_count, following_count directly)
+        followers_count: followersCount,
+        following_count: followingCount,
+        likes_count:     String(parseInt(details.likes_count)  || 0),
+        groups_count:    String(parseInt(details.groups_count) || 0),
+        // Nested details object (Android UserDetails)
+        details: {
+            post_count:      parseInt(details.post_count)      || 0,
+            album_count:     parseInt(details.album_count)     || 0,
+            following_count: parseInt(details.following_count) || 0,
+            followers_count: parseInt(details.followers_count) || 0,
+            groups_count:    parseInt(details.groups_count)    || 0,
+            likes_count:     parseInt(details.likes_count)     || 0,
+        },
+        // Nested stats (for web/future clients)
         stats: {
             followers: parseInt(details.followers_count) || 0,
             following: parseInt(details.following_count) || 0,
             posts:     parseInt(details.post_count)      || 0,
         },
+        // Online status
+        lastseen:        u.lastseen ? Number(u.lastseen) : 0,
+        lastseen_status: isOnline ? 'online' : 'offline',  // Android reads this string
         online: {
             is_online: isOnline,
             last_seen: u.lastseen ? Number(u.lastseen) : 0,
         },
         verified:  u.verified  || '0',
         is_pro:    u.is_pro    || '0',
+        pro_type:  parseInt(u.pro_type || '0'),
         active:    u.active    || '1',
         joined:    u.joined    || 0,
-        language:  u.language  || 'english',
+        relationship_id: u.relationship_id || 0,
+        status:    u.status    || '0',
+        balance:   u.balance   || '0',
+        wallet:    u.wallet    || '0.00',
     };
 
     if (isSelf) {
@@ -137,16 +177,18 @@ function serializeUser(ctx, u, { isSelf = false, extra = {} } = {}) {
     } else {
         // Other user's profile — include relationship block
         base.relationship = extra.relationship || {
-            is_following:   false,
+            is_following:    false,
             is_following_me: false,
-            follow_pending: false,
-            is_blocked:     false,
-            can_follow:     true,
-            can_message:    true,
+            follow_pending:  false,
+            is_blocked:      false,
+            can_follow:      true,
+            can_message:     true,
         };
         // Respect last-seen privacy
         if (u.showlastseen === '0') {
-            base.online = { is_online: false, last_seen: 0 };
+            base.lastseen        = 0;
+            base.lastseen_status = 'offline';
+            base.online          = { is_online: false, last_seen: 0 };
         }
     }
 
@@ -238,7 +280,8 @@ function getMe(ctx) {
             const user = await ctx.wo_users.findOne({ where: { user_id: req.userId }, raw: true });
             if (!user) return res.json({ api_status: 400, error_message: 'User not found' });
 
-            return res.json({ api_status: 200, user: serializeUser(ctx, user, { isSelf: true }) });
+            const data = serializeUser(ctx, user, { isSelf: true });
+            return res.json({ api_status: 200, user_data: data, user: data });
         } catch (err) {
             console.error('[Profile/getMe]', err.message);
             return res.json({ api_status: 500, error_message: 'Server error' });
@@ -296,7 +339,8 @@ function updateMe(ctx) {
             await ctx.wo_users.update(updates, { where: { user_id: req.userId } });
 
             const user = await ctx.wo_users.findOne({ where: { user_id: req.userId }, raw: true });
-            return res.json({ api_status: 200, message: 'Profile updated', user: serializeUser(ctx, user, { isSelf: true }) });
+            const data = serializeUser(ctx, user, { isSelf: true });
+            return res.json({ api_status: 200, message: 'Profile updated', user_data: data, user: data });
 
         } catch (err) {
             console.error('[Profile/updateMe]', err.message);
@@ -450,7 +494,8 @@ function getUserById(ctx) {
         if (targetId === req.userId) {
             const self = await ctx.wo_users.findOne({ where: { user_id: req.userId }, raw: true });
             if (!self) return res.json({ api_status: 400, error_message: 'User not found' });
-            return res.json({ api_status: 200, user: serializeUser(ctx, self, { isSelf: true }) });
+            const selfData = serializeUser(ctx, self, { isSelf: true });
+            return res.json({ api_status: 200, user_data: selfData, user: selfData });
         }
 
         try {
@@ -461,10 +506,8 @@ function getUserById(ctx) {
 
             if (!user) return res.json({ api_status: 404, error_message: 'User not found' });
 
-            return res.json({
-                api_status: 200,
-                user: serializeUser(ctx, user, { isSelf: false, extra: { relationship } }),
-            });
+            const data = serializeUser(ctx, user, { isSelf: false, extra: { relationship } });
+            return res.json({ api_status: 200, user_data: data, user: data });
 
         } catch (err) {
             console.error('[Profile/getUserById]', err.message);

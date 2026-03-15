@@ -121,6 +121,12 @@ object NodeRetrofitClient {
     /** Bot Store & management API via Node.js. */
     val botApi: NodeBotApi = retrofit.create(NodeBotApi::class.java)
 
+    /**
+     * Profile API via Node.js — замінює PHP ?type=get-user-data / update-user-data
+     * та систему рейтингу get_user_rating / rate_user.
+     */
+    val profileApi: NodeProfileApi = retrofit.create(NodeProfileApi::class.java)
+
     /** Creates any Retrofit service backed by the Node.js base URL + auth interceptor. */
     fun <T> createService(cls: Class<T>): T = retrofit.create(cls)
 }

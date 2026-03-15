@@ -30,6 +30,7 @@ const { registerGroupRoutes }   = require('./routes/groups/index')
 const { registerBotRoutes }     = require('./routes/bots/index')
 const { registerUserRoutes }    = require('./routes/users')
 const { registerProfileRoutes } = require('./routes/users/profile')
+const { registerRatingRoutes }  = require('./routes/users/rating')
 const { registerCallRoutes }    = require('./routes/calls')
 const { initializeWallyBot }    = require('./bots/wallybot')
 const { registerSignalRoutes }       = require('./routes/signal')
@@ -216,6 +217,9 @@ async function init() {
   ctx.wm_notes        = require("./models/wm_notes")(sequelize, DataTypes)
   ctx.wm_user_storage = require("./models/wm_user_storage")(sequelize, DataTypes)
 
+  // ==================== User Rating Models ====================
+  ctx.wm_user_ratings = require("./models/wm_user_ratings")(sequelize, DataTypes)
+
   // ==================== Signal Protocol Models ====================
   ctx.signal_keys              = require("./models/signal_keys")(sequelize, DataTypes)
   // Signal Sender Key Distribution для групових E2EE чатів
@@ -249,6 +253,26 @@ async function init() {
     console.log('[Migration] Wo_GroupAdmins.is_anonymous_admin ensured');
   } catch (e) {
     console.warn('[Migration] is_anonymous_admin:', e.message);
+  }
+
+  // wm_user_ratings — user karma / trust system
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_user_ratings (
+        id             INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        rater_id       INT          NOT NULL,
+        rated_user_id  INT          NOT NULL,
+        rating_type    ENUM('like','dislike') NOT NULL,
+        comment        TEXT         NULL,
+        created_at     INT          NOT NULL DEFAULT 0,
+        updated_at     INT          NOT NULL DEFAULT 0,
+        UNIQUE KEY unique_rating (rater_id, rated_user_id),
+        KEY idx_rated_user (rated_user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[Migration] wm_user_ratings table ensured');
+  } catch (e) {
+    console.warn('[Migration] wm_user_ratings:', e.message);
   }
 
 }
@@ -471,6 +495,8 @@ async function main() {
   registerAvatarRoutes(app, ctx);
   // Register Profile REST API (own profile, other users, follow, block, search)
   registerProfileRoutes(app, ctx);
+  // Register User Rating / karma system
+  registerRatingRoutes(app, ctx);
 
   // Register Bot REST API (полная замена PHP bot_api.php)
   registerBotRoutes(app, ctx, io);

@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.User
 import com.worldmates.messenger.data.model.UserRating
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -39,14 +39,14 @@ class UserProfileViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val accessToken = UserSession.accessToken ?: throw Exception("No access token")
-                // If userId is null, load current user's profile
                 val targetUserId = userId ?: UserSession.userId
 
-                val response = RetrofitClient.apiService.getUserData(
-                    accessToken = accessToken,
-                    userId = targetUserId
-                )
+                // Use Node.js API — no access_token param needed (sent via header by NodeRetrofitClient)
+                val response = if (userId == null || userId == UserSession.userId) {
+                    NodeRetrofitClient.profileApi.getMyProfile()
+                } else {
+                    NodeRetrofitClient.profileApi.getUserProfile(targetUserId)
+                }
 
                 Log.d("UserProfileViewModel", "Profile response: apiStatus=${response.apiStatus}")
 
@@ -89,21 +89,17 @@ class UserProfileViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val accessToken = UserSession.accessToken ?: throw Exception("No access token")
-
-                val response = RetrofitClient.apiService.updateUserData(
-                    accessToken = accessToken,
-                    firstName = firstName,
-                    lastName = lastName,
-                    about = about,
-                    birthday = birthday,
-                    gender = gender,
-                    phoneNumber = phoneNumber,
-                    website = website,
-                    working = working,
-                    address = address,
-                    city = city,
-                    school = school
+                val response = NodeRetrofitClient.profileApi.updateMyProfile(
+                    firstName  = firstName,
+                    lastName   = lastName,
+                    about      = about,
+                    birthday   = birthday,
+                    gender     = gender,
+                    address    = address,
+                    city       = city,
+                    website    = website,
+                    working    = working,
+                    school     = school,
                 )
 
                 Log.d("UserProfileViewModel", "Update response: apiStatus=${response.apiStatus}")
@@ -137,8 +133,6 @@ class UserProfileViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val accessToken = UserSession.accessToken ?: throw Exception("No access token")
-
                 // Копіюємо файл з Uri в кеш
                 val inputStream = context.contentResolver.openInputStream(uri)
                     ?: throw Exception("Cannot read image")
@@ -151,10 +145,8 @@ class UserProfileViewModel : ViewModel() {
                 val requestBody = tempFile.asRequestBody("image/*".toMediaTypeOrNull())
                 val filePart = MultipartBody.Part.createFormData("file", tempFile.name, requestBody)
 
-                val response = RetrofitClient.apiService.uploadUserAvatar(
-                    accessToken = accessToken,
-                    file = filePart
-                )
+                // Avatar upload already on Node.js — uses NodeRetrofitClient.api (NodeApi)
+                val response = NodeRetrofitClient.api.uploadAvatar(filePart)
 
                 // Видаляємо тимчасовий файл
                 tempFile.delete()
@@ -162,8 +154,8 @@ class UserProfileViewModel : ViewModel() {
                 Log.d("UserProfileViewModel", "Avatar upload response: ${response.apiStatus}")
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо аватар в UserSession
-                    response.url?.let { url ->
+                    // Оновлюємо аватар в UserSession (NodeApi повертає avatar.url)
+                    response.avatar?.url?.let { url ->
                         UserSession.avatar = url
                     }
                     _avatarUploadState.value = AvatarUploadState.Success
@@ -171,7 +163,7 @@ class UserProfileViewModel : ViewModel() {
                     loadUserProfile()
                 } else {
                     _avatarUploadState.value = AvatarUploadState.Error(
-                        response.message ?: "Не вдалося завантажити аватар"
+                        response.errorMessage ?: "Не вдалося завантажити аватар"
                     )
                 }
             } catch (e: Exception) {
@@ -195,12 +187,9 @@ class UserProfileViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val accessToken = UserSession.accessToken ?: throw Exception("No access token")
-
-                val response = RetrofitClient.apiService.getUserRating(
-                    accessToken = accessToken,
+                val response = NodeRetrofitClient.profileApi.getUserRating(
                     userId = userId,
-                    includeDetails = "1" // Include my rating
+                    includeDetails = "1",
                 )
 
                 Log.d("UserProfileViewModel", "Rating response: apiStatus=${response.apiStatus}")
@@ -227,13 +216,10 @@ class UserProfileViewModel : ViewModel() {
     fun rateUser(userId: Long, ratingType: String, comment: String? = null) {
         viewModelScope.launch {
             try {
-                val accessToken = UserSession.accessToken ?: throw Exception("No access token")
-
-                val response = RetrofitClient.apiService.rateUser(
-                    accessToken = accessToken,
-                    userId = userId,
+                val response = NodeRetrofitClient.profileApi.rateUser(
+                    userId     = userId,
                     ratingType = ratingType,
-                    comment = comment
+                    comment    = comment,
                 )
 
                 Log.d("UserProfileViewModel", "Rate user response: apiStatus=${response.apiStatus}, action=${response.action}")
