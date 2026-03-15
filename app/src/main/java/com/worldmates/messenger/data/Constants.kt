@@ -207,6 +207,21 @@ object Constants {
     const val NODE_THREAD_COUNT        = "api/node/channel/post/{postId}/thread/count"
     const val NODE_THREAD_BATCH_COUNTS = "api/node/channel/threads/counts"
 
+    // ── User Profile (замінює PHP ?type=get-user-data / update-user-data) ────
+    const val NODE_PROFILE_ME          = "api/node/users/me"
+    const val NODE_PROFILE_ME_PRIVACY  = "api/node/users/me/privacy"
+    const val NODE_PROFILE_ME_PASSWORD = "api/node/users/me/password"
+    const val NODE_PROFILE_ME_NOTIF    = "api/node/users/me/notifications"
+    const val NODE_PROFILE_ME_BLOCKED  = "api/node/users/me/blocked"
+    const val NODE_PROFILE_USER        = "api/node/users/{id}"          // GET other user
+    const val NODE_PROFILE_FOLLOWERS   = "api/node/users/{id}/followers"
+    const val NODE_PROFILE_FOLLOWING   = "api/node/users/{id}/following"
+    const val NODE_PROFILE_FOLLOW      = "api/node/users/{id}/follow"   // POST/DELETE
+    const val NODE_PROFILE_BLOCK       = "api/node/users/{id}/block"    // POST/DELETE
+    const val NODE_PROFILE_SEARCH      = "api/node/users/search"
+    const val NODE_PROFILE_RATING      = "api/node/users/{id}/rating"   // GET rating
+    const val NODE_PROFILE_RATE        = "api/node/users/{id}/rate"     // POST vote
+
     // ── Shared Chat Folders ───────────────────────────────────────────────────
     const val NODE_FOLDER_LIST         = "api/node/folders"
     const val NODE_FOLDER_CREATE       = "api/node/folders/create"
