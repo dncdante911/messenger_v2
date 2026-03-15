@@ -39,7 +39,6 @@ import androidx.core.view.WindowCompat
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.NodeRetrofitClient
-import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.ui.chats.ChatsActivity
 import com.worldmates.messenger.ui.components.*
 import com.worldmates.messenger.ui.theme.*
@@ -708,7 +707,7 @@ fun ForgotEmailFlow(
                                         if (response.apiStatus == 200) {
                                             tempPassword = generated
                                             try {
-                                                val loginResponse = RetrofitClient.apiService.login(
+                                                val loginResponse = NodeRetrofitClient.api.login(
                                                     username = fullPhone,
                                                     password = generated
                                                 )
@@ -717,7 +716,7 @@ fun ForgotEmailFlow(
                                                     loginResponse.userId != null) {
                                                     UserSession.saveSession(
                                                         loginResponse.accessToken!!,
-                                                        loginResponse.userId!!.toLong(),
+                                                        loginResponse.userId!!,
                                                         loginResponse.username,
                                                         loginResponse.avatar
                                                     )

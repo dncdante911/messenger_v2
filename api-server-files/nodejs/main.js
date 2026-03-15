@@ -45,6 +45,7 @@ const registerTranslatorRoutes       = require('./routes/translator')
 const { registerAvatarRoutes }       = require('./routes/users/avatars')
 const { registerScheduledRoutes }    = require('./routes/scheduled')
 const { registerFolderRoutes }       = require('./routes/folders')
+const { registerBackupRoutes }       = require('./routes/backup')
 
 let serverPort
 let server
@@ -530,6 +531,9 @@ async function main() {
 
   // Register Shared Chat Folders routes
   registerFolderRoutes(app, ctx);
+
+  // Register Backup / Cloud Settings routes (replaces PHP get/update_cloud_backup_settings.php)
+  registerBackupRoutes(app, ctx);
 
   // Instant View — article reader (no auth required, rate-limited at global level)
   app.post('/api/node/instant-view', instantView(ctx, io));

@@ -2,8 +2,11 @@ package com.worldmates.messenger.network
 
 import com.google.gson.annotations.SerializedName
 import com.worldmates.messenger.data.Constants
+import com.worldmates.messenger.data.model.BackupStatisticsResponse
 import com.worldmates.messenger.data.model.Chat
+import com.worldmates.messenger.data.model.CloudBackupSettingsResponse
 import com.worldmates.messenger.data.model.Message
+import com.worldmates.messenger.data.model.UpdateCloudBackupSettingsResponse
 import com.worldmates.messenger.data.model.UserAvatar
 import com.worldmates.messenger.data.model.UserAvatarListResponse
 import com.worldmates.messenger.data.model.UserAvatarSimpleResponse
@@ -678,6 +681,15 @@ interface NodeApi {
 
     // ═══════════════════════ AUTH (no access-token required) ═════════════════
 
+    /** Username/email + password login. Returns session token. */
+    @FormUrlEncoded
+    @POST("api/node/auth/login")
+    suspend fun login(
+        @Field("username")     username:    String,
+        @Field("password")     password:    String,
+        @Field("device_type")  deviceType:  String = "phone"
+    ): NodeLoginResponse
+
     /** Send 6-digit OTP code for password reset. */
     @FormUrlEncoded
     @POST("api/node/auth/request-password-reset")
@@ -712,6 +724,45 @@ interface NodeApi {
         @Field("phone_number") phoneNumber: String? = null,
         @Field("code")         code: String
     ): QuickVerifyResponse
+
+    // ═══════════════════════ BACKUP / CLOUD SETTINGS ═════════════════════════
+
+    /** Get cloud backup settings (replaces PHP get_cloud_backup_settings.php). */
+    @GET(Constants.NODE_BACKUP_SETTINGS)
+    suspend fun getBackupSettings(): CloudBackupSettingsResponse
+
+    /** Update cloud backup settings (replaces PHP update_cloud_backup_settings.php). */
+    @FormUrlEncoded
+    @POST(Constants.NODE_BACKUP_SETTINGS)
+    suspend fun updateBackupSettings(
+        @Field("mobile_photos")                  mobilePhotos:               String? = null,
+        @Field("mobile_videos")                  mobileVideos:               String? = null,
+        @Field("mobile_files")                   mobileFiles:                String? = null,
+        @Field("mobile_videos_limit")            mobileVideosLimit:          Int?    = null,
+        @Field("mobile_files_limit")             mobileFilesLimit:           Int?    = null,
+        @Field("wifi_photos")                    wifiPhotos:                 String? = null,
+        @Field("wifi_videos")                    wifiVideos:                 String? = null,
+        @Field("wifi_files")                     wifiFiles:                  String? = null,
+        @Field("wifi_videos_limit")              wifiVideosLimit:            Int?    = null,
+        @Field("wifi_files_limit")               wifiFilesLimit:             Int?    = null,
+        @Field("roaming_photos")                 roamingPhotos:              String? = null,
+        @Field("save_to_gallery_private_chats")  saveToGalleryPrivateChats:  String? = null,
+        @Field("save_to_gallery_groups")         saveToGalleryGroups:        String? = null,
+        @Field("save_to_gallery_channels")       saveToGalleryChannels:      String? = null,
+        @Field("streaming_enabled")              streamingEnabled:           String? = null,
+        @Field("cache_size_limit")               cacheSizeLimit:             Long?   = null,
+        @Field("backup_enabled")                 backupEnabled:              String? = null,
+        @Field("backup_provider")                backupProvider:             String? = null,
+        @Field("backup_frequency")               backupFrequency:            String? = null,
+        @Field("mark_backup_complete")           markBackupComplete:         String? = null,
+        @Field("proxy_enabled")                  proxyEnabled:               String? = null,
+        @Field("proxy_host")                     proxyHost:                  String? = null,
+        @Field("proxy_port")                     proxyPort:                  Int?    = null
+    ): UpdateCloudBackupSettingsResponse
+
+    /** Get backup statistics (replaces PHP get-backup-statistics.php). */
+    @POST(Constants.NODE_BACKUP_STATISTICS)
+    suspend fun getBackupStatistics(): BackupStatisticsResponse
 
     // ═══════════════════════ EXPORT CHAT HISTORY ═════════════════════════════
 
@@ -756,6 +807,16 @@ data class NodeMessageResponse(
 data class NodeSimpleResponse(
     @SerializedName("api_status")   val apiStatus: Int,
     @SerializedName("message")      val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/** Response from POST /api/node/auth/login */
+data class NodeLoginResponse(
+    @SerializedName("api_status")   val apiStatus: Int,
+    @SerializedName("access_token") val accessToken: String? = null,
+    @SerializedName("user_id")      val userId: Long? = null,
+    @SerializedName("username")     val username: String? = null,
+    @SerializedName("avatar")       val avatar: String? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 

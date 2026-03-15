@@ -189,6 +189,10 @@ object Constants {
     const val NODE_CHANNEL_POLL_VOTE   = "api/node/channel/poll/vote"
     const val NODE_CHANNEL_POLL_CLOSE  = "api/node/channel/poll/close"
 
+    // ── Backup / Cloud Settings ───────────────────────────────────────────────
+    const val NODE_BACKUP_SETTINGS     = "api/node/backup/settings"
+    const val NODE_BACKUP_STATISTICS   = "api/node/backup/statistics"
+
     // ── Instant View ──────────────────────────────────────────────────────────
     const val NODE_INSTANT_VIEW        = "api/node/instant-view"
 

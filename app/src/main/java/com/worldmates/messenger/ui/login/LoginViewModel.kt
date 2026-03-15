@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -24,50 +24,26 @@ class LoginViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Виклик API
-                val response = RetrofitClient.apiService.login(
+                val response = NodeRetrofitClient.api.login(
                     username = username,
-                    password = password,
-                    deviceType = "phone"
+                    password = password
                 )
 
-                // Перевірка статусу відповіді
                 when {
                     response.apiStatus == 200 && response.accessToken != null && response.userId != null -> {
-                        // Успішний вхід
                         UserSession.saveSession(
                             token    = response.accessToken!!,
-                            id       = response.userId!!.toLong(),
+                            id       = response.userId!!,
                             username = response.username,
                             avatar   = response.avatar
                         )
-
-                        // Синхронізуємо токен з сервером
-                        try {
-                            val syncResponse = RetrofitClient.apiService.syncSession(
-                                accessToken = response.accessToken!!,
-                                userId = response.userId!!.toLong(),
-                                platform = "phone"
-                            )
-                            Log.d("LoginViewModel", "Session synced: ${syncResponse.message}")
-                        } catch (e: Exception) {
-                            Log.w("LoginViewModel", "Failed to sync session: ${e.message}")
-                            // Не критична помилка, продовжуємо
-                        }
-
                         _loginState.value = LoginState.Success
                         Log.d("LoginViewModel", "Успішно увійшли! User ID: ${response.userId}")
                     }
-                    response.apiStatus == 400 -> {
-                        // Помилка від сервера
+                    else -> {
                         val errorMsg = response.errorMessage ?: "Невірні учетні дані"
                         _loginState.value = LoginState.Error(errorMsg)
-                        Log.e("LoginViewModel", "Помилка входу: $errorMsg")
-                    }
-                    else -> {
-                        val errorMsg = response.errorMessage ?: "Невідома помилка"
-                        _loginState.value = LoginState.Error(errorMsg)
-                        Log.e("LoginViewModel", "Помилка: ${response.apiStatus} - $errorMsg")
+                        Log.e("LoginViewModel", "Помилка входу: ${response.apiStatus} - $errorMsg")
                     }
                 }
             } catch (e: java.net.ConnectException) {
