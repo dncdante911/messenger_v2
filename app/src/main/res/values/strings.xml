@@ -2100,4 +2100,83 @@
     <string name="channel_stats_media_post">[Медіа-пост]</string>
     <string name="channel_stats_empty_post">[Пост без тексту]</string>
     <string name="channel_stats_poll_post">📊 %s</string>
+
+    <!-- ── Scheduled Messages ────────────────────────────────────────────── -->
+    <string name="scheduled_messages">Заплановані повідомлення</string>
+    <string name="schedule_message">Запланувати повідомлення</string>
+    <string name="scheduled_at">Заплановано на %s</string>
+    <string name="schedule_send_time">Час відправки</string>
+    <string name="scheduled_message_count">%d запл.</string>
+    <string name="schedule_create">Запланувати</string>
+    <string name="schedule_edit">Редагувати</string>
+    <string name="schedule_delete_confirm">Видалити запланований пост?</string>
+    <string name="schedule_send_now">Надіслати зараз</string>
+    <string name="schedule_saved">Повідомлення заплановано ✓</string>
+    <string name="schedule_deleted">Запланований пост видалено</string>
+    <string name="schedule_sent">Надіслано</string>
+    <string name="schedule_repeat_none">Без повтору</string>
+    <string name="schedule_repeat_daily">Щодня</string>
+    <string name="schedule_repeat_weekly">Щотижня</string>
+    <string name="schedule_repeat_monthly">Щомісяця</string>
+    <string name="schedule_pin_post">Закріпити після надсилання</string>
+    <string name="schedule_notify_members">Сповістити учасників</string>
+    <string name="schedule_empty">Немає запланованих повідомлень</string>
+    <string name="schedule_quick_1h">Через 1 годину</string>
+    <string name="schedule_quick_3h">Через 3 години</string>
+    <string name="schedule_quick_tomorrow">Завтра вранці</string>
+    <string name="schedule_quick_week">Через тиждень</string>
+    <string name="schedule_time_of_pub">Час публікації</string>
+    <string name="schedule_repeat_label">Повторення</string>
+    <string name="schedule_options_label">Опції</string>
+    <string name="schedule_pin_label">Закріпити пост</string>
+    <string name="schedule_pin_hint">Пост буде закріплено після публікації</string>
+    <string name="schedule_notify_hint">Надіслати push-сповіщення учасникам</string>
+    <string name="status_scheduled">Заплановано</string>
+    <string name="status_published">Опубліковано</string>
+    <string name="status_failed">Помилка</string>
+    <string name="status_cancelled">Скасовано</string>
+    <string name="badge_pinned">Закріплено</string>
+    <string name="badge_notifications">Сповіщення</string>
+    <string name="badge_attachment">Вкладення</string>
+    <string name="tomorrow_label">Завтра</string>
+    <string name="media_type_label">Медіа</string>
+
+    <!-- ── Channel / Message Threads ─────────────────────────────────────── -->
+    <string name="thread_open">Відкрити гілку</string>
+    <string name="thread_reply">Відповісти в гілці</string>
+    <string name="thread_replies_count">%d відповідей</string>
+    <string name="thread_replies_one">%d відповідь</string>
+    <string name="thread_start">Почати гілку</string>
+    <string name="thread_send">Надіслати</string>
+    <string name="thread_placeholder">Відповідь у гілці…</string>
+    <string name="thread_empty">Поки що немає відповідей. Станьте першим!</string>
+    <string name="thread_title">Гілка обговорення</string>
+    <string name="thread_from_post">Гілка до допису</string>
+    <string name="thread_delete_confirm">Видалити повідомлення з гілки?</string>
+    <string name="thread_loading">Завантаження гілки…</string>
+
+    <!-- ── Shared / Synced Chat Folders ──────────────────────────────────── -->
+    <string name="folder_create">Нова папка</string>
+    <string name="folder_edit">Редагувати папку</string>
+    <string name="folder_delete_confirm">Видалити папку «%s»?</string>
+    <string name="folder_share">Поділитися папкою</string>
+    <string name="folder_join">Приєднатися до папки</string>
+    <string name="folder_joined">Ви приєдналися до папки «%s» ✓</string>
+    <string name="folder_invite_link">Посилання-запрошення</string>
+    <string name="folder_copy_link">Скопіювати посилання</string>
+    <string name="folder_link_copied">Посилання скопійовано</string>
+    <string name="folder_share_hint">Поділіться посиланням — інші побачать ті самі чати у себе</string>
+    <string name="folder_limit_free">Безкоштовно: до 10 папок</string>
+    <string name="folder_limit_pro">Premium: до 50 папок</string>
+    <string name="folder_name_hint">Назва папки</string>
+    <string name="folder_emoji_hint">Виберіть емодзі</string>
+    <string name="folder_saved">Папку збережено ✓</string>
+    <string name="folder_deleted">Папку видалено</string>
+    <string name="folder_add_chats">Додати чати</string>
+    <string name="folder_members">%d учасників</string>
+    <string name="folder_syncing">Синхронізація папок…</string>
+    <string name="folder_shared_badge">Спільна</string>
+    <string name="folder_leave">Покинути папку</string>
+    <string name="folder_join_title">Приєднатися до папки</string>
+    <string name="folder_join_description">Вам запропоновано приєднатися до спільної папки чатів</string>
 </resources>

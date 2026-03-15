@@ -481,6 +481,144 @@ interface NodeApi {
         @Field("sender_id") senderId: Long
     ): SignalSimpleResponse
 
+    // ═══════════════════════ SCHEDULED MESSAGES ══════════════════════════════
+
+    @GET(Constants.NODE_SCHEDULED_LIST)
+    suspend fun getScheduledMessages(
+        @Query("chat_id")   chatId: Long,
+        @Query("chat_type") chatType: String = "group",
+        @Query("status")    status: String   = "pending"
+    ): NodeScheduledListResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_SCHEDULED_CREATE)
+    suspend fun createScheduledMessage(
+        @Field("chat_id")        chatId: Long,
+        @Field("chat_type")      chatType: String,
+        @Field("text")           text: String = "",
+        @Field("scheduled_at")   scheduledAt: Long,
+        @Field("repeat_type")    repeatType: String = "none",
+        @Field("is_pinned")      isPinned: Boolean = false,
+        @Field("notify_members") notifyMembers: Boolean = true
+    ): NodeScheduledItemResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_SCHEDULED_UPDATE)
+    suspend fun updateScheduledMessage(
+        @Path("id")              id: Long,
+        @Field("text")           text: String? = null,
+        @Field("scheduled_at")   scheduledAt: Long? = null,
+        @Field("repeat_type")    repeatType: String? = null
+    ): NodeScheduledItemResponse
+
+    @DELETE(Constants.NODE_SCHEDULED_DELETE)
+    suspend fun deleteScheduledMessage(
+        @Path("id") id: Long
+    ): NodeSimpleResponse
+
+    @POST(Constants.NODE_SCHEDULED_SEND_NOW)
+    suspend fun sendScheduledNow(
+        @Path("id") id: Long
+    ): NodeSimpleResponse
+
+    // ═══════════════════════ CHANNEL THREADS ══════════════════════════════════
+
+    @GET(Constants.NODE_THREAD_MESSAGES)
+    suspend fun getThreadMessages(
+        @Path("postId") postId: Long,
+        @Query("limit")  limit: Int  = 50,
+        @Query("offset") offset: Int = 0
+    ): NodeThreadListResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_THREAD_SEND)
+    suspend fun sendThreadMessage(
+        @Path("postId")       postId: Long,
+        @Field("text")        text: String,
+        @Field("reply_to_id") replyToId: Long? = null
+    ): NodeThreadMessageResponse
+
+    @DELETE(Constants.NODE_THREAD_DELETE)
+    suspend fun deleteThreadMessage(
+        @Path("postId") postId: Long,
+        @Path("msgId")  msgId: Long
+    ): NodeSimpleResponse
+
+    @GET(Constants.NODE_THREAD_COUNT)
+    suspend fun getThreadCount(
+        @Path("postId") postId: Long
+    ): NodeThreadCountResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_THREAD_BATCH_COUNTS)
+    suspend fun getThreadBatchCounts(
+        @Field("post_ids[]") postIds: List<Long>
+    ): NodeThreadBatchCountsResponse
+
+    // ═══════════════════════ SHARED CHAT FOLDERS ══════════════════════════════
+
+    @GET(Constants.NODE_FOLDER_LIST)
+    suspend fun getFolders(): NodeFolderListResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_FOLDER_CREATE)
+    suspend fun createFolder(
+        @Field("name")  name: String,
+        @Field("emoji") emoji: String = "📁",
+        @Field("color") color: String = "#2196F3"
+    ): NodeFolderItemResponse
+
+    @FormUrlEncoded
+    @PATCH(Constants.NODE_FOLDER_UPDATE)
+    suspend fun updateFolder(
+        @Path("id")     id: Long,
+        @Field("name")  name: String? = null,
+        @Field("emoji") emoji: String? = null,
+        @Field("color") color: String? = null
+    ): NodeFolderItemResponse
+
+    @DELETE(Constants.NODE_FOLDER_DELETE)
+    suspend fun deleteFolder(
+        @Path("id") id: Long
+    ): NodeSimpleResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_FOLDER_ADD_CHAT)
+    suspend fun addChatToFolder(
+        @Path("id")          id: Long,
+        @Field("chat_type")  chatType: String,
+        @Field("chat_id")    chatId: Long
+    ): NodeSimpleResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_FOLDER_REMOVE_CHAT)
+    suspend fun removeChatFromFolder(
+        @Path("id")          id: Long,
+        @Field("chat_type")  chatType: String,
+        @Field("chat_id")    chatId: Long
+    ): NodeSimpleResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_FOLDER_REORDER)
+    suspend fun reorderFolders(
+        @Field("ids[]") ids: List<Long>
+    ): NodeSimpleResponse
+
+    @POST(Constants.NODE_FOLDER_SHARE)
+    suspend fun shareFolder(
+        @Path("id") id: Long
+    ): NodeFolderShareResponse
+
+    @POST(Constants.NODE_FOLDER_JOIN)
+    suspend fun joinFolder(
+        @Path("code") code: String
+    ): NodeFolderItemResponse
+
+    @DELETE(Constants.NODE_FOLDER_LEAVE)
+    suspend fun leaveFolder(
+        @Path("id") id: Long
+    ): NodeSimpleResponse
+
     // ═══════════════════════ AUTH (no access-token required) ═════════════════
 
     /** Send 6-digit OTP code for password reset. */
@@ -601,6 +739,122 @@ data class NodeMuteStatusResponse(
     @SerializedName("call_chat")  val callChat: String? = null,  // "yes" | "no"
     @SerializedName("archive")    val archive: String?  = null,  // "yes" | "no"
     @SerializedName("pin")        val pin: String?      = null,  // "yes" | "no"
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ─── Scheduled Messages ───────────────────────────────────────────────────────
+
+data class ScheduledMessageItem(
+    @SerializedName("id")             val id: Long,
+    @SerializedName("chat_id")        val chatId: Long,
+    @SerializedName("chat_type")      val chatType: String,
+    @SerializedName("text")           val text: String?,
+    @SerializedName("media_url")      val mediaUrl: String?,
+    @SerializedName("media_type")     val mediaType: String?,
+    @SerializedName("scheduled_at")   val scheduledAt: Long,
+    @SerializedName("repeat_type")    val repeatType: String,
+    @SerializedName("is_pinned")      val isPinned: Boolean,
+    @SerializedName("notify_members") val notifyMembers: Boolean,
+    @SerializedName("status")         val status: String,
+    @SerializedName("created_at")     val createdAt: Long
+)
+
+data class NodeScheduledListResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("scheduled")  val scheduled: List<ScheduledMessageItem>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class NodeScheduledItemResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("scheduled")  val scheduled: ScheduledMessageItem? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ─── Channel Threads ─────────────────────────────────────────────────────────
+
+data class ThreadAuthor(
+    @SerializedName("user_id")  val userId: Long,
+    @SerializedName("name")     val name: String,
+    @SerializedName("username") val username: String,
+    @SerializedName("avatar")   val avatar: String
+)
+
+data class ThreadMessage(
+    @SerializedName("id")          val id: Long,
+    @SerializedName("post_id")     val postId: Long,
+    @SerializedName("user_id")     val userId: Long,
+    @SerializedName("text")        val text: String,
+    @SerializedName("time")        val time: Long,
+    @SerializedName("reply_to_id") val replyToId: Long?,
+    @SerializedName("author")      val author: ThreadAuthor?
+)
+
+data class NodeThreadListResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("messages")   val messages: List<ThreadMessage>? = null,
+    @SerializedName("total")      val total: Int = 0,
+    @SerializedName("offset")     val offset: Int = 0,
+    @SerializedName("limit")      val limit: Int = 50,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class NodeThreadMessageResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("message")    val message: ThreadMessage? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class NodeThreadCountResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("count")      val count: Int = 0,
+    @SerializedName("post_id")    val postId: Long = 0,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class NodeThreadBatchCountsResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("counts")     val counts: Map<String, Int>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ─── Shared Chat Folders ──────────────────────────────────────────────────────
+
+data class FolderChatItem(
+    @SerializedName("chat_type") val chatType: String,
+    @SerializedName("chat_id")   val chatId: Long,
+    @SerializedName("added_at")  val addedAt: Long
+)
+
+data class ServerFolder(
+    @SerializedName("id")           val id: Long,
+    @SerializedName("name")         val name: String,
+    @SerializedName("emoji")        val emoji: String,
+    @SerializedName("color")        val color: String,
+    @SerializedName("position")     val position: Int,
+    @SerializedName("is_shared")    val isShared: Boolean,
+    @SerializedName("share_code")   val shareCode: String?,
+    @SerializedName("member_count") val memberCount: Int,
+    @SerializedName("chats")        val chats: List<FolderChatItem>?,
+    @SerializedName("created_at")   val createdAt: Long
+)
+
+data class NodeFolderListResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("folders")    val folders: List<ServerFolder>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class NodeFolderItemResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("folder")     val folder: ServerFolder? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class NodeFolderShareResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("share_code") val shareCode: String? = null,
+    @SerializedName("share_url")  val shareUrl: String? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 

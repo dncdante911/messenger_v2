@@ -33,6 +33,7 @@ const comments     = require('./comments');
 const reactions    = require('./reactions');
 const admin        = require('./admin');
 const channelPolls = require('./polls');
+const threads      = require('./threads');
 
 // ─── Upload base path from config ───────────────────────────────────────────
 // Use site_path from config.json (absolute filesystem path to web root).
@@ -276,6 +277,14 @@ function registerChannelRoutes(app, ctx, io) {
 
     // Generic media upload (for channel post images/videos/files)
     app.post('/api/node/media/upload',             mediaUpload.single('file'), auth, uploadMedia(ctx));
+
+    // ── Channel Post Threads ─────────────────────────────────────────────────
+    app.get ('/api/node/channel/post/:postId/thread',       auth, (req, res) => threads.getThreadMessages(ctx, req, res));
+    app.post('/api/node/channel/post/:postId/thread/send',  auth, (req, res) => threads.sendThreadMessage(ctx, io, req, res));
+    app.post('/api/node/channel/post/:postId/thread/reply', auth, (req, res) => threads.sendThreadMessage(ctx, io, req, res));
+    app.delete('/api/node/channel/post/:postId/thread/:msgId', auth, (req, res) => threads.deleteThreadMessage(ctx, io, req, res));
+    app.get ('/api/node/channel/post/:postId/thread/count', auth, (req, res) => threads.getThreadCount(ctx, req, res));
+    app.post('/api/node/channel/threads/counts',            auth, (req, res) => threads.batchCounts(ctx, req, res));
 
     console.log('[Channel API] Endpoints registered:');
     console.log('  Main    : POST /api/v2/channels.php');

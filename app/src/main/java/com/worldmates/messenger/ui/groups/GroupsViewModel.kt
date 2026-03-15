@@ -970,38 +970,38 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
-    // ==================== 📅 SCHEDULED POSTS (PHP — no Node endpoint yet) ====================
+    // ==================== 📅 SCHEDULED POSTS (Node.js) ====================
 
     private val _scheduledPosts = MutableStateFlow<List<com.worldmates.messenger.data.model.ScheduledPost>>(emptyList())
     val scheduledPosts: StateFlow<List<com.worldmates.messenger.data.model.ScheduledPost>> = _scheduledPosts
 
-    fun loadScheduledPosts(groupId: Long) {
-        if (UserSession.accessToken == null) return
+    private fun mapScheduledItem(item: com.worldmates.messenger.network.ScheduledMessageItem, chatId: Long, chatType: String) =
+        com.worldmates.messenger.data.model.ScheduledPost(
+            id            = item.id,
+            groupId       = if (chatType == "group") chatId else null,
+            channelId     = if (chatType == "channel") chatId else null,
+            authorId      = 0L,
+            text          = item.text ?: "",
+            mediaUrl      = item.mediaUrl,
+            mediaType     = item.mediaType,
+            scheduledTime = item.scheduledAt * 1000L,
+            createdTime   = item.createdAt * 1000L,
+            status        = if (item.status == "pending") "scheduled" else item.status,
+            repeatType    = item.repeatType,
+            isPinned      = item.isPinned,
+            notifyMembers = item.notifyMembers
+        )
 
+    fun loadScheduledPosts(groupId: Long, chatType: String = "group") {
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getScheduledPosts(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
-
-                if (response.apiStatus == 200 && response.scheduledPosts != null) {
-                    _scheduledPosts.value = response.scheduledPosts.map { post ->
-                        com.worldmates.messenger.data.model.ScheduledPost(
-                            id = post.id,
-                            groupId = post.groupId,
-                            authorId = post.authorId,
-                            text = post.text,
-                            scheduledTime = post.scheduledTime,
-                            createdTime = post.createdTime,
-                            mediaUrl = post.mediaUrl,
-                            status = post.status,
-                            repeatType = post.repeatType,
-                            isPinned = post.isPinned,
-                            notifyMembers = post.notifyMembers
-                        )
-                    }
-                    Log.d("GroupsViewModel", "📅 Loaded ${response.scheduledPosts.size} scheduled posts for group $groupId")
+                val response = com.worldmates.messenger.network.NodeRetrofitClient.api
+                    .getScheduledMessages(chatId = groupId, chatType = chatType)
+                if (response.apiStatus == 200) {
+                    _scheduledPosts.value = response.scheduled
+                        ?.map { mapScheduledItem(it, groupId, chatType) }
+                        ?: emptyList()
+                    Log.d("GroupsViewModel", "📅 Loaded ${_scheduledPosts.value.size} scheduled posts for $chatType $groupId")
                 } else {
                     _scheduledPosts.value = emptyList()
                 }
@@ -1020,39 +1020,30 @@ class GroupsViewModel : ViewModel() {
         repeatType: String = "none",
         isPinned: Boolean = false,
         notifyMembers: Boolean = true,
+        chatType: String = "group",
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
-        if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
-            return
-        }
-
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.createScheduledPost(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId,
-                    text = text,
-                    scheduledTime = scheduledTime,
-                    mediaUrl = mediaUrl,
-                    repeatType = repeatType,
-                    isPinned = if (isPinned) 1 else 0,
-                    notifyMembers = if (notifyMembers) 1 else 0
-                )
-
+                val response = com.worldmates.messenger.network.NodeRetrofitClient.api
+                    .createScheduledMessage(
+                        chatId        = groupId,
+                        chatType      = chatType,
+                        text          = text,
+                        scheduledAt   = scheduledTime / 1000L,
+                        repeatType    = repeatType,
+                        isPinned      = isPinned,
+                        notifyMembers = notifyMembers
+                    )
                 if (response.apiStatus == 200) {
-                    loadScheduledPosts(groupId)
+                    loadScheduledPosts(groupId, chatType)
                     onSuccess()
-                    Log.d("GroupsViewModel", "📅 Created scheduled post for group $groupId via API")
                 } else {
-                    val errorMsg = response.errorMessage ?: "Не вдалося створити запланований пост"
-                    onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ API error creating scheduled post: $errorMsg")
+                    onError(response.errorMessage ?: "Не вдалося створити запланований пост")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
-                onError(errorMsg)
+                onError("Помилка: ${e.localizedMessage}")
                 Log.e("GroupsViewModel", "❌ Error creating scheduled post", e)
             }
         }
@@ -1063,31 +1054,18 @@ class GroupsViewModel : ViewModel() {
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
-        if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
-            return
-        }
-
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.deleteScheduledPost(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = post.groupId ?: 0,
-                    postId = post.id
-                )
-
+                val response = com.worldmates.messenger.network.NodeRetrofitClient.api
+                    .deleteScheduledMessage(id = post.id)
                 if (response.apiStatus == 200) {
                     _scheduledPosts.value = _scheduledPosts.value.filter { it.id != post.id }
                     onSuccess()
-                    Log.d("GroupsViewModel", "🗑️ Deleted scheduled post ${post.id} via API")
                 } else {
-                    val errorMsg = response.errorMessage ?: "Не вдалося видалити запланований пост"
-                    onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ API error deleting scheduled post: $errorMsg")
+                    onError(response.errorMessage ?: "Не вдалося видалити запланований пост")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
-                onError(errorMsg)
+                onError("Помилка: ${e.localizedMessage}")
                 Log.e("GroupsViewModel", "❌ Error deleting scheduled post", e)
             }
         }
@@ -1098,31 +1076,18 @@ class GroupsViewModel : ViewModel() {
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
-        if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
-            return
-        }
-
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.publishScheduledPost(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = post.groupId ?: 0,
-                    postId = post.id
-                )
-
+                val response = com.worldmates.messenger.network.NodeRetrofitClient.api
+                    .sendScheduledNow(id = post.id)
                 if (response.apiStatus == 200) {
                     _scheduledPosts.value = _scheduledPosts.value.filter { it.id != post.id }
                     onSuccess()
-                    Log.d("GroupsViewModel", "📤 Published scheduled post ${post.id} via API")
                 } else {
-                    val errorMsg = response.errorMessage ?: "Не вдалося опублікувати пост"
-                    onError(errorMsg)
-                    Log.e("GroupsViewModel", "❌ API error publishing scheduled post: $errorMsg")
+                    onError(response.errorMessage ?: "Не вдалося опублікувати пост")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
-                onError(errorMsg)
+                onError("Помилка: ${e.localizedMessage}")
                 Log.e("GroupsViewModel", "❌ Error publishing scheduled post", e)
             }
         }

@@ -186,6 +186,33 @@ object Constants {
     // ── Instant View ──────────────────────────────────────────────────────────
     const val NODE_INSTANT_VIEW        = "api/node/instant-view"
 
+    // ── Scheduled Messages ────────────────────────────────────────────────────
+    const val NODE_SCHEDULED_LIST      = "api/node/scheduled/list"
+    const val NODE_SCHEDULED_CREATE    = "api/node/scheduled/create"
+    const val NODE_SCHEDULED_UPDATE    = "api/node/scheduled/update/{id}"
+    const val NODE_SCHEDULED_DELETE    = "api/node/scheduled/{id}"
+    const val NODE_SCHEDULED_SEND_NOW  = "api/node/scheduled/{id}/send-now"
+
+    // ── Channel Post Threads ──────────────────────────────────────────────────
+    const val NODE_THREAD_MESSAGES     = "api/node/channel/post/{postId}/thread"
+    const val NODE_THREAD_SEND         = "api/node/channel/post/{postId}/thread/send"
+    const val NODE_THREAD_REPLY        = "api/node/channel/post/{postId}/thread/reply"
+    const val NODE_THREAD_DELETE       = "api/node/channel/post/{postId}/thread/{msgId}"
+    const val NODE_THREAD_COUNT        = "api/node/channel/post/{postId}/thread/count"
+    const val NODE_THREAD_BATCH_COUNTS = "api/node/channel/threads/counts"
+
+    // ── Shared Chat Folders ───────────────────────────────────────────────────
+    const val NODE_FOLDER_LIST         = "api/node/folders"
+    const val NODE_FOLDER_CREATE       = "api/node/folders/create"
+    const val NODE_FOLDER_UPDATE       = "api/node/folders/{id}"
+    const val NODE_FOLDER_DELETE       = "api/node/folders/{id}"
+    const val NODE_FOLDER_ADD_CHAT     = "api/node/folders/{id}/add-chat"
+    const val NODE_FOLDER_REMOVE_CHAT  = "api/node/folders/{id}/remove-chat"
+    const val NODE_FOLDER_REORDER      = "api/node/folders/reorder"
+    const val NODE_FOLDER_SHARE        = "api/node/folders/{id}/share"
+    const val NODE_FOLDER_JOIN         = "api/node/folders/join/{code}"
+    const val NODE_FOLDER_LEAVE        = "api/node/folders/{id}/leave"
+
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH                = "join"
     const val SOCKET_EVENT_PRIVATE_MESSAGE     = "private_message"
