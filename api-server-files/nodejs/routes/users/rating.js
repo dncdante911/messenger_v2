@@ -10,32 +10,33 @@
  */
 
 const { requireAuth } = require('../../helpers/validate-token');
-const { Op } = require('sequelize');
+const { t }           = require('../../helpers/i18n');
+const { Op }          = require('sequelize');
 
 // ─── Trust level calculator ───────────────────────────────────────────────────
 
-function calcTrustLevel(likes, dislikes) {
+function calcTrustLevel(likes, dislikes, L) {
     const total = likes + dislikes;
     const pct   = total > 0 ? (likes / total) * 100 : 0;
 
     if (total >= 20 && pct >= 80) {
-        return { level: 'verified',  label: 'Верифікований', emoji: '✅', color: '#4CAF50' };
+        return { level: 'verified',  label: L.trust_verified,  emoji: '✅', color: '#4CAF50' };
     }
     if (total >= 5 && pct >= 65) {
-        return { level: 'trusted',   label: 'Надійний',      emoji: '🟢', color: '#8BC34A' };
+        return { level: 'trusted',   label: L.trust_trusted,   emoji: '🟢', color: '#8BC34A' };
     }
     if (total >= 5 && pct < 40) {
-        return { level: 'untrusted', label: 'Ненадійний',    emoji: '🔴', color: '#F44336' };
+        return { level: 'untrusted', label: L.trust_untrusted, emoji: '🔴', color: '#F44336' };
     }
-    return       { level: 'neutral',   label: 'Нейтральний',   emoji: '🔵', color: '#9E9E9E' };
+    return       { level: 'neutral',   label: L.trust_neutral,   emoji: '🔵', color: '#9E9E9E' };
 }
 
-function buildRatingObject(ctx, ratedUserId, rows, myRow, user) {
+function buildRatingObject(ctx, ratedUserId, rows, myRow, user, L) {
     const likes    = rows.filter(r => r.rating_type === 'like').length;
     const dislikes = rows.filter(r => r.rating_type === 'dislike').length;
     const total    = likes + dislikes;
     const score    = total > 0 ? parseFloat(((likes / total) * 5).toFixed(2)) : 0;
-    const trust    = calcTrustLevel(likes, dislikes);
+    const trust    = calcTrustLevel(likes, dislikes, L);
 
     const mediaUrl = (path) => {
         if (!path || /^https?:\/\//.test(path)) return path || '';
@@ -70,6 +71,7 @@ function buildRatingObject(ctx, ratedUserId, rows, myRow, user) {
 
 function getUserRating(ctx) {
     return [requireAuth(ctx), async (req, res) => {
+        const L             = t(req);
         const targetId      = parseInt(req.params.id);
         const includeList   = req.query.include_details === '1' || req.query.include_details === 'true';
         const limit         = Math.min(parseInt(req.query.limit) || 50, 200);
@@ -85,7 +87,7 @@ function getUserRating(ctx) {
             if (!user) return res.json({ api_status: 404, error_message: 'User not found' });
 
             const myRow = rows.find(r => r.rater_id === req.userId) || null;
-            const rating = buildRatingObject(ctx, targetId, rows, myRow, user);
+            const rating = buildRatingObject(ctx, targetId, rows, myRow, user, L);
 
             const resp = { api_status: 200, rating, ratings_count: rows.length };
 
@@ -135,6 +137,7 @@ function getUserRating(ctx) {
 
 function rateUser(ctx) {
     return [requireAuth(ctx), async (req, res) => {
+        const L          = t(req);
         const targetId   = parseInt(req.params.id);
         const ratingType = (req.body.rating_type || '').trim();
         const comment    = (req.body.comment || '').trim().substring(0, 500) || null;
@@ -185,11 +188,15 @@ function rateUser(ctx) {
             // Rebuild rating object
             const rows  = await ctx.wm_user_ratings.findAll({ where: { rated_user_id: targetId }, raw: true });
             const myRow = rows.find(r => r.rater_id === req.userId) || null;
-            const userRating = buildRatingObject(ctx, targetId, rows, myRow, user);
+            const userRating = buildRatingObject(ctx, targetId, rows, myRow, user, L);
+
+            const actionMsg = action === 'removed' ? L.rating_removed
+                            : action === 'updated' ? L.rating_updated
+                            : L.rating_added;
 
             return res.json({
                 api_status:  200,
-                message:     action === 'removed' ? 'Оцінку знято' : action === 'updated' ? 'Оцінку оновлено' : 'Оцінку додано',
+                message:     actionMsg,
                 action,
                 rating_type: action === 'removed' ? null : ratingType,
                 user_rating: userRating,

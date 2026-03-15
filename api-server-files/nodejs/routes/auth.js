@@ -24,6 +24,7 @@ const bcrypt     = require('bcryptjs');
 const md5        = require('md5');
 const crypto     = require('crypto');
 const redis      = require('redis');
+const { t }      = require('../helpers/i18n');
 
 const BCRYPT_ROUNDS = 10;
 
@@ -109,9 +110,9 @@ function getTwilioClient() {
     const sid   = process.env.TWILIO_ACCOUNT_SID;
     const token = process.env.TWILIO_AUTH_TOKEN;
     if (!sid || !token) {
-        throw new Error('Twilio не налаштовано. Додайте TWILIO_ACCOUNT_SID і TWILIO_AUTH_TOKEN у .env');
+        throw new Error('Twilio is not configured. Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in .env');
     }
-    // Ледачий імпорт — Twilio вантажиться тільки коли потрібно
+    // Lazy import — Twilio loaded only when needed
     const twilio = require('twilio');
     return twilio(sid, token);
 }
@@ -119,7 +120,7 @@ function getTwilioClient() {
 async function sendSms(to, body) {
     const client = getTwilioClient();
     const from   = process.env.TWILIO_FROM;
-    if (!from) throw new Error('TWILIO_FROM не вказано у .env');
+    if (!from) throw new Error('TWILIO_FROM is not set in .env');
 
     const msg = await client.messages.create({ to, from, body });
     console.log(`[Twilio] SMS sent → ${to}, SID: ${msg.sid}`);
@@ -149,7 +150,7 @@ function emailTemplate(title, content) {
 </body></html>`;
 }
 
-function codeBlock(code) {
+function codeBlock(code, L) {
     return `<div style="text-align:center;margin:28px 0">
       <span style="display:inline-block;font-size:42px;font-weight:bold;letter-spacing:12px;
                    color:#6200EA;background:#f3e5ff;padding:16px 28px;border-radius:14px">
@@ -157,8 +158,8 @@ function codeBlock(code) {
       </span>
     </div>
     <p style="color:#777;font-size:14px;margin:0">
-      Код дійсний <strong>10 хвилин</strong>.<br>
-      Якщо ви не робили цього запиту — просто проігноруйте це повідомлення.
+      Код дійсний <strong>${L.code_validity}</strong>.<br>
+      ${L.code_disclaimer}
     </p>`;
 }
 
@@ -204,14 +205,14 @@ async function checkOtp(type, contact, code) {
     return { ok: true, entry };
 }
 
-function otpErrorMessage(result) {
+function otpErrorMessage(result, L) {
     if (result.reason === 'invalid') {
         return result.attemptsLeft > 0
-            ? `Невірний код. Залишилось спроб: ${result.attemptsLeft}`
-            : 'Забагато невірних спроб. Запросіть новий код.';
+            ? L.otp_invalid(result.attemptsLeft)
+            : L.otp_too_many;
     }
-    if (result.reason === 'locked') return 'Код заблоковано. Запросіть новий.';
-    return 'Код прострочений. Запросіть новий.';
+    if (result.reason === 'locked') return L.otp_locked;
+    return L.otp_expired;
 }
 
 // ─── Token & password helpers ─────────────────────────────────────────────────
@@ -403,11 +404,12 @@ function logout(ctx) {
 
 function requestPasswordReset(ctx) {
     return async (req, res) => {
+        const L     = t(req);
         const email = (req.body.email || '').trim().toLowerCase();
         const phone = (req.body.phone_number || '').trim();
 
         if (!email && !phone) {
-            return res.json({ api_status: 400, error_message: 'Вкажіть email або номер телефону' });
+            return res.json({ api_status: 400, error_message: L.provide_email_or_phone });
         }
 
         try {
@@ -416,7 +418,7 @@ function requestPasswordReset(ctx) {
                 : await findUserByPhone(ctx, phone);
 
             if (!user) {
-                return res.json({ api_status: 400, error_message: 'Акаунт з таким email/телефоном не знайдено' });
+                return res.json({ api_status: 400, error_message: L.account_not_found });
             }
 
             const code    = generateCode(6);
@@ -427,13 +429,13 @@ function requestPasswordReset(ctx) {
             if (email) {
                 await sendEmail(
                     email,
-                    'Відновлення доступу — WorldMates',
-                    emailTemplate('Відновлення доступу',
-                        `<p style="color:#555">Ваш код підтвердження для відновлення доступу:</p>${codeBlock(code)}`
+                    L.email_subject_reset,
+                    emailTemplate(L.email_title_reset,
+                        `<p style="color:#555">${L.email_body_reset}</p>${codeBlock(code, L)}`
                     )
                 );
             } else {
-                await sendSms(phone, `WorldMates: ваш код відновлення пароля: ${code}. Дійсний 10 хвилин.`);
+                await sendSms(phone, L.sms_reset(code));
             }
 
             const maskedContact = email
@@ -441,11 +443,11 @@ function requestPasswordReset(ctx) {
                 : phone.slice(0, -4).replace(/\d/g, '*') + phone.slice(-4);
 
             console.log(`[Auth] Reset code sent → ${maskedContact} (user ${user.user_id})`);
-            return res.json({ api_status: 200, message: `Код надіслано` });
+            return res.json({ api_status: 200, message: L.code_sent });
 
         } catch (err) {
             console.error('[Auth/reset-request]', err.message);
-            return res.json({ api_status: 500, error_message: 'Помилка сервера. Спробуйте пізніше.' });
+            return res.json({ api_status: 500, error_message: L.server_error });
         }
     };
 }
@@ -454,26 +456,27 @@ function requestPasswordReset(ctx) {
 
 function resetPassword(ctx) {
     return async (req, res) => {
+        const L       = t(req);
         const email   = (req.body.email || '').trim().toLowerCase();
         const phone   = (req.body.phone_number || '').trim();
         const code    = (req.body.code || '').trim();
         const newPass = (req.body.new_password || '').trim();
 
         if (!code || !newPass) {
-            return res.json({ api_status: 400, error_message: 'Вкажіть код та новий пароль' });
+            return res.json({ api_status: 400, error_message: L.provide_code_and_password });
         }
         if (newPass.length < 6) {
-            return res.json({ api_status: 400, error_message: 'Пароль надто короткий (мін. 6 символів)' });
+            return res.json({ api_status: 400, error_message: L.password_too_short });
         }
 
         const contact = email || phone;
         if (!contact) {
-            return res.json({ api_status: 400, error_message: 'Вкажіть email або номер телефону' });
+            return res.json({ api_status: 400, error_message: L.provide_email_or_phone });
         }
 
         const result = await checkOtp('reset', contact, code);
         if (!result.ok) {
-            return res.json({ api_status: 400, error_message: otpErrorMessage(result) });
+            return res.json({ api_status: 400, error_message: otpErrorMessage(result, L) });
         }
 
         try {
@@ -485,18 +488,18 @@ function resetPassword(ctx) {
             );
 
             if (affectedRows === 0) {
-                return res.json({ api_status: 500, error_message: 'Не вдалося оновити пароль.' });
+                return res.json({ api_status: 500, error_message: L.update_password_error });
             }
 
-            // Анулювання всіх сесій після зміни пароля
+            // Invalidate all sessions after password change
             await ctx.wo_appssessions.destroy({ where: { user_id: result.entry.userId } }).catch(() => {});
 
             console.log(`[Auth] Password changed for user ${result.entry.userId}`);
-            return res.json({ api_status: 200, message: 'Пароль успішно змінено' });
+            return res.json({ api_status: 200, message: L.password_updated });
 
         } catch (err) {
             console.error('[Auth/reset-password]', err.message);
-            return res.json({ api_status: 500, error_message: 'Помилка сервера.' });
+            return res.json({ api_status: 500, error_message: L.server_error });
         }
     };
 }
@@ -507,19 +510,17 @@ function resetPassword(ctx) {
 
 function quickRegister(ctx) {
     return async (req, res) => {
+        const L     = t(req);
         const email = (req.body.email || '').trim().toLowerCase();
         const phone = (req.body.phone_number || '').trim();
 
         if (!email && !phone) {
-            return res.json({ api_status: 400, error_message: 'Вкажіть email або номер телефону' });
+            return res.json({ api_status: 400, error_message: L.provide_email_or_phone });
         }
 
-        // Валідація номера телефону — має починатись з + і містити тільки цифри
+        // Phone number validation — must start with + and contain only digits
         if (phone && !/^\+\d{7,15}$/.test(phone)) {
-            return res.json({
-                api_status: 400,
-                error_message: 'Невірний формат телефону. Використовуйте міжнародний формат: +380XXXXXXXXX'
-            });
+            return res.json({ api_status: 400, error_message: L.phone_format_error });
         }
 
         try {
@@ -527,7 +528,7 @@ function quickRegister(ctx) {
             let isNew = false;
 
             if (!user) {
-                // Новий акаунт — реєструємо автоматично
+                // New account — auto-register
                 const username    = await generateUsername(ctx);
                 const now         = Math.floor(Date.now() / 1000);
                 const tempPassword = await hashPassword(generateToken().slice(0, 16));
@@ -561,25 +562,19 @@ function quickRegister(ctx) {
             if (email) {
                 await sendEmail(
                     email,
-                    isNew ? 'Ласкаво просимо до WorldMates!' : 'Код для входу — WorldMates',
+                    isNew ? L.email_subject_welcome : L.email_subject_login,
                     emailTemplate(
-                        isNew ? 'Ласкаво просимо!' : 'Код для входу',
-                        `<p style="color:#555">${isNew
-                            ? 'Ваш акаунт WorldMates створено! Підтвердіть кодом нижче:'
-                            : 'Ваш одноразовий код для входу до WorldMates:'
-                        }</p>${codeBlock(code)}`
+                        isNew ? L.email_title_welcome : L.email_title_login,
+                        `<p style="color:#555">${isNew ? L.email_body_welcome : L.email_body_login}</p>${codeBlock(code, L)}`
                     )
                 );
             } else {
-                const smsText = isNew
-                    ? `WorldMates: ваш код реєстрації: ${code}. Дійсний 10 хвилин.`
-                    : `WorldMates: ваш код для входу: ${code}. Дійсний 10 хвилин.`;
-                await sendSms(phone, smsText);
+                await sendSms(phone, isNew ? L.sms_register(code) : L.sms_login(code));
             }
 
             return res.json({
                 api_status: 200,
-                message:    'Код підтвердження надіслано',
+                message:    L.code_sent,
                 user_id:    user.user_id,
                 username:   user.username,
                 is_new:     isNew,
@@ -588,12 +583,12 @@ function quickRegister(ctx) {
         } catch (err) {
             console.error('[Auth/quick-register]', err.message);
 
-            // Більш інформативна помилка якщо Twilio не налаштовано
+            // More informative error if Twilio is not configured
             if (err.message.includes('Twilio')) {
                 return res.json({ api_status: 503, error_message: err.message });
             }
 
-            return res.json({ api_status: 500, error_message: 'Помилка сервера. Спробуйте пізніше.' });
+            return res.json({ api_status: 500, error_message: L.server_error });
         }
     };
 }
@@ -603,28 +598,29 @@ function quickRegister(ctx) {
 
 function quickVerify(ctx) {
     return async (req, res) => {
+        const L     = t(req);
         const email = (req.body.email || '').trim().toLowerCase();
         const phone = (req.body.phone_number || '').trim();
         const code  = (req.body.code || '').trim();
 
         if (!code) {
-            return res.json({ api_status: 400, error_message: 'Вкажіть код підтвердження' });
+            return res.json({ api_status: 400, error_message: L.provide_code });
         }
 
         const contact = email || phone;
         if (!contact) {
-            return res.json({ api_status: 400, error_message: 'Вкажіть email або номер телефону' });
+            return res.json({ api_status: 400, error_message: L.provide_email_or_phone });
         }
 
         const result = await checkOtp('quick', contact, code);
         if (!result.ok) {
-            return res.json({ api_status: 400, error_message: otpErrorMessage(result) });
+            return res.json({ api_status: 400, error_message: otpErrorMessage(result, L) });
         }
 
         try {
             const user = await findUserById(ctx, result.entry.userId);
             if (!user) {
-                return res.json({ api_status: 400, error_message: 'Акаунт не знайдено' });
+                return res.json({ api_status: 400, error_message: L.account_not_found_short });
             }
 
             const token = await createSession(ctx, user.user_id, 'phone', 'quick-auth');
@@ -644,12 +640,12 @@ function quickVerify(ctx) {
                 last_name:    user.last_name,
                 avatar:       user.avatar,
                 is_new:       result.entry.isNew || false,
-                message:      'Авторизація успішна',
+                message:      L.auth_success,
             });
 
         } catch (err) {
             console.error('[Auth/quick-verify]', err.message);
-            return res.json({ api_status: 500, error_message: 'Помилка сервера.' });
+            return res.json({ api_status: 500, error_message: L.server_error });
         }
     };
 }

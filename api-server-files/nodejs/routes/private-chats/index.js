@@ -14,13 +14,14 @@
 
 'use strict';
 
-const msgs      = require('./messages');
-const actions   = require('./actions');
+const msgs       = require('./messages');
+const actions    = require('./actions');
 const chatsList  = require('./chats-list');
-const favs      = require('./favorites');
-const saved     = require('./saved');
-const secret    = require('./secret');
+const favs       = require('./favorites');
+const saved      = require('./saved');
+const secret     = require('./secret');
 const exportChat = require('./export');
+const mediaUp    = require('./media-upload');
 
 // ─── auth middleware ──────────────────────────────────────────────────────────
 
@@ -105,6 +106,10 @@ function registerPrivateChatRoutes(app, ctx, io) {
     app.post('/api/node/chat/secret/cleanup',     auth, secret.cleanupHandler(ctx, io));
     app.post('/api/node/chat/secret/set-timer',   auth, secret.setTimerHandler(ctx, io));
     app.get( '/api/node/chat/secret/timer/:userId', auth, secret.getTimerHandler(ctx));
+
+    // ── media upload (replaces PHP /xhr/upload_*.php) ─────────────────────────
+    // POST /api/node/chat/upload  body: { file (multipart), type: image|video|audio|voice|file }
+    app.post('/api/node/chat/upload', auth, mediaUp.uploadChatMedia(ctx));
 
     console.log('[Private Chat API] Endpoints registered under /api/node/chat/* and /api/node/user/*');
     console.log('  Messages : get, send, send-media, loadmore, edit, search, seen, typing, notify-media');

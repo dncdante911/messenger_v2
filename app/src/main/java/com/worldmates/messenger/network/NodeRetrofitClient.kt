@@ -115,6 +115,9 @@ object NodeRetrofitClient {
     /** Group API with longer upload timeouts (for avatar uploads). */
     val groupUploadApi: NodeGroupApi = uploadRetrofit.create(NodeGroupApi::class.java)
 
+    /** Chat media upload API with extended timeouts (replaces PHP /xhr/upload_*.php). */
+    val chatUploadApi: NodeApi = uploadRetrofit.create(NodeApi::class.java)
+
     /** Subscription / PRO purchase API. */
     val subscriptionApi: NodeSubscriptionApi = retrofit.create(NodeSubscriptionApi::class.java)
 
