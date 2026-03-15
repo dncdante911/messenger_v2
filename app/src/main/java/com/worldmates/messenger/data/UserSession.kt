@@ -17,6 +17,8 @@ object UserSession {
     private const val KEY_PRO_TYPE = "pro_type"
     private const val KEY_PRO_EXPIRES_AT = "pro_expires_at"
     private const val KEY_REGISTERED_AT = "registered_at"
+    private const val KEY_STATUS_EMOJI = "status_emoji"
+    private const val KEY_STATUS_TEXT  = "status_text"
 
     private val prefs: SharedPreferences by lazy {
         WMApplication.instance.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -85,6 +87,27 @@ object UserSession {
 
     val isLoggedIn: Boolean
         get() = !accessToken.isNullOrEmpty() && userId > 0
+
+    // Custom status (Premium feature)
+    private val _statusEmojiFlow = MutableStateFlow(prefs.getString(KEY_STATUS_EMOJI, null))
+    val statusEmojiFlow: StateFlow<String?> = _statusEmojiFlow.asStateFlow()
+
+    private val _statusTextFlow = MutableStateFlow(prefs.getString(KEY_STATUS_TEXT, null))
+    val statusTextFlow: StateFlow<String?> = _statusTextFlow.asStateFlow()
+
+    var statusEmoji: String?
+        get() = _statusEmojiFlow.value
+        set(value) {
+            prefs.edit().putString(KEY_STATUS_EMOJI, value).apply()
+            _statusEmojiFlow.value = value
+        }
+
+    var statusText: String?
+        get() = _statusTextFlow.value
+        set(value) {
+            prefs.edit().putString(KEY_STATUS_TEXT, value).apply()
+            _statusTextFlow.value = value
+        }
 
     init {
         // Initialize avatar flow from SharedPreferences on startup

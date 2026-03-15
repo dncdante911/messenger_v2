@@ -179,6 +179,11 @@ class SettingsActivity : AppCompatActivity() {
                             onBackClick = { currentScreen = SettingsScreen.Main }
                         )
                     }
+                    SettingsScreen.CustomStatus -> {
+                        CustomStatusScreen(
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
                     SettingsScreen.Premium -> {
                         startActivity(
                             Intent(this@SettingsActivity,
@@ -207,6 +212,7 @@ sealed class SettingsScreen {
     object BlockedUsers : SettingsScreen()
     object Language : SettingsScreen()
     object Premium : SettingsScreen()
+    object CustomStatus : SettingsScreen()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -369,6 +375,23 @@ fun SettingsScreen(
                     title = stringResource(R.string.edit_profile),
                     subtitle = stringResource(R.string.edit_profile_subtitle),
                     onClick = { onNavigate(SettingsScreen.EditProfile) }
+                )
+            }
+            item {
+                val statusEmoji by UserSession.statusEmojiFlow.collectAsState()
+                val statusText by UserSession.statusTextFlow.collectAsState()
+                val statusSubtitle = when {
+                    !statusEmoji.isNullOrBlank() && !statusText.isNullOrBlank() -> "$statusEmoji $statusText"
+                    !statusEmoji.isNullOrBlank() -> statusEmoji!!
+                    !statusText.isNullOrBlank() -> statusText!!
+                    else -> stringResource(R.string.custom_status_subtitle)
+                }
+                SettingsItem(
+                    icon = Icons.Default.EmojiEmotions,
+                    title = if (UserSession.isProActive) stringResource(R.string.custom_status_title)
+                            else "${stringResource(R.string.custom_status_title)} ⭐",
+                    subtitle = statusSubtitle,
+                    onClick = { onNavigate(SettingsScreen.CustomStatus) }
                 )
             }
             item {
@@ -752,12 +775,30 @@ fun ProfileSection(
                         .weight(1f)
                         .padding(horizontal = 16.dp)
                 ) {
-                    Text(
-                        text = username,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
+                    val statusEmoji by UserSession.statusEmojiFlow.collectAsState()
+                    val statusText by UserSession.statusTextFlow.collectAsState()
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = username,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                        if (!statusEmoji.isNullOrBlank()) {
+                            Text(text = statusEmoji!!, fontSize = 18.sp)
+                        }
+                    }
+                    if (!statusText.isNullOrBlank()) {
+                        Text(
+                            text = statusText!!,
+                            fontSize = 13.sp,
+                            color = Color(0xFF0084FF),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
                     Text(
                         text = "ID: $userId",
                         fontSize = 14.sp,

@@ -627,6 +627,15 @@
     <string name="chats_section">Чати</string>
     <string name="app_section">Додаток</string>
     <string name="edit_profile_subtitle">Змінити особисті дані</string>
+    <string name="custom_status_title">Статус</string>
+    <string name="custom_status_subtitle">Встановити емодзі статус</string>
+    <string name="custom_status_placeholder">Напишіть статус…</string>
+    <string name="custom_status_label">Текст статусу</string>
+    <string name="custom_status_clear">Очистити статус</string>
+    <string name="custom_status_presets">Швидкий вибір</string>
+    <string name="custom_status_pick_emoji">Оберіть емодзі</string>
+    <string name="custom_status_premium_title">Функція доступна з PRO</string>
+    <string name="custom_status_premium_desc">Встановлюйте кастомні емодзі та текст статусу з підпискою WorldMates PRO.</string>
     <string name="privacy_settings">Конфіденційність</string>
     <string name="privacy_subtitle">Налаштування приватності</string>
     <string name="notification_settings">Сповіщення</string>
