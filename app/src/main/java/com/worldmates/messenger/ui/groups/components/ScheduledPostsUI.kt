@@ -667,6 +667,8 @@ fun ScheduledPostsScreen(
                 }
             }
         } else {
+            val todayStr    = stringResource(R.string.today_label)
+            val tomorrowStr = stringResource(R.string.tomorrow_label)
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -680,8 +682,6 @@ fun ScheduledPostsScreen(
                         .format(Date(post.scheduledTime))
                 }
 
-                val todayStr    = stringResource(R.string.today_label)
-                val tomorrowStr = stringResource(R.string.tomorrow_label)
                 groupedPosts.forEach { (date, dayPosts) ->
                     item {
                         Text(

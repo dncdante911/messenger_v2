@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 
 /**
  * Formatted Text Renderer
@@ -432,12 +434,12 @@ fun SpoilerView(
             ) {
                 Icon(
                     imageVector = Icons.Default.VisibilityOff,
-                    contentDescription = "Spoiler",
+                    contentDescription = stringResource(R.string.spoiler_cd),
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Спойлер • Натисніть щоб показати",
+                    text = stringResource(R.string.spoiler_hint),
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
@@ -463,7 +465,7 @@ fun SpoilerView(
             ) {
                 Icon(
                     imageVector = Icons.Default.Visibility,
-                    contentDescription = "Revealed",
+                    contentDescription = stringResource(R.string.spoiler_revealed_cd),
                     tint = textColor.copy(alpha = 0.5f),
                     modifier = Modifier.size(14.dp)
                 )

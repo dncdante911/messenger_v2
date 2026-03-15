@@ -2,6 +2,7 @@ package com.worldmates.messenger.ui.messages.selection
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -43,6 +44,7 @@ fun SelectionTopBarActions(
     canPin: Boolean = false,
     onEdit: () -> Unit,
     onPin: () -> Unit = {},
+    onSave: () -> Unit = {},
     onDelete: () -> Unit,
     onSelectAll: () -> Unit = {},
     onClose: () -> Unit
@@ -81,6 +83,15 @@ fun SelectionTopBarActions(
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
+        }
+
+        // Кнопка "Зберегти" (завжди доступна при виборі)
+        IconButton(onClick = onSave) {
+            Icon(
+                Icons.Default.Bookmark,
+                contentDescription = stringResource(R.string.save_message),
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
         }
 
         // Кнопка "Видалити"

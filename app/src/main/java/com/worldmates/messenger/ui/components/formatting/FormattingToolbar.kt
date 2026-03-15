@@ -20,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import com.worldmates.messenger.R
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -138,7 +140,7 @@ fun FormattingToolbar(
                 if (settings.allowSpoilers) {
                     FormattingButton(
                         icon = Icons.Default.VisibilityOff,
-                        label = "Спойлер",
+                        label = stringResource(R.string.spoiler_label),
                         enabled = hasSelection,
                         onClick = onSpoilerClick,
                         highlightColor = Color(0xFF6B5B95)

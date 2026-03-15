@@ -164,6 +164,19 @@
     <string name="favorites">Вибране</string>
     <string name="filter">Фільтр</string>
     <string name="saved_messages">Збережені повідомлення</string>
+    <string name="saved_messages_count">%d збережено</string>
+    <string name="saved_messages_empty">Немає збережених повідомлень</string>
+    <string name="saved_messages_empty_hint">Виберіть повідомлення та натисніть 🔖 щоб зберегти</string>
+    <string name="saved_remove">Видалити зі збережених</string>
+    <string name="saved_clear_all">Очистити всі збережені</string>
+    <string name="saved_clear_confirm">Видалити всі збережені повідомлення?</string>
+    <string name="saved_toast">Збережено %d повідомлень</string>
+    <string name="save_message">Зберегти</string>
+    <string name="media_type_photo">Фото</string>
+    <string name="media_type_video">Відео</string>
+    <string name="media_type_voice">Голосове</string>
+    <string name="media_type_audio">Аудіо</string>
+    <string name="media_type_file">Файл</string>
     <string name="geo_discovery_title">Люди поруч</string>
 
     <!-- ===== ЛЮДИ ПОРУЧ (GeoDiscovery) ===== -->
@@ -402,6 +415,10 @@
     <string name="hashtag_syntax">#тег для категоризації</string>
     <string name="link_syntax">[текст](url) або автоматичні URL</string>
     <string name="spoiler_syntax">||прихований текст||</string>
+    <string name="spoiler_hint">Спойлер • Натисніть, щоб показати</string>
+    <string name="spoiler_cd">Спойлер</string>
+    <string name="spoiler_revealed_cd">Показано</string>
+    <string name="spoiler_label">Спойлер</string>
     <string name="text_formatting">Форматування тексту</string>
     <string name="configure_allowed_features">Налаштувати дозволені функції</string>
 
@@ -610,6 +627,15 @@
     <string name="chats_section">Чати</string>
     <string name="app_section">Додаток</string>
     <string name="edit_profile_subtitle">Змінити особисті дані</string>
+    <string name="custom_status_title">Статус</string>
+    <string name="custom_status_subtitle">Встановити емодзі статус</string>
+    <string name="custom_status_placeholder">Напишіть статус…</string>
+    <string name="custom_status_label">Текст статусу</string>
+    <string name="custom_status_clear">Очистити статус</string>
+    <string name="custom_status_presets">Швидкий вибір</string>
+    <string name="custom_status_pick_emoji">Оберіть емодзі</string>
+    <string name="custom_status_premium_title">Функція доступна з PRO</string>
+    <string name="custom_status_premium_desc">Встановлюйте кастомні емодзі та текст статусу з підпискою WorldMates PRO.</string>
     <string name="privacy_settings">Конфіденційність</string>
     <string name="privacy_subtitle">Налаштування приватності</string>
     <string name="notification_settings">Сповіщення</string>
