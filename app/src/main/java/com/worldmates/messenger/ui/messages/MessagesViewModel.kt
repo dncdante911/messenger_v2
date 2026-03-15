@@ -759,27 +759,6 @@ class MessagesViewModel(application: Application) :
                     return@launch
                 }
 
-                // PHP fallback (legacy)
-                val response = RetrofitClient.apiService.editMessage(
-                    accessToken = UserSession.accessToken!!,
-                    messageId = messageId,
-                    newText = newText
-                )
-                if (response.apiStatus == 200) {
-                    val currentMessages = _messages.value.toMutableList()
-                    val index = currentMessages.indexOfFirst { it.id == messageId }
-                    if (index != -1) {
-                        currentMessages[index] = currentMessages[index].copy(
-                            encryptedText = newText,
-                            decryptedText = newText
-                        )
-                        _messages.value = currentMessages
-                    }
-                    _error.value = null
-                } else {
-                    _error.value = response.errors?.errorText ?: "Не вдалося відредагувати повідомлення"
-                }
-                _isLoading.value = false
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
                 _isLoading.value = false
@@ -837,21 +816,6 @@ class MessagesViewModel(application: Application) :
                     return@launch
                 }
 
-                // PHP fallback (legacy)
-                val response = RetrofitClient.apiService.deleteMessage(
-                    accessToken = UserSession.accessToken!!,
-                    messageId = messageId
-                )
-                if (response.apiStatus == 200) {
-                    _messages.value = _messages.value.filter { it.id != messageId }
-                    _error.value = null
-                    Log.d("MessagesViewModel", "Повідомлення видалено: $messageId")
-                } else {
-                    _deletingMessages.update { it - messageId }
-                    permanentlyDeletedIds.remove(messageId)
-                    _error.value = response.errors?.errorText ?: "Не вдалося видалити повідомлення"
-                }
-                _isLoading.value = false
             } catch (e: Exception) {
                 _deletingMessages.update { it - messageId }
                 permanentlyDeletedIds.remove(messageId)
@@ -984,17 +948,14 @@ class MessagesViewModel(application: Application) :
         }
 
         if (groupId != 0L) {
-            // Групи — залишаємо на PHP (групи поки не мігровані на Node.js)
             viewModelScope.launch {
                 try {
-                    RetrofitClient.apiService.sendMessage(
-                        accessToken = UserSession.accessToken!!,
-                        recipientId = recipientId,
-                        text = gifUrl,
-                        messageHashId = java.util.UUID.randomUUID().toString(),
-                        replyToId = null
-                    )
-                    fetchGroupMessages()
+                    val resp = groupApi.sendGroupMessage(groupId = groupId, text = gifUrl)
+                    if (resp.apiStatus == 200) {
+                        fetchGroupMessages()
+                    } else {
+                        _error.value = resp.errorMessage ?: "Не вдалося надіслати GIF"
+                    }
                 } catch (e: Exception) {
                     _error.value = "Помилка: ${e.localizedMessage}"
                 }
@@ -1953,15 +1914,10 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getChats(
-                    accessToken = UserSession.accessToken!!,
-                    dataType = "users", // Тільки користувачі
-                    limit = 100
-                )
+                val response = nodeApi.getChats(limit = 100)
 
                 if (response.apiStatus == 200) {
-                    // Конвертуємо чати в ForwardRecipient
-                    val contacts = response.chats?.map { chat ->
+                    val contacts = response.data?.map { chat ->
                         ForwardRecipient(
                             id = chat.userId,
                             name = chat.username ?: "Користувач",
@@ -2079,21 +2035,16 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.pinGroupMessage(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId,
-                    messageId = messageId
-                )
+                val response = groupApi.pinGroupMessage(groupId = groupId, messageId = messageId)
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо дані групи
                     fetchGroupDetails(groupId)
                     onSuccess()
                     Log.d(TAG, "📌 Message $messageId pinned in group $groupId")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося закріпити повідомлення"
+                    val errorMsg = response.errorMessage ?: "Не вдалося закріпити повідомлення"
                     onError(errorMsg)
-                    Log.e(TAG, "❌ Failed to pin message: ${response.message}")
+                    Log.e(TAG, "❌ Failed to pin message: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -2117,20 +2068,16 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.unpinGroupMessage(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                val response = groupApi.unpinGroupMessage(groupId = groupId)
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо дані групи
                     fetchGroupDetails(groupId)
                     onSuccess()
                     Log.d(TAG, "📌 Message unpinned in group $groupId")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося відкріпити повідомлення"
+                    val errorMsg = response.errorMessage ?: "Не вдалося відкріпити повідомлення"
                     onError(errorMsg)
-                    Log.e(TAG, "❌ Failed to unpin message: ${response.message}")
+                    Log.e(TAG, "❌ Failed to unpin message: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -2154,20 +2101,16 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.muteGroup(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                val response = groupApi.muteGroup(groupId = groupId)
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо дані групи
                     fetchGroupDetails(groupId)
                     onSuccess()
                     Log.d(TAG, "🔕 Group $groupId muted")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося вимкнути сповіщення"
+                    val errorMsg = response.errorMessage ?: "Не вдалося вимкнути сповіщення"
                     onError(errorMsg)
-                    Log.e(TAG, "❌ Failed to mute group: ${response.message}")
+                    Log.e(TAG, "❌ Failed to mute group: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -2191,20 +2134,16 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.unmuteGroup(
-                    accessToken = UserSession.accessToken!!,
-                    groupId = groupId
-                )
+                val response = groupApi.unmuteGroup(groupId = groupId)
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо дані групи
                     fetchGroupDetails(groupId)
                     onSuccess()
                     Log.d(TAG, "🔔 Group $groupId unmuted")
                 } else {
-                    val errorMsg = response.message ?: "Не вдалося увімкнути сповіщення"
+                    val errorMsg = response.errorMessage ?: "Не вдалося увімкнути сповіщення"
                     onError(errorMsg)
-                    Log.e(TAG, "❌ Failed to unmute group: ${response.message}")
+                    Log.e(TAG, "❌ Failed to unmute group: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
                 val errorMsg = "Помилка: ${e.localizedMessage}"
@@ -2582,17 +2521,14 @@ class MessagesViewModel(application: Application) :
                     }
                     return@launch
                 }
-                // Private chat → PHP
-                val response = RetrofitClient.apiService.clearChatHistory(
-                    accessToken = UserSession.accessToken!!,
-                    userId = recipientId
-                )
+                // Private chat → Node.js
+                val response = nodeApi.clearHistory(recipientId = recipientId)
                 if (response.apiStatus == 200) {
                     _messages.value = emptyList()
                     onSuccess()
-                    Log.d(TAG, "🗑️ Chat history cleared")
+                    Log.d(TAG, "🗑️ Chat history cleared (Node.js)")
                 } else {
-                    onError(response.message ?: "Не вдалося очистити історію")
+                    onError(response.errorMessage ?: "Не вдалося очистити історію")
                 }
             } catch (e: Exception) {
                 onError("Помилка: ${e.localizedMessage}")
