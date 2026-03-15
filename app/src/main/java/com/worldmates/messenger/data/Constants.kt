@@ -70,6 +70,12 @@ object Constants {
     const val NODE_CHAT_FAV      = "api/node/chat/fav"                 // fav/unfav message
     const val NODE_CHAT_FAV_LIST = "api/node/chat/fav-list"            // get favorites
 
+    // Saved Messages (server-side bookmarks)
+    const val NODE_SAVED_SAVE   = "api/node/chat/saved/save"   // bookmark a message
+    const val NODE_SAVED_UNSAVE = "api/node/chat/saved/unsave" // remove bookmark
+    const val NODE_SAVED_LIST   = "api/node/chat/saved/list"   // fetch all saved
+    const val NODE_SAVED_CLEAR  = "api/node/chat/saved/clear"  // clear all
+
     // ==================== NODE.JS REST API (channels) ====================
     // Node.js сервер — REST-ендпоінти для каналів
     const val NODE_CHANNEL_LIST         = "api/node/channel/list"
