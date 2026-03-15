@@ -61,6 +61,7 @@ fun MessagesHeaderBar(
     canPin: Boolean = false,
     onEditSelected: () -> Unit = {},
     onPinSelected: () -> Unit = {},
+    onSaveSelected: () -> Unit = {},
     onDeleteSelected: () -> Unit = {},
     onSelectAll: () -> Unit = {},
     onCloseSelectionMode: () -> Unit = {}
@@ -149,6 +150,7 @@ fun MessagesHeaderBar(
                     canPin = canPin,
                     onEdit = onEditSelected,
                     onPin = onPinSelected,
+                    onSave = onSaveSelected,
                     onDelete = onDeleteSelected,
                     onSelectAll = onSelectAll,
                     onClose = onCloseSelectionMode

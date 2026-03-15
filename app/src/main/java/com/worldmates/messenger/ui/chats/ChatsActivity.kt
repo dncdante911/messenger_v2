@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Close
@@ -130,6 +131,9 @@ class ChatsActivity : AppCompatActivity() {
 
         // Ініціалізуємо менеджер організації чатів (папки, архів, теги)
         ChatOrganizationManager.init(this)
+
+        // Ініціалізуємо менеджер збережених повідомлень
+        com.worldmates.messenger.data.SavedMessagesManager.init(this)
 
         viewModel = ViewModelProvider(this, ChatsViewModelFactory(applicationContext)).get(ChatsViewModel::class.java)
         groupsViewModel = ViewModelProvider(this).get(com.worldmates.messenger.ui.groups.GroupsViewModel::class.java)
@@ -963,11 +967,13 @@ fun SettingsDrawerContent(
 
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.Star,
+                    icon = Icons.Default.Bookmark,
                     title = stringResource(R.string.saved_messages),
                     onClick = {
                         onClose()
-                        Toast.makeText(context, context.getString(R.string.saved_label), Toast.LENGTH_SHORT).show()
+                        context.startActivity(
+                            android.content.Intent(context, com.worldmates.messenger.ui.saved.SavedMessagesActivity::class.java)
+                        )
                     }
                 )
             }

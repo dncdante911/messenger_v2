@@ -47,6 +47,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.Constants
+import com.worldmates.messenger.data.SavedMessageItem
+import com.worldmates.messenger.data.SavedMessagesManager
 import com.worldmates.messenger.ui.media.ImageGalleryViewer
 import com.worldmates.messenger.ui.media.InlineVideoPlayer
 import com.worldmates.messenger.ui.media.MiniAudioPlayer
@@ -72,6 +74,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import com.worldmates.messenger.utils.VoiceRecorder
 import com.worldmates.messenger.utils.VoicePlayer
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // 🔥 Імпорти нових компонентів для режиму вибору повідомлень
@@ -401,14 +404,22 @@ fun MessagesScreen(
         Log.d("MessagesScreen", "==================")
     }
 
-    // Управление индикатором "печатает" с автоматическим сбросом через 2 секунды
+    // Typing indicator with debounce: sends typing=true immediately, auto-stops 3s after last keystroke
     LaunchedEffect(messageText) {
-        if (messageText.isNotBlank() && !isCurrentlyTyping) {
-            // Начали печатать
-            viewModel.sendTypingStatus(true)
-            isCurrentlyTyping = true
-        } else if (messageText.isBlank() && isCurrentlyTyping) {
-            // Очистили поле
+        if (messageText.isNotBlank()) {
+            if (!isCurrentlyTyping) {
+                viewModel.sendTypingStatus(true)
+                isCurrentlyTyping = true
+            }
+            // When messageText changes the old LaunchedEffect is cancelled, resetting this delay.
+            // If the user stops typing for 3s the delay completes and we send typing=false.
+            delay(3_000)
+            if (isCurrentlyTyping) {
+                viewModel.sendTypingStatus(false)
+                isCurrentlyTyping = false
+            }
+        } else if (isCurrentlyTyping) {
+            // Field was cleared — stop immediately
             viewModel.sendTypingStatus(false)
             isCurrentlyTyping = false
         }
@@ -788,6 +799,30 @@ fun MessagesScreen(
                             selectedMessages = emptySet()
                         }
                     }
+                },
+                onSaveSelected = {
+                    // Зберігаємо вибрані повідомлення
+                    val chatType = if (isGroup) "group" else "chat"
+                    val chatId = if (isGroup) viewModel.getGroupId() else viewModel.getRecipientId()
+                    selectedMessages.forEach { messageId ->
+                        val msg = messages.find { it.id == messageId } ?: return@forEach
+                        SavedMessagesManager.saveMessage(
+                            SavedMessageItem(
+                                messageId   = msg.id,
+                                chatType    = chatType,
+                                chatId      = chatId,
+                                chatName    = recipientName,
+                                senderName  = msg.senderName ?: "",
+                                text        = msg.decryptedText ?: msg.encryptedText ?: "",
+                                mediaUrl    = msg.mediaUrl,
+                                mediaType   = msg.mediaType ?: msg.type?.takeIf { it != "text" },
+                                originalTime = msg.timeStamp
+                            )
+                        )
+                    }
+                    android.widget.Toast.makeText(context, context.getString(R.string.saved_toast, selectedMessages.size), android.widget.Toast.LENGTH_SHORT).show()
+                    isSelectionMode = false
+                    selectedMessages = emptySet()
                 },
                 onDeleteSelected = {
                     // Видаляємо вибрані повідомлення

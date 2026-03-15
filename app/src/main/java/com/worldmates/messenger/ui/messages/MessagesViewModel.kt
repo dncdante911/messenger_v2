@@ -21,6 +21,8 @@ import com.worldmates.messenger.utils.DecryptionUtility
 import com.worldmates.messenger.utils.signal.SignalEncryptionService
 import com.worldmates.messenger.utils.signal.SignalGroupEncryptionService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -109,6 +111,10 @@ class MessagesViewModel(application: Application) :
     // Internal flags used to restore the base status after a transient action ends
     private var presenceIsOnline = false
     private var presenceLastSeenTs = 0L
+
+    // Auto-reset jobs for typing indicators (cancels stale "typing" state if stop-event is missed)
+    private var typingAutoResetJob: Job? = null
+    private var groupTypingAutoResetJob: Job? = null
 
     private fun basePresenceStatus(): UserPresenceStatus = when {
         presenceIsOnline -> UserPresenceStatus.Online
@@ -1471,8 +1477,20 @@ class MessagesViewModel(application: Application) :
     override fun onTypingStatus(userId: Long?, isTyping: Boolean) {
         // Private chat: check userId == recipientId
         if (groupId == 0L && userId == recipientId) {
-            _presenceStatus.value = if (isTyping) UserPresenceStatus.Typing else basePresenceStatus()
-            if (isTyping) presenceIsOnline = true
+            typingAutoResetJob?.cancel()
+            if (isTyping) {
+                presenceIsOnline = true
+                _presenceStatus.value = UserPresenceStatus.Typing
+                // Auto-reset after 6s in case the stop-event is lost on the network
+                typingAutoResetJob = viewModelScope.launch {
+                    delay(6_000)
+                    if (_presenceStatus.value is UserPresenceStatus.Typing) {
+                        _presenceStatus.value = basePresenceStatus()
+                    }
+                }
+            } else {
+                _presenceStatus.value = basePresenceStatus()
+            }
             Log.d("MessagesViewModel", "Користувач $userId ${if (isTyping) "набирає" else "зупинив набір"}")
         }
     }
@@ -1480,9 +1498,17 @@ class MessagesViewModel(application: Application) :
     override fun onGroupTyping(groupId: Long, userId: Long, isTyping: Boolean) {
         if (this.groupId != groupId) return
         if (userId == UserSession.userId) return  // ignore own typing
+        groupTypingAutoResetJob?.cancel()
         if (isTyping) {
             val memberName = _currentGroup.value?.members?.find { it.userId == userId }?.username ?: "Хтось"
             _presenceStatus.value = UserPresenceStatus.GroupTyping(memberName)
+            // Auto-reset after 6s in case the stop-event is lost on the network
+            groupTypingAutoResetJob = viewModelScope.launch {
+                delay(6_000)
+                if (_presenceStatus.value is UserPresenceStatus.GroupTyping) {
+                    _presenceStatus.value = UserPresenceStatus.Online
+                }
+            }
         } else {
             _presenceStatus.value = UserPresenceStatus.Online
         }

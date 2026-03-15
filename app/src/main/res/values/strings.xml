@@ -164,6 +164,19 @@
     <string name="favorites">Вибране</string>
     <string name="filter">Фільтр</string>
     <string name="saved_messages">Збережені повідомлення</string>
+    <string name="saved_messages_count">%d збережено</string>
+    <string name="saved_messages_empty">Немає збережених повідомлень</string>
+    <string name="saved_messages_empty_hint">Виберіть повідомлення та натисніть 🔖 щоб зберегти</string>
+    <string name="saved_remove">Видалити зі збережених</string>
+    <string name="saved_clear_all">Очистити всі збережені</string>
+    <string name="saved_clear_confirm">Видалити всі збережені повідомлення?</string>
+    <string name="saved_toast">Збережено %d повідомлень</string>
+    <string name="save_message">Зберегти</string>
+    <string name="media_type_photo">Фото</string>
+    <string name="media_type_video">Відео</string>
+    <string name="media_type_voice">Голосове</string>
+    <string name="media_type_audio">Аудіо</string>
+    <string name="media_type_file">Файл</string>
     <string name="geo_discovery_title">Люди поруч</string>
 
     <!-- ===== ЛЮДИ ПОРУЧ (GeoDiscovery) ===== -->
@@ -402,6 +415,10 @@
     <string name="hashtag_syntax">#тег для категоризації</string>
     <string name="link_syntax">[текст](url) або автоматичні URL</string>
     <string name="spoiler_syntax">||прихований текст||</string>
+    <string name="spoiler_hint">Спойлер • Натисніть, щоб показати</string>
+    <string name="spoiler_cd">Спойлер</string>
+    <string name="spoiler_revealed_cd">Показано</string>
+    <string name="spoiler_label">Спойлер</string>
     <string name="text_formatting">Форматування тексту</string>
     <string name="configure_allowed_features">Налаштувати дозволені функції</string>
 

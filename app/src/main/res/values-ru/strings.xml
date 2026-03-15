@@ -164,6 +164,19 @@
     <string name="favorites">Избранное</string>
     <string name="filter">Фильтр</string>
     <string name="saved_messages">Сохранённые сообщения</string>
+    <string name="saved_messages_count">%d сохранено</string>
+    <string name="saved_messages_empty">Нет сохранённых сообщений</string>
+    <string name="saved_messages_empty_hint">Выберите сообщение и нажмите 🔖 чтобы сохранить</string>
+    <string name="saved_remove">Удалить из сохранённых</string>
+    <string name="saved_clear_all">Очистить все сохранённые</string>
+    <string name="saved_clear_confirm">Удалить все сохранённые сообщения?</string>
+    <string name="saved_toast">Сохранено %d сообщений</string>
+    <string name="save_message">Сохранить</string>
+    <string name="media_type_photo">Фото</string>
+    <string name="media_type_video">Видео</string>
+    <string name="media_type_voice">Голосовое</string>
+    <string name="media_type_audio">Аудио</string>
+    <string name="media_type_file">Файл</string>
     <string name="geo_discovery_title">Люди рядом</string>
     <string name="premium_title">WorldMates PRO</string>
     <string name="invite_friends">Пригласить друзей</string>
@@ -379,6 +392,10 @@
     <string name="hashtag_syntax">#тег для категоризации</string>
     <string name="link_syntax">[текст](url) или автоматические URL</string>
     <string name="spoiler_syntax">||скрытый текст||</string>
+    <string name="spoiler_hint">Спойлер • Нажмите, чтобы показать</string>
+    <string name="spoiler_cd">Спойлер</string>
+    <string name="spoiler_revealed_cd">Показано</string>
+    <string name="spoiler_label">Спойлер</string>
     <string name="text_formatting">Форматирование текста</string>
     <string name="configure_allowed_features">Настроить разрешённые функции</string>
 

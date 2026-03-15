@@ -159,6 +159,14 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:parentActivityName=".ui.chats.ChatsActivity" />
 
+        <!-- Saved Messages Activity -->
+        <activity
+            android:name=".ui.saved.SavedMessagesActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.chats.ChatsActivity" />
+
         <!-- Bot Store Activity -->
         <activity
             android:name=".ui.bots.BotStoreActivity"
