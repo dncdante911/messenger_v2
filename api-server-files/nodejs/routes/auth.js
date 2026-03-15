@@ -1,28 +1,33 @@
 'use strict';
 
 /**
- * Auth REST API — password reset + quick registration with email OTP.
+ * Auth REST API — login, logout, password reset, quick registration.
  *
  * Endpoints (no access-token required — pre-login):
- *   POST /api/node/auth/request-password-reset  { email?, phone_number? }
- *   POST /api/node/auth/reset-password           { email?, phone_number?, code, new_password }
- *   POST /api/node/auth/quick-register           { email?, phone_number? }
- *   POST /api/node/auth/quick-verify             { email?, phone_number?, code }
+ *   POST /api/node/auth/login                 { username, password }
+ *   POST /api/node/auth/logout                { } + header access-token
+ *   POST /api/node/auth/request-password-reset { email?, phone_number? }
+ *   POST /api/node/auth/reset-password         { email?, phone_number?, code, new_password }
+ *   POST /api/node/auth/quick-register         { email?, phone_number? }
+ *   POST /api/node/auth/quick-verify           { email?, phone_number?, code }
+ *
+ * Password hashing: bcrypt (PHP PASSWORD_DEFAULT) with MD5/SHA1 legacy fallback.
+ * On login with a legacy hash the password is automatically re-hashed to bcrypt.
  *
  * Email: SMTP support@worldmates.club, port 465 SSL.
- * mail.sthost.pro resolves to the server's own external IPs on this host,
- * so we attempt a cascade of SMTP endpoints (localhost first).
  * OTP:  6-digit, 10-minute TTL, stored in Redis (survives PM2 restarts).
  */
 
 const nodemailer = require('nodemailer');
+const bcrypt     = require('bcryptjs');   // pure-JS, handles PHP $2y$ hashes too
 const md5        = require('md5');
 const crypto     = require('crypto');
 const redis      = require('redis');
 
+const BCRYPT_ROUNDS = 10;
+
 // ─── Redis OTP client ──────────────────────────────────────────────────────────
 // Окремий клієнт тільки для OTP — не заважає pub/sub клієнту в listeners.js.
-// Підключається до того самого Redis що й основний сервер.
 const _redisPass = process.env.REDIS_PASSWORD || '';
 const otpRedis = redis.createClient({
     socket: { host: '127.0.0.1', port: 6379 },
@@ -39,28 +44,16 @@ const OTP_TTL_SECONDS = 10 * 60;   // 10 хвилин
 const OTP_KEY_PREFIX  = 'wm:otp:'; // namespace key
 
 // ─── SMTP — cascading hosts ────────────────────────────────────────────────────
-// mail.sthost.pro DNS resolves to the server's own external IPs (195.22.131.11,
-// 46.232.232.38). Hairpin NAT is blocked ⇒ we try localhost/127.0.0.1 first,
-// then fall back to the external hostname if the mail daemon is reachable.
-//
-// Credentials are read from environment variables.
-// Set in /etc/environment or pm2 ecosystem.config.js:
-//   SMTP_USER=support@worldmates.club
-//   SMTP_PASS=<password>
-
 const SMTP_AUTH = {
     user: process.env.SMTP_USER || 'support@worldmates.club',
     pass: process.env.SMTP_PASS || '',
 };
 
 const SMTP_CANDIDATES = [
-    // Same machine: connect directly to the local SMTP daemon
     { host: 'localhost',       port: 465, secure: true  },
     { host: '127.0.0.1',      port: 465, secure: true  },
-    // Some servers expose STARTTLS on 587 from localhost
     { host: 'localhost',       port: 587, secure: false },
     { host: '127.0.0.1',      port: 587, secure: false },
-    // External hostname last — works if hairpin NAT is allowed
     { host: 'mail.sthost.pro', port: 465, secure: true  },
 ];
 
@@ -78,7 +71,6 @@ async function sendEmail(to, subject, html) {
                 socketTimeout:     10000
             });
 
-            // Quick SMTP handshake verification before sending
             await transporter.verify();
 
             await transporter.sendMail({
@@ -89,14 +81,13 @@ async function sendEmail(to, subject, html) {
             });
 
             console.log(`[SMTP] Sent to ${to} via ${candidate.host}:${candidate.port}`);
-            return; // success — exit cascade
+            return;
         } catch (err) {
             console.warn(`[SMTP] ${candidate.host}:${candidate.port} failed: ${err.message}`);
             lastError = err;
         }
     }
 
-    // All candidates failed
     throw new Error(`SMTP delivery failed after ${SMTP_CANDIDATES.length} attempts. Last: ${lastError.message}`);
 }
 
@@ -136,10 +127,6 @@ function codeBlock(code) {
 }
 
 // ─── OTP store (Redis) ────────────────────────────────────────────────────────
-// Формат ключа: wm:otp:{type}:{contact}
-// Значення: JSON { code, userId, isNew, attempts }
-// TTL: OTP_TTL_SECONDS секунд (встановлюється при SET, оновлюється при кожній
-//       невдалій спробі щоб не дати часу на brute-force).
 
 const OTP_MAX_ATTEMPTS = 5;
 
@@ -150,7 +137,6 @@ function otpRedisKey(type, contact) {
 async function storeOtp(type, contact, code, extra = {}) {
     const key  = otpRedisKey(type, contact);
     const data = JSON.stringify({ code: String(code), attempts: 0, ...extra });
-    // SET key value EX ttl — атомарна операція, TTL скидається при кожному новому запиті
     await otpRedis.set(key, data, { EX: OTP_TTL_SECONDS });
 }
 
@@ -170,12 +156,10 @@ async function checkOtp(type, contact, code) {
 
     if (entry.code !== String(code).trim()) {
         entry.attempts += 1;
-        // Зберігаємо оновлену кількість спроб; TTL залишаємо без змін (KEEPTTL)
         await otpRedis.set(key, JSON.stringify(entry), { KEEPTTL: true });
         return { ok: false, reason: 'invalid', attemptsLeft: OTP_MAX_ATTEMPTS - entry.attempts };
     }
 
-    // Код правильний — видаляємо ключ
     await otpRedis.del(key);
     return { ok: true, entry };
 }
@@ -192,8 +176,46 @@ function generateToken() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-function hashPassword(pw) {
-    return md5(pw);
+/**
+ * Hash a new password using bcrypt — mirrors PHP password_hash($pw, PASSWORD_DEFAULT).
+ * Always produces a $2b$ bcrypt hash (60 chars), compatible with PHP's $2y$ variant.
+ */
+async function hashPassword(pw) {
+    return bcrypt.hash(pw, BCRYPT_ROUNDS);
+}
+
+/**
+ * Verify a plaintext password against a stored hash.
+ * Supports:
+ *   - bcrypt   ($2y$ or $2b$, 60 chars) — modern, used by PHP password_hash()
+ *   - sha1     (40 hex chars)           — legacy WoWonder
+ *   - md5      (32 hex chars)           — oldest legacy WoWonder
+ *
+ * Returns: { ok: boolean, needsUpgrade: boolean }
+ * needsUpgrade = true when the hash was legacy (md5/sha1) and caller should re-hash to bcrypt.
+ */
+async function verifyPassword(plaintext, storedHash) {
+    if (!plaintext || !storedHash) return { ok: false, needsUpgrade: false };
+
+    // bcrypt hash — $2y$ (PHP) or $2b$ (Node) prefix, 60 chars
+    if (/^\$2[aby]\$/.test(storedHash)) {
+        const ok = await bcrypt.compare(plaintext, storedHash);
+        return { ok, needsUpgrade: false };
+    }
+
+    // sha1 — 40 hex chars
+    if (/^[0-9a-f]{40}$/i.test(storedHash)) {
+        const ok = crypto.createHash('sha1').update(plaintext).digest('hex') === storedHash.toLowerCase();
+        return { ok, needsUpgrade: ok };
+    }
+
+    // md5 — 32 hex chars
+    if (/^[0-9a-f]{32}$/i.test(storedHash)) {
+        const ok = md5(plaintext) === storedHash.toLowerCase();
+        return { ok, needsUpgrade: ok };
+    }
+
+    return { ok: false, needsUpgrade: false };
 }
 
 // Bypass Sequelize defaultScope (which excludes 'password', 'email_code')
@@ -207,6 +229,154 @@ function findUserByPhone(ctx, phone) {
 
 function findUserById(ctx, id) {
     return ctx.wo_users.findOne({ where: { user_id: id } });
+}
+
+/**
+ * Find user by username, email, or phone — mirrors PHP's Wo_Login() lookup.
+ * Uses .unscoped() to include the password column.
+ */
+function findUserByLogin(ctx, login) {
+    const { Op } = require('sequelize');
+    return ctx.wo_users.unscoped().findOne({
+        where: {
+            [Op.or]: [
+                { username:     login },
+                { email:        login },
+                { phone_number: login },
+            ]
+        }
+    });
+}
+
+async function createSession(ctx, userId, platform = 'phone', details = '') {
+    const token = generateToken();
+    const now   = Math.floor(Date.now() / 1000);
+
+    await ctx.wo_appssessions.create({
+        user_id:          userId,
+        session_id:       token,
+        platform,
+        platform_details: details,
+        time:             now
+    });
+
+    return token;
+}
+
+// ─── POST /api/node/auth/login ────────────────────────────────────────────────
+// Повний аналог PHP ?type=auth — вхід за логіном/email/телефоном + паролем.
+// Підтримує bcrypt (сучасний) та md5/sha1 (legacy) з авто-апгрейдом хешу.
+
+function login(ctx) {
+    return async (req, res) => {
+        const login    = (req.body.username || req.body.email || '').trim();
+        const password = (req.body.password || '').trim();
+        const platform = (req.body.device_type || req.body.platform || 'phone').trim();
+
+        if (!login || !password) {
+            return res.json({ api_status: 400, error_id: '3', error_message: 'Missing username or password' });
+        }
+
+        try {
+            const user = await findUserByLogin(ctx, login);
+
+            if (!user) {
+                return res.json({ api_status: 400, error_id: '4', error_message: 'Username/email not found' });
+            }
+
+            // Перевірка блокування — active: '0' = заблокований/не активований
+            if (user.active === '0') {
+                return res.json({ api_status: 400, error_id: '7', error_message: 'Account is not active or has been banned' });
+            }
+
+            const { ok, needsUpgrade } = await verifyPassword(password, user.password);
+
+            if (!ok) {
+                return res.json({ api_status: 400, error_id: '5', error_message: 'Incorrect password' });
+            }
+
+            // Авто-апгрейд застарілого хешу (md5/sha1) → bcrypt, як у PHP Wo_Login()
+            if (needsUpgrade) {
+                try {
+                    const newHash = await hashPassword(password);
+                    await ctx.wo_users.unscoped().update(
+                        { password: newHash },
+                        { where: { user_id: user.user_id } }
+                    );
+                    console.log(`[Auth] Password hash upgraded to bcrypt for user ${user.user_id}`);
+                } catch (upgradeErr) {
+                    // Некритично — вхід все одно успішний
+                    console.warn(`[Auth] Hash upgrade failed for user ${user.user_id}: ${upgradeErr.message}`);
+                }
+            }
+
+            const token = await createSession(ctx, user.user_id, platform, 'login');
+
+            // Оновлення lastseen
+            ctx.wo_users.update(
+                { lastseen: Math.floor(Date.now() / 1000) },
+                { where: { user_id: user.user_id } }
+            ).catch(() => {});
+
+            console.log(`[Auth] Login OK: user ${user.user_id} (${user.username})`);
+
+            return res.json({
+                api_status:    200,
+                access_token:  token,
+                user_id:       user.user_id,
+                username:      user.username,
+                first_name:    user.first_name,
+                last_name:     user.last_name,
+                avatar:        user.avatar,
+                cover:         user.cover,
+                email:         user.email,
+                phone_number:  user.phone_number,
+                verified:      user.verified,
+                is_pro:        user.is_pro,
+                user_platform: platform,
+            });
+
+        } catch (err) {
+            console.error('[Auth/login]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── POST /api/node/auth/logout ───────────────────────────────────────────────
+// Видаляє поточну сесію з Wo_AppsSessions.
+// Токен береться з заголовку access-token або тіла запиту.
+
+function logout(ctx) {
+    return async (req, res) => {
+        const token = (
+            req.headers['access-token'] ||
+            req.body.access_token        ||
+            req.query.access_token       ||
+            ''
+        ).trim();
+
+        if (!token) {
+            return res.json({ api_status: 400, error_message: 'No access token provided' });
+        }
+
+        try {
+            const deleted = await ctx.wo_appssessions.destroy({
+                where: { session_id: token }
+            });
+
+            if (deleted === 0) {
+                return res.json({ api_status: 400, error_message: 'Session not found or already expired' });
+            }
+
+            console.log(`[Auth] Logout: session deleted`);
+            return res.json({ api_status: 200, message: 'Logged out successfully' });
+
+        } catch (err) {
+            console.error('[Auth/logout]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
 }
 
 // ─── POST /api/node/auth/request-password-reset ───────────────────────────────
@@ -229,8 +399,8 @@ function requestPasswordReset(ctx) {
                 return res.json({ api_status: 400, error_message: 'Акаунт з таким email/телефоном не знайдено' });
             }
 
-            const code       = generateCode(6);
-            const contact    = email || phone;
+            const code        = generateCode(6);
+            const contact     = email || phone;
             const targetEmail = email || user.email;
 
             await storeOtp('reset', contact, code, { userId: user.user_id });
@@ -288,10 +458,11 @@ function resetPassword(ctx) {
         }
 
         try {
-            // Use .unscoped() so the defaultScope (which may exclude 'password')
-            // does not silently skip the column in the UPDATE statement.
+            // Хешуємо bcrypt — як PHP password_hash($password, PASSWORD_DEFAULT)
+            const newHash = await hashPassword(newPass);
+
             const [affectedRows] = await ctx.wo_users.unscoped().update(
-                { password: hashPassword(newPass) },
+                { password: newHash },
                 { where: { user_id: result.entry.userId } }
             );
 
@@ -300,17 +471,15 @@ function resetPassword(ctx) {
                 return res.json({ api_status: 500, error_message: 'Не вдалося оновити пароль. Спробуйте ще раз.' });
             }
 
-            console.log(`[Auth] Password changed for user ${result.entry.userId} (${affectedRows} row updated)`);
+            console.log(`[Auth] Password changed for user ${result.entry.userId}`);
 
-            // Invalidate all existing sessions so old tokens stop working immediately.
-            // This is standard security practice after a password change.
+            // Анулюємо всі сесії — стандартна практика після зміни пароля
             try {
                 const deletedSessions = await ctx.wo_appssessions.destroy({
                     where: { user_id: result.entry.userId }
                 });
                 console.log(`[Auth] Invalidated ${deletedSessions} session(s) for user ${result.entry.userId}`);
             } catch (sessionErr) {
-                // Non-fatal: old sessions will expire naturally; log but don't fail the reset.
                 console.warn(`[Auth] Could not invalidate sessions: ${sessionErr.message}`);
             }
 
@@ -342,7 +511,7 @@ function quickRegister(ctx) {
                 user = await findUserByEmail(ctx, email);
 
                 if (!user) {
-                    // ── Create new account ───────────────────────────────────
+                    // Генерація унікального username
                     let username;
                     for (let i = 0; i < 10; i++) {
                         const candidate = 'user_' + crypto.randomInt(100000, 999999).toString();
@@ -356,10 +525,13 @@ function quickRegister(ctx) {
                         .substring(0, 20) || 'User';
                     const now = Math.floor(Date.now() / 1000);
 
+                    // Тимчасовий пароль — bcrypt, як PHP Wo_RegisterUser()
+                    const tempPassword = await hashPassword(generateToken().slice(0, 16));
+
                     user = await ctx.wo_users.create({
                         username,
                         email,
-                        password:  hashPassword(generateToken().slice(0, 16)),
+                        password:   tempPassword,
                         first_name: displayName,
                         last_name:  '',
                         lastseen:   now,
@@ -372,7 +544,7 @@ function quickRegister(ctx) {
                 }
 
             } else {
-                // Phone — only for existing users (no SMS gateway yet)
+                // Телефон — тільки для існуючих акаунтів
                 user = await findUserByPhone(ctx, phone);
                 if (!user) {
                     return res.json({
@@ -450,18 +622,9 @@ function quickVerify(ctx) {
                 return res.json({ api_status: 400, error_message: 'Акаунт не знайдено' });
             }
 
-            const token = generateToken();
-            const now   = Math.floor(Date.now() / 1000);
+            const token = await createSession(ctx, user.user_id, 'phone', 'quick-auth');
 
-            await ctx.wo_appssessions.create({
-                user_id:          user.user_id,
-                session_id:       token,
-                platform:         'phone',
-                platform_details: 'quick-auth',
-                time:             now
-            });
-
-            console.log(`[Auth] Session created for user ${user.user_id}`);
+            console.log(`[Auth] Quick-auth session created for user ${user.user_id}`);
             return res.json({
                 api_status:   200,
                 access_token: token,
@@ -481,13 +644,16 @@ function quickVerify(ctx) {
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 function registerAuthRoutes(app, ctx) {
-    // No auth middleware — these endpoints are for unauthenticated users
+    app.post('/api/node/auth/login',                  login(ctx));
+    app.post('/api/node/auth/logout',                 logout(ctx));
     app.post('/api/node/auth/request-password-reset', requestPasswordReset(ctx));
     app.post('/api/node/auth/reset-password',         resetPassword(ctx));
     app.post('/api/node/auth/quick-register',         quickRegister(ctx));
     app.post('/api/node/auth/quick-verify',           quickVerify(ctx));
 
     console.log('[Auth API] Registered:');
+    console.log('  POST /api/node/auth/login');
+    console.log('  POST /api/node/auth/logout');
     console.log('  POST /api/node/auth/request-password-reset');
     console.log('  POST /api/node/auth/reset-password');
     console.log('  POST /api/node/auth/quick-register');
