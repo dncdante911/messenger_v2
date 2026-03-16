@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.Constants
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Message
@@ -902,19 +903,21 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = if (groupId != 0L) {
-                    groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = stickerUrl)
+                val (apiStatus, errorMessage) = if (groupId != 0L) {
+                    val r = groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = stickerUrl)
+                    r.apiStatus to r.errorMessage
                 } else {
-                    nodeApi.sendMessage(recipientId = recipientId, text = "", stickers = stickerUrl)
+                    val r = nodeApi.sendMessage(recipientId = recipientId, text = "", stickers = stickerUrl)
+                    r.apiStatus to r.errorMessage
                 }
 
-                if (response.apiStatus == 200) {
+                if (apiStatus == 200) {
                     if (groupId != 0L) fetchGroupMessages() else fetchMessages()
                     _error.value = null
                     Log.d("MessagesViewModel", "Стікер надіслано via Node.js")
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося надіслати стікер"
-                    Log.e("MessagesViewModel", "Send Sticker Error: ${response.errorMessage}")
+                    _error.value = errorMessage ?: getApplication<Application>().getString(R.string.error_send_sticker)
+                    Log.e("MessagesViewModel", "Send Sticker Error: $errorMessage")
                 }
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"

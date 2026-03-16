@@ -1,8 +1,10 @@
 package com.worldmates.messenger.ui.verification
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.delay
@@ -10,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class VerificationViewModel : ViewModel() {
+class VerificationViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _verificationState = MutableStateFlow<VerificationState>(VerificationState.Idle)
     val verificationState: StateFlow<VerificationState> = _verificationState
@@ -48,12 +50,12 @@ class VerificationViewModel : ViewModel() {
                     Log.d("VerificationVM", "Код успішно надіслано на $contactInfo")
                     startResendTimer()
                 } else {
-                    val errorMsg = response.errors ?: response.message ?: "Помилка відправки коду"
+                    val errorMsg = response.errors ?: response.message ?: getApplication<Application>().getString(R.string.error_send_code)
                     _verificationState.value = VerificationState.Error(errorMsg)
                     Log.e("VerificationVM", "Помилка: $errorMsg")
                 }
             } catch (e: Exception) {
-                _verificationState.value = VerificationState.Error("Помилка мережі: ${e.localizedMessage}")
+                _verificationState.value = VerificationState.Error(getApplication<Application>().getString(R.string.geo_network_error, e.localizedMessage ?: ""))
                 Log.e("VerificationVM", "Помилка відправки коду", e)
             }
         }
@@ -69,7 +71,7 @@ class VerificationViewModel : ViewModel() {
         username: String? = null
     ) {
         if (code.length != 6) {
-            _verificationState.value = VerificationState.Error("Код має містити 6 цифр")
+            _verificationState.value = VerificationState.Error(getApplication<Application>().getString(R.string.code_must_be_6_digits))
             return
         }
 
@@ -96,18 +98,18 @@ class VerificationViewModel : ViewModel() {
                         Log.d("VerificationVM", "Верифікацію завершено, user ${response.userId}")
                     }
                     response.apiStatus == 400 -> {
-                        val errorMsg = response.errors ?: response.message ?: "Невірний код"
+                        val errorMsg = response.errors ?: response.message ?: getApplication<Application>().getString(R.string.invalid_code_error)
                         _verificationState.value = VerificationState.Error(errorMsg)
                         Log.e("VerificationVM", "Помилка верифікації: $errorMsg")
                     }
                     else -> {
-                        val errorMsg = response.errors ?: response.message ?: "Невідома помилка"
+                        val errorMsg = response.errors ?: response.message ?: getApplication<Application>().getString(R.string.unknown_error)
                         _verificationState.value = VerificationState.Error(errorMsg)
                         Log.e("VerificationVM", "Помилка ${response.apiStatus}: $errorMsg")
                     }
                 }
             } catch (e: Exception) {
-                _verificationState.value = VerificationState.Error("Помилка мережі: ${e.localizedMessage}")
+                _verificationState.value = VerificationState.Error(getApplication<Application>().getString(R.string.geo_network_error, e.localizedMessage ?: ""))
                 Log.e("VerificationVM", "Помилка верифікації", e)
             }
         }
@@ -139,12 +141,12 @@ class VerificationViewModel : ViewModel() {
                     Log.d("VerificationVM", "Код надіслано повторно")
                     startResendTimer()
                 } else {
-                    val errorMsg = response.errors ?: response.message ?: "Помилка відправки коду"
+                    val errorMsg = response.errors ?: response.message ?: getApplication<Application>().getString(R.string.error_send_code)
                     _verificationState.value = VerificationState.Error(errorMsg)
                     Log.e("VerificationVM", "Помилка: $errorMsg")
                 }
             } catch (e: Exception) {
-                _verificationState.value = VerificationState.Error("Помилка мережі: ${e.localizedMessage}")
+                _verificationState.value = VerificationState.Error(getApplication<Application>().getString(R.string.geo_network_error, e.localizedMessage ?: ""))
                 Log.e("VerificationVM", "Помилка повторної відправки коду", e)
             }
         }
