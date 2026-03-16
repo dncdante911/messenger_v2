@@ -5,7 +5,14 @@ import com.worldmates.messenger.data.Constants
 import com.worldmates.messenger.data.model.BackupStatisticsResponse
 import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.data.model.CloudBackupSettingsResponse
+import com.worldmates.messenger.data.model.EmojiPackDetailResponse
+import com.worldmates.messenger.data.model.EmojiPacksResponse
+import com.worldmates.messenger.data.model.ExportDataResponse
+import com.worldmates.messenger.data.model.ImportDataResponse
+import com.worldmates.messenger.data.model.ListBackupsResponse
 import com.worldmates.messenger.data.model.Message
+import com.worldmates.messenger.data.model.StickerPackDetailResponse
+import com.worldmates.messenger.data.model.StickerPacksResponse
 import com.worldmates.messenger.data.model.UpdateCloudBackupSettingsResponse
 import com.worldmates.messenger.data.model.UserAvatar
 import com.worldmates.messenger.data.model.UserAvatarListResponse
@@ -795,6 +802,73 @@ interface NodeApi {
     /** Get backup statistics (replaces PHP get-backup-statistics.php). */
     @POST(Constants.NODE_BACKUP_STATISTICS)
     suspend fun getBackupStatistics(): BackupStatisticsResponse
+
+    /** Export all user data as a JSON backup. */
+    @GET("api/node/backup/export")
+    suspend fun exportUserData(): ExportDataResponse
+
+    /** List server-side backup files for the user. */
+    @GET("api/node/backup/list")
+    suspend fun listBackups(): ListBackupsResponse
+
+    /** Import a JSON backup and restore messages. */
+    @FormUrlEncoded
+    @POST("api/node/backup/import")
+    suspend fun importUserData(
+        @Field("backup_data") backupData: String
+    ): ImportDataResponse
+
+    // ═══════════════════════ STICKERS ════════════════════════════════════════
+
+    /** List all sticker packs. */
+    @GET("api/node/stickers")
+    suspend fun getStickerPacks(): StickerPacksResponse
+
+    /** Get a specific sticker pack with all stickers. */
+    @GET("api/node/stickers/{packId}")
+    suspend fun getStickerPack(
+        @Path("packId") packId: Long
+    ): StickerPackDetailResponse
+
+    /** Activate a sticker pack for the current user. */
+    @FormUrlEncoded
+    @POST("api/node/stickers/{packId}/activate")
+    suspend fun activateStickerPack(
+        @Path("packId") packId: Long
+    ): StickerPackDetailResponse
+
+    /** Deactivate a sticker pack for the current user. */
+    @FormUrlEncoded
+    @POST("api/node/stickers/{packId}/deactivate")
+    suspend fun deactivateStickerPack(
+        @Path("packId") packId: Long
+    ): StickerPackDetailResponse
+
+    // ═══════════════════════ EMOJI PACKS ═════════════════════════════════════
+
+    /** List all custom emoji packs. */
+    @GET("api/node/emoji")
+    suspend fun getEmojiPacks(): EmojiPacksResponse
+
+    /** Get a specific emoji pack. */
+    @GET("api/node/emoji/{packId}")
+    suspend fun getEmojiPack(
+        @Path("packId") packId: Long
+    ): EmojiPackDetailResponse
+
+    /** Activate an emoji pack. */
+    @FormUrlEncoded
+    @POST("api/node/emoji/{packId}/activate")
+    suspend fun activateEmojiPack(
+        @Path("packId") packId: Long
+    ): EmojiPackDetailResponse
+
+    /** Deactivate an emoji pack. */
+    @FormUrlEncoded
+    @POST("api/node/emoji/{packId}/deactivate")
+    suspend fun deactivateEmojiPack(
+        @Path("packId") packId: Long
+    ): EmojiPackDetailResponse
 
     // ═══════════════════════ APP UPDATE ══════════════════════════════════════
 

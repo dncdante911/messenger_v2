@@ -7,8 +7,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.worldmates.messenger.data.model.CustomEmoji
 import com.worldmates.messenger.data.model.EmojiPack
-import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -19,6 +18,7 @@ class EmojiRepository(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("emoji_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
+    private val api  = NodeRetrofitClient.api
 
     private val _customEmojis = MutableStateFlow<List<CustomEmoji>>(emptyList())
     val customEmojis: StateFlow<List<CustomEmoji>> = _customEmojis
@@ -36,13 +36,7 @@ class EmojiRepository(context: Context) {
      */
     suspend fun fetchEmojiPacks(): Result<List<EmojiPack>> {
         return try {
-            if (UserSession.accessToken == null) {
-                return Result.failure(Exception("Не авторизовано"))
-            }
-
-            val response = RetrofitClient.apiService.getEmojiPacks(
-                accessToken = UserSession.accessToken!!
-            )
+            val response = api.getEmojiPacks()
 
             if (response.apiStatus == 200 && response.packs != null) {
                 _emojiPacks.value = response.packs
@@ -63,14 +57,7 @@ class EmojiRepository(context: Context) {
      */
     suspend fun fetchEmojiPack(packId: Long): Result<EmojiPack> {
         return try {
-            if (UserSession.accessToken == null) {
-                return Result.failure(Exception("Не авторизовано"))
-            }
-
-            val response = RetrofitClient.apiService.getEmojiPack(
-                accessToken = UserSession.accessToken!!,
-                packId = packId
-            )
+            val response = api.getEmojiPack(packId)
 
             if (response.apiStatus == 200 && response.pack != null) {
                 updateEmojiPackInList(response.pack)
@@ -89,14 +76,7 @@ class EmojiRepository(context: Context) {
      */
     suspend fun activateEmojiPack(packId: Long): Result<EmojiPack> {
         return try {
-            if (UserSession.accessToken == null) {
-                return Result.failure(Exception("Не авторизовано"))
-            }
-
-            val response = RetrofitClient.apiService.activateEmojiPack(
-                accessToken = UserSession.accessToken!!,
-                packId = packId
-            )
+            val response = api.activateEmojiPack(packId)
 
             if (response.apiStatus == 200 && response.pack != null) {
                 updateEmojiPackInList(response.pack)
@@ -117,14 +97,7 @@ class EmojiRepository(context: Context) {
      */
     suspend fun deactivateEmojiPack(packId: Long): Result<EmojiPack> {
         return try {
-            if (UserSession.accessToken == null) {
-                return Result.failure(Exception("Не авторизовано"))
-            }
-
-            val response = RetrofitClient.apiService.deactivateEmojiPack(
-                accessToken = UserSession.accessToken!!,
-                packId = packId
-            )
+            val response = api.deactivateEmojiPack(packId)
 
             if (response.apiStatus == 200 && response.pack != null) {
                 updateEmojiPackInList(response.pack)
