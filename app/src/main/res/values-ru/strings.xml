@@ -2254,4 +2254,7 @@
     <string name="header_style_minimal">Минималист</string>
     <string name="header_style_pattern">Узор</string>
 
+    <!-- ===== E2EE ===== -->
+    <string name="encrypted_message">🔒 Зашифрованное сообщение</string>
+
 </resources>

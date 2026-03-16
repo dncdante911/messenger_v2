@@ -1811,7 +1811,7 @@ class MessagesViewModel(application: Application) :
 
         if (header == null || ciphertext.isNullOrEmpty() || iv == null || tag == null) {
             Log.w(TAG, "⚠️ [Signal/Group] msg $msgId missing fields")
-            return msg.copy(decryptedText = "🔐 [Signal повідомлення]")
+            return msg.copy(decryptedText = getApplication<Application>().getString(R.string.encrypted_message))
         }
 
         // Якщо SenderKey не знайдено — пробуємо завантажити distributions
@@ -1835,7 +1835,7 @@ class MessagesViewModel(application: Application) :
             msg.copy(decryptedText = plainText)
         } else {
             Log.e(TAG, "❌ [Signal/Group] msg $msgId — розшифровка не вдалася (SenderKey відсутній або лічильник розійшовся)")
-            msg.copy(decryptedText = "🔐 [Не вдалося розшифрувати]")
+            msg.copy(decryptedText = getApplication<Application>().getString(R.string.encrypted_message))
         }
     }
 
@@ -1859,7 +1859,7 @@ class MessagesViewModel(application: Application) :
         if (signalHeader == null || ciphertext.isNullOrEmpty() || iv == null || tag == null) {
             Log.w(TAG, "⚠️ [Signal] msg ${msg.id} missing fields: " +
                 "header=${signalHeader != null} iv=${iv != null} tag=${tag != null}")
-            return msg.copy(decryptedText = "🔐 [Signal повідомлення]")
+            return msg.copy(decryptedText = getApplication<Application>().getString(R.string.encrypted_message))
         }
 
         val senderId = msg.fromId
@@ -1880,7 +1880,7 @@ class MessagesViewModel(application: Application) :
             msg.copy(decryptedText = plainText)
         } else {
             Log.e(TAG, "❌ [Signal] msg ${msg.id} auth FAILED — possible session mismatch")
-            msg.copy(decryptedText = "🔐 [Не вдалося розшифрувати]")
+            msg.copy(decryptedText = getApplication<Application>().getString(R.string.encrypted_message))
         }
     }
 
