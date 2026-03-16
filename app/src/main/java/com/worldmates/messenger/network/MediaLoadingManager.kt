@@ -51,7 +51,7 @@ class MediaLoadingManager(private val context: Context) {
         val error: String? = null
     )
 
-    private val apiService = NodeRetrofitClient.api
+    private val apiService = NodeRetrofitClient.chatUploadApi
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     // Кеш директорії
