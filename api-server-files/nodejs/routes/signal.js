@@ -81,12 +81,24 @@ function register(ctx) {
 
             console.log(`[Signal] User ${userId} registered key bundle (OPKs: ${prekeys.length}, identityKeyChanged: ${result.identityKeyChanged})`);
 
-            // Notify contacts via Socket.IO when identity key changed (device change).
-            // Other devices that have a DR session with this user must clear it and
+            // Notify ALL contacts via Socket.IO when identity key changed (device change / reinstall).
+            // Each contact that has a stale DR session with this user must clear it and
             // re-establish X3DH on the next message, otherwise decryption will fail.
+            // We emit to the contact's own socket room (String(contactId)) so they receive it.
             if (result.identityKeyChanged && ctx.io) {
-                ctx.io.to(`user_${userId}`).emit('signal:identity_changed', { user_id: userId });
-                console.log(`[Signal] Emitted signal:identity_changed for user ${userId}`);
+                try {
+                    const contacts = await ctx.wo_userschat.findAll({
+                        where:      { user_id: userId },
+                        attributes: ['conversation_user_id'],
+                        raw:        true,
+                    });
+                    for (const c of contacts) {
+                        ctx.io.to(String(c.conversation_user_id)).emit('signal:identity_changed', { user_id: userId });
+                    }
+                    console.log(`[Signal] Emitted signal:identity_changed for user ${userId} to ${contacts.length} contacts`);
+                } catch (notifyErr) {
+                    console.warn('[Signal] Failed to notify contacts of identity change:', notifyErr.message);
+                }
             }
 
             res.json({ api_status: 200, message: 'Key bundle registered', opk_count: result.opk_count });

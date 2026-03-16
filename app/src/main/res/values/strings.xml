@@ -2265,4 +2265,7 @@
     <string name="header_style_minimal">Мінімальний</string>
     <string name="header_style_pattern">Патерн</string>
 
+    <!-- ===== E2EE ===== -->
+    <string name="encrypted_message">🔒 Зашифроване повідомлення</string>
+
 </resources>

@@ -178,8 +178,11 @@ class SignalEncryptionService private constructor(
             val n  = (h["n"]  as? Double)?.toInt() ?: 0
             val pn = (h["pn"] as? Double)?.toInt() ?: 0
 
-            // ── X3DH on first incoming message ────────────────────────────────
-            if (h.containsKey("ik") && !keyStore.hasSession(senderId)) {
+            // ── X3DH on first incoming message (or re-key after sender reinstall) ──
+            // Always reinitialize when 'ik' is present — even if we have a stale session.
+            // Presence of 'ik' means the sender started a fresh X3DH (e.g. after reinstall).
+            // Keeping the old session and trying to decrypt with it will always fail.
+            if (h.containsKey("ik")) {
                 val ikAPub = Base64.decode(h["ik"] as String, Base64.NO_WRAP)
                 val ekAPub = Base64.decode(h["ek"] as? String
                     ?: return@withContext null.also { Log.e(TAG, "Missing ek") },
@@ -189,6 +192,12 @@ class SignalEncryptionService private constructor(
                 val ik              = keyStore.getOrCreateIdentityKey()
                 val (_, spkKp, _)   = keyStore.getOrCreateSignedPreKey()
                 val opkKp           = opkId?.let { keyStore.consumeOPK(it) }
+
+                // Delete stale session before creating a new one
+                if (keyStore.hasSession(senderId)) {
+                    keyStore.deleteSession(senderId)
+                    Log.i(TAG, "X3DH(Bob) clearing stale session for $senderId before re-keying")
+                }
 
                 val (sk, ad) = DoubleRatchetManager.x3dhBob(
                     ikB    = ik,

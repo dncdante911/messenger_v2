@@ -1,16 +1,14 @@
 /**
  * WorldMates Crypto Helper — Node.js
  *
- * Гибридная система шифрования:
- *   ► AES-256-GCM  — для WorldMates Android (аутентифицированное шифрование)
- *   ► AES-128-ECB  — для совместимости с WoWonder браузером
+ * AES-256-GCM  — для WorldMates Android (аутентифицированное шифрование)
  *
- * Полностью совместимо с PHP CryptoHelper (crypto_helper.php):
- *   - Ключ GCM: timestamp-строка повторяется до 32 байт
- *   - Ключ ECB: timestamp-строка дополняется \0 до 16 байт (поведение PHP openssl)
- *   - IV: 12 байт случайных (NIST recommendation)
- *   - Tag: 16 байт (128 бит)
- *   - Кодировка: Base64
+ * Ключ GCM: timestamp-строка повторяется до 32 байт.
+ * IV: 12 байт случайных (NIST recommendation)
+ * Tag: 16 байт (128 бит)
+ * Кодировка: Base64
+ *
+ * NOTE: AES-128-ECB (WoWonder legacy) удалён. Сайт переходит на современное шифрование.
  */
 
 'use strict';
@@ -18,18 +16,15 @@
 const crypto = require('crypto');
 
 const GCM_KEY_LEN = 32; // 256 бит
-const ECB_KEY_LEN = 16; // 128 бит
 const IV_LEN      = 12; // 96 бит (NIST для GCM)
 const TAG_LEN     = 16; // 128 бит
 
-const CIPHER_VERSION_ECB = 1;
 const CIPHER_VERSION_GCM = 2;
 
 // ─── Key derivation ──────────────────────────────────────────────────────────
 
 /**
  * GCM ключ: повторяем timestamp до 32 байт.
- * Совместимо с PHP CryptoHelper::createKeyFromTimestamp().
  */
 function gcmKey(timestamp) {
     const ts  = String(timestamp);
@@ -41,19 +36,6 @@ function gcmKey(timestamp) {
         src.copy(buf, offset, 0, toCopy);
         offset += toCopy;
     }
-    return buf;
-}
-
-/**
- * ECB ключ: timestamp-строка + null-padding до 16 байт.
- * Совместимо с PHP: openssl_encrypt($text, "AES-128-ECB", $timestamp).
- * PHP OpenSSL дополняет ключ нулями, если он короче 16 байт.
- */
-function ecbKey(timestamp) {
-    const ts  = String(timestamp);
-    const buf = Buffer.alloc(ECB_KEY_LEN, 0); // инициализирован нулями
-    const src = Buffer.from(ts, 'utf8');
-    src.copy(buf, 0, 0, Math.min(src.length, ECB_KEY_LEN));
     return buf;
 }
 
@@ -114,82 +96,38 @@ function decryptGCM(ciphertext, timestamp, iv, tag) {
     }
 }
 
-// ─── AES-128-ECB (WoWonder совместимость) ───────────────────────────────────
-
-/**
- * Шифрует текст с AES-128-ECB (WoWonder).
- * @returns {string | null} Base64-строка
- */
-function encryptECB(plaintext, timestamp) {
-    try {
-        const key    = ecbKey(timestamp);
-        const cipher = crypto.createCipheriv('aes-128-ecb', key, null);
-        cipher.setAutoPadding(true);
-
-        const enc = Buffer.concat([
-            cipher.update(Buffer.from(plaintext, 'utf8')),
-            cipher.final(),
-        ]);
-        return enc.toString('base64');
-    } catch (e) {
-        console.error('[crypto] encryptECB error:', e.message);
-        return null;
-    }
-}
-
-/**
- * Дешифрует AES-128-ECB (WoWonder).
- * @returns {string | null}
- */
-function decryptECB(ciphertext, timestamp) {
-    try {
-        const key      = ecbKey(timestamp);
-        const decipher = crypto.createDecipheriv('aes-128-ecb', key, null);
-        decipher.setAutoPadding(true);
-
-        const dec = Buffer.concat([
-            decipher.update(Buffer.from(ciphertext, 'base64')),
-            decipher.final(),
-        ]);
-        return dec.toString('utf8');
-    } catch (e) {
-        console.error('[crypto] decryptECB error:', e.message);
-        return null;
-    }
-}
-
 // ─── Высокоуровневые функции ─────────────────────────────────────────────────
 
 /**
  * Автодешифрование строки сообщения из БД.
- * Проверяет cipher_version и применяет нужный алгоритм.
+ * Поддерживает cipher_version=2 (GCM).
+ * cipher_version=1 (ECB legacy) — возвращает raw, клиент должен обработать сам.
+ * cipher_version=3 (Signal) — сервер не дешифрует, возвращает raw.
  * @param {object} msg — строка из wo_messages (с полями text, iv, tag, cipher_version, time)
  * @returns {string} расшифрованный текст или '' при ошибке
  */
 function decryptMessage(msg) {
     if (!msg.text) return '';
 
-    const version = Number(msg.cipher_version) || CIPHER_VERSION_ECB;
+    const version = Number(msg.cipher_version) || CIPHER_VERSION_GCM;
 
     if (version === CIPHER_VERSION_GCM && msg.iv && msg.tag) {
         const plain = decryptGCM(msg.text, msg.time, msg.iv, msg.tag);
-        return plain !== null ? plain : msg.text; // fallback на raw при ошибке тега
+        return plain !== null ? plain : msg.text;
     }
 
-    // ECB или plaintext без шифрования (старые сообщения)
-    const plain = decryptECB(msg.text, msg.time);
-    return plain !== null ? plain : msg.text;
+    // version=1 (old ECB legacy) or version=3 (Signal E2EE) — return raw
+    return msg.text;
 }
 
 /**
- * Шифрует plaintext для записи в БД.
- * Возвращает объект с полями для UPDATE/INSERT.
+ * Шифрует plaintext для записи в БД (AES-256-GCM only).
  *
  * @param {string} plaintext
  * @param {number} timestamp — Unix-timestamp (поле time сообщения)
  * @returns {{
- *   text: string,           — GCM-зашифрованный текст (основной)
- *   text_ecb: string,       — ECB-зашифрованный текст (для WoWonder сайта)
+ *   text: string,           — GCM-зашифрованный текст
+ *   text_ecb: string,       — пустая строка (ECB удалён)
  *   text_preview: string,   — plaintext preview (первые 100 символов, для поиска)
  *   iv: string,             — Base64 IV для GCM
  *   tag: string,            — Base64 auth tag для GCM
@@ -201,18 +139,17 @@ function encryptForStorage(plaintext, timestamp) {
         return {
             text: '', text_ecb: '', text_preview: '',
             iv: null, tag: null,
-            cipher_version: CIPHER_VERSION_ECB,
+            cipher_version: CIPHER_VERSION_GCM,
         };
     }
 
     const gcm     = encryptGCM(plaintext, timestamp);
-    const ecb     = encryptECB(plaintext, timestamp);
     const preview = plaintext.slice(0, 100);
 
     if (gcm) {
         return {
             text:           gcm.text,
-            text_ecb:       ecb  || '',
+            text_ecb:       '',
             text_preview:   preview,
             iv:             gcm.iv,
             tag:            gcm.tag,
@@ -220,25 +157,22 @@ function encryptForStorage(plaintext, timestamp) {
         };
     }
 
-    // Fallback: только ECB если GCM сломался
-    console.warn('[crypto] GCM failed, falling back to ECB for timestamp', timestamp);
+    // GCM failed (should never happen) — store plaintext as fallback
+    console.error('[crypto] encryptGCM failed for timestamp', timestamp);
     return {
-        text:           ecb || plaintext,
-        text_ecb:       ecb || plaintext,
+        text:           plaintext,
+        text_ecb:       '',
         text_preview:   preview,
         iv:             null,
         tag:            null,
-        cipher_version: CIPHER_VERSION_ECB,
+        cipher_version: CIPHER_VERSION_GCM,
     };
 }
 
 module.exports = {
     encryptGCM,
     decryptGCM,
-    encryptECB,
-    decryptECB,
     decryptMessage,
     encryptForStorage,
-    CIPHER_VERSION_ECB,
     CIPHER_VERSION_GCM,
 };

@@ -11,13 +11,11 @@
  *   POST /api/node/chat/seen         – mark messages as read
  *   POST /api/node/chat/typing       – typing indicator
  *
- * Encryption: гибридная система
- *   ► text хранится как AES-256-GCM (WorldMates Android)
- *   ► text_ecb хранится как AES-128-ECB (WoWonder браузер)
+ * Encryption:
+ *   ► text хранится как AES-256-GCM (cipher_version=2) или Signal DR (cipher_version=3)
+ *   ► text_ecb оставлен пустым (AES-128-ECB удалён, сайт переходит на modern E2EE)
  *   ► text_preview — plaintext[:100] для поиска
- *   ► Сервер шифрует при записи, дешифрует при чтении
- *   ► Android получает зашифрованные данные + iv + tag + cipher_version
- *   ► WoWonder получает text_ecb через PHP get_messages.php
+ *   ► Сервер шифрует при записи, дешифрует при чтении (только GCM/Signal)
  */
 
 'use strict';
@@ -255,7 +253,7 @@ function sendMessage(ctx, io) {
                 // ── cipher_version=1/2: server encrypts (existing behaviour) ──
                 enc = plaintext
                     ? crypto.encryptForStorage(plaintext, now)
-                    : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: 1 };
+                    : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: crypto.CIPHER_VERSION_GCM };
             }
 
             const row = await ctx.wo_messages.create({
@@ -678,7 +676,7 @@ function sendMediaMessage(ctx, io) {
             // Encrypt caption if provided (same GCM+ECB hybrid as sendMessage)
             const enc = captionRaw
                 ? crypto.encryptForStorage(captionRaw, now)
-                : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: 1 };
+                : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: crypto.CIPHER_VERSION_GCM };
 
             // Create message in database
             const row = await ctx.wo_messages.create({
