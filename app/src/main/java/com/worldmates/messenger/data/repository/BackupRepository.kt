@@ -5,8 +5,7 @@ import android.util.Log
 import com.worldmates.messenger.data.local.AppDatabase
 import com.worldmates.messenger.data.local.entity.CachedMessage
 import com.worldmates.messenger.data.model.Message
-import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.utils.DecryptionUtility
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -25,7 +24,7 @@ class BackupRepository(private val context: Context) {
 
     private val database = AppDatabase.getInstance(context)
     private val messageDao = database.messageDao()
-    private val apiService = RetrofitClient.apiService
+    private val nodeApi = NodeRetrofitClient.api
 
     private val TAG = "BackupRepository"
 
@@ -42,27 +41,16 @@ class BackupRepository(private val context: Context) {
         chatType: String = CachedMessage.CHAT_TYPE_USER
     ): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            val accessToken = UserSession.accessToken
-                ?: return@withContext Result.failure(Exception("No access token"))
-
             Log.d(TAG, "📦 Starting full history sync for chat: $recipientId ($chatType)")
 
             // 1. Получаем количество сообщений для прогресс-бара
-            val countResponse = apiService.getMessageCount(
-                accessToken = accessToken,
-                recipientId = recipientId
-            )
+            val countResponse = nodeApi.getChatMessageCount(recipientId = recipientId)
 
             val totalMessages = countResponse.totalMessages
             Log.d(TAG, "📊 Total messages to sync: $totalMessages")
 
             // 2. Загружаем всю историю
-            val response = apiService.getMessagesWithOptions(
-                accessToken = accessToken,
-                recipientId = recipientId,
-                fullHistory = "true", // Загрузить всю историю
-                limit = 10000 // Большой лимит
-            )
+            val response = nodeApi.getMessages(recipientId = recipientId, limit = 10000)
 
             if (response.apiStatus == 200) {
                 val messages = response.messages ?: emptyList()
@@ -92,13 +80,7 @@ class BackupRepository(private val context: Context) {
      */
     suspend fun getMessageCount(recipientId: Long): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            val accessToken = UserSession.accessToken
-                ?: return@withContext Result.failure(Exception("No access token"))
-
-            val response = apiService.getMessageCount(
-                accessToken = accessToken,
-                recipientId = recipientId
-            )
+            val response = nodeApi.getChatMessageCount(recipientId = recipientId)
 
             if (response.apiStatus == 200) {
                 Result.success(response.totalMessages)

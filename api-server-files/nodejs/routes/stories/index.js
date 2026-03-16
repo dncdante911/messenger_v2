@@ -770,6 +770,348 @@ function markStoryViewedAnonymous(ctx) {
     };
 }
 
+// ─── POST /api/node/stories/get-by-id ───────────────────────────────────────
+
+function getStoryById(ctx) {
+    return async (req, res) => {
+        const loggedUserId = req.userId;
+        const storyId = parseInt(req.body.id || req.body.story_id);
+        if (!storyId) {
+            return res.json({ api_status: 400, error_message: 'id is required' });
+        }
+        try {
+            const story = await ctx.wo_userstory.findOne({ where: { id: storyId }, raw: true });
+            if (!story) {
+                return res.json({ api_status: 404, error_message: 'Story not found' });
+            }
+            const storyData = await buildStoryResponse(ctx, story, loggedUserId);
+            res.json({ api_status: 200, story: storyData });
+        } catch (err) {
+            console.error('[Stories/get-by-id]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/delete ──────────────────────────────────────────
+
+function deleteStory(ctx) {
+    return async (req, res) => {
+        const loggedUserId = req.userId;
+        const storyId = parseInt(req.body.story_id);
+        if (!storyId) {
+            return res.json({ api_status: 400, error_message: 'story_id is required' });
+        }
+        try {
+            const story = await ctx.wo_userstory.findOne({ where: { id: storyId }, raw: true });
+            if (!story) {
+                return res.json({ api_status: 404, error_message: 'Story not found' });
+            }
+            if (story.user_id !== loggedUserId) {
+                return res.json({ api_status: 403, error_message: 'Not authorized to delete this story' });
+            }
+            await ctx.wo_userstorymedia.destroy({ where: { story_id: storyId } });
+            await ctx.wo_story_seen.destroy({ where: { story_id: storyId } });
+            try { await ctx.wo_storyreactions.destroy({ where: { story_id: storyId } }); } catch (e) {}
+            try { await ctx.wo_storycomments.destroy({ where: { story_id: storyId } }); } catch (e) {}
+            await ctx.wo_userstory.destroy({ where: { id: storyId } });
+            console.log(`[Stories/delete] User ${loggedUserId} deleted story ${storyId}`);
+            res.json({ api_status: 200, message: 'Story deleted successfully' });
+        } catch (err) {
+            console.error('[Stories/delete]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/get-views ───────────────────────────────────────
+
+function getStoryViews(ctx) {
+    return async (req, res) => {
+        const loggedUserId = req.userId;
+        const storyId = parseInt(req.body.story_id);
+        let limit = parseInt(req.body.limit) || 20;
+        const offset = parseInt(req.body.offset) || 0;
+        if (!storyId) {
+            return res.json({ api_status: 400, error_message: 'story_id is required' });
+        }
+        if (limit > 50) limit = 50;
+        try {
+            const story = await ctx.wo_userstory.findOne({
+                where: { id: storyId }, attributes: ['user_id'], raw: true,
+            });
+            if (!story) return res.json({ api_status: 404, error_message: 'Story not found' });
+            if (story.user_id !== loggedUserId) {
+                return res.json({ api_status: 403, error_message: 'Only story owner can view viewers' });
+            }
+
+            const whereClause = { story_id: storyId, user_id: { [Op.gt]: 0 } };
+            if (offset > 0) whereClause.id = { [Op.lt]: offset };
+
+            const views = await ctx.wo_story_seen.findAll({
+                where: whereClause,
+                order: [['id', 'DESC']],
+                limit,
+                raw: true,
+            });
+
+            const users = [];
+            for (const v of views) {
+                const userData = await getUserBasicData(ctx, v.user_id);
+                users.push({ ...userData, view_time: v.time ? parseInt(v.time) : 0, offset_id: v.id });
+            }
+
+            const total = await ctx.wo_story_seen.count({
+                where: { story_id: storyId, user_id: { [Op.gt]: 0 } },
+            });
+
+            res.json({ api_status: 200, users, total });
+        } catch (err) {
+            console.error('[Stories/get-views]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/mute ────────────────────────────────────────────
+
+function muteStory(ctx) {
+    return async (req, res) => {
+        const loggedUserId = req.userId;
+        const targetUserId = parseInt(req.body.user_id);
+        if (!targetUserId) {
+            return res.json({ api_status: 400, error_message: 'user_id is required' });
+        }
+        try {
+            const existing = await ctx.wo_mute_story.findOne({
+                where: { user_id: loggedUserId, story_user_id: targetUserId },
+            });
+            let action;
+            if (existing) {
+                await existing.destroy();
+                action = 'unmuted';
+            } else {
+                await ctx.wo_mute_story.create({ user_id: loggedUserId, story_user_id: targetUserId });
+                action = 'muted';
+            }
+            console.log(`[Stories/mute] User ${loggedUserId} ${action} stories of user ${targetUserId}`);
+            res.json({ api_status: 200, action });
+        } catch (err) {
+            console.error('[Stories/mute]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/delete-comment ──────────────────────────────────
+
+function deleteStoryComment(ctx) {
+    return async (req, res) => {
+        const loggedUserId = req.userId;
+        const commentId = parseInt(req.body.comment_id);
+        if (!commentId) {
+            return res.json({ api_status: 400, error_message: 'comment_id is required' });
+        }
+        try {
+            const comment = await ctx.wo_storycomments.findOne({ where: { id: commentId }, raw: true });
+            if (!comment) {
+                return res.json({ api_status: 404, error_message: 'Comment not found' });
+            }
+            const story = await ctx.wo_userstory.findOne({
+                where: { id: comment.story_id }, attributes: ['user_id'], raw: true,
+            });
+            const isCommentAuthor = comment.user_id === loggedUserId;
+            const isStoryOwner = story && story.user_id === loggedUserId;
+            if (!isCommentAuthor && !isStoryOwner) {
+                return res.json({ api_status: 403, error_message: 'Not authorized to delete this comment' });
+            }
+            await ctx.wo_storycomments.destroy({ where: { id: commentId } });
+            try {
+                await ctx.wo_userstory.decrement('comment_count', { where: { id: comment.story_id } });
+            } catch (e) {}
+            console.log(`[Stories/delete-comment] Comment ${commentId} deleted by user ${loggedUserId}`);
+            res.json({ api_status: 200, message: 'Comment deleted' });
+        } catch (err) {
+            console.error('[Stories/delete-comment]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/create-channel ──────────────────────────────────
+
+function createChannelStory(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId   = req.userId;
+            const channelId = parseInt(req.body.channel_id);
+            const fileType = (req.body.file_type || '').trim();
+            const title    = (req.body.story_title || '').trim();
+            const desc     = (req.body.story_description || '').trim();
+
+            if (!channelId || channelId < 1) {
+                return res.json({ api_status: 400, error_message: 'channel_id is required' });
+            }
+            if (!req.files || !req.files.file || req.files.file.length === 0) {
+                return res.json({ api_status: 400, error_code: 3, error_message: 'file is required' });
+            }
+            if (!fileType || !['image', 'video'].includes(fileType)) {
+                return res.json({ api_status: 400, error_code: 4, error_message: 'file_type must be "image" or "video"' });
+            }
+
+            // Check admin permission for channel
+            const { QueryTypes } = require('sequelize');
+            const [channelAdmin] = await ctx.sequelize.query(
+                `SELECT page_id FROM Wo_Pages WHERE page_id = ? AND user_id = ?
+                 UNION
+                 SELECT group_id FROM Wo_GroupChatUsers WHERE group_id = ? AND user_id = ? AND role IN ('owner','admin')`,
+                { replacements: [channelId, userId, channelId, userId], type: QueryTypes.SELECT }
+            ).catch(() => [null]);
+            if (!channelAdmin) {
+                return res.json({ api_status: 403, error_message: 'Only channel admins can create channel stories' });
+            }
+
+            const now = Math.floor(Date.now() / 1000);
+            const expireTime = now + STORY_TTL;
+
+            const storyRow = await ctx.wo_userstory.create({
+                user_id:     userId,
+                page_id:     channelId,
+                title:       title || '',
+                description: desc || '',
+                posted:      String(now),
+                expire:      String(expireTime),
+                thumbnail:   '',
+            });
+
+            const storyId = storyRow.id;
+            const file = req.files.file[0];
+            const uploadDir = getUploadDir(fileType);
+            const filename = generateFilename(file.originalname, fileType);
+            const relativePath = uploadDir + '/' + filename;
+            const absoluteDir = path.join(SITE_ROOT, uploadDir);
+
+            ensureDir(absoluteDir);
+            fs.writeFileSync(path.join(SITE_ROOT, relativePath), file.buffer);
+
+            await ctx.wo_userstorymedia.create({
+                story_id: storyId,
+                type:     fileType,
+                filename: relativePath,
+                expire:   String(expireTime),
+                duration: 0,
+            });
+
+            let thumbnail = '';
+            const ext = path.extname(file.originalname).toLowerCase();
+            if (ALLOWED_IMAGE_EXTS.includes(ext)) thumbnail = relativePath;
+            if (thumbnail) {
+                await ctx.wo_userstory.update({ thumbnail }, { where: { id: storyId } });
+            }
+
+            const storyData = await buildStoryResponse(ctx, {
+                id: storyId, user_id: userId, page_id: channelId,
+                title, description: desc, posted: String(now), expire: String(expireTime),
+                thumbnail, comment_count: 0,
+            }, userId);
+
+            console.log(`[Stories/create-channel] User ${userId} created channel story ${storyId} for channel ${channelId}`);
+            res.json({ api_status: 200, message: 'Channel story created successfully', story_id: storyId, story: storyData });
+        } catch (err) {
+            console.error('[Stories/create-channel]', err.message, err.stack);
+            res.json({ api_status: 500, error_message: 'Failed to create channel story: ' + err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/get-channel-subscribed ──────────────────────────
+
+function getSubscribedChannelStories(ctx) {
+    return async (req, res) => {
+        const loggedUserId = req.userId;
+        let limit = parseInt(req.body.limit) || 30;
+        if (limit > 50) limit = 50;
+        try {
+            const { QueryTypes } = require('sequelize');
+            const now = Math.floor(Date.now() / 1000);
+            const expireThreshold = now - STORY_TTL;
+
+            // Get channel IDs the user is a fan/follower of
+            const fanRows = await ctx.sequelize.query(
+                'SELECT page_id FROM Wo_Page_Fans WHERE user_id = ?',
+                { replacements: [loggedUserId], type: QueryTypes.SELECT }
+            ).catch(() => []);
+
+            const channelIds = fanRows.map(r => r.page_id);
+            if (channelIds.length === 0) {
+                return res.json({ api_status: 200, stories: [] });
+            }
+
+            const channelIdList = channelIds.join(',');
+            const storyRows = await ctx.sequelize.query(
+                `SELECT * FROM Wo_UserStory
+                 WHERE page_id IN (${channelIdList})
+                   AND (expire IS NULL OR expire = '' OR CAST(expire AS UNSIGNED) > ?)
+                   AND CAST(posted AS UNSIGNED) > ?
+                 ORDER BY id DESC LIMIT ?`,
+                { replacements: [now, expireThreshold, limit], type: QueryTypes.SELECT }
+            ).catch(() => []);
+
+            const result = [];
+            for (const story of storyRows) {
+                const storyData = await buildStoryResponse(ctx, story, loggedUserId);
+                result.push(storyData);
+            }
+
+            console.log(`[Stories/get-channel-subscribed] User ${loggedUserId} fetched ${result.length} channel stories`);
+            res.json({ api_status: 200, stories: result });
+        } catch (err) {
+            console.error('[Stories/get-channel-subscribed]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/delete-channel ──────────────────────────────────
+
+function deleteChannelStory(ctx) {
+    return async (req, res) => {
+        const loggedUserId = req.userId;
+        const storyId = parseInt(req.body.story_id);
+        if (!storyId) {
+            return res.json({ api_status: 400, error_message: 'story_id is required' });
+        }
+        try {
+            const story = await ctx.wo_userstory.findOne({ where: { id: storyId }, raw: true });
+            if (!story) return res.json({ api_status: 404, error_message: 'Story not found' });
+            if (!story.page_id) return res.json({ api_status: 400, error_message: 'Not a channel story' });
+
+            const channelId = story.page_id;
+            const { QueryTypes } = require('sequelize');
+            const [isAdmin] = await ctx.sequelize.query(
+                `SELECT page_id FROM Wo_Pages WHERE page_id = ? AND user_id = ?`,
+                { replacements: [channelId, loggedUserId], type: QueryTypes.SELECT }
+            ).catch(() => [null]);
+
+            if (!isAdmin && story.user_id !== loggedUserId) {
+                return res.json({ api_status: 403, error_message: 'Not authorized to delete this channel story' });
+            }
+
+            await ctx.wo_userstorymedia.destroy({ where: { story_id: storyId } });
+            await ctx.wo_story_seen.destroy({ where: { story_id: storyId } });
+            try { await ctx.wo_storyreactions.destroy({ where: { story_id: storyId } }); } catch (e) {}
+            try { await ctx.wo_storycomments.destroy({ where: { story_id: storyId } }); } catch (e) {}
+            await ctx.wo_userstory.destroy({ where: { id: storyId } });
+
+            console.log(`[Stories/delete-channel] Channel story ${storyId} deleted by user ${loggedUserId}`);
+            res.json({ api_status: 200, message: 'Channel story deleted successfully' });
+        } catch (err) {
+            console.error('[Stories/delete-channel]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
 // ─── register routes ────────────────────────────────────────────────────────
 
 function registerStoryRoutes(app, ctx, io) {
@@ -804,14 +1146,25 @@ function registerStoryRoutes(app, ctx, io) {
     app.post('/api/node/stories/get',              auth, getStories(ctx));
     app.post('/api/node/stories/get-user-stories', auth, getUserStories(ctx));
     app.post('/api/node/stories/mark-viewed',      auth, markStoryViewed(ctx));
-    app.post('/api/node/stories/react',                    auth, reactToStory(ctx));
-    app.post('/api/node/stories/get-comments',             auth, getStoryComments(ctx));
-    app.post('/api/node/stories/create-comment',           auth, createStoryComment(ctx));
+    app.post('/api/node/stories/react',            auth, reactToStory(ctx));
+    app.post('/api/node/stories/get-comments',     auth, getStoryComments(ctx));
+    app.post('/api/node/stories/create-comment',   auth, createStoryComment(ctx));
     // Анонімний перегляд — не потребує авторизації
-    app.post('/api/node/stories/mark-viewed-anonymous',    markStoryViewedAnonymous(ctx));
+    app.post('/api/node/stories/mark-viewed-anonymous', markStoryViewedAnonymous(ctx));
+    // New endpoints replacing PHP
+    app.post('/api/node/stories/get-by-id',              auth, getStoryById(ctx));
+    app.post('/api/node/stories/delete',                  auth, deleteStory(ctx));
+    app.post('/api/node/stories/get-views',               auth, getStoryViews(ctx));
+    app.post('/api/node/stories/mute',                    auth, muteStory(ctx));
+    app.post('/api/node/stories/delete-comment',          auth, deleteStoryComment(ctx));
+    app.post('/api/node/stories/create-channel',          auth, handleUpload, createChannelStory(ctx, io));
+    app.post('/api/node/stories/get-channel-subscribed',  auth, getSubscribedChannelStories(ctx));
+    app.post('/api/node/stories/delete-channel',          auth, deleteChannelStory(ctx));
 
     console.log('[Stories API] Endpoints registered under /api/node/stories/*');
-    console.log('  Stories: create, get, get-user-stories, mark-viewed, react, get-comments, create-comment');
+    console.log('  Stories: create, get, get-user-stories, mark-viewed, react, get-comments, create-comment,');
+    console.log('           get-by-id, delete, get-views, mute, delete-comment,');
+    console.log('           create-channel, get-channel-subscribed, delete-channel');
 }
 
 module.exports = { registerStoryRoutes };

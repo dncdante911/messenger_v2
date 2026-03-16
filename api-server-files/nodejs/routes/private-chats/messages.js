@@ -852,4 +852,31 @@ function userStatus(ctx, io) {
 
 // ─── exports ──────────────────────────────────────────────────────────────────
 
-module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing, userAction, notifyMediaMessage, sendMediaMessage, userStatus };
+// ─── COUNT messages in a private chat ────────────────────────────────────────
+
+function countMessages(ctx) {
+    return async (req, res) => {
+        try {
+            const userId      = req.userId;
+            const recipientId = parseInt(req.body.recipient_id);
+            if (!recipientId || isNaN(recipientId)) {
+                return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
+            }
+            const total = await ctx.wo_messages.count({
+                where: {
+                    page_id: 0,
+                    [Op.or]: [
+                        { from_id: userId,      to_id: recipientId, deleted_one: '0' },
+                        { from_id: recipientId, to_id: userId,      deleted_two: '0' },
+                    ],
+                },
+            });
+            res.json({ api_status: 200, total_messages: total });
+        } catch (err) {
+            console.error('[Node/chat/count]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to count messages' });
+        }
+    };
+}
+
+module.exports = { getMessages, sendMessage, loadMore, editMessage, searchMessages, seenMessages, typing, userAction, notifyMediaMessage, sendMediaMessage, userStatus, countMessages };

@@ -162,6 +162,10 @@ object Constants {
     const val NODE_GROUP_STATISTICS    = "api/node/group/statistics"
     const val NODE_GROUP_ADD_ADMIN     = "api/node/group/add-admin"
     const val NODE_GROUP_REMOVE_ADMIN  = "api/node/group/remove-admin"
+    // Customization (theme)
+    const val NODE_GROUP_CUSTOMIZATION_GET    = "api/node/group/customization/get"
+    const val NODE_GROUP_CUSTOMIZATION_UPDATE = "api/node/group/customization/update"
+    const val NODE_GROUP_CUSTOMIZATION_RESET  = "api/node/group/customization/reset"
 
     // ── Export ────────────────────────────────────────────────────────────────
     const val NODE_CHAT_EXPORT         = "api/node/chat/export"
@@ -237,6 +241,9 @@ object Constants {
     const val NODE_FOLDER_SHARE        = "api/node/folders/{id}/share"
     const val NODE_FOLDER_JOIN         = "api/node/folders/join/{code}"
     const val NODE_FOLDER_LEAVE        = "api/node/folders/{id}/leave"
+
+    // ── App update ────────────────────────────────────────────────────────────
+    const val NODE_UPDATE_CHECK = "api/node/update/check"
 
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH                = "join"

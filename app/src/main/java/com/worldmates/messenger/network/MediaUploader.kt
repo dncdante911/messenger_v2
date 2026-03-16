@@ -263,23 +263,22 @@ class MediaUploader(private val context: Context) {
             )
 
             val groupIdBody = groupId.toString().toRequestBody("text/plain".toMediaType())
-            val accessTokenBody = accessToken.toRequestBody("text/plain".toMediaType())
 
-            val response = RetrofitClient.apiService.uploadGroupAvatar(
-                accessToken = accessTokenBody,
+            val response = NodeRetrofitClient.groupApi.uploadGroupAvatar(
                 groupId = groupIdBody,
                 avatar = filePart
             )
 
             when (response.apiStatus) {
                 200 -> {
-                    if (response.avatarUrl != null) {
-                        UploadResult.Success("", response.avatarUrl)
+                    val url = response.url ?: response.group?.avatarUrl
+                    if (url != null) {
+                        UploadResult.Success("", url)
                     } else {
                         UploadResult.Error("Невідповідь від серверу")
                     }
                 }
-                else -> UploadResult.Error(response.message ?: "Помилка завантаження")
+                else -> UploadResult.Error(response.errorMessage ?: "Помилка завантаження")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error uploading avatar: ${e.message}", e)
@@ -305,20 +304,18 @@ class MediaUploader(private val context: Context) {
             val requestBody = ProgressRequestBody(file, "image/*", onProgress)
 
             val filePart = MultipartBody.Part.createFormData(
-                "file",
+                "avatar",
                 file.name,
                 requestBody
             )
 
-            val response = RetrofitClient.apiService.uploadUserAvatar(
-                accessToken = accessToken,
-                file = filePart
-            )
+            val response = NodeRetrofitClient.profileApi.uploadAvatar(avatar = filePart)
 
             when (response.apiStatus) {
                 200 -> {
-                    if (response.url != null) {
-                        UploadResult.Success(response.mediaId ?: "", response.url)
+                    val url = response.avatar?.url
+                    if (url != null) {
+                        UploadResult.Success(response.avatar?.id?.toString() ?: "", url)
                     } else {
                         UploadResult.Error("Невідповідь від серверу")
                     }

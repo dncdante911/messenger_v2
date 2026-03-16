@@ -16,7 +16,7 @@ import androidx.core.content.FileProvider
 import com.worldmates.messenger.BuildConfig
 import com.worldmates.messenger.data.model.AppUpdateInfo
 import com.worldmates.messenger.data.model.AppUpdateResponse
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -194,7 +194,7 @@ object AppUpdateManager {
      * Fetch update info directly from endpoint.
      */
     private suspend fun fetchUpdateResponse(): AppUpdateResponse {
-        return RetrofitClient.apiService.checkMobileUpdate()
+        return NodeRetrofitClient.api.checkAppUpdate()
     }
 
     private fun updateFailure(message: String, throwable: Throwable? = null): UpdateState {

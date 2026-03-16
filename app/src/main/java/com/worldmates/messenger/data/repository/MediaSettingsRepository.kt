@@ -3,8 +3,7 @@ package com.worldmates.messenger.data.repository
 import android.content.Context
 import android.util.Log
 import com.worldmates.messenger.data.model.MediaSettings
-import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +20,7 @@ import kotlinx.coroutines.withContext
  */
 class MediaSettingsRepository(private val context: Context) {
 
-    private val apiService = RetrofitClient.apiService
+    private val apiService = NodeRetrofitClient.api
 
     private val TAG = "MediaSettingsRepository"
 
@@ -36,10 +35,7 @@ class MediaSettingsRepository(private val context: Context) {
      */
     suspend fun loadSettings(): Result<MediaSettings> = withContext(Dispatchers.IO) {
         try {
-            val accessToken = UserSession.accessToken
-                ?: return@withContext Result.failure(Exception("No access token"))
-
-            val response = apiService.getMediaSettings(accessToken = accessToken)
+            val response = apiService.getMediaSettings()
 
             if (response.apiStatus == 200) {
                 _settings.value = response.settings
@@ -77,11 +73,7 @@ class MediaSettingsRepository(private val context: Context) {
         markBackupComplete: Boolean = false
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val accessToken = UserSession.accessToken
-                ?: return@withContext Result.failure(Exception("No access token"))
-
             val response = apiService.updateMediaSettings(
-                accessToken = accessToken,
                 autoDownloadPhotos = autoDownloadPhotos?.value,
                 autoDownloadVideos = autoDownloadVideos?.value,
                 autoDownloadAudio = autoDownloadAudio?.value,

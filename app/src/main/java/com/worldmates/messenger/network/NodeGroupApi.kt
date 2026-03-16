@@ -276,6 +276,30 @@ interface NodeGroupApi {
         @Field("action")   action: String
     ): GroupSimpleResponse
 
+    // ═══════════════════════ CUSTOMIZATION (THEME) ════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_CUSTOMIZATION_GET)
+    suspend fun getGroupCustomization(
+        @Field("group_id") groupId: Long
+    ): com.worldmates.messenger.network.GroupCustomizationResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_CUSTOMIZATION_UPDATE)
+    suspend fun updateGroupCustomization(
+        @Field("group_id")          groupId: Long,
+        @Field("bubble_style")      bubbleStyle: String? = null,
+        @Field("preset_background") presetBackground: String? = null,
+        @Field("accent_color")      accentColor: String? = null,
+        @Field("enabled_by_admin")  enabledByAdmin: String? = null
+    ): com.worldmates.messenger.network.GroupCustomizationResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_CUSTOMIZATION_RESET)
+    suspend fun resetGroupCustomization(
+        @Field("group_id") groupId: Long
+    ): com.worldmates.messenger.network.GroupCustomizationResponse
+
     // ═══════════════════════ ADMIN ══════════════════════════════════════════════
 
     @Multipart

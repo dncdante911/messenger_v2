@@ -5,8 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.ui.preferences.BubbleStyle
 import com.worldmates.messenger.ui.theme.PresetBackground
 import kotlinx.coroutines.CoroutineScope
@@ -21,11 +20,10 @@ import kotlinx.coroutines.launch
  * Менеджер кастомних тем для групових чатів.
  *
  * Зберігає кастомізацію кожної групи локально в SharedPreferences
- * та синхронізує з сервером через API:
- *   POST /api/v2/endpoints/group_customization.php
- *   - get_customization: { group_id } -> GroupTheme
- *   - update_customization: { group_id, bubble_style, preset_background, accent_color }
- *   - reset_customization: { group_id }
+ * та синхронізує з сервером через Node.js API:
+ *   POST /api/node/group/customization/get    { group_id }
+ *   POST /api/node/group/customization/update { group_id, bubble_style, preset_background, accent_color }
+ *   POST /api/node/group/customization/reset  { group_id }
  */
 object GroupThemeManager {
     private const val TAG = "GroupThemeManager"
@@ -93,13 +91,9 @@ object GroupThemeManager {
     fun loadThemeFromServer(groupId: Long) {
         scope.launch {
             try {
-                val accessToken = UserSession.accessToken ?: return@launch
                 _syncState.value = SyncState.Loading
 
-                val response = RetrofitClient.apiService.getGroupCustomization(
-                    accessToken = accessToken,
-                    groupId = groupId
-                )
+                val response = NodeRetrofitClient.groupApi.getGroupCustomization(groupId = groupId)
 
                 if (response.apiStatus == 200 && response.customization != null) {
                     val serverTheme = GroupTheme(
@@ -137,10 +131,7 @@ object GroupThemeManager {
     private fun syncThemeToServer(groupId: Long, theme: GroupTheme) {
         scope.launch {
             try {
-                val accessToken = UserSession.accessToken ?: return@launch
-
-                val response = RetrofitClient.apiService.updateGroupCustomization(
-                    accessToken = accessToken,
+                val response = NodeRetrofitClient.groupApi.updateGroupCustomization(
                     groupId = groupId,
                     bubbleStyle = theme.bubbleStyle,
                     presetBackground = theme.presetBackgroundId,
@@ -165,12 +156,7 @@ object GroupThemeManager {
     private fun resetThemeOnServer(groupId: Long) {
         scope.launch {
             try {
-                val accessToken = UserSession.accessToken ?: return@launch
-
-                val response = RetrofitClient.apiService.resetGroupCustomization(
-                    accessToken = accessToken,
-                    groupId = groupId
-                )
+                val response = NodeRetrofitClient.groupApi.resetGroupCustomization(groupId = groupId)
 
                 if (response.apiStatus == 200) {
                     Log.d(TAG, "Theme reset on server for group $groupId")
