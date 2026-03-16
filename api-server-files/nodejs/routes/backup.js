@@ -337,6 +337,155 @@ function updateMediaSettings(ctx) {
     };
 }
 
+// ─── GET /api/node/backup/export ─────────────────────────────────────────────
+// Collects user messages, groups, and settings into a JSON export.
+
+function exportUserData(ctx) {
+    return async (req, res) => {
+        const userId = req.userId;
+        try {
+            const { Op } = require('sequelize');
+
+            // Messages involving this user
+            const messages = await ctx.wo_userschat.findAll({
+                where: {
+                    [Op.or]: [
+                        { user_id: userId },
+                        { to_id: userId },
+                    ],
+                },
+                limit: 5000,
+                order: [['id', 'DESC']],
+                raw: true,
+            });
+
+            // Groups the user belongs to
+            const groupMemberships = await ctx.wo_groupchatusers.findAll({
+                where: { user_id: userId },
+                raw: true,
+            });
+            const groupIds = groupMemberships.map(m => m.group_id);
+            const groups   = groupIds.length
+                ? await ctx.wo_groupchat.findAll({ where: { id: { [Op.in]: groupIds } }, raw: true })
+                : [];
+
+            // User profile
+            const user = await ctx.wo_users.findOne({
+                where: { user_id: userId },
+                attributes: ['user_id', 'username', 'first_name', 'last_name', 'email', 'avatar', 'about'],
+                raw: true,
+            });
+
+            const now = Math.floor(Date.now() / 1000);
+            const exportData = {
+                manifest: {
+                    version:        '1.0',
+                    created_at:     now,
+                    user_id:        userId,
+                    app_version:    '1.0',
+                    encryption:     'none',
+                    total_size:     0,
+                    total_messages: messages.length,
+                    total_groups:   groups.length,
+                },
+                user:     user || {},
+                messages: messages,
+                contacts: [],
+                groups:   groups,
+                channels: [],
+                settings: {},
+                blocked_users: [],
+            };
+
+            const backupJson = JSON.stringify(exportData);
+            const sizeBytes  = Buffer.byteLength(backupJson, 'utf8');
+
+            console.log(`[Backup/export] user=${userId}: ${messages.length} msgs, ${groups.length} groups`);
+
+            return res.json({
+                api_status:  200,
+                message:     'Export successful',
+                backup_file: `backup_${userId}_${now}.json`,
+                backup_url:  '',
+                backup_size: sizeBytes,
+                export_data: exportData,
+            });
+
+        } catch (err) {
+            console.error('[Backup/export]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── GET /api/node/backup/list ───────────────────────────────────────────────
+// Returns server-side backup files for the user. Currently returns an empty
+// list — backups live on the client's chosen cloud provider (Drive, Dropbox…).
+
+function listBackups(ctx) {
+    return async (req, res) => {
+        return res.json({
+            api_status:    200,
+            backups:       [],
+            total_backups: 0,
+        });
+    };
+}
+
+// ─── POST /api/node/backup/import ────────────────────────────────────────────
+// Accepts a JSON backup and restores chat messages for the user.
+// Only imports messages where the current user is sender or recipient.
+
+function importUserData(ctx) {
+    return async (req, res) => {
+        const userId = req.userId;
+        try {
+            const backupJson = req.body.backup_data;
+            if (!backupJson) {
+                return res.json({ api_status: 400, error_message: 'backup_data is required' });
+            }
+
+            let backup;
+            try { backup = JSON.parse(backupJson); }
+            catch { return res.json({ api_status: 400, error_message: 'Invalid backup JSON' }); }
+
+            const messages = Array.isArray(backup.messages) ? backup.messages : [];
+            let importedMessages = 0;
+
+            for (const msg of messages) {
+                // Only import messages that belong to this user
+                if (String(msg.user_id) !== String(userId) && String(msg.to_id) !== String(userId)) continue;
+                try {
+                    await ctx.wo_userschat.findOrCreate({
+                        where: { id: msg.id },
+                        defaults: msg,
+                    });
+                    importedMessages++;
+                } catch (e) {
+                    // Skip duplicates / invalid rows
+                }
+            }
+
+            console.log(`[Backup/import] user=${userId}: imported ${importedMessages} messages`);
+
+            return res.json({
+                api_status: 200,
+                message:    'Import successful',
+                imported: {
+                    messages: importedMessages,
+                    groups:   0,
+                    channels: 0,
+                    settings: false,
+                },
+            });
+
+        } catch (err) {
+            console.error('[Backup/import]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 // ─── Route Registration ───────────────────────────────────────────────────────
 
 function registerBackupRoutes(app, ctx) {
@@ -344,6 +493,9 @@ function registerBackupRoutes(app, ctx) {
     app.get ('/api/node/backup/settings',   auth, getBackupSettings(ctx));
     app.post('/api/node/backup/settings',   auth, updateBackupSettings(ctx));
     app.post('/api/node/backup/statistics', auth, getBackupStatistics(ctx));
+    app.get ('/api/node/backup/export',     auth, exportUserData(ctx));
+    app.get ('/api/node/backup/list',       auth, listBackups(ctx));
+    app.post('/api/node/backup/import',     auth, importUserData(ctx));
     // Media download / auto-download settings
     app.post('/api/node/media-settings/get',    auth, getMediaSettings(ctx));
     app.post('/api/node/media-settings/update', auth, updateMediaSettings(ctx));

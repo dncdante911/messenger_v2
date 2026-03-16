@@ -3,9 +3,8 @@ package com.worldmates.messenger.data.backup
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
-import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.*
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,7 +41,7 @@ class CloudBackupManager(private val context: Context) {
         }
     }
 
-    private val apiService = RetrofitClient.apiService
+    private val api = NodeRetrofitClient.api
     private val gson = Gson()
 
     // Менеджери облачних сервісів
@@ -80,9 +79,6 @@ class CloudBackupManager(private val context: Context) {
         cloudProvider: CloudBackupSettings.BackupProvider? = null
     ): Result<BackupFileInfo> = withContext(Dispatchers.IO) {
         try {
-            val accessToken = UserSession.accessToken
-                ?: return@withContext Result.failure(Exception("No access token"))
-
             val totalSteps = if (uploadToCloud) 3 else 2
 
             _backupProgress.value = BackupProgress(
@@ -95,7 +91,7 @@ class CloudBackupManager(private val context: Context) {
             Log.d(TAG, "📤 Starting backup creation...")
 
             // Крок 1: Експорт даних з сервера
-            val response = apiService.exportUserData(accessToken = accessToken)
+            val response = api.exportUserData()
 
             if (response.apiStatus != 200) {
                 _backupProgress.value = BackupProgress(error = "Помилка експорту: ${response.message}")
@@ -220,14 +216,11 @@ class CloudBackupManager(private val context: Context) {
      */
     suspend fun listBackups(): Result<List<BackupFileInfo>> = withContext(Dispatchers.IO) {
         try {
-            val accessToken = UserSession.accessToken
-                ?: return@withContext Result.failure(Exception("No access token"))
-
             Log.d(TAG, "📋 Loading backups list...")
 
             // Бекапи з сервера
             val serverBackups = try {
-                val response = apiService.listBackups(accessToken = accessToken)
+                val response = api.listBackups()
                 if (response.apiStatus == 200) response.backups else emptyList()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load server backups: ${e.message}")
@@ -284,9 +277,6 @@ class CloudBackupManager(private val context: Context) {
         backupInfo: BackupFileInfo
     ): Result<ImportStats> = withContext(Dispatchers.IO) {
         try {
-            val accessToken = UserSession.accessToken
-                ?: return@withContext Result.failure(Exception("No access token"))
-
             _restoreProgress.value = BackupProgress(
                 isRunning = true,
                 currentStep = "Завантаження бекапу...",
@@ -328,10 +318,7 @@ class CloudBackupManager(private val context: Context) {
                 progress = 66
             )
 
-            val response = apiService.importUserData(
-                accessToken = accessToken,
-                backupData = backupJson
-            )
+            val response = api.importUserData(backupData = backupJson)
 
             if (response.apiStatus != 200) {
                 _restoreProgress.value = BackupProgress(error = "Помилка імпорту: ${response.message}")

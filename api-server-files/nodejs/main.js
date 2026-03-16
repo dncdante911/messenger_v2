@@ -46,6 +46,7 @@ const { registerAvatarRoutes }       = require('./routes/users/avatars')
 const { registerScheduledRoutes }    = require('./routes/scheduled')
 const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
+const { registerStickerRoutes }      = require('./routes/stickers')
 
 let serverPort
 let server
@@ -206,6 +207,7 @@ async function init() {
   ctx.wo_bot_rss_items = require("./models/wo_bot_rss_items")(sequelize, DataTypes)
   ctx.wo_bot_rate_limits = require("./models/wo_bot_rate_limits")(sequelize, DataTypes)
   ctx.wo_bot_api_keys = require("./models/wo_bot_api_keys")(sequelize, DataTypes)
+  ctx.wo_stickers = require("./models/wo_stickers")(sequelize, DataTypes)
 
   // ==================== Channel Livestream + Premium Models ====================
   ctx.wm_chat_timers                     = require("./models/wm_chat_timers")(sequelize, DataTypes)
@@ -534,6 +536,9 @@ async function main() {
 
   // Register Backup / Cloud Settings routes (replaces PHP get/update_cloud_backup_settings.php)
   registerBackupRoutes(app, ctx);
+
+  // Register Sticker & Emoji Packs routes (replaces PHP sticker_pack/emoji_pack endpoints)
+  registerStickerRoutes(app, ctx);
 
   // ── App update check ──────────────────────────────────────────────────────
   // GET /api/node/update/check — serves mobile_update_config.json (no auth required)

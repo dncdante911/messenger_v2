@@ -7,8 +7,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.worldmates.messenger.data.model.Sticker
 import com.worldmates.messenger.data.model.StickerPack
-import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -19,6 +18,7 @@ class StickerRepository(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("sticker_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
+    private val api  = NodeRetrofitClient.api
 
     private val _stickerPacks = MutableStateFlow<List<StickerPack>>(emptyList())
     val stickerPacks: StateFlow<List<StickerPack>> = _stickerPacks
@@ -36,14 +36,7 @@ class StickerRepository(context: Context) {
      */
     suspend fun fetchStickerPacks(): Result<List<StickerPack>> {
         return try {
-            if (UserSession.accessToken == null) {
-                return Result.failure(Exception("Не авторизовано"))
-            }
-
-            val response = RetrofitClient.apiService.getStickerPacks(
-                accessToken = UserSession.accessToken!!,
-                serverKey = com.worldmates.messenger.data.Constants.SERVER_KEY
-            )
+            val response = api.getStickerPacks()
 
             if (response.apiStatus == 200 && response.packs != null) {
                 _stickerPacks.value = response.packs
@@ -65,15 +58,7 @@ class StickerRepository(context: Context) {
      */
     suspend fun fetchStickerPack(packId: Long): Result<StickerPack> {
         return try {
-            if (UserSession.accessToken == null) {
-                return Result.failure(Exception("Не авторизовано"))
-            }
-
-            val response = RetrofitClient.apiService.getStickerPack(
-                accessToken = UserSession.accessToken!!,
-                serverKey = com.worldmates.messenger.data.Constants.SERVER_KEY,
-                packId = packId
-            )
+            val response = api.getStickerPack(packId)
 
             if (response.apiStatus == 200 && response.pack != null) {
                 updateStickerPackInList(response.pack)
@@ -92,14 +77,7 @@ class StickerRepository(context: Context) {
      */
     suspend fun activateStickerPack(packId: Long): Result<StickerPack> {
         return try {
-            if (UserSession.accessToken == null) {
-                return Result.failure(Exception("Не авторизовано"))
-            }
-
-            val response = RetrofitClient.apiService.activateStickerPack(
-                accessToken = UserSession.accessToken!!,
-                packId = packId
-            )
+            val response = api.activateStickerPack(packId)
 
             if (response.apiStatus == 200 && response.pack != null) {
                 updateStickerPackInList(response.pack)
@@ -120,14 +98,7 @@ class StickerRepository(context: Context) {
      */
     suspend fun deactivateStickerPack(packId: Long): Result<StickerPack> {
         return try {
-            if (UserSession.accessToken == null) {
-                return Result.failure(Exception("Не авторизовано"))
-            }
-
-            val response = RetrofitClient.apiService.deactivateStickerPack(
-                accessToken = UserSession.accessToken!!,
-                packId = packId
-            )
+            val response = api.deactivateStickerPack(packId)
 
             if (response.apiStatus == 200 && response.pack != null) {
                 updateStickerPackInList(response.pack)
