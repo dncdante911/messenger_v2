@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.ui.components.CompactMediaMenu
 import com.worldmates.messenger.ui.components.formatting.FormattingSettings
 import com.worldmates.messenger.ui.components.formatting.FormattingToolbar
+import com.worldmates.messenger.ui.fonts.FontPickerSheet
+import com.worldmates.messenger.ui.fonts.FontStyle
+import com.worldmates.messenger.ui.fonts.FontStyleConverter
 import com.worldmates.messenger.utils.VoiceRecorder
 import kotlinx.coroutines.launch
 
@@ -74,6 +77,8 @@ fun MessageInputBar(
     // 📝 State для панелі форматування (перенесено на рівень функції)
     var showFormattingToolbar by remember { mutableStateOf(false) }
     var showLinkInsertDialog by remember { mutableStateOf(false) }
+    var showFontPicker by remember { mutableStateOf(false) }
+    var activeFontStyle by remember { mutableStateOf(FontStyle.NORMAL) }
 
     Column(
         modifier = Modifier
@@ -265,6 +270,18 @@ fun MessageInputBar(
                                     contentDescription = stringResource(R.string.formatted_text),
                                     tint = if (showFormattingToolbar) colorScheme.primary else colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // ✨ Кнопка стилю шрифту (Premium)
+                            IconButton(
+                                onClick = { showFontPicker = true },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Text(
+                                    text = if (activeFontStyle == FontStyle.NORMAL) "Аа" else activeFontStyle.emoji,
+                                    fontSize = 13.sp,
+                                    color = if (activeFontStyle != FontStyle.NORMAL) colorScheme.primary else colorScheme.onSurfaceVariant
                                 )
                             }
 
@@ -577,6 +594,21 @@ fun MessageInputBar(
                     onMessageChange(messageText + linkMarkdown)
                     showLinkInsertDialog = false
                 }
+            )
+        }
+
+        // ✨ Вибір стилю шрифту (Premium)
+        if (showFontPicker) {
+            FontPickerSheet(
+                previewText = messageText.ifBlank { "Привіт" },
+                currentStyle = activeFontStyle,
+                onStyleSelected = { style, styledText ->
+                    activeFontStyle = style
+                    if (messageText.isNotBlank()) {
+                        onMessageChange(styledText)
+                    }
+                },
+                onDismiss = { showFontPicker = false }
             )
         }
     }
