@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.worldmates.messenger.R
+import com.worldmates.messenger.ui.fonts.FontPickerSheet
+import com.worldmates.messenger.ui.fonts.FontStyle
+import com.worldmates.messenger.ui.fonts.FontStyleConverter
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -43,6 +46,8 @@ fun EditProfileScreen(
 
     var firstName by remember { mutableStateOf(userData?.firstName ?: "") }
     var lastName by remember { mutableStateOf(userData?.lastName ?: "") }
+    var showFontPicker by remember { mutableStateOf(false) }
+    var selectedFontStyle by remember { mutableStateOf(FontStyle.NORMAL) }
     var about by remember { mutableStateOf(userData?.about ?: "") }
     var birthday by remember { mutableStateOf(userData?.birthday ?: "") }
     var gender by remember { mutableStateOf(userData?.gender ?: "male") }
@@ -266,15 +271,40 @@ fun EditProfileScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            OutlinedTextField(
-                                value = firstName,
-                                onValueChange = { firstName = it },
-                                label = { Text(stringResource(R.string.first_name)) },
-                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = colorScheme.primary) },
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
-                            )
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = firstName,
+                                    onValueChange = { firstName = it },
+                                    label = { Text(stringResource(R.string.first_name)) },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = colorScheme.primary) },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                IconButton(
+                                    onClick = { showFontPicker = true },
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Text(
+                                        text = if (selectedFontStyle == FontStyle.NORMAL) "Аа" else selectedFontStyle.emoji,
+                                        fontSize = 16.sp,
+                                        color = if (selectedFontStyle != FontStyle.NORMAL) colorScheme.primary else colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            if (selectedFontStyle != FontStyle.NORMAL) {
+                                Text(
+                                    text = "Стиль: ${selectedFontStyle.displayName}  •  Перегляд: ${FontStyleConverter.convert(firstName, selectedFontStyle)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = colorScheme.primary,
+                                    modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                                )
+                            }
 
                             Spacer(Modifier.height(12.dp))
 
@@ -492,6 +522,19 @@ fun EditProfileScreen(
                 }
             }
         }
+    }
+
+    // Font Picker Sheet
+    if (showFontPicker) {
+        FontPickerSheet(
+            previewText = firstName.ifBlank { lastName },
+            currentStyle = selectedFontStyle,
+            onStyleSelected = { style, styledText ->
+                selectedFontStyle = style
+                if (firstName.isNotBlank()) firstName = styledText
+            },
+            onDismiss = { showFontPicker = false }
+        )
     }
 
     // Gender Dialog
