@@ -303,7 +303,7 @@ class MessageNotificationService : Service() {
             // which would result in NO notification being shown at all.
             val displayText = if (cipherVersion == 3) {
                 val cached = try {
-                    if (msgId > 0) SignalKeyStore(this).getCachedDecryptedMessage(msgId) else null
+                    if (msgId > 0) runBlocking { SignalKeyStore(this@MessageNotificationService).getCachedDecryptedMessage(msgId) } else null
                 } catch (e: Exception) {
                     Log.w(TAG, "SignalKeyStore unavailable in notification service — using fallback", e)
                     null
