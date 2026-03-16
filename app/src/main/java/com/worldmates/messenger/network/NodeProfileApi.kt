@@ -67,6 +67,24 @@ interface NodeProfileApi {
         @Field("new_password")     newPassword:     String,
     ): UpdateUserDataResponse
 
+    /** Оновити налаштування сповіщень. */
+    @FormUrlEncoded
+    @PUT("api/node/users/me/notifications")
+    suspend fun updateNotifications(
+        @Field("email_notification")  emailNotification:  Int? = null,
+        @Field("e_liked")             eLiked:             Int? = null,
+        @Field("e_wondered")          eWondered:          Int? = null,
+        @Field("e_shared")            eShared:            Int? = null,
+        @Field("e_followed")          eFollowed:          Int? = null,
+        @Field("e_commented")         eCommented:         Int? = null,
+        @Field("e_visited")           eVisited:           Int? = null,
+        @Field("e_liked_page")        eLikedPage:         Int? = null,
+        @Field("e_mentioned")         eMentioned:         Int? = null,
+        @Field("e_joined_group")      eJoinedGroup:       Int? = null,
+        @Field("e_accepted")          eAccepted:          Int? = null,
+        @Field("e_profile_wall_post") eProfileWallPost:   Int? = null,
+    ): UpdateUserDataResponse
+
     /** Оновити налаштування приватності. */
     @FormUrlEncoded
     @PUT("api/node/users/me/privacy")

@@ -799,6 +799,15 @@ interface NodeApi {
         @Field("mark_backup_complete")    markBackupComplete: String? = null
     ): com.worldmates.messenger.data.model.UpdateMediaSettingsResponse
 
+    // ═══════════════════════ MEDIA DOWNLOAD ══════════════════════════════════
+
+    /**
+     * Download any media file by its absolute URL.
+     * Used by MediaLoadingManager for thumbnails and full media.
+     */
+    @GET
+    suspend fun downloadMedia(@Url url: String): okhttp3.ResponseBody
+
     // ═══════════════════════ EXPORT CHAT HISTORY ═════════════════════════════
 
     @FormUrlEncoded
