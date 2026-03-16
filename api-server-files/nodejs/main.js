@@ -47,6 +47,7 @@ const { registerScheduledRoutes }    = require('./routes/scheduled')
 const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
 const { registerStickerRoutes }      = require('./routes/stickers')
+const { startCronJobs }              = require('./jobs/cronJobs')
 
 let serverPort
 let server
@@ -539,6 +540,9 @@ async function main() {
 
   // Register Sticker & Emoji Packs routes (replaces PHP sticker_pack/emoji_pack endpoints)
   registerStickerRoutes(app, ctx);
+
+  // ── Background cron jobs (premium expiry, story cleanup, notification purge)
+  startCronJobs(ctx);
 
   // ── App update check ──────────────────────────────────────────────────────
   // GET /api/node/update/check — serves mobile_update_config.json (no auth required)
