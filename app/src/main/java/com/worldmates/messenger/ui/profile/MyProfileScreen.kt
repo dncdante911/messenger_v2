@@ -19,6 +19,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -60,6 +62,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +73,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -77,8 +81,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -116,11 +123,13 @@ fun MyProfileScreen(
     onQrCodeClick: () -> Unit = {},
     onMoreClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    profileViewModel: UserProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     avatarGalleryViewModel: AvatarGalleryViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    var showQrDialog     by remember { mutableStateOf(false) }
-    var showAvatarSheet  by remember { mutableStateOf(false) }
+    var showQrDialog          by remember { mutableStateOf(false) }
+    var showAvatarSheet       by remember { mutableStateOf(false) }
+    var showAppearanceDialog  by remember { mutableStateOf(false) }
 
     val avatars by avatarGalleryViewModel.avatars.collectAsState()
 
@@ -218,10 +227,11 @@ fun MyProfileScreen(
                 ) + fadeIn(tween(260))
             ) {
                 ProfileActionButtons(
-                    onPhotoClick    = { avatarPicker.launch("image/*") },
-                    onEditClick     = onEditClick,
-                    onSettingsClick = onSettingsClick,
-                    onThemesClick   = onThemesClick
+                    onPhotoClick       = { avatarPicker.launch("image/*") },
+                    onEditClick        = onEditClick,
+                    onSettingsClick    = onSettingsClick,
+                    onThemesClick      = onThemesClick,
+                    onAppearanceClick  = { showAppearanceDialog = true }
                 )
             }
         }
@@ -262,6 +272,22 @@ fun MyProfileScreen(
             userId     = user.userId,
             isPremium  = user.isPro > 0,
             onDismiss  = { showAvatarSheet = false }
+        )
+    }
+
+    // ── Profile Appearance Dialog ───────────────────────────────────────────
+    if (showAppearanceDialog) {
+        ProfileAppearanceDialog(
+            user      = user,
+            onDismiss = { showAppearanceDialog = false },
+            onSave    = { accent, badge, style ->
+                profileViewModel.updateAppearance(
+                    profileAccent      = accent,
+                    profileBadge       = badge,
+                    profileHeaderStyle = style,
+                )
+                showAppearanceDialog = false
+            }
         )
     }
 }
@@ -449,7 +475,7 @@ private fun ProfileNameSection(user: User) {
                 )
                 Spacer(Modifier.width(5.dp))
                 Text(
-                    text  = if (online) "в сети" else "был(а) недавно",
+                    text  = if (online) stringResource(R.string.online) else stringResource(R.string.last_seen_recently),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (online) Color(0xFF4CAF50)
                             else MaterialTheme.colorScheme.onSurfaceVariant
@@ -465,21 +491,22 @@ private fun ProfileNameSection(user: User) {
 
 @Composable
 private fun ProfileActionButtons(
-    onPhotoClick: () -> Unit,
-    onEditClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onThemesClick: () -> Unit
+    onPhotoClick:      () -> Unit,
+    onEditClick:       () -> Unit,
+    onSettingsClick:   () -> Unit,
+    onThemesClick:     () -> Unit,
+    onAppearanceClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        ProfileActionButton(Icons.Default.Edit,      "Изменить",  onEditClick,     Modifier.weight(1f))
-        ProfileActionButton(Icons.Default.CameraAlt, "Фото",      onPhotoClick,    Modifier.weight(1f))
-        ProfileActionButton(Icons.Default.Settings,  "Настройки", onSettingsClick, Modifier.weight(1f))
-        ProfileActionButton(Icons.Default.Palette,   "Темы",      onThemesClick,   Modifier.weight(1f))
+        ProfileActionButton(Icons.Default.Edit,         stringResource(R.string.profile_action_edit),      onEditClick,       Modifier.weight(1f))
+        ProfileActionButton(Icons.Default.CameraAlt,    stringResource(R.string.profile_action_photo),     onPhotoClick,      Modifier.weight(1f))
+        ProfileActionButton(Icons.Default.ColorLens,    stringResource(R.string.profile_action_customize), onAppearanceClick, Modifier.weight(1f))
+        ProfileActionButton(Icons.Default.Settings,     stringResource(R.string.profile_action_settings),  onSettingsClick,   Modifier.weight(1f))
     }
 }
 
@@ -575,7 +602,7 @@ private fun ProfileInfoCard(user: User) {
                 verticalAlignment     = Alignment.CenterVertically
             ) {
                 Text(
-                    "Информация",
+                    stringResource(R.string.profile_info),
                     style      = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color      = MaterialTheme.colorScheme.onSurface
@@ -603,29 +630,29 @@ private fun ProfileInfoCard(user: User) {
                         .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
                 ) {
                     if (!user.phoneNumber.isNullOrBlank()) {
-                        ProfileInfoRow(user.phoneNumber, "Телефон", Icons.Default.Phone)
+                        ProfileInfoRow(user.phoneNumber, stringResource(R.string.phone_label), Icons.Default.Phone)
                         InfoDivider()
                     }
                     if (!user.about.isNullOrBlank()) {
-                        ProfileInfoRow(user.about, "О себе", Icons.Default.Info)
+                        ProfileInfoRow(user.about, stringResource(R.string.about), Icons.Default.Info)
                         InfoDivider()
                     }
-                    ProfileInfoRow("@${user.username}", "Имя пользователя", Icons.Default.Person)
+                    ProfileInfoRow("@${user.username}", stringResource(R.string.username_label), Icons.Default.Person)
                     if (!user.birthday.isNullOrBlank()) {
                         InfoDivider()
-                        ProfileInfoRow(formatBirthday(user.birthday), "День рождения", Icons.Default.Cake)
+                        ProfileInfoRow(formatBirthday(user.birthday), stringResource(R.string.birthday_profile_label), Icons.Default.Cake)
                     }
                     if (!user.city.isNullOrBlank()) {
                         InfoDivider()
-                        ProfileInfoRow(user.city, "Город", Icons.Default.LocationOn)
+                        ProfileInfoRow(user.city, stringResource(R.string.city), Icons.Default.LocationOn)
                     }
                     if (!user.working.isNullOrBlank()) {
                         InfoDivider()
-                        ProfileInfoRow(user.working, "Работа", Icons.Default.Work)
+                        ProfileInfoRow(user.working, stringResource(R.string.work_profile_label), Icons.Default.Work)
                     }
                     if (!user.website.isNullOrBlank()) {
                         InfoDivider()
-                        ProfileInfoRow(user.website, "Веб-сайт", Icons.Default.Language)
+                        ProfileInfoRow(user.website, stringResource(R.string.website_profile_label), Icons.Default.Language)
                     }
                 }
             }
@@ -679,7 +706,7 @@ private fun InfoDivider() {
 
 @Composable
 private fun ProfileContentTabs() {
-    val tabs        = listOf("Медиа", "Архив")
+    val tabs        = listOf(stringResource(R.string.tab_media), stringResource(R.string.tab_archive))
     var selectedTab by remember { mutableStateOf(0) }
 
     Column(
@@ -738,7 +765,7 @@ private fun ProfileContentTabs() {
 
 @Composable
 private fun MediaTabContent() {
-    val subTabs     = listOf("Личные", "Полученные")
+    val subTabs     = listOf(stringResource(R.string.tab_media_personal), stringResource(R.string.tab_media_received))
     var selectedSub by remember { mutableStateOf(0) }
 
     Column(Modifier.fillMaxWidth()) {
@@ -793,11 +820,8 @@ private fun MediaTabContent() {
         ) { sub ->
             EmptyMediaPlaceholder(
                 icon     = if (sub == 0) Icons.Default.Collections else Icons.Default.Photo,
-                title    = if (sub == 0) "Нет личных медиа" else "Нет полученных медиа",
-                subtitle = if (sub == 0)
-                    "Здесь будут фото и видео,\nкоторые вы отправляли"
-                else
-                    "Здесь будут медиафайлы,\nкоторые вам присылали"
+                title    = if (sub == 0) stringResource(R.string.media_personal_empty_title) else stringResource(R.string.media_received_empty_title),
+                subtitle = if (sub == 0) stringResource(R.string.media_personal_empty_subtitle) else stringResource(R.string.media_received_empty_subtitle)
             )
         }
     }
@@ -809,8 +833,8 @@ private fun MediaTabContent() {
 private fun ArchiveTabContent() {
     EmptyMediaPlaceholder(
         icon     = Icons.Default.Archive,
-        title    = "Архив пуст",
-        subtitle = "Созданные истории хранятся\nздесь до 12 месяцев"
+        title    = stringResource(R.string.archive_empty_title),
+        subtitle = stringResource(R.string.archive_empty_subtitle)
     )
 }
 
@@ -925,7 +949,7 @@ private fun ProfileQrDialog(user: User, onDismiss: () -> Unit) {
                 Spacer(Modifier.height(16.dp))
 
                 Text(
-                    "Отсканируйте, чтобы найти мой профиль",
+                    stringResource(R.string.qr_scan_hint),
                     style     = MaterialTheme.typography.bodySmall,
                     color     = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -939,17 +963,15 @@ private fun ProfileQrDialog(user: User, onDismiss: () -> Unit) {
                 ) {
                     Button(
                         onClick = {
+                            val shareText = context.getString(R.string.qr_share_text, qrContent)
                             val intent = android.content.Intent(
                                 android.content.Intent.ACTION_SEND
                             ).apply {
                                 type = "text/plain"
-                                putExtra(
-                                    android.content.Intent.EXTRA_TEXT,
-                                    "Найди меня в WorldMates: $qrContent"
-                                )
+                                putExtra(android.content.Intent.EXTRA_TEXT, shareText)
                             }
                             context.startActivity(
-                                android.content.Intent.createChooser(intent, "Поделиться")
+                                android.content.Intent.createChooser(intent, context.getString(R.string.share))
                             )
                         },
                         modifier = Modifier.weight(1f),
@@ -957,7 +979,7 @@ private fun ProfileQrDialog(user: User, onDismiss: () -> Unit) {
                     ) {
                         Icon(Icons.Default.Share, null, Modifier.size(17.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Поделиться")
+                        Text(stringResource(R.string.share))
                     }
 
                     OutlinedButton(
@@ -965,7 +987,7 @@ private fun ProfileQrDialog(user: User, onDismiss: () -> Unit) {
                         modifier = Modifier.weight(1f),
                         shape    = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Закрыть")
+                        Text(stringResource(R.string.close))
                     }
                 }
             }
@@ -1010,4 +1032,198 @@ private fun formatBirthday(birthday: String): String {
             "$day ${names.getOrElse(month) { "" }} $year ($age лет)"
         } else birthday
     } catch (e: Exception) { birthday }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROFILE APPEARANCE DIALOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Accent color presets — same list as on the server. */
+private val ACCENT_PRESETS = listOf(
+    "#667EEA", "#764BA2", "#FF6B35", "#4CAF50",
+    "#F44336", "#00BCD4", "#E91E63", "#FF9800",
+    "#795548", "#607D8B", "#009688", "#3F51B5",
+)
+
+/** Badge emoji presets shown as quick-picks. */
+private val BADGE_PRESETS = listOf("", "🔥", "⭐", "💎", "🎮", "🎵", "📸", "✈️", "🌍", "💼", "🎓", "🏆")
+
+@Composable
+fun ProfileAppearanceDialog(
+    user:     com.worldmates.messenger.data.model.User,
+    onDismiss: () -> Unit,
+    onSave:   (accent: String?, badge: String?, style: String?) -> Unit
+) {
+    var selectedAccent by remember { mutableStateOf(user.profileAccent ?: "#667EEA") }
+    var selectedBadge  by remember { mutableStateOf(user.profileBadge  ?: "") }
+    var selectedStyle  by remember { mutableStateOf(user.profileHeaderStyle ?: "gradient") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape          = RoundedCornerShape(24.dp),
+            color          = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp,
+            modifier       = Modifier.padding(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text       = stringResource(R.string.profile_customize_title),
+                    style      = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier   = Modifier.padding(bottom = 16.dp)
+                )
+
+                // ── Accent color ──────────────────────────────────────────
+                Text(
+                    text     = stringResource(R.string.profile_accent_color),
+                    style    = MaterialTheme.typography.labelMedium,
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ACCENT_PRESETS.forEach { hex ->
+                        val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { Color.Gray }
+                        val isSelected = hex.equals(selectedAccent, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .shadow(if (isSelected) 6.dp else 1.dp, CircleShape)
+                                .background(color, CircleShape)
+                                .then(if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.background, CircleShape) else Modifier)
+                                .clickable { selectedAccent = hex },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint     = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(18.dp))
+
+                // ── Header style ──────────────────────────────────────────
+                Text(
+                    text     = stringResource(R.string.profile_header_style_label),
+                    style    = MaterialTheme.typography.labelMedium,
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        "gradient" to stringResource(R.string.header_style_gradient),
+                        "minimal"  to stringResource(R.string.header_style_minimal),
+                        "pattern"  to stringResource(R.string.header_style_pattern),
+                    ).forEach { (value, label) ->
+                        val isSelected = selectedStyle == value
+                        val bgColor = try { Color(android.graphics.Color.parseColor(selectedAccent)) } catch (e: Exception) { Color(0xFF667EEA) }
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedStyle = value },
+                            shape    = RoundedCornerShape(12.dp),
+                            color    = if (isSelected) bgColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border   = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, bgColor) else null
+                        ) {
+                            Text(
+                                text       = label,
+                                style      = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color      = if (isSelected) bgColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign  = TextAlign.Center,
+                                modifier   = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(18.dp))
+
+                // ── Badge emoji ───────────────────────────────────────────
+                Text(
+                    text     = stringResource(R.string.profile_badge_label),
+                    style    = MaterialTheme.typography.labelMedium,
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    BADGE_PRESETS.forEach { emoji ->
+                        val isSelected = selectedBadge == emoji
+                        val accentColor = try { Color(android.graphics.Color.parseColor(selectedAccent)) } catch (e: Exception) { Color(0xFF667EEA) }
+                        Surface(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clickable { selectedBadge = emoji },
+                            shape    = RoundedCornerShape(10.dp),
+                            color    = if (isSelected) accentColor.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border   = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, accentColor) else null
+                        ) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                if (emoji.isBlank()) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = null,
+                                        tint     = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                } else {
+                                    Text(text = emoji, fontSize = 20.sp, textAlign = TextAlign.Center)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(22.dp))
+
+                // ── Buttons ───────────────────────────────────────────────
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    TextButton(
+                        onClick  = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick  = {
+                            onSave(
+                                if (selectedAccent != user.profileAccent) selectedAccent else null,
+                                if (selectedBadge  != user.profileBadge)  selectedBadge  else null,
+                                if (selectedStyle  != user.profileHeaderStyle) selectedStyle  else null,
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape    = RoundedCornerShape(14.dp)
+                    ) {
+                        Text(stringResource(R.string.save))
+                    }
+                }
+            }
+        }
+    }
 }

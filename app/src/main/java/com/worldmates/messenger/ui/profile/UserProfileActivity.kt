@@ -4,7 +4,16 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -16,15 +25,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -283,6 +297,22 @@ private fun ProfileErrorState(
     }
 }
 
+/** Parse a hex color string like "#RRGGBB" safely, returns null on failure. */
+private fun parseHexColor(hex: String?): Color? {
+    if (hex.isNullOrBlank()) return null
+    return try {
+        Color(android.graphics.Color.parseColor(if (hex.startsWith("#")) hex else "#$hex"))
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/** Returns white or dark color for readable text on given background. */
+private fun contentColorFor(bgColor: Color): Color {
+    val luminance = ColorUtils.calculateLuminance(bgColor.toArgb())
+    return if (luminance > 0.4) Color(0xFF1A1A2E) else Color.White
+}
+
 @Composable
 fun UserProfileContent(
     user: User,
@@ -290,253 +320,379 @@ fun UserProfileContent(
     ratingState: RatingState,
     onRateUser: (String, String?) -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Cover and Avatar Section
+    val accentColor = parseHexColor(user.profileAccent) ?: Color(0xFF667EEA)
+    val headerStyle = user.profileHeaderStyle ?: "gradient"
+
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+
+        // ── Hero header ─────────────────────────────────────────────────────
         item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-            ) {
-                // Cover photo
-                AsyncImage(
-                    model = user.cover ?: "https://via.placeholder.com/800x200/667eea/ffffff?text=Cover",
-                    contentDescription = "Cover photo",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-
-                // Gradient overlay
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.3f)
-                                )
-                            )
-                        )
-                )
-
-                // Avatar pager at bottom (supports multiple photos)
-                UserAvatarPagerInProfile(
-                    userId = user.userId,
-                    fallbackUrl = user.avatar,
-                    modifier = Modifier
-                        .size(100.dp)
-                        .align(Alignment.BottomStart)
-                        .padding(start = 16.dp, bottom = 16.dp)
-                )
-            }
+            ProfileHeroHeader(
+                user        = user,
+                accentColor = accentColor,
+                headerStyle = headerStyle,
+            )
         }
 
-        // User Info Section
+        // ── Name + bio block ────────────────────────────────────────────────
         item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                // Name
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${user.firstName ?: ""} ${user.lastName ?: ""}".trim()
-                            .ifBlank { user.username },
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (user.verified == 1) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = "Verified",
-                            tint = Color(0xFF0084FF),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
-                // Username
-                Text(
-                    text = "@${user.username}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-
-                // Bio
-                if (!user.about.isNullOrBlank()) {
-                    Text(
-                        text = user.about,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
-                }
-            }
+            ProfileIdentityBlock(user = user, accentColor = accentColor)
         }
 
-        // Stats Section
+        // ── Stats row ───────────────────────────────────────────────────────
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                StatItem(
-                    label = stringResource(R.string.followers),
-                    count = user.followersCount ?: "0"
-                )
-                StatItem(
-                    label = stringResource(R.string.following_count),
-                    count = user.followingCount ?: "0"
-                )
-                StatItem(
-                    label = stringResource(R.string.posts),
-                    count = user.details?.postCount?.toString() ?: "0"
-                )
-            }
+            ProfileStatsRow(user = user)
         }
 
-        // Rating/Karma Section (only for other users' profiles)
+        // ── Rating/Karma ─────────────────────────────────────────────────
         if (!isOwnProfile) {
             item {
-                Divider(modifier = Modifier.padding(vertical = 12.dp))
-
+                Spacer(Modifier.height(4.dp))
                 when (ratingState) {
-                    is RatingState.Loading -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
-                    }
-                    is RatingState.Success -> {
-                        UserRatingCard(
-                            rating = ratingState.rating,
-                            onLikeClick = { onRateUser("like", null) },
-                            onDislikeClick = { onRateUser("dislike", null) }
+                    is RatingState.Loading -> Box(
+                        Modifier.fillMaxWidth().padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator(Modifier.size(26.dp)) }
+                    is RatingState.Success -> UserRatingCard(
+                        rating         = ratingState.rating,
+                        accentColor    = accentColor,
+                        onLikeClick    = { onRateUser("like", null) },
+                        onDislikeClick = { onRateUser("dislike", null) }
+                    )
+                    is RatingState.Error -> Card(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    ) {
+                        Text(
+                            text     = ratingState.message,
+                            color    = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(12.dp)
                         )
-                    }
-                    is RatingState.Error -> {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        ) {
-                            Text(
-                                text = ratingState.message,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
                     }
                 }
             }
         }
 
-        // Additional Info Section
+        // ── Info section ─────────────────────────────────────────────────
         item {
-            Divider(modifier = Modifier.padding(vertical = 16.dp))
+            ProfileInfoSection(user = user, accentColor = accentColor)
+            Spacer(Modifier.height(40.dp))
+        }
+    }
+}
 
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp)
-            ) {
-                val genderMaleStr = stringResource(R.string.gender_male)
-                val genderFemaleStr = stringResource(R.string.gender_female)
+// ─── Hero Header ──────────────────────────────────────────────────────────────
 
-                Text(
-                    text = stringResource(R.string.profile_info),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 12.dp)
+@Composable
+private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: String) {
+    val darkerAccent = Color(
+        android.graphics.Color.HSVToColor(
+            FloatArray(3).also { hsv ->
+                android.graphics.Color.colorToHSV(accentColor.toArgb(), hsv)
+                hsv[2] = (hsv[2] * 0.65f).coerceIn(0f, 1f)
+            }
+        )
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+    ) {
+        // Background: cover image or styled gradient/pattern
+        if (!user.cover.isNullOrBlank() && headerStyle != "minimal") {
+            AsyncImage(
+                model              = user.cover,
+                contentDescription = null,
+                modifier           = Modifier.fillMaxSize(),
+                contentScale       = ContentScale.Crop
+            )
+            // Tinted overlay using accent color
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(accentColor.copy(alpha = 0.35f))
+            )
+        } else {
+            // Accent-based background
+            val bgBrush = when (headerStyle) {
+                "pattern" -> Brush.sweepGradient(
+                    listOf(accentColor, darkerAccent, accentColor.copy(alpha = 0.7f), darkerAccent, accentColor)
                 )
+                "minimal" -> Brush.verticalGradient(
+                    listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.background)
+                )
+                else -> Brush.linearGradient(
+                    listOf(accentColor, darkerAccent)
+                )
+            }
+            Box(modifier = Modifier.fillMaxSize().background(bgBrush))
+        }
 
-                if (!user.working.isNullOrBlank()) {
-                    InfoItem(
-                        icon = Icons.Default.Work,
-                        label = stringResource(R.string.work_label),
-                        value = user.working
+        // Bottom gradient scrim for readability
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.65f to Color.Transparent,
+                        1f to MaterialTheme.colorScheme.background
                     )
-                }
+                )
+        )
 
-                if (!user.school.isNullOrBlank()) {
-                    InfoItem(
-                        icon = Icons.Default.School,
-                        label = stringResource(R.string.education_label),
-                        value = user.school
-                    )
-                }
+        // Avatar — bottom-left, overlapping the header bottom edge
+        UserAvatarPagerInProfile(
+            userId      = user.userId,
+            fallbackUrl = user.avatar,
+            modifier    = Modifier
+                .size(96.dp)
+                .align(Alignment.BottomStart)
+                .offset(x = 18.dp, y = 48.dp)
+                .shadow(8.dp, CircleShape)
+                .border(3.dp, MaterialTheme.colorScheme.background, CircleShape)
+        )
 
-                if (!user.city.isNullOrBlank()) {
-                    InfoItem(
-                        icon = Icons.Default.LocationOn,
-                        label = stringResource(R.string.city),
-                        value = user.city
-                    )
-                }
+        // Online dot on avatar
+        val isOnline = user.lastSeenStatus == "online"
+        if (isOnline) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .offset(x = 94.dp, y = 38.dp)
+                    .size(16.dp)
+                    .border(2.5.dp, MaterialTheme.colorScheme.background, CircleShape)
+                    .background(Color(0xFF4CAF50), CircleShape)
+            )
+        }
+    }
 
-                if (!user.website.isNullOrBlank()) {
-                    InfoItem(
-                        icon = Icons.Default.Language,
-                        label = stringResource(R.string.website_label),
-                        value = user.website
-                    )
-                }
+    // Spacer to compensate the avatar overlap
+    Spacer(Modifier.height(52.dp))
+}
 
-                if (!user.birthday.isNullOrBlank()) {
-                    InfoItem(
-                        icon = Icons.Default.Cake,
-                        label = stringResource(R.string.birthday_label),
-                        value = user.birthday
-                    )
-                }
+// ─── Identity block (name + badge + username + bio + action buttons) ──────────
 
-                if (user.gender != null) {
-                    InfoItem(
-                        icon = Icons.Default.Person,
-                        label = stringResource(R.string.gender),
-                        value = when (user.gender) {
-                            "male" -> genderMaleStr
-                            "female" -> genderFemaleStr
-                            else -> user.gender
-                        }
+@Composable
+private fun ProfileIdentityBlock(user: User, accentColor: Color) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        // Name row
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text       = "${user.firstName ?: ""} ${user.lastName ?: ""}".trim().ifBlank { user.username },
+                style      = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier   = Modifier.weight(1f, fill = false)
+            )
+            if (!user.profileBadge.isNullOrBlank()) {
+                Spacer(Modifier.width(6.dp))
+                Text(text = user.profileBadge, fontSize = 20.sp)
+            }
+            if (user.verified == 1) {
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint     = accentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(3.dp))
+
+        // Username + online status chip
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text  = "@${user.username}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (user.lastSeenStatus == "online") {
+                Spacer(Modifier.width(8.dp))
+                Surface(
+                    color = Color(0xFF4CAF50).copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Text(
+                        text     = stringResource(R.string.online),
+                        style    = MaterialTheme.typography.labelSmall,
+                        color    = Color(0xFF4CAF50),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(32.dp))
+        // Bio
+        if (!user.about.isNullOrBlank()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text  = user.about,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+    }
+}
+
+// ─── Stats row ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ProfileStatsRow(user: User) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape     = RoundedCornerShape(18.dp),
+        colors    = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            ProfileStatChip(
+                count = user.followersCount ?: "0",
+                label = stringResource(R.string.followers)
+            )
+            VerticalDivider()
+            ProfileStatChip(
+                count = user.followingCount ?: "0",
+                label = stringResource(R.string.following_count)
+            )
+            VerticalDivider()
+            ProfileStatChip(
+                count = user.details?.postCount?.toString() ?: "0",
+                label = stringResource(R.string.posts)
+            )
+        }
+    }
+}
+
+@Composable
+private fun VerticalDivider() {
+    Box(
+        modifier = Modifier
+            .height(36.dp)
+            .width(1.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    )
+}
+
+@Composable
+private fun ProfileStatChip(count: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text       = count,
+            style      = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color      = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text  = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+// ─── Info section ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun ProfileInfoSection(user: User, accentColor: Color) {
+    val genderMaleStr   = stringResource(R.string.gender_male)
+    val genderFemaleStr = stringResource(R.string.gender_female)
+
+    val hasAnyInfo = listOf(user.working, user.school, user.city, user.website, user.birthday, user.gender)
+        .any { !it.isNullOrBlank() }
+
+    if (!hasAnyInfo) return
+
+    Spacer(Modifier.height(8.dp))
+
+    Card(
+        modifier  = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        shape     = RoundedCornerShape(18.dp),
+        colors    = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        ),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text(
+                text       = stringResource(R.string.profile_info),
+                style      = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color      = MaterialTheme.colorScheme.onSurface,
+                modifier   = Modifier.padding(bottom = 10.dp)
+            )
+            if (!user.working.isNullOrBlank()) {
+                InfoItemCompact(Icons.Default.Work,       stringResource(R.string.work_label),      user.working,   accentColor)
+            }
+            if (!user.school.isNullOrBlank()) {
+                InfoItemCompact(Icons.Default.School,     stringResource(R.string.education_label), user.school,    accentColor)
+            }
+            if (!user.city.isNullOrBlank()) {
+                InfoItemCompact(Icons.Default.LocationOn, stringResource(R.string.city),            user.city,      accentColor)
+            }
+            if (!user.website.isNullOrBlank()) {
+                InfoItemCompact(Icons.Default.Language,   stringResource(R.string.website_label),   user.website,   accentColor)
+            }
+            if (!user.birthday.isNullOrBlank()) {
+                InfoItemCompact(Icons.Default.Cake,       stringResource(R.string.birthday_label),  user.birthday,  accentColor)
+            }
+            if (!user.gender.isNullOrBlank()) {
+                val genderStr = when (user.gender) { "male" -> genderMaleStr; "female" -> genderFemaleStr; else -> user.gender }
+                InfoItemCompact(Icons.Default.Person,     stringResource(R.string.gender),          genderStr,      accentColor)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoItemCompact(
+    icon:       androidx.compose.ui.graphics.vector.ImageVector,
+    label:      String,
+    value:      String,
+    accentColor: Color
+) {
+    Row(
+        modifier          = Modifier.fillMaxWidth().padding(vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier         = Modifier
+                .size(34.dp)
+                .background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(label, style = MaterialTheme.typography.bodySmall,  color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
 fun StatItem(label: String, count: String) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = count,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = count, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -754,260 +910,267 @@ fun EditProfileDialog(
 }
 
 /**
- * Card для відображення рейтингу користувача з можливістю оцінки
+ * Modern karma card with progress bar and compact vote buttons.
  */
 @Composable
 fun UserRatingCard(
-    rating: com.worldmates.messenger.data.model.UserRating,
-    onLikeClick: () -> Unit,
+    rating:        com.worldmates.messenger.data.model.UserRating,
+    accentColor:   Color = Color(0xFF667EEA),
+    onLikeClick:   () -> Unit,
     onDislikeClick: () -> Unit
 ) {
+    val trustColor = when (rating.trustLevel) {
+        "verified"  -> Color(0xFF4CAF50)
+        "trusted"   -> Color(0xFF2196F3)
+        "untrusted" -> Color(0xFFF44336)
+        else        -> Color(0xFF9E9E9E)
+    }
+    val likeActive    = rating.myRating?.type == "like"
+    val dislikeActive = rating.myRating?.type == "dislike"
+
+    val verifiedStr   = stringResource(R.string.status_verified)
+    val trustedStr    = stringResource(R.string.status_trusted)
+    val neutralStr    = stringResource(R.string.status_neutral)
+    val untrustedStr  = stringResource(R.string.status_untrusted)
+    val trustLabel    = when (rating.trustLevel) {
+        "verified"  -> verifiedStr
+        "trusted"   -> trustedStr
+        "untrusted" -> untrustedStr
+        else        -> neutralStr
+    }
+
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = RoundedCornerShape(16.dp)
+        modifier  = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        shape     = RoundedCornerShape(20.dp),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Header
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+
+            // ── Header: title + trust badge ─────────────────────────────
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment     = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = stringResource(R.string.user_karma),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        text       = stringResource(R.string.user_karma),
+                        style      = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = rating.trustLevelEmoji,
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(text = rating.trustLevelEmoji, fontSize = 16.sp)
                 }
-
-                // Trust level badge
-                Surface(
-                    color = when (rating.trustLevel) {
-                        "verified" -> Color(0xFF4CAF50)
-                        "trusted" -> Color(0xFF2196F3)
-                        "neutral" -> Color(0xFF9E9E9E)
-                        "untrusted" -> Color(0xFFF44336)
-                        else -> Color(0xFF9E9E9E)
-                    },
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    val verifiedStr = stringResource(R.string.status_verified)
-                    val trustedStr = stringResource(R.string.status_trusted)
-                    val neutralStr = stringResource(R.string.status_neutral)
-                    val untrustedStr = stringResource(R.string.status_untrusted)
-                    val unknownStr = stringResource(R.string.unknown)
+                Surface(color = trustColor.copy(alpha = 0.15f), shape = RoundedCornerShape(20.dp)) {
                     Text(
-                        text = when (rating.trustLevel) {
-                            "verified" -> verifiedStr
-                            "trusted" -> trustedStr
-                            "neutral" -> neutralStr
-                            "untrusted" -> untrustedStr
-                            else -> unknownStr
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                        text     = trustLabel,
+                        style    = MaterialTheme.typography.labelSmall,
+                        color    = trustColor,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // Rating stats
+            // ── Score + counts in one line ──────────────────────────────
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment     = Alignment.CenterVertically
             ) {
-                // Likes
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
+                // Score circle
+                Box(
+                    modifier         = Modifier
+                        .size(56.dp)
+                        .background(accentColor.copy(alpha = 0.12f), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.ThumbUp,
-                        contentDescription = "Likes",
-                        tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Text(
-                        text = rating.likes.toString(),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4CAF50)
-                    )
-                    Text(
-                        text = stringResource(R.string.likes_label),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // Score
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        Icons.Default.Star,
-                        contentDescription = "Score",
-                        tint = Color(0xFFFF9800),
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Text(
-                        text = String.format("%.1f", rating.score),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFF9800)
-                    )
-                    Text(
-                        text = stringResource(R.string.rating_label),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // Dislikes
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        Icons.Default.ThumbDown,
-                        contentDescription = "Dislikes",
-                        tint = Color(0xFFF44336),
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Text(
-                        text = rating.dislikes.toString(),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFF44336)
-                    )
-                    Text(
-                        text = stringResource(R.string.dislikes_label),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Divider()
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Action buttons
-            Text(
-                text = stringResource(R.string.rate_user),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Like button
-                Button(
-                    onClick = onLikeClick,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (rating.myRating?.type == "like") {
-                            Color(0xFF4CAF50)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        contentColor = if (rating.myRating?.type == "like") {
-                            Color.White
-                        } else {
-                            Color(0xFF4CAF50)
-                        }
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.ThumbUp,
-                        contentDescription = "Like",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (rating.myRating?.type == "like") stringResource(R.string.liked) else stringResource(R.string.like)
-                    )
-                }
-
-                // Dislike button
-                Button(
-                    onClick = onDislikeClick,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (rating.myRating?.type == "dislike") {
-                            Color(0xFFF44336)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        contentColor = if (rating.myRating?.type == "dislike") {
-                            Color.White
-                        } else {
-                            Color(0xFFF44336)
-                        }
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.ThumbDown,
-                        contentDescription = "Dislike",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (rating.myRating?.type == "dislike") stringResource(R.string.disliked) else stringResource(R.string.dislike)
-                    )
-                }
-            }
-
-            // My rating info
-            rating.myRating?.let { myRating ->
-                Spacer(modifier = Modifier.height(12.dp))
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = stringResource(R.string.already_rated),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            text       = String.format("%.1f", rating.score),
+                            style      = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color      = accentColor
+                        )
+                        Text(
+                            text  = stringResource(R.string.rating_label),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = accentColor.copy(alpha = 0.7f),
+                            fontSize = 9.sp
                         )
                     }
                 }
+
+                // Progress bar + counts
+                Column(modifier = Modifier.weight(1f)) {
+                    // Like/dislike bar
+                    val likeRatio = if (rating.totalRatings > 0)
+                        rating.likes.toFloat() / rating.totalRatings else 0f
+                    val animatedRatio by animateFloatAsState(
+                        targetValue   = likeRatio,
+                        animationSpec = tween(600),
+                        label         = "like_ratio"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFF44336).copy(alpha = 0.25f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedRatio)
+                                .background(
+                                    Brush.horizontalGradient(listOf(Color(0xFF4CAF50), Color(0xFF8BC34A))),
+                                    RoundedCornerShape(4.dp)
+                                )
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        modifier              = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ThumbUp, null, Modifier.size(14.dp), tint = Color(0xFF4CAF50))
+                            Spacer(Modifier.width(3.dp))
+                            Text(
+                                text  = rating.likes.toString(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color(0xFF4CAF50),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Text(
+                            text  = stringResource(R.string.rating_total_votes, rating.totalRatings),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text  = rating.dislikes.toString(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color(0xFFF44336),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.width(3.dp))
+                            Icon(Icons.Default.ThumbDown, null, Modifier.size(14.dp), tint = Color(0xFFF44336))
+                        }
+                    }
+                }
             }
+
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            Spacer(Modifier.height(12.dp))
+
+            // ── Rate buttons ────────────────────────────────────────────
+            Text(
+                text     = stringResource(R.string.rate_user),
+                style    = MaterialTheme.typography.bodySmall,
+                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                RatingVoteButton(
+                    modifier  = Modifier.weight(1f),
+                    isActive  = likeActive,
+                    activeColor = Color(0xFF4CAF50),
+                    icon      = Icons.Default.ThumbUp,
+                    label     = if (likeActive) stringResource(R.string.liked) else stringResource(R.string.like),
+                    onClick   = onLikeClick
+                )
+                RatingVoteButton(
+                    modifier  = Modifier.weight(1f),
+                    isActive  = dislikeActive,
+                    activeColor = Color(0xFFF44336),
+                    icon      = Icons.Default.ThumbDown,
+                    label     = if (dislikeActive) stringResource(R.string.disliked) else stringResource(R.string.dislike),
+                    onClick   = onDislikeClick
+                )
+            }
+
+            // Already-rated hint
+            if (rating.myRating != null) {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier          = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint     = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        text  = stringResource(R.string.already_rated),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RatingVoteButton(
+    modifier:    Modifier,
+    isActive:    Boolean,
+    activeColor: Color,
+    icon:        androidx.compose.ui.graphics.vector.ImageVector,
+    label:       String,
+    onClick:     () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue   = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label         = "vote_btn_scale"
+    )
+    val containerColor by animateColorAsState(
+        targetValue   = if (isActive) activeColor else MaterialTheme.colorScheme.surfaceVariant,
+        animationSpec = tween(200),
+        label         = "vote_btn_color"
+    )
+    val contentColor = if (isActive) Color.White else activeColor
+
+    Surface(
+        modifier          = modifier
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication        = null,
+                onClick           = onClick
+            ),
+        shape             = RoundedCornerShape(14.dp),
+        color             = containerColor,
+        border            = if (!isActive) androidx.compose.foundation.BorderStroke(
+            1.dp, activeColor.copy(alpha = 0.35f)
+        ) else null
+    ) {
+        Row(
+            modifier              = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = contentColor)
         }
     }
 }

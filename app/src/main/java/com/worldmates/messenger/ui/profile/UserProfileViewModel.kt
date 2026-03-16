@@ -180,6 +180,34 @@ class UserProfileViewModel : ViewModel() {
     }
 
     /**
+     * Оновити оформлення профілю (акцент-колір, бейдж, стиль заголовка).
+     */
+    fun updateAppearance(
+        profileAccent: String? = null,
+        profileBadge: String? = null,
+        profileHeaderStyle: String? = null,
+    ) {
+        _updateState.value = UpdateState.Loading
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.profileApi.updateAppearance(
+                    profileAccent       = profileAccent,
+                    profileBadge        = profileBadge,
+                    profileHeaderStyle  = profileHeaderStyle,
+                )
+                if (response.apiStatus == 200) {
+                    _updateState.value = UpdateState.Success
+                    loadUserProfile()
+                } else {
+                    _updateState.value = UpdateState.Error(response.errorMessage ?: "Failed to update appearance")
+                }
+            } catch (e: Exception) {
+                _updateState.value = UpdateState.Error("Network error: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    /**
      * Завантажити рейтинг користувача
      */
     fun loadUserRating(userId: Long) {

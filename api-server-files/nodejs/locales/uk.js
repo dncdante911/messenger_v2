@@ -54,4 +54,11 @@ module.exports = {
     rating_removed: 'Оцінку знято',
     rating_updated: 'Оцінку оновлено',
     rating_added:   'Оцінку додано',
+
+    // ── Profile appearance ──────────────────────────────────────────────────────
+    appearance_updated:          'Оформлення профілю оновлено',
+    appearance_invalid_accent:   'Недопустимий колір акценту',
+    appearance_invalid_style:    'Недопустимий стиль заголовка',
+    appearance_badge_too_long:   'Бейдж задовгий (макс. 2 емодзі)',
+    appearance_no_fields:        'Немає допустимих полів для оновлення',
 };
