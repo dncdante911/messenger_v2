@@ -2218,4 +2218,40 @@
 
     <!-- Reports -->
     <string name="report_sent">Жалоба отправлена</string>
+
+    <!-- ===== PROFILE REDESIGN — новые строки ===== -->
+
+    <!-- Кнопки действий профиля -->
+    <string name="profile_action_customize">Оформление</string>
+
+    <!-- Рейтинг -->
+    <string name="rating_total_votes">%d оценок</string>
+
+    <!-- QR диалог -->
+    <string name="qr_scan_hint">Отсканируйте, чтобы найти мой профиль</string>
+    <string name="qr_share_text">Найди меня в WorldMates: %s</string>
+
+    <!-- Вкладки профиля (собственный профиль) -->
+    <string name="tab_media">Медиа</string>
+    <string name="tab_archive">Архив</string>
+    <string name="tab_media_personal">Личные</string>
+    <string name="tab_media_received">Полученные</string>
+
+    <!-- Пустые состояния медиа/архива -->
+    <string name="media_personal_empty_title">Нет личных медиа</string>
+    <string name="media_personal_empty_subtitle">Здесь будут фото и видео,\nкоторые вы отправляли</string>
+    <string name="media_received_empty_title">Нет полученных медиа</string>
+    <string name="media_received_empty_subtitle">Здесь будут медиафайлы,\nкоторые вам присылали</string>
+    <string name="archive_empty_title">Архив пуст</string>
+    <string name="archive_empty_subtitle">Созданные истории хранятся\nздесь до 12 месяцев</string>
+
+    <!-- Диалог оформления профиля -->
+    <string name="profile_customize_title">Оформление профиля</string>
+    <string name="profile_accent_color">Цвет акцента</string>
+    <string name="profile_header_style_label">Стиль заголовка</string>
+    <string name="profile_badge_label">Бейдж (эмодзи)</string>
+    <string name="header_style_gradient">Градиент</string>
+    <string name="header_style_minimal">Минималист</string>
+    <string name="header_style_pattern">Узор</string>
+
 </resources>
