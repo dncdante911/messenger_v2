@@ -7,6 +7,8 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.worldmates.messenger.data.local.AppDatabase
+import com.worldmates.messenger.data.local.entity.SignalPlaintextCache
 import java.security.SecureRandom
 
 /**
@@ -21,11 +23,16 @@ import java.security.SecureRandom
  *  – Pool of one-time pre-keys (generated in batches of [OPK_BATCH_SIZE])
  *  – Active DR session states (one per remote user ID)
  *  – Registration flag (tracks whether keys have been uploaded to server)
+ *
+ * Plaintext message cache is stored in Room DB (signal_plaintext_cache table)
+ * so it survives app reinstall via Android Auto Backup.
  */
 class SignalKeyStore(private val context: Context) {
 
     private val TAG  = "SignalKeyStore"
     private val gson = Gson()
+
+    private val plaintextDao by lazy { AppDatabase.getInstance(context).signalPlaintextCacheDao() }
 
     companion object {
         private const val PREF_FILE           = "wm_signal_keys"
@@ -38,7 +45,6 @@ class SignalKeyStore(private val context: Context) {
         private const val KEY_OPK_POOL        = "opk_pool"
         private const val KEY_REGISTERED      = "signal_registered"
         private const val KEY_NEXT_OPK_ID     = "next_opk_id"
-        private const val KEY_PLAIN_PREFIX    = "plain_"
 
         const val OPK_BATCH_SIZE     = 100
         const val OPK_REPLENISH_LOW  = 20   // Replenish when below this count
@@ -242,20 +248,19 @@ class SignalKeyStore(private val context: Context) {
         Log.i(TAG, "Signal state cleared for device change (new keys will be generated on next register)")
     }
 
-    // ─── Plaintext message cache ──────────────────────────────────────────────
+    // ─── Plaintext message cache (Room DB — survives reinstall via Auto Backup) ─
 
     /**
      * Cache the decrypted plaintext for a message by its server-assigned ID.
-     * This prevents attempting to re-decrypt messages whose ratchet keys are
-     * already consumed when the user re-opens a conversation.
+     * Stored in Room DB so Android Auto Backup can persist it across reinstalls.
      */
-    fun cacheDecryptedMessage(msgId: Long, plaintext: String) {
-        prefs.edit().putString("$KEY_PLAIN_PREFIX$msgId", plaintext).apply()
+    suspend fun cacheDecryptedMessage(msgId: Long, plaintext: String) {
+        plaintextDao.put(SignalPlaintextCache(msgId = msgId, plaintext = plaintext))
     }
 
     /** Returns cached plaintext for [msgId], or null if not cached. */
-    fun getCachedDecryptedMessage(msgId: Long): String? =
-        prefs.getString("$KEY_PLAIN_PREFIX$msgId", null)
+    suspend fun getCachedDecryptedMessage(msgId: Long): String? =
+        plaintextDao.get(msgId)
 
     // ─── Registration status ──────────────────────────────────────────────────
 

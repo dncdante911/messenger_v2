@@ -256,12 +256,12 @@ class SignalGroupEncryptionService private constructor(
 
     // ─── Plaintext cache ──────────────────────────────────────────────────────
 
-    /** Кешувати розшифрований plaintext. */
-    fun cachePlaintext(msgId: Long, plaintext: String) =
+    /** Кешувати розшифрований plaintext (Room DB, переживає перевстановлення). */
+    suspend fun cachePlaintext(msgId: Long, plaintext: String) =
         keyStore.cachePlaintext(msgId, plaintext)
 
     /** Отримати кешований plaintext або null. */
-    fun getCachedPlaintext(msgId: Long): String? =
+    suspend fun getCachedPlaintext(msgId: Long): String? =
         keyStore.getCachedPlaintext(msgId)
 
     /** Перевірити чи є SenderKey від відправника [senderId] для групи [groupId]. */

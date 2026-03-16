@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
+import com.worldmates.messenger.data.local.AppDatabase
+import com.worldmates.messenger.data.local.entity.SignalPlaintextCache
 import java.security.SecureRandom
 
 /**
@@ -25,12 +27,13 @@ class SignalSenderKeyStore(private val context: Context) {
     private val TAG  = "SenderKeyStore"
     private val gson = Gson()
 
+    private val plaintextDao by lazy { AppDatabase.getInstance(context).signalPlaintextCacheDao() }
+
     companion object {
         private const val PREF_FILE           = "wm_sender_keys"
         private const val PREFIX_MY_SK        = "my_sk_"
         private const val PREFIX_THEIR_SK     = "sk_"
         private const val PREFIX_DISTRIBUTED  = "sk_distr_"
-        private const val PREFIX_PLAIN        = "plain_"
     }
 
     // ─── EncryptedSharedPreferences ───────────────────────────────────────────
@@ -150,14 +153,13 @@ class SignalSenderKeyStore(private val context: Context) {
 
     /**
      * Кешує розшифрований plaintext для повідомлення [msgId].
-     * Дозволяє показати повідомлення при повторному відкритті чату
-     * без повторної деривації ключа.
+     * Зберігається в Room DB — переживає перевстановлення через Android Auto Backup.
      */
-    fun cachePlaintext(msgId: Long, plaintext: String) {
-        prefs.edit().putString("$PREFIX_PLAIN$msgId", plaintext).apply()
+    suspend fun cachePlaintext(msgId: Long, plaintext: String) {
+        plaintextDao.put(SignalPlaintextCache(msgId = msgId, plaintext = plaintext))
     }
 
     /** Повернути кешований plaintext або null. */
-    fun getCachedPlaintext(msgId: Long): String? =
-        prefs.getString("$PREFIX_PLAIN$msgId", null)
+    suspend fun getCachedPlaintext(msgId: Long): String? =
+        plaintextDao.get(msgId)
 }
