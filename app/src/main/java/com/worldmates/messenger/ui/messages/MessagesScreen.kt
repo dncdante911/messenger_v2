@@ -67,6 +67,8 @@ import com.worldmates.messenger.ui.theme.ChatAnimatedBackground
 import com.worldmates.messenger.ui.components.UserProfileMenuSheet
 import com.worldmates.messenger.ui.components.UserMenuData
 import com.worldmates.messenger.ui.components.UserMenuAction
+import com.worldmates.messenger.ui.components.ReportUserDialog
+import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
 import com.worldmates.messenger.ui.preferences.rememberQuickReaction
 import com.worldmates.messenger.ui.preferences.rememberUIStyle
@@ -231,6 +233,8 @@ fun MessagesScreen(
     // 👤 Меню профілю користувача (при кліку на ім'я в групі)
     var showUserProfileMenu by remember { mutableStateOf(false) }
     var selectedUserForMenu by remember { mutableStateOf<UserMenuData?>(null) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var reportTargetUser by remember { mutableStateOf<UserMenuData?>(null) }
 
     // ❤️ Быстрая реакция при двойном тапе
     var showQuickReaction by remember { mutableStateOf(false) }
@@ -1386,12 +1390,14 @@ fun MessagesScreen(
                                 )
                             }
                             is UserMenuAction.CopyUsername -> {
-                                // Копіюємо username
                                 clipboardManager.setText(AnnotatedString("@${selectedUserForMenu?.username}"))
                                 android.widget.Toast.makeText(context, context.getString(R.string.username_copied_toast), android.widget.Toast.LENGTH_SHORT).show()
                             }
+                            is UserMenuAction.Report -> {
+                                reportTargetUser = selectedUserForMenu
+                                showReportDialog = true
+                            }
                             else -> {
-                                // Інші дії - показуємо toast
                                 android.widget.Toast.makeText(context, "Дія: $action", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
@@ -1399,6 +1405,37 @@ fun MessagesScreen(
                         selectedUserForMenu = null
                     },
                     showChatOptions = false
+                )
+            }
+
+            // 🚩 Report user dialog
+            if (showReportDialog && reportTargetUser != null) {
+                ReportUserDialog(
+                    userName = reportTargetUser!!.username,
+                    onDismiss = {
+                        showReportDialog = false
+                        reportTargetUser = null
+                    },
+                    onReport = { reason, details ->
+                        val userId = reportTargetUser!!.userId
+                        showReportDialog = false
+                        reportTargetUser = null
+                        scope.launch {
+                            try {
+                                val token = UserSession.accessToken ?: ""
+                                RetrofitClient.apiService.reportUser(
+                                    accessToken = token,
+                                    userId = userId,
+                                    text = "$reason: $details".trim().trimEnd(':').trim()
+                                )
+                                android.widget.Toast.makeText(
+                                    context,
+                                    context.getString(R.string.report_sent),
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            } catch (_: Exception) {}
+                        }
+                    }
                 )
             }
 

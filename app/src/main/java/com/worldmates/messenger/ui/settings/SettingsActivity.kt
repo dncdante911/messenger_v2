@@ -41,6 +41,8 @@ import com.worldmates.messenger.BuildConfig
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.ui.login.LoginActivity
 import com.worldmates.messenger.ui.settings.security.AppLockSettingsScreen
+import com.worldmates.messenger.ui.settings.security.DeleteAccountScreen
+import com.worldmates.messenger.ui.settings.security.SessionsScreen
 import com.worldmates.messenger.ui.settings.security.TwoFactorAuthScreen
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.ThemeSettingsScreen
@@ -149,6 +151,22 @@ class SettingsActivity : AppCompatActivity() {
                             onBackClick = { currentScreen = SettingsScreen.Main }
                         )
                     }
+                    SettingsScreen.ActiveSessions -> {
+                        SessionsScreen(
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
+                    SettingsScreen.DeleteAccount -> {
+                        DeleteAccountScreen(
+                            onBackClick = { currentScreen = SettingsScreen.Main },
+                            onAccountDeleted = {
+                                com.worldmates.messenger.services.NotificationKeepAliveManager.shutdown(this@SettingsActivity)
+                                UserSession.clearSession()
+                                startActivity(Intent(this@SettingsActivity, LoginActivity::class.java))
+                                finishAffinity()
+                            }
+                        )
+                    }
                     SettingsScreen.AppLock -> {
                         AppLockSettingsScreen(
                             activity = this@SettingsActivity,
@@ -204,7 +222,7 @@ sealed class SettingsScreen {
     object Notifications : SettingsScreen()
     object Theme : SettingsScreen()
     object CallFrameStyle : SettingsScreen()
-    object VideoMessageFrameStyle : SettingsScreen()  // 📹 Стиль відеоповідомлень
+    object VideoMessageFrameStyle : SettingsScreen()
     object MyGroups : SettingsScreen()
     object TwoFactorAuth : SettingsScreen()
     object AppLock : SettingsScreen()
@@ -213,6 +231,8 @@ sealed class SettingsScreen {
     object Language : SettingsScreen()
     object Premium : SettingsScreen()
     object CustomStatus : SettingsScreen()
+    object ActiveSessions : SettingsScreen()
+    object DeleteAccount : SettingsScreen()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -451,6 +471,14 @@ fun SettingsScreen(
                     onClick = { onNavigate(SettingsScreen.BlockedUsers) }
                 )
             }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.Devices,
+                    title = stringResource(R.string.active_sessions),
+                    subtitle = stringResource(R.string.active_sessions_subtitle),
+                    onClick = { onNavigate(SettingsScreen.ActiveSessions) }
+                )
+            }
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
@@ -642,7 +670,15 @@ fun SettingsScreen(
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // Logout
+            // Delete Account + Logout
+            item {
+                SettingsItem(
+                    icon = Icons.Default.DeleteForever,
+                    title = stringResource(R.string.delete_account),
+                    textColor = Color.Red,
+                    onClick = { onNavigate(SettingsScreen.DeleteAccount) }
+                )
+            }
             item {
                 SettingsItem(
                     icon = Icons.Default.ExitToApp,

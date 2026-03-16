@@ -2198,4 +2198,24 @@
     <string name="folder_leave">Покинуть папку</string>
     <string name="folder_join_title">Присоединиться к папке</string>
     <string name="folder_join_description">Вам предложено присоединиться к совместной папке чатов</string>
+
+    <!-- Sessions -->
+    <string name="active_sessions">Активные сессии</string>
+    <string name="active_sessions_subtitle">Устройства, подключённые к вашему аккаунту</string>
+    <string name="no_active_sessions">Нет активных сессий</string>
+    <string name="terminate_session">Завершить сессию</string>
+
+    <!-- Delete Account -->
+    <string name="delete_account">Удалить аккаунт</string>
+    <string name="delete_account_warning_title">Удаление аккаунта</string>
+    <string name="delete_account_consequence_1">Все ваши сообщения и данные будут удалены навсегда</string>
+    <string name="delete_account_consequence_2">Вы потеряете доступ ко всем чатам и группам</string>
+    <string name="delete_account_consequence_3">Это действие невозможно отменить</string>
+    <string name="delete_account_btn">Удалить мой аккаунт</string>
+    <string name="delete_account_confirm_title">Вы уверены?</string>
+    <string name="delete_account_confirm_message">Аккаунт будет удалён навсегда. Это действие невозможно отменить.</string>
+    <string name="password_hint">Пароль</string>
+
+    <!-- Reports -->
+    <string name="report_sent">Жалоба отправлена</string>
 </resources>
