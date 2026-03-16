@@ -77,6 +77,8 @@
     <string name="quick_reg_info">Введіть email або телефон — ми надішлемо код підтвердження.\nНіяких логінів та паролів!</string>
     <string name="reg_method_title">Спосіб реєстрації</string>
     <string name="error_registration">Помилка реєстрації</string>
+    <string name="error_send_code">Помилка відправки коду</string>
+    <string name="error_send_sticker">Не вдалося надіслати стікер</string>
     <string name="enter_code_title">Введіть код</string>
     <string name="code_sent_default">Код надіслано</string>
     <string name="code_resent">Код надіслано повторно</string>

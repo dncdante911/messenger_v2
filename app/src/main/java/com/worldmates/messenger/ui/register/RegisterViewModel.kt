@@ -1,15 +1,17 @@
 package com.worldmates.messenger.ui.register
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class RegisterViewModel : ViewModel() {
+class RegisterViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val registerState: StateFlow<RegisterState> = _registerState
@@ -68,13 +70,13 @@ class RegisterViewModel : ViewModel() {
                     else -> {
                         val errorMsg = response.errors?.errorText
                             ?: response.errorMessage
-                            ?: "Помилка реєстрації"
+                            ?: getApplication<Application>().getString(R.string.error_registration)
                         _registerState.value = RegisterState.Error(errorMsg)
                         Log.e("RegisterViewModel", "Error ${response.apiStatus}: $errorMsg")
                     }
                 }
             } catch (e: Exception) {
-                _registerState.value = RegisterState.Error("Помилка мережі: ${e.localizedMessage}")
+                _registerState.value = RegisterState.Error(getApplication<Application>().getString(R.string.geo_network_error, e.localizedMessage ?: ""))
                 Log.e("RegisterViewModel", "Exception in register", e)
             }
         }
@@ -146,13 +148,13 @@ class RegisterViewModel : ViewModel() {
                     else -> {
                         val errorMsg = response.errors?.errorText
                             ?: response.errorMessage
-                            ?: "Помилка реєстрації"
+                            ?: getApplication<Application>().getString(R.string.error_registration)
                         _registerState.value = RegisterState.Error(errorMsg)
                         Log.e("RegisterViewModel", "Error ${response.apiStatus}: $errorMsg")
                     }
                 }
             } catch (e: Exception) {
-                _registerState.value = RegisterState.Error("Помилка мережі: ${e.localizedMessage}")
+                _registerState.value = RegisterState.Error(getApplication<Application>().getString(R.string.geo_network_error, e.localizedMessage ?: ""))
                 Log.e("RegisterViewModel", "Exception in registerWithEmail", e)
             }
         }
@@ -216,13 +218,13 @@ class RegisterViewModel : ViewModel() {
                     else -> {
                         val errorMsg = response.errors?.errorText
                             ?: response.errorMessage
-                            ?: "Помилка реєстрації"
+                            ?: getApplication<Application>().getString(R.string.error_registration)
                         _registerState.value = RegisterState.Error(errorMsg)
                         Log.e("RegisterViewModel", "Error ${response.apiStatus}: $errorMsg")
                     }
                 }
             } catch (e: Exception) {
-                _registerState.value = RegisterState.Error("Помилка мережі: ${e.localizedMessage}")
+                _registerState.value = RegisterState.Error(getApplication<Application>().getString(R.string.geo_network_error, e.localizedMessage ?: ""))
                 Log.e("RegisterViewModel", "Exception in registerWithPhone", e)
             }
         }
