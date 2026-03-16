@@ -240,17 +240,17 @@ class SignalEncryptionService private constructor(
         }
     }
 
-    // ─── Plaintext cache (delegate to keyStore) ───────────────────────────────
+    // ─── Plaintext cache (delegate to keyStore → Room DB) ────────────────────
 
     /**
-     * Persist [plaintext] for [msgId] so the message can be shown without
-     * re-decrypting when the user re-opens the conversation.
+     * Persist [plaintext] for [msgId] in Room DB so it survives reinstall
+     * (Android Auto Backup includes the Room database).
      */
-    fun cacheDecryptedMessage(msgId: Long, plaintext: String) =
+    suspend fun cacheDecryptedMessage(msgId: Long, plaintext: String) =
         keyStore.cacheDecryptedMessage(msgId, plaintext)
 
     /** Returns cached plaintext for [msgId], or null if not cached. */
-    fun getCachedDecryptedMessage(msgId: Long): String? =
+    suspend fun getCachedDecryptedMessage(msgId: Long): String? =
         keyStore.getCachedDecryptedMessage(msgId)
 
     // ─── Pre-key bundle fetch ─────────────────────────────────────────────────

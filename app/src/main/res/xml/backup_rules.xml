@@ -8,4 +8,14 @@
 
     <!-- Exclude temporary files -->
     <exclude domain="file" path="tmp" />
+
+    <!--
+        Exclude Signal crypto key stores — they use Android Keystore (device-specific).
+        Restoring them on a new device is impossible (Keystore key is gone) and would
+        cause EncryptedSharedPreferences to throw on open.
+        The plaintext cache is stored separately in Room DB (worldmates_messenger.db)
+        and IS included in the backup so message history survives reinstall.
+    -->
+    <exclude domain="sharedpref" path="wm_signal_keys.xml" />
+    <exclude domain="sharedpref" path="wm_sender_keys.xml" />
 </full-backup-content>
