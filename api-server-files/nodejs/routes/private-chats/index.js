@@ -61,7 +61,8 @@ function registerPrivateChatRoutes(app, ctx, io) {
     app.post('/api/node/chat/typing',        auth, msgs.typing(ctx, io));
     app.post('/api/node/chat/user-action',   auth, msgs.userAction(ctx, io));
     app.post('/api/node/chat/notify-media',  auth, msgs.notifyMediaMessage(ctx, io));
-    app.post('/api/node/chat/send-media',   auth, msgs.sendMediaMessage(ctx, io));
+    app.post('/api/node/chat/send-media',    auth, msgs.sendMediaMessage(ctx, io));
+    app.post('/api/node/chat/count',         auth, msgs.countMessages(ctx));
 
     // ── actions ─────────────────────────────────────────────────────────────
     app.post('/api/node/chat/delete',    auth, actions.deleteMessage(ctx, io));

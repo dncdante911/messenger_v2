@@ -6,8 +6,6 @@ import android.util.Log
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.network.NodeRetrofitClient
-import com.worldmates.messenger.network.RetrofitClient
-import com.worldmates.messenger.network.StoriesApiService
 import com.worldmates.messenger.network.StoryReactionType
 import com.worldmates.messenger.utils.FileUtils
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +14,6 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import retrofit2.Retrofit
 import java.io.File
 
 /**
@@ -27,12 +24,6 @@ class StoryRepository(private val context: Context) {
 
     private val TAG = "StoryRepository"
 
-    // PHP API for secondary story endpoints (delete, views, reactions, comments, channels)
-    private val storiesApi: StoriesApiService by lazy {
-        RetrofitClient.retrofit.create(StoriesApiService::class.java)
-    }
-
-    // Node.js API for primary story endpoints (create, get) — replaces broken PHP
     private val nodeStoriesApi by lazy { NodeRetrofitClient.storiesApi }
 
     // Поточний список stories
@@ -223,10 +214,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.getStoryById(
-                accessToken = UserSession.accessToken!!,
-                storyId = storyId
-            )
+            val response = nodeStoriesApi.getStoryById(storyId = storyId)
 
             if (response.apiStatus == 200 && response.story != null) {
                 _currentStory.value = response.story
@@ -331,10 +319,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.deleteStory(
-                accessToken = UserSession.accessToken!!,
-                storyId = storyId
-            )
+            val response = nodeStoriesApi.deleteStory(storyId = storyId)
 
             if (response.apiStatus == 200) {
                 // Видаляємо зі списку
@@ -361,12 +346,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.getStoryViews(
-                accessToken = UserSession.accessToken!!,
-                storyId = storyId,
-                limit = limit,
-                offset = offset
-            )
+            val response = nodeStoriesApi.getStoryViews(storyId = storyId, limit = limit, offset = offset)
 
             if (response.apiStatus == 200 && response.users != null) {
                 if (offset == 0) {
@@ -429,10 +409,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.muteStory(
-                accessToken = UserSession.accessToken!!,
-                userId = userId
-            )
+            val response = nodeStoriesApi.muteStory(userId = userId)
 
             if (response.apiStatus == 200) {
                 // Видаляємо stories цього користувача зі списку
@@ -525,10 +502,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.deleteStoryComment(
-                accessToken = UserSession.accessToken!!,
-                commentId = commentId
-            )
+            val response = nodeStoriesApi.deleteStoryComment(commentId = commentId)
 
             if (response.apiStatus == 200) {
                 // Видаляємо зі списку
@@ -598,8 +572,7 @@ class StoryRepository(private val context: Context) {
             val titleBody = title?.toRequestBody("text/plain".toMediaTypeOrNull())
             val descriptionBody = description?.toRequestBody("text/plain".toMediaTypeOrNull())
 
-            val response = storiesApi.createChannelStory(
-                accessToken = UserSession.accessToken!!,
+            val response = nodeStoriesApi.createChannelStory(
                 channelId = channelIdBody,
                 file = filePart,
                 fileType = fileTypeBody,
@@ -632,10 +605,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.getSubscribedChannelStories(
-                accessToken = UserSession.accessToken!!,
-                limit = limit
-            )
+            val response = nodeStoriesApi.getSubscribedChannelStories(limit = limit)
 
             if (response.apiStatus == 200 && response.stories != null) {
                 val active = response.stories.filter { !it.isExpired() }.distinctBy { it.id }
@@ -661,10 +631,7 @@ class StoryRepository(private val context: Context) {
                 return Result.failure(Exception("Не авторизовано"))
             }
 
-            val response = storiesApi.deleteChannelStory(
-                accessToken = UserSession.accessToken!!,
-                storyId = storyId
-            )
+            val response = nodeStoriesApi.deleteChannelStory(storyId = storyId)
 
             if (response.apiStatus == 200) {
                 _channelStories.value = _channelStories.value.filter { it.id != storyId }

@@ -222,6 +222,121 @@ function getBackupStatistics(ctx) {
     };
 }
 
+// ─── Media Settings (Wo_UserMediaSettings) ────────────────────────────────────
+
+const MEDIA_TABLE = 'Wo_UserMediaSettings';
+
+const ALLOWED_DOWNLOAD_MODES = ['wifi_only', 'always', 'never'];
+
+async function getOrCreateMediaSettings(ctx, userId) {
+    const seq = ctx.sequelize;
+    const rows = await seq.query(
+        `SELECT * FROM \`${MEDIA_TABLE}\` WHERE user_id = :uid LIMIT 1`,
+        { replacements: { uid: userId }, type: QueryTypes.SELECT }
+    );
+    if (rows.length > 0) return rows[0];
+
+    await seq.query(
+        `INSERT INTO \`${MEDIA_TABLE}\`
+         (user_id, auto_download_photos, auto_download_videos, auto_download_audio,
+          auto_download_documents, compress_photos, compress_videos, backup_enabled,
+          last_backup_time, created_at, updated_at)
+         VALUES (:uid, 'wifi_only', 'wifi_only', 'always', 'wifi_only', 1, 1, 1, NULL, :now, :now)`,
+        { replacements: { uid: userId, now: Math.floor(Date.now() / 1000) }, type: QueryTypes.INSERT }
+    );
+    const created = await seq.query(
+        `SELECT * FROM \`${MEDIA_TABLE}\` WHERE user_id = :uid LIMIT 1`,
+        { replacements: { uid: userId }, type: QueryTypes.SELECT }
+    );
+    return created[0];
+}
+
+function serializeMediaSettings(row) {
+    return {
+        auto_download_photos:    row.auto_download_photos    || 'wifi_only',
+        auto_download_videos:    row.auto_download_videos    || 'wifi_only',
+        auto_download_audio:     row.auto_download_audio     || 'always',
+        auto_download_documents: row.auto_download_documents || 'wifi_only',
+        compress_photos:         !!row.compress_photos,
+        compress_videos:         !!row.compress_videos,
+        backup_enabled:          !!row.backup_enabled,
+        last_backup_time:        row.last_backup_time || null,
+    };
+}
+
+/** POST /api/node/media-settings/get */
+function getMediaSettings(ctx) {
+    return async (req, res) => {
+        try {
+            const row = await getOrCreateMediaSettings(ctx, req.userId);
+            return res.json({ api_status: 200, settings: serializeMediaSettings(row) });
+        } catch (err) {
+            console.error('[MediaSettings/get]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+/** POST /api/node/media-settings/update */
+function updateMediaSettings(ctx) {
+    return async (req, res) => {
+        try {
+            const userId = req.userId;
+            const b = req.body;
+            const now = Math.floor(Date.now() / 1000);
+
+            await getOrCreateMediaSettings(ctx, userId);
+
+            const setClauses = [];
+            const replacements = { userId, now };
+
+            if (b.auto_download_photos !== undefined && ALLOWED_DOWNLOAD_MODES.includes(b.auto_download_photos)) {
+                setClauses.push('auto_download_photos = :adp');
+                replacements.adp = b.auto_download_photos;
+            }
+            if (b.auto_download_videos !== undefined && ALLOWED_DOWNLOAD_MODES.includes(b.auto_download_videos)) {
+                setClauses.push('auto_download_videos = :adv');
+                replacements.adv = b.auto_download_videos;
+            }
+            if (b.auto_download_audio !== undefined && ALLOWED_DOWNLOAD_MODES.includes(b.auto_download_audio)) {
+                setClauses.push('auto_download_audio = :ada');
+                replacements.ada = b.auto_download_audio;
+            }
+            if (b.auto_download_documents !== undefined && ALLOWED_DOWNLOAD_MODES.includes(b.auto_download_documents)) {
+                setClauses.push('auto_download_documents = :add');
+                replacements.add = b.auto_download_documents;
+            }
+            if (b.compress_photos !== undefined) {
+                setClauses.push('compress_photos = :cp');
+                replacements.cp = (b.compress_photos === 'true' || b.compress_photos === true || b.compress_photos === 1) ? 1 : 0;
+            }
+            if (b.compress_videos !== undefined) {
+                setClauses.push('compress_videos = :cv');
+                replacements.cv = (b.compress_videos === 'true' || b.compress_videos === true || b.compress_videos === 1) ? 1 : 0;
+            }
+            if (b.backup_enabled !== undefined) {
+                setClauses.push('backup_enabled = :be');
+                replacements.be = (b.backup_enabled === 'true' || b.backup_enabled === true || b.backup_enabled === 1) ? 1 : 0;
+            }
+            if (b.mark_backup_complete === 'true' || b.mark_backup_complete === true) {
+                setClauses.push('last_backup_time = :now');
+            }
+
+            setClauses.push('updated_at = :now');
+
+            await ctx.sequelize.query(
+                `UPDATE \`${MEDIA_TABLE}\` SET ${setClauses.join(', ')} WHERE user_id = :userId`,
+                { replacements, type: QueryTypes.UPDATE }
+            );
+
+            return res.json({ api_status: 200, message: 'settings updated successfully' });
+        } catch (err) {
+            console.error('[MediaSettings/update]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 // ─── Route Registration ───────────────────────────────────────────────────────
 
 function registerBackupRoutes(app, ctx) {
@@ -229,6 +344,9 @@ function registerBackupRoutes(app, ctx) {
     app.get ('/api/node/backup/settings',   auth, getBackupSettings(ctx));
     app.post('/api/node/backup/settings',   auth, updateBackupSettings(ctx));
     app.post('/api/node/backup/statistics', auth, getBackupStatistics(ctx));
+    // Media download / auto-download settings
+    app.post('/api/node/media-settings/get',    auth, getMediaSettings(ctx));
+    app.post('/api/node/media-settings/update', auth, updateMediaSettings(ctx));
 }
 
 module.exports = { registerBackupRoutes };

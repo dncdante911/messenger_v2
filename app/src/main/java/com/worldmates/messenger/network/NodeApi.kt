@@ -769,6 +769,36 @@ interface NodeApi {
     @GET(Constants.NODE_UPDATE_CHECK)
     suspend fun checkAppUpdate(): com.worldmates.messenger.data.model.AppUpdateResponse
 
+    // ═══════════════════════ CHAT MESSAGE COUNT ═══════════════════════════════
+
+    /** Count total messages in a private conversation (for backup progress bar). */
+    @FormUrlEncoded
+    @POST("api/node/chat/count")
+    suspend fun getChatMessageCount(
+        @Field("recipient_id") recipientId: Long
+    ): com.worldmates.messenger.data.model.MessageCountResponse
+
+    // ═══════════════════════ MEDIA SETTINGS ══════════════════════════════════
+
+    /** Get user media auto-download settings. */
+    @FormUrlEncoded
+    @POST("api/node/media-settings/get")
+    suspend fun getMediaSettings(): com.worldmates.messenger.data.model.MediaSettingsResponse
+
+    /** Update user media auto-download settings. */
+    @FormUrlEncoded
+    @POST("api/node/media-settings/update")
+    suspend fun updateMediaSettings(
+        @Field("auto_download_photos")    autoDownloadPhotos: String? = null,
+        @Field("auto_download_videos")    autoDownloadVideos: String? = null,
+        @Field("auto_download_audio")     autoDownloadAudio: String? = null,
+        @Field("auto_download_documents") autoDownloadDocuments: String? = null,
+        @Field("compress_photos")         compressPhotos: String? = null,
+        @Field("compress_videos")         compressVideos: String? = null,
+        @Field("backup_enabled")          backupEnabled: String? = null,
+        @Field("mark_backup_complete")    markBackupComplete: String? = null
+    ): com.worldmates.messenger.data.model.UpdateMediaSettingsResponse
+
     // ═══════════════════════ EXPORT CHAT HISTORY ═════════════════════════════
 
     @FormUrlEncoded

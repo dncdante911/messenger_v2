@@ -78,4 +78,66 @@ interface NodeStoriesApi {
     suspend fun markStoryViewedAnonymous(
         @Field("story_id") storyId: Long
     ): NodeSimpleResponse
+
+    /** Get a single story by ID */
+    @FormUrlEncoded
+    @POST("api/node/stories/get-by-id")
+    suspend fun getStoryById(
+        @Field("id") storyId: Long
+    ): GetStoryByIdResponse
+
+    /** Delete own story */
+    @FormUrlEncoded
+    @POST("api/node/stories/delete")
+    suspend fun deleteStory(
+        @Field("story_id") storyId: Long
+    ): DeleteStoryResponse
+
+    /** Get viewers list for a story (owner only) */
+    @FormUrlEncoded
+    @POST("api/node/stories/get-views")
+    suspend fun getStoryViews(
+        @Field("story_id") storyId: Long,
+        @Field("limit") limit: Int = 20,
+        @Field("offset") offset: Int = 0
+    ): GetStoryViewsResponse
+
+    /** Mute/unmute stories of a user (toggle) */
+    @FormUrlEncoded
+    @POST("api/node/stories/mute")
+    suspend fun muteStory(
+        @Field("user_id") userId: Long
+    ): MuteStoryResponse
+
+    /** Delete a story comment */
+    @FormUrlEncoded
+    @POST("api/node/stories/delete-comment")
+    suspend fun deleteStoryComment(
+        @Field("comment_id") commentId: Long
+    ): DeleteStoryCommentResponse
+
+    /** Create a channel story (admin only) */
+    @Multipart
+    @POST("api/node/stories/create-channel")
+    suspend fun createChannelStory(
+        @Part("channel_id") channelId: RequestBody,
+        @Part file: MultipartBody.Part,
+        @Part("file_type") fileType: RequestBody,
+        @Part("story_title") storyTitle: RequestBody? = null,
+        @Part("story_description") storyDescription: RequestBody? = null
+    ): CreateStoryResponse
+
+    /** Get stories from channels the user is subscribed to */
+    @FormUrlEncoded
+    @POST("api/node/stories/get-channel-subscribed")
+    suspend fun getSubscribedChannelStories(
+        @Field("limit") limit: Int = 30
+    ): GetStoriesResponse
+
+    /** Delete a channel story (admin only) */
+    @FormUrlEncoded
+    @POST("api/node/stories/delete-channel")
+    suspend fun deleteChannelStory(
+        @Field("story_id") storyId: Long
+    ): DeleteStoryResponse
 }
