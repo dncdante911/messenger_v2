@@ -279,6 +279,21 @@ async function init() {
     console.warn('[Migration] wm_user_ratings:', e.message);
   }
 
+  // Profile customization fields — accent color, badge emoji, header style
+  const profileCustomizationColumns = [
+    "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS profile_accent    VARCHAR(7)  NOT NULL DEFAULT '#667EEA'",
+    "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS profile_badge     VARCHAR(8)  NOT NULL DEFAULT ''",
+    "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS profile_header_style ENUM('gradient','minimal','pattern') NOT NULL DEFAULT 'gradient'",
+  ];
+  for (const sql of profileCustomizationColumns) {
+    try {
+      await ctx.sequelize.query(sql);
+    } catch (e) {
+      console.warn('[Migration] profile_customization column:', e.message);
+    }
+  }
+  console.log('[Migration] Profile customization columns ensured');
+
 }
 
 

@@ -142,6 +142,10 @@ function serializeUser(ctx, u, { isSelf = false, extra = {} } = {}) {
         status:    u.status    || '0',
         balance:   u.balance   || '0',
         wallet:    u.wallet    || '0.00',
+        // Profile customization
+        profile_accent:       u.profile_accent       || '#667EEA',
+        profile_badge:        u.profile_badge        || '',
+        profile_header_style: u.profile_header_style || 'gradient',
     };
 
     if (isSelf) {
@@ -305,6 +309,14 @@ const ALLOWED_UPDATE_FIELDS = [
     'website', 'facebook', 'twitter', 'instagram', 'linkedin', 'youtube',
     'language',
 ];
+
+const VALID_ACCENT_COLORS = [
+    '#667EEA', '#764BA2', '#FF6B35', '#4CAF50',
+    '#F44336', '#00BCD4', '#E91E63', '#FF9800',
+    '#795548', '#607D8B', '#009688', '#3F51B5',
+];
+
+const VALID_HEADER_STYLES = ['gradient', 'minimal', 'pattern'];
 
 function updateMe(ctx) {
     return [requireAuth(ctx), async (req, res) => {
@@ -866,6 +878,58 @@ function unblockUser(ctx) {
     }];
 }
 
+// ─── PUT /api/node/users/me/appearance ────────────────────────────────────────
+
+function updateAppearance(ctx) {
+    return [requireAuth(ctx), async (req, res) => {
+        try {
+            const updates = {};
+
+            if (req.body.profile_accent !== undefined) {
+                const accent = String(req.body.profile_accent).trim().toUpperCase();
+                const normalized = accent.startsWith('#') ? accent : `#${accent}`;
+                if (!VALID_ACCENT_COLORS.map(c => c.toUpperCase()).includes(normalized)) {
+                    return res.json({ api_status: 400, error_message: 'Invalid accent color' });
+                }
+                updates.profile_accent = normalized.toLowerCase().replace(/^#/, c => '#') ;
+                // keep as provided lowercase
+                updates.profile_accent = String(req.body.profile_accent).trim();
+            }
+
+            if (req.body.profile_badge !== undefined) {
+                const badge = String(req.body.profile_badge).trim();
+                // Allow up to 8 bytes (2 emoji), or empty to clear
+                if (badge.length > 8) {
+                    return res.json({ api_status: 400, error_message: 'Badge too long (max 2 emoji)' });
+                }
+                updates.profile_badge = badge;
+            }
+
+            if (req.body.profile_header_style !== undefined) {
+                const style = String(req.body.profile_header_style).trim();
+                if (!VALID_HEADER_STYLES.includes(style)) {
+                    return res.json({ api_status: 400, error_message: `profile_header_style must be one of: ${VALID_HEADER_STYLES.join(', ')}` });
+                }
+                updates.profile_header_style = style;
+            }
+
+            if (Object.keys(updates).length === 0) {
+                return res.json({ api_status: 400, error_message: 'No valid appearance fields provided' });
+            }
+
+            await ctx.wo_users.update(updates, { where: { user_id: req.userId } });
+
+            const user = await ctx.wo_users.findOne({ where: { user_id: req.userId }, raw: true });
+            const data = serializeUser(ctx, user, { isSelf: true });
+            return res.json({ api_status: 200, message: 'Appearance updated', user_data: data, user: data });
+
+        } catch (err) {
+            console.error('[Profile/updateAppearance]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    }];
+}
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 function registerProfileRoutes(app, ctx) {
@@ -875,6 +939,7 @@ function registerProfileRoutes(app, ctx) {
     app.put   ('/api/node/users/me/privacy',           updatePrivacy(ctx));
     app.put   ('/api/node/users/me/password',          changePassword(ctx));
     app.put   ('/api/node/users/me/notifications',     updateNotifications(ctx));
+    app.put   ('/api/node/users/me/appearance',        updateAppearance(ctx));
     app.get   ('/api/node/users/me/blocked',           getBlocked(ctx));
 
     // Search
@@ -896,6 +961,7 @@ function registerProfileRoutes(app, ctx) {
     console.log('  PUT    /api/node/users/me/privacy');
     console.log('  PUT    /api/node/users/me/password');
     console.log('  PUT    /api/node/users/me/notifications');
+    console.log('  PUT    /api/node/users/me/appearance');
     console.log('  GET    /api/node/users/me/blocked');
     console.log('  GET    /api/node/users/search');
     console.log('  GET    /api/node/users/:id');

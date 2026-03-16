@@ -85,6 +85,15 @@ interface NodeProfileApi {
         @Field("e_profile_wall_post") eProfileWallPost:   Int? = null,
     ): UpdateUserDataResponse
 
+    /** Оновити оформлення профілю (акцент-колір, бейдж, стиль заголовка). */
+    @FormUrlEncoded
+    @PUT("api/node/users/me/appearance")
+    suspend fun updateAppearance(
+        @Field("profile_accent")       profileAccent:      String? = null,
+        @Field("profile_badge")        profileBadge:       String? = null,
+        @Field("profile_header_style") profileHeaderStyle: String? = null,
+    ): UpdateUserDataResponse
+
     /** Оновити налаштування приватності. */
     @FormUrlEncoded
     @PUT("api/node/users/me/privacy")

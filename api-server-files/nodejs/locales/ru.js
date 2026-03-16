@@ -54,4 +54,11 @@ module.exports = {
     rating_removed: 'Оценка снята',
     rating_updated: 'Оценка обновлена',
     rating_added:   'Оценка добавлена',
+
+    // ── Profile appearance ──────────────────────────────────────────────────────
+    appearance_updated:          'Оформление профиля обновлено',
+    appearance_invalid_accent:   'Недопустимый цвет акцента',
+    appearance_invalid_style:    'Недопустимый стиль заголовка',
+    appearance_badge_too_long:   'Бейдж слишком длинный (макс. 2 эмодзи)',
+    appearance_no_fields:        'Нет допустимых полей для обновления',
 };

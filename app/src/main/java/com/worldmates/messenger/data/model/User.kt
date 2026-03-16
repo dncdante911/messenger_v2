@@ -71,6 +71,10 @@ data class User(
     @SerializedName("groups_count") val groupsCount: String?,
     @SerializedName("details")      val details:      UserDetails?        = null,
     @SerializedName("relationship") val relationship: UserRelationship?   = null,
+    // Profile customization
+    @SerializedName("profile_accent")       val profileAccent:      String? = "#667EEA",
+    @SerializedName("profile_badge")        val profileBadge:       String? = "",
+    @SerializedName("profile_header_style") val profileHeaderStyle: String? = "gradient",
 )
 
 /**
