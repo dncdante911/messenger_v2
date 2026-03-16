@@ -10,7 +10,7 @@ import com.worldmates.messenger.data.model.Group
 import com.worldmates.messenger.data.model.User
 import com.worldmates.messenger.data.model.toGroup
 import com.worldmates.messenger.network.FileManager
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.update.AppUpdateManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +25,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         private const val TAG = "SettingsViewModel"
     }
 
-    private val api = RetrofitClient.apiService
+    private val profileApi = NodeRetrofitClient.profileApi
+    private val groupApi   = NodeRetrofitClient.groupApi
     private val fileManager = FileManager(application.applicationContext)
 
     private val _username = MutableStateFlow(UserSession.username ?: "")
@@ -73,18 +74,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _errorMessage.value = null
 
             try {
-                val accessToken = UserSession.accessToken
-                if (accessToken == null) {
-                    _errorMessage.value = "Токен доступу відсутній"
-                    _isLoading.value = false
-                    return@launch
-                }
-
-                val response = api.getUserData(
-                    accessToken = accessToken,
-                    userId = UserSession.userId,
-                    fetch = "user_data" // Загружаем только данные пользователя
-                )
+                val response = profileApi.getMyProfile()
 
                 if (response.apiStatus == 200 && response.userData != null) {
                     _userData.value = response.userData
@@ -133,26 +123,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _successMessage.value = null
 
             try {
-                val accessToken = UserSession.accessToken
-                if (accessToken == null) {
-                    _errorMessage.value = "Токен доступу відсутній"
-                    _isLoading.value = false
-                    return@launch
-                }
-
-                val response = api.updateUserData(
-                    accessToken = accessToken,
+                val response = profileApi.updateMyProfile(
                     firstName = firstName,
-                    lastName = lastName,
-                    about = about,
-                    birthday = birthday,
-                    gender = gender,
-                    phoneNumber = phoneNumber,
-                    website = website,
-                    working = working,
-                    address = address,
-                    city = city,
-                    school = school
+                    lastName  = lastName,
+                    about     = about,
+                    birthday  = birthday,
+                    gender    = gender,
+                    website   = website,
+                    working   = working,
+                    address   = address,
+                    city      = city,
+                    school    = school
                 )
 
                 if (response.apiStatus == 200) {
@@ -191,23 +172,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _successMessage.value = null
 
             try {
-                val accessToken = UserSession.accessToken
-                if (accessToken == null) {
-                    _errorMessage.value = "Токен доступу відсутній"
-                    _isLoading.value = false
-                    return@launch
-                }
-
-                val response = api.updatePrivacySettings(
-                    accessToken = accessToken,
-                    followPrivacy = followPrivacy,
-                    friendPrivacy = friendPrivacy,
-                    postPrivacy = postPrivacy,
-                    messagePrivacy = messagePrivacy,
-                    confirmFollowers = confirmFollowers,
+                val response = profileApi.updatePrivacy(
+                    followPrivacy         = followPrivacy,
+                    friendPrivacy         = friendPrivacy,
+                    messagePrivacy        = messagePrivacy,
+                    confirmFollowers      = confirmFollowers,
                     showActivitiesPrivacy = showActivitiesPrivacy,
-                    birthPrivacy = birthPrivacy,
-                    visitPrivacy = visitPrivacy
+                    birthPrivacy          = birthPrivacy,
+                    visitPrivacy          = visitPrivacy
                 )
 
                 if (response.apiStatus == 200) {
@@ -249,27 +221,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _successMessage.value = null
 
             try {
-                val accessToken = UserSession.accessToken
-                if (accessToken == null) {
-                    _errorMessage.value = "Токен доступу відсутній"
-                    _isLoading.value = false
-                    return@launch
-                }
-
-                val response = api.updateNotificationSettings(
-                    accessToken = accessToken,
+                val response = profileApi.updateNotifications(
                     emailNotification = emailNotification,
-                    eLiked = eLiked,
-                    eWondered = eWondered,
-                    eShared = eShared,
-                    eFollowed = eFollowed,
-                    eCommented = eCommented,
-                    eVisited = eVisited,
-                    eLikedPage = eLikedPage,
-                    eMentioned = eMentioned,
-                    eJoinedGroup = eJoinedGroup,
-                    eAccepted = eAccepted,
-                    eProfileWallPost = eProfileWallPost
+                    eLiked            = eLiked,
+                    eWondered         = eWondered,
+                    eShared           = eShared,
+                    eFollowed         = eFollowed,
+                    eCommented        = eCommented,
+                    eVisited          = eVisited,
+                    eLikedPage        = eLikedPage,
+                    eMentioned        = eMentioned,
+                    eJoinedGroup      = eJoinedGroup,
+                    eAccepted         = eAccepted,
+                    eProfileWallPost  = eProfileWallPost
                 )
 
                 if (response.apiStatus == 200) {
@@ -298,13 +262,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _successMessage.value = null
 
             try {
-                val accessToken = UserSession.accessToken
-                if (accessToken == null) {
-                    _errorMessage.value = "Токен доступу відсутній"
-                    _isLoading.value = false
-                    return@launch
-                }
-
                 // Копировать файл из URI в кеш
                 val file = fileManager.copyUriToCache(uri)
                 if (file == null) {
@@ -318,24 +275,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
                 // Создать RequestBody из файла
                 val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
-                val filePart = MultipartBody.Part.createFormData(
-                    "file",  // API upload_user_avatar очікує "file"
-                    file.name,
-                    requestFile
-                )
+                val filePart = MultipartBody.Part.createFormData("avatar", file.name, requestFile)
 
-                val response = api.uploadUserAvatar(
-                    accessToken = accessToken,
-                    file = filePart
-                )
+                val response = NodeRetrofitClient.api.uploadAvatar(avatar = filePart)
 
                 // Удалить временный файл
                 fileManager.deleteFile(file)
 
-                if (response.apiStatus == 200 && response.url != null) {
+                val avatarUrl = response.avatar?.url
+                if (response.apiStatus == 200 && avatarUrl != null) {
                     _successMessage.value = "Аватар успішно оновлено"
-                    UserSession.avatar = response.url
-                    _avatar.value = response.url
+                    UserSession.avatar = avatarUrl
+                    _avatar.value = avatarUrl
 
                     // Обновить данные пользователя
                     fetchUserData()
@@ -363,21 +314,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _errorMessage.value = null
 
             try {
-                val accessToken = UserSession.accessToken
-                if (accessToken == null) {
-                    _errorMessage.value = "Токен доступу відсутній"
-                    _isLoading.value = false
-                    return@launch
-                }
-
-                // Используем endpoint get-my-groups с типом joined_groups для получения групп пользователя
-                val response = api.getMyGroups(
-                    accessToken = accessToken,
-                    type = "joined_groups", // Получаем группы, в которых состоит пользователь
-                    userId = UserSession.userId,
-                    limit = 100,
-                    offset = 0
-                )
+                val response = groupApi.getGroups(limit = 100, offset = 0)
 
                 // Используем локальную переменную для smart cast
                 val groupsList = response.groups

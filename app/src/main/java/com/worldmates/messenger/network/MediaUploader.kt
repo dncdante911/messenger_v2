@@ -309,7 +309,7 @@ class MediaUploader(private val context: Context) {
                 requestBody
             )
 
-            val response = NodeRetrofitClient.profileApi.uploadAvatar(avatar = filePart)
+            val response = NodeRetrofitClient.api.uploadAvatar(avatar = filePart)
 
             when (response.apiStatus) {
                 200 -> {

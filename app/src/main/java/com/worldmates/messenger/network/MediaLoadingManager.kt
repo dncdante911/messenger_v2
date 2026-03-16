@@ -51,7 +51,7 @@ class MediaLoadingManager(private val context: Context) {
         val error: String? = null
     )
 
-    private val apiService = RetrofitClient.apiService
+    private val apiService = NodeRetrofitClient.api
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     // Кеш директорії
@@ -185,7 +185,7 @@ class MediaLoadingManager(private val context: Context) {
         updateState(task.messageId, LoadingState.LOADING_THUMB, progress = 10)
 
         try {
-            val response = apiService.getMediaThumbnail(task.url)
+            val response = apiService.downloadMedia(task.url)
             val bytes = response.bytes()
 
             updateState(task.messageId, LoadingState.LOADING_THUMB, progress = 50)
@@ -218,7 +218,7 @@ class MediaLoadingManager(private val context: Context) {
         updateState(task.messageId, LoadingState.LOADING_FULL, progress = 10)
 
         try {
-            val response = apiService.getFullMedia(task.url)
+            val response = apiService.downloadMedia(task.url)
             val bytes = response.bytes()
 
             updateState(task.messageId, LoadingState.LOADING_FULL, progress = 50)
