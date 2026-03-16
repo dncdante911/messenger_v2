@@ -203,9 +203,5 @@ object RetrofitClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
-    // Используем новый интерфейс
     val apiService: WorldMatesApi = retrofit.create(WorldMatesApi::class.java)
-
-    // Bot API сервіс (окремий інтерфейс щоб не розширювати WorldMatesApi)
-    val botApiService: BotApi = retrofit.create(BotApi::class.java)
 }
