@@ -36,8 +36,6 @@ import com.worldmates.messenger.data.repository.LocationRepository
 import com.worldmates.messenger.data.local.AppDatabase
 import com.worldmates.messenger.data.local.entity.CachedMessage
 import com.worldmates.messenger.data.local.entity.Draft
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.json.JSONObject
 import java.io.File
