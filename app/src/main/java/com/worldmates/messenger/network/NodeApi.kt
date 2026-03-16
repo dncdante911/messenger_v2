@@ -764,6 +764,11 @@ interface NodeApi {
     @POST(Constants.NODE_BACKUP_STATISTICS)
     suspend fun getBackupStatistics(): BackupStatisticsResponse
 
+    // ═══════════════════════ APP UPDATE ══════════════════════════════════════
+
+    @GET(Constants.NODE_UPDATE_CHECK)
+    suspend fun checkAppUpdate(): com.worldmates.messenger.data.model.AppUpdateResponse
+
     // ═══════════════════════ EXPORT CHAT HISTORY ═════════════════════════════
 
     @FormUrlEncoded

@@ -535,6 +535,27 @@ async function main() {
   // Register Backup / Cloud Settings routes (replaces PHP get/update_cloud_backup_settings.php)
   registerBackupRoutes(app, ctx);
 
+  // ── App update check ──────────────────────────────────────────────────────
+  // GET /api/node/update/check — serves mobile_update_config.json (no auth required)
+  // To publish a new version: edit api-server-files/api/v2/endpoints/mobile_update_config.json
+  //   1. Bump "latest_version" and "version_code"
+  //   2. Add entries to "changelog" array (newest first)
+  //   3. Set "is_mandatory": true to force update
+  //   4. Update "apk_url" if the APK location changed
+  //   5. Restart the Node.js server (or it auto-reloads if you use pm2 --watch)
+  const UPDATE_CONFIG_PATH = path.resolve(__dirname, '../../api/v2/endpoints/mobile_update_config.json');
+  app.get('/api/node/update/check', (req, res) => {
+    try {
+      // Always read fresh from disk so edits take effect without restart
+      const raw = fs.readFileSync(UPDATE_CONFIG_PATH, 'utf8');
+      const cfg = JSON.parse(raw);
+      res.json({ success: true, data: cfg });
+    } catch (err) {
+      console.error('[Update/check]', err.message);
+      res.json({ success: false, message: 'Update config unavailable' });
+    }
+  });
+
   // Instant View — article reader (no auth required, rate-limited at global level)
   app.post('/api/node/instant-view', instantView(ctx, io));
 

@@ -1,16 +1,16 @@
 {
-  "latest_version": "2.11.0",
-  "version_code": 13,
+  "latest_version": "2.12.0",
+  "version_code": 14,
   "apk_url": "https://worldmates.club/sources-app/worldmates-latest.apk",
   "changelog": [
+    "Node.js: аватари користувачів та груп — завантаження через Node.js API",
+    "Node.js: кастомні теми груп (bubble style, фон, колір) — через Node.js",
+    "Node.js: перевірка оновлень через Node.js замість PHP",
+    "Node.js: групові повідомлення (pin/unpin/mute/unmute) — через Node.js",
+    "Node.js: sendGif для груп, очищення історії, список контактів — без PHP",
+    "Node.js: хмарний бекап налаштувань через Node.js API",
+    "Node.js: логін через Node.js — підтримка bcrypt/sha1/md5 хешів",
     "Node.js: особисті чати тепер працюють через Node.js REST API — швидше і стабільніше",
-    "Node.js: get/send/edit/delete повідомлень через /api/node/chat/*",
-    "Node.js: пошук, пін, реакції, пересилання — без PHP",
-    "Node.js: список чатів, архів, заглушення, кольори — без PHP",
-    "Node.js: улюблені повідомлення та закріплені через Node.js",
-    "Android: NodeApi.kt + NodeRetrofitClient.kt — окремий клієнт для Node.js",
-    "Android: MessagesViewModelNode.kt + ChatsViewModelNode.kt — нові ViewModel без розширення великих файлів",
-    "Рефактор: файли > 1500 рядків НЕ розширюються — новий код в окремих файлах",
     "🤖 Bot API v1.0: повноцінна платформа для створення ботів (аналог Telegram Bot API)",
     "🏪 Bot Store: каталог ботів з пошуком, категоріями та рейтингами",
     "📡 Webhooks: доставка подій ботам через HTTPS callbacks з підписом HMAC-SHA256",
@@ -18,7 +18,7 @@
     "📰 RSS News Bot: агрегатор новин з 10+ джерелами (BBC, Reuters, TechCrunch, Pravda.ua)"
   ],
   "is_mandatory": false,
-  "published_at": "2026-02-20T12:00:00Z",
+  "published_at": "2026-03-16T12:00:00Z",
   "features": {
     "private_chats_node": {
       "enabled": true,
