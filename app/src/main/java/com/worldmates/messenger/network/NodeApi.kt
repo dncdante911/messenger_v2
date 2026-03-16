@@ -725,6 +725,38 @@ interface NodeApi {
         @Field("code")         code: String
     ): QuickVerifyResponse
 
+    /** Classic registration: username + email/phone + password. */
+    @FormUrlEncoded
+    @POST("api/node/auth/register")
+    suspend fun register(
+        @Field("username")         username:        String,
+        @Field("email")            email:           String? = null,
+        @Field("phone_number")     phoneNumber:     String? = null,
+        @Field("password")         password:        String,
+        @Field("confirm_password") confirmPassword: String,
+        @Field("gender")           gender:          String  = "male",
+        @Field("device_type")      deviceType:      String  = "phone"
+    ): AuthResponse
+
+    /** Send 6-digit OTP to an existing user for email/phone verification. */
+    @FormUrlEncoded
+    @POST("api/node/auth/send-code")
+    suspend fun sendVerificationCode(
+        @Field("verification_type") verificationType: String,
+        @Field("contact_info")      contactInfo:      String,
+        @Field("username")          username:         String? = null
+    ): SendCodeResponse
+
+    /** Verify OTP and activate the account; returns access_token. */
+    @FormUrlEncoded
+    @POST("api/node/auth/verify-code")
+    suspend fun verifyCode(
+        @Field("verification_type") verificationType: String,
+        @Field("contact_info")      contactInfo:      String,
+        @Field("code")              code:             String,
+        @Field("username")          username:         String? = null
+    ): VerifyCodeResponse
+
     // ═══════════════════════ BACKUP / CLOUD SETTINGS ═════════════════════════
 
     /** Get cloud backup settings (replaces PHP get_cloud_backup_settings.php). */

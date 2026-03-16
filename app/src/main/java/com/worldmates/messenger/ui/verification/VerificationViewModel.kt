@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,8 +18,10 @@ class VerificationViewModel : ViewModel() {
     private val _resendTimer = MutableStateFlow(0)
     val resendTimer: StateFlow<Int> = _resendTimer
 
+    private val api = NodeRetrofitClient.api
+
     /**
-     * Отправка кода верификации
+     * Відправка коду верифікації
      */
     fun sendVerificationCode(
         verificationType: String,
@@ -35,10 +37,10 @@ class VerificationViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.sendVerificationCode(
+                val response = api.sendVerificationCode(
                     verificationType = verificationType,
-                    contactInfo = contactInfo,
-                    username = username
+                    contactInfo      = contactInfo,
+                    username         = username
                 )
 
                 if (response.actualStatus == 200) {
@@ -51,15 +53,14 @@ class VerificationViewModel : ViewModel() {
                     Log.e("VerificationVM", "Помилка: $errorMsg")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка мережі: ${e.localizedMessage}"
-                _verificationState.value = VerificationState.Error(errorMsg)
+                _verificationState.value = VerificationState.Error("Помилка мережі: ${e.localizedMessage}")
                 Log.e("VerificationVM", "Помилка відправки коду", e)
             }
         }
     }
 
     /**
-     * Проверка кода верификации
+     * Перевірка коду верифікації
      */
     fun verifyCode(
         verificationType: String,
@@ -76,24 +77,23 @@ class VerificationViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.verifyCode(
+                val response = api.verifyCode(
                     verificationType = verificationType,
-                    contactInfo = contactInfo,
-                    code = code,
-                    username = username
+                    contactInfo      = contactInfo,
+                    code             = code,
+                    username         = username
                 )
 
                 when {
                     response.apiStatus == 200 && response.accessToken != null && response.userId != null -> {
-                        // Успешная верификация - сохраняем сессию
                         UserSession.saveSession(
                             response.accessToken!!,
-                            response.userId!!.toLong(),
+                            response.userId!!,
                             username,
                             null
                         )
                         _verificationState.value = VerificationState.Success
-                        Log.d("VerificationVM", "Верифікацію успішно завершено! User ID: ${response.userId}")
+                        Log.d("VerificationVM", "Верифікацію завершено, user ${response.userId}")
                     }
                     response.apiStatus == 400 -> {
                         val errorMsg = response.errors ?: response.message ?: "Невірний код"
@@ -103,19 +103,18 @@ class VerificationViewModel : ViewModel() {
                     else -> {
                         val errorMsg = response.errors ?: response.message ?: "Невідома помилка"
                         _verificationState.value = VerificationState.Error(errorMsg)
-                        Log.e("VerificationVM", "Помилка: ${response.apiStatus} - $errorMsg")
+                        Log.e("VerificationVM", "Помилка ${response.apiStatus}: $errorMsg")
                     }
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка мережі: ${e.localizedMessage}"
-                _verificationState.value = VerificationState.Error(errorMsg)
+                _verificationState.value = VerificationState.Error("Помилка мережі: ${e.localizedMessage}")
                 Log.e("VerificationVM", "Помилка верифікації", e)
             }
         }
     }
 
     /**
-     * Повторная отправка кода
+     * Повторна відправка коду
      */
     fun resendCode(
         verificationType: String,
@@ -129,15 +128,15 @@ class VerificationViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.resendVerificationCode(
+                val response = api.sendVerificationCode(
                     verificationType = verificationType,
-                    contactInfo = contactInfo,
-                    username = username
+                    contactInfo      = contactInfo,
+                    username         = username
                 )
 
-                if (response.apiStatus == 200) {
+                if (response.actualStatus == 200) {
                     _verificationState.value = VerificationState.CodeSent
-                    Log.d("VerificationVM", "Код успішно надіслано повторно")
+                    Log.d("VerificationVM", "Код надіслано повторно")
                     startResendTimer()
                 } else {
                     val errorMsg = response.errors ?: response.message ?: "Помилка відправки коду"
@@ -145,16 +144,12 @@ class VerificationViewModel : ViewModel() {
                     Log.e("VerificationVM", "Помилка: $errorMsg")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка мережі: ${e.localizedMessage}"
-                _verificationState.value = VerificationState.Error(errorMsg)
+                _verificationState.value = VerificationState.Error("Помилка мережі: ${e.localizedMessage}")
                 Log.e("VerificationVM", "Помилка повторної відправки коду", e)
             }
         }
     }
 
-    /**
-     * Таймер для повторной отправки кода (60 секунд)
-     */
     private fun startResendTimer() {
         viewModelScope.launch {
             _resendTimer.value = 60

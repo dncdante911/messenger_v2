@@ -15,7 +15,6 @@ import com.worldmates.messenger.network.MediaUploader
 import com.worldmates.messenger.network.MediaLoadingManager
 import com.worldmates.messenger.network.NetworkQualityMonitor
 import com.worldmates.messenger.network.NodeRetrofitClient
-import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.utils.DecryptionUtility
 import com.worldmates.messenger.utils.signal.SignalEncryptionService
@@ -893,8 +892,8 @@ class MessagesViewModel(application: Application) :
     /**
      * Надсилає стікер
      */
-    fun sendSticker(stickerId: Long) {
-        if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
+    fun sendSticker(stickerUrl: String) {
+        if (stickerUrl.isBlank() || (recipientId == 0L && groupId == 0L)) {
             _error.value = "Помилка: не авторизовано"
             return
         }
@@ -903,36 +902,25 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val messageHashId = java.util.UUID.randomUUID().toString()
-
-                val response = RetrofitClient.apiService.sendSticker(
-                    accessToken = UserSession.accessToken!!,
-                    recipientId = recipientId.takeIf { it != 0L },
-                    groupId = groupId.takeIf { it != 0L },
-                    stickerId = stickerId,
-                    messageHashId = messageHashId
-                )
-
-                if (response.apiStatus == 200) {
-                    // Перезавантажуємо повідомлення
-                    if (groupId != 0L) {
-                        fetchGroupMessages()
-                    } else {
-                        fetchMessages()
-                    }
-
-                    _error.value = null
-                    Log.d("MessagesViewModel", "Стікер надіслано")
+                val response = if (groupId != 0L) {
+                    groupApi.sendGroupMessage(groupId = groupId, stickers = stickerUrl)
                 } else {
-                    _error.value = response.errors?.errorText ?: response.errorMessage ?: "Не вдалося надіслати стікер"
-                    Log.e("MessagesViewModel", "Send Sticker Error: ${response.errors?.errorText ?: response.errorMessage}")
+                    nodeApi.sendMessage(recipientId = recipientId, text = "", stickers = stickerUrl)
                 }
 
-                _isLoading.value = false
+                if (response.apiStatus == 200) {
+                    if (groupId != 0L) fetchGroupMessages() else fetchMessages()
+                    _error.value = null
+                    Log.d("MessagesViewModel", "Стікер надіслано via Node.js")
+                } else {
+                    _error.value = response.errorMessage ?: "Не вдалося надіслати стікер"
+                    Log.e("MessagesViewModel", "Send Sticker Error: ${response.errorMessage}")
+                }
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
-                _isLoading.value = false
                 Log.e("MessagesViewModel", "Помилка надсилання стікера", e)
+            } finally {
+                _isLoading.value = false
             }
         }
     }

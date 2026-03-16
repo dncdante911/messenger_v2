@@ -1653,7 +1653,7 @@ fun MessagesScreen(
                 onEmojiSelected = { emoji -> messageText += emoji },
                 onEmojiDismiss = { showEmojiPicker = false },
                 showStickerPicker = showStickerPicker,
-                onStickerSelected = { sticker -> viewModel.sendSticker(sticker.id); showStickerPicker = false },
+                onStickerSelected = { sticker -> viewModel.sendSticker(sticker.fileUrl); showStickerPicker = false },
                 onStickerDismiss = { showStickerPicker = false },
                 showGifPicker = showGifPicker,
                 onGifSelected = { gifUrl -> viewModel.sendGif(gifUrl); showGifPicker = false },

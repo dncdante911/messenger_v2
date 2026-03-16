@@ -650,6 +650,231 @@ function quickVerify(ctx) {
     };
 }
 
+// ─── POST /api/node/auth/register ────────────────────────────────────────────
+// Classic registration: username + email/phone + password.
+// Returns success_type="verification" when email/phone validation is enabled,
+// otherwise creates a session and returns access_token immediately.
+
+function register(ctx) {
+    return async (req, res) => {
+        const L        = t(req);
+        const username = (req.body.username || '').trim();
+        const email    = (req.body.email    || '').trim().toLowerCase();
+        const phone    = (req.body.phone_number || '').trim();
+        const password = (req.body.password         || '').trim();
+        const confirm  = (req.body.confirm_password || '').trim();
+        const gender   = (req.body.gender   || 'male').trim();
+        const platform = (req.body.device_type || 'phone').trim();
+
+        if (!username) {
+            return res.json({ api_status: 400, error_message: L.username_required || 'Username is required' });
+        }
+        if (!email && !phone) {
+            return res.json({ api_status: 400, error_message: L.provide_email_or_phone });
+        }
+        if (!password) {
+            return res.json({ api_status: 400, error_message: L.password_required || 'Password is required' });
+        }
+        if (password !== confirm) {
+            return res.json({ api_status: 400, error_message: L.passwords_do_not_match || 'Passwords do not match' });
+        }
+        if (password.length < 6) {
+            return res.json({ api_status: 400, error_message: L.password_too_short });
+        }
+        if (phone && !/^\+\d{7,15}$/.test(phone)) {
+            return res.json({ api_status: 400, error_message: L.phone_format_error });
+        }
+
+        try {
+            const { Op } = require('sequelize');
+
+            // Check username uniqueness
+            const byUsername = await ctx.wo_users.findOne({ where: { username } });
+            if (byUsername) {
+                return res.json({ api_status: 400, error_message: L.username_taken || 'Username is already taken' });
+            }
+
+            // Check email/phone uniqueness
+            if (email) {
+                const byEmail = await findUserByEmail(ctx, email);
+                if (byEmail) {
+                    return res.json({ api_status: 400, error_message: L.email_taken || 'Email is already registered' });
+                }
+            }
+            if (phone) {
+                const byPhone = await findUserByPhone(ctx, phone);
+                if (byPhone) {
+                    return res.json({ api_status: 400, error_message: L.phone_taken || 'Phone number is already registered' });
+                }
+            }
+
+            // Determine if verification is required
+            const emailValidation = ctx.globalconfig['email_validation'] === '1' || ctx.globalconfig['email_validation'] === 1;
+            const phoneValidation = ctx.globalconfig['phone_number_validation'] === '1' || ctx.globalconfig['phone_number_validation'] === 1;
+            const needsVerification = (email && emailValidation) || (phone && phoneValidation);
+
+            const hashedPassword = await hashPassword(password);
+            const now            = Math.floor(Date.now() / 1000);
+
+            const user = await ctx.wo_users.create({
+                username,
+                email:        email || '',
+                phone_number: phone || '',
+                password:     hashedPassword,
+                first_name:   '',
+                last_name:    '',
+                gender,
+                lastseen:     now,
+                active:       needsVerification ? '0' : '1',
+                registered:   new Date().toLocaleDateString('en-US'),
+                joined:       now,
+            });
+
+            console.log(`[Auth] User registered: ${username} (id=${user.user_id}, needsVerification=${needsVerification})`);
+
+            if (needsVerification) {
+                return res.json({
+                    api_status:   200,
+                    success_type: 'verification',
+                    user_id:      user.user_id,
+                    username:     user.username,
+                });
+            }
+
+            const token = await createSession(ctx, user.user_id, platform, 'register');
+            return res.json({
+                api_status:    200,
+                access_token:  token,
+                user_id:       user.user_id,
+                username:      user.username,
+                first_name:    user.first_name,
+                last_name:     user.last_name,
+                avatar:        user.avatar || '',
+                success_type:  'registered',
+            });
+
+        } catch (err) {
+            console.error('[Auth/register]', err.message);
+            return res.json({ api_status: 500, error_message: L.server_error });
+        }
+    };
+}
+
+// ─── POST /api/node/auth/send-code ────────────────────────────────────────────
+// Send a 6-digit OTP to an existing user for email/phone verification.
+
+function sendCode(ctx) {
+    return async (req, res) => {
+        const L               = t(req);
+        const verificationType = (req.body.verification_type || '').trim();
+        const contactInfo      = (req.body.contact_info || '').trim().toLowerCase();
+
+        if (!contactInfo) {
+            return res.json({ api_status: 400, error_message: L.provide_email_or_phone });
+        }
+
+        try {
+            const user = verificationType === 'phone'
+                ? await findUserByPhone(ctx, contactInfo)
+                : await findUserByEmail(ctx, contactInfo);
+
+            if (!user) {
+                return res.json({ api_status: 400, error_message: L.account_not_found });
+            }
+
+            const code = generateCode(6);
+            await storeOtp('verify', contactInfo, code, { userId: user.user_id });
+
+            if (verificationType === 'phone') {
+                await sendSms(contactInfo, `Your WorldMates verification code: ${code}`);
+            } else {
+                await sendEmail(
+                    contactInfo,
+                    'WorldMates — Email Verification',
+                    emailTemplate('Email Verification',
+                        `<p style="color:#555">Enter this code to verify your account:</p>${codeBlock(code, L)}`
+                    )
+                );
+            }
+
+            console.log(`[Auth] Verification code sent to ${contactInfo} (user ${user.user_id})`);
+            return res.json({
+                api_status:  200,
+                message:     L.code_sent,
+                code_length: 6,
+                expires_in:  OTP_TTL_SECONDS,
+            });
+
+        } catch (err) {
+            console.error('[Auth/send-code]', err.message);
+            if (err.message.includes('Twilio')) {
+                return res.json({ api_status: 503, error_message: err.message });
+            }
+            return res.json({ api_status: 500, error_message: L.server_error });
+        }
+    };
+}
+
+// ─── POST /api/node/auth/verify-code ─────────────────────────────────────────
+// Verify the OTP, activate the user account, and return an access_token.
+
+function verifyCode(ctx) {
+    return async (req, res) => {
+        const L               = t(req);
+        const verificationType = (req.body.verification_type || '').trim();
+        const contactInfo      = (req.body.contact_info || '').trim().toLowerCase();
+        const code             = (req.body.code || '').trim();
+
+        if (!code || !contactInfo) {
+            return res.json({ api_status: 400, error_message: L.provide_code });
+        }
+
+        const result = await checkOtp('verify', contactInfo, code);
+        if (!result.ok) {
+            return res.json({
+                api_status:  400,
+                errors:      { error_text: otpErrorMessage(result, L) },
+                message:     otpErrorMessage(result, L),
+            });
+        }
+
+        try {
+            const user = await findUserById(ctx, result.entry.userId);
+            if (!user) {
+                return res.json({ api_status: 400, error_message: L.account_not_found_short });
+            }
+
+            // Activate account if it was pending verification
+            if (user.active !== '1') {
+                await ctx.wo_users.update(
+                    { active: '1' },
+                    { where: { user_id: user.user_id } }
+                );
+            }
+
+            const token = await createSession(ctx, user.user_id, 'phone', 'verify');
+
+            ctx.wo_users.update(
+                { lastseen: Math.floor(Date.now() / 1000) },
+                { where: { user_id: user.user_id } }
+            ).catch(() => {});
+
+            console.log(`[Auth] Verification OK for user ${user.user_id}`);
+            return res.json({
+                api_status:   200,
+                access_token: token,
+                user_id:      user.user_id,
+                username:     user.username,
+                message:      L.auth_success,
+            });
+
+        } catch (err) {
+            console.error('[Auth/verify-code]', err.message);
+            return res.json({ api_status: 500, error_message: L.server_error });
+        }
+    };
+}
+
 // ─── Register routes ──────────────────────────────────────────────────────────
 
 function registerAuthRoutes(app, ctx) {
@@ -659,6 +884,9 @@ function registerAuthRoutes(app, ctx) {
     app.post('/api/node/auth/reset-password',         resetPassword(ctx));
     app.post('/api/node/auth/quick-register',         quickRegister(ctx));
     app.post('/api/node/auth/quick-verify',           quickVerify(ctx));
+    app.post('/api/node/auth/register',               register(ctx));
+    app.post('/api/node/auth/send-code',              sendCode(ctx));
+    app.post('/api/node/auth/verify-code',            verifyCode(ctx));
 
     console.log('[Auth] Routes registered:');
     console.log('  POST /api/node/auth/login');
@@ -667,6 +895,9 @@ function registerAuthRoutes(app, ctx) {
     console.log('  POST /api/node/auth/reset-password');
     console.log('  POST /api/node/auth/quick-register');
     console.log('  POST /api/node/auth/quick-verify');
+    console.log('  POST /api/node/auth/register');
+    console.log('  POST /api/node/auth/send-code');
+    console.log('  POST /api/node/auth/verify-code');
 }
 
 module.exports = { registerAuthRoutes };
