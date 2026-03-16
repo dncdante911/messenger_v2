@@ -2207,4 +2207,24 @@
     <string name="folder_leave">Покинути папку</string>
     <string name="folder_join_title">Приєднатися до папки</string>
     <string name="folder_join_description">Вам запропоновано приєднатися до спільної папки чатів</string>
+
+    <!-- Sessions -->
+    <string name="active_sessions">Активні сесії</string>
+    <string name="active_sessions_subtitle">Пристрої, підключені до вашого акаунту</string>
+    <string name="no_active_sessions">Немає активних сесій</string>
+    <string name="terminate_session">Завершити сесію</string>
+
+    <!-- Delete Account -->
+    <string name="delete_account">Видалити акаунт</string>
+    <string name="delete_account_warning_title">Видалення акаунту</string>
+    <string name="delete_account_consequence_1">Всі ваші повідомлення та дані будуть видалені назавжди</string>
+    <string name="delete_account_consequence_2">Ви втратите доступ до всіх чатів і груп</string>
+    <string name="delete_account_consequence_3">Цю дію неможливо скасувати</string>
+    <string name="delete_account_btn">Видалити мій акаунт</string>
+    <string name="delete_account_confirm_title">Ви впевнені?</string>
+    <string name="delete_account_confirm_message">Акаунт буде видалено назавжди. Цю дію неможливо скасувати.</string>
+    <string name="password_hint">Пароль</string>
+
+    <!-- Reports -->
+    <string name="report_sent">Скаргу надіслано</string>
 </resources>

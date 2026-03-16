@@ -276,6 +276,61 @@ interface WorldMatesApi {
         @Query("access_token") accessToken: String
     ): ListBackupsResponse
 
+    // ==================== SESSIONS ====================
+
+    @FormUrlEncoded
+    @POST("/api/v2/endpoints/sessions.php")
+    suspend fun getSessions(
+        @Field("access_token") accessToken: String,
+        @Field("type") type: String = "get"
+    ): SessionsResponse
+
+    @FormUrlEncoded
+    @POST("/api/v2/endpoints/sessions.php")
+    suspend fun deleteSession(
+        @Field("access_token") accessToken: String,
+        @Field("type") type: String = "delete",
+        @Field("id") sessionId: Long
+    ): DeleteSessionResponse
+
+    // ==================== TWO-FACTOR AUTH ====================
+
+    @FormUrlEncoded
+    @POST("/api/v2/endpoints/update_two_factor.php")
+    suspend fun updateTwoFactor(
+        @Field("access_token") accessToken: String,
+        @Field("type") type: String? = null,
+        @Field("code") code: String? = null,
+        @Field("factor_method") factorMethod: String? = null
+    ): TwoFactorUpdateResponse
+
+    // ==================== REPORTS ====================
+
+    @FormUrlEncoded
+    @POST("/api/v2/endpoints/report_user.php")
+    suspend fun reportUser(
+        @Field("access_token") accessToken: String,
+        @Field("user") userId: Long,
+        @Field("text") text: String
+    ): ReportResponse
+
+    @FormUrlEncoded
+    @POST("/api/v2/endpoints/report_group.php")
+    suspend fun reportGroup(
+        @Field("access_token") accessToken: String,
+        @Field("group_id") groupId: Long,
+        @Field("text") text: String
+    ): ReportResponse
+
+    // ==================== DELETE ACCOUNT ====================
+
+    @FormUrlEncoded
+    @POST("/api/v2/endpoints/delete-user.php")
+    suspend fun deleteAccount(
+        @Field("access_token") accessToken: String,
+        @Field("password") password: String
+    ): DeleteAccountResponse
+
     // ==================== GROUP CHATS (Messenger Groups) ====================
     // Uses /api/v2/group_chat_v2.php - Backend API endpoint with 'type' parameter
 
@@ -2138,6 +2193,53 @@ data class InstantViewResponse(
     @SerializedName("image") val image: String? = null,
     @SerializedName("content_html") val contentHtml: String? = null,
     @SerializedName("reading_time_min") val readingTimeMin: Int = 1,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ==================== SESSIONS ====================
+
+data class SessionItem(
+    @SerializedName("id") val id: Long = 0,
+    @SerializedName("session_id") val sessionId: String = "",
+    @SerializedName("platform") val platform: String = "",
+    @SerializedName("time") val time: Long = 0,
+    @SerializedName("ip") val ip: String? = null,
+    @SerializedName("device_name") val deviceName: String? = null
+)
+
+data class SessionsResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("data") val sessions: List<SessionItem> = emptyList(),
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class DeleteSessionResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ==================== TWO-FACTOR AUTH ====================
+
+data class TwoFactorUpdateResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ==================== REPORTS ====================
+
+data class ReportResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("code") val code: Int = 0,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ==================== DELETE ACCOUNT ====================
+
+data class DeleteAccountResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("message") val message: String? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 

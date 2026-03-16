@@ -29,9 +29,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.utils.security.SecurePreferences
 import com.worldmates.messenger.utils.security.TOTPGenerator
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +51,8 @@ fun TwoFactorAuthScreen(
     val recoveryCodes = remember { mutableStateOf<List<String>>(emptyList()) }
     val showError = remember { mutableStateOf(false) }
     val errorMessage = remember { mutableStateOf("") }
+    val isLoading = remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     // Анимация появления
     var visible by remember { mutableStateOf(false) }
@@ -130,17 +134,29 @@ fun TwoFactorAuthScreen(
                             },
                             showError = showError.value,
                             errorMessage = errorMessage.value,
+                            isLoading = isLoading.value,
                             onVerifyClick = {
-                                // Проверяем введенный код
                                 if (TOTPGenerator.verifyTOTP(secret.value, verificationCode.value)) {
-                                    // Генерируем recovery коды
-                                    recoveryCodes.value = TOTPGenerator.generateRecoveryCodes()
-
-                                    // Сохраняем данные
-                                    SecurePreferences.twoFASecret = secret.value
-                                    SecurePreferences.saveBackupCodes(recoveryCodes.value)
-
-                                    currentStep.value = TwoFAStep.RECOVERY_CODES
+                                    scope.launch {
+                                        isLoading.value = true
+                                        try {
+                                            val token = UserSession.accessToken ?: ""
+                                            RetrofitClient.apiService.updateTwoFactor(
+                                                accessToken = token,
+                                                type = "verify",
+                                                code = verificationCode.value,
+                                                factorMethod = "google"
+                                            )
+                                        } catch (_: Exception) {
+                                            // Если сервер недоступен — сохраняем локально
+                                        } finally {
+                                            isLoading.value = false
+                                        }
+                                        recoveryCodes.value = TOTPGenerator.generateRecoveryCodes()
+                                        SecurePreferences.twoFASecret = secret.value
+                                        SecurePreferences.saveBackupCodes(recoveryCodes.value)
+                                        currentStep.value = TwoFAStep.RECOVERY_CODES
+                                    }
                                 } else {
                                     showError.value = true
                                     errorMessage.value = context.getString(R.string.invalid_code_try_again)
@@ -164,10 +180,22 @@ fun TwoFactorAuthScreen(
 
                     TwoFAStep.DISABLE -> {
                         DisableStep(
+                            isLoading = isLoading.value,
                             onConfirmClick = {
-                                SecurePreferences.clear2FAData()
-                                is2FAEnabled.value = false
-                                currentStep.value = TwoFAStep.MAIN
+                                scope.launch {
+                                    isLoading.value = true
+                                    try {
+                                        val token = UserSession.accessToken ?: ""
+                                        RetrofitClient.apiService.updateTwoFactor(accessToken = token)
+                                    } catch (_: Exception) {
+                                        // продолжаем даже при ошибке сети
+                                    } finally {
+                                        isLoading.value = false
+                                    }
+                                    SecurePreferences.clear2FAData()
+                                    is2FAEnabled.value = false
+                                    currentStep.value = TwoFAStep.MAIN
+                                }
                             },
                             onCancelClick = {
                                 currentStep.value = TwoFAStep.MAIN
@@ -370,6 +398,7 @@ private fun SetupStep(
     onCodeChange: (String) -> Unit,
     showError: Boolean,
     errorMessage: String,
+    isLoading: Boolean = false,
     onVerifyClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
@@ -521,13 +550,17 @@ private fun SetupStep(
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp),
-                    enabled = verificationCode.length == 6,
+                    enabled = verificationCode.length == 6 && !isLoading,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF0084FF)
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(stringResource(R.string.confirm), fontWeight = FontWeight.Bold)
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.confirm), fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -633,6 +666,7 @@ private fun RecoveryCodesStep(
 
 @Composable
 private fun DisableStep(
+    isLoading: Boolean = false,
     onConfirmClick: () -> Unit,
     onCancelClick: () -> Unit
 ) {
@@ -694,12 +728,17 @@ private fun DisableStep(
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
+                        enabled = !isLoading,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.Red
                         ),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text(stringResource(R.string.disable_action_label), fontWeight = FontWeight.Bold)
+                        if (isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text(stringResource(R.string.disable_action_label), fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
