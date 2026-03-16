@@ -2,6 +2,7 @@ package com.worldmates.messenger.network
 
 import com.google.gson.annotations.SerializedName
 import com.worldmates.messenger.data.Constants
+import com.worldmates.messenger.data.model.AuthResponse
 import com.worldmates.messenger.data.model.BackupStatisticsResponse
 import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.data.model.CloudBackupSettingsResponse

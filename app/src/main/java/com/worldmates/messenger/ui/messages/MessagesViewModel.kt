@@ -903,7 +903,7 @@ class MessagesViewModel(application: Application) :
         viewModelScope.launch {
             try {
                 val response = if (groupId != 0L) {
-                    groupApi.sendGroupMessage(groupId = groupId, stickers = stickerUrl)
+                    groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = stickerUrl)
                 } else {
                     nodeApi.sendMessage(recipientId = recipientId, text = "", stickers = stickerUrl)
                 }
@@ -2232,7 +2232,7 @@ class MessagesViewModel(application: Application) :
                 if (response.apiStatus == 200) {
                     val messages = response.messages ?: emptyList()
                     _searchResults.value = messages
-                    _searchTotalCount.value = response.count
+                    _searchTotalCount.value = response.count ?: 0
                     _currentSearchIndex.value = if (messages.isNotEmpty()) 0 else -1
                     Log.d(TAG, "🔍 Search completed: found ${response.count} results for '$query'")
                 } else {
