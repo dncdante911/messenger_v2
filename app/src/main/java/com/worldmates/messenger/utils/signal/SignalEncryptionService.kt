@@ -7,7 +7,10 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.worldmates.messenger.network.NodeApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.AEADBadTagException
 
 /**
@@ -167,6 +170,13 @@ class SignalEncryptionService private constructor(
      */
     var onSessionBroken: ((senderId: Long) -> Unit)? = null
 
+    // Per-peer mutex: prevents concurrent decryption for the same sender,
+    // which would cause race conditions where one coroutine overwrites the
+    // DR session that another coroutine just created from X3DH.
+    private val peerDecryptLocks = ConcurrentHashMap<Long, Mutex>()
+    private fun peerLock(peerId: Long): Mutex =
+        peerDecryptLocks.getOrPut(peerId) { Mutex() }
+
     suspend fun decryptIncoming(
         senderId:         Long,
         ciphertextB64:    String,
@@ -174,13 +184,16 @@ class SignalEncryptionService private constructor(
         tagB64:           String,
         signalHeaderJson: String
     ): String? = withContext(Dispatchers.Default) {
+        // Serialize decryption per peer: prevents two concurrent X3DH setups
+        // from clobbering each other's session state.
+        peerLock(senderId).withLock {
         try {
             @Suppress("UNCHECKED_CAST")
             val h = gson.fromJson(signalHeaderJson, Map::class.java) as Map<String, Any>
 
             val ratchetKey = Base64.decode(
                 h["rk"] as? String
-                    ?: return@withContext null.also { Log.e(TAG, "Missing rk") },
+                    ?: return@withLock null.also { Log.e(TAG, "Missing rk") },
                 Base64.NO_WRAP
             )
             val n  = (h["n"]  as? Double)?.toInt() ?: 0
@@ -190,16 +203,27 @@ class SignalEncryptionService private constructor(
             // Always reinitialize when 'ik' is present — even if we have a stale session.
             // Presence of 'ik' means the sender started a fresh X3DH (e.g. after reinstall).
             // Keeping the old session and trying to decrypt with it will always fail.
+            //
+            // IMPORTANT: after X3DH we use the freshly-created SessionState directly
+            // instead of re-loading from SignalKeyStore.  Re-loading would be a TOCTOU
+            // bug: another thread (now prevented by peerLock) could overwrite the store
+            // between saveSession() and loadSession(), causing an AEAD failure.
+            var session: SessionState? = null
+
             if (h.containsKey("ik")) {
                 val ikAPub = Base64.decode(h["ik"] as String, Base64.NO_WRAP)
                 val ekAPub = Base64.decode(h["ek"] as? String
-                    ?: return@withContext null.also { Log.e(TAG, "Missing ek") },
+                    ?: return@withLock null.also { Log.e(TAG, "Missing ek") },
                     Base64.NO_WRAP)
                 val opkId = (h["opk_id"] as? Double)?.toInt()
 
                 val ik              = keyStore.getOrCreateIdentityKey()
                 val (_, spkKp, _)   = keyStore.getOrCreateSignedPreKey()
                 val opkKp           = opkId?.let { keyStore.consumeOPK(it) }
+
+                if (opkId != null && opkKp == null) {
+                    Log.w(TAG, "X3DH(Bob) opk_id=$opkId not found locally (already consumed?) — using 3-DH")
+                }
 
                 // Delete stale session before creating a new one
                 if (keyStore.hasSession(senderId)) {
@@ -214,7 +238,7 @@ class SignalEncryptionService private constructor(
                     ikAPub = ikAPub,
                     ekAPub = ekAPub
                 )
-                val session = DoubleRatchetManager.initBobSession(
+                session = DoubleRatchetManager.initBobSession(
                     sk           = sk,
                     ad           = ad,
                     spkB         = spkKp,
@@ -222,14 +246,18 @@ class SignalEncryptionService private constructor(
                     remoteUserId = senderId
                 )
                 keyStore.saveSession(senderId, session)
-                Log.i(TAG, "X3DH(Bob) completed for sender $senderId")
+                Log.i(TAG, "X3DH(Bob) completed for sender $senderId opk=${opkId ?: "none"}")
             }
 
             // ── DR decrypt ────────────────────────────────────────────────────
-            val session = keyStore.loadSession(senderId)
-                ?: return@withContext null.also {
-                    Log.e(TAG, "No DR session for sender $senderId")
-                }
+            // If X3DH was just performed, use the in-memory session directly.
+            // Otherwise load from persistent store (normal DR message flow).
+            if (session == null) {
+                session = keyStore.loadSession(senderId)
+                    ?: return@withLock null.also {
+                        Log.e(TAG, "No DR session for sender $senderId")
+                    }
+            }
 
             val encMsg = EncryptedDRMessage(
                 header     = DRHeader(ratchetKey = ratchetKey, n = n, pn = pn),
@@ -259,6 +287,7 @@ class SignalEncryptionService private constructor(
             Log.e(TAG, "decryptIncoming error from $senderId", e)
             null
         }
+        } // end withLock
     }
 
     // ─── Plaintext cache (delegate to keyStore → Room DB) ────────────────────
