@@ -58,17 +58,23 @@ async function getMuteSettings(ctx, userId, chatId) {
 }
 
 // ─── GET CHATS (conversation list) ───────────────────────────────────────────
+// Optimised: 5 DB queries total regardless of chat count (was 4N+1).
+//   1. chatRows        — paginated conversation list
+//   2. muteRows        — batch mute settings for all partners
+//   3. userRows        — batch user data for archive-filtered partners
+//   4. lastMsgRows     — last message per conversation (raw SQL MAX(id))
+//   5. unreadRows      — unread count per partner (raw SQL GROUP BY)
 
 function getChats(ctx, io) {
     return async (req, res) => {
         try {
-            const userId    = req.userId;
-            const limit     = Math.min(parseInt(req.body.limit  || req.body.user_limit)  || 30, 100);
-            const offset    = parseInt(req.body.offset || req.body.user_offset) || 0;
+            const userId       = req.userId;
+            const limit        = Math.min(parseInt(req.body.limit  || req.body.user_limit)  || 30, 100);
+            const offset       = parseInt(req.body.offset || req.body.user_offset) || 0;
             const showArchived = req.body.show_archived === 'true';
-            const siteUrl   = (ctx.globalconfig?.site_url || '').replace(/\/$/, '');
+            const siteUrl      = (ctx.globalconfig?.site_url || '').replace(/\/$/, '');
 
-            // base: user's direct conversations
+            // 1 ── paginated conversation rows
             const chatRows = await ctx.wo_userschat.findAll({
                 where: {
                     user_id:              userId,
@@ -80,49 +86,106 @@ function getChats(ctx, io) {
                 raw: true,
             });
 
+            if (chatRows.length === 0) {
+                return res.json({ api_status: 200, data: [] });
+            }
+
+            const allPartnerIds = chatRows.map(c => c.conversation_user_id);
+
+            // 2 ── batch mute / archive settings
+            const muteRows = await ctx.wo_mute.findAll({
+                where: { user_id: userId, chat_id: { [Op.in]: allPartnerIds }, type: 'user' },
+                raw: true,
+            });
+            const defaultMute = { notify: 'yes', call_chat: 'yes', archive: 'no', fav: 'no', pin: 'no' };
+            const muteMap = new Map();
+            for (const m of muteRows) muteMap.set(m.chat_id, m);
+
+            // apply archive filter in memory
+            const filteredChats = chatRows.filter(chat => {
+                const archived = (muteMap.get(chat.conversation_user_id) || defaultMute).archive === 'yes';
+                return showArchived ? archived : !archived;
+            });
+
+            if (filteredChats.length === 0) {
+                return res.json({ api_status: 200, data: [] });
+            }
+
+            const partnerIds = filteredChats.map(c => c.conversation_user_id);
+            const ph         = partnerIds.map(() => '?').join(',');
+
+            // 3 ── batch user data
+            const userRows = await ctx.wo_users.findAll({
+                attributes: ['user_id', 'username', 'first_name', 'last_name',
+                             'avatar', 'lastseen', 'status', 'last_avatar_mod'],
+                where: { user_id: { [Op.in]: partnerIds } },
+                raw: true,
+            });
+            const userMap = new Map();
+            for (const u of userRows) {
+                u.name = (u.first_name && u.last_name)
+                    ? u.first_name + ' ' + u.last_name
+                    : u.username;
+                userMap.set(u.user_id, u);
+            }
+
+            // 4 ── last message per conversation partner (MAX id per partner)
+            //      Union both directions so we get the true last message regardless
+            //      of who sent it, then join to fetch full row.
+            const lastMsgRows = await ctx.sequelize.query(
+                `SELECT m.* FROM Wo_Messages m
+                 INNER JOIN (
+                   SELECT partner_id, MAX(id) AS max_id FROM (
+                     SELECT to_id   AS partner_id, id
+                     FROM Wo_Messages
+                     WHERE from_id = ? AND to_id IN (${ph}) AND page_id = 0 AND deleted_one = '0'
+                     UNION ALL
+                     SELECT from_id AS partner_id, id
+                     FROM Wo_Messages
+                     WHERE to_id = ? AND from_id IN (${ph}) AND page_id = 0 AND deleted_two = '0'
+                   ) combined
+                   GROUP BY partner_id
+                 ) latest ON m.id = latest.max_id`,
+                {
+                    replacements: [userId, ...partnerIds, userId, ...partnerIds],
+                    type: ctx.sequelize.QueryTypes.SELECT,
+                }
+            );
+            const lastMsgMap = new Map();
+            for (const msg of lastMsgRows) {
+                const pid = msg.from_id === userId ? msg.to_id : msg.from_id;
+                lastMsgMap.set(pid, msg);
+            }
+
+            // 5 ── unread counts per partner (messages sent to me, unseen)
+            const unreadRows = await ctx.sequelize.query(
+                `SELECT from_id, COUNT(*) AS cnt
+                 FROM Wo_Messages
+                 WHERE to_id = ? AND from_id IN (${ph})
+                   AND seen = 0 AND deleted_two = '0' AND page_id = 0
+                 GROUP BY from_id`,
+                {
+                    replacements: [userId, ...partnerIds],
+                    type: ctx.sequelize.QueryTypes.SELECT,
+                }
+            );
+            const unreadMap = new Map();
+            for (const r of unreadRows) unreadMap.set(r.from_id, Number(r.cnt));
+
+            // 6 ── assemble response
             const result = [];
-            for (const chat of chatRows) {
+            for (const chat of filteredChats) {
                 const partnerId = chat.conversation_user_id;
-
-                // archive filter
-                const muteRow = await getMuteSettings(ctx, userId, partnerId);
-                const isArchived = muteRow.archive === 'yes';
-                if (isArchived && !showArchived) continue;
-                if (!isArchived && showArchived)  continue;
-
-                const partner = await getUserBasicData(ctx, partnerId);
+                const partner   = userMap.get(partnerId);
                 if (!partner) continue;
 
-                // last message
-                const last = await ctx.wo_messages.findOne({
-                    where: {
-                        page_id: 0,
-                        [Op.or]: [
-                            { from_id: userId,     to_id: partnerId, deleted_one: '0' },
-                            { from_id: partnerId,  to_id: userId,    deleted_two: '0' },
-                        ],
-                    },
-                    order: [['id', 'DESC']],
-                    raw: true,
-                });
-
-                // unread count
-                const unread = await ctx.wo_messages.count({
-                    where: {
-                        from_id:     partnerId,
-                        to_id:       userId,
-                        seen:        0,
-                        deleted_two: '0',
-                        page_id:     0,
-                    },
-                });
-
-                // chat color (stored in wo_userschat)
-                const chatColor = chat.color || '';
+                const muteRow = muteMap.get(partnerId) || defaultMute;
+                const last    = lastMsgMap.get(partnerId) || null;
+                const unread  = unreadMap.get(partnerId)  || 0;
 
                 let lastMsg = null;
                 if (last) {
-                    const pos  = last.from_id === userId ? 'right' : 'left';
+                    const pos = last.from_id === userId ? 'right' : 'left';
                     lastMsg = {
                         id:             last.id,
                         from_id:        last.from_id,
@@ -142,23 +205,23 @@ function getChats(ctx, io) {
                     };
                 }
 
-                let avatarUrl = partner?.avatar || '';
+                let avatarUrl = partner.avatar || '';
                 if (avatarUrl && !avatarUrl.startsWith('http')) {
                     avatarUrl = siteUrl + '/' + avatarUrl;
                 }
-                if (partner?.last_avatar_mod) {
+                if (partner.last_avatar_mod) {
                     avatarUrl += '?cache=' + partner.last_avatar_mod;
                 }
 
                 result.push({
-                    id:            chat.id,   // Android Chat.id (@SerializedName("id"))
+                    id:            chat.id,
                     chat_id:       chat.id,
                     chat_time:     chat.time,
                     chat_type:     'user',
                     user_id:       partnerId,
-                    username:      partner?.username   || partner?.name || '',
+                    username:      partner.username || partner.name || '',
                     avatar:        avatarUrl,
-                    chat_color:    chatColor,
+                    chat_color:    chat.color || '',
                     mute:          muteRow,
                     user_data:     partner,
                     last_message:  lastMsg,

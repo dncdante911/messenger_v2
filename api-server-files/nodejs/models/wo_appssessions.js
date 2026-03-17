@@ -32,6 +32,21 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
+    },
+    expires_at: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: null
+    },
+    refresh_token: {
+      type: DataTypes.STRING(120),
+      allowNull: true,
+      defaultValue: null
+    },
+    refresh_expires_at: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: null
     }
   }, {
     sequelize,

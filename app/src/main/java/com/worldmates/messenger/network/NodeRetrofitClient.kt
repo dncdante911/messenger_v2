@@ -65,9 +65,16 @@ object NodeRetrofitClient {
         Log.d("NODE_API", msg)
     }.apply { level = HttpLoggingInterceptor.Level.BODY }
 
+    // ── Token refresh interceptor ─────────────────────────────────────────────
+    // Transparently rotates the access token when it expires (HTTP 401).
+    // Must be added BEFORE authInterceptor so the retried request already
+    // carries the updated token header that authInterceptor would set.
+    private val tokenRefreshInterceptor = TokenRefreshInterceptor(Constants.NODE_BASE_URL)
+
     // ── OkHttpClient ─────────────────────────────────────────────────────────
     private val client = OkHttpClient.Builder()
         .dns(ipv4Dns)
+        .addInterceptor(tokenRefreshInterceptor)
         .addInterceptor(authInterceptor)
         .addInterceptor(loggingInterceptor)
         .connectTimeout(Constants.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)

@@ -266,6 +266,24 @@ async function init() {
     console.warn('[Migration] is_anonymous_admin:', e.message);
   }
 
+  // ── Refresh token columns for Wo_AppsSessions ─────────────────────────────
+  const sessionTokenColumns = [
+    'ALTER TABLE Wo_AppsSessions ADD COLUMN IF NOT EXISTS expires_at         INT          NULL DEFAULT NULL',
+    'ALTER TABLE Wo_AppsSessions ADD COLUMN IF NOT EXISTS refresh_token      VARCHAR(120) NULL DEFAULT NULL',
+    'ALTER TABLE Wo_AppsSessions ADD COLUMN IF NOT EXISTS refresh_expires_at INT          NULL DEFAULT NULL',
+    'ALTER TABLE Wo_AppsSessions ADD INDEX idx_refresh_token (refresh_token)',
+  ];
+  for (const sql of sessionTokenColumns) {
+    try {
+      await ctx.sequelize.query(sql);
+    } catch (e) {
+      if (!e.message.includes('Duplicate key name') && !e.message.includes('Duplicate column name')) {
+        console.warn('[Migration] Wo_AppsSessions refresh token:', e.message);
+      }
+    }
+  }
+  console.log('[Migration] Wo_AppsSessions refresh token columns ensured');
+
   // wm_user_ratings — user karma / trust system
   try {
     await ctx.sequelize.query(`

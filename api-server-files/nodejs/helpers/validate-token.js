@@ -13,17 +13,24 @@
 
 /**
  * Validate an access token against Wo_AppsSessions.
- * Returns userId (integer) or null if invalid.
+ * Returns userId (integer) or null if invalid / expired.
+ * Tokens created before the expiry feature was added (expires_at = null) are
+ * treated as perpetually valid to ensure backwards-compatibility during rollout.
  */
 async function validateToken(ctx, token) {
     if (!token || typeof token !== 'string' || token.length < 10) return null;
     try {
         const session = await ctx.wo_appssessions.findOne({
             where:      { session_id: token },
-            attributes: ['user_id'],
+            attributes: ['user_id', 'expires_at'],
             raw:        true,
         });
-        return session ? session.user_id : null;
+        if (!session) return null;
+        // If expires_at is set and in the past, token has expired
+        if (session.expires_at && session.expires_at < Math.floor(Date.now() / 1000)) {
+            return null;
+        }
+        return session.user_id;
     } catch {
         return null;
     }
@@ -48,15 +55,32 @@ function requireAuth(ctx) {
             ''
         ).trim();
 
-        const userId = await validateToken(ctx, token);
-
-        if (!userId) {
+        if (!token || token.length < 10) {
             return res.json({ api_status: 400, error_id: '0', error_message: 'Access token is not valid' });
         }
 
-        req.userId      = userId;
-        req.accessToken = token;
-        next();
+        try {
+            const session = await ctx.wo_appssessions.findOne({
+                where:      { session_id: token },
+                attributes: ['user_id', 'expires_at'],
+                raw:        true,
+            });
+
+            if (!session) {
+                return res.json({ api_status: 400, error_id: '0', error_message: 'Access token is not valid' });
+            }
+
+            if (session.expires_at && session.expires_at < Math.floor(Date.now() / 1000)) {
+                // error_id '401' signals the client to attempt a token refresh
+                return res.json({ api_status: 401, error_id: '401', error_message: 'Access token has expired' });
+            }
+
+            req.userId      = session.user_id;
+            req.accessToken = token;
+            next();
+        } catch {
+            return res.json({ api_status: 400, error_id: '0', error_message: 'Access token is not valid' });
+        }
     };
 }
 

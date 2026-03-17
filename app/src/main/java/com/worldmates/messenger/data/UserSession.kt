@@ -9,7 +9,9 @@ import kotlinx.coroutines.flow.asStateFlow
 
 object UserSession {
     private const val PREFS_NAME = "worldmates_session"
-    private const val KEY_ACCESS_TOKEN = "access_token"
+    private const val KEY_ACCESS_TOKEN  = "access_token"
+    private const val KEY_REFRESH_TOKEN = "refresh_token"
+    private const val KEY_TOKEN_EXPIRES_AT = "token_expires_at"
     private const val KEY_USER_ID = "user_id"
     private const val KEY_USERNAME = "username"
     private const val KEY_AVATAR = "avatar"
@@ -31,6 +33,24 @@ object UserSession {
     var accessToken: String?
         get() = prefs.getString(KEY_ACCESS_TOKEN, null)
         set(value) = prefs.edit().putString(KEY_ACCESS_TOKEN, value).apply()
+
+    /** Opaque refresh token used to rotate an expired access token. */
+    var refreshToken: String?
+        get() = prefs.getString(KEY_REFRESH_TOKEN, null)
+        set(value) = prefs.edit().putString(KEY_REFRESH_TOKEN, value).apply()
+
+    /** Unix-timestamp (seconds) when the access token expires. 0 = legacy/no expiry. */
+    var tokenExpiresAt: Long
+        get() = prefs.getLong(KEY_TOKEN_EXPIRES_AT, 0L)
+        set(value) = prefs.edit().putLong(KEY_TOKEN_EXPIRES_AT, value).apply()
+
+    /** true when the access token is within 60 seconds of expiry (proactive refresh). */
+    val isTokenExpiringSoon: Boolean
+        get() {
+            val exp = tokenExpiresAt
+            if (exp == 0L) return false
+            return exp - (System.currentTimeMillis() / 1000) < 60
+        }
 
     var userId: Long
         get() = prefs.getLong(KEY_USER_ID, 0)
@@ -121,10 +141,14 @@ object UserSession {
         avatar: String? = null,
         isPro: Int = 0,
         proType: Int = 0,
-        proExpiresAt: Long = 0L
+        proExpiresAt: Long = 0L,
+        refreshToken: String? = null,
+        tokenExpiresAt: Long = 0L
     ) {
         prefs.edit().apply {
             putString(KEY_ACCESS_TOKEN, token)
+            putString(KEY_REFRESH_TOKEN, refreshToken)
+            putLong(KEY_TOKEN_EXPIRES_AT, tokenExpiresAt)
             putLong(KEY_USER_ID, id)
             putString(KEY_USERNAME, username)
             putString(KEY_AVATAR, avatar)
@@ -138,6 +162,15 @@ object UserSession {
             commit() // Синхронне збереження — токен гарантованно записаний
         }
         _avatarFlow.value = avatar
+    }
+
+    /** Update tokens after a refresh without touching other session data. */
+    fun updateTokens(newAccessToken: String, newRefreshToken: String, newExpiresAt: Long) {
+        prefs.edit()
+            .putString(KEY_ACCESS_TOKEN, newAccessToken)
+            .putString(KEY_REFRESH_TOKEN, newRefreshToken)
+            .putLong(KEY_TOKEN_EXPIRES_AT, newExpiresAt)
+            .commit()
     }
 
     /** Оновити лише статус підписки (без перезапису сесії) */
