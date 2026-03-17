@@ -27,7 +27,8 @@
     "sequelize": "^6.37.8",
     "socket.io": "^4.8.3",
     "striptags": "^3.2.0",
-    "twilio": "^5.13.0"
+    "twilio": "^5.13.0",
+    "geoip-lite": "^1.4.10"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
