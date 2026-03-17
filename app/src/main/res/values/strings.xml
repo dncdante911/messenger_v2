@@ -2214,6 +2214,33 @@
     <string name="no_active_sessions">Немає активних сесій</string>
     <string name="terminate_session">Завершити сесію</string>
 
+    <!-- E2EE Key Backup -->
+    <string name="key_backup">Резервна копія ключів шифрування</string>
+    <string name="key_backup_subtitle">Захищений хмарний бекап E2EE ключів</string>
+    <string name="key_backup_title">Резервна копія ключів</string>
+    <string name="key_backup_description">Ваші ключі шифрування зберігаються лише на цьому пристрої. Зробіть резервну копію, щоб відновити доступ до зашифрованих чатів після зміни пристрою.</string>
+    <string name="key_backup_warning">Сервер не може розшифрувати ваші ключі. Якщо ви забудете пароль — відновлення буде неможливим.</string>
+    <string name="key_backup_exists">Резервна копія існує</string>
+    <string name="key_backup_none">Резервна копія відсутня</string>
+    <string name="key_backup_last_updated">Оновлено: %s</string>
+    <string name="key_backup_create">Створити резервну копію</string>
+    <string name="key_backup_update">Оновити резервну копію</string>
+    <string name="key_backup_restore">Відновити з резервної копії</string>
+    <string name="key_backup_delete">Видалити резервну копію</string>
+    <string name="key_backup_password_hint">Пароль резервної копії</string>
+    <string name="key_backup_password_confirm_hint">Підтвердіть пароль</string>
+    <string name="key_backup_password_min">Мінімум 8 символів</string>
+    <string name="key_backup_password_mismatch">Паролі не збігаються</string>
+    <string name="key_backup_success_create">Резервна копія успішно створена</string>
+    <string name="key_backup_success_restore">Ключі успішно відновлено</string>
+    <string name="key_backup_success_delete">Резервна копія видалена</string>
+    <string name="key_backup_error_no_keys">Ключі шифрування ще не згенеровані. Відкрийте будь-який зашифрований чат спочатку.</string>
+    <string name="key_backup_error_wrong_password">Неправильний пароль. Перевірте та спробуйте знову.</string>
+    <string name="key_backup_error_no_backup">Резервна копія не знайдена на сервері.</string>
+    <string name="key_backup_delete_confirm">Ви впевнені, що хочете видалити резервну копію?</string>
+    <string name="key_backup_section_setup">Налаштувати резервну копію</string>
+    <string name="key_backup_section_restore">Відновити на цьому пристрої</string>
+
     <!-- Delete Account -->
     <string name="delete_account">Видалити акаунт</string>
     <string name="delete_account_warning_title">Видалення акаунту</string>

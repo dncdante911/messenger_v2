@@ -1385,6 +1385,203 @@ function startWebhookProcessor(ctx) {
     console.log('[Bots] Webhook processor started (every 5s)');
 }
 
+// ── Telegram-compatible helpers ───────────────────────────────────────────────
+
+/**
+ * sendMedia — shared handler for sendPhoto / sendDocument / sendAudio / sendVideo.
+ * Stores the message with media_type + media_url + optional caption and emits
+ * a bot_message Socket.IO event to the recipient.
+ */
+function sendMedia(mediaType) {
+    return (ctx, io) => async (req, res) => {
+        const { chat_id, caption, reply_markup } = req.body;
+        // Accept 'photo', 'document', 'audio', 'video' as URL strings or objects.
+        const raw = req.body[mediaType];
+        if (!chat_id) return res.json({ ok: false, error_code: 400, description: 'chat_id required' });
+        if (!raw)     return res.json({ ok: false, error_code: 400, description: `${mediaType} required` });
+
+        const mediaUrl = typeof raw === 'string' ? raw : raw.url || raw.file_id || '';
+        try {
+            const msg = await ctx.wo_bot_messages.create({
+                bot_id:      req.botId,
+                chat_id:     String(chat_id),
+                chat_type:   'private',
+                direction:   'outgoing',
+                text:        caption || null,
+                media_type:  mediaType,
+                media_url:   mediaUrl,
+                reply_markup: reply_markup ? JSON.stringify(reply_markup) : null,
+                processed:   1,
+                processed_at: new Date(),
+            });
+            await ctx.wo_bots.increment('messages_sent', { where: { bot_id: req.botId } });
+
+            if (io) {
+                const payload = { event: 'bot_message', bot_id: req.botId, message_id: msg.id,
+                    media: { type: mediaType, url: mediaUrl }, caption: caption || null,
+                    reply_markup: reply_markup || null, timestamp: Date.now() };
+                io.to(String(chat_id)).emit('bot_message', payload);
+                io.to(`user_bot_${chat_id}_${req.botId}`).emit('bot_message', payload);
+            }
+            return res.json({ ok: true, result: { message_id: msg.id } });
+        } catch (e) {
+            console.error(`[Bots/send${mediaType}]`, e.message);
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// POST /api/node/bot/sendPhoto
+const sendPhoto = sendMedia('photo');
+// POST /api/node/bot/sendDocument
+const sendDocument = sendMedia('document');
+// POST /api/node/bot/sendAudio
+const sendAudio = sendMedia('audio');
+// POST /api/node/bot/sendVideo
+const sendVideo = sendMedia('video');
+
+// POST /api/node/bot/sendLocation
+function sendLocation(ctx, io) {
+    return async (req, res) => {
+        const { chat_id, latitude, longitude, horizontal_accuracy } = req.body;
+        if (!chat_id || latitude == null || longitude == null)
+            return res.json({ ok: false, error_code: 400, description: 'chat_id, latitude, longitude required' });
+        try {
+            const mediaUrl = `geo:${latitude},${longitude}`;
+            const msg = await ctx.wo_bot_messages.create({
+                bot_id:    req.botId, chat_id: String(chat_id), chat_type: 'private',
+                direction: 'outgoing', media_type: 'location', media_url: mediaUrl,
+                processed: 1, processed_at: new Date(),
+            });
+            await ctx.wo_bots.increment('messages_sent', { where: { bot_id: req.botId } });
+            if (io) {
+                const payload = { event: 'bot_message', bot_id: req.botId, message_id: msg.id,
+                    location: { latitude, longitude, horizontal_accuracy }, timestamp: Date.now() };
+                io.to(String(chat_id)).emit('bot_message', payload);
+            }
+            return res.json({ ok: true, result: { message_id: msg.id } });
+        } catch (e) {
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// POST /api/node/bot/sendContact
+function sendContact(ctx, io) {
+    return async (req, res) => {
+        const { chat_id, phone_number, first_name, last_name } = req.body;
+        if (!chat_id || !phone_number || !first_name)
+            return res.json({ ok: false, error_code: 400, description: 'chat_id, phone_number, first_name required' });
+        try {
+            const text = `${first_name}${last_name ? ' ' + last_name : ''}\n${phone_number}`;
+            const msg = await ctx.wo_bot_messages.create({
+                bot_id: req.botId, chat_id: String(chat_id), chat_type: 'private',
+                direction: 'outgoing', media_type: 'contact', text,
+                processed: 1, processed_at: new Date(),
+            });
+            await ctx.wo_bots.increment('messages_sent', { where: { bot_id: req.botId } });
+            if (io) {
+                const payload = { event: 'bot_message', bot_id: req.botId, message_id: msg.id,
+                    contact: { phone_number, first_name, last_name }, timestamp: Date.now() };
+                io.to(String(chat_id)).emit('bot_message', payload);
+            }
+            return res.json({ ok: true, result: { message_id: msg.id } });
+        } catch (e) {
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// POST /api/node/bot/forwardMessage
+function forwardMessage(ctx, io) {
+    return async (req, res) => {
+        const { chat_id, from_chat_id, message_id } = req.body;
+        if (!chat_id || !from_chat_id || !message_id)
+            return res.json({ ok: false, error_code: 400, description: 'chat_id, from_chat_id, message_id required' });
+        try {
+            const orig = await ctx.wo_bot_messages.findOne({ where: { id: message_id, bot_id: req.botId }, raw: true });
+            if (!orig) return res.json({ ok: false, error_code: 404, description: 'message not found' });
+
+            const fwd = await ctx.wo_bot_messages.create({
+                bot_id: req.botId, chat_id: String(chat_id), chat_type: 'private',
+                direction: 'outgoing', text: orig.text, media_type: orig.media_type,
+                media_url: orig.media_url, processed: 1, processed_at: new Date(),
+            });
+            await ctx.wo_bots.increment('messages_sent', { where: { bot_id: req.botId } });
+            if (io) {
+                io.to(String(chat_id)).emit('bot_message', { event: 'bot_message', bot_id: req.botId,
+                    message_id: fwd.id, text: orig.text, forwarded: true, timestamp: Date.now() });
+            }
+            return res.json({ ok: true, result: { message_id: fwd.id } });
+        } catch (e) {
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// POST /api/node/bot/sendChatAction  — typing indicator
+function sendChatAction(ctx, io) {
+    return async (req, res) => {
+        const { chat_id, action } = req.body;
+        if (!chat_id) return res.json({ ok: false, error_code: 400, description: 'chat_id required' });
+        if (io) {
+            io.to(String(chat_id)).emit('bot_typing', {
+                bot_id: req.botId, chat_id: String(chat_id), action: action || 'typing'
+            });
+        }
+        return res.json({ ok: true, result: true });
+    };
+}
+
+// GET /api/node/bot/getChat
+function getChat(ctx) {
+    return async (req, res) => {
+        const chatId = req.query.chat_id || req.body.chat_id;
+        if (!chatId) return res.json({ ok: false, error_code: 400, description: 'chat_id required' });
+        try {
+            const user = await ctx.wo_users.findOne({
+                where:      { id: parseInt(chatId) },
+                attributes: ['id', 'username', 'first_name', 'last_name', 'avatar'],
+                raw:        true,
+            });
+            if (!user) return res.json({ ok: false, error_code: 404, description: 'chat not found' });
+            return res.json({ ok: true, result: {
+                id:         user.id,
+                type:       'private',
+                username:   user.username,
+                first_name: user.first_name || '',
+                last_name:  user.last_name  || '',
+                photo:      user.avatar     || null,
+            }});
+        } catch (e) {
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// GET /api/node/bot/getChatMember
+function getChatMember(ctx) {
+    return async (req, res) => {
+        const chatId = req.query.chat_id || req.body.chat_id;
+        const userId = req.query.user_id || req.body.user_id;
+        if (!chatId || !userId) return res.json({ ok: false, error_code: 400, description: 'chat_id, user_id required' });
+        try {
+            const user = await ctx.wo_users.findOne({
+                where:      { id: parseInt(userId) },
+                attributes: ['id', 'username', 'first_name', 'last_name'],
+                raw:        true,
+            });
+            if (!user) return res.json({ ok: false, error_code: 404, description: 'user not found' });
+            return res.json({ ok: true, result: {
+                status:     'member',
+                user: { id: user.id, username: user.username, first_name: user.first_name || '', last_name: user.last_name || '' },
+            }});
+        } catch (e) {
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
 // ─── Регистрация маршрутов ────────────────────────────────────────────────────
 
 function registerBotRoutes(app, ctx, io) {
@@ -1417,6 +1614,20 @@ function registerBotRoutes(app, ctx, io) {
     app.post(   '/api/node/bot/setUserState',         bAuth, setUserState(ctx));
     app.get(    '/api/node/bot/getUserState',         bAuth, getUserState(ctx));
     app.post(   '/api/node/bot/getUserState',         bAuth, getUserState(ctx));
+
+    // ── Telegram-compatible media / action endpoints (bot token) ─────────────
+    app.post(   '/api/node/bot/sendPhoto',            bAuth, sendPhoto(ctx, io));
+    app.post(   '/api/node/bot/sendDocument',         bAuth, sendDocument(ctx, io));
+    app.post(   '/api/node/bot/sendAudio',            bAuth, sendAudio(ctx, io));
+    app.post(   '/api/node/bot/sendVideo',            bAuth, sendVideo(ctx, io));
+    app.post(   '/api/node/bot/sendLocation',         bAuth, sendLocation(ctx, io));
+    app.post(   '/api/node/bot/sendContact',          bAuth, sendContact(ctx, io));
+    app.post(   '/api/node/bot/forwardMessage',       bAuth, forwardMessage(ctx, io));
+    app.post(   '/api/node/bot/sendChatAction',       bAuth, sendChatAction(ctx, io));
+    app.get(    '/api/node/bot/getChat',              bAuth, getChat(ctx));
+    app.post(   '/api/node/bot/getChat',              bAuth, getChat(ctx));
+    app.get(    '/api/node/bot/getChatMember',        bAuth, getChatMember(ctx));
+    app.post(   '/api/node/bot/getChatMember',        bAuth, getChatMember(ctx));
 
     // ── RSS feeds (user token) ───────────────────────────────────────────────
     app.get(    '/api/node/bots/:bot_id/rss',             uAuth, getRssFeeds(ctx));

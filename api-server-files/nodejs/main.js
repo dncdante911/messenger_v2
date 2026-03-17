@@ -228,6 +228,9 @@ async function init() {
   ctx.wm_notes        = require("./models/wm_notes")(sequelize, DataTypes)
   ctx.wm_user_storage = require("./models/wm_user_storage")(sequelize, DataTypes)
 
+  // ==================== E2EE Key Backup ====================
+  ctx.wm_key_backups = require("./models/wm_key_backups")(sequelize, DataTypes)
+
   // ==================== Business Mode Models ====================
   ctx.wm_business_profile       = require("./models/wm_business_profile")(sequelize, DataTypes)
   ctx.wm_business_hours         = require("./models/wm_business_hours")(sequelize, DataTypes)
@@ -436,6 +439,26 @@ async function runMigrations(ctx) {
     if (!e.message.includes('Duplicate key name')) {
       console.warn('[Migration] FULLTEXT index:', e.message);
     }
+  }
+
+  // ── wm_key_backups — E2EE encrypted key backup ───────────────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_key_backups (
+        id                INT UNSIGNED  NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id           INT           NOT NULL,
+        encrypted_payload LONGTEXT      NOT NULL,
+        salt              VARCHAR(64)   NOT NULL,
+        iv                VARCHAR(32)   NOT NULL,
+        version           INT           NOT NULL DEFAULT 1,
+        created_at        INT UNSIGNED  NOT NULL DEFAULT 0,
+        updated_at        INT UNSIGNED  NOT NULL DEFAULT 0,
+        UNIQUE KEY uq_user_id (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('[Migration] wm_key_backups table ensured');
+  } catch (e) {
+    console.warn('[Migration] wm_key_backups:', e.message);
   }
 
   console.log('[Migration] All background migrations complete');

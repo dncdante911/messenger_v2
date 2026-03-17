@@ -42,6 +42,7 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.ui.login.LoginActivity
 import com.worldmates.messenger.ui.settings.security.AppLockSettingsScreen
 import com.worldmates.messenger.ui.settings.security.DeleteAccountScreen
+import com.worldmates.messenger.ui.settings.security.KeyBackupScreen
 import com.worldmates.messenger.ui.settings.security.SessionsScreen
 import com.worldmates.messenger.ui.settings.security.TwoFactorAuthScreen
 import com.worldmates.messenger.ui.theme.ThemeManager
@@ -156,6 +157,11 @@ class SettingsActivity : AppCompatActivity() {
                             onBackClick = { currentScreen = SettingsScreen.Main }
                         )
                     }
+                    SettingsScreen.KeyBackup -> {
+                        KeyBackupScreen(
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
                     SettingsScreen.DeleteAccount -> {
                         DeleteAccountScreen(
                             onBackClick = { currentScreen = SettingsScreen.Main },
@@ -241,6 +247,7 @@ sealed class SettingsScreen {
     object ActiveSessions : SettingsScreen()
     object DeleteAccount : SettingsScreen()
     object Business : SettingsScreen()
+    object KeyBackup : SettingsScreen()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -485,6 +492,14 @@ fun SettingsScreen(
                     title = stringResource(R.string.active_sessions),
                     subtitle = stringResource(R.string.active_sessions_subtitle),
                     onClick = { onNavigate(SettingsScreen.ActiveSessions) }
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.EnhancedEncryption,
+                    title = stringResource(R.string.key_backup),
+                    subtitle = stringResource(R.string.key_backup_subtitle),
+                    onClick = { onNavigate(SettingsScreen.KeyBackup) }
                 )
             }
 

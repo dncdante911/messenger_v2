@@ -782,6 +782,26 @@ interface NodeApi {
         @Path("id") sessionId: Long
     ): NodeSimpleResponse
 
+    // ═══════════════════════ E2EE KEY BACKUP ═════════════════════════════════
+
+    /** Upload AES-GCM encrypted key blob.  Server stores opaque bytes only. */
+    @FormUrlEncoded
+    @POST("api/node/signal/key-backup")
+    suspend fun uploadKeyBackup(
+        @Field("encrypted_payload") encryptedPayload: String,
+        @Field("salt")              salt:              String,
+        @Field("iv")                iv:                String,
+        @Field("version")           version:           Int = 1,
+    ): NodeSimpleResponse
+
+    /** Download previously uploaded encrypted key blob. */
+    @GET("api/node/signal/key-backup")
+    suspend fun downloadKeyBackup(): KeyBackupDownloadResponse
+
+    /** Delete the stored key backup. */
+    @DELETE("api/node/signal/key-backup")
+    suspend fun deleteKeyBackup(): NodeSimpleResponse
+
     // ═══════════════════════ BACKUP / CLOUD SETTINGS ═════════════════════════
 
     /** Get cloud backup settings (replaces PHP get_cloud_backup_settings.php). */
@@ -1217,4 +1237,22 @@ data class NodeSessionsResponse(
     @SerializedName("api_status")    val apiStatus: Int = 0,
     @SerializedName("sessions")      val sessions: List<NodeSessionItem> = emptyList(),
     @SerializedName("error_message") val errorMessage: String? = null
+)
+
+
+// ==================== E2EE KEY BACKUP ====================
+
+data class KeyBackupPayload(
+    @SerializedName("encrypted_payload") val encryptedPayload: String = "",
+    @SerializedName("salt")              val salt:             String = "",
+    @SerializedName("iv")                val iv:               String = "",
+    @SerializedName("version")           val version:          Int    = 1,
+    @SerializedName("created_at")        val createdAt:        Long   = 0,
+    @SerializedName("updated_at")        val updatedAt:        Long   = 0,
+)
+
+data class KeyBackupDownloadResponse(
+    @SerializedName("api_status")    val apiStatus: Int             = 0,
+    @SerializedName("backup")        val backup:    KeyBackupPayload? = null,
+    @SerializedName("error_message") val errorMessage: String?      = null,
 )

@@ -433,36 +433,59 @@ async function registerDefaultCommands(ctx, botId) {
 
 // ─── ОБРАБОТЧИКИ КОМАНД ───────────────────────────────────────────────────────
 
+// ─── Personality helpers ──────────────────────────────────────────────────────
+
+const GREETINGS = [
+    (name) => `Привіт, ${name}! 👋 Я WallyBot — твій особистий помічник у WorldMates.\n\nЧим можу допомогти сьогодні?`,
+    (name) => `Вітаю, ${name}! ✨ Радий тебе бачити!\n\nГотовий допомогти з ботами та відповісти на запитання.`,
+    (name) => `Привет, ${name}! 🤖 Я WallyBot — создаю ботов, отвечаю на вопросы и помогаю разобраться в WorldMates.\n\nЧто сделаем?`,
+    (name) => `Хай, ${name}! 🌟 WallyBot на зв'язку!\n\nЯкщо потрібна допомога — я тут.`,
+];
+
+function randomGreeting(name) {
+    return GREETINGS[Math.floor(Math.random() * GREETINGS.length)](name);
+}
+
+// Simple language detection: returns 'uk' if more Ukrainian-specific characters, else 'ru'
+function detectLang(text = '') {
+    const ukChars = (text.match(/[іїєґІЇЄҐ]/g) || []).length;
+    return ukChars > 0 ? 'uk' : 'ru';
+}
+
 async function handleStart(ctx, io, userId, userName) {
     clearState(userId);
-    const text = `Привет, ${userName}! Я WallyBot — твой персональный помощник по управлению ботами WorldMates.\n\nЧто ты хочешь сделать?`;
+    const text = randomGreeting(userName);
     const kb = inlineKeyboard([
-        btn('Создать бота',     'cmd_newbot'),
-        btn('Мои боты',         'cmd_mybots'),
-        btn('Обучить меня',     'cmd_learn'),
-        btn('Спросить WallyBot','cmd_ask'),
-        btn('Функции мессенджера', 'cmd_messenger_guide'),
-        btn('Помощь',           'cmd_help')
+        btn('Створити бота / Создать бота', 'cmd_newbot'),
+        btn('Мої боти / Мои боты',          'cmd_mybots'),
+        btn('Навчити мене / Обучить меня',   'cmd_learn'),
+        btn('Запитати WallyBot',             'cmd_ask'),
+        btn('Функції месенджера',            'cmd_messenger_guide'),
+        btn('Статистика / Статистика',       'cmd_stats'),
+        btn('Допомога / Помощь',             'cmd_help')
     ], 2);
     await sendToUser(ctx, io, userId, text, kb);
 }
 
 async function handleHelp(ctx, io, userId) {
     clearState(userId);
-    const text = `*Команды WallyBot:*\n\n` +
-        `/newbot — создать нового бота\n` +
-        `/mybots — список твоих ботов\n` +
-        `/editbot — изменить настройки бота\n` +
-        `/deletebot — удалить бота\n` +
-        `/token — получить/обновить токен бота\n` +
-        `/setcommands — установить команды бота\n` +
-        `/setdesc — установить описание бота\n\n` +
-        `*База знаний WallyBot:*\n` +
-        `/learn — научить меня чему-то новому\n` +
-        `/forget — забыть что-то\n` +
-        `/ask — задать вопрос\n` +
-        `/messenger — справка по функциям мессенджера\n\n` +
-        `Просто напиши вопрос — я попробую ответить из базы знаний!`;
+    const text =
+        `*Команди WallyBot / Команды WallyBot:*\n\n` +
+        `🤖 *Керування ботами:*\n` +
+        `/newbot — створити нового бота\n` +
+        `/mybots — список твоїх ботів\n` +
+        `/editbot — змінити налаштування бота\n` +
+        `/deletebot — видалити бота\n` +
+        `/token — токен бота\n` +
+        `/setcommands — команди бота\n` +
+        `/setdesc — опис бота\n\n` +
+        `🧠 *База знань:*\n` +
+        `/learn — навчити мене новому\n` +
+        `/forget — забути відповідь\n` +
+        `/ask — задати питання\n` +
+        `/messenger — довідка по месенджеру\n\n` +
+        `📊 /stats — статистика ботів\n\n` +
+        `💬 Просто напиши питання — спробую відповісти!`;
     await sendToUser(ctx, io, userId, text);
 }
 
@@ -591,13 +614,58 @@ async function handleMessengerGuide(ctx, io, userId) {
 
 async function handleCancel(ctx, io, userId) {
     clearState(userId);
-    await sendToUser(ctx, io, userId, 'Действие отменено. Чем могу помочь?',
+    await sendToUser(ctx, io, userId, 'Добре, скасовано! ✌️ Чим ще можу допомогти?',
         inlineKeyboard([
-            btn('Создать бота', 'cmd_newbot'),
-            btn('Мои боты',     'cmd_mybots'),
-            btn('Помощь',       'cmd_help')
+            btn('Створити бота', 'cmd_newbot'),
+            btn('Мої боти',      'cmd_mybots'),
+            btn('Допомога',      'cmd_help')
         ])
     );
+}
+
+async function handleStats(ctx, io, userId) {
+    clearState(userId);
+    try {
+        const [totalBots, activeBots, totalMessages, kbCount] = await Promise.all([
+            ctx.wo_bots.count({ where: {} }),
+            ctx.wo_bots.count({ where: { status: 'active' } }),
+            ctx.wo_bots.sum('messages_sent') || 0,
+            ctx.wo_bot_tasks.count({ where: { bot_id: WALLYBOT_ID, status: 'done' } }),
+        ]);
+        const text =
+            `📊 *Статистика WorldMates Bots*\n\n` +
+            `🤖 Всього ботів: *${totalBots}*\n` +
+            `🟢 Активних: *${activeBots}*\n` +
+            `💬 Повідомлень надіслано: *${totalMessages || 0}*\n` +
+            `🧠 Фактів у базі знань WallyBot: *${kbCount}*\n\n` +
+            `Хочеш стати частиною екосистеми? Створи свого бота! 🚀`;
+        await sendToUser(ctx, io, userId, text,
+            inlineKeyboard([btn('Створити бота', 'cmd_newbot'), btn('Мої боти', 'cmd_mybots')])
+        );
+    } catch (e) {
+        await sendToUser(ctx, io, userId, 'Не вдалося отримати статистику 😔 Спробуй пізніше.');
+    }
+}
+
+// Easter egg: /who or free-text "хто ти / кто ты / who are you"
+async function handleWho(ctx, io, userId) {
+    const lines = [
+        '🤖 Я WallyBot — розумний бот-менеджер WorldMates!\n\nСтворений, щоб допомагати тобі будувати власних ботів і відповідати на запитання. Трохи знаю про месенджер, трохи — про всесвіт. 😄',
+        '👾 Я WallyBot! Частина команди WorldMates.\n\nМоя місія: зробити боти доступними кожному. Питай — відповім!',
+        '🌟 WallyBot до твоїх послуг!\n\nПрацюю 24/7, не їм, не сплю — тільки допомагаю. Іноді жартую. 😄',
+    ];
+    await sendToUser(ctx, io, userId, lines[Math.floor(Math.random() * lines.length)]);
+}
+
+// "Thank you" handler
+async function handleThanks(ctx, io, userId) {
+    const replies = [
+        'Будь ласка! 😊 Завжди радий допомогти.',
+        'Немає за що! Якщо знову щось потрібно — пиши. 🤝',
+        'На здоров\'я! 🌟 Удачі з ботами!',
+        'Пожалуйста! Если что — я рядом. 👋',
+    ];
+    await sendToUser(ctx, io, userId, replies[Math.floor(Math.random() * replies.length)]);
 }
 
 // ─── ОБРАБОТКА СОСТОЯНИЙ ─────────────────────────────────────────────────────
@@ -814,6 +882,8 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
     if (callbackData === 'cmd_learn')     return handleLearn(ctx, io, userId);
     if (callbackData === 'cmd_ask')       return handleAsk(ctx, io, userId);
     if (callbackData === 'cmd_messenger_guide') return handleMessengerGuide(ctx, io, userId);
+    if (callbackData === 'cmd_start')     return handleStart(ctx, io, userId, 'ти');
+    if (callbackData === 'cmd_stats')     return handleStats(ctx, io, userId);
 
     // ── Просмотр базы знаний ─────────────────────────────────────────────────
     if (callbackData === 'cmd_knowledge') {
@@ -1038,19 +1108,51 @@ async function handleMessage(ctx, io, data) {
             forget:      () => handleForget(ctx, io, userId),
             ask:         () => handleAsk(ctx, io, userId),
             messenger:   () => handleMessengerGuide(ctx, io, userId),
-            cancel:      () => handleCancel(ctx, io, userId)
+            cancel:      () => handleCancel(ctx, io, userId),
+            stats:       () => handleStats(ctx, io, userId),
+            who:         () => handleWho(ctx, io, userId),
         };
 
         const handler = cmdHandlers[cmd];
         if (handler) return handler();
 
         return sendToUser(ctx, io, userId,
-            `Неизвестная команда: /${cmd}\n\nВведи /help для списка команд.`
+            `Невідома команда: /${cmd} 🤔\n\nВведи /help для списку команд.`,
+            inlineKeyboard([btn('Допомога', 'cmd_help'), btn('Головне меню', 'cmd_start')])
         );
     }
 
     // Обработка текстовых сообщений
     if (text.trim()) {
+        const lText = text.toLowerCase().trim();
+
+        // Easter eggs / social responses (before FSM/KB checks)
+        const isGreeting = /^(привіт|привет|хай|hi|hello|йо|hey|вітаю|здравствуй|добрый|добридень)\b/.test(lText);
+        const isThanks   = /\b(дякую|спасибо|дяки|thanks|thank you|дякую|спс|thx)\b/.test(lText);
+        const isWho      = /\b(хто ти|кто ты|who are you|що ти|что ты)\b/.test(lText);
+
+        if (isGreeting) {
+            const currentState = getState(userId);
+            if (currentState.state === STATES.IDLE) {
+                const greets = [
+                    `${userName}! 👋 Привіт! Чим можу допомогти?`,
+                    `Привіт, ${userName}! 😊 Радий тебе бачити! Пиши /help або просто питай.`,
+                    `Хай, ${userName}! 🌟 Що будемо робити?`,
+                ];
+                return sendToUser(ctx, io, userId,
+                    greets[Math.floor(Math.random() * greets.length)],
+                    inlineKeyboard([btn('Головне меню', 'cmd_start'), btn('Допомога', 'cmd_help')])
+                );
+            }
+        }
+
+        if (isThanks && getState(userId).state === STATES.IDLE) {
+            return handleThanks(ctx, io, userId);
+        }
+        if (isWho && getState(userId).state === STATES.IDLE) {
+            return handleWho(ctx, io, userId);
+        }
+
         // Сначала пробуем FSM состояние
         const currentState = getState(userId);
         if (currentState.state !== STATES.IDLE) {
@@ -1064,18 +1166,21 @@ async function handleMessage(ctx, io, data) {
             return sendToUser(ctx, io, userId,
                 `*${fact.title}*\n\n${fact.description}`,
                 inlineKeyboard([
-                    btn('Это помогло!',    'kb_helpful_yes'),
-                    btn('Не то, что нужно', 'kb_helpful_no')
+                    btn('Це допомогло! 👍', 'kb_helpful_yes'),
+                    btn('Не те, що треба',  'kb_helpful_no')
                 ])
             );
         }
 
-        // Дефолтный ответ (RU/UK)
-        await sendToUser(ctx, io, userId,
-            `Не знаю ответа на это / Не знаю відповіді на це.\n\nПопробуй / Спробуй:\n• /help — список команд\n• /newbot — создать бота\n• /learn — научи меня этому`,
+        // Fallback — bilingual, friendly
+        const lang = detectLang(text);
+        const fallback = lang === 'uk'
+            ? `Гмм, я не знаю відповіді на це 🤔\n\nСпробуй:\n• /help — список команд\n• /ask — пошук у базі знань\n• /learn — навчи мене цьому!\n• /messenger — довідка по месенджеру`
+            : `Хм, я не знаю ответа на это 🤔\n\nПопробуй:\n• /help — список команд\n• /ask — поиск по базе знаний\n• /learn — научи меня этому!\n• /messenger — справка по мессенджеру`;
+        await sendToUser(ctx, io, userId, fallback,
             inlineKeyboard([
-                btn('Главное меню', 'cmd_start'),
-                btn('Помощь',       'cmd_help')
+                btn('Навчити WallyBot', 'cmd_learn'),
+                btn('Головне меню',     'cmd_start')
             ])
         );
     }

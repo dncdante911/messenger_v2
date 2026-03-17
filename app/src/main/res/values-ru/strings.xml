@@ -2205,6 +2205,33 @@
     <string name="no_active_sessions">Нет активных сессий</string>
     <string name="terminate_session">Завершить сессию</string>
 
+    <!-- E2EE Key Backup -->
+    <string name="key_backup">Резервная копия ключей шифрования</string>
+    <string name="key_backup_subtitle">Защищённый облачный бэкап E2EE ключей</string>
+    <string name="key_backup_title">Резервная копия ключей</string>
+    <string name="key_backup_description">Ваши ключи шифрования хранятся только на этом устройстве. Сделайте резервную копию, чтобы восстановить доступ к зашифрованным чатам после смены устройства.</string>
+    <string name="key_backup_warning">Сервер не может расшифровать ваши ключи. Если вы забудете пароль — восстановление будет невозможным.</string>
+    <string name="key_backup_exists">Резервная копия существует</string>
+    <string name="key_backup_none">Резервная копия отсутствует</string>
+    <string name="key_backup_last_updated">Обновлено: %s</string>
+    <string name="key_backup_create">Создать резервную копию</string>
+    <string name="key_backup_update">Обновить резервную копию</string>
+    <string name="key_backup_restore">Восстановить из резервной копии</string>
+    <string name="key_backup_delete">Удалить резервную копию</string>
+    <string name="key_backup_password_hint">Пароль резервной копии</string>
+    <string name="key_backup_password_confirm_hint">Подтвердите пароль</string>
+    <string name="key_backup_password_min">Минимум 8 символов</string>
+    <string name="key_backup_password_mismatch">Пароли не совпадают</string>
+    <string name="key_backup_success_create">Резервная копия успешно создана</string>
+    <string name="key_backup_success_restore">Ключи успешно восстановлены</string>
+    <string name="key_backup_success_delete">Резервная копия удалена</string>
+    <string name="key_backup_error_no_keys">Ключи шифрования ещё не сгенерированы. Сначала откройте любой зашифрованный чат.</string>
+    <string name="key_backup_error_wrong_password">Неверный пароль. Проверьте и попробуйте снова.</string>
+    <string name="key_backup_error_no_backup">Резервная копия не найдена на сервере.</string>
+    <string name="key_backup_delete_confirm">Вы уверены, что хотите удалить резервную копию?</string>
+    <string name="key_backup_section_setup">Настроить резервную копию</string>
+    <string name="key_backup_section_restore">Восстановить на этом устройстве</string>
+
     <!-- Delete Account -->
     <string name="delete_account">Удалить аккаунт</string>
     <string name="delete_account_warning_title">Удаление аккаунта</string>
