@@ -713,6 +713,11 @@ async function main() {
 
   server.listen(serverPort, function() {
     console.log('server up and running at %s port', serverPort);
+    // Signal PM2 that this worker is ready to receive connections.
+    // Required when ecosystem.config.js sets wait_ready: true — without this
+    // PM2 would start all cluster workers simultaneously and they would race
+    // to bind port 449, causing EADDRINUSE on all but the first worker.
+    if (process.send) process.send('ready');
   });
 }
 
