@@ -166,20 +166,20 @@ fun FontPickerSheet(
             Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "Оберіть стиль (${FontStyle.entries.size - 1} варіанти)",
+                text = "Оберіть стиль (${styleCount(FontStyle.entries.size - 1)})",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
 
-            // Font style grid
+            // Font style grid — 3 columns to fit 50 styles
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                columns = GridCells.Fixed(3),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 380.dp)
+                    .heightIn(max = 480.dp)
             ) {
                 items(FontStyle.entries) { style ->
                     FontStyleCard(
@@ -314,6 +314,19 @@ private fun PremiumBadge() {
             )
         }
     }
+}
+
+/** Ukrainian plural declension for "варіант". */
+private fun styleCount(n: Int): String {
+    val last2 = n % 100
+    val last1 = n % 10
+    val form = when {
+        last2 in 11..19 -> "варіантів"
+        last1 == 1      -> "варіант"
+        last1 in 2..4   -> "варіанти"
+        else            -> "варіантів"
+    }
+    return "$n $form"
 }
 
 @Composable

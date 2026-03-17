@@ -79,6 +79,17 @@ fun MessageInputBar(
     var showLinkInsertDialog by remember { mutableStateOf(false) }
     var showFontPicker by remember { mutableStateOf(false) }
     var activeFontStyle by remember { mutableStateOf(FontStyle.NORMAL) }
+    // Plain (unstyled) text saved before first font conversion.
+    // Lets the user switch between styles without each apply being a re-conversion
+    // of already-styled Unicode (which would leave the text unchanged).
+    var rawBeforeFont by remember { mutableStateOf("") }
+    // Reset font state when the message is cleared (e.g. after sending)
+    LaunchedEffect(messageText.isBlank()) {
+        if (messageText.isBlank()) {
+            activeFontStyle = FontStyle.NORMAL
+            rawBeforeFont = ""
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -599,13 +610,28 @@ fun MessageInputBar(
 
         // ✨ Вибір стилю шрифту (Premium)
         if (showFontPicker) {
+            // Always preview from the original un-styled text so the user can freely
+            // switch styles; rawBeforeFont is empty on the very first open.
+            val previewBase = rawBeforeFont.ifEmpty { messageText }
             FontPickerSheet(
-                previewText = messageText.ifBlank { "Привіт" },
+                previewText = previewBase.ifBlank { "Привіт" },
                 currentStyle = activeFontStyle,
-                onStyleSelected = { style, styledText ->
-                    activeFontStyle = style
-                    if (messageText.isNotBlank()) {
-                        onMessageChange(styledText)
+                onStyleSelected = { style, _ ->
+                    // Derive the base text to convert from — always plain, never re-styled
+                    val base = rawBeforeFont.ifEmpty { messageText }
+                    if (style == FontStyle.NORMAL) {
+                        // Restore original plain text
+                        activeFontStyle = FontStyle.NORMAL
+                        if (rawBeforeFont.isNotBlank()) onMessageChange(rawBeforeFont)
+                        rawBeforeFont = ""
+                    } else {
+                        // Save original text on first styling
+                        if (rawBeforeFont.isEmpty() && messageText.isNotBlank()) {
+                            rawBeforeFont = messageText
+                        }
+                        activeFontStyle = style
+                        val converted = FontStyleConverter.convert(base, style)
+                        if (converted.isNotBlank()) onMessageChange(converted)
                     }
                 },
                 onDismiss = { showFontPicker = false }
