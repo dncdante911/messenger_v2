@@ -772,6 +772,16 @@ interface NodeApi {
         @Field("refresh_token") refreshToken: String
     ): TokenRefreshResponse
 
+    /** List all active sessions for the authenticated user. */
+    @GET("api/node/auth/sessions")
+    suspend fun getNodeSessions(): NodeSessionsResponse
+
+    /** Terminate (delete) a specific session by its database id. */
+    @DELETE("api/node/auth/sessions/{id}")
+    suspend fun deleteNodeSession(
+        @Path("id") sessionId: Long
+    ): NodeSimpleResponse
+
     // ═══════════════════════ BACKUP / CLOUD SETTINGS ═════════════════════════
 
     /** Get cloud backup settings (replaces PHP get_cloud_backup_settings.php). */
@@ -1186,5 +1196,25 @@ data class NodeSavedListResponse(
     @SerializedName("api_status")    val apiStatus: Int,
     @SerializedName("saved")         val saved: List<ServerSavedItem>? = null,
     @SerializedName("total")         val total: Int = 0,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ==================== SESSIONS (Node.js) ====================
+
+data class NodeSessionItem(
+    @SerializedName("id")               val id: Long = 0,
+    @SerializedName("session_id")       val sessionId: String = "",
+    @SerializedName("platform")         val platform: String = "",
+    @SerializedName("platform_details") val platformDetails: String? = null,
+    @SerializedName("ip_address")       val ipAddress: String? = null,
+    @SerializedName("time")             val time: Long = 0,
+    @SerializedName("expires_at")       val expiresAt: Long? = null,
+    @SerializedName("is_current")       val isCurrent: Boolean = false,
+    @SerializedName("is_active")        val isActive: Boolean = true
+)
+
+data class NodeSessionsResponse(
+    @SerializedName("api_status")    val apiStatus: Int = 0,
+    @SerializedName("sessions")      val sessions: List<NodeSessionItem> = emptyList(),
     @SerializedName("error_message") val errorMessage: String? = null
 )
