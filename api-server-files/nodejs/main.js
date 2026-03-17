@@ -51,6 +51,11 @@ const { registerBusinessRoutes, handleBusinessAutoReply } = require('./routes/bu
 const { registerSearchRoutes }       = require('./routes/search/index')
 const { startCronJobs }              = require('./jobs/cronJobs')
 
+// Worker 0 is the "primary" worker: runs migrations, cron jobs, background
+// sweepers, WallyBot, and the scheduled-messages scheduler so these run
+// exactly once per cluster, not 18 times.
+const isFirstWorker = !process.env.NODE_APP_INSTANCE || process.env.NODE_APP_INSTANCE === '0';
+
 let serverPort
 let server
 let io
@@ -257,12 +262,17 @@ async function init() {
   await compiledTemplates.DefineTemplates(ctx)
   console.log('[Init] Handlebars templates compiled');
 
-  // ── Auto-migrations (idempotent) ─────────────────────────────────────────────
-  // In PM2 cluster mode NODE_APP_INSTANCE is set per-worker (0, 1, 2…).
-  // Run migrations only on worker 0 (or in non-cluster / direct node runs)
-  // to avoid 18 workers racing on ALTER TABLE / CREATE TABLE at startup.
-  const isFirstWorker = !process.env.NODE_APP_INSTANCE || process.env.NODE_APP_INSTANCE === '0';
-  if (isFirstWorker) {
+  // Migrations are deferred: runMigrations(ctx) is called from server.listen()
+  // callback on worker 0 only — AFTER process.send('ready') so PM2 sees all
+  // 18 workers as ready without waiting for potentially slow ALTER TABLE runs.
+
+}
+
+// ── DB migrations (idempotent, worker-0 only) ─────────────────────────────────
+// Called in background from server.listen() callback — never blocks startup.
+async function runMigrations(ctx) {
+  console.log('[Migration] Worker 0 starting background migrations…');
+
   try {
     await ctx.sequelize.query(
       'ALTER TABLE Wo_GroupAdmins ADD COLUMN IF NOT EXISTS is_anonymous_admin TINYINT NOT NULL DEFAULT 0'
@@ -272,7 +282,7 @@ async function init() {
     console.warn('[Migration] is_anonymous_admin:', e.message);
   }
 
-  // ── Refresh token columns for Wo_AppsSessions ─────────────────────────────
+  // ── Refresh token + IP columns for Wo_AppsSessions ────────────────────────
   const sessionTokenColumns = [
     'ALTER TABLE Wo_AppsSessions ADD COLUMN IF NOT EXISTS expires_at         INT          NULL DEFAULT NULL',
     'ALTER TABLE Wo_AppsSessions ADD COLUMN IF NOT EXISTS refresh_token      VARCHAR(120) NULL DEFAULT NULL',
@@ -285,11 +295,11 @@ async function init() {
       await ctx.sequelize.query(sql);
     } catch (e) {
       if (!e.message.includes('Duplicate key name') && !e.message.includes('Duplicate column name')) {
-        console.warn('[Migration] Wo_AppsSessions refresh token:', e.message);
+        console.warn('[Migration] Wo_AppsSessions:', e.message);
       }
     }
   }
-  console.log('[Migration] Wo_AppsSessions refresh token columns ensured');
+  console.log('[Migration] Wo_AppsSessions columns ensured');
 
   // wm_user_ratings — user karma / trust system
   try {
@@ -326,7 +336,7 @@ async function init() {
   }
   console.log('[Migration] Profile customization columns ensured');
 
-  // ── Business Mode tables ────────────────────────────────────────────────────
+  // ── Business Mode tables ──────────────────────────────────────────────────
   const businessTableSQLs = [
     `CREATE TABLE IF NOT EXISTS wm_business_profile (
       id                    INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -389,7 +399,6 @@ async function init() {
       KEY idx_user_id (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
-
   for (const sql of businessTableSQLs) {
     try {
       await ctx.sequelize.query(sql);
@@ -399,7 +408,7 @@ async function init() {
   }
   console.log('[Migration] Business Mode tables ensured');
 
-  // ── Wo_Messages composite indexes ──────────────────────────────────────────
+  // ── Wo_Messages composite indexes ────────────────────────────────────────
   const messageIndexSQLs = [
     "ALTER TABLE Wo_Messages ADD INDEX idx_conv_time   (from_id, to_id, time)",
     "ALTER TABLE Wo_Messages ADD INDEX idx_toid_time   (to_id, time)",
@@ -410,7 +419,6 @@ async function init() {
     try {
       await ctx.sequelize.query(sql);
     } catch (e) {
-      // 1061 = Duplicate key name — index already exists, safe to ignore
       if (!e.message.includes('Duplicate key name')) {
         console.warn('[Migration] Wo_Messages index:', e.message);
       }
@@ -418,21 +426,19 @@ async function init() {
   }
   console.log('[Migration] Wo_Messages composite indexes ensured');
 
-  // ── FULLTEXT index on text_preview for global search ───────────────────────
+  // ── FULLTEXT index on text_preview for global search ─────────────────────
   try {
     await ctx.sequelize.query(
       'ALTER TABLE Wo_Messages ADD FULLTEXT INDEX ft_text_preview (text_preview)'
     );
-    console.log('[Migration] Wo_Messages FULLTEXT index on text_preview ensured');
+    console.log('[Migration] Wo_Messages FULLTEXT index ensured');
   } catch (e) {
-    // 1061 = already exists, safe to ignore
     if (!e.message.includes('Duplicate key name')) {
       console.warn('[Migration] FULLTEXT index:', e.message);
     }
   }
 
-  } // end if (isFirstWorker)
-
+  console.log('[Migration] All background migrations complete');
 }
 
 
@@ -643,7 +649,7 @@ async function main() {
   registerAuthRoutes(app, ctx);
   registerMessagingRoutes(app, ctx, io);
   registerPrivateChatRoutes(app, ctx, io);
-  startSecretSweeper(ctx, io); // global 60 s sweeper for self-destructing messages
+  if (isFirstWorker) startSecretSweeper(ctx, io); // global 60 s sweeper for self-destructing messages (worker 0 only)
   registerStoryRoutes(app, ctx, io);
   registerChannelRoutes(app, ctx, io);
   registerGroupRoutes(app, ctx, io);
@@ -704,7 +710,8 @@ async function main() {
   ctx.handleBusinessAutoReply = handleBusinessAutoReply;
 
   // ── Background cron jobs (premium expiry, story cleanup, notification purge)
-  startCronJobs(ctx);
+  // Run on worker 0 only to avoid 18× redundant DB load in cluster mode.
+  if (isFirstWorker) startCronJobs(ctx);
 
   // ── App update check ──────────────────────────────────────────────────────
   // GET /api/node/update/check — serves mobile_update_config.json (no auth required)
@@ -730,20 +737,26 @@ async function main() {
   // Instant View — article reader (no auth required, rate-limited at global level)
   app.post('/api/node/instant-view', instantView(ctx, io));
 
-  // Инициализация WallyBot (встроенный бот-менеджер)
-  await initializeWallyBot(ctx, io);
-
   io.on('connection', async (socket, query) => {
     await listeners.registerListeners(socket, io, ctx)
   })
 
   server.listen(serverPort, function() {
     console.log('server up and running at %s port', serverPort);
-    // Signal PM2 that this worker is ready to receive connections.
-    // Required when ecosystem.config.js sets wait_ready: true — without this
-    // PM2 would start all cluster workers simultaneously and they would race
-    // to bind port 449, causing EADDRINUSE on all but the first worker.
+
+    // ── Signal PM2 FIRST so the next cluster worker can start immediately.
+    // Required when ecosystem.config.js sets wait_ready: true.
+    // We do NOT block on migrations or WallyBot here — they run in background.
     if (process.send) process.send('ready');
+
+    // ── Worker-0-only background tasks (run after ready to avoid delaying PM2) ─
+    if (isFirstWorker) {
+      // DB migrations (idempotent ALTER TABLE / CREATE TABLE / ADD INDEX)
+      runMigrations(ctx).catch(e => console.error('[Migration] Fatal error:', e));
+
+      // WallyBot (встроенный бот-менеджер) — only one instance per cluster
+      initializeWallyBot(ctx, io).catch(e => console.error('[WallyBot] Init error:', e));
+    }
   });
 }
 

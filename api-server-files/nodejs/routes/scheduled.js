@@ -333,7 +333,9 @@ function registerScheduledRoutes(app, ctx, io) {
     app.delete('/api/node/scheduled/:id',        auth, deleteScheduled(ctx));
     app.post('/api/node/scheduled/:id/send-now', auth, sendNow(ctx, io));
 
-    startScheduler(ctx, io);
+    // Run the background scheduler on worker 0 only to avoid 18× redundant DB polls.
+    const isFirstWorker = !process.env.NODE_APP_INSTANCE || process.env.NODE_APP_INSTANCE === '0';
+    if (isFirstWorker) startScheduler(ctx, io);
     console.log('[Scheduled API] Endpoints registered');
 }
 
