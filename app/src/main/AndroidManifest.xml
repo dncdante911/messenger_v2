@@ -373,6 +373,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Business Mode Activity -->
+        <activity
+            android:name=".ui.business.BusinessActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar" />
+
         <!-- Geo Discovery Activity -->
         <activity
             android:name=".ui.geo.GeoDiscoveryActivity"

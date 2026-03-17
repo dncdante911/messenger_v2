@@ -2257,4 +2257,99 @@
     <!-- ===== E2EE ===== -->
     <string name="encrypted_message">🔒 Зашифрованное сообщение</string>
 
+    <!-- ===== БИЗНЕС-РЕЖИМ ===== -->
+    <string name="biz_section_title">Бизнес</string>
+    <string name="biz_mode_title">Бизнес-режим</string>
+    <string name="biz_mode_subtitle">Инструменты для бизнеса и коммуникаций</string>
+    <string name="biz_active">Активен</string>
+    <string name="biz_not_configured">Не настроен</string>
+    <string name="biz_on">Вкл.</string>
+    <string name="biz_configured">Настроен</string>
+
+    <!-- Статус-карточка -->
+    <string name="biz_status_active">Бизнес-режим активен</string>
+    <string name="biz_status_inactive">Бизнес-режим выключен</string>
+    <string name="biz_no_name">Без названия</string>
+    <string name="biz_configure_hint">Настройте бизнес-профиль</string>
+
+    <!-- Секции -->
+    <string name="biz_section_profile">Профиль и расписание</string>
+    <string name="biz_section_messages">Сообщения</string>
+    <string name="biz_section_tools">Инструменты</string>
+
+    <!-- Профиль -->
+    <string name="biz_profile_title">Бизнес-профиль</string>
+    <string name="biz_profile_subtitle">Название, категория, адрес, контакты</string>
+    <string name="biz_field_name">Название бизнеса</string>
+    <string name="biz_field_category">Категория (Кофейня, Услуги…)</string>
+    <string name="biz_field_desc">Описание</string>
+    <string name="biz_field_address">Адрес</string>
+    <string name="biz_field_phone">Телефон</string>
+    <string name="biz_field_email">Email</string>
+    <string name="biz_field_website">Вебсайт</string>
+    <string name="biz_badge_title">Бейдж бизнеса в профиле</string>
+    <string name="biz_badge_subtitle">Показывать значок бизнес-аккаунта</string>
+
+    <!-- Расписание работы -->
+    <string name="biz_hours_title">Расписание работы</string>
+    <string name="biz_hours_subtitle">Установите рабочие часы для каждого дня</string>
+    <string name="biz_hours_open">Открытие</string>
+    <string name="biz_hours_close">Закрытие</string>
+    <string name="biz_weekday_sun">Воскресенье</string>
+    <string name="biz_weekday_mon">Понедельник</string>
+    <string name="biz_weekday_tue">Вторник</string>
+    <string name="biz_weekday_wed">Среда</string>
+    <string name="biz_weekday_thu">Четверг</string>
+    <string name="biz_weekday_fri">Пятница</string>
+    <string name="biz_weekday_sat">Суббота</string>
+
+    <!-- Авто-ответ -->
+    <string name="biz_auto_reply_title">Авто-ответ</string>
+    <string name="biz_auto_reply_subtitle">Отвечать автоматически, когда вы недоступны</string>
+    <string name="biz_auto_reply_enable">Включить авто-ответ</string>
+    <string name="biz_auto_reply_desc">Автоматическое сообщение при получении нового чата</string>
+    <string name="biz_auto_reply_mode_title">Условие отправки</string>
+    <string name="biz_auto_reply_text_hint">Текст авто-ответа</string>
+    <string name="biz_mode_always">Отвечать всегда</string>
+    <string name="biz_mode_outside_hours">Вне рабочих часов</string>
+
+    <!-- Отсутствие (Away) -->
+    <string name="biz_away_enable">Сообщение об отсутствии</string>
+    <string name="biz_away_desc">Отправлять, когда вы отмечены как отсутствующий</string>
+    <string name="biz_away_text_hint">Текст сообщения об отсутствии</string>
+
+    <!-- Приветствие -->
+    <string name="biz_greeting_title">Приветственное сообщение</string>
+    <string name="biz_greeting_subtitle">Первое сообщение для новых контактов</string>
+    <string name="biz_greeting_enable">Включить приветствие</string>
+    <string name="biz_greeting_desc">Автоматически отправлять при первом контакте</string>
+    <string name="biz_greeting_text_hint">Текст приветствия</string>
+    <string name="biz_greeting_info">Это сообщение отправляется один раз — при первом обращении нового контакта.</string>
+
+    <!-- Быстрые ответы -->
+    <string name="biz_quick_replies_title">Быстрые ответы</string>
+    <string name="biz_quick_replies_count">%d шаблонов</string>
+    <string name="biz_no_quick_replies">Нет быстрых ответов</string>
+    <string name="biz_add_quick_reply">Добавить шаблон</string>
+    <string name="biz_edit_quick_reply">Редактировать шаблон</string>
+    <string name="biz_qr_shortcut_hint">Ключевое слово (без /)</string>
+    <string name="biz_qr_text_hint">Текст ответа</string>
+
+    <!-- Бизнес-ссылки -->
+    <string name="biz_links_title">Бизнес-ссылки</string>
+    <string name="biz_links_count">%d ссылок</string>
+    <string name="biz_no_links">Нет ссылок</string>
+    <string name="biz_create_link">Создать ссылку</string>
+    <string name="biz_link_title_hint">Название ссылки</string>
+    <string name="biz_link_prefilled_hint">Предварительный текст сообщения (необязательно)</string>
+    <string name="biz_link_prefilled">Текст: %s</string>
+    <string name="biz_link_views">просмотров</string>
+    <string name="biz_copy_link">Копировать</string>
+    <string name="biz_link_copied">Ссылка скопирована</string>
+
+    <!-- Подтверждение удаления -->
+    <string name="biz_delete_confirm_title">Удалить?</string>
+    <string name="biz_delete_qr_message">Удалить шаблон /%s?</string>
+    <string name="biz_delete_link_message">Удалить ссылку «%s»?</string>
+
 </resources>

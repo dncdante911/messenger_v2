@@ -177,7 +177,19 @@ module.exports = function(sequelize, DataTypes) {
   }, {
     sequelize,
     timestamps: false,
-    tableName: 'Wo_Messages'
+    tableName: 'Wo_Messages',
+    indexes: [
+      // ── existing single-column indexes (preserved for reference) ──────────
+      { fields: ['from_id'] },
+      { fields: ['to_id'] },
+      { fields: ['seen'] },
+      { fields: ['time'] },
+      // ── composite indexes added for query performance ─────────────────────
+      { name: 'idx_conv_time',   fields: ['from_id', 'to_id', 'time'] },
+      { name: 'idx_toid_time',   fields: ['to_id', 'time'] },
+      { name: 'idx_fromid_time', fields: ['from_id', 'time'] },
+      { name: 'idx_conv_seen',   fields: ['from_id', 'to_id', 'seen'] }
+    ]
   });
 
   Wo_Messages.prototype.getChatData = async function(from_id = this.from_id,to_id = this.to_id) {

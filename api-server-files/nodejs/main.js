@@ -47,6 +47,7 @@ const { registerScheduledRoutes }    = require('./routes/scheduled')
 const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
 const { registerStickerRoutes }      = require('./routes/stickers')
+const { registerBusinessRoutes, handleBusinessAutoReply } = require('./routes/business')
 const { startCronJobs }              = require('./jobs/cronJobs')
 
 let serverPort
@@ -221,6 +222,12 @@ async function init() {
   ctx.wm_notes        = require("./models/wm_notes")(sequelize, DataTypes)
   ctx.wm_user_storage = require("./models/wm_user_storage")(sequelize, DataTypes)
 
+  // ==================== Business Mode Models ====================
+  ctx.wm_business_profile       = require("./models/wm_business_profile")(sequelize, DataTypes)
+  ctx.wm_business_hours         = require("./models/wm_business_hours")(sequelize, DataTypes)
+  ctx.wm_business_quick_replies = require("./models/wm_business_quick_replies")(sequelize, DataTypes)
+  ctx.wm_business_links         = require("./models/wm_business_links")(sequelize, DataTypes)
+
   // ==================== User Rating Models ====================
   ctx.wm_user_ratings = require("./models/wm_user_ratings")(sequelize, DataTypes)
 
@@ -293,6 +300,98 @@ async function init() {
     }
   }
   console.log('[Migration] Profile customization columns ensured');
+
+  // ── Business Mode tables ────────────────────────────────────────────────────
+  const businessTableSQLs = [
+    `CREATE TABLE IF NOT EXISTS wm_business_profile (
+      id                    INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id               INT          NOT NULL,
+      business_name         VARCHAR(100) DEFAULT NULL,
+      category              VARCHAR(100) DEFAULT NULL,
+      description           TEXT         DEFAULT NULL,
+      address               VARCHAR(255) DEFAULT NULL,
+      lat                   DECIMAL(10,7) DEFAULT NULL,
+      lng                   DECIMAL(10,7) DEFAULT NULL,
+      phone                 VARCHAR(30)  DEFAULT NULL,
+      email                 VARCHAR(100) DEFAULT NULL,
+      website               VARCHAR(255) DEFAULT NULL,
+      auto_reply_enabled    TINYINT(1)   NOT NULL DEFAULT 0,
+      auto_reply_text       TEXT         DEFAULT NULL,
+      auto_reply_mode       ENUM('always','outside_hours','away') NOT NULL DEFAULT 'always',
+      greeting_enabled      TINYINT(1)   NOT NULL DEFAULT 0,
+      greeting_text         TEXT         DEFAULT NULL,
+      away_enabled          TINYINT(1)   NOT NULL DEFAULT 0,
+      away_text             TEXT         DEFAULT NULL,
+      badge_enabled         TINYINT(1)   NOT NULL DEFAULT 1,
+      created_at            INT UNSIGNED NOT NULL DEFAULT 0,
+      updated_at            INT UNSIGNED NOT NULL DEFAULT 0,
+      UNIQUE KEY uq_user_id (user_id),
+      KEY idx_user_id (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    `CREATE TABLE IF NOT EXISTS wm_business_hours (
+      id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id    INT          NOT NULL,
+      weekday    TINYINT(1)   NOT NULL,
+      is_open    TINYINT(1)   NOT NULL DEFAULT 1,
+      open_time  VARCHAR(5)   NOT NULL DEFAULT '09:00',
+      close_time VARCHAR(5)   NOT NULL DEFAULT '18:00',
+      UNIQUE KEY uq_user_weekday (user_id, weekday),
+      KEY idx_user_id (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    `CREATE TABLE IF NOT EXISTS wm_business_quick_replies (
+      id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id    INT          NOT NULL,
+      shortcut   VARCHAR(32)  NOT NULL,
+      text       TEXT         NOT NULL,
+      media_url  VARCHAR(255) DEFAULT NULL,
+      created_at INT UNSIGNED NOT NULL DEFAULT 0,
+      updated_at INT UNSIGNED NOT NULL DEFAULT 0,
+      UNIQUE KEY uq_user_shortcut (user_id, shortcut),
+      KEY idx_user_id (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    `CREATE TABLE IF NOT EXISTS wm_business_links (
+      id             INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id        INT          NOT NULL,
+      title          VARCHAR(100) NOT NULL,
+      prefilled_text TEXT         DEFAULT NULL,
+      slug           VARCHAR(64)  NOT NULL,
+      views          INT UNSIGNED NOT NULL DEFAULT 0,
+      created_at     INT UNSIGNED NOT NULL DEFAULT 0,
+      UNIQUE KEY uq_slug (slug),
+      KEY idx_user_id (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  ];
+
+  for (const sql of businessTableSQLs) {
+    try {
+      await ctx.sequelize.query(sql);
+    } catch (e) {
+      console.warn('[Migration] business table:', e.message);
+    }
+  }
+  console.log('[Migration] Business Mode tables ensured');
+
+  // ── Wo_Messages composite indexes ──────────────────────────────────────────
+  const messageIndexSQLs = [
+    "ALTER TABLE Wo_Messages ADD INDEX idx_conv_time   (from_id, to_id, time)",
+    "ALTER TABLE Wo_Messages ADD INDEX idx_toid_time   (to_id, time)",
+    "ALTER TABLE Wo_Messages ADD INDEX idx_fromid_time (from_id, time)",
+    "ALTER TABLE Wo_Messages ADD INDEX idx_conv_seen   (from_id, to_id, seen)",
+  ];
+  for (const sql of messageIndexSQLs) {
+    try {
+      await ctx.sequelize.query(sql);
+    } catch (e) {
+      // 1061 = Duplicate key name — index already exists, safe to ignore
+      if (!e.message.includes('Duplicate key name')) {
+        console.warn('[Migration] Wo_Messages index:', e.message);
+      }
+    }
+  }
+  console.log('[Migration] Wo_Messages composite indexes ensured');
 
 }
 
@@ -555,6 +654,10 @@ async function main() {
 
   // Register Sticker & Emoji Packs routes (replaces PHP sticker_pack/emoji_pack endpoints)
   registerStickerRoutes(app, ctx);
+
+  // Register Business Mode routes (profile, hours, quick replies, links, auto-reply)
+  registerBusinessRoutes(app, ctx);
+  ctx.handleBusinessAutoReply = handleBusinessAutoReply;
 
   // ── Background cron jobs (premium expiry, story cleanup, notification purge)
   startCronJobs(ctx);

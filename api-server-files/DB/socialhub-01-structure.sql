@@ -1937,7 +1937,11 @@ CREATE TABLE `Wo_Messages` (
   KEY `listening` (`listening`),
   KEY `remove_at` (`remove_at`),
   KEY `idx_text_preview` (`text_preview`(50)),
-  KEY `idx_cipher_version` (`cipher_version`)
+  KEY `idx_cipher_version` (`cipher_version`),
+  KEY `idx_conv_time` (`from_id`,`to_id`,`time`),
+  KEY `idx_toid_time` (`to_id`,`time`),
+  KEY `idx_fromid_time` (`from_id`,`time`),
+  KEY `idx_conv_seen` (`from_id`,`to_id`,`seen`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1053 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `Wo_MonetizationSubscription`;
