@@ -5,7 +5,7 @@ import {
   createNodeApiShim, deleteConversation, deleteMessage, editMessage,
   getIceServers, initiateCall, endCall, loadChannels, loadChats,
   loadGroups, loadMessages, loadMoreMessages, loadStories, login, loginByPhone,
-  markSeen, muteChat, pinChat, pinMessage, reactToMessage, registerAccount,
+  markSeen, muteChat, normaliseMessage, pinChat, pinMessage, reactToMessage, registerAccount,
   sendMessage, sendMessageWithMedia, TURN_FALLBACK
 } from './api';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
@@ -290,7 +290,11 @@ export default function App() {
     const s = createChatSocket(session.token, {
       onStatus: setSocketStatus,
 
-      onMessage: async (msg) => {
+      onMessage: async (rawMsg) => {
+        // Socket events arrive as raw server JSON — normalise before decrypting
+        // so Signal messages have text_encrypted set (not text) and from_id/to_id
+        // are always populated regardless of which field names the server uses.
+        const msg = normaliseMessage(rawMsg as unknown as Record<string, unknown>);
         const decrypted = await tryDecryptMessage(msg);
         setMessages(prev => {
           // De-duplicate by id
@@ -430,17 +434,28 @@ export default function App() {
 
   const tryDecryptMessage = useCallback(async (msg: MessageItem): Promise<MessageItem> => {
     if (msg.cipher_version !== CIPHER_VERSION_SIGNAL) return msg;
-    if (!msg.text_encrypted || !msg.iv || !msg.tag || !msg.signal_header) return msg;
     const svc = signalRef.current;
     if (!svc) return { ...msg, _decryptFailed: true };
 
-    const senderId = msg.from_id;
+    // Check plaintext cache first — covers sent messages and previously decrypted ones
+    const cached = svc.getCachedDecryptedMessage(msg.id);
+    if (cached) return { ...msg, text: cached };
+
+    // Own sent messages can't be decrypted via DR (no self-session).
+    // They should be in cache (stored when sent); if missing, mark as failed.
+    if (session && msg.from_id === session.userId) {
+      return { ...msg, _decryptFailed: true };
+    }
+
+    if (!msg.text_encrypted || !msg.iv || !msg.tag || !msg.signal_header) return msg;
+
+    const senderId  = msg.from_id;
     const plaintext = await svc.decryptIncoming(senderId, msg.text_encrypted, msg.iv, msg.tag, msg.signal_header);
     if (plaintext === null) return { ...msg, _decryptFailed: true };
 
     svc.cacheDecryptedMessage(msg.id, plaintext);
     return { ...msg, text: plaintext };
-  }, []);
+  }, [session]);
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
 
@@ -542,10 +557,15 @@ export default function App() {
           session.token, selectedChat.user_id, text, session.userId,
           signalPayload, replyTarget?.id
         );
+        // Cache plaintext for the real server ID so we can display it
+        // after reload without needing to decrypt our own outgoing message
+        if (signalPayload && result.id && signalRef.current) {
+          signalRef.current.cacheDecryptedMessage(result.id, text);
+        }
         // Replace optimistic message
         setMessages(prev => prev.map(m =>
           m.id === optimisticId
-            ? { ...m, id: result.id ?? optimisticId, _pending: false, cipher_version: signalPayload ? CIPHER_VERSION_SIGNAL : undefined }
+            ? { ...m, id: result.id ?? optimisticId, _pending: false, text, cipher_version: signalPayload ? CIPHER_VERSION_SIGNAL : undefined }
             : m
         ));
       }

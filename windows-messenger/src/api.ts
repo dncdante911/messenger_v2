@@ -126,16 +126,18 @@ function normaliseAuth(p: Record<string, unknown>): AuthResponse {
  * For Signal (cipher_version=3) the server stores the ciphertext in the `text`
  * field, so we move it to `text_encrypted` and clear `text` so the UI doesn't
  * show the raw base64 blob.
+ * Also handles alternate socket-event field names (sender_id, recipient_id, …).
+ * Exported so App.tsx can normalise real-time socket events the same way.
  */
-function normaliseMessage(m: Record<string, unknown>): MessageItem {
+export function normaliseMessage(m: Record<string, unknown>): MessageItem {
   const cipherV   = m.cipher_version ? Number(m.cipher_version) : undefined;
   const rawText   = toStr(m.decrypted_text ?? m.text ?? m.or_text, '');
   const isSignal  = cipherV === 3;
 
   return {
-    id:             Number(m.id),
-    from_id:        Number(m.from_id),
-    to_id:          Number(m.to_id),
+    id:             Number(m.id ?? m.message_id),
+    from_id:        Number(m.from_id ?? m.sender_id),
+    to_id:          Number(m.to_id   ?? m.recipient_id ?? m.receiver_id),
     // For Signal, rawText is the base64 ciphertext — hide it from display
     text:           isSignal ? '' : rawText,
     time_text:      toStr(m.time_text ?? m.time, ''),
