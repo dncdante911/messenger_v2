@@ -2257,6 +2257,17 @@
     <!-- ===== E2EE ===== -->
     <string name="encrypted_message">🔒 Зашифрованное сообщение</string>
 
+    <!-- ===== QR SCANNER ===== -->
+    <string name="qr_scanner_title">Сканер QR-кода</string>
+
+    <!-- ===== СТАТИСТИКА (Cloud Backup) ===== -->
+    <string name="stat_total_messages">Всего сообщений</string>
+    <string name="stat_sent">Отправлено</string>
+    <string name="stat_received">Получено</string>
+    <string name="stat_media_count">Медиафайлов</string>
+    <string name="stat_media_size">Размер медиа</string>
+    <string name="stat_total_size">Общий размер</string>
+
     <!-- ===== БИЗНЕС-РЕЖИМ ===== -->
     <string name="biz_section_title">Бизнес</string>
     <string name="biz_mode_title">Бизнес-режим</string>
