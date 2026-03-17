@@ -2268,17 +2268,6 @@
     <!-- ===== E2EE ===== -->
     <string name="encrypted_message">🔒 Зашифроване повідомлення</string>
 
-    <!-- ===== QR SCANNER ===== -->
-    <string name="qr_scanner_title">Сканер QR-коду</string>
-
-    <!-- ===== СТАТИСТИКА (Cloud Backup) ===== -->
-    <string name="stat_total_messages">Всього повідомлень</string>
-    <string name="stat_sent">Надіслано</string>
-    <string name="stat_received">Отримано</string>
-    <string name="stat_media_count">Медіафайлів</string>
-    <string name="stat_media_size">Розмір медіа</string>
-    <string name="stat_total_size">Загальний розмір</string>
-
     <!-- ===== БІЗНЕС-РЕЖИМ ===== -->
     <string name="biz_section_title">Бізнес</string>
     <string name="biz_mode_title">Бізнес-режим</string>
