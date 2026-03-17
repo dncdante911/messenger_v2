@@ -160,6 +160,9 @@ module.exports.registerListeners = async (socket, io, ctx) => {
         // Реєструємо обробники групового онлайн-статусу після ідентифікації користувача
         if (socket.userId) {
             attachGroupOnlineHandlers(socket, socket.userId, io, ctx);
+            // ── Group E2EE: notify user of any pending SenderKey distributions ─
+            // Non-blocking: run in background, do NOT await here
+            notifyPendingSignalDistributions(ctx, socket, socket.userId).catch(() => {});
         }
     })
 
@@ -393,4 +396,39 @@ module.exports.registerListeners = async (socket, io, ctx) => {
         console.log("❌ User disconnected: socket_id=" + socket.id + " reason=" + reason);
         DisconnectController(ctx, reason, io, socket);
     });
+}
+
+// ── Group E2EE: emit pending SenderKey distributions after join ───────────────
+// Runs after the "join" event so socket.userId is already set.
+// Queries signal_group_sender_keys for undelivered distributions for this user
+// and emits one event per group that has pending distributions.
+// The client then calls GET /api/node/signal/group/pending-distributions to fetch them.
+async function notifyPendingSignalDistributions(ctx, socket, userId) {
+    if (!ctx.signal_group_sender_keys) return;
+    try {
+        const { Op } = require('sequelize');
+        const rows = await ctx.signal_group_sender_keys.findAll({
+            where:      { recipient_id: userId, delivered: 0 },
+            attributes: ['group_id', 'sender_id'],
+            raw:        true,
+        });
+        if (!rows.length) return;
+
+        // Group by group_id so we send one notification per group
+        const byGroup = {};
+        for (const row of rows) {
+            if (!byGroup[row.group_id]) byGroup[row.group_id] = new Set();
+            byGroup[row.group_id].add(row.sender_id);
+        }
+
+        for (const [groupId, senderIds] of Object.entries(byGroup)) {
+            socket.emit('signal:group_distributions_pending', {
+                group_id:   Number(groupId),
+                sender_ids: [...senderIds],
+            });
+        }
+        console.log(`[Signal] Notified user ${userId} of pending distributions in ${Object.keys(byGroup).length} group(s)`);
+    } catch (e) {
+        console.error('[Signal] notifyPendingSignalDistributions:', e.message);
+    }
 }

@@ -218,7 +218,7 @@ function preKeyCount(ctx) {
  *   зашифрований індивідуальним Double Ratchet сеансом між sender і recipient.
  *   Сервер не може розшифрувати цей payload.
  */
-function groupDistribute(ctx) {
+function groupDistribute(ctx, io) {
     return async (req, res) => {
         try {
             const senderId = req.userId;
@@ -269,6 +269,23 @@ function groupDistribute(ctx) {
             const result = await signalGroupStore.saveDistributions(
                 ctx, groupId, senderId, distributionsRaw
             );
+
+            // ── Real-time notification to online recipients ───────────────────
+            // For each recipient that has a pending distribution, emit a
+            // signal:group_distributions_pending event so they fetch immediately
+            // instead of waiting for a polling interval.
+            if (io && result.saved > 0) {
+                const recipientIds = distributionsRaw
+                    .map(d => parseInt(d.recipient_id))
+                    .filter(id => id && !isNaN(id));
+
+                for (const recipientId of recipientIds) {
+                    io.to(String(recipientId)).emit('signal:group_distributions_pending', {
+                        group_id:  groupId,
+                        sender_id: senderId,
+                    });
+                }
+            }
 
             console.log(`[Signal/group] User ${senderId} розподілив SenderKey у групі ${groupId} (${result.saved} recipients)`);
             res.json({
@@ -450,7 +467,7 @@ async function authMiddleware(ctx, req, res, next) {
  * Register Signal Protocol routes on [app].
  * Requires ctx.signal_keys (Sequelize model) and ctx.wo_appssessions (for auth).
  */
-function registerSignalRoutes(app, ctx) {
+function registerSignalRoutes(app, ctx, io) {
     const auth = (req, res, next) => authMiddleware(ctx, req, res, next);
 
     // ── Особисті чати (X3DH pre-key server) ─────────────────────────────────
@@ -460,7 +477,8 @@ function registerSignalRoutes(app, ctx) {
     app.get ('/api/node/signal/prekey-count',    auth, preKeyCount(ctx));
 
     // ── Групові чати (Sender Key Distribution Protocol) ──────────────────
-    app.post('/api/node/signal/group/distribute',           auth, groupDistribute(ctx));
+    // io passed to groupDistribute so it can notify online recipients in real-time
+    app.post('/api/node/signal/group/distribute',           auth, groupDistribute(ctx, io));
     app.get ('/api/node/signal/group/pending-distributions', auth, groupPendingDistributions(ctx));
     app.post('/api/node/signal/group/pending-distributions', auth, groupPendingDistributions(ctx));
     app.post('/api/node/signal/group/confirm-delivery',      auth, groupConfirmDelivery(ctx));

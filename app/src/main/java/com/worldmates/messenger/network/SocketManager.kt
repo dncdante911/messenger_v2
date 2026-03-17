@@ -24,7 +24,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  */
 class SocketManager(
     private val listener: SocketListener,
-    private val context: Context? = null
+    private val context: Context? = null,
+    private val outgoingQueue: com.worldmates.messenger.data.repository.OutgoingMessageQueue? = null
 ) {
 
     companion object {
@@ -115,9 +116,9 @@ class SocketManager(
             // 1. Обработка подключения
             socket?.on(Socket.EVENT_CONNECT) {
                 Log.d("SocketManager", "Socket Connected! ID: ${socket?.id()}")
-                // Отправляем событие аутентификации для привязки сокета к пользователю
                 authenticateSocket()
                 listener.onSocketConnected()
+                flushOutgoingQueue()
             }
 
             // 2. Обработка отключения
@@ -131,6 +132,7 @@ class SocketManager(
                 Log.d("SocketManager", "Socket Reconnected")
                 authenticateSocket()
                 listener.onSocketConnected()
+                flushOutgoingQueue()
             }
 
             // 4. Обработка попытки переподключения
@@ -527,6 +529,20 @@ class SocketManager(
                 }
             }
 
+            // ── Group E2EE: server has pending SenderKey distributions for this user ──
+            // Emitted by the server after join (startup check) or after groupDistribute.
+            // Client should call GET /api/node/signal/group/pending-distributions to fetch.
+            socket?.on("signal:group_distributions_pending") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data    = args[0] as JSONObject
+                    val groupId = data.optLong("group_id", 0L)
+                    Log.d(TAG, "signal:group_distributions_pending for group=$groupId")
+                    if (listener is ExtendedSocketListener) {
+                        listener.onGroupSignalDistributionsPending(groupId)
+                    }
+                }
+            }
+
             // ── E2EE: Signal identity key changed (user re-registered on new device) ──
             socket?.on("signal:identity_changed") { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
@@ -591,18 +607,71 @@ class SocketManager(
     fun sendMessage(recipientId: Long, text: String) {
         if (socket?.connected() == true && UserSession.accessToken != null) {
             val messagePayload = JSONObject().apply {
-                // Сервер ожидает именно эти поля (см. PrivateMessageController.js)
-                put("msg", text)  // НЕ "text"!
-                put("from_id", UserSession.userId)  // НЕ "user_id"!
-                put("to_id", recipientId)  // НЕ "recipient_id"!
-                // TODO: Добавить поля для медиа, стикеров и т.д.
-                // mediaId, mediaFilename, record, message_reply_id, story_id, lng, lat, contact, color, isSticker
+                put("msg", text)
+                put("from_id", UserSession.userId)
+                put("to_id", recipientId)
             }
             socket?.emit(Constants.SOCKET_EVENT_SEND_MESSAGE, messagePayload)
             Log.d("SocketManager", "Emitted private_message to user $recipientId: $text")
         } else {
-            // Fallback: Если Socket не подключен, можно использовать REST API для отправки (send-message.php)
             Log.w("SocketManager", "Socket not connected. Message not sent via socket.")
+        }
+    }
+
+    /**
+     * Відправити повідомлення або поставити в чергу якщо сокет недоступний.
+     * Використовувати замість [sendMessage] де потрібна надійна доставка.
+     */
+    fun emitOrQueue(
+        chatType: String,
+        chatId: Long,
+        plaintext: String,
+        replyId: Long = 0,
+        stickers: String = ""
+    ) {
+        if (socket?.connected() == true) {
+            val payload = JSONObject().apply {
+                if (chatType == com.worldmates.messenger.data.local.entity.OutgoingMessage.CHAT_TYPE_USER) {
+                    put("msg", plaintext)
+                    put("from_id", UserSession.userId)
+                    put("to_id", chatId)
+                } else {
+                    put("text", plaintext)
+                    put("group_id", chatId)
+                }
+                if (replyId > 0) put("reply_id", replyId)
+                if (stickers.isNotEmpty()) put("stickers", stickers)
+            }
+            val event = if (chatType == com.worldmates.messenger.data.local.entity.OutgoingMessage.CHAT_TYPE_USER)
+                Constants.SOCKET_EVENT_SEND_MESSAGE else "send_group_message"
+            socket?.emit(event, payload)
+        } else {
+            scope.launch {
+                outgoingQueue?.enqueue(chatType, chatId, plaintext, replyId, stickers)
+                    ?: Log.w(TAG, "emitOrQueue: no outgoingQueue provided, message lost")
+            }
+        }
+    }
+
+    /** Flush черги після відновлення з'єднання */
+    private fun flushOutgoingQueue() {
+        outgoingQueue?.flush { msg ->
+            val payload = JSONObject().apply {
+                if (msg.chatType == com.worldmates.messenger.data.local.entity.OutgoingMessage.CHAT_TYPE_USER) {
+                    put("msg", msg.plaintext)
+                    put("from_id", UserSession.userId)
+                    put("to_id", msg.chatId)
+                } else {
+                    put("text", msg.plaintext)
+                    put("group_id", msg.chatId)
+                }
+                if (msg.replyId > 0) put("reply_id", msg.replyId)
+                if (msg.stickers.isNotEmpty()) put("stickers", msg.stickers)
+            }
+            val event = if (msg.chatType == com.worldmates.messenger.data.local.entity.OutgoingMessage.CHAT_TYPE_USER)
+                Constants.SOCKET_EVENT_SEND_MESSAGE else "send_group_message"
+            socket?.emit(event, payload)
+            socket?.connected() == true
         }
     }
 
@@ -1179,5 +1248,11 @@ class SocketManager(
         fun onGroupMemberJoined(groupId: Long, userId: Long) {}
         /** Group E2EE: a member left [groupId] — their sender key must be invalidated. */
         fun onGroupMemberLeft(groupId: Long, userId: Long) {}
+        /**
+         * Group E2EE: the server has undelivered SenderKey distributions for [groupId].
+         * Call GET /api/node/signal/group/pending-distributions?group_id=[groupId]
+         * to fetch and process them, then POST /api/node/signal/group/confirm-delivery.
+         */
+        fun onGroupSignalDistributionsPending(groupId: Long) {}
     }
 }
