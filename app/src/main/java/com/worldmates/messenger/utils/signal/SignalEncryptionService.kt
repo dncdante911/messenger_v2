@@ -254,9 +254,14 @@ class SignalEncryptionService private constructor(
             // Otherwise load from persistent store (normal DR message flow).
             if (session == null) {
                 session = keyStore.loadSession(senderId)
-                    ?: return@withLock null.also {
-                        Log.e(TAG, "No DR session for sender $senderId")
-                    }
+                if (session == null) {
+                    // No X3DH headers in this message AND no local session → we cannot
+                    // decrypt.  Notify the sender to delete their (stale) session so they
+                    // include fresh X3DH headers on the next message they send us.
+                    Log.e(TAG, "No DR session for sender $senderId — requesting session reset")
+                    onSessionBroken?.invoke(senderId)
+                    return@withLock null
+                }
             }
 
             val encMsg = EncryptedDRMessage(
