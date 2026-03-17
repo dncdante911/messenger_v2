@@ -334,10 +334,11 @@ export class SignalService {
         const opkKP = opkId !== null ? this.consumeOPK(opkId) : null;
 
         if (opkId !== null && opkKP === null) {
-          console.error('[Signal] X3DH(Bob): opk_id=%d not found in localStorage — ' +
-            'SK will differ from sender (wrong DH4). This usually means the OPK store ' +
-            'was cleared after registration. Clear Signal state and re-register to fix.',
-            opkId);
+          // Alice computed 4-DH (with OPK) but we lost the private key.
+          // 3-DH fallback will ALWAYS produce a different shared secret — bail out.
+          console.error('[Signal] X3DH(Bob): opk_id=%d not found locally — ' +
+            'cannot match sender 4-DH; requesting session reset', opkId);
+          return null;
         }
 
         if (this.hasSession(senderId)) {
