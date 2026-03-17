@@ -36,8 +36,16 @@ function createWindow() {
 
   if (isDev) {
     window.loadURL(process.env.VITE_DEV_SERVER_URL);
+    window.webContents.openDevTools({ mode: 'detach' });
   } else {
-    window.loadFile(path.join(__dirname, '../dist/index.html'));
+    const distPath = path.join(__dirname, '../dist/index.html');
+    const fs = require('node:fs');
+    if (!fs.existsSync(distPath)) {
+      // No build found — load a helpful error page
+      window.loadURL(`data:text/html,<body style="font-family:sans-serif;padding:40px;background:#0d1117;color:#e6edf3"><h2>Build not found</h2><p>Run <code style="background:#21262d;padding:2px 6px;border-radius:4px">npm run dev</code> to start in development mode, or <code style="background:#21262d;padding:2px 6px;border-radius:4px">npm run build</code> then <code style="background:#21262d;padding:2px 6px;border-radius:4px">npm start</code> for production.</p><button onclick="window.close()" style="margin-top:20px;padding:8px 16px;background:#1f6feb;color:#fff;border:none;border-radius:6px;cursor:pointer">Close</button></body>`);
+    } else {
+      window.loadFile(distPath);
+    }
   }
 }
 
