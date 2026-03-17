@@ -1,8 +1,8 @@
 /**
  * Signal Protocol (Double Ratchet Algorithm) — TypeScript port of DoubleRatchetManager.kt
  *
- * Cryptographic primitives (all via Web Crypto API):
- *   ► X25519   — key agreement       (crypto.subtle, generateKey / deriveBits)
+ * Cryptographic primitives:
+ *   ► X25519   — key agreement       (@noble/curves/x25519 — pure JS, works in Electron 33)
  *   ► HKDF-SHA256 — key derivation   (crypto.subtle, deriveBits)
  *   ► HMAC-SHA256 — chain-key ratchet (crypto.subtle, sign)
  *   ► AES-256-GCM — symmetric encryption (crypto.subtle, encrypt / decrypt)
@@ -14,6 +14,8 @@
  * Storage:     base64url strings (no padding), JSON-serialisable SessionState.
  */
 
+import { x25519 } from '@noble/curves/ed25519.js';
+
 // ─── HKDF / HMAC info labels (must match Kotlin) ─────────────────────────────
 const _enc = new TextEncoder();
 const INFO_RK   = _enc.encode('WorldMates_DR_RK');
@@ -21,14 +23,6 @@ const INFO_X3DH = _enc.encode('WorldMates_X3DH');
 const INFO_MSG  = _enc.encode('WorldMates_DR_MSG');
 const ZERO_SALT = new Uint8Array(32);
 const MAX_SKIP  = 500;
-
-// ─── PKCS8 header for X25519 private key (RFC 5958 / RFC 8410) ───────────────
-// DER: SEQUENCE { INTEGER 0, SEQUENCE { OID 1.3.101.110 }, OCTET STRING { OCTET STRING { 32B } } }
-const X25519_PKCS8_HEADER = new Uint8Array([
-  0x30,0x2e, 0x02,0x01,0x00,
-  0x30,0x05, 0x06,0x03, 0x2b,0x65,0x6e,
-  0x04,0x22, 0x04,0x20
-]);
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -77,36 +71,15 @@ export interface SignalOutgoingPayload {
 
 // ─── X25519 key generation ────────────────────────────────────────────────────
 
-export async function generateKeyPair(): Promise<X25519KeyPair> {
-  const kp = await crypto.subtle.generateKey({ name: 'X25519' } as any, true, ['deriveBits']);
-  const pubRaw  = new Uint8Array(await crypto.subtle.exportKey('raw', (kp as CryptoKeyPair).publicKey));
-  const pkcs8   = new Uint8Array(await crypto.subtle.exportKey('pkcs8', (kp as CryptoKeyPair).privateKey));
-  // Strip the 16-byte PKCS8 header to obtain the raw 32-byte scalar
-  const privRaw = pkcs8.slice(X25519_PKCS8_HEADER.length);
-  return { privateKeyRaw: privRaw, publicKeyRaw: pubRaw };
+export function generateKeyPair(): X25519KeyPair {
+  const kp = x25519.keygen();
+  return { privateKeyRaw: kp.secretKey, publicKeyRaw: kp.publicKey };
 }
 
 // ─── X25519 DH ────────────────────────────────────────────────────────────────
 
-async function dhRaw(privateKeyRaw: Uint8Array, publicKeyRaw: Uint8Array): Promise<Uint8Array> {
-  // Re-wrap raw private key bytes into PKCS8
-  const pkcs8 = new Uint8Array(X25519_PKCS8_HEADER.length + 32);
-  pkcs8.set(X25519_PKCS8_HEADER);
-  pkcs8.set(privateKeyRaw, X25519_PKCS8_HEADER.length);
-
-  const privKey = await crypto.subtle.importKey(
-    'pkcs8', toAB(pkcs8),
-    { name: 'X25519' } as any, false, ['deriveBits']
-  );
-  const pubKey = await crypto.subtle.importKey(
-    'raw', toAB(publicKeyRaw),
-    { name: 'X25519' } as any, false, []
-  );
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'X25519', public: pubKey } as any,
-    privKey, 256
-  );
-  return new Uint8Array(bits);
+function dhRaw(privateKeyRaw: Uint8Array, publicKeyRaw: Uint8Array): Uint8Array {
+  return x25519.getSharedSecret(privateKeyRaw, publicKeyRaw);
 }
 
 // ─── HKDF-SHA256 ─────────────────────────────────────────────────────────────
@@ -245,13 +218,13 @@ export async function x3dhAlice(
   opkBPub: Uint8Array | null,
   ekA:     X25519KeyPair
 ): Promise<[Uint8Array, Uint8Array]> {
-  const dh1 = await dhRaw(ikA.privateKeyRaw, spkBPub);
-  const dh2 = await dhRaw(ekA.privateKeyRaw, ikBPub);
-  const dh3 = await dhRaw(ekA.privateKeyRaw, spkBPub);
+  const dh1 = dhRaw(ikA.privateKeyRaw, spkBPub);
+  const dh2 = dhRaw(ekA.privateKeyRaw, ikBPub);
+  const dh3 = dhRaw(ekA.privateKeyRaw, spkBPub);
 
   let dhInput: Uint8Array;
   if (opkBPub) {
-    const dh4 = await dhRaw(ekA.privateKeyRaw, opkBPub);
+    const dh4 = dhRaw(ekA.privateKeyRaw, opkBPub);
     dhInput = concat(dh1, dh2, dh3, dh4);
   } else {
     dhInput = concat(dh1, dh2, dh3);
@@ -277,13 +250,13 @@ export async function x3dhBob(
   ikAPub: Uint8Array,
   ekAPub: Uint8Array
 ): Promise<[Uint8Array, Uint8Array]> {
-  const dh1 = await dhRaw(spkB.privateKeyRaw, ikAPub);
-  const dh2 = await dhRaw(ikB.privateKeyRaw,  ekAPub);
-  const dh3 = await dhRaw(spkB.privateKeyRaw, ekAPub);
+  const dh1 = dhRaw(spkB.privateKeyRaw, ikAPub);
+  const dh2 = dhRaw(ikB.privateKeyRaw,  ekAPub);
+  const dh3 = dhRaw(spkB.privateKeyRaw, ekAPub);
 
   let dhInput: Uint8Array;
   if (opkB) {
-    const dh4 = await dhRaw(opkB.privateKeyRaw, ekAPub);
+    const dh4 = dhRaw(opkB.privateKeyRaw, ekAPub);
     dhInput = concat(dh1, dh2, dh3, dh4);
   } else {
     dhInput = concat(dh1, dh2, dh3);
@@ -302,8 +275,8 @@ export async function initAliceSession(
   spkBPub:      Uint8Array,
   remoteUserId: number
 ): Promise<SessionState> {
-  const dhs = await generateKeyPair();
-  const [rk, cks] = await rkRatchet(sk, await dhRaw(dhs.privateKeyRaw, spkBPub));
+  const dhs = generateKeyPair();
+  const [rk, cks] = await rkRatchet(sk, dhRaw(dhs.privateKeyRaw, spkBPub));
 
   return {
     dhSendPriv:     b64Encode(dhs.privateKeyRaw),
@@ -357,8 +330,8 @@ export async function ratchetEncrypt(
   // DH ratchet step: needed on Bob's first send or after receiving a new ratchet key
   if (!s.chainKeySend) {
     const dhRPub = b64Decode(s.dhRecvPub!);
-    const newDHS = await generateKeyPair();
-    const dhOut  = await dhRaw(newDHS.privateKeyRaw, dhRPub);
+    const newDHS = generateKeyPair();
+    const dhOut  = dhRaw(newDHS.privateKeyRaw, dhRPub);
     const [newRK, cks] = await rkRatchet(b64Decode(s.rootKey), dhOut);
     s = {
       ...s,
@@ -435,11 +408,11 @@ export async function ratchetDecrypt(
 async function performDHRatchetStep(state: SessionState, newDHRPub: Uint8Array): Promise<SessionState> {
   const prevSendN = state.sendN;
 
-  const dhOut1 = await dhRaw(b64Decode(state.dhSendPriv), newDHRPub);
+  const dhOut1 = dhRaw(b64Decode(state.dhSendPriv), newDHRPub);
   const [rk1, newCKr] = await rkRatchet(b64Decode(state.rootKey), dhOut1);
 
-  const newDHS = await generateKeyPair();
-  const dhOut2 = await dhRaw(newDHS.privateKeyRaw, newDHRPub);
+  const newDHS = generateKeyPair();
+  const dhOut2 = dhRaw(newDHS.privateKeyRaw, newDHRPub);
   const [rk2, newCKs] = await rkRatchet(rk1, dhOut2);
 
   return {

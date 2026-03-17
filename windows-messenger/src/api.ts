@@ -71,6 +71,10 @@ export const TURN_FALLBACK: RTCIceServer[] = [
 
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
+export class AuthError extends Error {
+  constructor() { super('HTTP 401'); this.name = 'AuthError'; }
+}
+
 async function doRequest(url: string, options: RequestInit): Promise<string> {
   const ipc = window.desktopApp?.request;
   if (ipc) {
@@ -81,11 +85,13 @@ async function doRequest(url: string, options: RequestInit): Promise<string> {
       headers,
       body:    typeof options.body === 'string' ? options.body : undefined
     });
+    if (result.status === 401) throw new AuthError();
     if (!result.ok) throw new Error(`HTTP ${result.status}`);
     return result.text;
   }
   const res  = await fetch(url, options);
   const text = await res.text();
+  if (res.status === 401) throw new AuthError();
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
   return text;
 }
@@ -210,7 +216,7 @@ export async function login(username: string, password: string): Promise<AuthRes
     });
     const norm = normaliseAuth(resp);
     if (norm.api_status === '200' && norm.access_token) return norm;
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   // PHP v2 API
   try {
@@ -220,7 +226,7 @@ export async function login(username: string, password: string): Promise<AuthRes
     );
     const norm = normaliseAuth(resp);
     if (norm.api_status === '200' && norm.access_token) return norm;
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   // Windows API fallback
   const resp = await phpPost<Record<string, unknown>>(winUrl(ENDPOINTS.windowsLogin), {
@@ -261,7 +267,7 @@ export async function loadChats(token: string, userId?: number): Promise<ChatLis
       user_limit: 80, data_type: 'all', SetOnline: 1, offset: 0
     });
     if ((resp.data ?? []).length > 0) return { api_status: '200', data: resp.data };
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   // PHP v2
   try {
@@ -280,7 +286,7 @@ export async function loadChats(token: string, userId?: number): Promise<ChatLis
       }));
       return { api_status: '200', data };
     }
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   if (!userId) return { api_status: '400', data: [] };
 
@@ -308,7 +314,7 @@ export async function loadMessages(token: string, recipientId: number, userId?: 
       user_id: recipientId, limit: 40, before_message_id: 0
     });
     if (resp.messages) return normaliseMessages(resp as unknown as Record<string, unknown>);
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   // PHP v2
   try {
@@ -317,7 +323,7 @@ export async function loadMessages(token: string, recipientId: number, userId?: 
       { recipient_id: recipientId, limit: 40, before_message_id: 0 }
     );
     return normaliseMessages(resp);
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   if (!userId) return { api_status: '400', messages: [] };
 
@@ -377,13 +383,13 @@ export async function sendMessage(
     const resp = await nodePost<Record<string, unknown>>('/api/node/chat/send', token, nodeBody);
     const msgData = resp.message_data as Record<string, unknown> | undefined;
     return { id: msgData ? Number(msgData.id) : undefined };
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   // PHP v2 fallback (plain text only)
   try {
     await phpPost(v2Url(ENDPOINTS.sendMessage, token), { user_id: recipientId, recipient_id: recipientId, text, message_hash_id: hashId });
     return {};
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   if (!userId) throw new Error('No user ID for Windows API fallback');
   await phpPost(winUrl(ENDPOINTS.windowsInsertMsg), {
@@ -452,7 +458,7 @@ export async function sendMessageWithMedia(
   try {
     await doRequest(v2Url(ENDPOINTS.sendMessage, token), { method: 'POST', body: form as unknown as BodyInit });
     return;
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   if (!userId) throw new Error('sendMessageWithMedia: no userId');
   form.append('user_id_sender', String(userId));
@@ -492,7 +498,7 @@ export async function loadGroups(token: string): Promise<GenericListResponse<Gro
   try {
     const resp = await nodePost<NodeGroupsResponse>('/api/node/chat/groups/list', token, { limit: 50, offset: 0 });
     if ((resp.data ?? []).length > 0) return { api_status: '200', data: resp.data };
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   const resp = await phpPost<Record<string, unknown>>(
     absUrl(ENDPOINTS.groups, token),
@@ -530,7 +536,7 @@ export async function loadChannels(token: string): Promise<GenericListResponse<C
   try {
     const resp = await nodePost<NodeChannelsResponse>('/api/node/chat/channels/list', token, { limit: 50, offset: 0 });
     if ((resp.data ?? []).length > 0) return { api_status: '200', data: resp.data };
-  } catch { /* fallthrough */ }
+  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
 
   const resp = await phpPost<Record<string, unknown>>(
     absUrl(ENDPOINTS.channels, token),

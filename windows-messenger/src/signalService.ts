@@ -97,7 +97,7 @@ export class SignalService {
   async getOrCreateIdentityKey(): Promise<X25519KeyPair> {
     const stored = lsGet<StoredKP>(KEY_IK);
     if (stored) return storedToKP(stored);
-    const kp = await generateKeyPair();
+    const kp = generateKeyPair();
     lsSet(KEY_IK, kpToStored(kp));
     return kp;
   }
@@ -107,7 +107,7 @@ export class SignalService {
   async getOrCreateSignedPreKey(): Promise<StoredSPK> {
     const stored = lsGet<StoredSPK>(KEY_SPK);
     if (stored) return stored;
-    const kp = await generateKeyPair();
+    const kp = generateKeyPair();
     const spk: StoredSPK = {
       id:  1,
       kp:  kpToStored(kp),
@@ -124,7 +124,7 @@ export class SignalService {
     const batch: { id: number; pub: string }[] = [];
 
     for (let i = 0; i < OPK_BATCH_SIZE; i++) {
-      const kp  = await generateKeyPair();
+      const kp  = generateKeyPair();
       const id  = store.nextId++;
       store.keys.push({ id, priv: b64Encode(kp.privateKeyRaw), pub: b64Encode(kp.publicKeyRaw) });
       batch.push({ id, pub: b64Encode(kp.publicKeyRaw) });
@@ -227,7 +227,7 @@ export class SignalService {
         }
 
         const ik  = await this.getOrCreateIdentityKey();
-        const ekA = await generateKeyPair();
+        const ekA = generateKeyPair();
 
         const ikBPub  = b64Decode(bundle.identity_key);
         const spkBPub = b64Decode(bundle.signed_prekey);

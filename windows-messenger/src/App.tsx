@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import {
-  archiveChat, clearHistory, createChannel, createGroup, createStory,
+  archiveChat, AuthError, clearHistory, createChannel, createGroup, createStory,
   createNodeApiShim, deleteConversation, deleteMessage, editMessage,
   getIceServers, initiateCall, endCall, loadChannels, loadChats,
   loadGroups, loadMessages, loadMoreMessages, loadStories, login, loginByPhone,
@@ -353,7 +353,10 @@ export default function App() {
       loadGroups(session.token).then(r    => setGroups(r.data ?? [])),
       loadChannels(session.token).then(r  => setChannels(r.data ?? [])),
       loadStories(session.token).then(r   => setStories(r.data ?? r.stories ?? []))
-    ]).catch(err => console.error('Initial load error:', err));
+    ]).catch(err => {
+      if (err instanceof AuthError) { logout(); return; }
+      console.error('Initial load error:', err);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
