@@ -624,6 +624,17 @@ body {
 .edited-mark { font-size: 11px; color: rgba(255,255,255,.45); }
 .decrypt-msg { font-size: 13px; color: rgba(255,255,255,.5); font-style: italic; }
 
+.send-error-banner {
+  margin: 0 12px 6px;
+  padding: 8px 12px;
+  background: rgba(248,81,73,.15);
+  border: 1px solid rgba(248,81,73,.4);
+  border-radius: 6px;
+  color: #f85149;
+  font-size: 13px;
+  text-align: center;
+}
+
 .bubble-footer {
   display: flex;
   align-items: center;
