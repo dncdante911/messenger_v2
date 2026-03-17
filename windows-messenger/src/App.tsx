@@ -230,6 +230,7 @@ export default function App() {
   const [selectedChat, setSelectedChat]   = useState<ChatItem | null>(null);
   const [messages, setMessages]           = useState<MessageItem[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [msgLoadError, setMsgLoadError]       = useState(false);
   const [hasMore, setHasMore]             = useState(false);
 
   // ── Composer ──────────────────────────────────────────────────────────────
@@ -383,22 +384,39 @@ export default function App() {
     if (!session || !selectedChat) return;
 
     emitChatOpen(socket, selectedChat.user_id);
+    setMsgLoadError(false);
     setMessagesLoading(true);
     setMessages([]);
 
-    loadMessages(session.token, selectedChat.user_id, session.userId)
-      .then(async r => {
-        const decrypted = await Promise.all((r.messages ?? []).map(tryDecryptMessage));
-        setMessages(decrypted);
-        setHasMore(decrypted.length >= 40);
-        // Mark seen
-        const lastMsg = decrypted[decrypted.length - 1];
-        if (lastMsg) markSeen(session.token, selectedChat.user_id, lastMsg.id).catch(() => {});
-      })
-      .catch(console.error)
-      .finally(() => setMessagesLoading(false));
+    let cancelled = false;
 
-    return () => { emitChatClose(socket, selectedChat.user_id); };
+    const run = async () => {
+      // Retry up to 3 times: immediately, then +2 s, then +5 s
+      const delays = [0, 2000, 5000];
+      for (const ms of delays) {
+        if (cancelled) return;
+        if (ms > 0) await new Promise(r => setTimeout(r, ms));
+        if (cancelled) return;
+        try {
+          const r = await loadMessages(session.token, selectedChat.user_id, session.userId);
+          if (cancelled) return;
+          const decrypted = await Promise.all((r.messages ?? []).map(tryDecryptMessage));
+          if (cancelled) return;
+          setMessages(decrypted);
+          setHasMore(decrypted.length >= 40);
+          const lastMsg = decrypted[decrypted.length - 1];
+          if (lastMsg) markSeen(session.token, selectedChat.user_id, lastMsg.id).catch(() => {});
+          setMessagesLoading(false);
+          return;
+        } catch (e) {
+          console.warn('[loadMessages] attempt failed:', e);
+        }
+      }
+      if (!cancelled) { setMsgLoadError(true); setMessagesLoading(false); }
+    };
+    run();
+
+    return () => { cancelled = true; emitChatClose(socket, selectedChat.user_id); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, selectedChat?.user_id]);
 
@@ -1058,6 +1076,34 @@ export default function App() {
               {messagesLoading && (
                 <div className="messages-loading">
                   <div className="spinner" />
+                </div>
+              )}
+
+              {!messagesLoading && msgLoadError && messages.length === 0 && (
+                <div className="msg-load-error">
+                  <p>Couldn't load messages.<br />Server may be temporarily unavailable.</p>
+                  <button className="retry-btn" onClick={() => {
+                    setMsgLoadError(false);
+                    setMessagesLoading(true);
+                    const delays = [0, 2000, 5000];
+                    let done = false;
+                    const attempt = async () => {
+                      for (const ms of delays) {
+                        if (ms > 0) await new Promise(r => setTimeout(r, ms));
+                        try {
+                          const r = await loadMessages(session.token, selectedChat.user_id, session.userId);
+                          const decrypted = await Promise.all((r.messages ?? []).map(tryDecryptMessage));
+                          setMessages(decrypted);
+                          setHasMore(decrypted.length >= 40);
+                          done = true;
+                          setMessagesLoading(false);
+                          return;
+                        } catch (e) { console.warn('[retry]', e); }
+                      }
+                      if (!done) { setMsgLoadError(true); setMessagesLoading(false); }
+                    };
+                    attempt();
+                  }}>Retry</button>
                 </div>
               )}
 
