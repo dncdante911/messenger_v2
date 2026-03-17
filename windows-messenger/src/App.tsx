@@ -61,6 +61,15 @@ function avatarColor(name: string): string {
   return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
 }
 
+/** Returns a human-readable preview of last_message, masking encrypted blobs. */
+function previewLastMessage(raw: unknown): string {
+  const t = asText(raw, '');
+  if (!t) return 'No messages';
+  // Base64-encoded ciphertext: long, no spaces, only base64 chars
+  if (t.length > 30 && !/\s/.test(t) && /^[A-Za-z0-9+/=]+$/.test(t)) return '🔒 Encrypted message';
+  return t.slice(0, 50);
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Avatar({ name, src, size = 40, online }: { name: string; src?: string; size?: number; online?: boolean }) {
@@ -153,16 +162,16 @@ function Bubble({
         )}
 
         {/* Text */}
-        {msg.text && (
+        {msg._decryptFailed ? (
+          <p className="bubble-text decrypt-msg">🔒 Encrypted message</p>
+        ) : msg.text ? (
           <p className="bubble-text">
             {msg.text}
             {msg.is_edited && <span className="edited-mark"> (edited)</span>}
           </p>
-        )}
-
-        {msg._decryptFailed && (
-          <p className="bubble-text decrypt-msg">🔒 Failed to decrypt</p>
-        )}
+        ) : msg.cipher_version === CIPHER_VERSION_SIGNAL ? (
+          <p className="bubble-text decrypt-msg">🔒 Encrypted message</p>
+        ) : null}
 
         {/* Footer: time + status */}
         <div className="bubble-footer">
@@ -241,6 +250,9 @@ export default function App() {
 
   // ── Sidebar search ────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery]   = useState('');
+
+  // ── Send error banner ─────────────────────────────────────────────────────
+  const [sendError, setSendError]       = useState('');
 
   // ── Signal service ────────────────────────────────────────────────────────
   const signalRef = useRef<SignalService | null>(null);
@@ -344,15 +356,20 @@ export default function App() {
 
   useEffect(() => {
     if (!session) return;
+    // Each promise is individually resilient — a failure in one (e.g. HTTP 500 stories)
+    // does NOT abort the others. Only AuthError propagates to trigger logout.
+    const safe = <T,>(p: Promise<T>) =>
+      p.catch((err: unknown) => { if (err instanceof AuthError) throw err; return null; });
+
     Promise.all([
-      loadChats(session.token, session.userId).then(r => {
-        const list = r.data ?? [];
+      safe(loadChats(session.token, session.userId).then(r => {
+        const list = r?.data ?? [];
         setChats(list);
         if (list.length > 0 && !selectedChat) setSelectedChat(list[0]);
-      }),
-      loadGroups(session.token).then(r    => setGroups(r.data ?? [])),
-      loadChannels(session.token).then(r  => setChannels(r.data ?? [])),
-      loadStories(session.token).then(r   => setStories(r.data ?? r.stories ?? []))
+      })),
+      safe(loadGroups(session.token).then(r    => setGroups(r?.data ?? []))),
+      safe(loadChannels(session.token).then(r  => setChannels(r?.data ?? []))),
+      safe(loadStories(session.token).then(r   => setStories((r as {data?: StoryItem[]; stories?: StoryItem[]})?.data ?? (r as {data?: StoryItem[]; stories?: StoryItem[]})?.stories ?? [])))
     ]).catch(err => {
       if (err instanceof AuthError) { logout(); return; }
       console.error('Initial load error:', err);
@@ -517,6 +534,8 @@ export default function App() {
     } catch (err) {
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
       console.error('Send failed:', err);
+      setSendError('Failed to send message. Server may be unavailable.');
+      setTimeout(() => setSendError(''), 4000);
     }
   }
 
@@ -859,7 +878,7 @@ export default function App() {
                     <span className="chat-item-time">{formatChatTime(chat.time)}</span>
                   </div>
                   <div className="chat-item-row">
-                    <span className="chat-item-preview">{asText(chat.last_message, '').slice(0, 40) || 'No messages'}</span>
+                    <span className="chat-item-preview">{previewLastMessage(chat.last_message)}</span>
                     {(chat.unread_count ?? 0) > 0 && (
                       <span className="unread-badge">{chat.unread_count}</span>
                     )}
@@ -1081,6 +1100,11 @@ export default function App() {
 
               <div ref={messagesEndRef} />
             </div>
+
+            {/* ── Send error banner ─────────────────────────────────────── */}
+            {sendError && (
+              <div className="send-error-banner">{sendError}</div>
+            )}
 
             {/* ── Composer ──────────────────────────────────────────────── */}
             <div className="composer">

@@ -48,10 +48,12 @@ export type CallSignalPayload = {
 
 export function createChatSocket(token: string, handlers: SocketHandlers): Socket {
   const socket = io(SOCKET_URL, {
-    transports: ['websocket'],
-    auth:        { token },
-    reconnectionDelayMax: 5000,
-    timeout:             20000
+    transports:           ['websocket', 'polling'],
+    auth:                 { token },
+    reconnectionAttempts: 5,
+    reconnectionDelay:    3000,
+    reconnectionDelayMax: 10000,
+    timeout:              20000
   });
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
