@@ -1,476 +1,1147 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import {
-  createChannel,
-  createGroup,
-  createStory,
-  getIceServers,
-  loadChannels,
-  loadChats,
-  loadGroups,
-  loadMessages,
-  loadStories,
-  login,
-  loginByPhone,
-  registerAccount,
-  sendMessage,
-  sendMessageWithMedia
+  archiveChat, clearHistory, createChannel, createGroup, createStory,
+  createNodeApiShim, deleteConversation, deleteMessage, editMessage,
+  getIceServers, initiateCall, endCall, loadChannels, loadChats,
+  loadGroups, loadMessages, loadMoreMessages, loadStories, login, loginByPhone,
+  markSeen, muteChat, pinChat, pinMessage, reactToMessage, registerAccount,
+  sendMessage, sendMessageWithMedia, TURN_FALLBACK
 } from './api';
-import { encryptAesGcm, tryDecryptAesGcm } from './crypto';
-import { createChatSocket } from './socket';
-import type { ChannelItem, ChatItem, GroupItem, MessageItem, StoryItem } from './types';
+import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
+import {
+  createChatSocket, emitChatClose, emitChatOpen, emitCallSignal,
+  emitTyping, type CallSignalPayload
+} from './socket';
 import { createLocalVideoStream, createPeerConnection } from './webrtc';
+import type {
+  ActiveSection, CallState, ChatItem, ChannelItem, GroupItem,
+  MessageItem, ReplyTarget, Session, StoryItem
+} from './types';
 
-type Session = { token: string; userId: number; username: string };
-type AuthMode = 'login' | 'register';
-type LoginMethod = 'username' | 'phone';
-type Section = 'chats' | 'groups' | 'channels' | 'stories' | 'calls';
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const sessionKey = 'wm_windows_session';
-const aesSeed = 'worldmates-aes-256-gcm-desktop';
+const SESSION_KEY = 'wm_windows_session';
 
+const EMOJI_QUICK = ['👍','❤️','😂','😮','😢','😡','🔥','👏','🎉','💯'];
 
-function asText(value: unknown, fallback = ''): string {
-  if (value === null || value === undefined) return fallback;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (typeof value === 'object') {
-    const candidate = (value as Record<string, unknown>).text;
-    if (typeof candidate === 'string') return candidate;
-    return fallback;
-  }
-  return fallback;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function asText(v: unknown, fb = ''): string {
+  if (v == null) return fb;
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (typeof v === 'object') { const t = (v as Record<string, unknown>).text; return typeof t === 'string' ? t : fb; }
+  return fb;
 }
 
+function initials(name: string): string {
+  return name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('') || '?';
+}
+
+function formatTime(timeText?: string, timeUnix?: number): string {
+  if (timeText && timeText !== 'now') return timeText;
+  const ts = timeUnix ? timeUnix * 1000 : Date.now();
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatChatTime(timeText?: string, timeUnix?: number): string {
+  const ts = timeUnix ? timeUnix * 1000 : (timeText ? NaN : Date.now());
+  const d  = isNaN(ts) ? new Date() : new Date(ts);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const diff = (now.getTime() - d.getTime()) / 86400000;
+  if (diff < 7) return d.toLocaleDateString([], { weekday: 'short' });
+  return d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+}
+
+const AVATAR_PALETTE = ['#1f6feb','#388bfd','#8b5cf6','#ec4899','#f97316','#10b981','#06b6d4','#e11d48'];
+function avatarColor(name: string): string {
+  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function Avatar({ name, src, size = 40, online }: { name: string; src?: string; size?: number; online?: boolean }) {
+  return (
+    <div className="avatar-wrap" style={{ width: size, height: size, flexShrink: 0 }}>
+      {src
+        ? <img className="avatar-img" src={src} alt={name} style={{ width: size, height: size }} />
+        : <div className="avatar-letter" style={{ width: size, height: size, background: avatarColor(name), fontSize: size * 0.38 }}>
+            {initials(name)}
+          </div>
+      }
+      {online !== undefined && (
+        <span className={`avatar-dot ${online ? 'online' : 'offline'}`} />
+      )}
+    </div>
+  );
+}
+
+function TypingDots() {
+  return (
+    <div className="typing-indicator">
+      <span /><span /><span />
+    </div>
+  );
+}
+
+function Bubble({
+  msg, isOwn, onReply, onEdit, onDelete, onReact, userId
+}: {
+  msg: MessageItem; isOwn: boolean; userId: number;
+  onReply: (m: MessageItem) => void;
+  onEdit:  (m: MessageItem) => void;
+  onDelete: (m: MessageItem) => void;
+  onReact: (m: MessageItem, emoji: string) => void;
+}) {
+  const [showActions, setShowActions] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const isEncrypted = msg.cipher_version === CIPHER_VERSION_SIGNAL;
+  const mediaIsImage = msg.media_type === 'image' || (!msg.media_type && msg.media && /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.media));
+
+  return (
+    <div
+      className={`bubble-row ${isOwn ? 'own' : ''}`}
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false); }}
+    >
+      {showActions && (
+        <div className={`bubble-actions ${isOwn ? 'actions-left' : 'actions-right'}`}>
+          <button className="action-btn" title="Reply" onClick={() => onReply(msg)}>↩</button>
+          <button className="action-btn" title="React" onClick={() => setShowEmojiPicker(v => !v)}>😀</button>
+          {isOwn && <button className="action-btn" title="Edit" onClick={() => onEdit(msg)}>✎</button>}
+          {isOwn && <button className="action-btn" title="Delete" onClick={() => onDelete(msg)}>🗑</button>}
+          {showEmojiPicker && (
+            <div className="emoji-picker">
+              {EMOJI_QUICK.map(e => (
+                <button key={e} className="emoji-btn" onClick={() => { onReact(msg, e); setShowEmojiPicker(false); }}>{e}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={`bubble ${isOwn ? 'own' : ''} ${msg._decryptFailed ? 'decrypt-failed' : ''} ${msg._pending ? 'pending' : ''}`}>
+        {/* Reply quote */}
+        {msg.reply_to && (
+          <div className="reply-quote">
+            <div className="reply-bar" />
+            <div className="reply-content">
+              <span className="reply-from">{msg.reply_to.from_id === userId ? 'You' : 'User'}</span>
+              <span className="reply-text">{asText(msg.reply_to.text, '[media]').slice(0, 80)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Media */}
+        {msg.media && (
+          <div className="bubble-media">
+            {mediaIsImage
+              ? <img src={msg.media} alt="media" className="media-img" onClick={() => window.open(msg.media, '_blank')} />
+              : msg.media_type === 'video'
+                ? <video src={msg.media} controls className="media-video" />
+                : msg.media_type === 'audio' || msg.media_type === 'voice'
+                  ? <audio src={msg.media} controls className="media-audio" />
+                  : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">
+                      📎 {msg.media_filename ?? 'Download file'}
+                    </a>
+            }
+          </div>
+        )}
+
+        {/* Text */}
+        {msg.text && (
+          <p className="bubble-text">
+            {msg.text}
+            {msg.is_edited && <span className="edited-mark"> (edited)</span>}
+          </p>
+        )}
+
+        {msg._decryptFailed && (
+          <p className="bubble-text decrypt-msg">🔒 Failed to decrypt</p>
+        )}
+
+        {/* Footer: time + status */}
+        <div className="bubble-footer">
+          {isEncrypted && <span className="lock-icon" title="End-to-end encrypted">🔒</span>}
+          <time className="bubble-time">{formatTime(msg.time_text, msg.time)}</time>
+          {isOwn && <span className="seen-tick">{msg.is_seen ? '✓✓' : '✓'}</span>}
+        </div>
+
+        {/* Reactions */}
+        {(msg.reactions ?? []).length > 0 && (
+          <div className="reactions">
+            {msg.reactions!.map((r, i) => (
+              <button key={i} className={`reaction-chip ${r.user_ids.includes(userId) ? 'mine' : ''}`}
+                onClick={() => onReact(msg, r.emoji)}>
+                {r.emoji} {r.count}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [authMode, setAuthMode] = useState<AuthMode>('login');
-  const [loginMethod, setLoginMethod] = useState<LoginMethod>('username');
-  const [activeSection, setActiveSection] = useState<Section>('chats');
+  // ── Auth state ─────────────────────────────────────────────────────────────
+  const [session, setSession]       = useState<Session | null>(null);
+  const [authMode, setAuthMode]     = useState<'login' | 'register'>('login');
+  const [loginBy, setLoginBy]       = useState<'username' | 'phone'>('username');
+  const [authLoading, setAuthLoading] = useState(false);
 
-  const [status, setStatus] = useState('Offline');
-  const [error, setError] = useState('');
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [username, setUsername]     = useState('');
+  const [phone, setPhone]           = useState('');
+  const [email, setEmail]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [authError, setAuthError]   = useState('');
 
-  const [username, setUsername] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // ── Navigation ────────────────────────────────────────────────────────────
+  const [section, setSection]       = useState<ActiveSection>('chats');
 
-  const [chats, setChats] = useState<ChatItem[]>([]);
-  const [groups, setGroups] = useState<GroupItem[]>([]);
-  const [channels, setChannels] = useState<ChannelItem[]>([]);
-  const [stories, setStories] = useState<StoryItem[]>([]);
+  // ── Real-time ─────────────────────────────────────────────────────────────
+  const [socket, setSocket]         = useState<Socket | null>(null);
+  const [socketStatus, setSocketStatus] = useState('Offline');
+  const [typingUsers, setTypingUsers]   = useState<Set<number>>(new Set());
+  const [onlineUsers, setOnlineUsers]   = useState<Set<number>>(new Set());
 
-  const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
-  const [messages, setMessages] = useState<MessageItem[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [encryptMessages, setEncryptMessages] = useState(true);
+  // ── Chat list ─────────────────────────────────────────────────────────────
+  const [chats, setChats]           = useState<ChatItem[]>([]);
+  const [groups, setGroups]         = useState<GroupItem[]>([]);
+  const [channels, setChannels]     = useState<ChannelItem[]>([]);
+  const [stories, setStories]       = useState<StoryItem[]>([]);
 
+  // ── Active chat ───────────────────────────────────────────────────────────
+  const [selectedChat, setSelectedChat]   = useState<ChatItem | null>(null);
+  const [messages, setMessages]           = useState<MessageItem[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [hasMore, setHasMore]             = useState(false);
+
+  // ── Composer ──────────────────────────────────────────────────────────────
+  const [newMessage, setNewMessage]   = useState('');
   const [pendingMedia, setPendingMedia] = useState<File | null>(null);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [newChannelName, setNewChannelName] = useState('');
-  const [newChannelDescription, setNewChannelDescription] = useState('');
-  const [newStory, setNewStory] = useState<File | null>(null);
-  const [callInfo, setCallInfo] = useState('Idle');
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+  const [editingMsg, setEditingMsg]   = useState<MessageItem | null>(null);
+
+  // ── Create forms ──────────────────────────────────────────────────────────
+  const [newGroupName, setNewGroupName]           = useState('');
+  const [newChannelName, setNewChannelName]       = useState('');
+  const [newChannelDesc, setNewChannelDesc]       = useState('');
+  const [newStoryFile, setNewStoryFile]           = useState<File | null>(null);
+
+  // ── Call ──────────────────────────────────────────────────────────────────
+  const [callState, setCallState]   = useState<CallState>({ phase: 'idle' });
+  const peerRef                     = useRef<RTCPeerConnection | null>(null);
+
+  // ── Sidebar search ────────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery]   = useState('');
+
+  // ── Signal service ────────────────────────────────────────────────────────
+  const signalRef = useRef<SignalService | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const composerRef    = useRef<HTMLTextAreaElement>(null);
+  const typingTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ─── Session restore ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    const raw = localStorage.getItem(sessionKey);
+    const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return;
     try {
-      const parsed = JSON.parse(raw) as Session;
-      if (parsed.token) setSession(parsed);
-    } catch {
-      localStorage.removeItem(sessionKey);
-    }
+      const s = JSON.parse(raw) as Session;
+      if (s.token) setSession(s);
+    } catch { localStorage.removeItem(SESSION_KEY); }
   }, []);
 
-  const selectedChat = useMemo(
-    () => chats.find((chat) => chat.user_id === selectedChatId) ?? null,
-    [chats, selectedChatId]
-  );
+  // ─── Signal service init ──────────────────────────────────────────────────
 
-  async function handleAuth(event: FormEvent) {
-    event.preventDefault();
-    setError('');
+  useEffect(() => {
+    if (!session) { signalRef.current = null; return; }
+    const svc = SignalService.getInstance(createNodeApiShim(session.token));
+    signalRef.current = svc;
+    svc.ensureRegistered().catch(console.error);
+  }, [session]);
 
+  // ─── Socket setup ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!session) return;
+
+    const s = createChatSocket(session.token, {
+      onStatus: setSocketStatus,
+
+      onMessage: async (msg) => {
+        const decrypted = await tryDecryptMessage(msg);
+        setMessages(prev => {
+          // De-duplicate by id
+          if (prev.some(m => m.id === decrypted.id)) return prev;
+          if (decrypted.from_id === selectedChatRef.current?.user_id ||
+              decrypted.to_id   === selectedChatRef.current?.user_id) {
+            return [...prev, decrypted];
+          }
+          return prev;
+        });
+        // Update last message in chat list
+        setChats(prev => prev.map(c =>
+          c.user_id === (decrypted.from_id === session.userId ? decrypted.to_id : decrypted.from_id)
+            ? { ...c, last_message: asText(decrypted.text, '[media]'), time: 'now' }
+            : c
+        ));
+      },
+
+      onTyping:     e => { if (e.sender_id !== session.userId) setTypingUsers(s => new Set([...s, e.sender_id])); },
+      onTypingDone: e => { setTypingUsers(s => { const n = new Set(s); n.delete(e.sender_id); return n; }); },
+      onUserOnline:  e => setOnlineUsers(s => new Set([...s, e.user_id])),
+      onUserOffline: e => setOnlineUsers(s => { const n = new Set(s); n.delete(e.user_id); return n; }),
+
+      onMessageSeen: e => {
+        if (e.sender_id === session.userId) {
+          setMessages(prev => prev.map(m =>
+            m.id <= e.last_seen_id && m.from_id === session.userId ? { ...m, is_seen: true } : m
+          ));
+        }
+      },
+
+      onReaction: e => {
+        setMessages(prev => prev.map(m => {
+          if (m.id !== e.msg_id) return m;
+          const existing = (m.reactions ?? []).find(r => r.emoji === e.emoji);
+          if (existing) {
+            return { ...m, reactions: m.reactions!.map(r =>
+              r.emoji === e.emoji
+                ? { ...r, count: r.count + 1, user_ids: [...r.user_ids, e.user_id] }
+                : r
+            )};
+          }
+          return { ...m, reactions: [...(m.reactions ?? []), { emoji: e.emoji, count: 1, user_ids: [e.user_id] }] };
+        }));
+      },
+
+      onPinned: e => {
+        setMessages(prev => prev.map(m => m.id === e.msg_id ? { ...m, is_pinned: e.pinned } : m));
+      },
+
+      onCallSignal: handleCallSignal,
+    });
+
+    setSocket(s);
+    return () => { s.disconnect(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // Keep a ref to selectedChat so socket callbacks can read it
+  const selectedChatRef = useRef<ChatItem | null>(null);
+  useEffect(() => { selectedChatRef.current = selectedChat; }, [selectedChat]);
+
+  // ─── Load initial data ────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!session) return;
+    Promise.all([
+      loadChats(session.token, session.userId).then(r => {
+        const list = r.data ?? [];
+        setChats(list);
+        if (list.length > 0 && !selectedChat) setSelectedChat(list[0]);
+      }),
+      loadGroups(session.token).then(r    => setGroups(r.data ?? [])),
+      loadChannels(session.token).then(r  => setChannels(r.data ?? [])),
+      loadStories(session.token).then(r   => setStories(r.data ?? r.stories ?? []))
+    ]).catch(err => console.error('Initial load error:', err));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // ─── Load messages when chat changes ─────────────────────────────────────
+
+  useEffect(() => {
+    if (!session || !selectedChat) return;
+
+    emitChatOpen(socket, selectedChat.user_id);
+    setMessagesLoading(true);
+    setMessages([]);
+
+    loadMessages(session.token, selectedChat.user_id, session.userId)
+      .then(async r => {
+        const decrypted = await Promise.all((r.messages ?? []).map(tryDecryptMessage));
+        setMessages(decrypted);
+        setHasMore(decrypted.length >= 40);
+        // Mark seen
+        const lastMsg = decrypted[decrypted.length - 1];
+        if (lastMsg) markSeen(session.token, selectedChat.user_id, lastMsg.id).catch(() => {});
+      })
+      .catch(console.error)
+      .finally(() => setMessagesLoading(false));
+
+    return () => { emitChatClose(socket, selectedChat.user_id); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, selectedChat?.user_id]);
+
+  // ─── Auto-scroll to bottom ────────────────────────────────────────────────
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  // ─── Signal decryption helper ─────────────────────────────────────────────
+
+  const tryDecryptMessage = useCallback(async (msg: MessageItem): Promise<MessageItem> => {
+    if (msg.cipher_version !== CIPHER_VERSION_SIGNAL) return msg;
+    if (!msg.text_encrypted || !msg.iv || !msg.tag || !msg.signal_header) return msg;
+    const svc = signalRef.current;
+    if (!svc) return { ...msg, _decryptFailed: true };
+
+    const senderId = msg.from_id;
+    const plaintext = await svc.decryptIncoming(senderId, msg.text_encrypted, msg.iv, msg.tag, msg.signal_header);
+    if (plaintext === null) return { ...msg, _decryptFailed: true };
+
+    svc.cacheDecryptedMessage(msg.id, plaintext);
+    return { ...msg, text: plaintext };
+  }, []);
+
+  // ─── Auth ─────────────────────────────────────────────────────────────────
+
+  async function handleAuth(e: FormEvent) {
+    e.preventDefault();
+    setAuthError('');
+    setAuthLoading(true);
     try {
       if (authMode === 'register') {
-        const registered = await registerAccount({ username, email, phoneNumber: phone, password });
-        if (registered.api_status === '200' && registered.access_token && registered.user_id) {
-          const next = { token: registered.access_token, userId: registered.user_id, username };
-          localStorage.setItem(sessionKey, JSON.stringify(next));
-          setSession(next);
+        const r = await registerAccount({ username, email, phoneNumber: phone, password });
+        if (r.api_status === '200' && r.access_token && r.user_id) {
+          const s = { token: r.access_token, userId: r.user_id, username };
+          localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+          setSession(s);
           return;
         }
-        setError(registered.message ?? 'Registration failed.');
+        setAuthError(r.message ?? 'Registration failed.');
         return;
       }
+      const r = loginBy === 'username'
+        ? await login(username.trim(), password)
+        : await loginByPhone(phone.trim(), password);
 
-      const loggedIn =
-        loginMethod === 'username' ? await login(username.trim(), password) : await loginByPhone(phone.trim(), password);
-
-      if (loggedIn.api_status === '200' && loggedIn.access_token && loggedIn.user_id) {
-        const next = {
-          token: loggedIn.access_token,
-          userId: loggedIn.user_id,
-          username: loginMethod === 'username' ? username.trim() : phone.trim()
-        };
-        localStorage.setItem(sessionKey, JSON.stringify(next));
-        setSession(next);
+      if (r.api_status === '200' && r.access_token && r.user_id) {
+        const s = { token: r.access_token, userId: r.user_id, username: loginBy === 'username' ? username.trim() : phone.trim() };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+        setSession(s);
         return;
       }
-
-      setError(loggedIn.message ?? 'Auth failed.');
+      setAuthError(r.message ?? 'Auth failed.');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown auth error';
-      setError(`Auth failed: ${message}`);
+      setAuthError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setAuthLoading(false);
     }
   }
 
   function logout() {
-    localStorage.removeItem(sessionKey);
+    localStorage.removeItem(SESSION_KEY);
+    socket?.disconnect();
+    setSocket(null);
     setSession(null);
     setMessages([]);
     setChats([]);
+    setSelectedChat(null);
     setGroups([]);
     setChannels([]);
     setStories([]);
-    setSelectedChatId(null);
-    socket?.disconnect();
-    setSocket(null);
   }
 
-  useEffect(() => {
-    if (!session) return;
+  // ─── Send message ─────────────────────────────────────────────────────────
 
-    Promise.all([
-      loadChats(session.token, session.userId).then((response) => {
-        const nextChats = response.data ?? [];
-        setChats(nextChats);
-        if (nextChats.length > 0) {
-          setSelectedChatId((current) => current ?? nextChats[0].user_id ?? null);
-        }
-      }),
-      loadGroups(session.token).then((response) => setGroups(response.data ?? [])),
-      loadChannels(session.token).then((response) => setChannels(response.data ?? [])),
-      loadStories(session.token).then((response) => setStories(response.stories ?? response.data ?? []))
-    ]).catch(() => setError('Failed loading initial data from API.'));
-  }, [session]);
+  async function handleSend(e?: FormEvent) {
+    e?.preventDefault();
+    if (!session || !selectedChat) return;
+    const text = newMessage.trim();
+    if (!text && !pendingMedia && !editingMsg) return;
 
-  useEffect(() => {
-    if (!session) return;
+    // Handle edit
+    if (editingMsg) {
+      if (!text) return;
+      await editMessage(session.token, editingMsg.id, text).catch(console.error);
+      setMessages(prev => prev.map(m => m.id === editingMsg.id ? { ...m, text, is_edited: true } : m));
+      setEditingMsg(null);
+      setNewMessage('');
+      return;
+    }
 
-    const liveSocket = createChatSocket(session.token, {
-      onStatus: setStatus,
-      onMessage: async (message) => {
-        const key = `${aesSeed}:${session.userId}:${selectedChatId ?? 0}`;
-        const text = await tryDecryptAesGcm(message.text, key);
-        if (message.from_id === selectedChatId || message.to_id === selectedChatId) {
-          setMessages((current) => [...current, { ...message, text }]);
-        }
-      }
-    });
-
-    setSocket(liveSocket);
-    return () => liveSocket.disconnect();
-  }, [session, selectedChatId]);
-
-  useEffect(() => {
-    if (!session || !selectedChatId) return;
-
-    loadMessages(session.token, selectedChatId, session.userId)
-      .then(async (response) => {
-        const key = `${aesSeed}:${session.userId}:${selectedChatId}`;
-        const decrypted = await Promise.all(
-          (response.messages ?? []).map(async (message) => ({
-            ...message,
-            text: await tryDecryptAesGcm(message.text, key)
-          }))
-        );
-        setMessages(decrypted);
-      })
-      .catch(() => setError('Failed to load messages.'));
-  }, [session, selectedChatId]);
-
-  async function handleSendMessage(event: FormEvent) {
-    event.preventDefault();
-    if (!session || !selectedChatId || (!newMessage.trim() && !pendingMedia)) return;
+    const optimisticId = -(Date.now());
+    const optimistic: MessageItem = {
+      id:       optimisticId,
+      from_id:  session.userId,
+      to_id:    selectedChat.user_id,
+      text:     pendingMedia ? `[${pendingMedia.name}]` : text,
+      time_text: 'now',
+      time:     Math.floor(Date.now() / 1000),
+      reply_to: replyTarget ? { id: replyTarget.id, from_id: replyTarget.from_id, text: replyTarget.text } : undefined,
+      _pending: true
+    };
+    setMessages(prev => [...prev, optimistic]);
+    setNewMessage('');
+    setPendingMedia(null);
+    setReplyTarget(null);
 
     try {
-      const key = `${aesSeed}:${session.userId}:${selectedChatId}`;
-      const textRaw = newMessage.trim();
-      const textPayload = textRaw ? (encryptMessages ? await encryptAesGcm(textRaw, key) : textRaw) : '';
-
       if (pendingMedia) {
-        await sendMessageWithMedia(session.token, selectedChatId, textPayload, pendingMedia, session.userId);
+        await sendMessageWithMedia(session.token, selectedChat.user_id, text, pendingMedia, session.userId);
       } else {
-        await sendMessage(session.token, selectedChatId, textPayload, session.userId);
-      }
-
-      setMessages((current) => [
-        ...current,
-        {
-          id: Date.now(),
-          from_id: session.userId,
-          to_id: selectedChatId,
-          text: textRaw || `[Media] ${pendingMedia?.name ?? ''}`,
-          time_text: 'now'
+        // Try Signal encryption
+        let signalPayload: Parameters<typeof sendMessage>[4] = undefined;
+        const svc = signalRef.current;
+        if (svc) {
+          const enc = await svc.encryptForSend(selectedChat.user_id, text);
+          if (enc) {
+            signalPayload = { ciphertext: enc.ciphertext, iv: enc.iv, tag: enc.tag, signalHeader: enc.signalHeader };
+          }
         }
-      ]);
-
-      setNewMessage('');
-      setPendingMedia(null);
+        const result = await sendMessage(
+          session.token, selectedChat.user_id, text, session.userId,
+          signalPayload, replyTarget?.id
+        );
+        // Replace optimistic message
+        setMessages(prev => prev.map(m =>
+          m.id === optimisticId
+            ? { ...m, id: result.id ?? optimisticId, _pending: false, cipher_version: signalPayload ? CIPHER_VERSION_SIGNAL : undefined }
+            : m
+        ));
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown send error';
-      setError(`Failed to send message: ${message}`);
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      console.error('Send failed:', err);
     }
   }
 
-  async function handleCreateGroup(event: FormEvent) {
-    event.preventDefault();
+  // ─── Typing emit ──────────────────────────────────────────────────────────
+
+  function handleComposerInput(text: string) {
+    setNewMessage(text);
+    if (!selectedChat || !socket) return;
+    emitTyping(socket, selectedChat.user_id);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => emitTyping(socket, selectedChat.user_id, true), 3000);
+  }
+
+  // ─── Load more messages ───────────────────────────────────────────────────
+
+  async function handleLoadMore() {
+    if (!session || !selectedChat || !hasMore || messages.length === 0) return;
+    const oldestId = messages[0].id;
+    const r = await loadMoreMessages(session.token, selectedChat.user_id, oldestId);
+    const more = await Promise.all((r.messages ?? []).map(tryDecryptMessage));
+    setMessages(prev => [...more, ...prev]);
+    setHasMore(more.length >= 40);
+  }
+
+  // ─── Message actions ──────────────────────────────────────────────────────
+
+  function handleReply(msg: MessageItem) {
+    setReplyTarget({ id: msg.id, from_id: msg.from_id, text: asText(msg.text, '[media]') });
+    composerRef.current?.focus();
+  }
+
+  function handleEditStart(msg: MessageItem) {
+    setEditingMsg(msg);
+    setNewMessage(asText(msg.text, ''));
+    composerRef.current?.focus();
+  }
+
+  async function handleDelete(msg: MessageItem) {
+    if (!session) return;
+    await deleteMessage(session.token, msg.id, 'for_all').catch(console.error);
+    setMessages(prev => prev.filter(m => m.id !== msg.id));
+  }
+
+  async function handleReact(msg: MessageItem, emoji: string) {
+    if (!session) return;
+    await reactToMessage(session.token, msg.id, emoji).catch(console.error);
+  }
+
+  async function handlePin(msg: MessageItem) {
+    if (!session) return;
+    await pinMessage(session.token, msg.id, !msg.is_pinned).catch(console.error);
+    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, is_pinned: !m.is_pinned } : m));
+  }
+
+  // ─── Groups ───────────────────────────────────────────────────────────────
+
+  async function handleCreateGroup(e: FormEvent) {
+    e.preventDefault();
     if (!session || !newGroupName.trim()) return;
-    await createGroup(session.token, newGroupName.trim());
-    const refreshed = await loadGroups(session.token);
-    setGroups(refreshed.data ?? []);
+    await createGroup(session.token, newGroupName.trim()).catch(console.error);
+    const r = await loadGroups(session.token);
+    setGroups(r.data ?? []);
     setNewGroupName('');
   }
 
-  async function handleCreateChannel(event: FormEvent) {
-    event.preventDefault();
+  // ─── Channels ─────────────────────────────────────────────────────────────
+
+  async function handleCreateChannel(e: FormEvent) {
+    e.preventDefault();
     if (!session || !newChannelName.trim()) return;
-    await createChannel(session.token, newChannelName.trim(), newChannelDescription.trim());
-    const refreshed = await loadChannels(session.token);
-    setChannels(refreshed.data ?? []);
+    await createChannel(session.token, newChannelName.trim(), newChannelDesc.trim()).catch(console.error);
+    const r = await loadChannels(session.token);
+    setChannels(r.data ?? []);
     setNewChannelName('');
-    setNewChannelDescription('');
+    setNewChannelDesc('');
   }
 
-  async function handleCreateStory(event: FormEvent) {
-    event.preventDefault();
-    if (!session || !newStory) return;
-    const type = newStory.type.startsWith('video/') ? 'video' : 'image';
-    await createStory(session.token, newStory, type);
-    const refreshed = await loadStories(session.token);
-    setStories(refreshed.stories ?? refreshed.data ?? []);
-    setNewStory(null);
+  // ─── Stories ──────────────────────────────────────────────────────────────
+
+  async function handleCreateStory(e: FormEvent) {
+    e.preventDefault();
+    if (!session || !newStoryFile) return;
+    await createStory(session.token, newStoryFile, newStoryFile.type.startsWith('video/') ? 'video' : 'image');
+    const r = await loadStories(session.token);
+    setStories(r.data ?? []);
+    setNewStoryFile(null);
   }
 
-  async function startVideoCall() {
-    if (!session || !selectedChatId) return;
-    setCallInfo('Preparing video call...');
+  // ─── WebRTC calls ─────────────────────────────────────────────────────────
 
-    try {
-      const servers = await getIceServers(session.userId);
-      const peer = await createPeerConnection(servers);
-      const stream = await createLocalVideoStream();
-      stream.getTracks().forEach((track) => peer.addTrack(track, stream));
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
+  async function startCall(type: 'audio' | 'video') {
+    if (!session || !selectedChat) return;
+    const servers = await getIceServers(session.userId);
+    const peer    = await createPeerConnection(servers.length ? servers : TURN_FALLBACK);
+    peerRef.current = peer;
 
-      socket?.emit('call_signal', {
-        type: 'offer',
-        to: selectedChatId,
-        from: session.userId,
-        sdp: offer
-      });
+    if (type === 'video') {
+      try {
+        const stream = await createLocalVideoStream();
+        stream.getTracks().forEach(t => peer.addTrack(t, stream));
+      } catch { /* no camera */ }
+    }
 
-      setCallInfo('Offer sent. Waiting for answer...');
-    } catch {
-      setCallInfo('Call failed to initialize');
+    peer.onicecandidate = ({ candidate }) => {
+      if (candidate && socket) {
+        emitCallSignal(socket, { type: 'ice', to: selectedChat.user_id, from: session.userId, ice: candidate.toJSON() });
+      }
+    };
+
+    const offer = await peer.createOffer();
+    await peer.setLocalDescription(offer);
+    emitCallSignal(socket, { type: 'offer', to: selectedChat.user_id, from: session.userId, sdp: offer });
+
+    await initiateCall(session.token, selectedChat.user_id, type).catch(console.error);
+    setCallState({ phase: 'outgoing', peer: selectedChat, type });
+  }
+
+  async function handleCallSignal(payload: CallSignalPayload) {
+    if (!session) return;
+
+    if (payload.type === 'offer') {
+      const peer    = await createPeerConnection(await getIceServers(session.userId));
+      peerRef.current = peer;
+      await peer.setRemoteDescription(payload.sdp!);
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+      emitCallSignal(socket, { type: 'answer', to: payload.from, from: session.userId, sdp: answer });
+
+      const caller: ChatItem = chats.find(c => c.user_id === payload.from) ?? {
+        user_id: payload.from, name: `User ${payload.from}`
+      };
+      setCallState({ phase: 'incoming', peer: caller, type: 'video', offerSdp: JSON.stringify(payload.sdp) });
+    }
+
+    if (payload.type === 'answer' && peerRef.current) {
+      await peerRef.current.setRemoteDescription(payload.sdp!);
+    }
+
+    if (payload.type === 'ice' && peerRef.current && payload.ice) {
+      await peerRef.current.addIceCandidate(payload.ice).catch(console.error);
+    }
+
+    if (payload.type === 'end') {
+      peerRef.current?.close();
+      peerRef.current = null;
+      setCallState({ phase: 'idle' });
     }
   }
+
+  async function endActiveCall() {
+    if (!session) return;
+    const peer = callState.phase !== 'idle' ? (callState as { peer: ChatItem }).peer : null;
+    peerRef.current?.close();
+    peerRef.current = null;
+    setCallState({ phase: 'idle' });
+    if (peer) {
+      emitCallSignal(socket, { type: 'end', to: peer.user_id, from: session.userId });
+      await endCall(session.token, peer.user_id).catch(console.error);
+    }
+  }
+
+  // ─── Filtered lists ───────────────────────────────────────────────────────
+
+  const filteredChats = chats.filter(c =>
+    !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const typingInChat = selectedChat
+    ? Array.from(typingUsers).some(id => id === selectedChat.user_id)
+    : false;
+
+  // ─── Render: Auth ─────────────────────────────────────────────────────────
 
   if (!session) {
     return (
       <div className="auth-page">
+        <div className="auth-glow" />
         <form className="auth-card" onSubmit={handleAuth}>
-          <h1>WorldMates Desktop</h1>
-          <p>Login / Register with Android-compatible API.</p>
+          <div className="auth-logo">
+            <div className="auth-logo-icon">WM</div>
+            <h1 className="auth-title">WorldMates</h1>
+          </div>
+          <p className="auth-subtitle">Sign in to your messenger</p>
 
-          <div className="switch-row">
-            <button type="button" className={authMode === 'login' ? 'tab active' : 'tab'} onClick={() => setAuthMode('login')}>
-              Login
-            </button>
-            <button
-              type="button"
-              className={authMode === 'register' ? 'tab active' : 'tab'}
-              onClick={() => setAuthMode('register')}
-            >
-              Register
-            </button>
+          <div className="tabs">
+            <button type="button" className={authMode === 'login' ? 'tab active' : 'tab'} onClick={() => setAuthMode('login')}>Sign In</button>
+            <button type="button" className={authMode === 'register' ? 'tab active' : 'tab'} onClick={() => setAuthMode('register')}>Register</button>
           </div>
 
-          {authMode === 'login' ? (
-            <div className="switch-row">
-              <button
-                type="button"
-                className={loginMethod === 'username' ? 'tab active' : 'tab'}
-                onClick={() => setLoginMethod('username')}
-              >
-                By username
-              </button>
-              <button
-                type="button"
-                className={loginMethod === 'phone' ? 'tab active' : 'tab'}
-                onClick={() => setLoginMethod('phone')}
-              >
-                By phone
-              </button>
+          {authMode === 'login' && (
+            <div className="tabs" style={{ marginTop: 0 }}>
+              <button type="button" className={loginBy === 'username' ? 'tab active' : 'tab'} onClick={() => setLoginBy('username')}>Username</button>
+              <button type="button" className={loginBy === 'phone' ? 'tab active' : 'tab'} onClick={() => setLoginBy('phone')}>Phone</button>
             </div>
-          ) : null}
+          )}
 
-          {authMode === 'register' || loginMethod === 'username' ? (
-            <label>
-              Username
-              <input value={username} onChange={(event) => setUsername(event.target.value)} required={authMode === 'register' || loginMethod === 'username'} />
+          {(authMode === 'register' || loginBy === 'username') && (
+            <label className="field">
+              <span>Username</span>
+              <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+                placeholder="your_username" autoComplete="username" required={authMode === 'register' || loginBy === 'username'} />
             </label>
-          ) : null}
+          )}
 
-          {authMode === 'register' || loginMethod === 'phone' ? (
-            <label>
-              Phone
-              <input value={phone} onChange={(event) => setPhone(event.target.value)} required={authMode === 'register' || loginMethod === 'phone'} />
+          {(authMode === 'register' || loginBy === 'phone') && (
+            <label className="field">
+              <span>Phone</span>
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                placeholder="+1 234 567 8900" autoComplete="tel" required={authMode === 'register' || loginBy === 'phone'} />
             </label>
-          ) : null}
+          )}
 
-          {authMode === 'register' ? (
-            <label>
-              Email
-              <input value={email} onChange={(event) => setEmail(event.target.value)} />
+          {authMode === 'register' && (
+            <label className="field">
+              <span>Email</span>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" />
             </label>
-          ) : null}
+          )}
 
-          <label>
-            Password
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          <label className="field">
+            <span>Password</span>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} required />
           </label>
 
-          {error ? <div className="error">{error}</div> : null}
-          <button type="submit">{authMode === 'register' ? 'Create account' : 'Sign in'}</button>
+          {authError && <div className="auth-error">{authError}</div>}
+
+          <button className="btn-primary" type="submit" disabled={authLoading}>
+            {authLoading ? 'Please wait…' : authMode === 'register' ? 'Create account' : 'Sign in'}
+          </button>
         </form>
       </div>
     );
   }
 
+  // ─── Render: Main App ─────────────────────────────────────────────────────
+
+  const navItems: { key: ActiveSection; icon: string; label: string }[] = [
+    { key: 'chats',    icon: '💬', label: 'Chats'    },
+    { key: 'groups',   icon: '👥', label: 'Groups'   },
+    { key: 'channels', icon: '📢', label: 'Channels' },
+    { key: 'stories',  icon: '⭕', label: 'Stories'  },
+    { key: 'calls',    icon: '📞', label: 'Calls'    },
+    { key: 'settings', icon: '⚙️', label: 'Settings' },
+  ];
+
   return (
     <div className="layout">
+
+      {/* ── Call overlay ─────────────────────────────────────────────────── */}
+      {callState.phase !== 'idle' && (
+        <div className="call-overlay">
+          <div className="call-card">
+            <Avatar name={(callState as { peer: ChatItem }).peer.name} size={72} />
+            <h2>{(callState as { peer: ChatItem }).peer.name}</h2>
+            <p className="call-status">
+              {callState.phase === 'outgoing' ? 'Calling…' :
+               callState.phase === 'incoming' ? 'Incoming call' : 'Connected'}
+            </p>
+            <div className="call-actions">
+              {callState.phase === 'incoming' && (
+                <button className="call-btn accept" onClick={() => {
+                  // Accept: peer connection already set in handleCallSignal
+                  setCallState(prev => ({ ...prev, phase: 'connected', duration: 0 } as CallState));
+                }}>
+                  ✓ Accept
+                </button>
+              )}
+              <button className="call-btn decline" onClick={endActiveCall}>
+                ✕ {callState.phase === 'incoming' ? 'Decline' : 'End'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Navigation rail ───────────────────────────────────────────────── */}
       <nav className="rail">
-        <button className={activeSection === 'chats' ? 'rail-btn active' : 'rail-btn'} onClick={() => setActiveSection('chats')}>💬</button>
-        <button className={activeSection === 'groups' ? 'rail-btn active' : 'rail-btn'} onClick={() => setActiveSection('groups')}>👥</button>
-        <button className={activeSection === 'channels' ? 'rail-btn active' : 'rail-btn'} onClick={() => setActiveSection('channels')}>📢</button>
-        <button className={activeSection === 'stories' ? 'rail-btn active' : 'rail-btn'} onClick={() => setActiveSection('stories')}>📱</button>
-        <button className={activeSection === 'calls' ? 'rail-btn active' : 'rail-btn'} onClick={() => setActiveSection('calls')}>📞</button>
+        <div className="rail-top">
+          <div className="rail-brand">W</div>
+          {navItems.map(({ key, icon, label }) => (
+            <button key={key}
+              className={`rail-btn ${section === key ? 'active' : ''}`}
+              onClick={() => setSection(key)}
+              title={label}
+            >
+              {icon}
+            </button>
+          ))}
+        </div>
+        <div className="rail-bottom">
+          <button className="rail-btn" title="Logout" onClick={logout}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
+          <Avatar name={session.username} size={34} />
+        </div>
       </nav>
 
+      {/* ── Sidebar ──────────────────────────────────────────────────────── */}
       <aside className="sidebar">
-        <header className="sidebar-header">
-          <div>
-            <h2>WorldMates</h2>
-            <small>{session.username}</small>
+        <div className="sidebar-head">
+          <h2 className="sidebar-title">
+            {section === 'chats' ? 'Messages' : section === 'groups' ? 'Groups' :
+             section === 'channels' ? 'Channels' : section === 'stories' ? 'Stories' :
+             section === 'calls' ? 'Calls' : 'Settings'}
+          </h2>
+          <div className="socket-badge" title={socketStatus}>
+            <span className={`dot ${socketStatus.startsWith('Connected') ? 'green' : 'grey'}`} />
           </div>
-          <button className="logout-btn" onClick={logout}>Exit</button>
-        </header>
-        <div className="status">{status}</div>
+        </div>
 
-        {activeSection === 'chats' ? (
-          <div className="chat-list">
-            {chats.map((chat, index) => (
-              <button
-                key={`${chat.user_id}-${index}`}
-                className={chat.user_id === selectedChatId ? 'chat-item active' : 'chat-item'}
-                onClick={() => setSelectedChatId(chat.user_id)}
+        {/* Search (chats only) */}
+        {section === 'chats' && (
+          <div className="search-box">
+            <span className="search-icon">🔍</span>
+            <input placeholder="Search chats…" value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)} />
+          </div>
+        )}
+
+        {/* ── Chats list ─────────────────────────────────────────────────── */}
+        {section === 'chats' && (
+          <div className="list-scroll">
+            {filteredChats.length === 0 && (
+              <div className="empty-state">No chats yet</div>
+            )}
+            {filteredChats.map(chat => (
+              <button key={chat.user_id}
+                className={`chat-item ${selectedChat?.user_id === chat.user_id ? 'active' : ''}`}
+                onClick={() => setSelectedChat(chat)}
               >
-                <strong>{chat.name}</strong>
-                <span>{asText(chat.last_message, 'No messages yet')}</span>
+                <Avatar name={chat.name} src={chat.avatar} size={46} online={onlineUsers.has(chat.user_id)} />
+                <div className="chat-item-body">
+                  <div className="chat-item-row">
+                    <span className="chat-item-name">{chat.name}</span>
+                    <span className="chat-item-time">{formatChatTime(chat.time)}</span>
+                  </div>
+                  <div className="chat-item-row">
+                    <span className="chat-item-preview">{asText(chat.last_message, '').slice(0, 40) || 'No messages'}</span>
+                    {(chat.unread_count ?? 0) > 0 && (
+                      <span className="unread-badge">{chat.unread_count}</span>
+                    )}
+                  </div>
+                </div>
               </button>
             ))}
           </div>
-        ) : null}
+        )}
 
-        {activeSection === 'groups' ? (
-          <>
-            <form className="mini-form" onSubmit={handleCreateGroup}>
-              <input value={newGroupName} onChange={(event) => setNewGroupName(event.target.value)} placeholder="New group" />
-              <button type="submit">Create</button>
+        {/* ── Groups ────────────────────────────────────────────────────── */}
+        {section === 'groups' && (
+          <div className="list-scroll">
+            <form className="create-form" onSubmit={handleCreateGroup}>
+              <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="New group name…" />
+              <button type="submit" className="btn-sm">Create</button>
             </form>
-            <div className="list-panel">
-              {groups.length === 0 ? <div className="list-item">No groups found</div> : null}
-              {groups.map((group, index) => <div key={`${group.id}-${index}`} className="list-item">{asText(group.group_name, 'Group')}</div>)}
-            </div>
-          </>
-        ) : null}
-
-        {activeSection === 'channels' ? (
-          <>
-            <form className="mini-form" onSubmit={handleCreateChannel}>
-              <input value={newChannelName} onChange={(event) => setNewChannelName(event.target.value)} placeholder="Channel name" />
-              <input value={newChannelDescription} onChange={(event) => setNewChannelDescription(event.target.value)} placeholder="Description" />
-              <button type="submit">Create</button>
-            </form>
-            <div className="list-panel">
-              {channels.length === 0 ? <div className="list-item">No channels found</div> : null}
-              {channels.map((channel, index) => <div key={`${channel.id}-${index}`} className="list-item">{asText(channel.name, 'Channel')}</div>)}
-            </div>
-          </>
-        ) : null}
-
-        {activeSection === 'stories' ? (
-          <>
-            <form className="mini-form" onSubmit={handleCreateStory}>
-              <input type="file" accept="image/*,video/*" onChange={(event) => setNewStory(event.target.files?.[0] ?? null)} />
-              <button type="submit">Upload story</button>
-            </form>
-            <div className="list-panel">{stories.map((story, index) => <div key={`${story.id}-${index}`} className="list-item">Story #{story.id}</div>)}</div>
-          </>
-        ) : null}
-
-        {activeSection === 'calls' ? (
-          <div className="list-panel">
-            <button className="call-btn" onClick={startVideoCall}>Start WebRTC video call</button>
-            <p>{callInfo}</p>
+            {groups.length === 0 && <div className="empty-state">No groups</div>}
+            {groups.map(g => (
+              <div key={g.id} className="list-item">
+                <Avatar name={asText(g.group_name, 'G')} src={g.avatar} size={44} />
+                <div className="list-item-body">
+                  <span className="list-item-name">{asText(g.group_name, 'Group')}</span>
+                  <span className="list-item-sub">{g.members_count ?? 0} members</span>
+                </div>
+              </div>
+            ))}
           </div>
-        ) : null}
+        )}
+
+        {/* ── Channels ──────────────────────────────────────────────────── */}
+        {section === 'channels' && (
+          <div className="list-scroll">
+            <form className="create-form" onSubmit={handleCreateChannel}>
+              <input value={newChannelName} onChange={e => setNewChannelName(e.target.value)} placeholder="Channel name…" />
+              <input value={newChannelDesc} onChange={e => setNewChannelDesc(e.target.value)} placeholder="Description…" />
+              <button type="submit" className="btn-sm">Create</button>
+            </form>
+            {channels.length === 0 && <div className="empty-state">No channels</div>}
+            {channels.map(c => (
+              <div key={c.id} className="list-item">
+                <Avatar name={asText(c.name, 'C')} src={c.avatar_url} size={44} />
+                <div className="list-item-body">
+                  <span className="list-item-name">{asText(c.name, 'Channel')}</span>
+                  <span className="list-item-sub">{c.subscribers_count ?? 0} subscribers</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Stories ───────────────────────────────────────────────────── */}
+        {section === 'stories' && (
+          <div className="list-scroll">
+            <form className="create-form" onSubmit={handleCreateStory}>
+              <label className="file-label">
+                {newStoryFile ? newStoryFile.name : 'Choose image / video'}
+                <input type="file" accept="image/*,video/*" style={{ display: 'none' }}
+                  onChange={e => setNewStoryFile(e.target.files?.[0] ?? null)} />
+              </label>
+              <button type="submit" className="btn-sm" disabled={!newStoryFile}>Upload story</button>
+            </form>
+            <div className="stories-grid">
+              {stories.map(s => (
+                <div key={s.id} className="story-thumb">
+                  {s.file
+                    ? s.file_type === 'video'
+                      ? <video src={s.file} className="story-media" />
+                      : <img src={s.file} alt="story" className="story-media" />
+                    : <div className="story-placeholder">{s.user_name?.[0] ?? '?'}</div>
+                  }
+                  <span className="story-label">{s.user_name ?? `Story #${s.id}`}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Calls ─────────────────────────────────────────────────────── */}
+        {section === 'calls' && (
+          <div className="list-scroll">
+            {selectedChat ? (
+              <div className="call-controls">
+                <p className="call-target">Call: <strong>{selectedChat.name}</strong></p>
+                <button className="call-pill audio" onClick={() => startCall('audio')}>🎙 Voice call</button>
+                <button className="call-pill video" onClick={() => startCall('video')}>📹 Video call</button>
+              </div>
+            ) : (
+              <div className="empty-state">Select a chat first</div>
+            )}
+          </div>
+        )}
+
+        {/* ── Settings ──────────────────────────────────────────────────── */}
+        {section === 'settings' && (
+          <div className="list-scroll settings-panel">
+            <div className="settings-item">
+              <Avatar name={session.username} size={48} />
+              <div>
+                <div className="settings-name">{session.username}</div>
+                <div className="settings-sub">User ID: {session.userId}</div>
+              </div>
+            </div>
+            <div className="settings-section">
+              <div className="settings-label">Security</div>
+              <div className="settings-row">
+                <span>End-to-end encryption</span>
+                <span className="badge-green">Signal Protocol v3</span>
+              </div>
+              <div className="settings-row">
+                <span>Keys registered</span>
+                <span className="badge-green">✓</span>
+              </div>
+            </div>
+            <div className="settings-section">
+              <div className="settings-label">Connection</div>
+              <div className="settings-row">
+                <span>Socket status</span>
+                <span>{socketStatus}</span>
+              </div>
+            </div>
+            <button className="btn-danger" onClick={logout}>Sign out</button>
+          </div>
+        )}
       </aside>
 
-      <main className="chat-view">
-        <header className="chat-header">
-          <h3>{selectedChat?.name ?? 'Select chat'}</h3>
-          <p>AES-256-GCM: {encryptMessages ? 'enabled' : 'disabled'}</p>
-        </header>
+      {/* ── Main chat view ────────────────────────────────────────────────── */}
+      <main className="chat-main">
+        {!selectedChat || (section !== 'chats' && section !== 'calls') ? (
+          <div className="chat-empty">
+            <div className="chat-empty-icon">💬</div>
+            <h3>Select a conversation</h3>
+            <p>Choose a chat from the list to start messaging</p>
+          </div>
+        ) : (
+          <>
+            {/* ── Chat header ─────────────────────────────────────────── */}
+            <div className="chat-header">
+              <div className="chat-header-left">
+                <Avatar name={selectedChat.name} src={selectedChat.avatar} size={38}
+                  online={onlineUsers.has(selectedChat.user_id)} />
+                <div className="chat-header-info">
+                  <span className="chat-header-name">{selectedChat.name}</span>
+                  <span className="chat-header-status">
+                    {typingInChat
+                      ? 'typing…'
+                      : onlineUsers.has(selectedChat.user_id) ? 'online' : 'offline'}
+                  </span>
+                </div>
+              </div>
+              <div className="chat-header-actions">
+                <button className="icon-btn" title="Voice call" onClick={() => { setSection('calls'); startCall('audio'); }}>
+                  🎙
+                </button>
+                <button className="icon-btn" title="Video call" onClick={() => { setSection('calls'); startCall('video'); }}>
+                  📹
+                </button>
+                <button className="icon-btn" title="Mute" onClick={() => muteChat(session.token, selectedChat.user_id, true)}>
+                  🔕
+                </button>
+                <button className="icon-btn" title="Archive" onClick={() => archiveChat(session.token, selectedChat.user_id, true)}>
+                  📦
+                </button>
+                <button className="icon-btn danger" title="Delete conversation"
+                  onClick={() => { if (window.confirm('Delete conversation?')) deleteConversation(session.token, selectedChat.user_id); }}>
+                  🗑
+                </button>
+              </div>
+            </div>
 
-        <section className="messages">
-          {messages.map((message, index) => (
-            <article key={`${message.id}-${index}`} className={message.from_id === session.userId ? 'bubble own' : 'bubble'}>
-              <p>{asText(message.text, '')}</p>
-              {message.media ? (
-                <a href={message.media} target="_blank" rel="noreferrer">
-                  Download media
-                </a>
-              ) : null}
-              <time>{message.time_text ?? ''}</time>
-            </article>
-          ))}
-        </section>
+            {/* ── Messages ─────────────────────────────────────────────── */}
+            <div className="messages-scroll">
+              {hasMore && (
+                <button className="load-more" onClick={handleLoadMore}>Load earlier messages</button>
+              )}
 
-        <form className="composer" onSubmit={handleSendMessage}>
-          <label className="check-row">
-            <input
-              type="checkbox"
-              checked={encryptMessages}
-              onChange={(event) => setEncryptMessages(event.target.checked)}
-            />
-            AES-256-GCM
-          </label>
-          <input value={newMessage} onChange={(event) => setNewMessage(event.target.value)} placeholder="Message" />
-          <input
-            type="file"
-            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
-            onChange={(event) => setPendingMedia(event.target.files?.[0] ?? null)}
-          />
-          <button type="submit">Send</button>
-        </form>
+              {messagesLoading && (
+                <div className="messages-loading">
+                  <div className="spinner" />
+                </div>
+              )}
+
+              {messages.map((msg, idx) => {
+                const isOwn = msg.from_id === session.userId;
+                const prevMsg = messages[idx - 1];
+                const showAvatar = !isOwn && (!prevMsg || prevMsg.from_id !== msg.from_id);
+
+                return (
+                  <div key={msg.id} className={`msg-row ${isOwn ? 'own' : ''}`}>
+                    {!isOwn && (
+                      <div style={{ width: 28, flexShrink: 0, alignSelf: 'flex-end', paddingBottom: 4 }}>
+                        {showAvatar
+                          ? <Avatar name={selectedChat.name} src={selectedChat.avatar} size={28} />
+                          : null
+                        }
+                      </div>
+                    )}
+                    <Bubble
+                      msg={msg}
+                      isOwn={isOwn}
+                      userId={session.userId}
+                      onReply={handleReply}
+                      onEdit={handleEditStart}
+                      onDelete={handleDelete}
+                      onReact={handleReact}
+                    />
+                  </div>
+                );
+              })}
+
+              {typingInChat && (
+                <div className="msg-row">
+                  <div style={{ width: 28, flexShrink: 0 }} />
+                  <div className="bubble">
+                    <TypingDots />
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* ── Composer ──────────────────────────────────────────────── */}
+            <div className="composer">
+              {/* Reply/edit banner */}
+              {(replyTarget || editingMsg) && (
+                <div className="composer-banner">
+                  <div className="composer-banner-line" />
+                  <div className="composer-banner-content">
+                    <span className="composer-banner-label">
+                      {editingMsg ? '✎ Editing' : `↩ Reply to ${replyTarget!.from_id === session.userId ? 'yourself' : selectedChat.name}`}
+                    </span>
+                    <span className="composer-banner-text">
+                      {editingMsg ? asText(editingMsg.text, '').slice(0, 60) : replyTarget!.text.slice(0, 60)}
+                    </span>
+                  </div>
+                  <button className="composer-banner-close" onClick={() => { setReplyTarget(null); setEditingMsg(null); setNewMessage(''); }}>✕</button>
+                </div>
+              )}
+
+              {/* File attachment preview */}
+              {pendingMedia && (
+                <div className="attachment-preview">
+                  <span>📎 {pendingMedia.name}</span>
+                  <button onClick={() => setPendingMedia(null)}>✕</button>
+                </div>
+              )}
+
+              <div className="composer-row">
+                {/* Attach button */}
+                <label className="icon-btn attach-btn" title="Attach file">
+                  📎
+                  <input type="file" style={{ display: 'none' }}
+                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
+                    onChange={e => setPendingMedia(e.target.files?.[0] ?? null)} />
+                </label>
+
+                {/* Message input */}
+                <textarea
+                  ref={composerRef}
+                  className="composer-input"
+                  placeholder={editingMsg ? 'Edit message…' : 'Write a message…'}
+                  value={newMessage}
+                  rows={1}
+                  onChange={e => handleComposerInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+                  }}
+                />
+
+                {/* Send button */}
+                <button
+                  className={`send-btn ${newMessage.trim() || pendingMedia ? 'active' : ''}`}
+                  onClick={() => handleSend()}
+                  disabled={!newMessage.trim() && !pendingMedia && !editingMsg}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
