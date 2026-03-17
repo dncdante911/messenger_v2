@@ -529,7 +529,7 @@ fun EditProfileScreen(
         FontPickerSheet(
             previewText = firstName.ifBlank { lastName },
             currentStyle = selectedFontStyle,
-            onStyleSelected = { style, styledText ->
+            onStyleSelected = { style, styledText, _ ->
                 selectedFontStyle = style
                 if (firstName.isNotBlank()) firstName = styledText
             },

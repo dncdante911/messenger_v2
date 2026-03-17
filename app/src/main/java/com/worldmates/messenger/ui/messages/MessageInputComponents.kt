@@ -1,6 +1,7 @@
 package com.worldmates.messenger.ui.messages
 
 import android.os.VibrationEffect
+import android.util.Log
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
@@ -88,6 +89,49 @@ fun MessageInputBar(
         if (messageText.isBlank()) {
             activeFontStyle = FontStyle.NORMAL
             rawBeforeFont = ""
+        }
+    }
+
+    // Intercepts TextField input to apply live font conversion while typing.
+    // When a style is active, each new character is appended to rawBeforeFont
+    // and the whole raw string is re-converted so the styled text stays correct.
+    val effectiveOnChange: (String) -> Unit = { newText ->
+        if (activeFontStyle == FontStyle.NORMAL) {
+            Log.d("FontStyle", "effectiveOnChange: NORMAL, passthrough newText='$newText'")
+            onMessageChange(newText)
+        } else when {
+            newText.isEmpty() -> {
+                Log.d("FontStyle", "effectiveOnChange: cleared")
+                rawBeforeFont = ""
+                onMessageChange("")
+            }
+            newText.length > messageText.length -> {
+                // Characters added at end — append raw chars to rawBeforeFont
+                val addedCount = newText.length - messageText.length
+                val added = newText.takeLast(addedCount)
+                val newRaw = rawBeforeFont + added
+                rawBeforeFont = newRaw
+                val converted = FontStyleConverter.convert(newRaw, activeFontStyle)
+                Log.d("FontStyle", "effectiveOnChange: added='$added' raw='$newRaw' style=$activeFontStyle converted='$converted'")
+                onMessageChange(converted)
+            }
+            rawBeforeFont.isNotEmpty() && messageText.length > newText.length -> {
+                // Backspace — remove from raw text and re-convert
+                val deletedCount = messageText.length - newText.length
+                val charsToRemove = minOf(deletedCount, rawBeforeFont.length)
+                val newRaw = rawBeforeFont.dropLast(charsToRemove)
+                rawBeforeFont = newRaw
+                val converted = if (newRaw.isEmpty()) "" else FontStyleConverter.convert(newRaw, activeFontStyle)
+                Log.d("FontStyle", "effectiveOnChange: backspace raw='$newRaw' converted='$converted'")
+                onMessageChange(converted)
+            }
+            else -> {
+                // Paste / selection replacement — reset style
+                Log.d("FontStyle", "effectiveOnChange: complex edit, resetting style")
+                rawBeforeFont = ""
+                activeFontStyle = FontStyle.NORMAL
+                onMessageChange(newText)
+            }
         }
     }
 
@@ -299,7 +343,7 @@ fun MessageInputBar(
                             // Звичайне поле введення
                             TextField(
                                 value = messageText,
-                                onValueChange = onMessageChange,
+                                onValueChange = effectiveOnChange,
                                 modifier = Modifier
                                     .weight(1f)
                                     .heightIn(min = 40.dp, max = 120.dp)
@@ -382,7 +426,7 @@ fun MessageInputBar(
                             // Показуємо текстове поле для коментаря
                             TextField(
                                 value = messageText,
-                                onValueChange = onMessageChange,
+                                onValueChange = effectiveOnChange,
                                 modifier = Modifier
                                     .weight(1f)
                                     .heightIn(min = 40.dp, max = 120.dp)
@@ -616,22 +660,17 @@ fun MessageInputBar(
             FontPickerSheet(
                 previewText = previewBase.ifBlank { "Привіт" },
                 currentStyle = activeFontStyle,
-                onStyleSelected = { style, _ ->
-                    // Derive the base text to convert from — always plain, never re-styled
-                    val base = rawBeforeFont.ifEmpty { messageText }
+                onStyleSelected = { style, styledText, rawPreview ->
+                    Log.d("FontStyle", "onStyleSelected: style=$style styledText='$styledText' rawPreview='$rawPreview'")
                     if (style == FontStyle.NORMAL) {
-                        // Restore original plain text
                         activeFontStyle = FontStyle.NORMAL
-                        if (rawBeforeFont.isNotBlank()) onMessageChange(rawBeforeFont)
+                        val plain = rawBeforeFont.ifEmpty { rawPreview }
                         rawBeforeFont = ""
+                        onMessageChange(plain)
                     } else {
-                        // Save original text on first styling
-                        if (rawBeforeFont.isEmpty() && messageText.isNotBlank()) {
-                            rawBeforeFont = messageText
-                        }
                         activeFontStyle = style
-                        val converted = FontStyleConverter.convert(base, style)
-                        if (converted.isNotBlank()) onMessageChange(converted)
+                        rawBeforeFont = rawPreview
+                        onMessageChange(styledText)
                     }
                 },
                 onDismiss = { showFontPicker = false }
