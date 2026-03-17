@@ -209,6 +209,13 @@ class SettingsActivity : AppCompatActivity() {
                         )
                         currentScreen = SettingsScreen.Main
                     }
+                    SettingsScreen.Business -> {
+                        startActivity(
+                            Intent(this@SettingsActivity,
+                                com.worldmates.messenger.ui.business.BusinessActivity::class.java)
+                        )
+                        currentScreen = SettingsScreen.Main
+                    }
                 }
             }
         }
@@ -233,6 +240,7 @@ sealed class SettingsScreen {
     object CustomStatus : SettingsScreen()
     object ActiveSessions : SettingsScreen()
     object DeleteAccount : SettingsScreen()
+    object Business : SettingsScreen()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -571,6 +579,21 @@ fun SettingsScreen(
                     title = stringResource(R.string.about_app),
                     subtitle = "Версія ${BuildConfig.VERSION_NAME}",
                     onClick = { showAboutDialog = true }
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+
+            // Business Mode
+            item {
+                SettingsSection(title = stringResource(R.string.biz_section_title))
+            }
+            item {
+                SettingsItem(
+                    icon     = Icons.Default.Business,
+                    title    = stringResource(R.string.biz_mode_title),
+                    subtitle = stringResource(R.string.biz_mode_subtitle),
+                    onClick  = { onNavigate(SettingsScreen.Business) }
                 )
             }
 

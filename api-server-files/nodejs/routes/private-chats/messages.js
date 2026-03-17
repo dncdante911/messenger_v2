@@ -371,6 +371,27 @@ function sendMessage(ctx, io) {
             });
             // ── Конец бот-детекции ──────────────────────────────────────────
 
+            // ── Business auto-reply / greeting (non-blocking) ───────────────
+            if (ctx.handleBusinessAutoReply && ctx.wm_business_profile) {
+                setImmediate(async () => {
+                    try {
+                        // Determine if this is the very first message in the conversation
+                        const prevCount = await ctx.wo_messages.count({
+                            where: { from_id: userId, to_id: recipientId },
+                        });
+                        const isFirstMessage = prevCount <= 1; // <=1 because current msg is already saved
+                        await ctx.handleBusinessAutoReply(ctx, io, {
+                            senderId:      userId,
+                            recipientId,
+                            isFirstMessage,
+                        });
+                    } catch (bizErr) {
+                        console.error('[Business/auto-reply]', bizErr.message);
+                    }
+                });
+            }
+            // ── End business auto-reply ─────────────────────────────────────
+
         } catch (err) {
             console.error('[Node/chat/send]', err.message);
             res.status(500).json({ api_status: 500, error_message: 'Failed to send message' });
