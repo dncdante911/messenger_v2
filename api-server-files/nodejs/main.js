@@ -48,6 +48,7 @@ const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
 const { registerStickerRoutes }      = require('./routes/stickers')
 const { registerBusinessRoutes, handleBusinessAutoReply } = require('./routes/business')
+const { registerSearchRoutes }       = require('./routes/search/index')
 const { startCronJobs }              = require('./jobs/cronJobs')
 
 let serverPort
@@ -416,6 +417,19 @@ async function init() {
   }
   console.log('[Migration] Wo_Messages composite indexes ensured');
 
+  // ── FULLTEXT index on text_preview for global search ───────────────────────
+  try {
+    await ctx.sequelize.query(
+      'ALTER TABLE Wo_Messages ADD FULLTEXT INDEX ft_text_preview (text_preview)'
+    );
+    console.log('[Migration] Wo_Messages FULLTEXT index on text_preview ensured');
+  } catch (e) {
+    // 1061 = already exists, safe to ignore
+    if (!e.message.includes('Duplicate key name')) {
+      console.warn('[Migration] FULLTEXT index:', e.message);
+    }
+  }
+
   } // end if (isFirstWorker)
 
 }
@@ -648,7 +662,8 @@ async function main() {
   registerCallRoutes(app, ctx);
 
   // Register Signal Protocol key server (X3DH pre-key distribution)
-  registerSignalRoutes(app, ctx);
+  // io passed so group/distribute can emit real-time notifications to recipients
+  registerSignalRoutes(app, ctx, io);
 
   // Register Subscription/PRO purchase routes (Way4Pay + LiqPay)
   registerSubscriptionRoutes(app, ctx);
@@ -682,6 +697,9 @@ async function main() {
 
   // Register Business Mode routes (profile, hours, quick replies, links, auto-reply)
   registerBusinessRoutes(app, ctx);
+
+  // Register Global Search route
+  registerSearchRoutes(app, ctx);
   ctx.handleBusinessAutoReply = handleBusinessAutoReply;
 
   // ── Background cron jobs (premium expiry, story cleanup, notification purge)
@@ -729,29 +747,42 @@ async function main() {
 }
 
 // ── Graceful Shutdown ─────────────────────────────────────────────────────────
-// При SIGTERM/SIGINT (pm2 restart, kill, Docker stop) даём активным соединениям
-// завершиться корректно, закрываем пул БД и HTTP-сервер.
+// Послідовність:
+//   1. server.close() — перестаємо приймати нові HTTP-з'єднання.
+//   2. 30 секунд: даємо відкритим Socket.IO-з'єднанням завершити роботу.
+//   3. Через 30 с примусово відключаємо залишкові сокети → server.close() callback спрацює.
+//   4. Закриваємо пул БД та виходимо з кодом 0.
+//   5. Hard kill через 35 с якщо callback не спрацював.
 function gracefulShutdown(signal) {
-  console.log(`[Shutdown] ${signal} received — closing server gracefully…`);
-  if (server) {
-    server.close(async () => {
-      console.log('[Shutdown] HTTP server closed');
-      try {
-        await ctx.sequelize.close();
-        console.log('[Shutdown] DB pool closed');
-      } catch (e) {
-        console.error('[Shutdown] DB close error:', e.message);
-      }
-      process.exit(0);
-    });
-    // Принудительный выход если за 10 с сервер не закрылся (висящие соединения)
-    setTimeout(() => {
-      console.error('[Shutdown] Forced exit after timeout');
-      process.exit(1);
-    }, 10_000).unref();
-  } else {
+  console.log(`[Shutdown] ${signal} received — draining sockets (30 s max)…`);
+  if (!server) { process.exit(0); return; }
+
+  // Step 1: stop accepting new connections
+  server.close(async () => {
+    console.log('[Shutdown] HTTP server closed');
+    try {
+      await ctx.sequelize.close();
+      console.log('[Shutdown] DB pool closed');
+    } catch (e) {
+      console.error('[Shutdown] DB close error:', e.message);
+    }
     process.exit(0);
-  }
+  });
+
+  // Step 2: after 30 s force-disconnect all remaining Socket.IO clients
+  // This causes their underlying HTTP keep-alive connections to close,
+  // which triggers the server.close() callback above.
+  const drainTimer = setTimeout(() => {
+    console.warn('[Shutdown] 30 s drain timeout — force-disconnecting sockets…');
+    if (io) io.disconnectSockets(true);
+  }, 30_000);
+  drainTimer.unref();
+
+  // Step 3: hard kill fallback at 35 s (in case server.close never resolves)
+  setTimeout(() => {
+    console.error('[Shutdown] Forced exit after 35 s');
+    process.exit(1);
+  }, 35_000).unref();
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
