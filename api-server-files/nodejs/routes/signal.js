@@ -484,7 +484,75 @@ function registerSignalRoutes(app, ctx, io) {
     app.post('/api/node/signal/group/confirm-delivery',      auth, groupConfirmDelivery(ctx));
     app.post('/api/node/signal/group/invalidate-sender-key', auth, groupInvalidateSenderKey(ctx));
 
-    console.log('[Signal] Маршрути зареєстровано: register, bundle, replenish, prekey-count, group/distribute, group/pending-distributions, group/confirm-delivery, group/invalidate-sender-key');
+    // ── E2EE Key Backup (client-side encrypted, server is blind) ─────────────
+    app.post  ('/api/node/signal/key-backup', auth, uploadKeyBackup(ctx));
+    app.get   ('/api/node/signal/key-backup', auth, downloadKeyBackup(ctx));
+    app.delete('/api/node/signal/key-backup', auth, deleteKeyBackup(ctx));
+
+    console.log('[Signal] Routes registered: register, bundle, replenish, prekey-count, group/*, key-backup');
+}
+
+// ─── E2EE Key Backup handlers ─────────────────────────────────────────────────
+// The server stores an opaque encrypted blob.  It cannot decrypt it — only the
+// client who knows the backup password can.  The client uses PBKDF2+AES-256-GCM.
+
+function uploadKeyBackup(ctx) {
+    return async (req, res) => {
+        try {
+            const userId  = req.userId;
+            const { encrypted_payload, salt, iv, version = 1 } = req.body;
+            if (!encrypted_payload || !salt || !iv) {
+                return res.status(400).json({ api_status: 400, error_message: 'encrypted_payload, salt, iv required' });
+            }
+            const now = Math.floor(Date.now() / 1000);
+            const [record, created] = await ctx.wm_key_backups.findOrCreate({
+                where:    { user_id: userId },
+                defaults: { user_id: userId, encrypted_payload, salt, iv, version, created_at: now, updated_at: now },
+            });
+            if (!created) {
+                await record.update({ encrypted_payload, salt, iv, version, updated_at: now });
+            }
+            res.json({ api_status: 200, created, updated_at: now });
+        } catch (e) {
+            console.error('[Signal/key-backup/upload]', e.message);
+            res.status(500).json({ api_status: 500, error_message: e.message });
+        }
+    };
+}
+
+function downloadKeyBackup(ctx) {
+    return async (req, res) => {
+        try {
+            const record = await ctx.wm_key_backups.findOne({ where: { user_id: req.userId }, raw: true });
+            if (!record) return res.json({ api_status: 200, backup: null });
+            res.json({
+                api_status: 200,
+                backup: {
+                    encrypted_payload: record.encrypted_payload,
+                    salt:              record.salt,
+                    iv:                record.iv,
+                    version:           record.version,
+                    created_at:        record.created_at,
+                    updated_at:        record.updated_at,
+                },
+            });
+        } catch (e) {
+            console.error('[Signal/key-backup/download]', e.message);
+            res.status(500).json({ api_status: 500, error_message: e.message });
+        }
+    };
+}
+
+function deleteKeyBackup(ctx) {
+    return async (req, res) => {
+        try {
+            await ctx.wm_key_backups.destroy({ where: { user_id: req.userId } });
+            res.json({ api_status: 200, deleted: true });
+        } catch (e) {
+            console.error('[Signal/key-backup/delete]', e.message);
+            res.status(500).json({ api_status: 500, error_message: e.message });
+        }
+    };
 }
 
 module.exports = { registerSignalRoutes };

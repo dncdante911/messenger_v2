@@ -291,4 +291,57 @@ class SignalKeyStore(private val context: Context) {
 
     /** Internal serialisation model for one-time pre-keys. */
     data class StoredOPK(val id: Int, val priv: String, val pub: String)
+
+    // ─── E2EE Key Backup: export / import ────────────────────────────────────
+
+    /**
+     * Serialise all local private key material to a JSON string suitable for
+     * client-side encryption via [KeyBackupCrypto.encrypt].
+     *
+     * Returns null if the identity key has not been generated yet.
+     */
+    @Synchronized
+    fun exportForBackup(): String? {
+        val ikPriv = prefs.getString(KEY_IK_PRIV, null) ?: return null
+        val data = mapOf(
+            "version"          to 1,
+            "ik_priv"          to ikPriv,
+            "ik_pub"           to (prefs.getString(KEY_IK_PUB,      null) ?: ""),
+            "spk_id"           to prefs.getInt(KEY_SPK_ID, -1),
+            "spk_priv"         to (prefs.getString(KEY_SPK_PRIV,     null) ?: ""),
+            "spk_pub"          to (prefs.getString(KEY_SPK_PUB,      null) ?: ""),
+            "spk_sig"          to (prefs.getString(KEY_SPK_SIG,      null) ?: ""),
+            "opk_pool"         to (prefs.getString(KEY_OPK_POOL,     null) ?: "[]"),
+            "next_opk_id"      to prefs.getInt(KEY_NEXT_OPK_ID, 1),
+            "signal_registered" to prefs.getBoolean(KEY_REGISTERED, false),
+        )
+        return gson.toJson(data)
+    }
+
+    /**
+     * Restore key material from a JSON string previously produced by [exportForBackup].
+     * Overwrites all existing local keys.  Call [clearForDeviceChange] first if needed.
+     */
+    @Synchronized
+    fun importFromBackup(json: String) {
+        @Suppress("UNCHECKED_CAST")
+        val data = gson.fromJson(json, Map::class.java) as Map<String, Any?>
+
+        fun str(key: String)  = data[key] as? String ?: ""
+        fun int(key: String)  = (data[key] as? Number)?.toInt() ?: -1
+        fun bool(key: String) = data[key] as? Boolean ?: false
+
+        prefs.edit()
+            .putString (KEY_IK_PRIV,    str("ik_priv"))
+            .putString (KEY_IK_PUB,     str("ik_pub"))
+            .putInt    (KEY_SPK_ID,     int("spk_id"))
+            .putString (KEY_SPK_PRIV,   str("spk_priv"))
+            .putString (KEY_SPK_PUB,    str("spk_pub"))
+            .putString (KEY_SPK_SIG,    str("spk_sig"))
+            .putString (KEY_OPK_POOL,   str("opk_pool").ifEmpty { "[]" })
+            .putInt    (KEY_NEXT_OPK_ID, int("next_opk_id").coerceAtLeast(1))
+            .putBoolean(KEY_REGISTERED,  bool("signal_registered"))
+            .apply()
+        Log.i(TAG, "Key material restored from backup")
+    }
 }
