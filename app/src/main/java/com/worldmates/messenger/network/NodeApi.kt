@@ -765,6 +765,13 @@ interface NodeApi {
         @Field("username")          username:         String? = null
     ): VerifyCodeResponse
 
+    /** Exchange a refresh token for a new access + refresh token pair. */
+    @FormUrlEncoded
+    @POST("api/node/auth/refresh")
+    suspend fun refreshToken(
+        @Field("refresh_token") refreshToken: String
+    ): TokenRefreshResponse
+
     // ═══════════════════════ BACKUP / CLOUD SETTINGS ═════════════════════════
 
     /** Get cloud backup settings (replaces PHP get_cloud_backup_settings.php). */
@@ -963,11 +970,23 @@ data class NodeSimpleResponse(
 
 /** Response from POST /api/node/auth/login */
 data class NodeLoginResponse(
-    @SerializedName("api_status")   val apiStatus: Int,
-    @SerializedName("access_token") val accessToken: String? = null,
-    @SerializedName("user_id")      val userId: Long? = null,
-    @SerializedName("username")     val username: String? = null,
-    @SerializedName("avatar")       val avatar: String? = null,
+    @SerializedName("api_status")    val apiStatus: Int,
+    @SerializedName("access_token")  val accessToken: String? = null,
+    @SerializedName("refresh_token") val refreshToken: String? = null,
+    @SerializedName("expires_at")    val expiresAt: Long? = null,
+    @SerializedName("user_id")       val userId: Long? = null,
+    @SerializedName("username")      val username: String? = null,
+    @SerializedName("avatar")        val avatar: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/** Response for POST /api/node/auth/refresh */
+data class TokenRefreshResponse(
+    @SerializedName("api_status")    val apiStatus: Int,
+    @SerializedName("access_token")  val accessToken: String? = null,
+    @SerializedName("refresh_token") val refreshToken: String? = null,
+    @SerializedName("expires_at")    val expiresAt: Long? = null,
+    @SerializedName("user_id")       val userId: Long? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 

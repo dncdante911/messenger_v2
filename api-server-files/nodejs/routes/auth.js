@@ -275,16 +275,25 @@ function findUserByLogin(ctx, login) {
     });
 }
 
+// Access token TTL: 30 days; refresh token TTL: 90 days
+const ACCESS_TOKEN_TTL  = 30 * 24 * 3600;
+const REFRESH_TOKEN_TTL = 90 * 24 * 3600;
+
 async function createSession(ctx, userId, platform = 'phone', details = '') {
-    const token = generateToken();
+    const now           = Math.floor(Date.now() / 1000);
+    const token         = generateToken();
+    const refreshToken  = generateToken();
     await ctx.wo_appssessions.create({
-        user_id:          userId,
-        session_id:       token,
+        user_id:            userId,
+        session_id:         token,
         platform,
-        platform_details: details,
-        time:             Math.floor(Date.now() / 1000),
+        platform_details:   details,
+        time:               now,
+        expires_at:         now + ACCESS_TOKEN_TTL,
+        refresh_token:      refreshToken,
+        refresh_expires_at: now + REFRESH_TOKEN_TTL,
     });
-    return token;
+    return { token, refreshToken, expiresAt: now + ACCESS_TOKEN_TTL };
 }
 
 /**
@@ -340,7 +349,7 @@ function login(ctx) {
                 }
             }
 
-            const token = await createSession(ctx, user.user_id, platform, 'login');
+            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, platform, 'login');
 
             ctx.wo_users.update(
                 { lastseen: Math.floor(Date.now() / 1000) },
@@ -352,6 +361,8 @@ function login(ctx) {
             return res.json({
                 api_status:    200,
                 access_token:  token,
+                refresh_token: refreshToken,
+                expires_at:    expiresAt,
                 user_id:       user.user_id,
                 username:      user.username,
                 first_name:    user.first_name,
@@ -623,7 +634,7 @@ function quickVerify(ctx) {
                 return res.json({ api_status: 400, error_message: L.account_not_found_short });
             }
 
-            const token = await createSession(ctx, user.user_id, 'phone', 'quick-auth');
+            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, 'phone', 'quick-auth');
 
             ctx.wo_users.update(
                 { lastseen: Math.floor(Date.now() / 1000) },
@@ -632,15 +643,17 @@ function quickVerify(ctx) {
 
             console.log(`[Auth] Quick-auth OK for user ${user.user_id}`);
             return res.json({
-                api_status:   200,
-                access_token: token,
-                user_id:      user.user_id,
-                username:     user.username,
-                first_name:   user.first_name,
-                last_name:    user.last_name,
-                avatar:       user.avatar,
-                is_new:       result.entry.isNew || false,
-                message:      L.auth_success,
+                api_status:    200,
+                access_token:  token,
+                refresh_token: refreshToken,
+                expires_at:    expiresAt,
+                user_id:       user.user_id,
+                username:      user.username,
+                first_name:    user.first_name,
+                last_name:     user.last_name,
+                avatar:        user.avatar,
+                is_new:        result.entry.isNew || false,
+                message:       L.auth_success,
             });
 
         } catch (err) {
@@ -741,10 +754,12 @@ function register(ctx) {
                 });
             }
 
-            const token = await createSession(ctx, user.user_id, platform, 'register');
+            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, platform, 'register');
             return res.json({
                 api_status:    200,
                 access_token:  token,
+                refresh_token: refreshToken,
+                expires_at:    expiresAt,
                 user_id:       user.user_id,
                 username:      user.username,
                 first_name:    user.first_name,
@@ -852,7 +867,7 @@ function verifyCode(ctx) {
                 );
             }
 
-            const token = await createSession(ctx, user.user_id, 'phone', 'verify');
+            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, 'phone', 'verify');
 
             ctx.wo_users.update(
                 { lastseen: Math.floor(Date.now() / 1000) },
@@ -861,11 +876,13 @@ function verifyCode(ctx) {
 
             console.log(`[Auth] Verification OK for user ${user.user_id}`);
             return res.json({
-                api_status:   200,
-                access_token: token,
-                user_id:      user.user_id,
-                username:     user.username,
-                message:      L.auth_success,
+                api_status:    200,
+                access_token:  token,
+                refresh_token: refreshToken,
+                expires_at:    expiresAt,
+                user_id:       user.user_id,
+                username:      user.username,
+                message:       L.auth_success,
             });
 
         } catch (err) {
@@ -875,11 +892,73 @@ function verifyCode(ctx) {
     };
 }
 
+// ─── POST /api/node/auth/refresh ─────────────────────────────────────────────
+// Rotates the access token using a valid refresh token.
+// Old session is deleted; a brand-new session (with new refresh token) is created.
+// Request body: { refresh_token: "..." }
+// Response: { api_status: 200, access_token, refresh_token, expires_at, user_id }
+
+function refreshToken(ctx) {
+    return async (req, res) => {
+        const incomingRefresh = (
+            req.body.refresh_token ||
+            req.headers['refresh-token'] ||
+            ''
+        ).trim();
+
+        if (!incomingRefresh || incomingRefresh.length < 10) {
+            return res.json({ api_status: 400, error_message: 'refresh_token is required' });
+        }
+
+        try {
+            const now     = Math.floor(Date.now() / 1000);
+            const session = await ctx.wo_appssessions.findOne({
+                where: { refresh_token: incomingRefresh },
+                raw:   true,
+            });
+
+            if (!session) {
+                return res.json({ api_status: 401, error_message: 'Invalid or expired refresh token' });
+            }
+
+            // Refresh token itself has an expiry
+            if (session.refresh_expires_at && session.refresh_expires_at < now) {
+                await ctx.wo_appssessions.destroy({ where: { id: session.id } });
+                return res.json({ api_status: 401, error_message: 'Refresh token has expired, please log in again' });
+            }
+
+            // Rotation: delete old session, issue new access + refresh tokens
+            await ctx.wo_appssessions.destroy({ where: { id: session.id } });
+
+            const { token, refreshToken: newRefresh, expiresAt } = await createSession(
+                ctx,
+                session.user_id,
+                session.platform || 'phone',
+                'token-refresh'
+            );
+
+            console.log(`[Auth] Token refreshed for user ${session.user_id}`);
+            return res.json({
+                api_status:    200,
+                access_token:  token,
+                refresh_token: newRefresh,
+                expires_at:    expiresAt,
+                user_id:       session.user_id,
+            });
+
+        } catch (err) {
+            console.error('[Auth/refresh]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 // ─── Register routes ──────────────────────────────────────────────────────────
 
 function registerAuthRoutes(app, ctx) {
     app.post('/api/node/auth/login',                  login(ctx));
     app.post('/api/node/auth/logout',                 logout(ctx));
+    app.post('/api/node/auth/refresh',                refreshToken(ctx));
     app.post('/api/node/auth/request-password-reset', requestPasswordReset(ctx));
     app.post('/api/node/auth/reset-password',         resetPassword(ctx));
     app.post('/api/node/auth/quick-register',         quickRegister(ctx));
@@ -891,6 +970,7 @@ function registerAuthRoutes(app, ctx) {
     console.log('[Auth] Routes registered:');
     console.log('  POST /api/node/auth/login');
     console.log('  POST /api/node/auth/logout');
+    console.log('  POST /api/node/auth/refresh');
     console.log('  POST /api/node/auth/request-password-reset');
     console.log('  POST /api/node/auth/reset-password');
     console.log('  POST /api/node/auth/quick-register');
