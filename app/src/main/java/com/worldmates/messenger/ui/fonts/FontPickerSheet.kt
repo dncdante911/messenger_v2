@@ -49,7 +49,7 @@ import com.worldmates.messenger.ui.premium.PremiumActivity
 fun FontPickerSheet(
     previewText: String,
     currentStyle: FontStyle = FontStyle.NORMAL,
-    onStyleSelected: (style: FontStyle, styledText: String) -> Unit,
+    onStyleSelected: (style: FontStyle, styledText: String, rawPreview: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -205,7 +205,7 @@ fun FontPickerSheet(
             Button(
                 onClick = {
                     val styledText = FontStyleConverter.convert(localPreview, selected)
-                    onStyleSelected(selected, styledText)
+                    onStyleSelected(selected, styledText, localPreview)
                     onDismiss()
                 },
                 enabled = isPremium || selected == FontStyle.NORMAL,
