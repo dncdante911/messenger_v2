@@ -1262,7 +1262,8 @@
     <string name="forward_selected_count">Вибрано: %d</string>
     <!-- ===== USER PROFILE ===== -->
     <string name="call_user">Зателефонувати</string>
-    <string name="following_status">Ви підписані</string>    <string name="following_count">Підписки</string>
+    <string name="following_status">Ви підписані</string>
+    <string name="following_count">Підписки</string>
     <string name="mutual_friends">Спільних друзів</string>
     <string name="photos">Фото</string>
     <string name="videos">Відео</string>
