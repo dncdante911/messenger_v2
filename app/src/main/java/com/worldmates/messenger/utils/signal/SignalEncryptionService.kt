@@ -222,7 +222,13 @@ class SignalEncryptionService private constructor(
                 val opkKp           = opkId?.let { keyStore.consumeOPK(it) }
 
                 if (opkId != null && opkKp == null) {
-                    Log.w(TAG, "X3DH(Bob) opk_id=$opkId not found locally (already consumed?) — using 3-DH")
+                    // Alice computed 4-DH (with OPK), but we lost the private key.
+                    // 3-DH fallback will ALWAYS produce a different shared secret,
+                    // so don't even try — request session reset immediately.
+                    Log.e(TAG, "X3DH(Bob) opk_id=$opkId not found locally — " +
+                        "cannot match sender's 4-DH; requesting session reset")
+                    onSessionBroken?.invoke(senderId)
+                    return@withLock null
                 }
 
                 // Delete stale session before creating a new one
