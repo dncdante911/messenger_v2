@@ -555,6 +555,18 @@ class SocketManager(
                 }
             }
 
+            // ── Signal: session reset request (peer could not decrypt — re-init X3DH) ──
+            socket?.on("signal:session_reset_request") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data   = args[0] as JSONObject
+                    val peerId = data.optLong("from_user_id", 0L)
+                    if (peerId > 0L && listener is ExtendedSocketListener) {
+                        Log.d(TAG, "signal:session_reset_request from peer $peerId — deleting session")
+                        listener.onSignalSessionResetRequest(peerId)
+                    }
+                }
+            }
+
             // ── Group E2EE: member joined / left (re-distribute / invalidate sender keys) ──
             socket?.on("group:member_joined") { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
@@ -1254,5 +1266,12 @@ class SocketManager(
          * to fetch and process them, then POST /api/node/signal/group/confirm-delivery.
          */
         fun onGroupSignalDistributionsPending(groupId: Long) {}
+        /**
+         * Signal session reset request from [peerId].
+         * The peer could not decrypt a message with their current DR session.
+         * Delete the local session for [peerId] so that the next outgoing message
+         * will include fresh X3DH headers and re-establish E2EE.
+         */
+        fun onSignalSessionResetRequest(peerId: Long) {}
     }
 }

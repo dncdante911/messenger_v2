@@ -462,6 +462,31 @@ async function runMigrations(ctx) {
     console.warn('[Migration] wm_key_backups:', e.message);
   }
 
+  // ── Cloud Backup Settings table (used by /api/node/backup/* routes) ──────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS Wo_UserCloudBackupSettings (
+        id                INT UNSIGNED  NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id           INT           NOT NULL,
+        auto_backup       TINYINT(1)    NOT NULL DEFAULT 1,
+        backup_frequency  VARCHAR(20)   NOT NULL DEFAULT 'weekly',
+        backup_wifi_only  TINYINT(1)    NOT NULL DEFAULT 1,
+        backup_provider   VARCHAR(32)   NOT NULL DEFAULT 'local',
+        include_media     TINYINT(1)    NOT NULL DEFAULT 1,
+        include_messages  TINYINT(1)    NOT NULL DEFAULT 1,
+        include_settings  TINYINT(1)    NOT NULL DEFAULT 1,
+        last_backup_time  BIGINT        DEFAULT NULL,
+        backup_size_bytes BIGINT        DEFAULT NULL,
+        created_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_user_id (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    \`);
+    console.log('[Migration] Wo_UserCloudBackupSettings table ensured');
+  } catch (e) {
+    console.warn('[Migration] Wo_UserCloudBackupSettings:', e.message);
+  }
+
   console.log('[Migration] All background migrations complete');
 }
 

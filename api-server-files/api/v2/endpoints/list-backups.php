@@ -7,6 +7,13 @@ require_once(__DIR__ . '/../config.php');
 
 header('Content-Type: application/json');
 
+// Guard: DB connection must be available
+if (!isset($db) || $db === null) {
+    http_response_code(503);
+    echo json_encode(['api_status' => 503, 'message' => 'Database unavailable']);
+    exit;
+}
+
 // Get access token
 $access_token = $_GET['access_token'] ?? null;
 

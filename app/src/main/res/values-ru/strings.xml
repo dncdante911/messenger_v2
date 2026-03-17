@@ -1116,6 +1116,28 @@
     <string name="update_auto_check">Автопроверка с сервера каждые 30 мин</string>
     <string name="update_available_version">Доступна версия %s</string>
 
+    <!-- App Update Screen -->
+    <string name="update_screen_title">Обновление</string>
+    <string name="update_current_version">Текущая версия</string>
+    <string name="update_latest_version">Последняя версия</string>
+    <string name="update_status_up_to_date">У вас последняя версия</string>
+    <string name="update_status_available">Доступно обновление</string>
+    <string name="update_status_checking">Проверка…</string>
+    <string name="update_status_error">Не удалось проверить</string>
+    <string name="update_check_now">Проверить сейчас</string>
+    <string name="update_download_install">Скачать и установить</string>
+    <string name="update_downloading">Загрузка %d%%</string>
+    <string name="update_ready_to_install">Готово к установке</string>
+    <string name="update_install">Установить</string>
+    <string name="update_published">Опубликовано: %s</string>
+    <string name="update_mandatory_badge">Обязательное</string>
+    <string name="changelog_title">Что нового</string>
+    <string name="changelog_section_added">Добавлено</string>
+    <string name="changelog_section_changed">Изменено</string>
+    <string name="changelog_section_fixed">Исправлено</string>
+    <string name="changelog_section_removed">Удалено</string>
+    <string name="update_no_changelog">Описание изменений отсутствует</string>
+
     <!-- ===== ERRORS ===== -->
     <string name="error_network">Ошибка сети</string>
     <string name="error_login">Ошибка входа</string>
