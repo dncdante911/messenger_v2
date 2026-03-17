@@ -459,7 +459,12 @@ class MessageNotificationService : Service() {
         // Якщо текст довгий і не містить пробілів/пунктуації — скоріше за все зашифрований
         val trimmed = text.trim()
         if (trimmed.length > 20 && !trimmed.contains(" ") && !trimmed.contains("\n")) {
-            val base64Ratio = trimmed.count { it.isLetterOrDigit() || it == '+' || it == '/' || it == '=' }.toFloat() / trimmed.length
+            // Real Base64 uses only 7-bit ASCII chars.
+            // Unicode-styled text (FULLWIDTH letters, SMALL_CAPS, etc.) has non-ASCII
+            // characters that also pass isLetterOrDigit() — require c.code < 128.
+            val base64Ratio = trimmed.count {
+                it.code < 128 && (it.isLetterOrDigit() || it == '+' || it == '/' || it == '=')
+            }.toFloat() / trimmed.length
             if (base64Ratio > 0.95f) return false
         }
         return true

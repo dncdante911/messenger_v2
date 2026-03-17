@@ -121,10 +121,14 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                                         // messages also satisfy result == encryptedText (unchanged),
                                         // so we must distinguish them from real ciphertext.
                                         if (result == encryptedText) {
+                                            // Real Base64 uses only 7-bit ASCII chars.
+                                            // Unicode-styled text (FULLWIDTH, SMALL_CAPS, etc.)
+                                            // contains non-ASCII letters that also pass
+                                            // isLetterOrDigit() — add c.code < 128 guard.
                                             val looksEncrypted = encryptedText.length >= 12 &&
                                                 encryptedText.length % 4 == 0 &&
                                                 encryptedText.all { c ->
-                                                    c.isLetterOrDigit() || c == '+' || c == '/' || c == '='
+                                                    c.code < 128 && (c.isLetterOrDigit() || c == '+' || c == '/' || c == '=')
                                                 }
                                             if (looksEncrypted)
                                                 context.getString(R.string.last_message_encrypted)
