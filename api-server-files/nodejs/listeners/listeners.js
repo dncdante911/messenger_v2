@@ -390,6 +390,19 @@ module.exports.registerListeners = async (socket, io, ctx) => {
     socket.on('live_location_stop', async (data) => {
         LiveLocationController(ctx, data, io, socket, 'live_location_stop');
     });
+    // ── Signal: session reset request ────────────────────────────────────────
+    // Emitted by receiver when AEADBadTagException is thrown (session mismatch).
+    // The server relays it to the target sender so they delete their session
+    // and include X3DH headers on the next message (re-initializing E2EE).
+    socket.on('signal:session_reset_request', async (data) => {
+        const targetUserId = data && data.target_user_id;
+        const fromUserId   = socket.userId;
+        if (!targetUserId || !fromUserId) return;
+        io.to(String(targetUserId)).emit('signal:session_reset_request', {
+            from_user_id: fromUserId,
+        });
+        console.log(`[Signal] Session reset request: user ${fromUserId} → user ${targetUserId}`);
+    });
     // ────────────────────────────────────────────────────────────────────────────
 
     socket.on('disconnect', async (reason) => {

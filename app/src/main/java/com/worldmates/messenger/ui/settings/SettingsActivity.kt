@@ -222,6 +222,24 @@ class SettingsActivity : AppCompatActivity() {
                         )
                         currentScreen = SettingsScreen.Main
                     }
+                    SettingsScreen.AppUpdate -> {
+                        AppUpdateScreen(
+                            viewModel = viewModel,
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
+                    SettingsScreen.Followers -> {
+                        FollowListScreen(
+                            showFollowers = true,
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
+                    SettingsScreen.Following -> {
+                        FollowListScreen(
+                            showFollowers = false,
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
                 }
             }
         }
@@ -248,6 +266,9 @@ sealed class SettingsScreen {
     object DeleteAccount : SettingsScreen()
     object Business : SettingsScreen()
     object KeyBackup : SettingsScreen()
+    object AppUpdate : SettingsScreen()
+    object Followers : SettingsScreen()
+    object Following : SettingsScreen()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -522,7 +543,7 @@ fun SettingsScreen(
                     icon = Icons.Default.People,
                     title = stringResource(R.string.followers_settings),
                     subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
-                    onClick = { /* TODO */ }
+                    onClick = { onNavigate(SettingsScreen.Followers) }
                 )
             }
             item {
@@ -530,7 +551,7 @@ fun SettingsScreen(
                     icon = Icons.Default.PersonAdd,
                     title = stringResource(R.string.following_settings),
                     subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
-                    onClick = { /* TODO */ }
+                    onClick = { onNavigate(SettingsScreen.Following) }
                 )
             }
 
@@ -585,7 +606,7 @@ fun SettingsScreen(
                     icon = Icons.Default.SystemUpdate,
                     title = stringResource(R.string.app_update),
                     subtitle = if (updateState.hasUpdate) stringResource(R.string.update_available_version, updateState.latestVersion ?: "") else stringResource(R.string.update_auto_check),
-                    onClick = { viewModel.checkUpdates(force = true) }
+                    onClick = { onNavigate(SettingsScreen.AppUpdate) }
                 )
             }
             item {

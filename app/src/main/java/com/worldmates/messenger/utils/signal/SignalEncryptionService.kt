@@ -8,6 +8,7 @@ import com.google.gson.reflect.TypeToken
 import com.worldmates.messenger.network.NodeApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.crypto.AEADBadTagException
 
 /**
  * High-level service for Signal Protocol (Double Ratchet) message encryption.
@@ -159,6 +160,13 @@ class SignalEncryptionService private constructor(
      *
      * @return Decrypted plaintext, or null on auth/session failure.
      */
+    /**
+     * Called when the local session for [senderId] is broken (AEADBadTagException).
+     * Emits `signal:session_reset_request` to the sender via Socket.IO so they
+     * delete their session and include X3DH headers on the next message.
+     */
+    var onSessionBroken: ((senderId: Long) -> Unit)? = null
+
     suspend fun decryptIncoming(
         senderId:         Long,
         ciphertextB64:    String,
@@ -234,6 +242,19 @@ class SignalEncryptionService private constructor(
             keyStore.saveSession(senderId, newSession)
             String(plainBytes, Charsets.UTF_8)
 
+        } catch (e: AEADBadTagException) {
+            // ── Session mismatch: the sender's DR state has diverged from ours.
+            // Most common causes: sender reinstalled without triggering identity_changed,
+            // or the session state was corrupted after a DB migration.
+            //
+            // Recover by:
+            //   1. Deleting the broken session (next X3DH message will re-establish).
+            //   2. Notifying the sender to also delete their session so they include
+            //      X3DH headers on the next send, completing the re-handshake.
+            Log.w(TAG, "AEADBadTagException from $senderId — session mismatch, deleting session and requesting reset")
+            keyStore.deleteSession(senderId)
+            onSessionBroken?.invoke(senderId)
+            null
         } catch (e: Exception) {
             Log.e(TAG, "decryptIncoming error from $senderId", e)
             null
@@ -252,6 +273,10 @@ class SignalEncryptionService private constructor(
     /** Returns cached plaintext for [msgId], or null if not cached. */
     suspend fun getCachedDecryptedMessage(msgId: Long): String? =
         keyStore.getCachedDecryptedMessage(msgId)
+
+
+    /** Delete the DR session for [peerId] (used when the peer signals session mismatch). */
+    fun deleteSessionFor(peerId: Long) = keyStore.deleteSession(peerId)
 
     // ─── Pre-key bundle fetch ─────────────────────────────────────────────────
 

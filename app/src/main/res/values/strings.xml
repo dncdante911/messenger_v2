@@ -1150,6 +1150,28 @@
     <string name="update_auto_check">Автоперевірка з сервера кожні 30 хв</string>
     <string name="update_available_version">Доступна версія %s</string>
 
+    <!-- App Update Screen -->
+    <string name="update_screen_title">Оновлення</string>
+    <string name="update_current_version">Поточна версія</string>
+    <string name="update_latest_version">Остання версія</string>
+    <string name="update_status_up_to_date">У вас остання версія</string>
+    <string name="update_status_available">Доступне оновлення</string>
+    <string name="update_status_checking">Перевірка…</string>
+    <string name="update_status_error">Не вдалося перевірити</string>
+    <string name="update_check_now">Перевірити зараз</string>
+    <string name="update_download_install">Завантажити та встановити</string>
+    <string name="update_downloading">Завантаження %d%%</string>
+    <string name="update_ready_to_install">Готово до встановлення</string>
+    <string name="update_install">Встановити</string>
+    <string name="update_published">Опубліковано: %s</string>
+    <string name="update_mandatory_badge">Обов&apos;язкове</string>
+    <string name="changelog_title">Що нового</string>
+    <string name="changelog_section_added">Додано</string>
+    <string name="changelog_section_changed">Змінено</string>
+    <string name="changelog_section_fixed">Виправлено</string>
+    <string name="changelog_section_removed">Видалено</string>
+    <string name="update_no_changelog">Опис змін відсутній</string>
+
     <!-- ===== ERRORS ===== -->
     <string name="error_network">Помилка мережі</string>
     <string name="error_login">Помилка входу</string>
