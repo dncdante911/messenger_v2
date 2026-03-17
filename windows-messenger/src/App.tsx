@@ -346,6 +346,16 @@ export default function App() {
       },
 
       onCallSignal: handleCallSignal,
+
+      onIdentityChanged: (e) => {
+        // Contact reinstalled their app — their old DR session is now invalid.
+        // Clear it here so X3DH is re-run when the next message arrives.
+        if (signalRef.current) {
+          signalRef.current.clearSessionFor(e.user_id);
+          console.info('[Signal] Cleared stale DR session for user', e.user_id,
+            '(they re-registered their identity key)');
+        }
+      },
     });
 
     setSocket(s);

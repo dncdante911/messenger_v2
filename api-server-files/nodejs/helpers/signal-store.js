@@ -33,16 +33,22 @@ async function saveKeyBundle(ctx, userId, bundle) {
         raw:   true,
     });
 
-    const existingPrekeys = existing
+    // Detect identity key change (device change / reinstall)
+    const identityKeyChanged = existing
+        ? (existing.identity_key !== identityKey)
+        : false;
+
+    // OPK merge strategy:
+    //  • Identity key changed → device reinstall; replace pool entirely.
+    //    The old private keys are gone — keeping old OPKs on the server would
+    //    cause every X3DH attempt to fail (wrong DH4 → wrong SK).
+    //  • Same identity key → keep untouched server OPKs (not yet served) and
+    //    append fresh ones from the client batch (replenish case).
+    const existingPrekeys = (existing && !identityKeyChanged)
         ? parsePrekeys(existing.prekeys)
         : [];
 
     const merged = mergePrekeys(existingPrekeys, prekeys);
-
-    // Detect identity key change (device change)
-    const identityKeyChanged = existing
-        ? (existing.identity_key !== identityKey)
-        : false;
 
     if (existing) {
         await ctx.signal_keys.update(

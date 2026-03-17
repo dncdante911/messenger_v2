@@ -22,18 +22,19 @@ import type {
 // ─── Handler map ─────────────────────────────────────────────────────────────
 
 export type SocketHandlers = {
-  onStatus?:        (status: string) => void;
-  onMessage?:       (msg: MessageItem) => void;
-  onGroupMessage?:  (msg: MessageItem & { group_id: number }) => void;
-  onTyping?:        (event: TypingEvent) => void;
-  onTypingDone?:    (event: TypingEvent) => void;
-  onUserAction?:    (event: UserActionEvent) => void;
-  onMessageSeen?:   (event: MessageSeenEvent) => void;
-  onReaction?:      (event: MessageReactionEvent) => void;
-  onPinned?:        (event: MessagePinnedEvent) => void;
-  onUserOnline?:    (event: UserPresenceEvent) => void;
-  onUserOffline?:   (event: UserPresenceEvent) => void;
-  onCallSignal?:    (payload: CallSignalPayload) => void;
+  onStatus?:           (status: string) => void;
+  onMessage?:          (msg: MessageItem) => void;
+  onGroupMessage?:     (msg: MessageItem & { group_id: number }) => void;
+  onTyping?:           (event: TypingEvent) => void;
+  onTypingDone?:       (event: TypingEvent) => void;
+  onUserAction?:       (event: UserActionEvent) => void;
+  onMessageSeen?:      (event: MessageSeenEvent) => void;
+  onReaction?:         (event: MessageReactionEvent) => void;
+  onPinned?:           (event: MessagePinnedEvent) => void;
+  onUserOnline?:       (event: UserPresenceEvent) => void;
+  onUserOffline?:      (event: UserPresenceEvent) => void;
+  onCallSignal?:       (payload: CallSignalPayload) => void;
+  onIdentityChanged?:  (event: { user_id: number }) => void;
 };
 
 export type CallSignalPayload = {
@@ -119,6 +120,14 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
   // ── WebRTC call signals ────────────────────────────────────────────────────
 
   socket.on('call_signal', (payload: CallSignalPayload) => handlers.onCallSignal?.(payload));
+
+  // ── Signal identity change (sender reinstalled / changed device) ───────────
+  // Server emits this when a contact re-registers their Signal keys.
+  // We must clear the stale DR session so X3DH is re-run on the next message.
+
+  socket.on('signal:identity_changed', (data: { user_id: number }) => {
+    handlers.onIdentityChanged?.(data);
+  });
 
   return socket;
 }

@@ -120,7 +120,10 @@ export class SignalService {
   // ─── One-time pre-keys ──────────────────────────────────────────────────────
 
   async generateAndSaveOPKBatch(): Promise<{ id: number; pub: string }[]> {
-    const store = lsGet<StoredOPKStore>(KEY_OPKS) ?? { nextId: 1, keys: [] };
+    // Use a random high starting ID on fresh install so IDs never collide
+    // across re-registrations (server-side mergePrekeys keeps old IDs).
+    const store = lsGet<StoredOPKStore>(KEY_OPKS)
+      ?? { nextId: Math.floor(Math.random() * 900_000) + 100_000, keys: [] };
     const batch: { id: number; pub: string }[] = [];
 
     for (let i = 0; i < OPK_BATCH_SIZE; i++) {
@@ -136,9 +139,16 @@ export class SignalService {
 
   consumeOPK(id: number): X25519KeyPair | null {
     const store = lsGet<StoredOPKStore>(KEY_OPKS);
-    if (!store) return null;
+    if (!store) {
+      console.error('[Signal] consumeOPK: OPK store missing from localStorage (id=%d)', id);
+      return null;
+    }
     const idx = store.keys.findIndex(k => k.id === id);
-    if (idx < 0) return null;
+    if (idx < 0) {
+      const available = store.keys.map(k => k.id);
+      console.error('[Signal] consumeOPK: OPK id=%d not found. Available IDs: [%s]', id, available.join(', '));
+      return null;
+    }
     const [opk] = store.keys.splice(idx, 1);
     lsSet(KEY_OPKS, store);
     return { privateKeyRaw: b64Decode(opk.priv), publicKeyRaw: b64Decode(opk.pub) };
@@ -173,6 +183,30 @@ export class SignalService {
   setRegistered(v: boolean): void {
     if (v) localStorage.setItem(KEY_REGISTERED, '1');
     else   localStorage.removeItem(KEY_REGISTERED);
+  }
+
+  /** Clear ALL Signal state so next app start triggers a full re-registration.
+   *  Call this when OPK mismatch is detected or identity key becomes invalid. */
+  clearAllSignalState(): void {
+    localStorage.removeItem(KEY_REGISTERED);
+    localStorage.removeItem(KEY_IK);
+    localStorage.removeItem(KEY_SPK);
+    localStorage.removeItem(KEY_OPKS);
+    // Remove all sessions
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('wm_signal_session_') || k.startsWith('wm_signal_cache_'))) {
+        localStorage.removeItem(k);
+        i--;
+      }
+    }
+    console.info('[Signal] All Signal state cleared — will re-register on next launch');
+  }
+
+  /** Clear the DR session for a specific user (e.g. when they change device). */
+  clearSessionFor(userId: number): void {
+    this.deleteSession(userId);
+    console.info('[Signal] Cleared DR session for user', userId);
   }
 
   // ─── Plaintext cache ────────────────────────────────────────────────────────
@@ -299,11 +333,20 @@ export class SignalService {
         const spkKP: X25519KeyPair = storedToKP(spk.kp);
         const opkKP = opkId !== null ? this.consumeOPK(opkId) : null;
 
+        if (opkId !== null && opkKP === null) {
+          console.error('[Signal] X3DH(Bob): opk_id=%d not found in localStorage — ' +
+            'SK will differ from sender (wrong DH4). This usually means the OPK store ' +
+            'was cleared after registration. Clear Signal state and re-register to fix.',
+            opkId);
+        }
+
         if (this.hasSession(senderId)) {
           this.deleteSession(senderId);
           console.info('[Signal] X3DH(Bob) clearing stale session for', senderId);
         }
 
+        console.info('[Signal] X3DH(Bob) for sender=%d opk_id=%s opk_found=%s',
+          senderId, opkId, opkKP !== null);
         const [sk, ad] = await x3dhBob(ik, spkKP, opkKP, ikAPub, ekAPub);
         const session  = initBobSession(sk, ad, spkKP, ekAPub, senderId);
         this.saveSession(senderId, session);
