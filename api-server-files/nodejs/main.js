@@ -481,7 +481,7 @@ async function runMigrations(ctx) {
         updated_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY uq_user_id (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    \`);
+    `);
     console.log('[Migration] Wo_UserCloudBackupSettings table ensured');
   } catch (e) {
     console.warn('[Migration] Wo_UserCloudBackupSettings:', e.message);
