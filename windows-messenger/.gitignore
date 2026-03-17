@@ -1,5 +1,3 @@
-
-# Windows messenger
-windows-messenger/node_modules/
-windows-messenger/release/
-windows-messenger/dist/
+node_modules/
+release/
+dist/
