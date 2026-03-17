@@ -497,6 +497,30 @@ body {
 .load-more:hover { background: var(--bg-hover); color: var(--text); }
 
 .messages-loading { display: flex; justify-content: center; padding: 20px; }
+
+.msg-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: var(--text-2);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+.retry-btn {
+  padding: 6px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-max);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: opacity .15s;
+}
+.retry-btn:hover { opacity: .85; }
 .spinner {
   width: 24px; height: 24px;
   border: 2px solid var(--border);

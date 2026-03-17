@@ -50,10 +50,10 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
   const socket = io(SOCKET_URL, {
     transports:           ['websocket', 'polling'],
     auth:                 { token },
-    reconnectionAttempts: 5,
-    reconnectionDelay:    3000,
-    reconnectionDelayMax: 10000,
-    timeout:              20000
+    reconnectionAttempts: 3,
+    reconnectionDelay:    5000,
+    reconnectionDelayMax: 15000,
+    timeout:              15000
   });
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
