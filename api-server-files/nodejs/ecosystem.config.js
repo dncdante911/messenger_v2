@@ -16,7 +16,7 @@ module.exports = {
     // как предыдущий прислал process.send('ready') из server.listen().
     // Это устраняет гонку при одновременном запуске 18 воркеров на порт 449.
     wait_ready: true,
-    listen_timeout: 10000,   // ждём ready-сигнала не более 10 с
+    listen_timeout: 60000,   // 60 s — enough for worker 0 migrations on first deploy
     kill_timeout: 5000,       // даём 5 с на graceful shutdown (SIGTERM → SIGKILL)
 
     max_memory_restart: '1G',
