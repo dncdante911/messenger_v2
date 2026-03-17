@@ -1228,7 +1228,8 @@
     <string name="forward_selected_count">Выбрано: %d</string>
     <!-- ===== USER PROFILE ===== -->
     <string name="call_user">Позвонить</string>
-    <string name="following_status">Вы подписаны</string>    <string name="following_count">Подписки</string>
+    <string name="following_status">Вы подписаны</string>
+    <string name="following_count">Подписки</string>
     <string name="mutual_friends">Общих друзей</string>
     <string name="photos">Фото</string>
     <string name="videos">Видео</string>
