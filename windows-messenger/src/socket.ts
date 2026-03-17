@@ -56,6 +56,10 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
     timeout:              15000
   });
 
+  socket.on('connect_error', (err: Error) => {
+    handlers.onStatus?.(`Connection error: ${err.message}`);
+  });
+
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   socket.on('connect', () => {
@@ -65,10 +69,6 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
 
   socket.on('disconnect', (reason: string) => {
     handlers.onStatus?.(`Disconnected (${reason})`);
-  });
-
-  socket.on('connect_error', (err: Error) => {
-    handlers.onStatus?.(`Connection error: ${err.message}`);
   });
 
   socket.on('reconnect', (attempt: number) => {

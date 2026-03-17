@@ -4,31 +4,37 @@ const https = require('node:https');
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
-// Use https.request (HTTP/1.1) instead of fetch/undici which may attempt
-// HTTP/2 or have TLS negotiation issues with worldmates.club:449.
-// A new agent per request (keepAlive: false) avoids ECONNRESET from
-// the server closing pooled connections prematurely.
-ipcMain.handle('wm:request', (_event, payload) => {
+// Two endpoints to try in order.
+// When connecting via raw IP, we still need:
+//   - Host header = worldmates.club  (HTTP virtual-host routing)
+//   - servername  = worldmates.club  (TLS SNI so the cert matches)
+const WM_ENDPOINTS = [
+  { host: 'worldmates.club', sni: null          },   // primary (DNS)
+  { host: '46.232.232.38',   sni: 'worldmates.club' } // IP fallback
+];
+
+// Connection errors that warrant trying the next endpoint
+const RETRY_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'UND_ERR_SOCKET']);
+
+function requestVia(endpoint, url, method, headers, body) {
   return new Promise((resolve, reject) => {
-    let url;
-    try { url = new URL(payload.url); } catch (e) { return reject(e); }
+    const reqHeaders = Object.assign({}, headers);
+    if (endpoint.sni) reqHeaders['Host'] = url.hostname;   // force correct Host for IP routing
+    if (body) reqHeaders['Content-Length'] = Buffer.byteLength(body, 'utf8').toString();
 
-    const body    = payload.body != null ? String(payload.body) : null;
-    const headers = Object.assign({}, payload.headers ?? {});
-
-    if (body) {
-      headers['Content-Length'] = Buffer.byteLength(body, 'utf8').toString();
-    }
-
-    const agent = new https.Agent({ keepAlive: false, rejectUnauthorized: false });
+    const agent = new https.Agent({
+      keepAlive: false,
+      rejectUnauthorized: false,
+      ...(endpoint.sni ? { servername: endpoint.sni } : {})
+    });
 
     const req = https.request(
       {
-        hostname: url.hostname,
+        hostname: endpoint.host,
         port:     parseInt(url.port) || 443,
         path:     url.pathname + url.search,
-        method:   payload.method ?? 'GET',
-        headers,
+        method,
+        headers:  reqHeaders,
         agent
       },
       (res) => {
@@ -41,11 +47,35 @@ ipcMain.handle('wm:request', (_event, payload) => {
         res.on('error', reject);
       }
     );
-
     req.on('error', reject);
     if (body) req.write(body);
     req.end();
   });
+}
+
+ipcMain.handle('wm:request', async (_event, payload) => {
+  let url;
+  try { url = new URL(payload.url); } catch (e) { throw e; }
+
+  const method = payload.method ?? 'GET';
+  const headers = payload.headers ?? {};
+  const body = payload.body != null ? String(payload.body) : null;
+
+  let lastErr;
+  for (const endpoint of WM_ENDPOINTS) {
+    try {
+      return await requestVia(endpoint, url, method, headers, body);
+    } catch (e) {
+      const code = e.code ?? '';
+      console.error(`[wm:request] ${endpoint.host}:${url.port} → ${code || e.message}`);
+      if (RETRY_CODES.has(code)) {
+        lastErr = e;
+        continue; // try next endpoint
+      }
+      throw e; // non-connection error (e.g. bad JSON) — don't retry
+    }
+  }
+  throw lastErr;
 });
 
 function createWindow() {
