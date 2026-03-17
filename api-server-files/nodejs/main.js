@@ -50,6 +50,7 @@ const { registerStickerRoutes }      = require('./routes/stickers')
 const { registerBusinessRoutes, handleBusinessAutoReply } = require('./routes/business')
 const { registerSearchRoutes }       = require('./routes/search/index')
 const { startCronJobs }              = require('./jobs/cronJobs')
+const { createGeoblockMiddleware }   = require('./middleware/geoblock')
 
 // Worker 0 is the "primary" worker: runs migrations, cron jobs, background
 // sweepers, WallyBot, and the scheduled-messages scheduler so these run
@@ -475,6 +476,13 @@ async function main() {
   app.use(express.json());
   // Middleware для парсинга application/x-www-form-urlencoded (Retrofit @FormUrlEncoded)
   app.use(express.urlencoded({ extended: true }));
+
+  // ── Geo-blocking (санкційні країни / hostile countries) ──────────────────────
+  // Блокує RU, BY, IR, IQ, KP, CN на рівні IP через geoip-lite (офлайн DB).
+  // GEOBLOCK_ENABLED=false — вимкнути (для dev-середовища)
+  // GEOBLOCK_EXTRA_COUNTRIES=SY,VE — додати країни
+  // GEOBLOCK_WHITELIST_IPS=1.2.3.4 — пропустити конкретні IP
+  app.use(createGeoblockMiddleware());
 
   // ── Rate Limiting ────────────────────────────────────────────────────────────
   // Global limit: 300 req / min per IP. Covers all /api/* endpoints.
