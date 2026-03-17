@@ -9,6 +9,7 @@ import {
   sendMessage, sendMessageWithMedia, TURN_FALLBACK
 } from './api';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
+import { signalSelfTest } from './signal';
 import {
   createChatSocket, emitChatClose, emitChatOpen, emitCallSignal,
   emitTyping, type CallSignalPayload
@@ -279,6 +280,10 @@ export default function App() {
     if (!session) { signalRef.current = null; return; }
     const svc = SignalService.getInstance(createNodeApiShim(session.token));
     signalRef.current = svc;
+    // Run crypto self-test on first login to catch any broken primitives early
+    signalSelfTest().then(ok => {
+      if (!ok) console.error('[Signal] CRYPTO SELF-TEST FAILED — decryption will not work in this environment!');
+    });
     svc.ensureRegistered().catch(console.error);
   }, [session]);
 

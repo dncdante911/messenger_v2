@@ -478,3 +478,56 @@ function arrayEqual(a: Uint8Array, b: Uint8Array): boolean {
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
 }
+
+// ─── Self-test ────────────────────────────────────────────────────────────────
+// Verifies the full X3DH + DR roundtrip works in this JS environment.
+// Call from the browser console: import('./signal').then(m => m.signalSelfTest())
+// Expected output: "[Signal-test] PASS" — if you see FAIL the crypto primitives
+// are broken in this environment and decryption of any message will fail.
+
+export async function signalSelfTest(): Promise<boolean> {
+  try {
+    // ── Key generation ──────────────────────────────────────────────────────
+    const ikA  = generateKeyPair();
+    const ikB  = generateKeyPair();
+    const spkB = generateKeyPair();
+    const opkB = generateKeyPair();
+    const ekA  = generateKeyPair();
+
+    // ── X3DH ────────────────────────────────────────────────────────────────
+    const [skAlice, adAlice] = await x3dhAlice(ikA, ikB.publicKeyRaw, spkB.publicKeyRaw, opkB.publicKeyRaw, ekA);
+    const [skBob,   adBob  ] = await x3dhBob  (ikB, spkB, opkB, ikA.publicKeyRaw, ekA.publicKeyRaw);
+
+    if (!arrayEqual(skAlice, skBob))   { console.error('[Signal-test] FAIL: SK mismatch');   return false; }
+    if (!arrayEqual(adAlice, adBob))   { console.error('[Signal-test] FAIL: AD mismatch');   return false; }
+
+    // ── Session init ─────────────────────────────────────────────────────────
+    const aliceSession = await initAliceSession(skAlice, adAlice, spkB.publicKeyRaw, 99);
+    const bobSession   = initBobSession        (skBob,   adBob,   spkB, ekA.publicKeyRaw, 99);
+
+    // ── Alice → Bob (first message, triggers Bob DH ratchet step) ───────────
+    const plaintext1 = new TextEncoder().encode('Hello Bob!');
+    const [aliceS2, encMsg1] = await ratchetEncrypt(aliceSession, plaintext1);
+    const [bobS2, decBytes1] = await ratchetDecrypt(bobSession, encMsg1);
+    const decText1 = new TextDecoder().decode(decBytes1);
+    if (decText1 !== 'Hello Bob!') { console.error('[Signal-test] FAIL: msg1 mismatch:', decText1); return false; }
+
+    // ── Alice → Bob (second message, same DH ratchet chain) ─────────────────
+    const plaintext2 = new TextEncoder().encode('Second message');
+    const [aliceS3, encMsg2] = await ratchetEncrypt(aliceS2, plaintext2);
+    const [bobS3, decBytes2] = await ratchetDecrypt(bobS2, encMsg2);
+    if (new TextDecoder().decode(decBytes2) !== 'Second message') { console.error('[Signal-test] FAIL: msg2'); return false; }
+
+    // ── Bob → Alice (triggers Alice DH ratchet step) ─────────────────────────
+    const plaintext3 = new TextEncoder().encode('Reply from Bob');
+    const [bobS4, encMsg3] = await ratchetEncrypt(bobS3, plaintext3);
+    const [, decBytes3] = await ratchetDecrypt(aliceS3, encMsg3);
+    if (new TextDecoder().decode(decBytes3) !== 'Reply from Bob') { console.error('[Signal-test] FAIL: msg3'); return false; }
+
+    console.info('[Signal-test] PASS — X3DH + DR roundtrip OK (3 messages)');
+    return true;
+  } catch (e) {
+    console.error('[Signal-test] FAIL with exception:', e);
+    return false;
+  }
+}

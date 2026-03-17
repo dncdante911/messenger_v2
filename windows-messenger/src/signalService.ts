@@ -370,7 +370,9 @@ export class SignalService {
       this.saveSession(senderId, newSession);
       return new TextDecoder().decode(plainBytes);
     } catch (e) {
-      console.error('[Signal] decryptIncoming error from', senderId, e);
+      const errMsg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      console.error('[Signal] decryptIncoming FAILED from sender=%d: %s', senderId, errMsg);
+      console.error('[Signal] Full error:', e);
       return null;
     }
   }
