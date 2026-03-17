@@ -399,8 +399,11 @@ body {
 .settings-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-2); padding: 10px 14px 6px; }
 .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; border-top: 1px solid var(--border-light); font-size: 13px; }
 .badge-green { background: rgba(63,185,80,.15); color: var(--success); border: 1px solid rgba(63,185,80,.3); border-radius: var(--r-max); padding: 2px 8px; font-size: 11px; font-weight: 500; }
-.btn-danger { height: 38px; background: rgba(248,81,73,.1); color: var(--danger); border: 1px solid rgba(248,81,73,.3); border-radius: var(--r-sm); cursor: pointer; font-size: 13px; transition: all .15s; }
-.btn-danger:hover { background: rgba(248,81,73,.2); }
+.btn-danger  { height: 38px; background: rgba(248,81,73,.1);  color: var(--danger);  border: 1px solid rgba(248,81,73,.3);  border-radius: var(--r-sm); cursor: pointer; font-size: 13px; transition: all .15s; }
+.btn-danger:hover  { background: rgba(248,81,73,.2); }
+.btn-warning { height: 38px; background: rgba(255,166,0,.12); color: #e09000;        border: 1px solid rgba(255,166,0,.35); border-radius: var(--r-sm); cursor: pointer; font-size: 13px; transition: all .15s; padding: 0 14px; }
+.btn-warning:hover { background: rgba(255,166,0,.22); }
+.badge-red { background: rgba(248,81,73,.15); color: var(--danger); border: 1px solid rgba(248,81,73,.3); border-radius: var(--r-max); padding: 2px 8px; font-size: 11px; font-weight: 500; }
 
 /* ─── Avatar component ───────────────────────────────────────────────────────── */
 .avatar-wrap  { position: relative; flex-shrink: 0; }

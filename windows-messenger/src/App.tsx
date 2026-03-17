@@ -521,6 +521,23 @@ export default function App() {
     setStories([]);
   }
 
+  /** Reset ALL Signal E2EE state: clears keys + sessions from localStorage,
+   *  then reloads so the app re-registers with a brand-new identity key.
+   *  The server detects the new key and emits signal:identity_changed to all
+   *  contacts — they will clear stale DR sessions and resend X3DH on their
+   *  next message, which Windows can then decrypt correctly. */
+  function resetSignalState() {
+    if (!signalRef.current) return;
+    signalRef.current.clearAllSignalState();
+    SignalService.resetInstance();
+    // Re-register immediately with new keys
+    const svc = SignalService.getInstance(createNodeApiShim(session!.token));
+    signalRef.current = svc;
+    svc.ensureRegistered()
+      .then(() => console.error('[Signal] Re-registration complete — contacts will receive signal:identity_changed'))
+      .catch(console.error);
+  }
+
   // ─── Send message ─────────────────────────────────────────────────────────
 
   async function handleSend(e?: FormEvent) {
@@ -1043,7 +1060,29 @@ export default function App() {
               </div>
               <div className="settings-row">
                 <span>Keys registered</span>
-                <span className="badge-green">✓</span>
+                <span className={signalRef.current?.isRegistered() ? 'badge-green' : 'badge-red'}>
+                  {signalRef.current?.isRegistered() ? '✓ Active' : '✗ Not registered'}
+                </span>
+              </div>
+              <div className="settings-row">
+                <span>OPKs in store</span>
+                <span>{signalRef.current?.opkCount() ?? 0}</span>
+              </div>
+              <div className="settings-row" style={{flexDirection:'column',alignItems:'flex-start',gap:6}}>
+                <span style={{fontSize:12,color:'var(--text-secondary)'}}>
+                  If messages show as 🔒 encrypted, tap Reset to force a fresh key exchange with all contacts.
+                </span>
+                <button
+                  className="btn-warning"
+                  style={{marginTop:4}}
+                  onClick={() => {
+                    if (window.confirm('Reset Signal E2EE keys?\n\nThis generates new keys and forces all contacts to restart the encrypted session. Messages already received will remain undecryptable.')) {
+                      resetSignalState();
+                    }
+                  }}
+                >
+                  Reset Signal E2EE keys
+                </button>
               </div>
             </div>
             <div className="settings-section">

@@ -524,7 +524,7 @@ export async function signalSelfTest(): Promise<boolean> {
     const [, decBytes3] = await ratchetDecrypt(aliceS3, encMsg3);
     if (new TextDecoder().decode(decBytes3) !== 'Reply from Bob') { console.error('[Signal-test] FAIL: msg3'); return false; }
 
-    console.info('[Signal-test] PASS — X3DH + DR roundtrip OK (3 messages)');
+    console.error('[Signal-test] PASS — X3DH + DR roundtrip OK (3 messages)');
     return true;
   } catch (e) {
     console.error('[Signal-test] FAIL with exception:', e);
