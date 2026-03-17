@@ -227,11 +227,19 @@ export type GenericListResponse<T> = {
 };
 
 export type MediaUploadResponse = {
-  api_status: string;
+  api_status?: string;
+  status?:     number;
+  // Kotlin XhrUploadResponse fields
+  image?: string;    image_src?: string;
+  video?: string;    video_src?: string;
+  audio?: string;    audio_src?: string;
+  file?:  string;    file_src?:  string;
+  // Generic fallbacks
   filename?: string;
   media?: string;
   url?: string;
   message?: string;
+  error?: string;
 };
 
 // ─── Node.js API response wrappers ────────────────────────────────────────────

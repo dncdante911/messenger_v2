@@ -1,10 +1,10 @@
 /**
- * WorldMates API client — dual-tier:
- *   Tier 1  PHP  REST API  (v2, legacy)     → https://worldmates.club/api/v2/
- *   Tier 2  Node.js REST API (primary)      → https://worldmates.club:449/
+ * WorldMates API client — Node.js REST API only (port 449).
  *
- * All auth uses Bearer-style "access-token" header for the Node API, and
- * server_key + access_token query params for the PHP API.
+ * Mirrors the Kotlin/Android client exactly:
+ *   - All POST requests are application/x-www-form-urlencoded  (@FormUrlEncoded)
+ *   - Auth header: "access-token: <token>"
+ *   - No PHP API, no Windows API fallbacks
  */
 
 import type {
@@ -17,45 +17,19 @@ import type {
   MediaUploadResponse,
   MessageItem,
   MessagesResponse,
-  NodeChatsResponse,
-  NodeGroupsResponse,
-  NodeMessagesResponse,
-  NodeChannelsResponse,
-  NodeStoriesResponse,
-  SignalBundleResponse,
   StoryItem
 } from './types';
 import type { NodeApiShim, PreKeyBundle } from './signalService';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-export const API_BASE_URL       = 'https://worldmates.club/api/v2/';
-export const NODE_BASE_URL      = 'https://worldmates.club:449';
-export const SOCKET_URL         = 'https://worldmates.club:449/';
-export const REGISTER_PATH      = 'https://worldmates.club/phone/register_user.php?type=user_registration';
-export const WINDOWS_APP_BASE_URL = 'https://worldmates.club/api/windows_app/';
-
-export const SITE_ENCRYPT_KEY   = '2ad9c757daccdfff436dc226779e20b719f6d6f8';
-export const SERVER_KEY         = 'a8975daa76d7197ab87412b096696bb0e341eb4d-9bb411ab89d8a290362726fca6129e76-81746510';
-
-const ENDPOINTS = {
-  auth:               '?type=auth',
-  chats:              '?type=get_chats',
-  messages:           '?type=get_user_messages',
-  sendMessage:        '?type=send-message',
-  sendMessageLegacy:  '?type=send_message',
-  uploadMedia:        '?type=upload_media',
-  groups:             '/api/v2/group_chat_v2.php',
-  channels:           '/api/v2/channels.php',
-  stories:            '/api/v2/endpoints/get-stories.php',
-  createStory:        '/api/v2/endpoints/create-story.php',
-  iceServers:         '/api/ice-servers/',
-
-  windowsLogin:       'login.php?type=user_login',
-  windowsUsersList:   'get_users_list.php?type=get_users_list',
-  windowsMessages:    'get_user_messages.php?type=get_user_messages',
-  windowsInsertMsg:   'insert_new_message.php?type=insert_new_message'
-};
+export const API_BASE_URL         = 'https://worldmates.club/api/v2/'; // kept for compat
+export const NODE_BASE_URL        = 'https://worldmates.club:449';
+export const SOCKET_URL           = 'https://worldmates.club:449/';
+export const REGISTER_PATH        = '';
+export const WINDOWS_APP_BASE_URL = '';
+export const SITE_ENCRYPT_KEY     = '2ad9c757daccdfff436dc226779e20b719f6d6f8';
+export const SERVER_KEY           = '';
 
 export const TURN_FALLBACK: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -101,69 +75,34 @@ async function parseJson<T>(text: string): Promise<T> {
   catch { throw new Error(`Non-JSON response: ${text.slice(0, 200)}`); }
 }
 
-// ─── PHP API helpers ──────────────────────────────────────────────────────────
+// ─── Node.js API helpers (form-encoded, matching Kotlin @FormUrlEncoded) ──────
 
-function v2Url(endpoint: string, token?: string): string {
-  const url = new URL(`${API_BASE_URL}${endpoint}`.replace('/api/v2//api/v2/', '/api/v2/'));
-  url.searchParams.set('s', SITE_ENCRYPT_KEY);
-  if (token) url.searchParams.set('access_token', token);
-  return url.toString();
-}
-
-function absUrl(path: string, token?: string): string {
-  const url = new URL(`https://worldmates.club${path}`);
-  url.searchParams.set('s', SITE_ENCRYPT_KEY);
-  if (token) url.searchParams.set('access_token', token);
-  return url.toString();
-}
-
-function winUrl(endpoint: string): string {
-  return `${WINDOWS_APP_BASE_URL}${endpoint}`;
-}
-
-function phpBody(payload: Record<string, unknown>): URLSearchParams {
-  const body = new URLSearchParams();
-  body.set('server_key', SERVER_KEY);
-  for (const [k, v] of Object.entries(payload)) body.set(k, String(v ?? ''));
-  return body;
-}
-
-async function phpPost<T>(url: string, data: Record<string, unknown>): Promise<T> {
-  const text = await doRequest(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-    body: phpBody(data).toString()
-  });
-  return parseJson<T>(text);
-}
-
-// ─── Node.js API helpers ──────────────────────────────────────────────────────
-
-function nodeHeaders(token: string): Record<string, string> {
-  return { 'access-token': token, 'Content-Type': 'application/json' };
+function buildForm(data: Record<string, unknown>): string {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== undefined && v !== null) p.set(k, String(v));
+  }
+  return p.toString();
 }
 
 async function nodePost<T>(path: string, token: string, data: Record<string, unknown>): Promise<T> {
   const text = await doRequest(`${NODE_BASE_URL}${path}`, {
     method:  'POST',
-    headers: nodeHeaders(token),
-    body:    JSON.stringify(data)
+    headers: { 'access-token': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    buildForm(data)
   });
   return parseJson<T>(text);
 }
 
 async function nodeGet<T>(path: string, token: string): Promise<T> {
-  const ipc = window.desktopApp?.request;
-  if (ipc) {
-    const result = await ipc({ url: `${NODE_BASE_URL}${path}`, method: 'GET', headers: nodeHeaders(token) });
-    return parseJson<T>(result.text);
-  }
-  const res  = await fetch(`${NODE_BASE_URL}${path}`, { headers: nodeHeaders(token) });
-  const text = await res.text();
+  const text = await doRequest(`${NODE_BASE_URL}${path}`, {
+    method:  'GET',
+    headers: { 'access-token': token }
+  });
   return parseJson<T>(text);
 }
 
-// ─── Normalisers ──────────────────────────────────────────────────────────────
+// ─── Normalizers ──────────────────────────────────────────────────────────────
 
 function toStr(v: unknown, fb = ''): string {
   if (v == null) return fb;
@@ -178,59 +117,84 @@ function normaliseAuth(p: Record<string, unknown>): AuthResponse {
     api_status:   String(p.api_status ?? ''),
     access_token: p.access_token as string | undefined,
     user_id:      p.user_id ? Number(p.user_id) : undefined,
-    message:      toStr((p.message ?? p.messages ?? (p.errors as Record<string, unknown>)?.error_text) as unknown)
+    message:      toStr(p.message ?? p.error_message ?? p.messages)
+  };
+}
+
+/**
+ * Normalise a single raw message object.
+ * For Signal (cipher_version=3) the server stores the ciphertext in the `text`
+ * field, so we move it to `text_encrypted` and clear `text` so the UI doesn't
+ * show the raw base64 blob.
+ */
+function normaliseMessage(m: Record<string, unknown>): MessageItem {
+  const cipherV   = m.cipher_version ? Number(m.cipher_version) : undefined;
+  const rawText   = toStr(m.decrypted_text ?? m.text ?? m.or_text, '');
+  const isSignal  = cipherV === 3;
+
+  return {
+    id:             Number(m.id),
+    from_id:        Number(m.from_id),
+    to_id:          Number(m.to_id),
+    // For Signal, rawText is the base64 ciphertext — hide it from display
+    text:           isSignal ? '' : rawText,
+    time_text:      toStr(m.time_text ?? m.time, ''),
+    time:           m.time ? Number(m.time) : undefined,
+    media:          m.media ? toStr(m.media) : undefined,
+    media_type:     m.media_type as MessageItem['media_type'],
+    media_filename: m.media_file_name as string | undefined,
+    reply_to:       m.reply as MessageItem['reply_to'],
+    reactions:      m.reactions as MessageItem['reactions'],
+    is_edited:      Boolean(m.is_edited),
+    is_seen:        Boolean(m.is_read ?? m.seen ?? m.is_seen),
+    cipher_version: cipherV,
+    // Signal ciphertext: may be in 'text_encrypted' (old format) or 'text' (Kotlin)
+    text_encrypted: isSignal ? (m.text_encrypted as string | undefined ?? rawText) || undefined : undefined,
+    iv:             m.iv as string | undefined,
+    tag:            m.tag as string | undefined,
+    signal_header:  m.signal_header as string | undefined
   };
 }
 
 function normaliseMessages(payload: Record<string, unknown>): MessagesResponse {
   const arr = (payload.messages ?? []) as Record<string, unknown>[];
-  const messages: MessageItem[] = Array.isArray(arr) ? arr.map(m => ({
-    id:             Number(m.id),
-    from_id:        Number(m.from_id),
-    to_id:          Number(m.to_id),
-    text:           toStr(m.decrypted_text ?? m.text ?? m.or_text, ''),
-    time_text:      toStr(m.time_text ?? m.time, ''),
-    time:           m.time ? Number(m.time) : undefined,
-    media:          m.media ? toStr(m.media) : undefined,
-    media_type:     m.media_type as MessageItem['media_type'],
-    reply_to:       m.reply as MessageItem['reply_to'],
-    reactions:      m.reactions as MessageItem['reactions'],
-    is_edited:      Boolean(m.is_edited),
-    is_seen:        Boolean(m.seen),
-    cipher_version: m.cipher_version ? Number(m.cipher_version) : undefined,
-    text_encrypted: m.text_encrypted as string | undefined,
-    iv:             m.iv as string | undefined,
-    tag:            m.tag as string | undefined,
-    signal_header:  m.signal_header as string | undefined
-  })) : [];
-  return { api_status: String(payload.api_status ?? '200'), messages };
+  return {
+    api_status: String(payload.api_status ?? '200'),
+    messages:   Array.isArray(arr) ? arr.map(normaliseMessage) : []
+  };
+}
+
+/** Extract last-message preview from the chat list item's last_message (object or string). */
+function lastMsgPreview(raw: unknown): string {
+  if (!raw) return '';
+  if (typeof raw === 'object') {
+    const m  = raw as Record<string, unknown>;
+    const cv = m.cipher_version ? Number(m.cipher_version) : 0;
+    if (cv === 3) return '🔒 Encrypted message';
+    return toStr(m.decrypted_text ?? m.text, '');
+  }
+  return toStr(raw, '');
+}
+
+function normaliseChatItem(m: Record<string, unknown>): ChatItem {
+  const nameStr = toStr(
+    m.name ?? m.username ?? `${m.first_name ?? ''} ${m.last_name ?? ''}`.trim(),
+    'User'
+  );
+  return {
+    user_id:      Number(m.user_id ?? m.id),
+    name:         nameStr,
+    avatar:       m.avatar as string | undefined,
+    last_message: lastMsgPreview(m.last_message),
+    time:         m.last_activity ? String(m.last_activity) : toStr(m.lastseen ?? m.time, '')
+  };
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function login(username: string, password: string): Promise<AuthResponse> {
-  // Try Node.js API first
-  try {
-    const resp = await nodePost<Record<string, unknown>>('/api/node/auth/login', '', {
-      username, password, device_type: 'windows'
-    });
-    const norm = normaliseAuth(resp);
-    if (norm.api_status === '200' && norm.access_token) return norm;
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  // PHP v2 API
-  try {
-    const resp = await phpPost<Record<string, unknown>>(
-      v2Url(ENDPOINTS.auth),
-      { username, password, device_type: 'windows' }
-    );
-    const norm = normaliseAuth(resp);
-    if (norm.api_status === '200' && norm.access_token) return norm;
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  // Windows API fallback
-  const resp = await phpPost<Record<string, unknown>>(winUrl(ENDPOINTS.windowsLogin), {
-    username, password, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  const resp = await nodePost<Record<string, unknown>>('/api/node/auth/login', '', {
+    username, password, device_type: 'windows'
   });
   return normaliseAuth(resp);
 }
@@ -242,161 +206,76 @@ export async function loginByPhone(phone: string, password: string): Promise<Aut
 export async function registerAccount(input: {
   username: string; email?: string; phoneNumber?: string; password: string;
 }): Promise<AuthResponse> {
-  const resp = await phpPost<Record<string, unknown>>(
-    (() => { const u = new URL(REGISTER_PATH); u.searchParams.set('s', SITE_ENCRYPT_KEY); return u.toString(); })(),
-    {
-      username:         input.username,
-      email:            input.email       ?? '',
-      phone_number:     input.phoneNumber ?? '',
-      password:         input.password,
-      confirm_password: input.password,
-      s:                SITE_ENCRYPT_KEY,
-      device_type:      'windows',
-      gender:           'male'
-    }
-  );
+  const resp = await nodePost<Record<string, unknown>>('/api/node/auth/register', '', {
+    username:         input.username,
+    email:            input.email       ?? '',
+    phone_number:     input.phoneNumber ?? '',
+    password:         input.password,
+    confirm_password: input.password,
+    gender:           'male',
+    device_type:      'windows'
+  });
   return normaliseAuth(resp);
 }
 
 // ─── Chats ────────────────────────────────────────────────────────────────────
 
-export async function loadChats(token: string, userId?: number): Promise<ChatListResponse> {
-  // Node.js API
-  try {
-    const resp = await nodePost<NodeChatsResponse>('/api/node/chat/chats', token, {
-      user_limit: 80, data_type: 'all', SetOnline: 1, offset: 0
-    });
-    if ((resp.data ?? []).length > 0) return { api_status: '200', data: resp.data };
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  // PHP v2
-  try {
-    const resp = await phpPost<Record<string, unknown>>(
-      v2Url(ENDPOINTS.chats, token),
-      { user_limit: 80, data_type: 'all', SetOnline: 1, offset: 0 }
-    );
-    const arr  = (resp.data ?? resp.users ?? []) as Record<string, unknown>[];
-    if (Array.isArray(arr) && arr.length > 0) {
-      const data: ChatItem[] = arr.map(u => ({
-        user_id:   Number(u.user_id ?? u.id),
-        name:      toStr(u.name ?? `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() ?? u.username, 'User'),
-        avatar:    u.avatar as string | undefined,
-        last_message: toStr(u.last_message, ''),
-        time:      toStr(u.lastseen ?? u.lastseen_unix_time, '')
-      }));
-      return { api_status: '200', data };
-    }
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  if (!userId) return { api_status: '400', data: [] };
-
-  // Windows API fallback
-  const resp = await phpPost<Record<string, unknown>>(
-    winUrl(ENDPOINTS.windowsUsersList),
-    { user_id: userId, access_token: token }
-  );
-  const arr  = (resp.users ?? resp.data ?? []) as Record<string, unknown>[];
-  const data: ChatItem[] = Array.isArray(arr) ? arr.map(u => ({
-    user_id:   Number(u.user_id ?? u.id),
-    name:      toStr(u.name ?? u.username, 'User'),
-    avatar:    u.avatar as string | undefined,
-    last_message: toStr(u.last_message, '')
-  })) : [];
-  return { api_status: '200', data };
+export async function loadChats(token: string, _userId?: number): Promise<ChatListResponse> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/chat/chats', token, {
+    limit: 80, offset: 0, show_archived: 'false'
+  });
+  const raw  = (resp.data ?? []) as Record<string, unknown>[];
+  return {
+    api_status: '200',
+    data:       Array.isArray(raw) ? raw.map(normaliseChatItem) : []
+  };
 }
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
 
-export async function loadMessages(token: string, recipientId: number, userId?: number): Promise<MessagesResponse> {
-  // Node.js API
-  try {
-    const resp = await nodePost<NodeMessagesResponse>('/api/node/chat/get', token, {
-      user_id: recipientId, limit: 40, before_message_id: 0
-    });
-    if (resp.messages) return normaliseMessages(resp as unknown as Record<string, unknown>);
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  // PHP v2
-  try {
-    const resp = await phpPost<Record<string, unknown>>(
-      v2Url(ENDPOINTS.messages, token),
-      { recipient_id: recipientId, limit: 40, before_message_id: 0 }
-    );
-    return normaliseMessages(resp);
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  if (!userId) return { api_status: '400', messages: [] };
-
-  const resp = await phpPost<Record<string, unknown>>(
-    winUrl(ENDPOINTS.windowsMessages),
-    { user_id: userId, recipient_id: recipientId, access_token: token, limit: 50 }
-  );
+export async function loadMessages(token: string, recipientId: number, _userId?: number): Promise<MessagesResponse> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/chat/get', token, {
+    recipient_id: recipientId, limit: 40, before_message_id: 0
+  });
   return normaliseMessages(resp);
 }
 
-export async function loadMoreMessages(
-  token: string, recipientId: number, beforeId: number
-): Promise<MessagesResponse> {
-  try {
-    const resp = await nodePost<NodeMessagesResponse>('/api/node/chat/loadmore', token, {
-      user_id: recipientId, before_message_id: beforeId, limit: 40
-    });
-    return normaliseMessages(resp as unknown as Record<string, unknown>);
-  } catch {
-    return { api_status: '500', messages: [] };
-  }
+export async function loadMoreMessages(token: string, recipientId: number, beforeId: number): Promise<MessagesResponse> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/chat/loadmore', token, {
+    recipient_id: recipientId, before_message_id: beforeId, limit: 40
+  });
+  return normaliseMessages(resp);
 }
 
 export async function sendMessage(
-  token:       string,
-  recipientId: number,
-  text:        string,
-  userId?:     number,
+  token:          string,
+  recipientId:    number,
+  text:           string,
+  _userId?:       number,
   signalPayload?: {
-    ciphertext:   string;
+    ciphertext:   string; // base64 — goes in 'text' field (Kotlin convention)
     iv:           string;
     tag:          string;
     signalHeader: string;
   },
   replyToId?: number
 ): Promise<{ id?: number }> {
-  const hashId = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-
-  const nodeBody: Record<string, unknown> = {
-    user_id:          recipientId,
-    recipient_id:     recipientId,
-    text:             signalPayload ? '' : text,
-    message_hash_id:  hashId,
+  const body: Record<string, unknown> = {
+    recipient_id: recipientId,
+    text:         signalPayload ? signalPayload.ciphertext : text,
     ...(replyToId ? { reply_id: replyToId } : {})
   };
 
   if (signalPayload) {
-    nodeBody.cipher_version  = 3;
-    nodeBody.text_encrypted  = signalPayload.ciphertext;
-    nodeBody.iv              = signalPayload.iv;
-    nodeBody.tag             = signalPayload.tag;
-    nodeBody.signal_header   = signalPayload.signalHeader;
+    body.cipher_version = 3;
+    body.iv             = signalPayload.iv;
+    body.tag            = signalPayload.tag;
+    body.signal_header  = signalPayload.signalHeader;
   }
 
-  // Node.js primary
-  try {
-    const resp = await nodePost<Record<string, unknown>>('/api/node/chat/send', token, nodeBody);
-    const msgData = resp.message_data as Record<string, unknown> | undefined;
-    return { id: msgData ? Number(msgData.id) : undefined };
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  // PHP v2 fallback (plain text only)
-  try {
-    await phpPost(v2Url(ENDPOINTS.sendMessage, token), { user_id: recipientId, recipient_id: recipientId, text, message_hash_id: hashId });
-    return {};
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  if (!userId) throw new Error('No user ID for Windows API fallback');
-  await phpPost(winUrl(ENDPOINTS.windowsInsertMsg), {
-    user_id: userId, recipient_id: recipientId, access_token: token,
-    send_time: Math.floor(Date.now() / 1000), text, message_hash_id: hashId
-  });
-  return {};
+  const resp    = await nodePost<Record<string, unknown>>('/api/node/chat/send', token, body);
+  const msgData = resp.message_data as Record<string, unknown> | undefined;
+  return { id: msgData ? Number(msgData.id) : undefined };
 }
 
 export async function editMessage(token: string, messageId: number, text: string): Promise<void> {
@@ -404,39 +283,49 @@ export async function editMessage(token: string, messageId: number, text: string
 }
 
 export async function deleteMessage(token: string, messageId: number, type: 'for_me' | 'for_all' = 'for_all'): Promise<void> {
-  await nodePost('/api/node/chat/delete', token, { message_id: messageId, delete_type: type });
+  // Kotlin: delete_type = "just_me" | "everyone"
+  await nodePost('/api/node/chat/delete', token, {
+    message_id:  messageId,
+    delete_type: type === 'for_all' ? 'everyone' : 'just_me'
+  });
 }
 
 export async function reactToMessage(token: string, messageId: number, emoji: string): Promise<void> {
-  await nodePost('/api/node/chat/react', token, { message_id: messageId, emoji });
+  // Kotlin field: 'reaction' not 'emoji'
+  await nodePost('/api/node/chat/react', token, { message_id: messageId, reaction: emoji });
 }
 
 export async function pinMessage(token: string, messageId: number, pin: boolean): Promise<void> {
-  await nodePost('/api/node/chat/pin', token, { message_id: messageId, pin: pin ? 1 : 0 });
+  await nodePost('/api/node/chat/pin', token, {
+    message_id: messageId,
+    pin:        pin ? 'yes' : 'no'
+  });
 }
 
-export async function markSeen(token: string, recipientId: number, lastId: number): Promise<void> {
-  try { await nodePost('/api/node/chat/seen', token, { user_id: recipientId, last_id: lastId }); }
+export async function markSeen(token: string, recipientId: number, _lastId?: number): Promise<void> {
+  try { await nodePost('/api/node/chat/seen', token, { recipient_id: recipientId }); }
   catch { /* non-critical */ }
 }
 
 export async function searchMessages(token: string, recipientId: number, query: string): Promise<MessagesResponse> {
-  const resp = await nodePost<NodeMessagesResponse>('/api/node/chat/search', token, {
-    user_id: recipientId, keyword: query
+  const resp = await nodePost<Record<string, unknown>>('/api/node/chat/search', token, {
+    recipient_id: recipientId, query, limit: 50, offset: 0
   });
-  return normaliseMessages(resp as unknown as Record<string, unknown>);
+  return normaliseMessages(resp);
 }
 
 // ─── Media ────────────────────────────────────────────────────────────────────
 
 export async function uploadMedia(token: string, file: File): Promise<MediaUploadResponse> {
   const form = new FormData();
-  form.append('server_key', SERVER_KEY);
+  form.append('type', file.type.startsWith('image') ? 'image'
+    : file.type.startsWith('video') ? 'video'
+    : file.type.startsWith('audio') ? 'audio' : 'file');
   form.append('file', file);
-  const text = await doRequest(`${NODE_BASE_URL}/api/node/media/upload`, {
-    method: 'POST',
+  const text = await doRequest(`${NODE_BASE_URL}/api/node/chat/upload`, {
+    method:  'POST',
     headers: { 'access-token': token },
-    body:   form as unknown as BodyInit
+    body:    form as unknown as BodyInit
   });
   return parseJson<MediaUploadResponse>(text);
 }
@@ -446,46 +335,51 @@ export async function sendMessageWithMedia(
   recipientId: number,
   text:        string,
   file:        File,
-  userId?:     number
+  _userId?:    number
 ): Promise<void> {
-  const form = new FormData();
-  form.append('server_key', SERVER_KEY);
-  form.append('user_id',    String(recipientId));
-  form.append('text',       text);
-  form.append('message_hash_id', `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`);
-  form.append('file', file);
+  // Step 1: upload the file
+  const upload = await uploadMedia(token, file);
+  const mediaUrl = upload.image_src ?? upload.video_src ?? upload.audio_src ?? upload.file_src ?? '';
+  const mediaType = file.type.startsWith('image') ? 'image'
+    : file.type.startsWith('video') ? 'video'
+    : file.type.startsWith('audio') ? 'audio' : 'file';
 
-  try {
-    await doRequest(v2Url(ENDPOINTS.sendMessage, token), { method: 'POST', body: form as unknown as BodyInit });
-    return;
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  if (!userId) throw new Error('sendMessageWithMedia: no userId');
-  form.append('user_id_sender', String(userId));
-  form.append('access_token', token);
-  await doRequest(winUrl(ENDPOINTS.windowsInsertMsg), { method: 'POST', body: form as unknown as BodyInit });
+  // Step 2: send media message
+  await nodePost('/api/node/chat/send-media', token, {
+    recipient_id:    recipientId,
+    group_id:        0,
+    media_url:       mediaUrl,
+    media_type:      mediaType,
+    media_file_name: file.name,
+    caption:         text,
+    message_hash_id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+  });
 }
 
 // ─── Chat management ──────────────────────────────────────────────────────────
 
 export async function muteChat(token: string, userId: number, mute: boolean): Promise<void> {
-  await nodePost('/api/node/chat/mute', token, { user_id: userId, mute: mute ? 1 : 0 });
+  await nodePost('/api/node/chat/mute', token, {
+    chat_id:   userId,
+    notify:    mute ? 'no' : 'yes',
+    call_chat: 'yes'
+  });
 }
 
 export async function pinChat(token: string, userId: number, pin: boolean): Promise<void> {
-  await nodePost('/api/node/chat/pin-chat', token, { user_id: userId, pin: pin ? 1 : 0 });
+  await nodePost('/api/node/chat/pin-chat', token, { chat_id: userId, pin: pin ? 'yes' : 'no' });
 }
 
 export async function archiveChat(token: string, userId: number, archive: boolean): Promise<void> {
-  await nodePost('/api/node/chat/archive', token, { user_id: userId, archive: archive ? 1 : 0 });
+  await nodePost('/api/node/chat/archive', token, { chat_id: userId, archive: archive ? 'yes' : 'no' });
 }
 
 export async function clearHistory(token: string, userId: number): Promise<void> {
-  await nodePost('/api/node/chat/clear-history', token, { user_id: userId });
+  await nodePost('/api/node/chat/clear-history', token, { recipient_id: userId });
 }
 
 export async function deleteConversation(token: string, userId: number): Promise<void> {
-  await nodePost('/api/node/chat/delete-conversation', token, { user_id: userId });
+  await nodePost('/api/node/chat/delete-conversation', token, { user_id: userId, delete_type: 'me' });
 }
 
 export async function setChatColor(token: string, userId: number, color: string): Promise<void> {
@@ -495,16 +389,8 @@ export async function setChatColor(token: string, userId: number, color: string)
 // ─── Groups ───────────────────────────────────────────────────────────────────
 
 export async function loadGroups(token: string): Promise<GenericListResponse<GroupItem>> {
-  try {
-    const resp = await nodePost<NodeGroupsResponse>('/api/node/chat/groups/list', token, { limit: 50, offset: 0 });
-    if ((resp.data ?? []).length > 0) return { api_status: '200', data: resp.data };
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  const resp = await phpPost<Record<string, unknown>>(
-    absUrl(ENDPOINTS.groups, token),
-    { type: 'get_list', limit: 50, offset: 0 }
-  );
-  const raw   = (resp.groups ?? resp.data ?? []) as Record<string, unknown>[];
+  const resp = await nodePost<Record<string, unknown>>('/api/node/group/list', token, { limit: 50, offset: 0 });
+  const raw  = (resp.groups ?? resp.data ?? []) as Record<string, unknown>[];
   const data: GroupItem[] = Array.isArray(raw) ? raw.map(g => ({
     id:           Number(g.id ?? g.group_id),
     group_name:   toStr(g.group_name ?? g.name, 'Group'),
@@ -516,33 +402,25 @@ export async function loadGroups(token: string): Promise<GenericListResponse<Gro
 }
 
 export async function createGroup(token: string, groupName: string): Promise<void> {
-  await phpPost(absUrl(ENDPOINTS.groups, token), { type: 'create', group_name: groupName, parts: '', group_type: 'group' });
+  await nodePost('/api/node/group/create', token, { group_name: groupName, parts: '' });
 }
 
 export async function loadGroupMessages(token: string, groupId: number): Promise<MessagesResponse> {
-  const resp = await nodePost<NodeMessagesResponse>('/api/node/chat/group/get', token, {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/group/messages/get', token, {
     group_id: groupId, limit: 40, before_message_id: 0
   });
-  return normaliseMessages(resp as unknown as Record<string, unknown>);
+  return normaliseMessages(resp);
 }
 
 export async function sendGroupMessage(token: string, groupId: number, text: string): Promise<void> {
-  await nodePost('/api/node/chat/group/send', token, { group_id: groupId, text });
+  await nodePost('/api/node/group/messages/send', token, { group_id: groupId, text });
 }
 
 // ─── Channels ─────────────────────────────────────────────────────────────────
 
 export async function loadChannels(token: string): Promise<GenericListResponse<ChannelItem>> {
-  try {
-    const resp = await nodePost<NodeChannelsResponse>('/api/node/chat/channels/list', token, { limit: 50, offset: 0 });
-    if ((resp.data ?? []).length > 0) return { api_status: '200', data: resp.data };
-  } catch (e) { if (e instanceof AuthError) throw e; /* fallthrough */ }
-
-  const resp = await phpPost<Record<string, unknown>>(
-    absUrl(ENDPOINTS.channels, token),
-    { type: 'get_list', limit: 50, offset: 0 }
-  );
-  const raw    = (resp.channels ?? resp.data ?? []) as Record<string, unknown>[];
+  const resp = await nodePost<Record<string, unknown>>('/api/node/channel/list', token, { limit: 50, offset: 0 });
+  const raw  = (resp.channels ?? resp.data ?? []) as Record<string, unknown>[];
   const data: ChannelItem[] = Array.isArray(raw) ? raw.map(c => ({
     id:                Number(c.id ?? c.channel_id),
     name:              toStr(c.name, 'Channel'),
@@ -555,33 +433,34 @@ export async function loadChannels(token: string): Promise<GenericListResponse<C
 }
 
 export async function createChannel(token: string, name: string, description: string): Promise<void> {
-  await phpPost(absUrl(ENDPOINTS.channels, token), { action: 'create_channel', name, description });
+  await nodePost('/api/node/channel/create', token, { name, description });
 }
 
 // ─── Stories ──────────────────────────────────────────────────────────────────
 
 export async function loadStories(token: string): Promise<GenericListResponse<StoryItem>> {
-  const resp = await phpPost<Record<string, unknown>>(absUrl(ENDPOINTS.stories, token), { limit: 35 });
+  const resp = await nodePost<Record<string, unknown>>('/api/node/stories/get', token, { limit: 35 });
   const raw  = (resp.stories ?? resp.data ?? []) as StoryItem[];
   return { api_status: '200', data: raw };
 }
 
 export async function createStory(token: string, file: File, fileType: 'image' | 'video'): Promise<void> {
   const form = new FormData();
-  form.append('server_key', SERVER_KEY);
   form.append('file', file);
   form.append('file_type', fileType);
-  await doRequest(absUrl(ENDPOINTS.createStory, token), { method: 'POST', body: form as unknown as BodyInit });
+  await doRequest(`${NODE_BASE_URL}/api/node/stories/create`, {
+    method:  'POST',
+    headers: { 'access-token': token },
+    body:    form as unknown as BodyInit
+  });
 }
 
 // ─── Calls / ICE servers ──────────────────────────────────────────────────────
 
-export async function getIceServers(userId: number): Promise<RTCIceServer[]> {
+export async function getIceServers(_userId: number): Promise<RTCIceServer[]> {
   try {
-    const payload = await (async () => {
-      const text = await doRequest(`https://worldmates.club/api/ice-servers/${userId}`, { method: 'GET' });
-      return parseJson<{ iceServers?: RTCIceServer[] } | RTCIceServer[]>(text);
-    })();
+    const text = await doRequest(`${NODE_BASE_URL}/api/ice-servers/`, { method: 'GET' });
+    const payload = await parseJson<{ iceServers?: RTCIceServer[] } | RTCIceServer[]>(text);
     return Array.isArray(payload) ? payload : (payload.iceServers ?? []);
   } catch {
     return TURN_FALLBACK;
@@ -597,7 +476,7 @@ export async function answerCall(token: string, userId: number, sdp: string): Pr
 }
 
 export async function sendIceCandidate(token: string, userId: number, candidate: RTCIceCandidateInit): Promise<void> {
-  await nodePost('/api/node/calls/ice-candidate', token, { user_id: userId, candidate });
+  await nodePost('/api/node/calls/ice-candidate', token, { user_id: userId, candidate: JSON.stringify(candidate) });
 }
 
 export async function endCall(token: string, userId: number): Promise<void> {
@@ -647,9 +526,8 @@ export async function getSignalPreKeyCount(token: string): Promise<number> {
 }
 
 // ─── NodeApiShim factory ──────────────────────────────────────────────────────
-// Returns a NodeApiShim bound to the current access token for use with SignalService.
 
-export function createNodeApiShim(token: string): import('./signalService').NodeApiShim {
+export function createNodeApiShim(token: string): NodeApiShim {
   return {
     registerSignalKeys: (payload) => registerSignalKeys(token, payload),
     getSignalBundle:    (userId)  => getSignalBundle(token, userId),
