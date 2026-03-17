@@ -225,8 +225,11 @@ class SignalEncryptionService private constructor(
                     // Alice computed 4-DH (with OPK), but we lost the private key.
                     // 3-DH fallback will ALWAYS produce a different shared secret,
                     // so don't even try — request session reset immediately.
+                    // Also delete any stale session: the sender started fresh X3DH,
+                    // so any old DR state is useless and would cause AEAD failures.
                     Log.e(TAG, "X3DH(Bob) opk_id=$opkId not found locally — " +
-                        "cannot match sender's 4-DH; requesting session reset")
+                        "cannot match sender's 4-DH; deleting session and requesting reset")
+                    keyStore.deleteSession(senderId)
                     onSessionBroken?.invoke(senderId)
                     return@withLock null
                 }
@@ -295,7 +298,12 @@ class SignalEncryptionService private constructor(
             onSessionBroken?.invoke(senderId)
             null
         } catch (e: Exception) {
-            Log.e(TAG, "decryptIncoming error from $senderId", e)
+            // Unexpected error (MAX_SKIP exceeded, NPE, deserialization, etc.).
+            // Delete the possibly-corrupted session and ask sender to re-key,
+            // otherwise every future message from this sender will fail forever.
+            Log.e(TAG, "decryptIncoming error from $senderId — deleting session and requesting reset", e)
+            keyStore.deleteSession(senderId)
+            onSessionBroken?.invoke(senderId)
             null
         }
         } // end withLock
