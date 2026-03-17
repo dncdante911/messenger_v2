@@ -279,7 +279,13 @@ function findUserByLogin(ctx, login) {
 const ACCESS_TOKEN_TTL  = 30 * 24 * 3600;
 const REFRESH_TOKEN_TTL = 90 * 24 * 3600;
 
-async function createSession(ctx, userId, platform = 'phone', details = '') {
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) return forwarded.split(',')[0].trim();
+    return req.socket?.remoteAddress || req.ip || '';
+}
+
+async function createSession(ctx, userId, platform = 'phone', details = '', ip = '') {
     const now           = Math.floor(Date.now() / 1000);
     const token         = generateToken();
     const refreshToken  = generateToken();
@@ -288,12 +294,34 @@ async function createSession(ctx, userId, platform = 'phone', details = '') {
         session_id:         token,
         platform,
         platform_details:   details,
+        ip_address:         ip,
         time:               now,
         expires_at:         now + ACCESS_TOKEN_TTL,
         refresh_token:      refreshToken,
         refresh_expires_at: now + REFRESH_TOKEN_TTL,
     });
     return { token, refreshToken, expiresAt: now + ACCESS_TOKEN_TTL };
+}
+
+// ─── Auth middleware (for authenticated session endpoints) ─────────────────────
+
+async function requireAuth(ctx, req, res, next) {
+    const token = req.headers['access-token']
+               || req.query.access_token
+               || req.body.access_token;
+    if (!token)
+        return res.status(401).json({ api_status: 401, error_message: 'access_token is required' });
+    try {
+        const session = await ctx.wo_appssessions.findOne({ where: { session_id: token } });
+        if (!session)
+            return res.status(401).json({ api_status: 401, error_message: 'Invalid or expired access_token' });
+        req.userId    = session.user_id;
+        req.sessionId = session.id;
+        next();
+    } catch (err) {
+        console.error('[Auth/requireAuth]', err.message);
+        res.status(500).json({ api_status: 500, error_message: 'Authentication error' });
+    }
 }
 
 /**
@@ -349,7 +377,7 @@ function login(ctx) {
                 }
             }
 
-            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, platform, 'login');
+            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, platform, 'login', getClientIp(req));
 
             ctx.wo_users.update(
                 { lastseen: Math.floor(Date.now() / 1000) },
@@ -634,7 +662,7 @@ function quickVerify(ctx) {
                 return res.json({ api_status: 400, error_message: L.account_not_found_short });
             }
 
-            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, 'phone', 'quick-auth');
+            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, 'phone', 'quick-auth', getClientIp(req));
 
             ctx.wo_users.update(
                 { lastseen: Math.floor(Date.now() / 1000) },
@@ -754,7 +782,7 @@ function register(ctx) {
                 });
             }
 
-            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, platform, 'register');
+            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, platform, 'register', getClientIp(req));
             return res.json({
                 api_status:    200,
                 access_token:  token,
@@ -867,7 +895,7 @@ function verifyCode(ctx) {
                 );
             }
 
-            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, 'phone', 'verify');
+            const { token, refreshToken, expiresAt } = await createSession(ctx, user.user_id, 'phone', 'verify', getClientIp(req));
 
             ctx.wo_users.update(
                 { lastseen: Math.floor(Date.now() / 1000) },
@@ -953,9 +981,67 @@ function refreshToken(ctx) {
     };
 }
 
+// ─── GET /api/node/auth/sessions ─────────────────────────────────────────────
+
+function listSessions(ctx) {
+    return async (req, res) => {
+        try {
+            const userId = req.userId;
+            const sessions = await ctx.wo_appssessions.findAll({
+                where:      { user_id: userId },
+                attributes: ['id', 'session_id', 'platform', 'platform_details', 'ip_address', 'time', 'expires_at'],
+                order:      [['time', 'DESC']],
+                raw:        true,
+            });
+            const now = Math.floor(Date.now() / 1000);
+            const result = sessions.map(s => ({
+                id:               s.id,
+                session_id:       s.session_id,
+                platform:         s.platform,
+                platform_details: s.platform_details,
+                ip_address:       s.ip_address,
+                time:             s.time,
+                expires_at:       s.expires_at,
+                is_current:       s.id === req.sessionId,
+                is_active:        !s.expires_at || s.expires_at > now,
+            }));
+            res.json({ api_status: 200, sessions: result });
+        } catch (err) {
+            console.error('[Auth/listSessions]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── DELETE /api/node/auth/sessions/:id ──────────────────────────────────────
+
+function terminateSession(ctx) {
+    return async (req, res) => {
+        try {
+            const userId    = req.userId;
+            const sessionId = parseInt(req.params.id);
+            if (!sessionId || isNaN(sessionId))
+                return res.status(400).json({ api_status: 400, error_message: 'Invalid session id' });
+
+            const session = await ctx.wo_appssessions.findOne({ where: { id: sessionId, user_id: userId } });
+            if (!session)
+                return res.status(404).json({ api_status: 404, error_message: 'Session not found' });
+
+            await ctx.wo_appssessions.destroy({ where: { id: sessionId, user_id: userId } });
+            console.log(`[Auth/terminateSession] user=${userId} terminated session ${sessionId}`);
+            res.json({ api_status: 200, message: 'Session terminated' });
+        } catch (err) {
+            console.error('[Auth/terminateSession]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 // ─── Register routes ──────────────────────────────────────────────────────────
 
 function registerAuthRoutes(app, ctx) {
+    const auth = (req, res, next) => requireAuth(ctx, req, res, next);
+
     app.post('/api/node/auth/login',                  login(ctx));
     app.post('/api/node/auth/logout',                 logout(ctx));
     app.post('/api/node/auth/refresh',                refreshToken(ctx));
@@ -966,18 +1052,22 @@ function registerAuthRoutes(app, ctx) {
     app.post('/api/node/auth/register',               register(ctx));
     app.post('/api/node/auth/send-code',              sendCode(ctx));
     app.post('/api/node/auth/verify-code',            verifyCode(ctx));
+    app.get   ('/api/node/auth/sessions',             auth, listSessions(ctx));
+    app.delete('/api/node/auth/sessions/:id',         auth, terminateSession(ctx));
 
     console.log('[Auth] Routes registered:');
-    console.log('  POST /api/node/auth/login');
-    console.log('  POST /api/node/auth/logout');
-    console.log('  POST /api/node/auth/refresh');
-    console.log('  POST /api/node/auth/request-password-reset');
-    console.log('  POST /api/node/auth/reset-password');
-    console.log('  POST /api/node/auth/quick-register');
-    console.log('  POST /api/node/auth/quick-verify');
-    console.log('  POST /api/node/auth/register');
-    console.log('  POST /api/node/auth/send-code');
-    console.log('  POST /api/node/auth/verify-code');
+    console.log('  POST   /api/node/auth/login');
+    console.log('  POST   /api/node/auth/logout');
+    console.log('  POST   /api/node/auth/refresh');
+    console.log('  POST   /api/node/auth/request-password-reset');
+    console.log('  POST   /api/node/auth/reset-password');
+    console.log('  POST   /api/node/auth/quick-register');
+    console.log('  POST   /api/node/auth/quick-verify');
+    console.log('  POST   /api/node/auth/register');
+    console.log('  POST   /api/node/auth/send-code');
+    console.log('  POST   /api/node/auth/verify-code');
+    console.log('  GET    /api/node/auth/sessions');
+    console.log('  DELETE /api/node/auth/sessions/:id');
 }
 
 module.exports = { registerAuthRoutes };

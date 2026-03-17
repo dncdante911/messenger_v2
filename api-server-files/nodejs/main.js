@@ -277,6 +277,7 @@ async function init() {
     'ALTER TABLE Wo_AppsSessions ADD COLUMN IF NOT EXISTS expires_at         INT          NULL DEFAULT NULL',
     'ALTER TABLE Wo_AppsSessions ADD COLUMN IF NOT EXISTS refresh_token      VARCHAR(120) NULL DEFAULT NULL',
     'ALTER TABLE Wo_AppsSessions ADD COLUMN IF NOT EXISTS refresh_expires_at INT          NULL DEFAULT NULL',
+    'ALTER TABLE Wo_AppsSessions ADD COLUMN IF NOT EXISTS ip_address         VARCHAR(64)  NOT NULL DEFAULT \'\'',
     'ALTER TABLE Wo_AppsSessions ADD INDEX idx_refresh_token (refresh_token)',
   ];
   for (const sql of sessionTokenColumns) {
