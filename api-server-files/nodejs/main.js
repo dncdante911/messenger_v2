@@ -257,6 +257,11 @@ async function init() {
   console.log('[Init] Handlebars templates compiled');
 
   // ── Auto-migrations (idempotent) ─────────────────────────────────────────────
+  // In PM2 cluster mode NODE_APP_INSTANCE is set per-worker (0, 1, 2…).
+  // Run migrations only on worker 0 (or in non-cluster / direct node runs)
+  // to avoid 18 workers racing on ALTER TABLE / CREATE TABLE at startup.
+  const isFirstWorker = !process.env.NODE_APP_INSTANCE || process.env.NODE_APP_INSTANCE === '0';
+  if (isFirstWorker) {
   try {
     await ctx.sequelize.query(
       'ALTER TABLE Wo_GroupAdmins ADD COLUMN IF NOT EXISTS is_anonymous_admin TINYINT NOT NULL DEFAULT 0'
@@ -410,6 +415,8 @@ async function init() {
     }
   }
   console.log('[Migration] Wo_Messages composite indexes ensured');
+
+  } // end if (isFirstWorker)
 
 }
 
