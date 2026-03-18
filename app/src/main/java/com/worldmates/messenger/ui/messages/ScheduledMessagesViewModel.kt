@@ -10,12 +10,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-/**
- * ScheduledMessagesViewModel — управление запланованими повідомленнями для будь-якого чату.
- *
- * Підтримує chat_type: "dm" | "group" | "channel".
- * Використовує Node.js API /api/node/scheduled/*.
- */
 class ScheduledMessagesViewModel : ViewModel() {
 
     companion object {

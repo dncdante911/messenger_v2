@@ -1228,13 +1228,6 @@ class MessagesViewModel(application: Application) :
             socketManager?.connect()
             Log.d(TAG, "✅ Socket.IO connect() викликано")
 
-            // Wire Signal session-broken callback: emit reset request via Socket.IO
-            signalService.onSessionBroken = { peerId ->
-                val payload = org.json.JSONObject().put("target_user_id", peerId)
-                socketManager?.emitRaw("signal:session_reset_request", payload)
-                Log.i(TAG, "🔄 [Signal] Emitted session_reset_request for peer=$peerId")
-            }
-
             // Запускаємо моніторинг якості з'єднання для UI
             startQualityMonitoring()
         } catch (e: Exception) {
@@ -1525,19 +1518,6 @@ class MessagesViewModel(application: Application) :
             keyStore.deleteSession(userId)
             Log.i(TAG, "🔑 [Signal] DR session cleared for user=$userId (identity key changed on new device)")
             // If this is the current private chat, we'll re-establish X3DH on next send automatically.
-        }
-    }
-
-
-    /**
-     * Called when a peer emits signal:session_reset_request (they got AEADBadTagException
-     * on a message WE sent — our DR session is ahead of theirs).
-     * Delete our session so the next outgoing message includes X3DH headers.
-     */
-    override fun onSignalSessionResetRequest(peerId: Long) {
-        viewModelScope.launch {
-            signalService.deleteSessionFor(peerId)
-            Log.i(TAG, "🔄 [Signal] DR session cleared for peer=$peerId (session reset requested by peer)")
         }
     }
 

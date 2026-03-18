@@ -822,7 +822,6 @@ fun VoiceMessagePlayer(
 
     // Стан для відображення повноекранного плеєра
     var showAdvancedPlayer by remember { mutableStateOf(false) }
-    var voiceSpeed by remember { mutableStateOf(1.0f) }
 
     // Витягуємо інформацію про трек з URL або оригінального імені файлу
     val trackInfo = remember(mediaUrl, message.mediaFileName) {
@@ -1001,42 +1000,13 @@ fun VoiceMessagePlayer(
                     )
                 }
         }
-
-        // Перемикач швидкості для голосових повідомлень (0.5× / 1× / 1.5× / 2×)
-        if (isVoiceMessage) {
-            val speedStr = if (voiceSpeed % 1.0f == 0f) "${voiceSpeed.toInt()}×" else "${voiceSpeed}×"
-            val voiceSpeedsList = listOf(0.5f, 1.0f, 1.5f, 2.0f)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp, end = 4.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(
-                    onClick = {
-                        val nextIdx = (voiceSpeedsList.indexOf(voiceSpeed) + 1) % voiceSpeedsList.size
-                        voiceSpeed = voiceSpeedsList[nextIdx]
-                        com.worldmates.messenger.services.MusicPlaybackService.setSpeed(voiceSpeed)
-                    },
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                    modifier = Modifier.height(24.dp)
-                ) {
-                    Text(
-                        text = speedStr,
-                        fontSize = 12.sp,
-                        color = colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
     }
 
     // Повноекранний плеєр
     if (showAdvancedPlayer) {
         com.worldmates.messenger.ui.music.AdvancedMusicPlayer(
             audioUrl = mediaUrl,
-            title = if (!isVoiceMessage) displayTitle else voiceMessageLabel,
+            title = if (!isVoiceMessage) displayTitle else "Голосове повідомлення",
             artist = displayArtist,
             timestamp = message.timeStamp,
             iv = message.iv,

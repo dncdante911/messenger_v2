@@ -18,8 +18,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
-import com.worldmates.messenger.network.NodeRetrofitClient
-import com.worldmates.messenger.network.NodeSessionItem
+import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.SessionItem
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -27,7 +28,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionsScreen(onBackClick: () -> Unit) {
-    val sessions = remember { mutableStateListOf<NodeSessionItem>() }
+    val sessions = remember { mutableStateListOf<SessionItem>() }
     val isLoading = remember { mutableStateOf(true) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -35,7 +36,8 @@ fun SessionsScreen(onBackClick: () -> Unit) {
     LaunchedEffect(Unit) {
         scope.launch {
             try {
-                val response = NodeRetrofitClient.api.getNodeSessions()
+                val token = UserSession.accessToken ?: ""
+                val response = RetrofitClient.apiService.getSessions(accessToken = token)
                 if (response.apiStatus == 200) {
                     sessions.clear()
                     sessions.addAll(response.sessions)
@@ -101,7 +103,11 @@ fun SessionsScreen(onBackClick: () -> Unit) {
                                 onTerminate = {
                                     scope.launch {
                                         try {
-                                            val resp = NodeRetrofitClient.api.deleteNodeSession(session.id)
+                                            val token = UserSession.accessToken ?: ""
+                                            val resp = RetrofitClient.apiService.deleteSession(
+                                                accessToken = token,
+                                                sessionId = session.id
+                                            )
                                             if (resp.apiStatus == 200) {
                                                 sessions.remove(session)
                                             }
@@ -118,7 +124,7 @@ fun SessionsScreen(onBackClick: () -> Unit) {
 }
 
 @Composable
-private fun SessionCard(session: NodeSessionItem, onTerminate: () -> Unit) {
+private fun SessionCard(session: SessionItem, onTerminate: () -> Unit) {
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()) }
     val formattedTime = remember(session.time) {
         if (session.time > 0) dateFormat.format(Date(session.time * 1000)) else "-"
@@ -142,13 +148,13 @@ private fun SessionCard(session: NodeSessionItem, onTerminate: () -> Unit) {
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = session.platform.ifBlank { "-" },
+                    text = session.deviceName?.takeIf { it.isNotBlank() } ?: session.platform.ifBlank { "-" },
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp
                 )
-                if (!session.ipAddress.isNullOrBlank()) {
-                    Text(text = session.ipAddress, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                if (!session.ip.isNullOrBlank()) {
+                    Text(text = session.ip, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
                 }
                 Text(text = formattedTime, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
             }

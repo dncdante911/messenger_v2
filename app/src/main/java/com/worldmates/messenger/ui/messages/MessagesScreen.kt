@@ -754,15 +754,6 @@ fun MessagesScreen(
                     }
                     context.startActivity(intent)
                 },
-                onScheduledMessagesClick = {
-                    val chatType = if (isGroup) "group" else "dm"
-                    val chatId   = if (isGroup) viewModel.getGroupId() else viewModel.getRecipientId()
-                    val intent = android.content.Intent(context, ScheduledMessagesActivity::class.java).apply {
-                        putExtra("chat_id", chatId)
-                        putExtra("chat_type", chatType)
-                    }
-                    context.startActivity(intent)
-                },
                 // 🔥 Параметри режиму вибору
                 isSelectionMode = isSelectionMode,
                 selectedCount = selectedMessages.size,

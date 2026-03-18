@@ -42,7 +42,6 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.ui.login.LoginActivity
 import com.worldmates.messenger.ui.settings.security.AppLockSettingsScreen
 import com.worldmates.messenger.ui.settings.security.DeleteAccountScreen
-import com.worldmates.messenger.ui.settings.security.KeyBackupScreen
 import com.worldmates.messenger.ui.settings.security.SessionsScreen
 import com.worldmates.messenger.ui.settings.security.TwoFactorAuthScreen
 import com.worldmates.messenger.ui.theme.ThemeManager
@@ -157,11 +156,6 @@ class SettingsActivity : AppCompatActivity() {
                             onBackClick = { currentScreen = SettingsScreen.Main }
                         )
                     }
-                    SettingsScreen.KeyBackup -> {
-                        KeyBackupScreen(
-                            onBackClick = { currentScreen = SettingsScreen.Main }
-                        )
-                    }
                     SettingsScreen.DeleteAccount -> {
                         DeleteAccountScreen(
                             onBackClick = { currentScreen = SettingsScreen.Main },
@@ -222,24 +216,6 @@ class SettingsActivity : AppCompatActivity() {
                         )
                         currentScreen = SettingsScreen.Main
                     }
-                    SettingsScreen.AppUpdate -> {
-                        AppUpdateScreen(
-                            viewModel = viewModel,
-                            onBackClick = { currentScreen = SettingsScreen.Main }
-                        )
-                    }
-                    SettingsScreen.Followers -> {
-                        FollowListScreen(
-                            showFollowers = true,
-                            onBackClick = { currentScreen = SettingsScreen.Main }
-                        )
-                    }
-                    SettingsScreen.Following -> {
-                        FollowListScreen(
-                            showFollowers = false,
-                            onBackClick = { currentScreen = SettingsScreen.Main }
-                        )
-                    }
                 }
             }
         }
@@ -265,10 +241,6 @@ sealed class SettingsScreen {
     object ActiveSessions : SettingsScreen()
     object DeleteAccount : SettingsScreen()
     object Business : SettingsScreen()
-    object KeyBackup : SettingsScreen()
-    object AppUpdate : SettingsScreen()
-    object Followers : SettingsScreen()
-    object Following : SettingsScreen()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -515,14 +487,6 @@ fun SettingsScreen(
                     onClick = { onNavigate(SettingsScreen.ActiveSessions) }
                 )
             }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.EnhancedEncryption,
-                    title = stringResource(R.string.key_backup),
-                    subtitle = stringResource(R.string.key_backup_subtitle),
-                    onClick = { onNavigate(SettingsScreen.KeyBackup) }
-                )
-            }
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
@@ -543,7 +507,7 @@ fun SettingsScreen(
                     icon = Icons.Default.People,
                     title = stringResource(R.string.followers_settings),
                     subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
-                    onClick = { onNavigate(SettingsScreen.Followers) }
+                    onClick = { /* TODO */ }
                 )
             }
             item {
@@ -551,7 +515,7 @@ fun SettingsScreen(
                     icon = Icons.Default.PersonAdd,
                     title = stringResource(R.string.following_settings),
                     subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
-                    onClick = { onNavigate(SettingsScreen.Following) }
+                    onClick = { /* TODO */ }
                 )
             }
 
@@ -606,7 +570,7 @@ fun SettingsScreen(
                     icon = Icons.Default.SystemUpdate,
                     title = stringResource(R.string.app_update),
                     subtitle = if (updateState.hasUpdate) stringResource(R.string.update_available_version, updateState.latestVersion ?: "") else stringResource(R.string.update_auto_check),
-                    onClick = { onNavigate(SettingsScreen.AppUpdate) }
+                    onClick = { viewModel.checkUpdates(force = true) }
                 )
             }
             item {

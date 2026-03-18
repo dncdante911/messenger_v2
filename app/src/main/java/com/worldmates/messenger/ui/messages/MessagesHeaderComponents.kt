@@ -53,7 +53,6 @@ fun MessagesHeaderBar(
     onCreateSubgroupClick: () -> Unit = {},
     onAddMembersClick: () -> Unit = {},
     onGroupSettingsClick: () -> Unit = {},
-    onScheduledMessagesClick: () -> Unit = {},
     // 🔥 Параметри для режиму вибору
     isSelectionMode: Boolean = false,
     selectedCount: Int = 0,
@@ -255,16 +254,6 @@ fun MessagesHeaderBar(
                             }
                         }
 
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.scheduled_messages)) },
-                            onClick = {
-                                showUserMenu = false
-                                onScheduledMessagesClick()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Schedule, contentDescription = null)
-                            }
-                        )
                         Divider()
                         DropdownMenuItem(
                             text = {

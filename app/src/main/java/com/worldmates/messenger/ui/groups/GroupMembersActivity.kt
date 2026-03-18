@@ -48,6 +48,7 @@ class GroupMembersActivity : AppCompatActivity() {
         super.attachBaseContext(LanguageManager.applyLanguage(newBase))
     }
 
+        @OptIn(ExperimentalMaterial3Api::class)
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         groupId = intent.getLongExtra("group_id", 0)
