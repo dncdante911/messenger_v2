@@ -13,15 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/**
- * Server-synced storage for saved (bookmarked) messages.
- *
- * - Primary storage: server (wm_saved_messages via /api/node/chat/saved/*)
- * - Local cache:     SharedPreferences (offline fallback + instant UI)
- *
- * On init the cache is shown immediately; then a background sync pulls the
- * latest list from the server and overwrites the cache.
- */
 object SavedMessagesManager {
 
     private fun prefsName(userId: Long) = "saved_messages_$userId"

@@ -14,7 +14,6 @@ import com.worldmates.messenger.data.local.dao.SignalPlaintextCacheDao
 import com.worldmates.messenger.data.local.entity.AccountEntity
 import com.worldmates.messenger.data.local.entity.Draft
 import com.worldmates.messenger.data.local.entity.CachedMessage
-import com.worldmates.messenger.data.local.entity.OutgoingMessage
 import com.worldmates.messenger.data.local.entity.SignalPlaintextCache
 
 /**
@@ -30,10 +29,9 @@ import com.worldmates.messenger.data.local.entity.SignalPlaintextCache
         AccountEntity::class,
         Draft::class,
         CachedMessage::class,
-        SignalPlaintextCache::class,
-        OutgoingMessage::class
+        SignalPlaintextCache::class
     ],
-    version = 7,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -41,7 +39,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
     abstract fun draftDao(): DraftDao
     abstract fun messageDao(): MessageDao
-    abstract fun outgoingMessageDao(): OutgoingMessageDao
     abstract fun signalPlaintextCacheDao(): SignalPlaintextCacheDao
 
     companion object {
@@ -69,34 +66,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_6_7 = object : Migration(6, 7) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("""
-                    CREATE TABLE IF NOT EXISTS outgoing_messages (
-                        id         INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        chatType   TEXT    NOT NULL,
-                        chatId     INTEGER NOT NULL,
-                        plaintext  TEXT    NOT NULL,
-                        replyId    INTEGER NOT NULL DEFAULT 0,
-                        stickers   TEXT    NOT NULL DEFAULT '',
-                        createdAt  INTEGER NOT NULL DEFAULT 0,
-                        retryCount INTEGER NOT NULL DEFAULT 0,
-                        status     TEXT    NOT NULL DEFAULT 'pending'
-                    )
-                """.trimIndent())
-                db.execSQL(
-                    "CREATE INDEX IF NOT EXISTS idx_status_created ON outgoing_messages (status, createdAt)"
-                )
-            }
-        }
-
         private fun buildDatabase(context: Context): AppDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_5_6)
                 .fallbackToDestructiveMigration()
                 .build()
         }

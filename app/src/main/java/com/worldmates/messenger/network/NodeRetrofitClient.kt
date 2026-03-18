@@ -83,7 +83,7 @@ object NodeRetrofitClient {
         .build()
 
     // ── Retrofit ─────────────────────────────────────────────────────────────
-    private val retrofit: Retrofit = Retrofit.Builder()
+    val retrofit: Retrofit = Retrofit.Builder()
         .baseUrl(Constants.NODE_BASE_URL)
         .client(client)
         .addConverterFactory(GsonConverterFactory.create())

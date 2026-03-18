@@ -2,6 +2,7 @@ package com.worldmates.messenger.data.repository
 
 import android.util.Log
 import com.worldmates.messenger.data.local.AppDatabase
+import com.worldmates.messenger.data.local.dao.OutgoingMessageDao
 import com.worldmates.messenger.data.local.entity.OutgoingMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,7 @@ import kotlinx.coroutines.launch
  */
 class OutgoingMessageQueue(db: AppDatabase) {
 
-    private val dao   = db.outgoingMessageDao()
+    private val dao   = db.outoingmessageDao()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     companion object {

@@ -772,36 +772,6 @@ interface NodeApi {
         @Field("refresh_token") refreshToken: String
     ): TokenRefreshResponse
 
-    /** List all active sessions for the authenticated user. */
-    @GET("api/node/auth/sessions")
-    suspend fun getNodeSessions(): NodeSessionsResponse
-
-    /** Terminate (delete) a specific session by its database id. */
-    @DELETE("api/node/auth/sessions/{id}")
-    suspend fun deleteNodeSession(
-        @Path("id") sessionId: Long
-    ): NodeSimpleResponse
-
-    // ═══════════════════════ E2EE KEY BACKUP ═════════════════════════════════
-
-    /** Upload AES-GCM encrypted key blob.  Server stores opaque bytes only. */
-    @FormUrlEncoded
-    @POST("api/node/signal/key-backup")
-    suspend fun uploadKeyBackup(
-        @Field("encrypted_payload") encryptedPayload: String,
-        @Field("salt")              salt:              String,
-        @Field("iv")                iv:                String,
-        @Field("version")           version:           Int = 1,
-    ): NodeSimpleResponse
-
-    /** Download previously uploaded encrypted key blob. */
-    @GET("api/node/signal/key-backup")
-    suspend fun downloadKeyBackup(): KeyBackupDownloadResponse
-
-    /** Delete the stored key backup. */
-    @DELETE("api/node/signal/key-backup")
-    suspend fun deleteKeyBackup(): NodeSimpleResponse
-
     // ═══════════════════════ BACKUP / CLOUD SETTINGS ═════════════════════════
 
     /** Get cloud backup settings (replaces PHP get_cloud_backup_settings.php). */
@@ -1217,42 +1187,4 @@ data class NodeSavedListResponse(
     @SerializedName("saved")         val saved: List<ServerSavedItem>? = null,
     @SerializedName("total")         val total: Int = 0,
     @SerializedName("error_message") val errorMessage: String? = null
-)
-
-// ==================== SESSIONS (Node.js) ====================
-
-data class NodeSessionItem(
-    @SerializedName("id")               val id: Long = 0,
-    @SerializedName("session_id")       val sessionId: String = "",
-    @SerializedName("platform")         val platform: String = "",
-    @SerializedName("platform_details") val platformDetails: String? = null,
-    @SerializedName("ip_address")       val ipAddress: String? = null,
-    @SerializedName("time")             val time: Long = 0,
-    @SerializedName("expires_at")       val expiresAt: Long? = null,
-    @SerializedName("is_current")       val isCurrent: Boolean = false,
-    @SerializedName("is_active")        val isActive: Boolean = true
-)
-
-data class NodeSessionsResponse(
-    @SerializedName("api_status")    val apiStatus: Int = 0,
-    @SerializedName("sessions")      val sessions: List<NodeSessionItem> = emptyList(),
-    @SerializedName("error_message") val errorMessage: String? = null
-)
-
-
-// ==================== E2EE KEY BACKUP ====================
-
-data class KeyBackupPayload(
-    @SerializedName("encrypted_payload") val encryptedPayload: String = "",
-    @SerializedName("salt")              val salt:             String = "",
-    @SerializedName("iv")                val iv:               String = "",
-    @SerializedName("version")           val version:          Int    = 1,
-    @SerializedName("created_at")        val createdAt:        Long   = 0,
-    @SerializedName("updated_at")        val updatedAt:        Long   = 0,
-)
-
-data class KeyBackupDownloadResponse(
-    @SerializedName("api_status")    val apiStatus: Int             = 0,
-    @SerializedName("backup")        val backup:    KeyBackupPayload? = null,
-    @SerializedName("error_message") val errorMessage: String?      = null,
 )
