@@ -9,6 +9,7 @@ import android.os.Build
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.application
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.*

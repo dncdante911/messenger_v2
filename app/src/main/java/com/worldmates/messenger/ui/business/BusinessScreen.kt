@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
+import com.worldmates.messenger.data.model.BusinessProfile
 
 // ─── Brand Colors ─────────────────────────────────────────────────────────────
 private val BizDeep    = Color(0xFF0D1B2A)

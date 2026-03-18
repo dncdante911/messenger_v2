@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.worldmates.messenger.R
-import com.worldmates.messenger.data.model.UserSession
+import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.ThreadMessage
 import java.text.SimpleDateFormat
 import java.util.*
