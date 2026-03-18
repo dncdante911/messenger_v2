@@ -16,7 +16,6 @@ import androidx.core.content.FileProvider
 import com.worldmates.messenger.BuildConfig
 import com.worldmates.messenger.data.model.AppUpdateInfo
 import com.worldmates.messenger.data.model.AppUpdateResponse
-import com.worldmates.messenger.data.model.VersionChangelog
 import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +42,6 @@ data class UpdateState(
     val latestVersionCode: Int = 0,
     val isMandatory: Boolean = false,
     val changelog: List<String> = emptyList(),
-    val changelogStructured: List<VersionChangelog> = emptyList(),
     val apkUrl: String? = null,
     val publishedAt: String? = null,
     val error: String? = null,
@@ -177,7 +175,6 @@ object AppUpdateManager {
                 latestVersionCode = info?.versionCode ?: 0,
                 isMandatory = info?.isMandatory ?: false,
                 changelog = info?.changelog.orEmpty(),
-                changelogStructured = info?.changelogStructured.orEmpty(),
                 apkUrl = info?.apkUrl,
                 publishedAt = info?.publishedAt,
                 error = null,
