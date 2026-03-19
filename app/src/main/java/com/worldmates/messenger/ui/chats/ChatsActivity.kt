@@ -268,7 +268,7 @@ class ChatsActivity : AppCompatActivity() {
         storyViewModel.loadStories()
     }
 
-    private fun navigateToMessages(chat: Chat) {
+    internal fun navigateToMessages(chat: Chat) {
         startActivity(Intent(this, MessagesActivity::class.java).apply {
             putExtra("recipient_id", chat.userId)
             putExtra("recipient_name", chat.username)
@@ -512,7 +512,7 @@ fun ChatsScreen(
                         onDismiss = { showSearchDialog = false },
                         onUserClick = { user ->
                             showSearchDialog = false
-                            navigateToMessages(Chat(
+                            (context as? ChatsActivity)?.navigateToMessages(Chat(
                                 id = 0,
                                 userId = user.userId,
                                 username = user.username,
