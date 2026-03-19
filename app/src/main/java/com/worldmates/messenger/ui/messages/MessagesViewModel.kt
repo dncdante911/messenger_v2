@@ -1860,7 +1860,20 @@ class MessagesViewModel(application: Application) :
             return msg.copy(decryptedText = getApplication<Application>().getString(R.string.encrypted_message))
         }
 
-        val senderId = msg.fromId
+        val senderId  = msg.fromId
+        val myUserId  = UserSession.userId ?: 0L
+
+        // Own sent messages are encrypted for the recipient — we cannot decrypt our own
+        // ciphertext. The plaintext is cached in sendMessage() right after sending, so a
+        // cache hit above is the only way to recover it. If the cache is empty (Room DB
+        // wiped or message sent before caching was implemented), the plaintext is gone.
+        // Never call decryptIncoming() with senderId == ourself: there is no self-session,
+        // and doing so would just pollute the logs with spurious auth-failure errors.
+        if (senderId == myUserId) {
+            Log.w(TAG, "⚠️ [Signal] msg ${msg.id} is own message not in cache — plaintext unavailable")
+            return msg.copy(decryptedText = getApplication<Application>().getString(R.string.encrypted_message))
+        }
+
         Log.d(TAG, "🔐 [Signal] Decrypting msg ${msg.id} from user $senderId " +
             "header=${signalHeader.take(40)}...")
 

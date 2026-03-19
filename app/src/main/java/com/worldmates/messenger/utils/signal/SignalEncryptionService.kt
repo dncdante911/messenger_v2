@@ -94,6 +94,24 @@ class SignalEncryptionService private constructor(
             var session    = keyStore.loadSession(recipientId)
             var x3dhHeader: X3DHHeader? = null
 
+            // ── Stale session detection ───────────────────────────────────────
+            // If we have a cached session, verify the remote user's identity key
+            // still matches the server. If the remote user reinstalled the app and
+            // the signal:identity_changed socket event was missed (e.g. device
+            // was offline), our session is stale and will produce undecryptable
+            // ciphertext on the recipient side. This check uses a lightweight
+            // endpoint that does NOT consume any one-time pre-key.
+            if (session != null) {
+                val remoteIkB64 = extractRemoteIkB64FromSession(session)
+                val serverIkB64 = fetchRemoteIdentityKey(recipientId)
+                if (serverIkB64 != null && remoteIkB64 != null && serverIkB64 != remoteIkB64) {
+                    Log.w(TAG, "Remote IK changed for $recipientId — clearing stale session and re-keying")
+                    keyStore.deleteSession(recipientId)
+                    session = null
+                    // Fall through to fresh X3DH below
+                }
+            }
+
             // ── X3DH session establishment ────────────────────────────────────
             if (session == null) {
                 val bundle = fetchPreKeyBundle(recipientId)
@@ -252,6 +270,37 @@ class SignalEncryptionService private constructor(
     /** Returns cached plaintext for [msgId], or null if not cached. */
     suspend fun getCachedDecryptedMessage(msgId: Long): String? =
         keyStore.getCachedDecryptedMessage(msgId)
+
+    // ─── Identity key fetch (lightweight — no OPK consumed) ──────────────────
+
+    /**
+     * Fetch the remote user's identity key without consuming any OPK.
+     * Returns Base64-encoded identity key, or null on error.
+     */
+    private suspend fun fetchRemoteIdentityKey(userId: Long): String? = try {
+        val resp = nodeApi.getSignalIdentityKey(userId)
+        if (resp.apiStatus == 200) resp.identityKey else null
+    } catch (e: Exception) {
+        Log.w(TAG, "fetchRemoteIdentityKey error for $userId (non-fatal): ${e.message}")
+        null  // Don't invalidate session on network error — only on confirmed IK change
+    }
+
+    /**
+     * Extract the remote user's identity public key (Base64) from a stored session.
+     *
+     * The session's associatedData = Encode(IK_A) || Encode(IK_B) (64 bytes, Base64):
+     *   – If we are the initiator (Alice): IK_A = ours [0..32), IK_B = remote [32..64)
+     *   – If we are the responder (Bob):   IK_A = remote [0..32), IK_B = ours [32..64)
+     */
+    private fun extractRemoteIkB64FromSession(session: SessionState): String? = try {
+        val ad = Base64.decode(session.associatedData, Base64.NO_WRAP)
+        if (ad.size < 64) return null
+        val remoteIkBytes = if (session.isInitiator) ad.copyOfRange(32, 64) else ad.copyOfRange(0, 32)
+        Base64.encodeToString(remoteIkBytes, Base64.NO_WRAP)
+    } catch (e: Exception) {
+        Log.w(TAG, "extractRemoteIkB64FromSession failed: ${e.message}")
+        null
+    }
 
     // ─── Pre-key bundle fetch ─────────────────────────────────────────────────
 

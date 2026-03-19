@@ -488,6 +488,16 @@ interface NodeApi {
     ): PreKeyBundleResponse
 
     /**
+     * Fetch only the identity key for [userId] — does NOT consume any OPK.
+     * Used to cheaply verify that a cached DR session is still valid before sending,
+     * without wasting a one-time pre-key on a full bundle fetch.
+     */
+    @GET("api/node/signal/identity/{userId}")
+    suspend fun getSignalIdentityKey(
+        @Path("userId") userId: Long
+    ): SignalIdentityKeyResponse
+
+    /**
      * Upload a fresh batch of one-time pre-keys (called when local pool runs low).
      * [prekeys] = JSON array string.
      */
