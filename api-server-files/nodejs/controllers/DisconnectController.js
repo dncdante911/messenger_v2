@@ -14,6 +14,21 @@ const DisconnectController = async (ctx, reason, io,socket) => {
       delete ctx.userIdCount[user_id]
       delete ctx.userHashUserId[hash]
 
+      // Cancel pending typing/recording timers for this user to prevent
+      // orphaned setTimeout handles in the event loop (memory leak fix).
+      // Previously `ctx.userIdExtra = {}` wiped ALL users' timers on every
+      // disconnect without calling clearTimeout — handles leaked until they fired.
+      const extra = ctx.userIdExtra[user_id]
+      if (extra) {
+          if (extra.typingTimeout)    clearTimeout(extra.typingTimeout)
+          if (extra.recordingTimeout) clearTimeout(extra.recordingTimeout)
+          delete ctx.userIdExtra[user_id]
+      }
+
+      // Clean up open-chat tracking for the disconnected user so stale entries
+      // don't accumulate in ctx.userIdChatOpen indefinitely.
+      delete ctx.userIdChatOpen[user_id]
+
       // emit user logged off
       let followers = await ctx.wo_followers.findAll({
           attributes: ["following_id"],
@@ -41,8 +56,12 @@ const DisconnectController = async (ctx, reason, io,socket) => {
   }
   if (ctx.userIdSocket[user_id]) {
       ctx.userIdSocket[user_id] = ctx.userIdSocket[user_id].filter(d => d.id != socket.id)
+      // Remove the entry entirely when no sockets remain — avoids accumulating
+      // empty arrays for every user that has ever connected (memory leak fix).
+      if (ctx.userIdSocket[user_id].length === 0) {
+          delete ctx.userIdSocket[user_id]
+      }
   }
-  ctx.userIdExtra = {}
   delete ctx.socketIdUserHash[socket.id]
 };
 

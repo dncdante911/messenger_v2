@@ -462,6 +462,20 @@ interface NodeApi {
     @POST(Constants.NODE_SAVED_CLEAR)
     suspend fun clearSaved(): NodeSimpleResponse
 
+    // ═══════════════════════ SESSIONS ════════════════════════════════════════
+
+    /** List all active sessions for the current user. */
+    @GET("api/node/sessions")
+    suspend fun getSessions(): NodeSessionsResponse
+
+    /** Terminate a specific session by ID. */
+    @DELETE("api/node/sessions/{id}")
+    suspend fun deleteSession(@Path("id") sessionId: Long): NodeSimpleResponse
+
+    /** Terminate all sessions except the current one. */
+    @DELETE("api/node/sessions")
+    suspend fun deleteAllOtherSessions(): NodeSimpleResponse
+
     // ═══════════════════════ SIGNAL PROTOCOL ════════════════════════════════
 
     /**
@@ -1231,4 +1245,21 @@ data class KeyBackupPayload(
 data class KeyBackupDownloadResponse(
     @SerializedName("api_status") val apiStatus: Int = 0,
     @SerializedName("backup")     val backup:    KeyBackupPayload? = null,
+)
+
+// ==================== SESSIONS ====================
+
+data class NodeSessionItem(
+    @SerializedName("id")          val id:         Long   = 0,
+    @SerializedName("platform")    val platform:   String = "",
+    @SerializedName("device_name") val deviceName: String? = null,
+    @SerializedName("ip")          val ip:         String? = null,
+    @SerializedName("time")        val time:       Long   = 0,
+    @SerializedName("is_current")  val isCurrent:  Boolean = false,
+)
+
+data class NodeSessionsResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("sessions")   val sessions:  List<NodeSessionItem> = emptyList(),
+    @SerializedName("error_message") val errorMessage: String? = null,
 )

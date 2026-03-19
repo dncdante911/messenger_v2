@@ -2236,6 +2236,7 @@
     <string name="active_sessions_subtitle">Пристрої, підключені до вашого акаунту</string>
     <string name="no_active_sessions">Немає активних сесій</string>
     <string name="terminate_session">Завершити сесію</string>
+    <string name="current_session">• поточна</string>
 
     <!-- E2EE Key Backup -->
     <string name="key_backup">Резервна копія ключів шифрування</string>
