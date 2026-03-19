@@ -150,7 +150,6 @@ dependencies {
     implementation 'androidx.biometric:biometric:1.2.0-alpha05'  // BiometricPrompt для Face ID / Fingerprint
     implementation 'com.google.zxing:core:3.5.3'  // QR-код генерация для Google Authenticator
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'  // QR-код сканер
-    implementation 'commons-codec:commons-codec:1.16.0'  // Для Base32 в TOTP
 
     // ==================== SERIALIZATION ====================
     implementation 'com.google.code.gson:gson:2.10.1'
