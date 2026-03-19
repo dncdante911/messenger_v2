@@ -293,14 +293,14 @@ fun SettingsMainScreen(
                 )
             )
         },
-        containerColor = colorScheme.background
+        containerColor = colorScheme.surfaceContainerLowest
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Success message
             if (successMessage != null) {
@@ -656,8 +656,8 @@ fun ProfileCard(
             .fillMaxWidth()
             .clickable(onClick = onEditProfile),
         shape = RoundedCornerShape(16.dp),
-        color = colorScheme.surfaceContainerHigh,
-        tonalElevation = 1.dp
+        color = colorScheme.surfaceContainer,
+        tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
