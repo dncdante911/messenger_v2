@@ -46,6 +46,7 @@ const { registerAvatarRoutes }       = require('./routes/users/avatars')
 const { registerSessionRoutes }      = require('./routes/users/sessions')
 const { registerTwoFactorRoutes }    = require('./routes/users/two-factor')
 const { registerDeleteAccountRoutes } = require('./routes/users/delete-account')
+const { registerReportUserRoutes }    = require('./routes/users/report-user')
 const { registerScheduledRoutes }    = require('./routes/scheduled')
 const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
@@ -736,6 +737,8 @@ async function main() {
   registerTwoFactorRoutes(app, ctx);
   // Register Delete Account REST API (replaces PHP delete-user.php)
   registerDeleteAccountRoutes(app, ctx);
+  // Register Report User REST API (replaces PHP report_user.php)
+  registerReportUserRoutes(app, ctx);
   // Register Profile REST API (own profile, other users, follow, block, search)
   registerProfileRoutes(app, ctx);
   // Register User Rating / karma system

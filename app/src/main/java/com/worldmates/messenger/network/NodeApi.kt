@@ -488,6 +488,14 @@ interface NodeApi {
         @Field("password") password: String
     ): NodeSimpleResponse
 
+    /** Report a user for spam / abuse / other. */
+    @FormUrlEncoded
+    @POST("api/node/user/report")
+    suspend fun reportUser(
+        @Field("user_id") userId: Long,
+        @Field("text")    text:   String
+    ): NodeSimpleResponse
+
     // ═══════════════════════ SESSIONS ════════════════════════════════════════
 
     /** List all active sessions for the current user. */

@@ -381,7 +381,6 @@ fun RegisterFormCard(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
                 contentColor = Color(0xFF4FC3F7),
-                dividerColor = Color.White.copy(alpha = 0.12f),
                 indicator = { tabPositions ->
                     if (tabPositions.isNotEmpty() && selectedTab < tabPositions.size) {
                         Box(
