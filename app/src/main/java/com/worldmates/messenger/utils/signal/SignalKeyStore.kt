@@ -75,6 +75,12 @@ class SignalKeyStore(private val context: Context) {
         // Manual File.delete() only removes the file but leaves stale data in the memory
         // cache — Tink then reads the old keyset from cache and fails with AEADBadTagException
         // even after creating a fresh Keystore key.
+        //
+        // ⚠️  This wipes ALL Signal keys and DR sessions.  Any active Signal sessions
+        // with contacts become invalid — they will see BAD_DECRYPT until fresh X3DH
+        // is completed on the next outgoing message.
+        Log.e(TAG, "⚠️  EncryptedSharedPreferences corrupted — resetting ALL Signal keys " +
+            "and sessions.  All DR sessions will desync until fresh X3DH is performed.")
         try { context.deleteSharedPreferences(PREF_FILE) } catch (ignored: Exception) {}
         try {
             KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }

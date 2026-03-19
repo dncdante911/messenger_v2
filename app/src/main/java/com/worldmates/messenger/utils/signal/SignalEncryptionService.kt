@@ -253,7 +253,18 @@ class SignalEncryptionService private constructor(
             String(plainBytes, Charsets.UTF_8)
 
         } catch (e: Exception) {
-            Log.e(TAG, "decryptIncoming error from $senderId", e)
+            // AEADBadTagException = session desync (keys don't match).
+            // Clear the stale session so the next outgoing message triggers a fresh
+            // X3DH key-agreement, re-synchronising both sides automatically.
+            val isBadTag = e is javax.crypto.AEADBadTagException ||
+                           e.cause is javax.crypto.AEADBadTagException
+            if (isBadTag) {
+                Log.w(TAG, "decryptIncoming BAD_DECRYPT from $senderId — " +
+                    "session desync detected, clearing session for re-key on next send")
+                try { keyStore.deleteSession(senderId) } catch (ignored: Exception) {}
+            } else {
+                Log.e(TAG, "decryptIncoming error from $senderId", e)
+            }
             null
         }
     }
