@@ -14,6 +14,7 @@ import com.worldmates.messenger.data.local.dao.SignalPlaintextCacheDao
 import com.worldmates.messenger.data.local.entity.AccountEntity
 import com.worldmates.messenger.data.local.entity.Draft
 import com.worldmates.messenger.data.local.entity.CachedMessage
+import com.worldmates.messenger.data.local.entity.OutgoingMessage
 import com.worldmates.messenger.data.local.entity.SignalPlaintextCache
 
 /**
@@ -29,9 +30,10 @@ import com.worldmates.messenger.data.local.entity.SignalPlaintextCache
         AccountEntity::class,
         Draft::class,
         CachedMessage::class,
-        SignalPlaintextCache::class
+        SignalPlaintextCache::class,
+        OutgoingMessage::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -40,6 +42,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun draftDao(): DraftDao
     abstract fun messageDao(): MessageDao
     abstract fun signalPlaintextCacheDao(): SignalPlaintextCacheDao
+    abstract fun outgoingMessageDao(): OutgoingMessageDao
 
     companion object {
         private const val DATABASE_NAME = "worldmates_messenger.db"
@@ -50,6 +53,25 @@ abstract class AppDatabase : RoomDatabase() {
         fun getInstance(context: Context): AppDatabase {
             return instance ?: synchronized(this) {
                 instance ?: buildDatabase(context).also { instance = it }
+            }
+        }
+
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS outgoing_messages (
+                        id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        chatType  TEXT    NOT NULL,
+                        chatId    INTEGER NOT NULL,
+                        plaintext TEXT    NOT NULL,
+                        replyId   INTEGER NOT NULL DEFAULT 0,
+                        stickers  TEXT    NOT NULL DEFAULT '',
+                        createdAt INTEGER NOT NULL DEFAULT 0,
+                        retryCount INTEGER NOT NULL DEFAULT 0,
+                        status    TEXT    NOT NULL DEFAULT 'pending'
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_status_created ON outgoing_messages (status, createdAt)")
             }
         }
 
@@ -72,7 +94,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_5_6)
+                .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
                 .fallbackToDestructiveMigration()
                 .build()
         }
