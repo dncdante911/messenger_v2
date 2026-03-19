@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.network.NodeRetrofitClient
-import com.worldmates.messenger.network.RetrofitClient
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
