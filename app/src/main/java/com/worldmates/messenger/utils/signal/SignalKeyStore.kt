@@ -9,6 +9,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.worldmates.messenger.data.local.AppDatabase
 import com.worldmates.messenger.data.local.entity.SignalPlaintextCache
+import java.io.File
+import java.security.KeyStore
 import java.security.SecureRandom
 
 /**
@@ -52,11 +54,30 @@ class SignalKeyStore(private val context: Context) {
 
     // ─── EncryptedSharedPreferences (lazy, thread-safe via @Synchronized) ────
 
-    private val prefs by lazy {
+    private val prefs by lazy { createEncryptedPrefs() }
+
+    private fun createEncryptedPrefs() = try {
+        buildEncryptedPrefs()
+    } catch (e: Exception) {
+        // AEADBadTagException: happens when the app is restored from Auto Backup on a new
+        // device — the EncryptedSharedPreferences file comes from the backup but the
+        // Android Keystore master key is device-specific and doesn't transfer.
+        // Fix: wipe the corrupted prefs file + Keystore entry, then start fresh.
+        Log.e(TAG, "EncryptedSharedPreferences keyset corrupted (backup/device-change?), resetting: ${e.message}")
+        val prefsFile = File(context.filesDir.parent, "shared_prefs/$PREF_FILE.xml")
+        prefsFile.delete()
+        try {
+            val ks = KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
+            ks.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+        } catch (ignored: Exception) { }
+        buildEncryptedPrefs()
+    }
+
+    private fun buildEncryptedPrefs(): android.content.SharedPreferences {
         val mk = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
-        EncryptedSharedPreferences.create(
+        return EncryptedSharedPreferences.create(
             context, PREF_FILE, mk,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
