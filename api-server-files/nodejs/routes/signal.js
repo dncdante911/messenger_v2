@@ -191,6 +191,42 @@ function replenish(ctx) {
     };
 }
 
+// ─── GET /api/node/signal/identity/:userId ───────────────────────────────────
+
+/**
+ * Returns only the identity key for a user — does NOT consume any OPK.
+ * Clients use this to cheaply verify that a cached DR session is still valid
+ * before sending a message (avoids using a stale session when the remote user
+ * reinstalled and the signal:identity_changed socket event was missed).
+ */
+function getIdentityKey(ctx) {
+    return async (req, res) => {
+        try {
+            const targetUserId = parseInt(req.params.userId);
+            if (!targetUserId || isNaN(targetUserId)) {
+                return res.status(400).json({
+                    api_status:    400,
+                    error_message: 'userId path parameter is required',
+                });
+            }
+
+            const identityKey = await signalStore.getIdentityKey(ctx, targetUserId);
+            if (!identityKey) {
+                return res.status(404).json({
+                    api_status:    404,
+                    error_message: 'No Signal keys registered for this user',
+                });
+            }
+
+            res.json({ api_status: 200, user_id: targetUserId, identity_key: identityKey });
+
+        } catch (err) {
+            console.error('[Signal/identity]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to fetch identity key' });
+        }
+    };
+}
+
 // ─── GET /api/node/signal/prekey-count ───────────────────────────────────────
 
 function preKeyCount(ctx) {
@@ -471,10 +507,11 @@ function registerSignalRoutes(app, ctx, io) {
     const auth = (req, res, next) => authMiddleware(ctx, req, res, next);
 
     // ── Особисті чати (X3DH pre-key server) ─────────────────────────────────
-    app.post('/api/node/signal/register',       auth, register(ctx));
-    app.get ('/api/node/signal/bundle/:userId',  auth, getBundle(ctx));
-    app.post('/api/node/signal/replenish',       auth, replenish(ctx));
-    app.get ('/api/node/signal/prekey-count',    auth, preKeyCount(ctx));
+    app.post('/api/node/signal/register',          auth, register(ctx));
+    app.get ('/api/node/signal/bundle/:userId',     auth, getBundle(ctx));
+    app.get ('/api/node/signal/identity/:userId',   auth, getIdentityKey(ctx));
+    app.post('/api/node/signal/replenish',          auth, replenish(ctx));
+    app.get ('/api/node/signal/prekey-count',       auth, preKeyCount(ctx));
 
     // ── Групові чати (Sender Key Distribution Protocol) ──────────────────
     // io passed to groupDistribute so it can notify online recipients in real-time
@@ -489,7 +526,7 @@ function registerSignalRoutes(app, ctx, io) {
     app.get   ('/api/node/signal/key-backup', auth, downloadKeyBackup(ctx));
     app.delete('/api/node/signal/key-backup', auth, deleteKeyBackup(ctx));
 
-    console.log('[Signal] Routes registered: register, bundle, replenish, prekey-count, group/*, key-backup');
+    console.log('[Signal] Routes registered: register, bundle, identity, replenish, prekey-count, group/*, key-backup');
 }
 
 // ─── E2EE Key Backup handlers ─────────────────────────────────────────────────

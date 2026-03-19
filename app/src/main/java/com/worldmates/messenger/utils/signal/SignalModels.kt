@@ -147,6 +147,14 @@ data class SignalReplenishRequest(
     @SerializedName("prekeys") val prekeys: List<OneTimePreKeyJson>
 )
 
+/** GET /api/node/signal/identity/:userId — identity key only, no OPK consumed. */
+data class SignalIdentityKeyResponse(
+    @SerializedName("api_status")   val apiStatus:   Int,
+    @SerializedName("user_id")      val userId:      Long?   = null,
+    @SerializedName("identity_key") val identityKey: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
 /** Generic Signal API response. */
 data class SignalSimpleResponse(
     @SerializedName("api_status")    val apiStatus:    Int,

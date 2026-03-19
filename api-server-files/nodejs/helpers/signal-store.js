@@ -160,6 +160,24 @@ async function getRemainingPreKeyCount(ctx, userId) {
     return parsePrekeys(row.prekeys).length;
 }
 
+// ─── get identity key only (no OPK consumed) ─────────────────────────────────
+
+/**
+ * Returns just the identity key for a user — does NOT pop any OPK.
+ * Used by senders to detect a remote identity key change before sending
+ * with a stale DR session (cheaper than fetching the full bundle).
+ *
+ * @returns {string|null}  Base64 identity key, or null if not registered
+ */
+async function getIdentityKey(ctx, userId) {
+    const row = await ctx.signal_keys.findOne({
+        where:      { user_id: userId },
+        attributes: ['identity_key'],
+        raw:        true,
+    });
+    return row ? row.identity_key : null;
+}
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function parsePrekeys(raw) {
@@ -175,4 +193,4 @@ function mergePrekeys(existing, incoming) {
     return [...existing, ...fresh];
 }
 
-module.exports = { saveKeyBundle, getKeyBundle, replenishPrekeys, getRemainingPreKeyCount };
+module.exports = { saveKeyBundle, getKeyBundle, replenishPrekeys, getRemainingPreKeyCount, getIdentityKey };
