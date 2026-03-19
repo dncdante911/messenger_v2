@@ -23,8 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
-import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,9 +160,7 @@ fun DeleteAccountScreen(
                         scope.launch {
                             isLoading.value = true
                             try {
-                                val token = UserSession.accessToken ?: ""
-                                val response = RetrofitClient.apiService.deleteAccount(
-                                    accessToken = token,
+                                val response = NodeRetrofitClient.api.deleteAccount(
                                     password = password.value
                                 )
                                 if (response.apiStatus == 200) {

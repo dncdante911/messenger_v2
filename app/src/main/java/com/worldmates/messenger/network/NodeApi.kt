@@ -462,6 +462,32 @@ interface NodeApi {
     @POST(Constants.NODE_SAVED_CLEAR)
     suspend fun clearSaved(): NodeSimpleResponse
 
+    // ═══════════════════════ USER ACCOUNT ════════════════════════════════════
+
+    /**
+     * Enable or disable Google Authenticator 2FA.
+     * type=verify  → enable:  requires [secret] + [code] + [factorMethod]
+     * type=disable → disable: clears stored secret
+     */
+    @FormUrlEncoded
+    @POST("api/node/user/2fa")
+    suspend fun updateTwoFactor(
+        @Field("type")          type:         String = "",
+        @Field("secret")        secret:       String = "",
+        @Field("code")          code:         String = "",
+        @Field("factor_method") factorMethod: String = ""
+    ): NodeSimpleResponse
+
+    /**
+     * Permanently delete the current user's account.
+     * Requires the account password for confirmation.
+     */
+    @FormUrlEncoded
+    @HTTP(method = "DELETE", path = "api/node/user/account", hasBody = true)
+    suspend fun deleteAccount(
+        @Field("password") password: String
+    ): NodeSimpleResponse
+
     // ═══════════════════════ SESSIONS ════════════════════════════════════════
 
     /** List all active sessions for the current user. */

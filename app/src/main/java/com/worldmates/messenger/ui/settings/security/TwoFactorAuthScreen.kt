@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.utils.security.SecurePreferences
 import com.worldmates.messenger.utils.security.TOTPGenerator
 import kotlinx.coroutines.delay
@@ -140,10 +140,9 @@ fun TwoFactorAuthScreen(
                                     scope.launch {
                                         isLoading.value = true
                                         try {
-                                            val token = UserSession.accessToken ?: ""
-                                            RetrofitClient.apiService.updateTwoFactor(
-                                                accessToken = token,
+                                            NodeRetrofitClient.api.updateTwoFactor(
                                                 type = "verify",
+                                                secret = secret.value,
                                                 code = verificationCode.value,
                                                 factorMethod = "google"
                                             )
@@ -185,8 +184,7 @@ fun TwoFactorAuthScreen(
                                 scope.launch {
                                     isLoading.value = true
                                     try {
-                                        val token = UserSession.accessToken ?: ""
-                                        RetrofitClient.apiService.updateTwoFactor(accessToken = token)
+                                        NodeRetrofitClient.api.updateTwoFactor(type = "disable")
                                     } catch (_: Exception) {
                                         // продолжаем даже при ошибке сети
                                     } finally {
