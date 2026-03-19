@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
  */
 class OutgoingMessageQueue(db: AppDatabase) {
 
-    private val dao   = db.outoingmessageDao()
+    private val dao   = db.outgoingMessageDao()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     companion object {
