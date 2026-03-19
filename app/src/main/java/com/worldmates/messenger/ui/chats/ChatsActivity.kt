@@ -170,7 +170,7 @@ class ChatsActivity : AppCompatActivity() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(bottom = 60.dp) // Місце для нижньої навігації
+                            .padding(bottom = 48.dp) // Місце для компактної нижньої навігації
                     ) {
                         when (selectedBottomTab) {
                             BottomNavTab.CHATS -> {
@@ -799,7 +799,7 @@ fun ChatsScreen(
 }  // Конец функции ChatsScreen
 
 /**
- * Контент бічної панелі — чистий Material3 дизайн
+ * Контент бічної панелі — чистий Material3 дизайн з акцентним хедером
  */
 @Composable
 fun SettingsDrawerContent(
@@ -819,28 +819,31 @@ fun SettingsDrawerContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorScheme.surface)
+            .background(colorScheme.surfaceContainerLow)
     ) {
-        // ── Header ──
+        // ── Header з акцентом ──
         Surface(
-            color = colorScheme.primaryContainer.copy(alpha = 0.3f)
+            color = colorScheme.primary,
+            tonalElevation = 0.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 20.dp, bottom = 16.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
                     AsyncImage(
                         model = currentAvatar,
                         contentDescription = "Avatar",
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape),
+                            .size(60.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f), CircleShape),
                         contentScale = ContentScale.Crop
                     )
                     Spacer(modifier = Modifier.weight(1f))
@@ -848,27 +851,27 @@ fun SettingsDrawerContent(
                         Icon(
                             Icons.Default.Close,
                             contentDescription = stringResource(R.string.close),
-                            tint = colorScheme.onSurface
+                            tint = Color.White.copy(alpha = 0.8f)
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = com.worldmates.messenger.data.UserSession.username ?: stringResource(R.string.user_label),
-                        fontSize = 18.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.onSurface
+                        color = Color.White
                     )
                     if (!statusEmoji.isNullOrBlank()) {
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = statusEmoji!!, fontSize = 16.sp)
+                        Text(text = statusEmoji!!, fontSize = 15.sp)
                     }
                 }
                 Text(
                     text = "ID: ${com.worldmates.messenger.data.UserSession.userId}",
                     fontSize = 13.sp,
-                    color = colorScheme.onSurfaceVariant,
+                    color = Color.White.copy(alpha = 0.7f),
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
