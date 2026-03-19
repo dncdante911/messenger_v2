@@ -9,7 +9,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +42,9 @@ import com.worldmates.messenger.ui.components.*
 import com.worldmates.messenger.ui.theme.*
 import kotlinx.coroutines.launch
 import com.worldmates.messenger.utils.LanguageManager
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 class RegisterActivity : AppCompatActivity() {
 
@@ -153,28 +155,63 @@ fun RegisterScreen(
 
     // Убрано дублирование - состояние обрабатывается в lifecycleScope.launch
 
+    // Animated iridescent rotating gradient background
+    val bgTransition = rememberInfiniteTransition(label = "bg")
+    val gradAngleState = bgTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(10000, easing = LinearEasing)),
+        label = "gradAngle"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF090D1A),
-                        Color(0xFF121539),
-                        Color(0xFF0A0F24)
-                    )
-                )
-            )
             .drawBehind {
-                drawCircle(
-                    color = Color(0xFF1565C0).copy(alpha = 0.22f),
-                    radius = size.width * 0.55f,
-                    center = Offset(size.width * 0.85f, size.height * 0.12f)
+                val angle = gradAngleState.value
+                val cx = size.width / 2f
+                val cy = size.height / 2f
+                val dist = size.width * 0.85f
+                drawRect(color = Color(0xFF060B1A))
+                drawRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF0D1B4B).copy(alpha = 0.90f),
+                            Color(0xFF1A0845).copy(alpha = 0.80f),
+                            Color(0xFF061A3A).copy(alpha = 0.90f),
+                            Color(0xFF0D1B4B).copy(alpha = 0.90f),
+                        ),
+                        start = Offset(cx + cos(angle) * dist, cy + sin(angle) * dist * 0.6f),
+                        end   = Offset(cx - cos(angle) * dist, cy - sin(angle) * dist * 0.6f)
+                    ),
+                    size = size
                 )
                 drawCircle(
-                    color = Color(0xFF6A1B9A).copy(alpha = 0.18f),
-                    radius = size.width * 0.50f,
-                    center = Offset(size.width * 0.10f, size.height * 0.72f)
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF1565C0).copy(alpha = 0.40f), Color.Transparent),
+                        center = Offset(size.width * 0.85f, size.height * 0.10f),
+                        radius = 390f
+                    ),
+                    radius = 390f,
+                    center = Offset(size.width * 0.85f, size.height * 0.10f)
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF7B1FA2).copy(alpha = 0.32f), Color.Transparent),
+                        center = Offset(size.width * 0.12f, size.height * 0.78f),
+                        radius = 350f
+                    ),
+                    radius = 350f,
+                    center = Offset(size.width * 0.12f, size.height * 0.78f)
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF00BCD4).copy(alpha = 0.12f), Color.Transparent),
+                        center = Offset(size.width * 0.50f, size.height * 0.45f),
+                        radius = 270f
+                    ),
+                    radius = 270f,
+                    center = Offset(size.width * 0.50f, size.height * 0.45f)
                 )
             }
     ) {
@@ -182,8 +219,9 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .systemBarsPadding()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Заголовок
@@ -276,6 +314,26 @@ fun RegisterScreen(
 }
 
 @Composable
+private fun premiumFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White.copy(alpha = 0.85f),
+    disabledTextColor = Color.White.copy(alpha = 0.45f),
+    focusedBorderColor = Color(0xFF4FC3F7),
+    unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+    focusedLabelColor = Color(0xFF4FC3F7),
+    unfocusedLabelColor = Color.White.copy(alpha = 0.55f),
+    cursorColor = Color(0xFF4FC3F7),
+    focusedLeadingIconColor = Color(0xFF4FC3F7),
+    unfocusedLeadingIconColor = Color.White.copy(alpha = 0.45f),
+    focusedTrailingIconColor = Color(0xFF4FC3F7),
+    unfocusedTrailingIconColor = Color.White.copy(alpha = 0.45f),
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    errorContainerColor = Color.Transparent
+)
+
+@Composable
 fun RegisterFormCard(
     username: String,
     onUsernameChange: (String) -> Unit,
@@ -302,23 +360,18 @@ fun RegisterFormCard(
     registerState: RegisterState
 ) {
 
-    val colorScheme = MaterialTheme.colorScheme
-
-    Surface(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
                 elevation = 20.dp,
                 shape = RoundedCornerShape(28.dp),
-                ambientColor = Color.Black.copy(alpha = 0.30f)
-            )
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.06f),
-                shape = RoundedCornerShape(28.dp)
+                ambientColor = Color(0xFF1565C0).copy(alpha = 0.20f)
             ),
         shape = RoundedCornerShape(28.dp),
-        color = colorScheme.surface.copy(alpha = 0.95f)
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1530).copy(alpha = 0.85f)),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(24.dp)
@@ -327,12 +380,20 @@ fun RegisterFormCard(
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
-                contentColor = colorScheme.primary,
+                contentColor = Color(0xFF4FC3F7),
+                dividerColor = Color.White.copy(alpha = 0.12f),
                 indicator = { tabPositions ->
                     if (tabPositions.isNotEmpty() && selectedTab < tabPositions.size) {
-                        TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                            color = colorScheme.primary
+                        Box(
+                            Modifier
+                                .tabIndicatorOffset(tabPositions[selectedTab])
+                                .height(3.dp)
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(Color(0xFF1565C0), Color(0xFF9C27B0))
+                                    ),
+                                    shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
+                                )
                         )
                     }
                 }
@@ -368,11 +429,7 @@ fun RegisterFormCard(
                         enabled = !isLoading,
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorScheme.primary,
-                            focusedLabelColor = colorScheme.primary,
-                            cursorColor = colorScheme.primary
-                        )
+                        colors = premiumFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -389,11 +446,7 @@ fun RegisterFormCard(
                         enabled = !isLoading,
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorScheme.primary,
-                            focusedLabelColor = colorScheme.primary,
-                            cursorColor = colorScheme.primary
-                        )
+                        colors = premiumFieldColors()
                     )
                 }
                 1 -> {
@@ -420,11 +473,7 @@ fun RegisterFormCard(
                         enabled = !isLoading,
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorScheme.primary,
-                            focusedLabelColor = colorScheme.primary,
-                            cursorColor = colorScheme.primary
-                        )
+                        colors = premiumFieldColors()
                     )
                 }
             }
@@ -468,11 +517,7 @@ fun RegisterFormCard(
                 enabled = !isLoading,
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = colorScheme.primary,
-                    focusedLabelColor = colorScheme.primary,
-                    cursorColor = colorScheme.primary
-                )
+                colors = premiumFieldColors()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -506,11 +551,7 @@ fun RegisterFormCard(
                 enabled = !isLoading,
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = colorScheme.primary,
-                    focusedLabelColor = colorScheme.primary,
-                    cursorColor = colorScheme.primary
-                ),
+                colors = premiumFieldColors(),
                 isError = confirmPassword.isNotEmpty() && password != confirmPassword
             )
 
@@ -518,7 +559,7 @@ fun RegisterFormCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     stringResource(R.string.passwords_mismatch),
-                    color = colorScheme.error,
+                    color = Color(0xFFFFCDD2),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 16.dp)
                 )
@@ -549,11 +590,11 @@ fun RegisterFormCard(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    color = colorScheme.error.copy(alpha = 0.1f)
+                    color = Color(0xFFEF5350).copy(alpha = 0.22f)
                 ) {
                     Text(
                         text = registerState.message,
-                        color = colorScheme.error,
+                        color = Color(0xFFFFCDD2),
                         fontSize = 13.sp,
                         modifier = Modifier.padding(12.dp)
                     )
