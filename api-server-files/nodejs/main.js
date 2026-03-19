@@ -44,6 +44,8 @@ const registerNotesRoutes            = require('./routes/notes')
 const registerTranslatorRoutes       = require('./routes/translator')
 const { registerAvatarRoutes }       = require('./routes/users/avatars')
 const { registerSessionRoutes }      = require('./routes/users/sessions')
+const { registerTwoFactorRoutes }    = require('./routes/users/two-factor')
+const { registerDeleteAccountRoutes } = require('./routes/users/delete-account')
 const { registerScheduledRoutes }    = require('./routes/scheduled')
 const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
@@ -340,6 +342,20 @@ async function runMigrations(ctx) {
     }
   }
   console.log('[Migration] Profile customization columns ensured');
+
+  // 2FA fields — google_secret and two_factor_method
+  const twoFactorColumns = [
+    "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS google_secret     VARCHAR(64)  NOT NULL DEFAULT ''",
+    "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS two_factor_method VARCHAR(32)  NOT NULL DEFAULT ''",
+  ];
+  for (const sql of twoFactorColumns) {
+    try {
+      await ctx.sequelize.query(sql);
+    } catch (e) {
+      console.warn('[Migration] 2FA column:', e.message);
+    }
+  }
+  console.log('[Migration] 2FA columns ensured');
 
   // ── Business Mode tables ──────────────────────────────────────────────────
   const businessTableSQLs = [
@@ -716,6 +732,10 @@ async function main() {
   registerAvatarRoutes(app, ctx);
   // Register Sessions REST API (replaces PHP sessions.php)
   registerSessionRoutes(app, ctx);
+  // Register 2FA REST API (replaces PHP update_two_factor.php)
+  registerTwoFactorRoutes(app, ctx);
+  // Register Delete Account REST API (replaces PHP delete-user.php)
+  registerDeleteAccountRoutes(app, ctx);
   // Register Profile REST API (own profile, other users, follow, block, search)
   registerProfileRoutes(app, ctx);
   // Register User Rating / karma system

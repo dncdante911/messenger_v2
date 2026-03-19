@@ -120,8 +120,9 @@ fun SessionsScreen(onBackClick: () -> Unit) {
 @Composable
 private fun SessionCard(session: NodeSessionItem, onTerminate: () -> Unit) {
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()) }
+    val unknownDevice = stringResource(R.string.session_unknown_device)
     val formattedTime = remember(session.time) {
-        if (session.time > 0) dateFormat.format(Date(session.time * 1000)) else "-"
+        if (session.time > 0) dateFormat.format(Date(session.time * 1000)) else unknownDevice
     }
 
     val platformIcon = when {
@@ -148,7 +149,7 @@ private fun SessionCard(session: NodeSessionItem, onTerminate: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = session.deviceName?.takeIf { it.isNotBlank() } ?: session.platform.ifBlank { "-" },
+                        text = session.deviceName?.takeIf { it.isNotBlank() } ?: session.platform.ifBlank { unknownDevice },
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp

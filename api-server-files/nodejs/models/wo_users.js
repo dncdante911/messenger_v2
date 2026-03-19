@@ -522,6 +522,16 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       defaultValue: 0
     },
+    two_factor_method: {
+      type: DataTypes.STRING(32),
+      allowNull: false,
+      defaultValue: ''
+    },
+    google_secret: {
+      type: DataTypes.STRING(64),
+      allowNull: false,
+      defaultValue: ''
+    },
     new_email: {
       type: DataTypes.STRING(255),
       allowNull: false,
