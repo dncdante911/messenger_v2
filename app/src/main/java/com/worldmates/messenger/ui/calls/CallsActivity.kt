@@ -26,6 +26,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -134,7 +135,7 @@ class CallsActivity : ComponentActivity() {
         if (isIncomingCall) {
             // ✅ Вхідний дзвінок - отримуємо дані від IncomingCallActivity
             recipientId = intent.getIntExtra("from_id", 0).toLong()
-            recipientName = intent.getStringExtra("from_name") ?: "Користувач"
+            recipientName = intent.getStringExtra("from_name") ?: getString(R.string.user_label)
             recipientAvatar = intent.getStringExtra("from_avatar") ?: ""
             callType = intent.getStringExtra("call_type") ?: "audio"
             val roomName = intent.getStringExtra("room_name") ?: ""
@@ -160,7 +161,7 @@ class CallsActivity : ComponentActivity() {
             callsViewModel.acceptCall(callData)
         } else {
             recipientId = intent.getLongExtra("recipientId", 0)
-            recipientName = intent.getStringExtra("recipientName") ?: "Користувач"
+            recipientName = intent.getStringExtra("recipientName") ?: getString(R.string.user_label)
             recipientAvatar = intent.getStringExtra("recipientAvatar") ?: ""
             callType = intent.getStringExtra("callType") ?: "audio"
             isGroup = intent.getBooleanExtra("isGroup", false)
@@ -180,7 +181,7 @@ class CallsActivity : ComponentActivity() {
                     groupId = groupId.toInt(),
                     groupName = recipientName,
                     initiatedBy = groupInitiatedBy,
-                    initiatorName = intent.getStringExtra("group_initiator_name") ?: "Unknown",
+                    initiatorName = intent.getStringExtra("group_initiator_name") ?: getString(R.string.unknown),
                     initiatorAvatar = "",
                     callType = callType,
                     roomName = groupRoomName,
@@ -604,7 +605,7 @@ fun ActiveCallScreen(
     viewModel: CallsViewModel,
     remoteStream: MediaStream?,
     connectionState: String,
-    calleeName: String = "Користувач",
+    calleeName: String = "",
     calleeAvatar: String = "",
     callType: String = "audio"  // ✅ Додано параметр callType
 ) {
@@ -795,11 +796,53 @@ fun ActiveCallScreen(
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
-        // 🎭 Reactions Overlay - рендериться ПОВЕРХ усього
+        // Floating reaction animation
+        val floatingReaction by viewModel.incomingReaction.observeAsState()
+        var displayedReaction by remember { mutableStateOf<String?>(null) }
+        var reactionVisible by remember { mutableStateOf(false) }
+        val reactionAlpha by animateFloatAsState(
+            targetValue = if (reactionVisible) 1f else 0f,
+            animationSpec = tween(durationMillis = 300),
+            label = "reactionAlpha"
+        )
+        val reactionOffsetY by animateFloatAsState(
+            targetValue = if (reactionVisible) 0f else 80f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+            label = "reactionOffsetY"
+        )
+
+        LaunchedEffect(floatingReaction) {
+            floatingReaction?.let { (emoji, _) ->
+                displayedReaction = emoji
+                reactionVisible = true
+                delay(2000)
+                reactionVisible = false
+                delay(300)
+                displayedReaction = null
+                viewModel.incomingReaction.value = null
+            }
+        }
+
+        if (displayedReaction != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 24.dp)
+                    .offset(y = reactionOffsetY.dp)
+                    .graphicsLayer(alpha = reactionAlpha)
+            ) {
+                Text(
+                    text = displayedReaction ?: "",
+                    fontSize = 64.sp
+                )
+            }
+        }
+
+        // Reactions Overlay
         if (showReactions) {
             ReactionsOverlay(
                 onReactionSelected = { reaction ->
-                    // TODO: Send reaction through Socket.IO
+                    viewModel.sendCallReaction(reaction)
                     showReactions = false
                 },
                 onDismiss = { showReactions = false }
@@ -809,6 +852,7 @@ fun ActiveCallScreen(
         // 💬 Chat Overlay during call - рендериться ПОВЕРХ усього
         if (showChatOverlay) {
             ChatDuringCallOverlay(
+                viewModel = viewModel,
                 onDismiss = { showChatOverlay = false }
             )
         }
@@ -1074,13 +1118,13 @@ fun LocalVideoPiP(
                 .size(32.dp)
                 .background(Color(0x99000000), CircleShape)
                 .clickable {
-                    // TODO: Switch camera
+                    onSwitchCamera()
                 },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Cameraswitch,
-                contentDescription = "Switch Camera",
+                contentDescription = stringResource(R.string.switch_camera),
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
@@ -1441,14 +1485,14 @@ fun ReactionsOverlay(
     onDismiss: () -> Unit
 ) {
     val reactions = listOf(
-        "❤️" to "Сердечко",
-        "👍" to "Лайк",
-        "😂" to "Сміх",
-        "😮" to "Wow",
-        "😢" to "Сумно",
-        "🔥" to "Вогонь",
-        "👏" to "Аплодисменти",
-        "🎉" to "Святкування"
+        "❤️" to stringResource(R.string.call_reaction_heart),
+        "👍" to stringResource(R.string.call_reaction_like),
+        "😂" to stringResource(R.string.call_reaction_laugh),
+        "😮" to stringResource(R.string.call_reaction_wow),
+        "😢" to stringResource(R.string.call_reaction_sad),
+        "🔥" to stringResource(R.string.call_reaction_fire),
+        "👏" to stringResource(R.string.call_reaction_applause),
+        "🎉" to stringResource(R.string.call_reaction_celebrate)
     )
 
     Box(
@@ -1473,7 +1517,7 @@ fun ReactionsOverlay(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Виберіть реакцію",
+                text = stringResource(R.string.call_choose_reaction),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -1518,19 +1562,20 @@ fun ReactionsOverlay(
 }
 
 /**
- * 💬 Chat Overlay - можливість писати під час дзвінка
+ * Chat Overlay - messaging during a call via Socket.IO
  */
 @Composable
 fun ChatDuringCallOverlay(
+    viewModel: CallsViewModel,
     onDismiss: () -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
+    val chatMessages = viewModel.callChatMessages.observeAsState(emptyList())
 
     Box(
         modifier = Modifier
             .fillMaxSize()
     ) {
-        // Затемнений фон
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1542,7 +1587,6 @@ fun ChatDuringCallOverlay(
                 }
         )
 
-        // Chat UI
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1553,11 +1597,9 @@ fun ChatDuringCallOverlay(
                 )
                 .align(Alignment.BottomCenter)
                 .pointerInput(Unit) {
-                    // Prevent click through
                     detectTapGestures { }
                 }
         ) {
-            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1566,7 +1608,7 @@ fun ChatDuringCallOverlay(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "💬 Чат під час дзвінка",
+                    text = stringResource(R.string.call_chat_title),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -1575,27 +1617,55 @@ fun ChatDuringCallOverlay(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.close),
                         tint = Color.White
                     )
                 }
             }
 
-            // Messages area (placeholder)
+            // Messages list
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
             ) {
-                Text(
-                    text = "Повідомлення з'являться тут...",
-                    color = Color(0xFF666666),
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                val messages = chatMessages.value
+                if (messages.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.call_chat_empty),
+                        color = Color(0xFF666666),
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        reverseLayout = true,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(messages.size) { index ->
+                            val msg = messages[messages.size - 1 - index]
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = msg.first,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF2196F3)
+                                )
+                                Text(
+                                    text = msg.second,
+                                    fontSize = 14.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
-            // Input area
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1607,7 +1677,7 @@ fun ChatDuringCallOverlay(
                     value = messageText,
                     onValueChange = { messageText = it },
                     placeholder = {
-                        Text("Напишіть повідомлення...", color = Color(0xFF666666))
+                        Text(stringResource(R.string.call_chat_placeholder), color = Color(0xFF666666))
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -1627,14 +1697,14 @@ fun ChatDuringCallOverlay(
                 IconButton(
                     onClick = {
                         if (messageText.isNotEmpty()) {
-                            // TODO: Send message
+                            viewModel.sendCallChatMessage(messageText)
                             messageText = ""
                         }
                     }
                 ) {
                     Icon(
                         imageVector = Icons.Default.Send,
-                        contentDescription = "Send",
+                        contentDescription = stringResource(R.string.send),
                         tint = Color(0xFF2196F3)
                     )
                 }

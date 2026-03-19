@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.model.Message
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.EncryptedMediaHandler
 
 /**
@@ -99,7 +101,7 @@ fun MediaSearchScreen(
                     }) {
                         Icon(
                             if (selectionMode) Icons.Default.Close else Icons.Default.ArrowBack,
-                            if (selectionMode) "Отмена" else "Назад"
+                            if (selectionMode) stringResource(R.string.cancel) else stringResource(R.string.back)
                         )
                     }
                 },
@@ -245,6 +247,9 @@ fun MediaSearchScreen(
                 editImageUrl = imageUrl
                 showPhotoEditor = true
                 showFullScreenImage = false
+            },
+            onDownload = { message ->
+                viewModel.downloadSingleMedia(message, context)
             }
         )
     }
@@ -601,7 +606,7 @@ private fun MediaListItem(
             if (!selectionMode) {
                 Icon(
                     imageVector = Icons.Default.Download,
-                    contentDescription = "Скачать",
+                    contentDescription = stringResource(R.string.download_file),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -674,7 +679,8 @@ private fun FullScreenImageViewer(
     images: List<Message>,
     initialIndex: Int,
     onDismiss: () -> Unit,
-    onEdit: (String) -> Unit = {}
+    onEdit: (String) -> Unit = {},
+    onDownload: (Message) -> Unit = {}
 ) {
     val context = LocalContext.current
     var currentPage by remember { mutableStateOf(initialIndex) }
@@ -770,7 +776,7 @@ private fun FullScreenImageViewer(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         Icons.Default.ArrowBack,
-                        contentDescription = "Назад",
+                        contentDescription = stringResource(R.string.back),
                         tint = Color.White
                     )
                 }
@@ -798,7 +804,7 @@ private fun FullScreenImageViewer(
                     ) {
                         Icon(
                             Icons.Default.Edit,
-                            contentDescription = "Редактировать",
+                            contentDescription = stringResource(R.string.edit),
                             tint = Color.White
                         )
                     }
@@ -807,20 +813,12 @@ private fun FullScreenImageViewer(
                     IconButton(
                         onClick = {
                             val message = images[currentPage]
-                            val mediaUrl = message.decryptedMediaUrl ?: message.mediaUrl
-                            val fullUrl = EncryptedMediaHandler.getFullMediaUrl(mediaUrl, message.type)
-
-                            // TODO: Download image
-                            android.widget.Toast.makeText(
-                                context,
-                                "Скачивание изображения...",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
+                            onDownload(message)
                         }
                     ) {
                         Icon(
                             Icons.Default.Download,
-                            contentDescription = "Скачать",
+                            contentDescription = stringResource(R.string.download_file),
                             tint = Color.White
                         )
                     }
