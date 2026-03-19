@@ -55,6 +55,9 @@ import com.worldmates.messenger.ui.language.LanguageSelectionActivity
 import com.worldmates.messenger.ui.theme.*
 import com.worldmates.messenger.utils.LanguageManager
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 class LoginActivity : AppCompatActivity() {
 
@@ -176,51 +179,63 @@ fun LoginScreen(
         visible = true
     }
 
-    // Анимация фона
-    val infiniteTransition = rememberInfiniteTransition()
-    val gradientOffset by infiniteTransition.animateFloat(
+    // Animated iridescent rotating gradient background
+    val bgTransition = rememberInfiniteTransition(label = "bg")
+    val gradAngleState = bgTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
+        targetValue = (2f * PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(10000, easing = LinearEasing)),
+        label = "gradAngle"
     )
-
-    // Deep dark premium background colors
-    val bgStart = Color(0xFF090D1A)   // deep night navy
-    val bgMid   = Color(0xFF121539)   // deep indigo
-    val bgEnd   = Color(0xFF0A0F24)   // dark slate
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(bgStart, bgMid, bgEnd),
-                    startY = gradientOffset * 0.05f,
-                    endY   = gradientOffset * 0.05f + 2000f
-                )
-            )
-            // Decorative radial glow blobs — purely visual, no extra imports needed
             .drawBehind {
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFF1565C0).copy(alpha = 0.30f), Color.Transparent),
-                        center = Offset(size.width * 0.85f, size.height * 0.08f),
-                        radius = 320f
+                val angle = gradAngleState.value
+                val cx = size.width / 2f
+                val cy = size.height / 2f
+                val dist = size.width * 0.85f
+                drawRect(color = Color(0xFF060B1A))
+                drawRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF0D1B4B).copy(alpha = 0.90f),
+                            Color(0xFF1A0845).copy(alpha = 0.80f),
+                            Color(0xFF061A3A).copy(alpha = 0.90f),
+                            Color(0xFF0D1B4B).copy(alpha = 0.90f),
+                        ),
+                        start = Offset(cx + cos(angle) * dist, cy + sin(angle) * dist * 0.6f),
+                        end   = Offset(cx - cos(angle) * dist, cy - sin(angle) * dist * 0.6f)
                     ),
-                    radius = 320f,
-                    center = Offset(size.width * 0.85f, size.height * 0.08f)
+                    size = size
                 )
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFF6A1B9A).copy(alpha = 0.20f), Color.Transparent),
-                        center = Offset(size.width * 0.12f, size.height * 0.72f),
-                        radius = 280f
+                        colors = listOf(Color(0xFF1565C0).copy(alpha = 0.40f), Color.Transparent),
+                        center = Offset(size.width * 0.85f, size.height * 0.10f),
+                        radius = 390f
                     ),
-                    radius = 280f,
-                    center = Offset(size.width * 0.12f, size.height * 0.72f)
+                    radius = 390f,
+                    center = Offset(size.width * 0.85f, size.height * 0.10f)
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF7B1FA2).copy(alpha = 0.32f), Color.Transparent),
+                        center = Offset(size.width * 0.12f, size.height * 0.78f),
+                        radius = 350f
+                    ),
+                    radius = 350f,
+                    center = Offset(size.width * 0.12f, size.height * 0.78f)
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF00BCD4).copy(alpha = 0.12f), Color.Transparent),
+                        center = Offset(size.width * 0.50f, size.height * 0.45f),
+                        radius = 270f
+                    ),
+                    radius = 270f,
+                    center = Offset(size.width * 0.50f, size.height * 0.45f)
                 )
             }
     ) {
@@ -228,6 +243,7 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .systemBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -316,43 +332,58 @@ fun LoginScreen(
 
 @Composable
 fun LogoSection() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Анимированный логотип
-        val scale by rememberInfiniteTransition().animateFloat(
-            initialValue = 1f,
-            targetValue = 1.05f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(2000, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            )
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        val logoTransition = rememberInfiniteTransition(label = "logo")
+        val pulseScale by logoTransition.animateFloat(
+            initialValue = 1f, targetValue = 1.06f,
+            animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+            label = "pulse"
+        )
+        val ringAlpha by logoTransition.animateFloat(
+            initialValue = 0.55f, targetValue = 0f,
+            animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart),
+            label = "ringAlpha"
+        )
+        val ringScale by logoTransition.animateFloat(
+            initialValue = 1f, targetValue = 1.65f,
+            animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart),
+            label = "ringScale"
         )
 
-        Box(
-            modifier = Modifier
-                .size(112.dp)
-                .scale(scale)
-                .shadow(
-                    elevation = 28.dp,
-                    shape = CircleShape,
-                    ambientColor = WMPrimary.copy(alpha = 0.55f),
-                    spotColor = WMPrimary.copy(alpha = 0.35f)
-                )
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(Color(0xFF1565C0), Color(0xFF6A1B9A))
-                    ),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                "WM",
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(148.dp)) {
+            // Pulsing halo ring
+            Box(
+                modifier = Modifier
+                    .size(112.dp)
+                    .scale(ringScale)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF1E88E5).copy(alpha = ringAlpha), Color.Transparent)
+                        ),
+                        shape = CircleShape
+                    )
             )
+            // Logo disc
+            Box(
+                modifier = Modifier
+                    .size(112.dp)
+                    .scale(pulseScale)
+                    .shadow(
+                        elevation = 32.dp,
+                        shape = CircleShape,
+                        ambientColor = Color(0xFF1565C0).copy(alpha = 0.60f),
+                        spotColor = Color(0xFF9C27B0).copy(alpha = 0.40f)
+                    )
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color(0xFF1565C0), Color(0xFF7B1FA2), Color(0xFF00BCD4))
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("WM", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -375,6 +406,26 @@ fun LogoSection() {
 }
 
 @Composable
+private fun premiumFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White.copy(alpha = 0.85f),
+    disabledTextColor = Color.White.copy(alpha = 0.45f),
+    focusedBorderColor = Color(0xFF4FC3F7),
+    unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+    focusedLabelColor = Color(0xFF4FC3F7),
+    unfocusedLabelColor = Color.White.copy(alpha = 0.55f),
+    cursorColor = Color(0xFF4FC3F7),
+    focusedLeadingIconColor = Color(0xFF4FC3F7),
+    unfocusedLeadingIconColor = Color.White.copy(alpha = 0.45f),
+    focusedTrailingIconColor = Color(0xFF4FC3F7),
+    unfocusedTrailingIconColor = Color.White.copy(alpha = 0.45f),
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    errorContainerColor = Color.Transparent
+)
+
+@Composable
 fun LoginFormCard(
     username: String,
     onUsernameChange: (String) -> Unit,
@@ -392,21 +443,18 @@ fun LoginFormCard(
     var phoneNumber by remember { mutableStateOf("") }
     var selectedCountry by remember { mutableStateOf(popularCountries[0]) }  // Ukraine by default
 
-    val colorScheme = MaterialTheme.colorScheme
-
-    Surface(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
                 elevation = 24.dp,
                 shape = RoundedCornerShape(28.dp),
-                ambientColor = Color(0xFF1565C0).copy(alpha = 0.18f)
+                ambientColor = Color(0xFF1565C0).copy(alpha = 0.22f)
             ),
         shape = RoundedCornerShape(28.dp),
-        color = colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp, Color.White.copy(alpha = 0.06f)
-        )
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1530).copy(alpha = 0.85f)),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(24.dp)
@@ -415,7 +463,7 @@ fun LoginFormCard(
                 stringResource(R.string.login),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = colorScheme.onSurface
+                color = Color.White
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -424,12 +472,20 @@ fun LoginFormCard(
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
-                contentColor = colorScheme.primary,
+                contentColor = Color(0xFF4FC3F7),
+                dividerColor = Color.White.copy(alpha = 0.12f),
                 indicator = { tabPositions ->
                     if (tabPositions.isNotEmpty() && selectedTab < tabPositions.size) {
-                        TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                            color = colorScheme.primary
+                        Box(
+                            Modifier
+                                .tabIndicatorOffset(tabPositions[selectedTab])
+                                .height(3.dp)
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(Color(0xFF1565C0), Color(0xFF9C27B0))
+                                    ),
+                                    shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
+                                )
                         )
                     }
                 }
@@ -466,11 +522,7 @@ fun LoginFormCard(
                         enabled = !isLoading,
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorScheme.primary,
-                            focusedLabelColor = colorScheme.primary,
-                            cursorColor = colorScheme.primary
-                        )
+                        colors = premiumFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -504,11 +556,7 @@ fun LoginFormCard(
                         enabled = !isLoading,
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorScheme.primary,
-                            focusedLabelColor = colorScheme.primary,
-                            cursorColor = colorScheme.primary
-                        )
+                        colors = premiumFieldColors()
                     )
                 }
 
@@ -554,11 +602,7 @@ fun LoginFormCard(
                         enabled = !isLoading,
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorScheme.primary,
-                            focusedLabelColor = colorScheme.primary,
-                            cursorColor = colorScheme.primary
-                        )
+                        colors = premiumFieldColors()
                     )
                 }
             }
@@ -572,7 +616,7 @@ fun LoginFormCard(
             ) {
                 Text(
                     stringResource(R.string.recovery_access_btn),
-                    color = colorScheme.primary,
+                    color = Color(0xFF4FC3F7),
                     fontSize = 13.sp
                 )
             }
@@ -611,11 +655,11 @@ fun LoginFormCard(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    color = colorScheme.error.copy(alpha = 0.1f)
+                    color = Color(0xFFEF5350).copy(alpha = 0.22f)
                 ) {
                     Text(
                         text = loginState.message,
-                        color = colorScheme.error,
+                        color = Color(0xFFFFCDD2),
                         fontSize = 13.sp,
                         modifier = Modifier.padding(12.dp)
                     )
