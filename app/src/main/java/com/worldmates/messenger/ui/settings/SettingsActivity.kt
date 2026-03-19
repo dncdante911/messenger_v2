@@ -17,21 +17,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
@@ -63,10 +61,8 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Edge-to-edge so Compose controls insets
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        // Инициализируем ThemeManager
         ThemeManager.initialize(this)
 
         viewModel = ViewModelProvider(
@@ -74,10 +70,8 @@ class SettingsActivity : AppCompatActivity() {
             ViewModelProvider.AndroidViewModelFactory.getInstance(application)
         ).get(SettingsViewModel::class.java)
 
-        // Загрузить данные пользователя при открытии настроек
         viewModel.fetchUserData()
 
-        // Перевіряємо чи потрібно відкрити конкретний екран
         val openScreen = intent.getStringExtra("open_screen")
 
         setContent {
@@ -93,7 +87,7 @@ class SettingsActivity : AppCompatActivity() {
             WorldMatesThemedApp {
                 when (currentScreen) {
                     SettingsScreen.Main -> {
-                        SettingsScreen(
+                        SettingsMainScreen(
                             viewModel = viewModel,
                             onBackPressed = { finish() },
                             onNavigate = { screen -> currentScreen = screen },
@@ -187,7 +181,6 @@ class SettingsActivity : AppCompatActivity() {
                         LanguageSelectionScreen(
                             onLanguageSelected = { lang ->
                                 LanguageManager.setLanguage(lang)
-                                // Перезапустити весь стек Activity щоб нова мова застосувалась скрізь
                                 val restartIntent = packageManager.getLaunchIntentForPackage(packageName)
                                     ?: Intent(this@SettingsActivity, LoginActivity::class.java)
                                 restartIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -243,9 +236,13 @@ sealed class SettingsScreen {
     object Business : SettingsScreen()
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Settings Screen — clean, grouped Material3 design
+// ─────────────────────────────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(
+fun SettingsMainScreen(
     viewModel: SettingsViewModel,
     onBackPressed: () -> Unit,
     onNavigate: (SettingsScreen) -> Unit,
@@ -259,8 +256,8 @@ fun SettingsScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
     val updateState by AppUpdateManager.state.collectAsState()
     val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
 
-    // Показать сообщение об успехе
     LaunchedEffect(successMessage) {
         if (successMessage != null) {
             kotlinx.coroutines.delay(3000)
@@ -268,96 +265,49 @@ fun SettingsScreen(
         }
     }
 
-    // Анімація появи екрану
-    var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        visible = true
         viewModel.checkUpdates(force = false)
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF667eea),
-                        Color(0xFF764ba2),
-                        Color(0xFFF093FB)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.settings_header),
+                        fontWeight = FontWeight.SemiBold
                     )
-                )
-            )
-    ) {
-        AnimatedVisibility(
-            visible = visible,
-            enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            ) + fadeIn(animationSpec = tween(300))
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // Красивий Header з градієнтом
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color(0xFF667eea),
-                                    Color(0xFF764ba2)
-                                )
-                            )
-                        )
-                        .statusBarsPadding()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = onBackPressed,
-                            modifier = Modifier
-                                .shadow(4.dp, CircleShape)
-                                .background(Color.White.copy(alpha = 0.2f), CircleShape)
-                        ) {
-                            Icon(
-                                Icons.Default.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                                tint = Color.White
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = stringResource(R.string.settings_header),
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackPressed) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
-                }
-
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = colorScheme.surface,
+                    titleContentColor = colorScheme.onSurface,
+                    navigationIconContentColor = colorScheme.onSurface
+                )
+            )
+        },
+        containerColor = colorScheme.background
+    ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
+                .padding(paddingValues),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Success Message
+            // Success message
             if (successMessage != null) {
                 item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFE8F5E9)
-                        )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF4CAF50).copy(alpha = 0.12f)
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
@@ -366,21 +316,23 @@ fun SettingsScreen(
                             Icon(
                                 Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = Color(0xFF4CAF50)
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = successMessage ?: "",
-                                color = Color(0xFF2E7D32)
+                                color = Color(0xFF2E7D32),
+                                fontSize = 14.sp
                             )
                         }
                     }
                 }
             }
 
-            // Profile Section
+            // ── Profile Card ──
             item {
-                ProfileSection(
+                ProfileCard(
                     username = username,
                     userId = UserSession.userId,
                     avatar = avatar,
@@ -390,334 +342,220 @@ fun SettingsScreen(
                 )
             }
 
-            // Settings sections
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // Account Settings
+            // ── PRO Banner ──
             item {
-                SettingsSection(title = stringResource(R.string.account_section))
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Person,
-                    title = stringResource(R.string.edit_profile),
-                    subtitle = stringResource(R.string.edit_profile_subtitle),
-                    onClick = { onNavigate(SettingsScreen.EditProfile) }
-                )
-            }
-            item {
-                val statusEmoji by UserSession.statusEmojiFlow.collectAsState()
-                val statusText by UserSession.statusTextFlow.collectAsState()
-                val statusSubtitle = when {
-                    !statusEmoji.isNullOrBlank() && !statusText.isNullOrBlank() -> "$statusEmoji $statusText"
-                    !statusEmoji.isNullOrBlank() -> statusEmoji!!
-                    !statusText.isNullOrBlank() -> statusText!!
-                    else -> stringResource(R.string.custom_status_subtitle)
-                }
-                SettingsItem(
-                    icon = Icons.Default.EmojiEmotions,
-                    title = if (UserSession.isProActive) stringResource(R.string.custom_status_title)
-                            else "${stringResource(R.string.custom_status_title)} ⭐",
-                    subtitle = statusSubtitle,
-                    onClick = { onNavigate(SettingsScreen.CustomStatus) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Lock,
-                    title = stringResource(R.string.privacy_settings),
-                    subtitle = stringResource(R.string.privacy_subtitle),
-                    onClick = { onNavigate(SettingsScreen.Privacy) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Notifications,
-                    title = stringResource(R.string.notification_settings),
-                    subtitle = stringResource(R.string.notification_subtitle),
-                    onClick = { onNavigate(SettingsScreen.Notifications) }
+                ProBanner(
+                    isPro = userData?.isPro == 1,
+                    onClick = { onNavigate(SettingsScreen.Premium) }
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // Security Settings
+            // ── Account ──
             item {
-                SettingsSection(title = stringResource(R.string.security_section))
-            }
-            item {
-                val twoFactorEnabled = stringResource(R.string.two_factor_enabled)
-                val twoFactorDisabled = stringResource(R.string.two_factor_disabled)
-                val twoFactorSubtitle = try {
-                    if (com.worldmates.messenger.utils.security.SecurePreferences.is2FAEnabled) twoFactorEnabled else twoFactorDisabled
-                } catch (_: Exception) { twoFactorDisabled }
-                SettingsItem(
-                    icon = Icons.Default.Shield,
-                    title = stringResource(R.string.two_factor_auth),
-                    subtitle = twoFactorSubtitle,
-                    onClick = { onNavigate(SettingsScreen.TwoFactorAuth) }
-                )
-            }
-            item {
-                val pinActive = stringResource(R.string.app_lock_pin_active)
-                val pinDisabled = stringResource(R.string.two_factor_disabled)
-                val appLockSubtitle = try {
-                    if (com.worldmates.messenger.utils.security.SecurePreferences.isPINEnabled()) pinActive else pinDisabled
-                } catch (_: Exception) { pinDisabled }
-                SettingsItem(
-                    icon = Icons.Default.Lock,
-                    title = stringResource(R.string.app_lock),
-                    subtitle = appLockSubtitle,
-                    onClick = { onNavigate(SettingsScreen.AppLock) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Block,
-                    title = stringResource(R.string.blocked_users),
-                    subtitle = stringResource(R.string.blocked_users_subtitle),
-                    onClick = { onNavigate(SettingsScreen.BlockedUsers) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Devices,
-                    title = stringResource(R.string.active_sessions),
-                    subtitle = stringResource(R.string.active_sessions_subtitle),
-                    onClick = { onNavigate(SettingsScreen.ActiveSessions) }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // Social Settings
-            item {
-                SettingsSection(title = stringResource(R.string.social_section))
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Group,
-                    title = stringResource(R.string.my_groups_settings),
-                    subtitle = stringResource(R.string.groups_count_fmt, userData?.groupsCount ?: "0"),
-                    onClick = { onNavigate(SettingsScreen.MyGroups) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.People,
-                    title = stringResource(R.string.followers_settings),
-                    subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
-                    onClick = { /* TODO */ }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.PersonAdd,
-                    title = stringResource(R.string.following_settings),
-                    subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
-                    onClick = { /* TODO */ }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // Chat Settings
-            item {
-                SettingsSection(title = stringResource(R.string.chats_section))
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Chat,
-                    title = stringResource(R.string.chat_background),
-                    subtitle = stringResource(R.string.chat_background_subtitle),
-                    onClick = { /* TODO */ }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Storage,
-                    title = stringResource(R.string.storage_backup),
-                    subtitle = stringResource(R.string.storage_backup_subtitle),
-                    onClick = { onNavigate(SettingsScreen.CloudBackup) }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // App Settings
-            item {
-                SettingsSection(title = stringResource(R.string.app_section))
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Language,
-                    title = stringResource(R.string.language_settings),
-                    subtitle = LanguageManager.getDisplayName(LanguageManager.currentLanguage),
-                    onClick = { onNavigate(SettingsScreen.Language) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.DarkMode,
-                    title = stringResource(R.string.theme_settings),
-                    subtitle = stringResource(R.string.theme_subtitle),
-                    onClick = { onNavigate(SettingsScreen.Theme) }
-                )
-            }
-            // Video frame styles moved to Theme settings
-            item {
-                SettingsItem(
-                    icon = Icons.Default.SystemUpdate,
-                    title = stringResource(R.string.app_update),
-                    subtitle = if (updateState.hasUpdate) stringResource(R.string.update_available_version, updateState.latestVersion ?: "") else stringResource(R.string.update_auto_check),
-                    onClick = { viewModel.checkUpdates(force = true) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.Info,
-                    title = stringResource(R.string.about_app),
-                    subtitle = "Версія ${BuildConfig.VERSION_NAME}",
-                    onClick = { showAboutDialog = true }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // Business Mode
-            item {
-                SettingsSection(title = stringResource(R.string.biz_section_title))
-            }
-            item {
-                SettingsItem(
-                    icon     = Icons.Default.Business,
-                    title    = stringResource(R.string.biz_mode_title),
-                    subtitle = stringResource(R.string.biz_mode_subtitle),
-                    onClick  = { onNavigate(SettingsScreen.Business) }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // Account Info — PRO card (для Pro) або Get PRO (для Free)
-            item {
-                if (userData?.isPro == 1) {
-                    // Active PRO — golden thank-you card
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .clickable { onNavigate(SettingsScreen.Premium) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFFFD700)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Stars,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.pro_account),
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    fontSize = 18.sp
-                                )
-                                Text(
-                                    stringResource(R.string.thank_you_support),
-                                    color = Color.White,
-                                    fontSize = 14.sp
-                                )
-                            }
-                            Icon(
-                                Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.7f)
-                            )
-                        }
+                SettingsGroupHeader(title = stringResource(R.string.account_section))
+                SettingsGroup {
+                    SettingsRow(
+                        icon = Icons.Outlined.Person,
+                        title = stringResource(R.string.edit_profile),
+                        subtitle = stringResource(R.string.edit_profile_subtitle),
+                        onClick = { onNavigate(SettingsScreen.EditProfile) }
+                    )
+                    GroupDivider()
+                    val statusEmoji by UserSession.statusEmojiFlow.collectAsState()
+                    val statusText by UserSession.statusTextFlow.collectAsState()
+                    val statusSubtitle = when {
+                        !statusEmoji.isNullOrBlank() && !statusText.isNullOrBlank() -> "$statusEmoji $statusText"
+                        !statusEmoji.isNullOrBlank() -> statusEmoji!!
+                        !statusText.isNullOrBlank() -> statusText!!
+                        else -> stringResource(R.string.custom_status_subtitle)
                     }
-                } else {
-                    // Free user — ненав'язливий Get PRO banner
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .clickable { onNavigate(SettingsScreen.Premium) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFB8860B).copy(alpha = 0.10f)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp, Color(0xFFB8860B).copy(alpha = 0.4f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Stars,
-                                contentDescription = null,
-                                tint = Color(0xFFB8860B),
-                                modifier = Modifier.size(26.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.premium_get_pro_title),
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFB8860B),
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    stringResource(R.string.premium_get_pro_subtitle),
-                                    color = Color(0xFFB8860B).copy(alpha = 0.7f),
-                                    fontSize = 12.sp
-                                )
-                            }
-                            Icon(
-                                Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                tint = Color(0xFFB8860B).copy(alpha = 0.7f)
-                            )
-                        }
-                    }
+                    SettingsRow(
+                        icon = Icons.Outlined.EmojiEmotions,
+                        title = if (UserSession.isProActive) stringResource(R.string.custom_status_title)
+                                else "${stringResource(R.string.custom_status_title)} ⭐",
+                        subtitle = statusSubtitle,
+                        onClick = { onNavigate(SettingsScreen.CustomStatus) }
+                    )
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // Delete Account + Logout
+            // ── Notifications & Privacy ──
             item {
-                SettingsItem(
-                    icon = Icons.Default.DeleteForever,
-                    title = stringResource(R.string.delete_account),
-                    textColor = Color.Red,
-                    onClick = { onNavigate(SettingsScreen.DeleteAccount) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.ExitToApp,
-                    title = stringResource(R.string.logout),
-                    textColor = Color.Red,
-                    onClick = { showLogoutDialog = true }
-                )
+                SettingsGroupHeader(title = stringResource(R.string.notification_settings) + " & " + stringResource(R.string.privacy_settings))
+                SettingsGroup {
+                    SettingsRow(
+                        icon = Icons.Outlined.Notifications,
+                        title = stringResource(R.string.notification_settings),
+                        subtitle = stringResource(R.string.notification_subtitle),
+                        onClick = { onNavigate(SettingsScreen.Notifications) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Lock,
+                        title = stringResource(R.string.privacy_settings),
+                        subtitle = stringResource(R.string.privacy_subtitle),
+                        onClick = { onNavigate(SettingsScreen.Privacy) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Block,
+                        title = stringResource(R.string.blocked_users),
+                        subtitle = stringResource(R.string.blocked_users_subtitle),
+                        onClick = { onNavigate(SettingsScreen.BlockedUsers) }
+                    )
+                }
             }
 
+            // ── Security ──
+            item {
+                SettingsGroupHeader(title = stringResource(R.string.security_section))
+                SettingsGroup {
+                    val twoFactorEnabled = stringResource(R.string.two_factor_enabled)
+                    val twoFactorDisabled = stringResource(R.string.two_factor_disabled)
+                    val twoFactorSubtitle = try {
+                        if (com.worldmates.messenger.utils.security.SecurePreferences.is2FAEnabled) twoFactorEnabled else twoFactorDisabled
+                    } catch (_: Exception) { twoFactorDisabled }
+                    SettingsRow(
+                        icon = Icons.Outlined.Shield,
+                        title = stringResource(R.string.two_factor_auth),
+                        subtitle = twoFactorSubtitle,
+                        onClick = { onNavigate(SettingsScreen.TwoFactorAuth) }
+                    )
+                    GroupDivider()
+                    val pinActive = stringResource(R.string.app_lock_pin_active)
+                    val pinDisabled = stringResource(R.string.two_factor_disabled)
+                    val appLockSubtitle = try {
+                        if (com.worldmates.messenger.utils.security.SecurePreferences.isPINEnabled()) pinActive else pinDisabled
+                    } catch (_: Exception) { pinDisabled }
+                    SettingsRow(
+                        icon = Icons.Outlined.Fingerprint,
+                        title = stringResource(R.string.app_lock),
+                        subtitle = appLockSubtitle,
+                        onClick = { onNavigate(SettingsScreen.AppLock) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Devices,
+                        title = stringResource(R.string.active_sessions),
+                        subtitle = stringResource(R.string.active_sessions_subtitle),
+                        onClick = { onNavigate(SettingsScreen.ActiveSessions) }
+                    )
+                }
+            }
+
+            // ── Social ──
+            item {
+                SettingsGroupHeader(title = stringResource(R.string.social_section))
+                SettingsGroup {
+                    SettingsRow(
+                        icon = Icons.Outlined.Group,
+                        title = stringResource(R.string.my_groups_settings),
+                        subtitle = stringResource(R.string.groups_count_fmt, userData?.groupsCount ?: "0"),
+                        onClick = { onNavigate(SettingsScreen.MyGroups) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.People,
+                        title = stringResource(R.string.followers_settings),
+                        subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
+                        onClick = { /* TODO */ }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.PersonAdd,
+                        title = stringResource(R.string.following_settings),
+                        subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
+                        onClick = { /* TODO */ }
+                    )
+                }
+            }
+
+            // ── Storage & Data ──
+            item {
+                SettingsGroupHeader(title = stringResource(R.string.storage_backup))
+                SettingsGroup {
+                    SettingsRow(
+                        icon = Icons.Outlined.CloudUpload,
+                        title = stringResource(R.string.storage_backup),
+                        subtitle = stringResource(R.string.storage_backup_subtitle),
+                        onClick = { onNavigate(SettingsScreen.CloudBackup) }
+                    )
+                }
+            }
+
+            // ── Appearance ──
+            item {
+                SettingsGroupHeader(title = stringResource(R.string.app_section))
+                SettingsGroup {
+                    SettingsRow(
+                        icon = Icons.Outlined.Palette,
+                        title = stringResource(R.string.theme_settings),
+                        subtitle = stringResource(R.string.theme_subtitle),
+                        onClick = { onNavigate(SettingsScreen.Theme) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Language,
+                        title = stringResource(R.string.language_settings),
+                        subtitle = LanguageManager.getDisplayName(LanguageManager.currentLanguage),
+                        onClick = { onNavigate(SettingsScreen.Language) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.SystemUpdate,
+                        title = stringResource(R.string.app_update),
+                        subtitle = if (updateState.hasUpdate) stringResource(R.string.update_available_version, updateState.latestVersion ?: "") else stringResource(R.string.update_auto_check),
+                        showBadge = updateState.hasUpdate,
+                        onClick = { viewModel.checkUpdates(force = true) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Info,
+                        title = stringResource(R.string.about_app),
+                        subtitle = "v${BuildConfig.VERSION_NAME}",
+                        onClick = { showAboutDialog = true }
+                    )
+                }
+            }
+
+            // ── Business ──
+            item {
+                SettingsGroupHeader(title = stringResource(R.string.biz_section_title))
+                SettingsGroup {
+                    SettingsRow(
+                        icon = Icons.Outlined.Business,
+                        title = stringResource(R.string.biz_mode_title),
+                        subtitle = stringResource(R.string.biz_mode_subtitle),
+                        onClick = { onNavigate(SettingsScreen.Business) }
+                    )
+                }
+            }
+
+            // ── Danger zone ──
+            item {
+                SettingsGroup {
+                    SettingsRow(
+                        icon = Icons.Outlined.DeleteForever,
+                        title = stringResource(R.string.delete_account),
+                        tintColor = MaterialTheme.colorScheme.error,
+                        onClick = { onNavigate(SettingsScreen.DeleteAccount) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.ExitToApp,
+                        title = stringResource(R.string.logout),
+                        tintColor = MaterialTheme.colorScheme.error,
+                        onClick = { showLogoutDialog = true }
+                    )
+                }
+            }
+
+            // Bottom spacing
             item { Spacer(modifier = Modifier.height(24.dp)) }
         }
-            }  // Кінець Column
-        }  // Кінець AnimatedVisibility
-    }  // Кінець Box
+    }
 
-    // Logout confirmation dialog
+    // ── Dialogs ──
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -730,7 +568,7 @@ fun SettingsScreen(
                         onLogout()
                     }
                 ) {
-                    Text(stringResource(R.string.logout), color = Color.Red)
+                    Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -789,7 +627,6 @@ fun SettingsScreen(
         )
     }
 
-    // About App dialog
     if (showAboutDialog) {
         com.worldmates.messenger.ui.components.AboutAppDialog(
             onDismiss = { showAboutDialog = false }
@@ -797,8 +634,12 @@ fun SettingsScreen(
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable components
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
-fun ProfileSection(
+fun ProfileCard(
     username: String,
     userId: Long,
     avatar: String?,
@@ -806,90 +647,174 @@ fun ProfileSection(
     about: String?,
     onEditProfile: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    val statusEmoji by UserSession.statusEmojiFlow.collectAsState()
+    val statusText by UserSession.statusTextFlow.collectAsState()
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onEditProfile() },
-        color = Color.White
+            .clickable(onClick = onEditProfile),
+        shape = RoundedCornerShape(16.dp),
+        color = colorScheme.surfaceContainerHigh,
+        tonalElevation = 1.dp
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Avatar
-                AsyncImage(
-                    model = avatar ?: "https://worldmates.club/upload/photos/d-avatar.jpg",
-                    contentDescription = "Profile Avatar",
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
+            AsyncImage(
+                model = avatar ?: "https://worldmates.club/upload/photos/d-avatar.jpg",
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
 
-                // User info
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 16.dp)
-                ) {
-                    val statusEmoji by UserSession.statusEmojiFlow.collectAsState()
-                    val statusText by UserSession.statusTextFlow.collectAsState()
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = username,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
-                        )
-                        if (!statusEmoji.isNullOrBlank()) {
-                            Text(text = statusEmoji!!, fontSize = 18.sp)
-                        }
-                    }
-                    if (!statusText.isNullOrBlank()) {
-                        Text(
-                            text = statusText!!,
-                            fontSize = 13.sp,
-                            color = Color(0xFF0084FF),
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                    }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 14.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "ID: $userId",
-                        fontSize = 14.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(top = 4.dp)
+                        text = username,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
-                    if (!email.isNullOrEmpty()) {
-                        Text(
-                            text = email,
-                            fontSize = 13.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
+                    if (!statusEmoji.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = statusEmoji!!, fontSize = 16.sp)
                     }
                 }
-
-                // Edit icon
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.edit_profile),
-                    tint = Color(0xFF0084FF)
+                if (!statusText.isNullOrBlank()) {
+                    Text(
+                        text = statusText!!,
+                        fontSize = 13.sp,
+                        color = colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                Text(
+                    text = "ID: $userId",
+                    fontSize = 13.sp,
+                    color = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
+                if (!email.isNullOrEmpty()) {
+                    Text(
+                        text = email,
+                        fontSize = 12.sp,
+                        color = colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 1.dp)
+                    )
+                }
             }
 
-            // About section
-            if (!about.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = about,
-                    fontSize = 14.sp,
-                    color = Color.Gray,
-                    lineHeight = 20.sp
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ProBanner(
+    isPro: Boolean,
+    onClick: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    if (isPro) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFFFFD700).copy(alpha = 0.15f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.4f))
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Stars,
+                    contentDescription = null,
+                    tint = Color(0xFFDAA520),
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.pro_account),
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFDAA520),
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        stringResource(R.string.thank_you_support),
+                        color = Color(0xFFDAA520).copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
+                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = Color(0xFFDAA520).copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    } else {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(14.dp),
+            color = colorScheme.primaryContainer.copy(alpha = 0.4f)
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Stars,
+                    contentDescription = null,
+                    tint = colorScheme.primary,
+                    modifier = Modifier.size(26.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.premium_get_pro_title),
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.primary,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        stringResource(R.string.premium_get_pro_subtitle),
+                        color = colorScheme.primary.copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
+                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = colorScheme.primary.copy(alpha = 0.5f),
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -897,133 +822,103 @@ fun ProfileSection(
 }
 
 @Composable
-fun SettingsSection(title: String) {
+fun SettingsGroupHeader(title: String) {
+    Text(
+        text = title.uppercase(),
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        letterSpacing = 0.5.sp,
+        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+    )
+}
+
+@Composable
+fun SettingsGroup(
+    content: @Composable ColumnScope.() -> Unit
+) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color.Transparent
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 1.dp
     ) {
-        Text(
-            text = title,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF0084FF),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            content = content
         )
     }
 }
 
 @Composable
-fun SettingsItem(
+fun GroupDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 56.dp),
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    )
+}
+
+@Composable
+fun SettingsRow(
     icon: ImageVector,
     title: String,
     subtitle: String? = null,
-    textColor: Color = Color.Black,
+    tintColor: Color? = null,
+    showBadge: Boolean = false,
     onClick: () -> Unit
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        )
-    )
+    val colorScheme = MaterialTheme.colorScheme
+    val iconColor = tintColor ?: colorScheme.onSurfaceVariant
+    val titleColor = tintColor ?: colorScheme.onSurface
 
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .shadow(4.dp, RoundedCornerShape(16.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    isPressed = false
-                    onClick()
-                }
-            )
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        isPressed = event.changes.any { it.pressed }
-                    }
-                }
-            },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.95f)
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp,
-            pressedElevation = 8.dp
-        )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                },
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon з градієнтним фоном
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = iconColor,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                color = titleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    fontSize = 13.sp,
+                    color = colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 1.dp)
+                )
+            }
+        }
+        if (showBadge) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = if (textColor == Color.Red) {
-                                listOf(Color(0xFFFF6B6B), Color(0xFFFF8E53))
-                            } else {
-                                listOf(Color(0xFF667eea), Color(0xFF764ba2))
-                            }
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            // Text
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (textColor == Color.Red) Color.Red else Color(0xFF2C3E50)
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        fontSize = 13.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-            }
-
-            // Arrow
-            if (textColor != Color.Red) {
-                Icon(
-                    Icons.Default.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = Color(0xFF667eea),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+                    .size(8.dp)
+                    .background(colorScheme.error, CircleShape)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        if (tintColor == null) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

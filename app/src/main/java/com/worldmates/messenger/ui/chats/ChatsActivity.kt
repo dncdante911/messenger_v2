@@ -63,6 +63,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -798,7 +799,7 @@ fun ChatsScreen(
 }  // Конец функции ChatsScreen
 
 /**
- * Контент бічної панелі налаштувань
+ * Контент бічної панелі — чистий Material3 дизайн
  */
 @Composable
 fun SettingsDrawerContent(
@@ -810,82 +811,79 @@ fun SettingsDrawerContent(
     onCreateGroup: () -> Unit = {}
 ) {
     val context = LocalContext.current
-
-    // Observe avatar changes
+    val colorScheme = MaterialTheme.colorScheme
     val currentAvatar by com.worldmates.messenger.data.UserSession.avatarFlow.collectAsState()
-
-    // State для діалогів
+    val statusEmoji by com.worldmates.messenger.data.UserSession.statusEmojiFlow.collectAsState()
     var showAboutDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF667eea),
-                        Color(0xFF764ba2)
-                    )
-                )
-            )
+            .background(colorScheme.surface)
     ) {
-        // Header з інфо користувача
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
+        // ── Header ──
+        Surface(
+            color = colorScheme.primaryContainer.copy(alpha = 0.3f)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AsyncImage(
                         model = currentAvatar,
                         contentDescription = "Avatar",
                         modifier = Modifier
-                            .size(70.dp)
+                            .size(56.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = com.worldmates.messenger.data.UserSession.username ?: stringResource(R.string.user_label),
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "+380 (93) 025 39 41",
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.8f)
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = onClose) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.close),
+                            tint = colorScheme.onSurface
                         )
                     }
                 }
-
-                IconButton(onClick = onClose) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = stringResource(R.string.close),
-                        tint = Color.White
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = com.worldmates.messenger.data.UserSession.username ?: stringResource(R.string.user_label),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.onSurface
                     )
+                    if (!statusEmoji.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = statusEmoji!!, fontSize = 16.sp)
+                    }
                 }
+                Text(
+                    text = "ID: ${com.worldmates.messenger.data.UserSession.userId}",
+                    fontSize = 13.sp,
+                    color = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
             }
         }
 
-        // Меню items
+        // ── Menu ──
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
         ) {
+            // Main actions
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.Person,
+                    icon = Icons.Outlined.Person,
                     title = stringResource(R.string.my_profile),
                     onClick = {
                         onClose()
@@ -895,10 +893,9 @@ fun SettingsDrawerContent(
                     }
                 )
             }
-
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.Group,
+                    icon = Icons.Outlined.Group,
                     title = stringResource(R.string.new_group),
                     onClick = {
                         onClose()
@@ -906,10 +903,9 @@ fun SettingsDrawerContent(
                     }
                 )
             }
-
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.CameraAlt,
+                    icon = Icons.Outlined.CameraAlt,
                     title = stringResource(R.string.create_story),
                     onClick = {
                         onClose()
@@ -917,10 +913,9 @@ fun SettingsDrawerContent(
                     }
                 )
             }
-
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.Person,
+                    icon = Icons.Outlined.Contacts,
                     title = stringResource(R.string.contacts),
                     onClick = {
                         onClose()
@@ -930,19 +925,16 @@ fun SettingsDrawerContent(
             }
 
             item {
-                DrawerMenuItem(
-                    icon = Icons.Default.Edit,
-                    title = stringResource(R.string.drafts),
-                    onClick = {
-                        onClose()
-                        onShowDrafts()
-                    }
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    color = colorScheme.outlineVariant.copy(alpha = 0.4f)
                 )
             }
 
+            // Secondary actions
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.Call,
+                    icon = Icons.Outlined.Call,
                     title = stringResource(R.string.calls),
                     onClick = {
                         onClose()
@@ -952,23 +944,9 @@ fun SettingsDrawerContent(
                     }
                 )
             }
-
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.SmartToy,
-                    title = stringResource(R.string.bot_store),
-                    onClick = {
-                        onClose()
-                        context.startActivity(
-                            android.content.Intent(context, com.worldmates.messenger.ui.bots.BotStoreActivity::class.java)
-                        )
-                    }
-                )
-            }
-
-            item {
-                DrawerMenuItem(
-                    icon = Icons.Default.Bookmark,
+                    icon = Icons.Outlined.Bookmark,
                     title = stringResource(R.string.saved_messages),
                     onClick = {
                         onClose()
@@ -978,10 +956,28 @@ fun SettingsDrawerContent(
                     }
                 )
             }
-
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.Place,
+                    icon = Icons.Outlined.Edit,
+                    title = stringResource(R.string.drafts),
+                    onClick = {
+                        onClose()
+                        onShowDrafts()
+                    }
+                )
+            }
+
+            item {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    color = colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+            }
+
+            // Discovery & extras
+            item {
+                DrawerMenuItem(
+                    icon = Icons.Outlined.Place,
                     title = stringResource(R.string.geo_discovery_title),
                     onClick = {
                         onClose()
@@ -991,10 +987,21 @@ fun SettingsDrawerContent(
                     }
                 )
             }
-
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.Star,
+                    icon = Icons.Outlined.SmartToy,
+                    title = stringResource(R.string.bot_store),
+                    onClick = {
+                        onClose()
+                        context.startActivity(
+                            android.content.Intent(context, com.worldmates.messenger.ui.bots.BotStoreActivity::class.java)
+                        )
+                    }
+                )
+            }
+            item {
+                DrawerMenuItem(
+                    icon = Icons.Outlined.Star,
                     title = stringResource(R.string.premium_title),
                     onClick = {
                         onClose()
@@ -1004,25 +1011,9 @@ fun SettingsDrawerContent(
                     }
                 )
             }
-
-            item {
-                Divider(
-                    color = Color.White.copy(alpha = 0.2f),
-                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 24.dp)
-                )
-            }
-
             item {
                 DrawerMenuItem(
-                    icon = Icons.Default.Settings,
-                    title = stringResource(R.string.settings),
-                    onClick = onNavigateToFullSettings
-                )
-            }
-
-            item {
-                DrawerMenuItem(
-                    icon = Icons.Default.Share,
+                    icon = Icons.Outlined.Share,
                     title = stringResource(R.string.invite_friends),
                     onClick = {
                         onClose()
@@ -1040,19 +1031,22 @@ fun SettingsDrawerContent(
             }
 
             item {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    color = colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+            }
+
+            item {
                 DrawerMenuItem(
-                    icon = Icons.Default.Info,
-                    title = stringResource(R.string.about_app),
-                    onClick = {
-                        onClose()
-                        showAboutDialog = true
-                    }
+                    icon = Icons.Outlined.Settings,
+                    title = stringResource(R.string.settings),
+                    onClick = onNavigateToFullSettings
                 )
             }
         }
     }
 
-    // Діалог "Про додаток"
     if (showAboutDialog) {
         com.worldmates.messenger.ui.components.AboutAppDialog(
             onDismiss = { showAboutDialog = false }
@@ -1066,25 +1060,26 @@ fun DrawerMenuItem(
     title: String,
     onClick: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 14.dp),
+            .padding(horizontal = 20.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = title,
-            tint = Color.White,
+            tint = colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp)
         )
-        Spacer(modifier = Modifier.width(20.dp))
+        Spacer(modifier = Modifier.width(18.dp))
         Text(
             text = title,
-            fontSize = 16.sp,
-            color = Color.White,
-            fontWeight = FontWeight.Medium
+            fontSize = 15.sp,
+            color = colorScheme.onSurface,
+            fontWeight = FontWeight.Normal
         )
     }
 }
