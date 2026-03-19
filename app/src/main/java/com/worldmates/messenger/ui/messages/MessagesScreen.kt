@@ -68,7 +68,6 @@ import com.worldmates.messenger.ui.components.UserProfileMenuSheet
 import com.worldmates.messenger.ui.components.UserMenuData
 import com.worldmates.messenger.ui.components.UserMenuAction
 import com.worldmates.messenger.ui.components.ReportUserDialog
-import com.worldmates.messenger.network.RetrofitClient
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
 import com.worldmates.messenger.ui.preferences.rememberQuickReaction
 import com.worldmates.messenger.ui.preferences.rememberUIStyle
@@ -1422,11 +1421,9 @@ fun MessagesScreen(
                         reportTargetUser = null
                         scope.launch {
                             try {
-                                val token = UserSession.accessToken ?: ""
-                                RetrofitClient.apiService.reportUser(
-                                    accessToken = token,
+                                NodeRetrofitClient.api.reportUser(
                                     userId = userId,
-                                    text = "$reason: $details".trim().trimEnd(':').trim()
+                                    text   = "$reason: $details".trim().trimEnd(':').trim()
                                 )
                                 android.widget.Toast.makeText(
                                     context,
