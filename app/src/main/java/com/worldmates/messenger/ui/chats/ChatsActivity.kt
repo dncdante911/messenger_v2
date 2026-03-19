@@ -512,7 +512,12 @@ fun ChatsScreen(
                         onDismiss = { showSearchDialog = false },
                         onUserClick = { user ->
                             showSearchDialog = false
-                            // TODO: Navigate to messages with this user
+                            navigateToMessages(Chat(
+                                id = 0,
+                                userId = user.userId,
+                                username = user.username,
+                                avatarUrl = user.avatarUrl
+                            ))
                         }
                     )
                 }

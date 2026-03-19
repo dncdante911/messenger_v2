@@ -6,6 +6,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Message
 import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.utils.EncryptedMediaHandler
@@ -308,6 +309,25 @@ class MediaSearchViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Export error: ${e.message}", e)
                 Toast.makeText(context, "Ошибка экспорта", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /**
+     * Download a single media file (public entry point for UI)
+     */
+    fun downloadSingleMedia(message: Message, context: Context) {
+        viewModelScope.launch {
+            try {
+                val success = downloadMedia(message, context)
+                if (success) {
+                    Toast.makeText(context, context.getString(R.string.media_download_success), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, context.getString(R.string.media_download_error), Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Download failed: ${e.message}", e)
+                Toast.makeText(context, context.getString(R.string.media_download_error), Toast.LENGTH_SHORT).show()
             }
         }
     }
