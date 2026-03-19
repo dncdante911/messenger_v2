@@ -23,6 +23,7 @@ import okhttp3.MultipartBody
 import com.worldmates.messenger.utils.signal.PreKeyBundleResponse
 import com.worldmates.messenger.utils.signal.SignalRegisterRequest
 import com.worldmates.messenger.utils.signal.SignalReplenishRequest
+import com.worldmates.messenger.utils.signal.SignalIdentityKeyResponse
 import com.worldmates.messenger.utils.signal.SignalSimpleResponse
 import com.worldmates.messenger.utils.signal.SignalGroupDistributeResponse
 import com.worldmates.messenger.utils.signal.SignalGroupPendingResponse
@@ -512,6 +513,25 @@ interface NodeApi {
      */
     @GET("api/node/signal/prekey-count")
     suspend fun getSignalPreKeyCount(): SignalSimpleResponse
+
+    // ═══════════════════════ E2EE KEY BACKUP ═════════════════════════════════
+
+    /** Upload (create/replace) the encrypted Signal key backup. */
+    @FormUrlEncoded
+    @POST("api/node/signal/key-backup")
+    suspend fun uploadKeyBackup(
+        @Field("encrypted_payload") encryptedPayload: String,
+        @Field("salt")              salt:              String,
+        @Field("iv")                iv:                String,
+    ): NodeSimpleResponse
+
+    /** Download the stored key backup (returns null backup if none exists). */
+    @GET("api/node/signal/key-backup")
+    suspend fun downloadKeyBackup(): KeyBackupDownloadResponse
+
+    /** Delete the stored key backup. */
+    @DELETE("api/node/signal/key-backup")
+    suspend fun deleteKeyBackup(): NodeSimpleResponse
 
     // ═══════════════════════ SIGNAL PROTOCOL — ГРУПОВІ ЧАТИ ══════════════════
 
@@ -1197,4 +1217,18 @@ data class NodeSavedListResponse(
     @SerializedName("saved")         val saved: List<ServerSavedItem>? = null,
     @SerializedName("total")         val total: Int = 0,
     @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ==================== E2EE KEY BACKUP ====================
+
+data class KeyBackupPayload(
+    @SerializedName("encrypted_payload") val encryptedPayload: String = "",
+    @SerializedName("salt")              val salt:             String = "",
+    @SerializedName("iv")                val iv:               String = "",
+    @SerializedName("updated_at")        val updatedAt:        Long   = 0,
+)
+
+data class KeyBackupDownloadResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("backup")     val backup:    KeyBackupPayload? = null,
 )

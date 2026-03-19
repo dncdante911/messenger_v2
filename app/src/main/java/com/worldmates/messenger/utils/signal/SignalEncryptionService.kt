@@ -348,14 +348,16 @@ class SignalEncryptionService private constructor(
      *   – If we are the initiator (Alice): IK_A = ours [0..32), IK_B = remote [32..64)
      *   – If we are the responder (Bob):   IK_A = remote [0..32), IK_B = ours [32..64)
      */
-    private fun extractRemoteIkB64FromSession(session: SessionState): String? = try {
-        val ad = Base64.decode(session.associatedData, Base64.NO_WRAP)
-        if (ad.size < 64) return null
-        val remoteIkBytes = if (session.isInitiator) ad.copyOfRange(32, 64) else ad.copyOfRange(0, 32)
-        Base64.encodeToString(remoteIkBytes, Base64.NO_WRAP)
-    } catch (e: Exception) {
-        Log.w(TAG, "extractRemoteIkB64FromSession failed: ${e.message}")
-        null
+    private fun extractRemoteIkB64FromSession(session: SessionState): String? {
+        return try {
+            val ad = Base64.decode(session.associatedData, Base64.NO_WRAP)
+            if (ad.size < 64) return null
+            val remoteIkBytes = if (session.isInitiator) ad.copyOfRange(32, 64) else ad.copyOfRange(0, 32)
+            Base64.encodeToString(remoteIkBytes, Base64.NO_WRAP)
+        } catch (e: Exception) {
+            Log.w(TAG, "extractRemoteIkB64FromSession failed: ${e.message}")
+            null
+        }
     }
 
     // ─── Pre-key bundle fetch ─────────────────────────────────────────────────
