@@ -250,6 +250,19 @@ class SignalEncryptionService private constructor(
                     val (_, spkKp, _)   = keyStore.getOrCreateSignedPreKey()
                     val opkKp           = opkId?.let { keyStore.consumeOPK(it) }
 
+                    // If Alice sent opk_id but we don't have that OPK locally (keys were
+                    // regenerated after reinstall/clear-data), we MUST abort.  Falling back
+                    // to 3-DH when Alice used 4-DH produces a different shared secret →
+                    // guaranteed BAD_DECRYPT.
+                    if (opkId != null && opkKp == null) {
+                        Log.e(TAG, "X3DH(Bob) OPK $opkId not found locally — aborting " +
+                            "(Alice used 4-DH, 3-DH fallback would produce wrong SK). " +
+                            "Sender needs to re-fetch our bundle and start fresh X3DH.")
+                        // Delete any stale session so re-key can happen on next exchange
+                        try { keyStore.deleteSession(senderId) } catch (_: Exception) {}
+                        return@withLock null
+                    }
+
                     // Delete stale session before creating a new one
                     if (keyStore.hasSession(senderId)) {
                         keyStore.deleteSession(senderId)
