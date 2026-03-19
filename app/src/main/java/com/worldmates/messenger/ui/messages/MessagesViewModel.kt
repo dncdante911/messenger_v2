@@ -1879,6 +1879,7 @@ class MessagesViewModel(application: Application) :
 
         val plainText = signalService.decryptIncoming(
             senderId         = senderId,
+            msgId            = msg.id,
             ciphertextB64    = ciphertext,
             ivB64            = iv,
             tagB64           = tag,
@@ -1887,7 +1888,8 @@ class MessagesViewModel(application: Application) :
 
         return if (plainText != null) {
             Log.d(TAG, "🔓 [Signal] msg ${msg.id} OK: \"${plainText.take(40)}\"")
-            signalService.cacheDecryptedMessage(msg.id, plainText)
+            // Note: cacheDecryptedMessage is now called inside decryptIncoming (within the
+            // per-sender lock) to prevent a second concurrent call from re-decrypting.
             msg.copy(decryptedText = plainText)
         } else {
             Log.e(TAG, "❌ [Signal] msg ${msg.id} auth FAILED — possible session mismatch")

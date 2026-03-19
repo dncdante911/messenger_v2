@@ -7,7 +7,10 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.worldmates.messenger.network.NodeApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * High-level service for Signal Protocol (Double Ratchet) message encryption.
@@ -26,9 +29,20 @@ class SignalEncryptionService private constructor(
     private val context: Context,
     private val nodeApi: NodeApi
 ) {
-    private val TAG      = "SignalEncSvc"
-    private val keyStore = SignalKeyStore(context)
-    private val gson     = Gson()
+    private val TAG         = "SignalEncSvc"
+    private val keyStore    = SignalKeyStore(context)
+    private val gson        = Gson()
+
+    /**
+     * Per-sender mutex — serialises all crypto operations for a given remote user.
+     * Prevents race conditions when the same message is processed by two coroutines
+     * simultaneously (e.g. Socket.IO event + API message-list reload):
+     *   – Thread A: consumeOPK(5) → gets key → saves correct session S1
+     *   – Thread B: consumeOPK(5) → null (already consumed) → saves wrong session S2
+     *   → S2 overwrites S1, both decrypt attempts fail with BAD_DECRYPT.
+     * With the mutex only one coroutine runs at a time per sender.
+     */
+    private val senderLocks = ConcurrentHashMap<Long, Mutex>()
 
     companion object {
         const val CIPHER_VERSION_SIGNAL = 3
@@ -175,97 +189,128 @@ class SignalEncryptionService private constructor(
      * If the signal_header contains X3DH fields (first message from a new sender),
      * performs X3DH and initialises a new DR session before decrypting.
      *
+     * Thread safety: serialised per sender via [senderLocks]. Concurrent calls for
+     * the same [senderId] (e.g. Socket.IO event + API reload arriving simultaneously)
+     * are queued rather than executed in parallel, preventing OPK double-consumption
+     * and session state corruption.  The [msgId] cache check inside the lock also
+     * ensures the same message is never decrypted twice even when called from
+     * multiple coroutines.
+     *
+     * @param msgId  Unique message ID — used to skip re-decryption if the result is
+     *               already in the plaintext cache (the second coroutine in the queue
+     *               will just return the cached value without touching the session).
      * @return Decrypted plaintext, or null on auth/session failure.
      */
     suspend fun decryptIncoming(
         senderId:         Long,
+        msgId:            Long = 0L,  // 0 = no caching (e.g. distribution payloads)
         ciphertextB64:    String,
         ivB64:            String,
         tagB64:           String,
         signalHeaderJson: String
     ): String? = withContext(Dispatchers.Default) {
-        try {
-            @Suppress("UNCHECKED_CAST")
-            val h = gson.fromJson(signalHeaderJson, Map::class.java) as Map<String, Any>
-
-            val ratchetKey = Base64.decode(
-                h["rk"] as? String
-                    ?: return@withContext null.also { Log.e(TAG, "Missing rk") },
-                Base64.NO_WRAP
-            )
-            val n  = (h["n"]  as? Double)?.toInt() ?: 0
-            val pn = (h["pn"] as? Double)?.toInt() ?: 0
-
-            // ── X3DH on first incoming message (or re-key after sender reinstall) ──
-            // Always reinitialize when 'ik' is present — even if we have a stale session.
-            // Presence of 'ik' means the sender started a fresh X3DH (e.g. after reinstall).
-            // Keeping the old session and trying to decrypt with it will always fail.
-            if (h.containsKey("ik")) {
-                val ikAPub = Base64.decode(h["ik"] as String, Base64.NO_WRAP)
-                val ekAPub = Base64.decode(h["ek"] as? String
-                    ?: return@withContext null.also { Log.e(TAG, "Missing ek") },
-                    Base64.NO_WRAP)
-                val opkId = (h["opk_id"] as? Double)?.toInt()
-
-                val ik              = keyStore.getOrCreateIdentityKey()
-                val (_, spkKp, _)   = keyStore.getOrCreateSignedPreKey()
-                val opkKp           = opkId?.let { keyStore.consumeOPK(it) }
-
-                // Delete stale session before creating a new one
-                if (keyStore.hasSession(senderId)) {
-                    keyStore.deleteSession(senderId)
-                    Log.i(TAG, "X3DH(Bob) clearing stale session for $senderId before re-keying")
+        val lock = senderLocks.getOrPut(senderId) { Mutex() }
+        lock.withLock {
+            try {
+                // ── Cache check (inside lock) ─────────────────────────────────
+                // If another coroutine already decrypted this message while we were
+                // waiting for the lock, return the cached plaintext immediately.
+                // DR session keys are one-time: re-decrypting advances (or breaks) the chain.
+                if (msgId > 0L) {
+                    val cached = keyStore.getCachedDecryptedMessage(msgId)
+                    if (cached != null) {
+                        Log.d(TAG, "📱 [Signal] msg $msgId from cache (inside lock — duplicate call)")
+                        return@withLock cached
+                    }
                 }
 
-                val (sk, ad) = DoubleRatchetManager.x3dhBob(
-                    ikB    = ik,
-                    spkB   = spkKp,
-                    opkB   = opkKp,
-                    ikAPub = ikAPub,
-                    ekAPub = ekAPub
-                )
-                val session = DoubleRatchetManager.initBobSession(
-                    sk           = sk,
-                    ad           = ad,
-                    spkB         = spkKp,
-                    ekAPub       = ekAPub,
-                    remoteUserId = senderId
-                )
-                keyStore.saveSession(senderId, session)
-                Log.i(TAG, "X3DH(Bob) completed for sender $senderId")
-            }
+                @Suppress("UNCHECKED_CAST")
+                val h = gson.fromJson(signalHeaderJson, Map::class.java) as Map<String, Any>
 
-            // ── DR decrypt ────────────────────────────────────────────────────
-            val session = keyStore.loadSession(senderId)
-                ?: return@withContext null.also {
-                    Log.e(TAG, "No DR session for sender $senderId")
+                val ratchetKey = Base64.decode(
+                    h["rk"] as? String
+                        ?: return@withLock null.also { Log.e(TAG, "Missing rk") },
+                    Base64.NO_WRAP
+                )
+                val n  = (h["n"]  as? Double)?.toInt() ?: 0
+                val pn = (h["pn"] as? Double)?.toInt() ?: 0
+
+                // ── X3DH on first incoming message (or re-key after sender reinstall) ──
+                // Always reinitialize when 'ik' is present — even if we have a stale session.
+                // Presence of 'ik' means the sender started a fresh X3DH (e.g. after reinstall).
+                // Keeping the old session and trying to decrypt with it will always fail.
+                if (h.containsKey("ik")) {
+                    val ikAPub = Base64.decode(h["ik"] as String, Base64.NO_WRAP)
+                    val ekAPub = Base64.decode(h["ek"] as? String
+                        ?: return@withLock null.also { Log.e(TAG, "Missing ek") },
+                        Base64.NO_WRAP)
+                    val opkId = (h["opk_id"] as? Double)?.toInt()
+
+                    val ik              = keyStore.getOrCreateIdentityKey()
+                    val (_, spkKp, _)   = keyStore.getOrCreateSignedPreKey()
+                    val opkKp           = opkId?.let { keyStore.consumeOPK(it) }
+
+                    // Delete stale session before creating a new one
+                    if (keyStore.hasSession(senderId)) {
+                        keyStore.deleteSession(senderId)
+                        Log.i(TAG, "X3DH(Bob) clearing stale session for $senderId before re-keying")
+                    }
+
+                    val (sk, ad) = DoubleRatchetManager.x3dhBob(
+                        ikB    = ik,
+                        spkB   = spkKp,
+                        opkB   = opkKp,
+                        ikAPub = ikAPub,
+                        ekAPub = ekAPub
+                    )
+                    val session = DoubleRatchetManager.initBobSession(
+                        sk           = sk,
+                        ad           = ad,
+                        spkB         = spkKp,
+                        ekAPub       = ekAPub,
+                        remoteUserId = senderId
+                    )
+                    keyStore.saveSession(senderId, session)
+                    Log.i(TAG, "X3DH(Bob) completed for sender $senderId")
                 }
 
-            val encMsg = EncryptedDRMessage(
-                header     = DRHeader(ratchetKey = ratchetKey, n = n, pn = pn),
-                ciphertext = Base64.decode(ciphertextB64, Base64.NO_WRAP),
-                iv         = Base64.decode(ivB64,         Base64.NO_WRAP),
-                tag        = Base64.decode(tagB64,        Base64.NO_WRAP)
-            )
+                // ── DR decrypt ────────────────────────────────────────────────
+                val session = keyStore.loadSession(senderId)
+                    ?: return@withLock null.also {
+                        Log.e(TAG, "No DR session for sender $senderId")
+                    }
 
-            val (newSession, plainBytes) = DoubleRatchetManager.ratchetDecrypt(session, encMsg)
-            keyStore.saveSession(senderId, newSession)
-            String(plainBytes, Charsets.UTF_8)
+                val encMsg = EncryptedDRMessage(
+                    header     = DRHeader(ratchetKey = ratchetKey, n = n, pn = pn),
+                    ciphertext = Base64.decode(ciphertextB64, Base64.NO_WRAP),
+                    iv         = Base64.decode(ivB64,         Base64.NO_WRAP),
+                    tag        = Base64.decode(tagB64,        Base64.NO_WRAP)
+                )
 
-        } catch (e: Exception) {
-            // AEADBadTagException = session desync (keys don't match).
-            // Clear the stale session so the next outgoing message triggers a fresh
-            // X3DH key-agreement, re-synchronising both sides automatically.
-            val isBadTag = e is javax.crypto.AEADBadTagException ||
-                           e.cause is javax.crypto.AEADBadTagException
-            if (isBadTag) {
-                Log.w(TAG, "decryptIncoming BAD_DECRYPT from $senderId — " +
-                    "session desync detected, clearing session for re-key on next send")
-                try { keyStore.deleteSession(senderId) } catch (ignored: Exception) {}
-            } else {
-                Log.e(TAG, "decryptIncoming error from $senderId", e)
+                val (newSession, plainBytes) = DoubleRatchetManager.ratchetDecrypt(session, encMsg)
+                keyStore.saveSession(senderId, newSession)
+                val plainText = String(plainBytes, Charsets.UTF_8)
+
+                // Cache immediately inside the lock so any queued coroutine for the
+                // same msgId gets a cache hit and skips re-decryption.
+                if (msgId > 0L) keyStore.cacheDecryptedMessage(msgId, plainText)
+                plainText
+
+            } catch (e: Exception) {
+                // AEADBadTagException = session desync (keys don't match).
+                // Clear the stale session so the next outgoing message triggers a fresh
+                // X3DH key-agreement, re-synchronising both sides automatically.
+                val isBadTag = e is javax.crypto.AEADBadTagException ||
+                               e.cause is javax.crypto.AEADBadTagException
+                if (isBadTag) {
+                    Log.w(TAG, "decryptIncoming BAD_DECRYPT from $senderId — " +
+                        "session desync detected, clearing session for re-key on next send")
+                    try { keyStore.deleteSession(senderId) } catch (ignored: Exception) {}
+                } else {
+                    Log.e(TAG, "decryptIncoming error from $senderId", e)
+                }
+                null
             }
-            null
         }
     }
 
