@@ -43,6 +43,7 @@ const { instantView }                = require('./routes/instant_view')
 const registerNotesRoutes            = require('./routes/notes')
 const registerTranslatorRoutes       = require('./routes/translator')
 const { registerAvatarRoutes }       = require('./routes/users/avatars')
+const { registerSessionRoutes }      = require('./routes/users/sessions')
 const { registerScheduledRoutes }    = require('./routes/scheduled')
 const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
@@ -713,6 +714,8 @@ async function main() {
   // Register User REST API (nearby people, multi-avatars, etc.)
   registerUserRoutes(app, ctx, io);
   registerAvatarRoutes(app, ctx);
+  // Register Sessions REST API (replaces PHP sessions.php)
+  registerSessionRoutes(app, ctx);
   // Register Profile REST API (own profile, other users, follow, block, search)
   registerProfileRoutes(app, ctx);
   // Register User Rating / karma system

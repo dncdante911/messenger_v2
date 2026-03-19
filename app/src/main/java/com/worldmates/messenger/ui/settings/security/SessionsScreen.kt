@@ -18,9 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
-import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.RetrofitClient
-import com.worldmates.messenger.network.SessionItem
+import com.worldmates.messenger.network.NodeRetrofitClient
+import com.worldmates.messenger.network.NodeSessionItem
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -28,7 +27,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionsScreen(onBackClick: () -> Unit) {
-    val sessions = remember { mutableStateListOf<SessionItem>() }
+    val sessions = remember { mutableStateListOf<NodeSessionItem>() }
     val isLoading = remember { mutableStateOf(true) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -36,8 +35,7 @@ fun SessionsScreen(onBackClick: () -> Unit) {
     LaunchedEffect(Unit) {
         scope.launch {
             try {
-                val token = UserSession.accessToken ?: ""
-                val response = RetrofitClient.apiService.getSessions(accessToken = token)
+                val response = NodeRetrofitClient.api.getSessions()
                 if (response.apiStatus == 200) {
                     sessions.clear()
                     sessions.addAll(response.sessions)
@@ -103,11 +101,7 @@ fun SessionsScreen(onBackClick: () -> Unit) {
                                 onTerminate = {
                                     scope.launch {
                                         try {
-                                            val token = UserSession.accessToken ?: ""
-                                            val resp = RetrofitClient.apiService.deleteSession(
-                                                accessToken = token,
-                                                sessionId = session.id
-                                            )
+                                            val resp = NodeRetrofitClient.api.deleteSession(session.id)
                                             if (resp.apiStatus == 200) {
                                                 sessions.remove(session)
                                             }
@@ -124,7 +118,7 @@ fun SessionsScreen(onBackClick: () -> Unit) {
 }
 
 @Composable
-private fun SessionCard(session: SessionItem, onTerminate: () -> Unit) {
+private fun SessionCard(session: NodeSessionItem, onTerminate: () -> Unit) {
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()) }
     val formattedTime = remember(session.time) {
         if (session.time > 0) dateFormat.format(Date(session.time * 1000)) else "-"
@@ -138,7 +132,12 @@ private fun SessionCard(session: SessionItem, onTerminate: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f))
+        colors = CardDefaults.cardColors(
+            containerColor = if (session.isCurrent)
+                Color.White.copy(alpha = 0.25f)
+            else
+                Color.White.copy(alpha = 0.15f)
+        )
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -147,19 +146,31 @@ private fun SessionCard(session: SessionItem, onTerminate: () -> Unit) {
             Icon(platformIcon, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = session.deviceName?.takeIf { it.isNotBlank() } ?: session.platform.ifBlank { "-" },
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = session.deviceName?.takeIf { it.isNotBlank() } ?: session.platform.ifBlank { "-" },
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
+                    if (session.isCurrent) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.current_session),
+                            color = Color(0xFF90EE90),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
                 if (!session.ip.isNullOrBlank()) {
                     Text(text = session.ip, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
                 }
                 Text(text = formattedTime, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
             }
-            IconButton(onClick = onTerminate) {
-                Icon(Icons.Default.Close, stringResource(R.string.terminate_session), tint = Color.White.copy(alpha = 0.8f))
+            if (!session.isCurrent) {
+                IconButton(onClick = onTerminate) {
+                    Icon(Icons.Default.Close, stringResource(R.string.terminate_session), tint = Color.White.copy(alpha = 0.8f))
+                }
             }
         }
     }
