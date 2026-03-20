@@ -431,9 +431,12 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                     val userId = p.optLong("userId", 0L)
                     val userName = p.optString("userName", "Unknown")
                     val userAvatar = p.optString("userAvatar", "")
-                    if (userId > 0) {
+                    if (userId > 0 && userId != getUserId().toLong()) {
                         addOrUpdateGroupParticipant(userId, userName, userAvatar.ifEmpty { null })
-                        // Каждый существующий участник пришлёт нам offer — ждём
+                        // Заранее создаём PeerConnection, чтобы он был готов принять offer
+                        // когда существующий участник его пришлёт
+                        groupWebRTCManager.createPeerConnectionForPeer(userId)
+                        Log.d("CallsViewModel", "🔌 Pre-created PeerConnection for existing peer $userId")
                     }
                 }
             } catch (e: Exception) {
@@ -448,7 +451,9 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 val userId = data.optLong("userId", 0L)
                 val userName = data.optString("userName", "Unknown")
                 val userAvatar = data.optString("userAvatar", "")
-                val shouldCreateOffer = data.optBoolean("shouldCreateOffer", false)
+                // Дефолт — true: если сервер не прислал поле, существующий участник
+                // всё равно создаёт offer (иначе новый участник застрянет в "connecting")
+                val shouldCreateOffer = data.optBoolean("shouldCreateOffer", true)
                 val roomName = data.optString("roomName", "")
                 val iceServersArray = data.optJSONArray("iceServers")
 
@@ -626,6 +631,15 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         groupWebRTCManager.onRemoteStreamRemoved = { userId ->
             Log.d("CallsViewModel", "🔴 Group: remote stream removed from user $userId")
             removeGroupParticipant(userId)
+        }
+
+        groupWebRTCManager.onPeerConnected = { userId ->
+            Log.d("CallsViewModel", "🔗 Group: ICE connected with user $userId")
+            val existing = groupParticipantInfoMap[userId]
+            if (existing != null) {
+                groupParticipantInfoMap[userId] = existing.copy(connectionState = "connected")
+                groupCallParticipants.postValue(groupParticipantInfoMap.values.toList())
+            }
         }
     }
 

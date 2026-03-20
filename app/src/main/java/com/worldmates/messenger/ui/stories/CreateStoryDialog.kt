@@ -47,17 +47,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
-private val BgDeep        = Color(0xFF0D0D18)
-private val BgCard        = Color(0xFF161624)
+// ── Static accent tokens (kept as-is — gradient personality of the feature) ───
 private val AccentPurple  = Color(0xFF7C3AED)
 private val AccentPink    = Color(0xFFEC4899)
 private val AccentOrange  = Color(0xFFFF7043)
 private val AccentBlue    = Color(0xFF5B87F6)
 private val GoldColor     = Color(0xFFFFD700)
-private val TextPrimary   = Color.White
-private val TextMuted     = Color.White.copy(alpha = 0.45f)
-private val SubtleBorder  = Color.White.copy(alpha = 0.08f)
 
 private val StoryGradient = Brush.horizontalGradient(listOf(AccentPurple, AccentPink))
 private val PhotoGradient = Brush.horizontalGradient(listOf(AccentPurple, AccentBlue))
@@ -81,6 +76,13 @@ fun CreateStoryDialog(
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var videoDurationSeconds by remember { mutableStateOf<Int?>(null) }
+
+    // ── Theme-aware colors (adapt to app light/dark theme) ────────────────────
+    val bgSurface    = MaterialTheme.colorScheme.surface
+    val bgCard       = MaterialTheme.colorScheme.surfaceVariant
+    val textPrimary  = MaterialTheme.colorScheme.onSurface
+    val textMuted    = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+    val subtleBorder = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
 
     val userLimits by viewModel.userLimits.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -159,7 +161,7 @@ fun CreateStoryDialog(
                 .fillMaxWidth(0.94f)
                 .wrapContentHeight()
                 .clip(RoundedCornerShape(28.dp))
-                .background(BgDeep)
+                .background(bgSurface)
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 20.dp)
         ) {
@@ -176,12 +178,12 @@ fun CreateStoryDialog(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = TextMuted
+                        tint = textMuted
                     )
                 }
                 Text(
                     text = stringResource(R.string.create_story),
-                    color = TextPrimary,
+                    color = textPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -200,10 +202,10 @@ fun CreateStoryDialog(
                     .padding(horizontal = 16.dp)
                     .height(310.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(BgCard)
+                    .background(bgCard)
                     .then(
                         if (selectedMediaUri == null)
-                            Modifier.border(1.dp, SubtleBorder, RoundedCornerShape(20.dp))
+                            Modifier.border(1.dp, subtleBorder, RoundedCornerShape(20.dp))
                         else Modifier
                     )
             ) {
@@ -247,7 +249,7 @@ fun CreateStoryDialog(
 
                             Text(
                                 text = "Оберіть медіа для сторіс",
-                                color = TextMuted,
+                                color = textMuted,
                                 fontSize = 14.sp
                             )
 
@@ -425,7 +427,7 @@ fun CreateStoryDialog(
                     .background(
                         if (publishEnabled) StoryGradient
                         else Brush.horizontalGradient(
-                            listOf(SubtleBorder, SubtleBorder)
+                            listOf(subtleBorder, subtleBorder)
                         )
                     )
                     .clickable(enabled = publishEnabled) {
@@ -458,12 +460,12 @@ fun CreateStoryDialog(
                         Icon(
                             imageVector = Icons.Default.Upload,
                             contentDescription = null,
-                            tint = if (publishEnabled) Color.White else TextMuted,
+                            tint = if (publishEnabled) Color.White else textMuted,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
                             text = stringResource(R.string.publish_story),
-                            color = if (publishEnabled) Color.White else TextMuted,
+                            color = if (publishEnabled) Color.White else textMuted,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -485,15 +487,16 @@ private fun StoryLimitChip(
     isPro: Boolean,
     canCreate: Boolean
 ) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
     val bg = when {
         !canCreate -> Color(0xFFFF4757).copy(alpha = 0.15f)
         isPro      -> GoldColor.copy(alpha = 0.12f)
-        else       -> Color.White.copy(alpha = 0.07f)
+        else       -> onSurface.copy(alpha = 0.07f)
     }
     val textColor = when {
         !canCreate -> Color(0xFFFF4757)
         isPro      -> GoldColor
-        else       -> Color.White.copy(alpha = 0.7f)
+        else       -> onSurface.copy(alpha = 0.65f)
     }
 
     Row(
@@ -549,20 +552,21 @@ private fun StoryInputField(
     onValueChange: (String) -> Unit,
     multiline: Boolean = false
 ) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(Color.White.copy(alpha = 0.06f))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 16.dp, vertical = 13.dp),
-        textStyle = TextStyle(color = TextPrimary, fontSize = 15.sp),
+        textStyle = TextStyle(color = onSurface, fontSize = 15.sp),
         cursorBrush = SolidColor(AccentPurple),
         maxLines = if (multiline) 4 else 1,
         decorationBox = { innerTextField ->
             if (value.isEmpty()) {
-                Text(text = placeholder, color = TextMuted, fontSize = 15.sp)
+                Text(text = placeholder, color = onSurface.copy(alpha = 0.45f), fontSize = 15.sp)
             }
             innerTextField()
         }
@@ -663,8 +667,8 @@ fun MediaPickerButton(
         modifier = modifier
             .height(110.dp)
             .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, SubtleBorder, RoundedCornerShape(16.dp))
-            .background(BgCard)
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f), RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -681,7 +685,7 @@ fun MediaPickerButton(
             ) {
                 Icon(icon, contentDescription = label, tint = AccentPurple, modifier = Modifier.size(24.dp))
             }
-            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.8f))
+            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f))
         }
     }
 }
