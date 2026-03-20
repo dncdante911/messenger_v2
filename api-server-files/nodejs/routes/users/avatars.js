@@ -151,7 +151,7 @@ async function uploadAvatar(ctx, req, res) {
         const relPath     = `${relDir}/${filename}`;
         const absPath     = path.join(absDir, filename);
 
-        fs.writeFileSync(absPath, req.file.buffer);
+        await fs.promises.writeFile(absPath, req.file.buffer);
 
         const setAsMain = req.body.set_as_main !== 'false'; // default: true for first upload
 

@@ -5,8 +5,9 @@ const { Sequelize, Op, DataTypes } = require("sequelize");
 const striptags = require('striptags');
 const moment = require("moment")
 
-const DisconnectController = async (ctx, reason, io,socket) => {
+const DisconnectController = async (ctx, reason, io, socket) => {
   console.log('a user disconnected ' + socket.id + " " + reason);
+  try {
   let hash = ctx.socketIdUserHash[socket.id]
   let user_id = ctx.userHashUserId[hash]
   ctx.userIdCount[user_id] > 0 ? ctx.userIdCount[user_id] = ctx.userIdCount[user_id] - 1 : delete ctx.userIdCount[user_id]
@@ -25,9 +26,10 @@ const DisconnectController = async (ctx, reason, io,socket) => {
           delete ctx.userIdExtra[user_id]
       }
 
-      // Clean up open-chat tracking for the disconnected user so stale entries
-      // don't accumulate in ctx.userIdChatOpen indefinitely.
+      // Clean up open-chat and open-group-chat tracking for the disconnected user
+      // so stale entries don't accumulate in these maps indefinitely (memory leak fix).
       delete ctx.userIdChatOpen[user_id]
+      delete ctx.userIdGroupChatOpen[user_id]
 
       // emit user logged off
       let followers = await ctx.wo_followers.findAll({
@@ -63,6 +65,9 @@ const DisconnectController = async (ctx, reason, io,socket) => {
       }
   }
   delete ctx.socketIdUserHash[socket.id]
+  } catch (err) {
+      console.error('[DisconnectController] error:', err.message)
+  }
 };
 
 module.exports = { DisconnectController };
