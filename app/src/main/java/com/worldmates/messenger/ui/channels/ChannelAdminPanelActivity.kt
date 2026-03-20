@@ -36,6 +36,7 @@ import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.util.toFullMediaUrl
 import java.util.concurrent.TimeUnit
+import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.utils.LanguageManager
 
 /**
@@ -313,7 +314,7 @@ private fun InfoTab(
                         context     = context,
                         channelId   = channelId,
                         isHost      = true,
-                        isPremium   = false, // TODO: pass real premium status
+                        isPremium   = UserSession.isProActive,
                         channelName = channel?.name ?: ""
                     )
                     context.startActivity(intent)

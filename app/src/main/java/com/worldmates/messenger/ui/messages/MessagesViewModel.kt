@@ -1160,7 +1160,7 @@ class MessagesViewModel(application: Application) :
                     filePath = file.absolutePath,
                     recipientId = recipientId.takeIf { it != 0L },
                     groupId = groupId.takeIf { it != 0L },
-                    isPremium = false,
+                    isPremium = UserSession.isProActive,
                     onProgress = { progress ->
                         _uploadProgress.value = progress
                     }

@@ -1454,13 +1454,14 @@ fun CommentContent(text: String) {
                             contentScale = ContentScale.Fit
                         )
                     }
-                    // WebM відео (Telegram premium stickers)
+                    // WebM відео — відтворюємо через ExoPlayer (підтримує WebM/VP8/VP9)
                     url.matches(""".*\.webm$""".toRegex(RegexOption.IGNORE_CASE)) -> {
-                        // TODO: Додати підтримку WebM через ExoPlayer якщо потрібно
-                        Text(
-                            text = "🎬 $label (WebM)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
+                        com.worldmates.messenger.ui.media.InlineVideoPlayer(
+                            videoUrl = url,
+                            modifier = Modifier
+                                .heightIn(max = 200.dp)
+                                .widthIn(max = 300.dp)
+                                .clip(RoundedCornerShape(8.dp))
                         )
                     }
                     else -> {
