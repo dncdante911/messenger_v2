@@ -56,9 +56,7 @@ enum class BottomNavTab {
 }
 
 /**
- * Нижня панель навігації в стилі VK/Telegram
- * Чати | Контакти | Налаштування | Профіль
- * Враховує системні навігаційні кнопки (WindowInsets)
+ * Компактна нижня панель навігації
  */
 @Composable
 fun AppBottomNavBar(
@@ -71,20 +69,20 @@ fun AppBottomNavBar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp
+        tonalElevation = 2.dp,
+        shadowElevation = 4.dp
     ) {
         Column(
             modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
         ) {
             HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
                 thickness = 0.5.dp
             )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp, horizontal = 8.dp),
+                    .padding(vertical = 2.dp, horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -115,7 +113,6 @@ fun AppBottomNavBar(
                     modifier = Modifier.weight(1f)
                 )
 
-                // Профіль з аватаром замість іконки
                 ProfileNavItem(
                     avatarUrl = avatarUrl,
                     label = stringResource(R.string.profile),
@@ -128,9 +125,6 @@ fun AppBottomNavBar(
     }
 }
 
-/**
- * Елемент нижньої навігації з іконкою
- */
 @Composable
 private fun BottomNavItem(
     icon: ImageVector,
@@ -151,29 +145,27 @@ private fun BottomNavItem(
                 selected = isSelected,
                 onClick = onClick
             )
-            .padding(vertical = 6.dp),
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = if (isSelected) selectedIcon else icon,
             contentDescription = label,
             tint = color,
-            modifier = Modifier.size(26.dp)
+            modifier = Modifier.size(22.dp)
         )
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(1.dp))
         Text(
             text = label,
             color = color,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            maxLines = 1
+            maxLines = 1,
+            lineHeight = 12.sp
         )
     }
 }
 
-/**
- * Елемент навігації "Профіль" з аватаром
- */
 @Composable
 private fun ProfileNavItem(
     avatarUrl: String?,
@@ -193,22 +185,22 @@ private fun ProfileNavItem(
                 selected = isSelected,
                 onClick = onClick
             )
-            .padding(vertical = 6.dp),
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier.size(26.dp)
+            modifier = Modifier.size(22.dp)
         ) {
             if (avatarUrl != null) {
                 AsyncImage(
                     model = avatarUrl,
                     contentDescription = label,
                     modifier = Modifier
-                        .size(26.dp)
+                        .size(22.dp)
                         .clip(CircleShape)
                         .then(
                             if (isSelected) Modifier.border(
-                                2.dp,
+                                1.5.dp,
                                 MaterialTheme.colorScheme.primary,
                                 CircleShape
                             ) else Modifier
@@ -220,17 +212,18 @@ private fun ProfileNavItem(
                     imageVector = if (isSelected) Icons.Filled.Person else Icons.Outlined.Person,
                     contentDescription = label,
                     tint = color,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(1.dp))
         Text(
             text = label,
             color = color,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            maxLines = 1
+            maxLines = 1,
+            lineHeight = 12.sp
         )
     }
 }

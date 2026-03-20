@@ -139,6 +139,46 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     private fun setupCallSocketListeners() {
         Log.d("CallsViewModel", "🔌 Setting up call Socket.IO listeners...")
 
+        // Incoming chat message during call
+        socketManager.on("call:chat_message") { args ->
+            try {
+                if (args.isNotEmpty()) {
+                    val data = args[0] as? JSONObject
+                    data?.let {
+                        val senderId = it.optInt("userId", 0)
+                        val senderName = it.optString("userName", "")
+                        val text = it.optString("text", "")
+                        if (text.isNotEmpty() && senderId != getUserId()) {
+                            val current = callChatMessages.value ?: emptyList()
+                            callChatMessages.postValue(current + Pair(senderName, text))
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing call:chat_message", e)
+            }
+        }
+
+        // Incoming call reaction from the other party
+        socketManager.on("call:reaction") { args ->
+            try {
+                if (args.isNotEmpty()) {
+                    val data = args[0] as? JSONObject
+                    data?.let {
+                        val emoji = it.optString("emoji", "")
+                        val userName = it.optString("userName", "")
+                        val senderId = it.optInt("userId", 0)
+                        if (emoji.isNotEmpty() && senderId != getUserId()) {
+                            Log.d("CallsViewModel", "Received call reaction: $emoji from $userName")
+                            incomingReaction.postValue(Pair(emoji, userName))
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing call:reaction", e)
+            }
+        }
+
         // 📞 Вхідний дзвінок
         socketManager.on("call:incoming") { args ->
             try {
@@ -1278,6 +1318,49 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     fun switchCamera() {
         webRTCManager.switchCamera()
         Log.d("CallsViewModel", "Camera switched")
+    }
+
+    // ─── Call Reactions ──────────────────────────────────────────────────────
+
+    /** Incoming reaction from the other party (emoji + sender name) */
+    val incomingReaction = MutableLiveData<Pair<String, String>?>()
+
+    /** Chat messages during call: list of (senderName, text) */
+    val callChatMessages = MutableLiveData<List<Pair<String, String>>>(emptyList())
+
+    /**
+     * Send a reaction during a call via Socket.IO
+     */
+    fun sendCallReaction(emoji: String) {
+        val roomName = currentCallData?.roomName ?: currentGroupRoomName ?: return
+        val data = JSONObject().apply {
+            put("roomName", roomName)
+            put("userId", getUserId())
+            put("userName", getUserName())
+            put("emoji", emoji)
+        }
+        socketManager.emit("call:reaction", data)
+        Log.d("CallsViewModel", "Sent call reaction: $emoji to room $roomName")
+        // Show own reaction locally
+        incomingReaction.postValue(Pair(emoji, getUserName()))
+    }
+
+    /**
+     * Send a chat message during a call via Socket.IO
+     */
+    fun sendCallChatMessage(text: String) {
+        val roomName = currentCallData?.roomName ?: currentGroupRoomName ?: return
+        val userName = getUserName()
+        val data = JSONObject().apply {
+            put("roomName", roomName)
+            put("userId", getUserId())
+            put("userName", userName)
+            put("text", text)
+        }
+        socketManager.emit("call:chat_message", data)
+        // Add to local list
+        val current = callChatMessages.value ?: emptyList()
+        callChatMessages.postValue(current + Pair(userName, text))
     }
 
     /**

@@ -1226,6 +1226,44 @@ async function registerCallsListeners(socket, io, ctx) {
         }
     });
 
+    // ── call:chat_message ─────────────────────────────────────────────────────
+    // Relay text chat messages during a call to other participants in the room.
+    socket.on('call:chat_message', (data) => {
+        try {
+            const { roomName, userId, userName, text } = data;
+            if (!roomName || !text) return;
+
+            socket.to(roomName).emit('call:chat_message', {
+                roomName,
+                userId,
+                userName,
+                text
+            });
+        } catch (e) {
+            console.error('[CALL] call:chat_message error:', e);
+        }
+    });
+
+    // ── call:reaction ────────────────────────────────────────────────────────
+    // Relay call reactions (emoji) to other participants in the room.
+    socket.on('call:reaction', (data) => {
+        try {
+            const { roomName, userId, userName, emoji } = data;
+            if (!roomName || !emoji) return;
+
+            // Broadcast to everyone else in the room
+            socket.to(roomName).emit('call:reaction', {
+                roomName,
+                userId,
+                userName,
+                emoji
+            });
+            console.log(`[CALL] Reaction ${emoji} from ${userName} in room ${roomName}`);
+        } catch (e) {
+            console.error('[CALL] call:reaction error:', e);
+        }
+    });
+
     // ── stream:end ───────────────────────────────────────────────────────────
     // Host ends the stream; notify all viewers.
     socket.on('stream:end', (data) => {

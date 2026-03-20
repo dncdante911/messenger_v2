@@ -2419,4 +2419,24 @@
     <string name="biz_delete_qr_message">Видалити шаблон /%s?</string>
     <string name="biz_delete_link_message">Видалити посилання «%s»?</string>
 
+    <!-- ── Call Reactions ─────────────────────────────────────────────────── -->
+    <string name="call_choose_reaction">Оберіть реакцію</string>
+    <string name="call_reaction_heart">Серденько</string>
+    <string name="call_reaction_like">Лайк</string>
+    <string name="call_reaction_laugh">Сміх</string>
+    <string name="call_reaction_wow">Вау</string>
+    <string name="call_reaction_sad">Сумно</string>
+    <string name="call_reaction_fire">Вогонь</string>
+    <string name="call_reaction_applause">Аплодисменти</string>
+    <string name="call_reaction_celebrate">Святкування</string>
+    <string name="switch_camera">Перемкнути камеру</string>
+    <string name="call_chat_title">Чат під час дзвінка</string>
+    <string name="call_chat_empty">Повідомлення з\'являться тут…</string>
+    <string name="call_chat_placeholder">Напишіть повідомлення…</string>
+
+    <!-- ── Media Download ─────────────────────────────────────────────────── -->
+    <string name="media_download_success">Файл збережено</string>
+    <string name="media_download_error">Помилка завантаження</string>
+    <string name="media_downloading">Завантаження…</string>
+
 </resources>
