@@ -9,7 +9,7 @@ import org.webrtc.audio.JavaAudioDeviceModule
  * GroupWebRTCManager — управляет несколькими WebRTC соединениями (mesh) для групповых звонков.
  *
  * Архитектура mesh: каждый участник имеет отдельный PeerConnection с каждым другим.
- * Поддерживает до 25 участников (Premium) или 5 (Free).
+ * Поддерживает до 35 участников (Premium) или 5 (Free).
  */
 class GroupWebRTCManager(private val context: Context) {
 
