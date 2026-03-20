@@ -2448,6 +2448,25 @@
     <string name="search_no_results">Ничего не найдено по «%1$s»</string>
     <string name="search_no_users">Пользователи не найдены</string>
 
+    <!-- ── Backup (new) ───────────────────────────────────────────────────── -->
+    <string name="backup_provider_local_server">Личный сервер</string>
+
+    <!-- ── Stories (new) ──────────────────────────────────────────────────── -->
+    <string name="story_video_duration_badge">%d сек</string>
+    <string name="story_video_too_long">⚠️ Видео %d сек — превышает лимит %d сек</string>
+    <string name="story_video_too_long_pro_hint">💎 PRO: до %d сек видео</string>
+
+    <!-- ── Group Stage Call (new) ─────────────────────────────────────────── -->
+    <string name="stage_call_creator_label">Организатор</string>
+    <string name="stage_call_speakers_section">Говорят</string>
+    <string name="stage_call_listeners_section">Слушатели</string>
+    <string name="stage_call_you_label">Вы</string>
+    <string name="stage_call_muted">Микрофон выключен</string>
+    <string name="stage_call_speaking">Говорит…</string>
+    <string name="stage_call_free_limit">до 5 участников</string>
+    <string name="stage_call_pro_limit">до 35 участников (PRO)</string>
+    <string name="stage_call_limit_reached">Достигнут лимит участников</string>
+
     <!-- ── Notes ──────────────────────────────────────────────────────────── -->
     <string name="notes_title">Заметки</string>
     <string name="notes_hint">Написать заметку…</string>

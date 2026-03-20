@@ -2002,6 +2002,18 @@
     <string name="group_call_invite_copy_link">Скопіювати посилання</string>
     <string name="group_call_link_copied">Посилання скопійовано</string>
     <string name="group_call_up_to_n">до %d учасників</string>
+
+    <!-- ── Group Stage Call ────────────────────────────────────────────────── -->
+    <string name="stage_call_creator_label">Організатор</string>
+    <string name="stage_call_speakers_section">Говорять</string>
+    <string name="stage_call_listeners_section">Слухачі</string>
+    <string name="stage_call_you_label">Ви</string>
+    <string name="stage_call_muted">Вимкнено мікрофон</string>
+    <string name="stage_call_speaking">Говорить…</string>
+    <string name="stage_call_free_limit">до 5 учасників</string>
+    <string name="stage_call_pro_limit">до 35 учасників (PRO)</string>
+    <string name="stage_call_limit_reached">Досягнуто ліміт учасників</string>
+
     <string name="channel_live_now">🔴 НАЖИВО</string>
     <string name="channel_live_watch">Дивитися</string>
     <string name="channel_live_hosting">Ви ведете ефір</string>
