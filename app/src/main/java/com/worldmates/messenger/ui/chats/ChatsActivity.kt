@@ -816,6 +816,7 @@ fun SettingsDrawerContent(
     onCreateGroup: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val scope   = rememberCoroutineScope()
     val colorScheme = MaterialTheme.colorScheme
     val currentAvatar by com.worldmates.messenger.data.UserSession.avatarFlow.collectAsState()
     val statusEmoji by com.worldmates.messenger.data.UserSession.statusEmojiFlow.collectAsState()
@@ -854,7 +855,26 @@ fun SettingsDrawerContent(
                         contentScale = ContentScale.Crop
                     )
                     if (showAccountSwitcher) {
-                        AccountSwitcherDialog(onDismiss = { showAccountSwitcher = false })
+                        AccountSwitcherDialog(
+                            onDismiss = { showAccountSwitcher = false },
+                            onSwitchAccount = { userId ->
+                                showAccountSwitcher = false
+                                scope.launch {
+                                    com.worldmates.messenger.data.AccountManager.switchAccount(userId) {
+                                        (context as? android.app.Activity)?.recreate()
+                                    }
+                                }
+                            },
+                            onAddAccount = {
+                                showAccountSwitcher = false
+                                context.startActivity(
+                                    android.content.Intent(
+                                        context,
+                                        com.worldmates.messenger.ui.login.LoginActivity::class.java
+                                    )
+                                )
+                            }
+                        )
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = onClose) {
