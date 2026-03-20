@@ -1,6 +1,19 @@
 // Завантажуємо змінні оточення з .env до будь-яких require (крім вбудованих)
 require('dotenv').config();
 
+// ── Professional logging via Winston ─────────────────────────────────────────
+// Must be required BEFORE any other module so every subsequent console.*
+// call (in controllers, routes, listeners, etc.) routes through Winston.
+// This gives us: timestamps, log levels, colorised stdout, and a rotating
+// error.log file — without touching the 900+ console.* calls individually.
+const logger = require('./helpers/logger');
+console.log   = (...args) => logger.info(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+console.info  = (...args) => logger.info(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+console.warn  = (...args) => logger.warn(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+console.error = (...args) => logger.error(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+console.debug = (...args) => logger.debug(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+// ─────────────────────────────────────────────────────────────────────────────
+
 const moment = require("moment");
 var fs = require('fs');
 var express = require('express');
