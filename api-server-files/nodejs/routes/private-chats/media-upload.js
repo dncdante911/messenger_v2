@@ -48,6 +48,33 @@ const UPLOAD_DIRS = {
     file:  'upload/files',
 };
 
+// ─── Magic Bytes Security ──────────────────────────────────────────────────────
+// Block executable/script files disguised as media regardless of extension.
+
+const BLOCKED_SIGNATURES = [
+    { sig: Buffer.from([0x7F, 0x45, 0x4C, 0x46]),                   label: 'ELF executable'      }, // ELF
+    { sig: Buffer.from([0x4D, 0x5A]),                                label: 'Windows PE/EXE/DLL'  }, // MZ
+    { sig: Buffer.from([0x3C, 0x3F, 0x70, 0x68, 0x70]),             label: 'PHP script'           }, // <?php
+    { sig: Buffer.from([0x23, 0x21, 0x2F, 0x62, 0x69, 0x6E]),       label: 'shell script (bin)'  }, // #!/bin
+    { sig: Buffer.from([0x23, 0x21, 0x2F, 0x75, 0x73, 0x72]),       label: 'shell script (usr)'  }, // #!/usr
+    { sig: Buffer.from([0xCA, 0xFE, 0xBA, 0xBE]),                   label: 'Java class / Mach-O' }, // .class
+    { sig: Buffer.from([0xCF, 0xFA, 0xED, 0xFE]),                   label: 'Mach-O 64-bit'       }, // Mach-O 64
+    { sig: Buffer.from([0x50, 0x4B, 0x03, 0x04]),                   label: 'ZIP / APK archive'   }, // PK
+    { sig: Buffer.from([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07]),       label: 'RAR archive'         }, // Rar!
+];
+
+function checkMagicBytes(buffer) {
+    if (!buffer || buffer.length < 4) {
+        return { ok: false, reason: 'File too small to validate' };
+    }
+    for (const { sig, label } of BLOCKED_SIGNATURES) {
+        if (buffer.length >= sig.length && buffer.slice(0, sig.length).equals(sig)) {
+            return { ok: false, reason: `Rejected file type: ${label}` };
+        }
+    }
+    return { ok: true };
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function ensureDir(dir) {
@@ -106,6 +133,13 @@ function uploadChatMedia(ctx) {
                     return res.json({ status: 400, error: `File too large. Max ${limitMb} MB for type "${mediaType}"` });
                 }
 
+                // Magic bytes check — reject executables and scripts disguised as media
+                const magicCheck = checkMagicBytes(uploadedFile.buffer);
+                if (!magicCheck.ok) {
+                    console.warn(`[ChatUpload] Blocked dangerous file from ${req.ip}: ${magicCheck.reason}`);
+                    return res.json({ status: 400, error: `Upload rejected: ${magicCheck.reason}` });
+                }
+
                 // Build output path
                 let subDir = UPLOAD_DIRS[mediaType];
 
@@ -123,8 +157,8 @@ function uploadChatMedia(ctx) {
                 const relPath  = `${subDir}/${filename}`;
                 const url      = fullUrl(ctx, relPath);
 
-                // Write buffer to disk
-                fs.writeFileSync(absPath, uploadedFile.buffer);
+                // Write buffer to disk (async — avoids blocking the Event Loop)
+                await fs.promises.writeFile(absPath, uploadedFile.buffer);
 
                 // Build XhrUploadResponse-compatible JSON
                 const resp = {

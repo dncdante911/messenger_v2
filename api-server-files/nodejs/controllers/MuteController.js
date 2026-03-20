@@ -5,64 +5,59 @@ const { Sequelize, Op, DataTypes } = require("sequelize");
 const striptags = require('striptags');
 const moment = require("moment")
 
-const MuteController = async (ctx, data, io,socket,callback) => {
-  if(!data.chat_id || !data.type || !data.user_id){
+const MuteController = async (ctx, data, io, socket, callback) => {
+  if (!data || !data.chat_id || !data.type || !data.user_id) {
       console.log("chat_id , type , user_id can not be empty")
       return;
   }
-  if(data.type != 'user' && data.type != 'page' && data.type != 'group'){
+  if (data.type != 'user' && data.type != 'page' && data.type != 'group') {
       console.log("wrong type")
       return;
   }
-  if(!data.notify && data.call_chat && data.archive && data.pin){
-      console.log("empty data")
+  // Guard: at least one mute field must be provided (fixed logic: was AND, should be OR)
+  if (!data.notify && !data.call_chat && !data.archive && !data.pin) {
+      console.log("empty data: no mute fields provided")
       return;
   }
-  let info = await ctx.wo_mute.findOne({
-      where: {
-          user_id: {
-              [Op.eq]: ctx.userHashUserId[data.user_id]
-          },
-          type: {
-              [Op.eq]: data.type
-          },
-          chat_id: {
-              [Op.eq]: data.chat_id
-          }
+  try {
+      const resolvedUserId = ctx.userHashUserId[data.user_id];
+      if (!resolvedUserId) {
+          console.log('[MuteController] Cannot resolve user_id from session hash');
+          return;
       }
-  })
-  var update_object = {};
-  if(data.notify && (data.notify == 'no' || data.notify == 'yes')){
-      update_object.notify = data.notify;
-  }
-  if(data.call_chat && (data.call_chat == 'no' || data.call_chat == 'yes')){
-      update_object.call_chat = data.call_chat;
-  }
-  if(data.archive && (data.archive == 'no' || data.archive == 'yes')){
-      update_object.archive = data.archive;
-  }
-  if(data.pin && (data.pin == 'no' || data.pin == 'yes')){
-      update_object.pin = data.pin;
-  }
-  update_object.chat_id = data.chat_id;
 
-  if(info && info.id){
-      await ctx.wo_mute.update(update_object,
-      {
+      let info = await ctx.wo_mute.findOne({
           where: {
-              id: info.id
+              user_id: { [Op.eq]: resolvedUserId },
+              type:    { [Op.eq]: data.type },
+              chat_id: { [Op.eq]: data.chat_id },
           }
       })
 
-  }
-  else{
-      update_object.user_id = ctx.userHashUserId[data.user_id];
-      update_object.type = data.type;
-      update_object.time = Math.floor(Date.now() / 1000);
-      await ctx.wo_mute.create(update_object)
+      const update_object = {};
+      if (data.notify    && (data.notify    == 'no' || data.notify    == 'yes')) update_object.notify    = data.notify;
+      if (data.call_chat && (data.call_chat == 'no' || data.call_chat == 'yes')) update_object.call_chat = data.call_chat;
+      if (data.archive   && (data.archive   == 'no' || data.archive   == 'yes')) update_object.archive   = data.archive;
+      if (data.pin       && (data.pin       == 'no' || data.pin       == 'yes')) update_object.pin       = data.pin;
+      update_object.chat_id = data.chat_id;
 
+      if (info && info.id) {
+          await ctx.wo_mute.update(update_object, { where: { id: info.id } })
+      } else {
+          update_object.user_id = resolvedUserId;
+          update_object.type    = data.type;
+          update_object.time    = Math.floor(Date.now() / 1000);
+          await ctx.wo_mute.create(update_object)
+      }
+
+      socket.emit('mute', update_object);
+
+      if (callback && typeof callback === 'function') {
+          try { callback({ status: 200 }); } catch (_) {}
+      }
+  } catch (err) {
+      console.error('[MuteController] error:', err.message)
   }
-  await socket.emit('mute', update_object);
 };
 
 module.exports = { MuteController };

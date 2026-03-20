@@ -606,11 +606,14 @@ async function main() {
   app.get('/api/health', async (req, res) => {
     const start = Date.now();
 
-    // Database connectivity check
+    // Database connectivity check (5 s timeout to prevent health endpoint from hanging)
     let db = { status: 'ok', latencyMs: null };
     try {
       const t0 = Date.now();
-      await ctx.sequelize.authenticate();
+      await Promise.race([
+        ctx.sequelize.authenticate(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('DB ping timeout')), 5000)),
+      ]);
       db.latencyMs = Date.now() - t0;
     } catch (e) {
       db = { status: 'error', error: e.message };
@@ -820,7 +823,12 @@ async function main() {
   app.post('/api/node/instant-view', instantView(ctx, io));
 
   io.on('connection', async (socket, query) => {
-    await listeners.registerListeners(socket, io, ctx)
+    try {
+      await listeners.registerListeners(socket, io, ctx)
+    } catch (err) {
+      console.error('[Socket.IO] registerListeners error for socket', socket.id, ':', err.message)
+      try { socket.disconnect(true) } catch (_) {}
+    }
   })
 
   server.listen(serverPort, function() {
@@ -882,6 +890,23 @@ function gracefulShutdown(signal) {
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+
+// ── Unhandled rejection / exception guards ────────────────────────────────────
+// Prevent a single async bug from crashing the entire worker process.
+// Log the error so it can be diagnosed; for truly unrecoverable errors,
+// PM2 will restart the worker automatically.
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Process] Unhandled Promise Rejection:', reason);
+  // Do NOT exit — let PM2 handle restarts only for truly fatal states.
+  // Most promise rejections in Socket.IO event handlers are recoverable.
+});
+
+process.on('uncaughtException', (err, origin) => {
+  console.error('[Process] Uncaught Exception:', err.message, '| Origin:', origin, err.stack);
+  // Exit after logging so PM2 can restart the worker.
+  // Staying alive after an uncaught exception risks corrupted state.
+  process.exit(1);
+});
 // ─────────────────────────────────────────────────────────────────────────────
 
 main()

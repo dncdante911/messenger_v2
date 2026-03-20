@@ -303,7 +303,7 @@ function createStory(ctx, io) {
             const absolutePath = path.join(SITE_ROOT, relativePath);
 
             ensureDir(absoluteDir);
-            fs.writeFileSync(absolutePath, file.buffer);
+            await fs.promises.writeFile(absolutePath, file.buffer);
             console.log(`[Stories/create] Saved file: ${relativePath} (${file.size} bytes)`);
 
             // 3. Insert media record
@@ -331,7 +331,7 @@ function createStory(ctx, io) {
                 const coverAbsDir = path.join(SITE_ROOT, coverDir);
 
                 ensureDir(coverAbsDir);
-                fs.writeFileSync(path.join(SITE_ROOT, coverRelative), coverFile.buffer);
+                await fs.promises.writeFile(path.join(SITE_ROOT, coverRelative), coverFile.buffer);
                 thumbnail = coverRelative;
                 console.log(`[Stories/create] Saved cover: ${coverRelative}`);
             }
@@ -992,7 +992,7 @@ function createChannelStory(ctx, io) {
             const absoluteDir = path.join(SITE_ROOT, uploadDir);
 
             ensureDir(absoluteDir);
-            fs.writeFileSync(path.join(SITE_ROOT, relativePath), file.buffer);
+            await fs.promises.writeFile(path.join(SITE_ROOT, relativePath), file.buffer);
 
             await ctx.wo_userstorymedia.create({
                 story_id: storyId,
