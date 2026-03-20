@@ -306,21 +306,25 @@ fun StoryViewerScreen(
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             userStories.forEachIndexed { index, _ ->
-                                LinearProgressIndicator(
-                                    progress = {
-                                        when {
-                                            index < pagerState.currentPage -> 1f
-                                            index == pagerState.currentPage -> progress
-                                            else -> 0f
-                                        }
-                                    },
+                                val segmentProgress = when {
+                                    index < pagerState.currentPage -> 1f
+                                    index == pagerState.currentPage -> progress
+                                    else -> 0f
+                                }
+                                Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(2.5.dp)
-                                        .clip(RoundedCornerShape(2.dp)),
-                                    color = Color.White,
-                                    trackColor = Color.White.copy(alpha = 0.3f)
-                                )
+                                        .height(3.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(Color.White.copy(alpha = 0.30f))
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .fillMaxWidth(fraction = segmentProgress.coerceIn(0f, 1f))
+                                            .background(Color.White)
+                                    )
+                                }
                             }
                         }
 
@@ -359,6 +363,28 @@ fun StoryViewerScreen(
                         },
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
+                }
+
+                // Pause overlay
+                AnimatedVisibility(
+                    visible = isPaused,
+                    enter = fadeIn(tween(150)),
+                    exit = fadeOut(tween(150)),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.28f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Pause,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.75f),
+                            modifier = Modifier.size(72.dp)
+                        )
+                    }
                 }
 
                 // Floating reaction animation
@@ -418,14 +444,38 @@ fun StoryHeader(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = story.userData?.avatar,
-            contentDescription = null,
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
+        // Avatar with gradient ring
+        val avatarGradient = Brush.sweepGradient(
+            listOf(
+                Color(0xFFFF7043), Color(0xFFEC4899),
+                Color(0xFF7C3AED), Color(0xFF5B87F6),
+                Color(0xFFFF7043)
+            )
         )
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(avatarGradient),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = story.userData?.avatar,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(41.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(10.dp))
 
@@ -465,13 +515,20 @@ fun StoryHeader(
             )
         }
 
-        // Pause indicator
-        IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
+        // Close button
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.35f))
+                .clickable(onClick = onClose),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Close",
                 tint = Color.White,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -519,7 +576,13 @@ fun StoryBottomBar(
     ) {
         // Title / description
         if (!story.title.isNullOrEmpty() || !story.description.isNullOrEmpty()) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.Black.copy(alpha = 0.32f))
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
                 story.title?.takeIf { it.isNotEmpty() }?.let {
                     Text(
                         text = it,
@@ -533,31 +596,39 @@ fun StoryBottomBar(
                 story.description?.takeIf { it.isNotEmpty() }?.let {
                     Text(
                         text = it,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = Color.White.copy(alpha = 0.82f),
                         fontSize = 13.sp,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = 3.dp)
                     )
                 }
             }
         }
 
-        // Quick reaction emojis
+        // Quick reaction emojis — frosted pill container
         if (!isOwnStory) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
             ) {
-                REACTION_EMOJIS.forEach { (emoji, type) ->
-                    val isSelected = story.reactions.isReacted && story.reactions.type == type.value
-                    QuickReactionEmoji(
-                        emoji = emoji,
-                        isSelected = isSelected,
-                        onClick = { onReaction(emoji, type) }
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(Color.Black.copy(alpha = 0.38f))
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    REACTION_EMOJIS.forEach { (emoji, type) ->
+                        val isSelected = story.reactions.isReacted && story.reactions.type == type.value
+                        QuickReactionEmoji(
+                            emoji = emoji,
+                            isSelected = isSelected,
+                            onClick = { onReaction(emoji, type) }
+                        )
+                    }
                 }
             }
         }
@@ -576,7 +647,8 @@ fun StoryBottomBar(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White.copy(alpha = 0.12f))
+                        .background(Color.White.copy(alpha = 0.13f))
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
                         .clickable { onViewsClick() }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -585,8 +657,8 @@ fun StoryBottomBar(
                     Icon(
                         imageVector = Icons.Outlined.Visibility,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "${story.viewsCount}",
@@ -594,12 +666,12 @@ fun StoryBottomBar(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Icon(
                         imageVector = Icons.Outlined.FavoriteBorder,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        tint = Color(0xFFEC4899).copy(alpha = 0.85f),
+                        modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "${story.reactions.total}",
@@ -614,14 +686,22 @@ fun StoryBottomBar(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White.copy(alpha = 0.12f))
+                        .background(Color.White.copy(alpha = 0.13f))
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
                         .clickable { onCommentClick() }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.4f),
+                        modifier = Modifier.size(16.dp)
+                    )
                     Text(
                         text = "Написати відгук...",
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = Color.White.copy(alpha = 0.45f),
                         fontSize = 14.sp
                     )
                 }
@@ -630,9 +710,10 @@ fun StoryBottomBar(
             // Comments button
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
+                    .background(Color.White.copy(alpha = 0.13f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
                     .clickable { onCommentClick() },
                 contentAlignment = Alignment.Center
             ) {
@@ -640,7 +721,7 @@ fun StoryBottomBar(
                     badge = {
                         if (story.commentsCount > 0) {
                             Badge(
-                                containerColor = Color(0xFF2196F3),
+                                containerColor = Color(0xFF7C3AED),
                                 contentColor = Color.White
                             ) {
                                 Text(
@@ -663,9 +744,10 @@ fun StoryBottomBar(
             // Share button
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
+                    .background(Color.White.copy(alpha = 0.13f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
                     .clickable { onShareClick() },
                 contentAlignment = Alignment.Center
             ) {
