@@ -1,5 +1,6 @@
 package com.worldmates.messenger.ui.stories
 
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,7 +34,9 @@ import coil.compose.AsyncImage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.utils.FileUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Діалог створення нової Story
@@ -52,6 +55,7 @@ fun CreateStoryDialog(
     var isVideo by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var videoDurationSeconds by remember { mutableStateOf<Int?>(null) }
 
     val userLimits by viewModel.userLimits.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -61,6 +65,33 @@ fun CreateStoryDialog(
     val canCreate = viewModel.canCreateStory()
     val activeStoriesCount = viewModel.getActiveStoriesCount()
 
+    // Перевірка тривалості відео: чи перевищує ліміт
+    val videoDurationExceedsLimit = isVideo &&
+            videoDurationSeconds != null &&
+            videoDurationSeconds!! > userLimits.maxVideoDuration
+
+    // Витягуємо тривалість відео після вибору медіа
+    LaunchedEffect(selectedMediaUri, isVideo) {
+        if (isVideo && selectedMediaUri != null) {
+            videoDurationSeconds = withContext(Dispatchers.IO) {
+                val retriever = MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(context, selectedMediaUri)
+                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                        ?.toLongOrNull()
+                        ?.div(1000L)
+                        ?.toInt()
+                } catch (e: Exception) {
+                    null
+                } finally {
+                    retriever.release()
+                }
+            }
+        } else {
+            videoDurationSeconds = null
+        }
+    }
+
     // Launcher для вибору фото
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -68,6 +99,7 @@ fun CreateStoryDialog(
         uri?.let {
             selectedMediaUri = it
             isVideo = FileUtils.isVideo(context, it)
+            videoDurationSeconds = null
         }
     }
 
@@ -78,6 +110,7 @@ fun CreateStoryDialog(
         uri?.let {
             selectedMediaUri = it
             isVideo = FileUtils.isVideo(context, it)
+            videoDurationSeconds = null // скидаємо, LaunchedEffect перерахує
         }
     }
 
@@ -179,8 +212,48 @@ fun CreateStoryDialog(
                     MediaPreview(
                         uri = selectedMediaUri!!,
                         isVideo = isVideo,
-                        onRemove = { selectedMediaUri = null }
+                        videoDurationSeconds = videoDurationSeconds,
+                        onRemove = {
+                            selectedMediaUri = null
+                            videoDurationSeconds = null
+                        }
                     )
+
+                    // Попередження про перевищення тривалості відео
+                    if (videoDurationExceedsLimit) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.story_video_too_long,
+                                        videoDurationSeconds!!,
+                                        userLimits.maxVideoDuration
+                                    ),
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                if (!UserSession.isProActive) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = stringResource(
+                                            R.string.story_video_too_long_pro_hint,
+                                            com.worldmates.messenger.data.model.StoryLimits.forProUser().maxVideoDuration
+                                        ),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFFFD700)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Поля для заголовка та опису (тільки якщо вибрано медіа)
@@ -232,7 +305,7 @@ fun CreateStoryDialog(
                                     fileType = if (isVideo) "video" else "image",
                                     title = title.ifBlank { null },
                                     description = description.ifBlank { null },
-                                    videoDuration = null, // TODO: отримати реальну тривалість відео
+                                    videoDuration = videoDurationSeconds,
                                     coverUri = null
                                 )
                             }
@@ -241,7 +314,7 @@ fun CreateStoryDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    enabled = selectedMediaUri != null && !isLoading && canCreate,
+                    enabled = selectedMediaUri != null && !isLoading && canCreate && !videoDurationExceedsLimit,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -384,7 +457,8 @@ fun MediaPickerButton(
 fun MediaPreview(
     uri: Uri,
     isVideo: Boolean,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    videoDurationSeconds: Int? = null
 ) {
     Box(
         modifier = Modifier
@@ -400,7 +474,7 @@ fun MediaPreview(
             contentScale = ContentScale.Crop
         )
 
-        // Індикатор відео
+        // Індикатор відео + тривалість
         if (isVideo) {
             Surface(
                 modifier = Modifier
@@ -421,7 +495,11 @@ fun MediaPreview(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = stringResource(R.string.video),
+                        text = if (videoDurationSeconds != null) {
+                            stringResource(R.string.story_video_duration_badge, videoDurationSeconds)
+                        } else {
+                            stringResource(R.string.video)
+                        },
                         color = Color.White,
                         fontSize = 12.sp
                     )
