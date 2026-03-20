@@ -216,6 +216,18 @@ class SettingsActivity : AppCompatActivity() {
                         )
                         currentScreen = SettingsScreen.Main
                     }
+                    SettingsScreen.Followers -> {
+                        FollowListScreen(
+                            showFollowers = true,
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
+                    SettingsScreen.Following -> {
+                        FollowListScreen(
+                            showFollowers = false,
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
                 }
             }
         }
@@ -241,6 +253,8 @@ sealed class SettingsScreen {
     object ActiveSessions : SettingsScreen()
     object DeleteAccount : SettingsScreen()
     object Business : SettingsScreen()
+    object Followers : SettingsScreen()
+    object Following : SettingsScreen()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -507,7 +521,7 @@ fun SettingsScreen(
                     icon = Icons.Default.People,
                     title = stringResource(R.string.followers_settings),
                     subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
-                    onClick = { /* TODO */ }
+                    onClick = { onNavigate(SettingsScreen.Followers) }
                 )
             }
             item {
@@ -515,7 +529,7 @@ fun SettingsScreen(
                     icon = Icons.Default.PersonAdd,
                     title = stringResource(R.string.following_settings),
                     subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
-                    onClick = { /* TODO */ }
+                    onClick = { onNavigate(SettingsScreen.Following) }
                 )
             }
 

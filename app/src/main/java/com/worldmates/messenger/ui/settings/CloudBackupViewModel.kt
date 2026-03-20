@@ -12,6 +12,7 @@ import com.worldmates.messenger.data.model.BackupFileInfo
 import com.worldmates.messenger.data.backup.CloudBackupManager
 import com.worldmates.messenger.data.repository.BackupRepository
 import com.worldmates.messenger.data.repository.CloudBackupSettingsRepository
+import com.worldmates.messenger.services.BackupWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,9 +69,12 @@ class CloudBackupViewModel(application: Application) : AndroidViewModel(applicat
             settingsRepository.loadSettings().onSuccess { settings ->
                 _settings.value = settings
                 Log.d(TAG, "✅ Settings loaded from server")
+                // Восстановить расписание автобэкапа после перезапуска
+                if (settings.backupEnabled) {
+                    BackupWorker.schedule(getApplication(), settings.backupFrequency)
+                }
             }.onFailure { error ->
                 Log.e(TAG, "❌ Failed to load settings: ${error.message}")
-                // Используем дефолтные настройки при ошибке
                 _settings.value = CloudBackupSettings()
             }
         }
@@ -262,6 +266,25 @@ class CloudBackupViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             _settings.value = _settings.value?.copy(backupEnabled = enabled)
             saveSettings()
+            val frequency = _settings.value?.backupFrequency ?: CloudBackupSettings.BackupFrequency.NEVER
+            if (enabled) {
+                BackupWorker.schedule(getApplication(), frequency)
+            } else {
+                BackupWorker.cancel(getApplication())
+            }
+        }
+    }
+
+    fun updateBackupFrequency(frequency: CloudBackupSettings.BackupFrequency) {
+        viewModelScope.launch {
+            _settings.value = _settings.value?.copy(backupFrequency = frequency)
+            saveSettings()
+            val enabled = _settings.value?.backupEnabled ?: false
+            if (enabled) {
+                BackupWorker.schedule(getApplication(), frequency)
+            } else {
+                BackupWorker.cancel(getApplication())
+            }
         }
     }
 
