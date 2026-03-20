@@ -161,7 +161,8 @@ data class StoryComment(
     @SerializedName("text") val text: String,
     @SerializedName("time") val time: Long, // Unix timestamp
     @SerializedName("user_data") val userData: StoryUser? = null,
-    @SerializedName("offset_id") val offsetId: Long? = null
+    @SerializedName("offset_id") val offsetId: Long? = null,
+    @SerializedName("reply_to_comment_id") val replyToCommentId: Long? = null
 ) {
     /**
      * Форматований час коментаря

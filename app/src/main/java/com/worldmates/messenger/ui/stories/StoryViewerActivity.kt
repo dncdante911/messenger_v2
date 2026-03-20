@@ -874,11 +874,14 @@ fun StoryCommentsSheet(
     comments: List<StoryComment>,
     onDismiss: () -> Unit,
     onAddComment: (String) -> Unit,
-    onDeleteComment: (Long) -> Unit
+    onDeleteComment: (Long) -> Unit,
+    onAddCommentWithReply: ((String, Long?) -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var commentText by remember { mutableStateOf("") }
     var showEmojiPicker by remember { mutableStateOf(false) }
+    var replyingTo by remember { mutableStateOf<StoryComment?>(null) }
+    var userActionsTarget by remember { mutableStateOf<StoryComment?>(null) }
     val focusRequester = remember { FocusRequester() }
 
     ModalBottomSheet(
@@ -965,8 +968,61 @@ fun StoryCommentsSheet(
                     items(comments, key = { it.id }) { comment ->
                         CommentItem(
                             comment = comment,
-                            onDelete = { onDeleteComment(comment.id) }
+                            onDelete = { onDeleteComment(comment.id) },
+                            onReply = { replyingTo = it },
+                            onUserMenu = { userActionsTarget = it }
                         )
+                    }
+                }
+            }
+
+            // Reply banner
+            androidx.compose.animation.AnimatedVisibility(
+                visible = replyingTo != null,
+                enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+            ) {
+                replyingTo?.let { replying ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.07f))
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Reply,
+                            contentDescription = null,
+                            tint = Color(0xFF2196F3),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = replying.userData?.name ?: replying.userData?.username ?: "",
+                                color = Color(0xFF2196F3),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = replying.text,
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                        IconButton(
+                            onClick = { replyingTo = null },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.cancel_reply),
+                                tint = Color.White.copy(alpha = 0.5f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1067,8 +1123,14 @@ fun StoryCommentsSheet(
                     IconButton(
                         onClick = {
                             if (commentText.isNotBlank()) {
-                                onAddComment(commentText.trim())
+                                val sendFn = onAddCommentWithReply
+                                if (sendFn != null) {
+                                    sendFn(commentText.trim(), replyingTo?.id)
+                                } else {
+                                    onAddComment(commentText.trim())
+                                }
                                 commentText = ""
+                                replyingTo = null
                             }
                         },
                         modifier = Modifier
@@ -1087,12 +1149,36 @@ fun StoryCommentsSheet(
             }
         }
     }
+
+    // User actions bottom sheet
+    userActionsTarget?.let { target ->
+        com.worldmates.messenger.ui.components.CommentUserActionsSheet(
+            userId = target.userId,
+            username = target.userData?.name ?: target.userData?.username ?: "User",
+            avatar = target.userData?.avatar,
+            isOwnComment = target.userId == com.worldmates.messenger.data.UserSession.userId,
+            context = "story",
+            commentText = target.text,
+            onDismiss = { userActionsTarget = null },
+            onAction = { action ->
+                when (action) {
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Reply ->
+                        replyingTo = target
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Mention ->
+                        commentText = "@${target.userData?.username ?: ""} $commentText"
+                    else -> { /* caller handles ViewProfile, Follow, Block etc. */ }
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun CommentItem(
     comment: StoryComment,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onReply: ((StoryComment) -> Unit)? = null,
+    onUserMenu: ((StoryComment) -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -1135,7 +1221,8 @@ fun CommentItem(
             )
         }
 
-        if (comment.userId == UserSession.userId) {
+        // 3-dot menu: own comment → only delete; other users → user actions
+        if (comment.userId == com.worldmates.messenger.data.UserSession.userId) {
             IconButton(
                 onClick = onDelete,
                 modifier = Modifier.size(32.dp)
@@ -1145,6 +1232,18 @@ fun CommentItem(
                     contentDescription = "Delete",
                     tint = Color.White.copy(alpha = 0.4f),
                     modifier = Modifier.size(16.dp)
+                )
+            }
+        } else {
+            IconButton(
+                onClick = { onUserMenu?.invoke(comment) },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
