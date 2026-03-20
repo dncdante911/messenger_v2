@@ -2439,4 +2439,20 @@
     <string name="media_download_error">Ошибка загрузки</string>
     <string name="media_downloading">Загрузка…</string>
 
+    <!-- ── Global Search ──────────────────────────────────────────────────── -->
+    <string name="global_search_title">Поиск</string>
+    <string name="search_placeholder">Сообщения, люди…</string>
+    <string name="search_hint">Введите минимум 2 символа</string>
+    <string name="search_tab_messages">Сообщения</string>
+    <string name="search_tab_users">Люди</string>
+    <string name="search_no_results">Ничего не найдено по «%1$s»</string>
+    <string name="search_no_users">Пользователи не найдены</string>
+
+    <!-- ── Notes ──────────────────────────────────────────────────────────── -->
+    <string name="notes_title">Заметки</string>
+    <string name="notes_hint">Написать заметку…</string>
+    <string name="notes_empty">Здесь будут храниться ваши заметки</string>
+    <string name="delete_note_title">Удалить заметку?</string>
+    <string name="delete_note_body">Эта заметка будет удалена безвозвратно.</string>
+
 </resources>
