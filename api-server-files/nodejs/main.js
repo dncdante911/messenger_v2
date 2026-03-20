@@ -928,14 +928,19 @@ async function main() {
 }
 
 // ── Graceful Shutdown ─────────────────────────────────────────────────────────
-// Послідовність:
-//   1. server.close() — перестаємо приймати нові HTTP-з'єднання.
-//   2. 30 секунд: даємо відкритим Socket.IO-з'єднанням завершити роботу.
-//   3. Через 30 с примусово відключаємо залишкові сокети → server.close() callback спрацює.
-//   4. Закриваємо пул БД та виходимо з кодом 0.
-//   5. Hard kill через 35 с якщо callback не спрацював.
+// Timeline (must fit inside ecosystem.config.js kill_timeout: 8000 ms):
+//   0 ms  — SIGTERM received → server.close() (stop accepting new connections)
+//   5 s   — force-disconnect remaining Socket.IO clients so server.close()
+//            callback fires and the DB pool is closed cleanly
+//   7 s   — hard process.exit(1) fallback in case server.close() never fires
+//   8 s   — PM2 would send SIGKILL (we are already gone by now)
+//
+// Why drain must be < kill_timeout:
+//   If the process is still alive when PM2 sends SIGKILL, the OS may keep the
+//   TCP port in TIME_WAIT / kernel socket state for a short window.  The next
+//   PM2 restart then fails with EADDRINUSE on that port.
 function gracefulShutdown(signal) {
-  console.log(`[Shutdown] ${signal} received — draining sockets (30 s max)…`);
+  console.log(`[Shutdown] ${signal} received — draining sockets (5 s max)…`);
   if (!server) { process.exit(0); return; }
 
   // Step 1: stop accepting new connections
@@ -950,20 +955,21 @@ function gracefulShutdown(signal) {
     process.exit(0);
   });
 
-  // Step 2: after 30 s force-disconnect all remaining Socket.IO clients
-  // This causes their underlying HTTP keep-alive connections to close,
-  // which triggers the server.close() callback above.
+  // Step 2: after 5 s force-disconnect all remaining Socket.IO clients.
+  // This closes their underlying HTTP keep-alive connections and causes
+  // server.close() callback (above) to fire.
   const drainTimer = setTimeout(() => {
-    console.warn('[Shutdown] 30 s drain timeout — force-disconnecting sockets…');
+    console.warn('[Shutdown] 5 s drain timeout — force-disconnecting sockets…');
     if (io) io.disconnectSockets(true);
-  }, 30_000);
+  }, 5_000);
   drainTimer.unref();
 
-  // Step 3: hard kill fallback at 35 s (in case server.close never resolves)
+  // Step 3: hard kill at 7 s — before PM2's SIGKILL at 8 s so we exit cleanly
+  // and release the port before the next worker starts.
   setTimeout(() => {
-    console.error('[Shutdown] Forced exit after 35 s');
+    console.error('[Shutdown] Forced exit after 7 s');
     process.exit(1);
-  }, 35_000).unref();
+  }, 7_000).unref();
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));

@@ -37,7 +37,7 @@ module.exports = {
     // preventing port-binding races under high instance counts.
     wait_ready:     true,
     listen_timeout: 30000,  // 30 s — migrations run in background AFTER process.send('ready')
-    kill_timeout:   8000,   // 8 s graceful SIGTERM window before SIGKILL
+    kill_timeout:   10000,  // 10 s SIGTERM window (graceful shutdown exits at 7 s, 3 s safety margin)
 
     // ── Memory guard ─────────────────────────────────────────────────────────
     // Restart a worker that exceeds 1.5 GB to prevent gradual heap bloat
