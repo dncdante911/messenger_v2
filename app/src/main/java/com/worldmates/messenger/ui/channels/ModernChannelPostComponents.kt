@@ -1755,7 +1755,15 @@ fun CommentItem(
     onUserMenu: ((ChannelComment) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    PremiumCommentItem(comment, canDelete, onDeleteClick, onReactionClick, onReply, onUserMenu, modifier)
+    PremiumCommentItem(
+        comment = comment,
+        canDelete = canDelete,
+        onDeleteClick = onDeleteClick,
+        onReactionClick = onReactionClick,
+        onReply = onReply,
+        onUserMenu = onUserMenu,
+        modifier = modifier
+    )
 }
 
 // ==================== POST OPTIONS COMPONENTS ====================
