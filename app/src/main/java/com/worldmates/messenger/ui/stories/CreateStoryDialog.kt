@@ -7,12 +7,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -21,27 +24,49 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.data.model.StoryLimits
 import com.worldmates.messenger.utils.FileUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Діалог створення нової Story
- * Підтримує вибір фото/відео, додавання заголовка та опису
- */
+// ── Design tokens ─────────────────────────────────────────────────────────────
+private val BgDeep        = Color(0xFF0D0D18)
+private val BgCard        = Color(0xFF161624)
+private val AccentPurple  = Color(0xFF7C3AED)
+private val AccentPink    = Color(0xFFEC4899)
+private val AccentOrange  = Color(0xFFFF7043)
+private val AccentBlue    = Color(0xFF5B87F6)
+private val GoldColor     = Color(0xFFFFD700)
+private val TextPrimary   = Color.White
+private val TextMuted     = Color.White.copy(alpha = 0.45f)
+private val SubtleBorder  = Color.White.copy(alpha = 0.08f)
+
+private val StoryGradient = Brush.horizontalGradient(listOf(AccentPurple, AccentPink))
+private val PhotoGradient = Brush.horizontalGradient(listOf(AccentPurple, AccentBlue))
+private val VideoGradient = Brush.horizontalGradient(listOf(AccentPink, AccentOrange))
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Main dialog
+// ═════════════════════════════════════════════════════════════════════════════
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateStoryDialog(
@@ -64,13 +89,13 @@ fun CreateStoryDialog(
 
     val canCreate = viewModel.canCreateStory()
     val activeStoriesCount = viewModel.getActiveStoriesCount()
+    val isPro = UserSession.isPro == 1
 
-    // Перевірка тривалості відео: чи перевищує ліміт
     val videoDurationExceedsLimit = isVideo &&
             videoDurationSeconds != null &&
             videoDurationSeconds!! > userLimits.maxVideoDuration
 
-    // Витягуємо тривалість відео після вибору медіа
+    // Extract video duration on IO thread
     LaunchedEffect(selectedMediaUri, isVideo) {
         if (isVideo && selectedMediaUri != null) {
             videoDurationSeconds = withContext(Dispatchers.IO) {
@@ -81,18 +106,13 @@ fun CreateStoryDialog(
                         ?.toLongOrNull()
                         ?.div(1000L)
                         ?.toInt()
-                } catch (e: Exception) {
-                    null
-                } finally {
-                    retriever.release()
-                }
+                } catch (e: Exception) { null } finally { retriever.release() }
             }
         } else {
             videoDurationSeconds = null
         }
     }
 
-    // Launcher для вибору фото
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -103,18 +123,16 @@ fun CreateStoryDialog(
         }
     }
 
-    // Launcher для вибору відео
     val videoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
             selectedMediaUri = it
             isVideo = FileUtils.isVideo(context, it)
-            videoDurationSeconds = null // скидаємо, LaunchedEffect перерахує
+            videoDurationSeconds = null
         }
     }
 
-    // Показуємо повідомлення про успіх
     LaunchedEffect(success) {
         success?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -123,7 +141,6 @@ fun CreateStoryDialog(
         }
     }
 
-    // Показуємо помилки
     LaunchedEffect(error) {
         error?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -131,173 +148,291 @@ fun CreateStoryDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    val publishEnabled = selectedMediaUri != null && !isLoading && canCreate && !videoDurationExceedsLimit
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 600.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+                .fillMaxWidth(0.94f)
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(28.dp))
+                .background(BgDeep)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 20.dp)
         ) {
-            Column(
+
+            // ── Header ────────────────────────────────────────────────────────
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
+                    .padding(start = 4.dp, end = 14.dp, top = 8.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Заголовок
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.create_story),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = TextMuted
                     )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+                Text(
+                    text = stringResource(R.string.create_story),
+                    color = TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                StoryLimitChip(
+                    activeCount = activeStoriesCount,
+                    max = userLimits.maxStories,
+                    isPro = isPro,
+                    canCreate = canCreate
+                )
+            }
+
+            // ── Media zone ────────────────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(310.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(BgCard)
+                    .then(
+                        if (selectedMediaUri == null)
+                            Modifier.border(1.dp, SubtleBorder, RoundedCornerShape(20.dp))
+                        else Modifier
+                    )
+            ) {
+                // Empty picker
+                AnimatedVisibility(
+                    visible = selectedMediaUri == null,
+                    enter = fadeIn(tween(250)),
+                    exit = fadeOut(tween(180))
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.radialGradient(
+                                        listOf(
+                                            AccentPurple.copy(alpha = 0.22f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Image,
+                                contentDescription = null,
+                                tint = AccentPurple,
+                                modifier = Modifier.size(38.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = "Оберіть медіа для сторіс",
+                            color = TextMuted,
+                            fontSize = 14.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(22.dp))
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            MediaTypeButton(
+                                icon = Icons.Default.Image,
+                                label = stringResource(R.string.photo),
+                                gradient = PhotoGradient,
+                                onClick = {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                }
+                            )
+                            MediaTypeButton(
+                                icon = Icons.Default.VideoLibrary,
+                                label = stringResource(R.string.video),
+                                gradient = VideoGradient,
+                                onClick = {
+                                    videoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // Media preview
+                AnimatedVisibility(
+                    visible = selectedMediaUri != null,
+                    enter = fadeIn(tween(250)),
+                    exit = fadeOut(tween(180))
+                ) {
+                    selectedMediaUri?.let { uri ->
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            AsyncImage(
+                                model = uri,
+                                contentDescription = "Selected media",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
 
-                // Інформація про ліміти
-                LimitsInfoCard(
-                    activeCount = activeStoriesCount,
-                    maxStories = userLimits.maxStories,
-                    maxVideoDuration = userLimits.maxVideoDuration,
-                    expireHours = userLimits.expireHours,
-                    isPro = UserSession.isPro == 1,
-                    canCreate = canCreate
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Вибір медіа
-                if (selectedMediaUri == null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Кнопка вибору фото
-                        MediaPickerButton(
-                            icon = Icons.Default.Image,
-                            label = stringResource(R.string.photo),
-                            onClick = {
-                                photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        // Кнопка вибору відео
-                        MediaPickerButton(
-                            icon = Icons.Default.VideoLibrary,
-                            label = stringResource(R.string.video),
-                            onClick = {
-                                videoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
-                                )
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                } else {
-                    // Превью вибраного медіа
-                    MediaPreview(
-                        uri = selectedMediaUri!!,
-                        isVideo = isVideo,
-                        videoDurationSeconds = videoDurationSeconds,
-                        onRemove = {
-                            selectedMediaUri = null
-                            videoDurationSeconds = null
-                        }
-                    )
-
-                    // Попередження про перевищення тривалості відео
-                    if (videoDurationExceedsLimit) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = stringResource(
-                                        R.string.story_video_too_long,
-                                        videoDurationSeconds!!,
-                                        userLimits.maxVideoDuration
-                                    ),
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                if (!UserSession.isProActive) {
-                                    Spacer(modifier = Modifier.height(4.dp))
+                            // Duration error overlay at bottom
+                            if (videoDurationExceedsLimit && videoDurationSeconds != null) {
+                                Column(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .fillMaxWidth()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(Color.Transparent, Color(0xCC000000))
+                                            )
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                                ) {
                                     Text(
                                         text = stringResource(
-                                            R.string.story_video_too_long_pro_hint,
-                                            com.worldmates.messenger.data.model.StoryLimits.forProUser().maxVideoDuration
+                                            R.string.story_video_too_long,
+                                            videoDurationSeconds!!,
+                                            userLimits.maxVideoDuration
                                         ),
+                                        color = Color(0xFFFF6B6B),
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFFFD700)
+                                        fontWeight = FontWeight.Medium
                                     )
+                                    if (!UserSession.isProActive) {
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            text = stringResource(
+                                                R.string.story_video_too_long_pro_hint,
+                                                StoryLimits.forProUser().maxVideoDuration
+                                            ),
+                                            color = GoldColor,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
+                            }
+
+                            // Video badge top-left
+                            if (isVideo) {
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(12.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color.Black.copy(alpha = 0.62f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.PlayArrow, null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Text(
+                                            text = if (videoDurationSeconds != null)
+                                                stringResource(R.string.story_video_duration_badge, videoDurationSeconds!!)
+                                            else stringResource(R.string.video),
+                                            color = Color.White,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Remove button top-right
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(10.dp)
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.65f))
+                                    .clickable {
+                                        selectedMediaUri = null
+                                        videoDurationSeconds = null
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Close, null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
                         }
                     }
                 }
+            }
 
-                // Поля для заголовка та опису (тільки якщо вибрано медіа)
-                AnimatedVisibility(
-                    visible = selectedMediaUri != null,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
+            // ── Text inputs (shown when media is selected) ────────────────────
+            AnimatedVisibility(
+                visible = selectedMediaUri != null,
+                enter = expandVertically(tween(300)) + fadeIn(tween(300)),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column {
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        OutlinedTextField(
-                            value = title,
-                            onValueChange = { title = it },
-                            label = { Text(stringResource(R.string.story_title_hint)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { description = it },
-                            label = { Text(stringResource(R.string.story_description_hint)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            maxLines = 3,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
-                    }
+                    StoryInputField(
+                        value = title,
+                        placeholder = stringResource(R.string.story_title_hint),
+                        onValueChange = { title = it }
+                    )
+                    StoryInputField(
+                        value = description,
+                        placeholder = stringResource(R.string.story_description_hint),
+                        onValueChange = { description = it },
+                        multiline = true
+                    )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(24.dp))
+            // ── PRO hint ──────────────────────────────────────────────────────
+            if (!isPro) {
+                Text(
+                    text = stringResource(R.string.story_pro_upgrade),
+                    color = GoldColor.copy(alpha = 0.7f),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+            }
 
-                // Кнопка створення
-                Button(
-                    onClick = {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── Publish button ────────────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(
+                        if (publishEnabled) StoryGradient
+                        else Brush.horizontalGradient(
+                            listOf(SubtleBorder, SubtleBorder)
+                        )
+                    )
+                    .clickable(enabled = publishEnabled) {
                         selectedMediaUri?.let { uri ->
                             scope.launch {
                                 viewModel.createStory(
@@ -311,23 +446,31 @@ fun CreateStoryDialog(
                             }
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    enabled = selectedMediaUri != null && !isLoading && canCreate && !videoDurationExceedsLimit,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
                     )
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Upload,
+                            contentDescription = null,
+                            tint = if (publishEnabled) Color.White else TextMuted,
+                            modifier = Modifier.size(20.dp)
                         )
-                    } else {
-                        Icon(Icons.Default.Upload, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.publish_story), fontSize = 16.sp)
+                        Text(
+                            text = stringResource(R.string.publish_story),
+                            color = if (publishEnabled) Color.White else TextMuted,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
@@ -335,8 +478,108 @@ fun CreateStoryDialog(
     }
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Private helpers
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun StoryLimitChip(
+    activeCount: Int,
+    max: Int,
+    isPro: Boolean,
+    canCreate: Boolean
+) {
+    val bg = when {
+        !canCreate -> Color(0xFFFF4757).copy(alpha = 0.15f)
+        isPro      -> GoldColor.copy(alpha = 0.12f)
+        else       -> Color.White.copy(alpha = 0.07f)
+    }
+    val textColor = when {
+        !canCreate -> Color(0xFFFF4757)
+        isPro      -> GoldColor
+        else       -> Color.White.copy(alpha = 0.7f)
+    }
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(bg)
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (isPro) {
+            Text("✦", color = GoldColor, fontSize = 10.sp)
+        }
+        Text(
+            text = "$activeCount / $max",
+            color = textColor,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun MediaTypeButton(
+    icon: ImageVector,
+    label: String,
+    gradient: Brush,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .width(132.dp)
+            .height(50.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(gradient)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+            Text(label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun StoryInputField(
+    value: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit,
+    multiline: Boolean = false
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.06f))
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+        textStyle = TextStyle(color = TextPrimary, fontSize = 15.sp),
+        cursorBrush = SolidColor(AccentPurple),
+        maxLines = if (multiline) 4 else 1,
+        decorationBox = { innerTextField ->
+            if (value.isEmpty()) {
+                Text(text = placeholder, color = TextMuted, fontSize = 15.sp)
+            }
+            innerTextField()
+        }
+    )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Public composables kept for API compatibility
+// ═════════════════════════════════════════════════════════════════════════════
+
 /**
- * Карточка з інформацією про ліміти користувача
+ * Compact limits info row — shows story count, video duration, and expiry as chips.
+ * Kept public for use in CreateChannelStoryDialog.
  */
 @Composable
 fun LimitsInfoCard(
@@ -347,111 +590,108 @@ fun LimitsInfoCard(
     isPro: Boolean,
     canCreate: Boolean
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (canCreate) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.errorContainer
-            }
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+    val storiesColor = when {
+        !canCreate -> Color(0xFFFF4757)
+        isPro      -> GoldColor
+        else       -> AccentPurple
+    }
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = if (isPro) stringResource(R.string.pro_account) else stringResource(R.string.free_account),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isPro) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "$activeCount / $maxStories stories",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (canCreate) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.error
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = stringResource(R.string.story_max_video_format, maxVideoDuration) + "\n" +
-                        stringResource(R.string.story_duration_format, expireHours) + "\n" +
-                        stringResource(R.string.story_available_format, maxStories - activeCount),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+            StatsChip(
+                label = "$activeCount / $maxStories",
+                icon = Icons.Default.Image,
+                color = storiesColor,
+                modifier = Modifier.weight(1f)
             )
+            StatsChip(
+                label = "${maxVideoDuration}с",
+                icon = Icons.Default.VideoLibrary,
+                color = AccentBlue,
+                modifier = Modifier.weight(1f)
+            )
+            StatsChip(
+                label = "${expireHours}год",
+                icon = Icons.Default.PlayArrow,
+                color = Color(0xFF22C55E),
+                modifier = Modifier.weight(1f)
+            )
+        }
 
-            if (!isPro) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.story_pro_upgrade),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFFD700)
-                )
-            }
+        if (!isPro) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.story_pro_upgrade),
+                color = GoldColor.copy(alpha = 0.85f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
 
+@Composable
+private fun StatsChip(
+    label: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(14.dp))
+        Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
 /**
- * Кнопка вибору медіа
+ * Media picker button — kept public for API compatibility.
  */
 @Composable
 fun MediaPickerButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        onClick = onClick,
-        modifier = modifier.height(120.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        ),
-        shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = modifier
+            .height(110.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, SubtleBorder, RoundedCornerShape(16.dp))
+            .background(BgCard)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = label,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(AccentPurple.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = label, tint = AccentPurple, modifier = Modifier.size(24.dp))
+            }
+            Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.8f))
         }
     }
 }
 
 /**
- * Превью вибраного медіа
+ * Media preview — kept public for API compatibility.
  */
 @Composable
 fun MediaPreview(
@@ -465,7 +705,6 @@ fun MediaPreview(
             .fillMaxWidth()
             .height(200.dp)
             .clip(RoundedCornerShape(16.dp))
-            .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
     ) {
         AsyncImage(
             model = uri,
@@ -474,32 +713,24 @@ fun MediaPreview(
             contentScale = ContentScale.Crop
         )
 
-        // Індикатор відео + тривалість
         if (isVideo) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(12.dp),
+                    .padding(10.dp),
                 shape = RoundedCornerShape(8.dp),
-                color = Color.Black.copy(alpha = 0.7f)
+                color = Color.Black.copy(alpha = 0.62f)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Video",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(14.dp))
                     Text(
-                        text = if (videoDurationSeconds != null) {
+                        text = if (videoDurationSeconds != null)
                             stringResource(R.string.story_video_duration_badge, videoDurationSeconds)
-                        } else {
-                            stringResource(R.string.video)
-                        },
+                        else stringResource(R.string.video),
                         color = Color.White,
                         fontSize = 12.sp
                     )
@@ -507,19 +738,17 @@ fun MediaPreview(
             }
         }
 
-        // Кнопка видалення
-        IconButton(
-            onClick = onRemove,
+        Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(8.dp)
-                .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(50))
+                .padding(10.dp)
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.65f))
+                .clickable(onClick = onRemove),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Remove",
-                tint = Color.White
-            )
+            Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp))
         }
     }
 }
