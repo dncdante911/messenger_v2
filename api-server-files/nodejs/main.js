@@ -761,6 +761,10 @@ async function main() {
       socket: {
         host: process.env.REDIS_HOST || '127.0.0.1',
         port: parseInt(process.env.REDIS_PORT) || 6379,
+        // connectTimeout prevents workers hanging forever if Redis is slow/down.
+        // If connect does not complete within 5 s the Promise rejects and we fall
+        // through to the catch block → server starts without the adapter.
+        connectTimeout: 5000,
         reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
       },
       // Only include password key when a non-empty value is configured.
@@ -772,7 +776,14 @@ async function main() {
     const subClient = pubClient.duplicate();
     pubClient.on('error', err => console.error('[Redis Adapter] pub error:', err.message));
     subClient.on('error', err => console.error('[Redis Adapter] sub error:', err.message));
-    await Promise.all([pubClient.connect(), subClient.connect()]);
+    // Race with an explicit timeout so a slow Redis cannot block server.listen()
+    // and prevent process.send('ready') from reaching PM2.
+    await Promise.race([
+      Promise.all([pubClient.connect(), subClient.connect()]),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Redis connect timeout (5 s)')), 5000)
+      ),
+    ]);
     io.adapter(createAdapter(pubClient, subClient));
     console.log('[Redis Adapter] Socket.IO Redis adapter active — cluster/multi-server ready');
   } catch (redisErr) {
