@@ -114,45 +114,58 @@ function reactMessage(ctx, io) {
     };
 }
 
-// ─── PIN / UNPIN message ─────────────────────────────────────────────────────
-// Uses wo_mute table as WoWonder stores pins there: pin = 'yes'|'no'
+// ─── PIN / UNPIN message ──────────────────────────────────────────────────────
+// Stores pins in wm_pinned_messages table (max MAX_PINS per conversation).
+// Falls back to legacy wo_mute.pin for backwards compat read on old clients.
+
+const MAX_PINS = 5;
 
 function pinMessage(ctx, io) {
     return async (req, res) => {
         try {
             const userId    = req.userId;
             const messageId = parseInt(req.body.message_id);
-            const chatId    = parseInt(req.body.chat_id);   // the other user's id
+            const chatId    = parseInt(req.body.chat_id);
             const pin       = req.body.pin === 'yes' ? 'yes' : 'no';
+            const chatType  = req.body.chat_type || 'user'; // 'user' | 'group'
 
             if (!messageId || isNaN(messageId))
                 return res.status(400).json({ api_status: 400, error_message: 'message_id is required' });
             if (!chatId || isNaN(chatId))
                 return res.status(400).json({ api_status: 400, error_message: 'chat_id is required' });
 
-            const existing = await ctx.wo_mute.findOne({
-                where: { user_id: userId, message_id: messageId },
-            });
+            const seq = ctx.sequelize;
 
-            if (existing) {
-                await existing.update({ pin });
+            if (pin === 'yes') {
+                // Check current count for this conversation
+                const [[countRow]] = await seq.query(
+                    `SELECT COUNT(*) AS cnt FROM wm_pinned_messages WHERE user_id = :uid AND chat_id = :cid AND chat_type = :ct`,
+                    { replacements: { uid: userId, cid: chatId, ct: chatType }, type: seq.constructor.QueryTypes.SELECT }
+                );
+                if (parseInt(countRow.cnt) >= MAX_PINS) {
+                    return res.status(400).json({
+                        api_status: 400,
+                        error_message: `Maximum ${MAX_PINS} pinned messages reached. Unpin one first.`,
+                    });
+                }
+                // Upsert: ignore duplicate (already pinned)
+                await seq.query(
+                    `INSERT IGNORE INTO wm_pinned_messages (user_id, chat_id, chat_type, message_id, pinned_at)
+                     VALUES (:uid, :cid, :ct, :mid, :now)`,
+                    { replacements: { uid: userId, cid: chatId, ct: chatType, mid: messageId, now: Math.floor(Date.now() / 1000) } }
+                );
             } else {
-                await ctx.wo_mute.create({
-                    user_id:    userId,
-                    type:       'user',
-                    time:       Math.floor(Date.now() / 1000),
-                    pin,
-                    message_id: messageId,
-                    chat_id:    chatId,
-                    notify:     'yes',
-                    call_chat:  'yes',
-                    archive:    'no',
-                    fav:        'no',
-                });
+                await seq.query(
+                    `DELETE FROM wm_pinned_messages WHERE user_id = :uid AND chat_id = :cid AND chat_type = :ct AND message_id = :mid`,
+                    { replacements: { uid: userId, cid: chatId, ct: chatType, mid: messageId } }
+                );
             }
 
-            io.to(String(userId)).emit('message_pinned', { message_id: messageId, pin, chat_id: chatId });
-            io.to(String(chatId)).emit('message_pinned', { message_id: messageId, pin, chat_id: userId });
+            // Notify both participants (socket rooms)
+            const otherId = chatType === 'user' ? chatId : null;
+            const payload = { message_id: messageId, pin, chat_id: chatId, chat_type: chatType };
+            io.to(String(userId)).emit('message_pinned', payload);
+            if (otherId) io.to(String(otherId)).emit('message_pinned', { ...payload, chat_id: userId });
 
             res.json({ api_status: 200, pin });
         } catch (err) {
@@ -167,32 +180,35 @@ function pinMessage(ctx, io) {
 function getPinnedMessages(ctx, io) {
     return async (req, res) => {
         try {
-            const userId  = req.userId;
-            const chatId  = parseInt(req.body.chat_id || req.query.chat_id);
+            const userId   = req.userId;
+            const chatId   = parseInt(req.body.chat_id || req.query.chat_id);
+            const chatType = req.body.chat_type || req.query.chat_type || 'user';
 
             if (!chatId || isNaN(chatId))
                 return res.status(400).json({ api_status: 400, error_message: 'chat_id is required' });
 
-            // Get pinned entry ids for this user+chat
-            const pins = await ctx.wo_mute.findAll({
-                attributes: ['message_id'],
-                where: { user_id: userId, chat_id: chatId, pin: 'yes', type: 'user' },
-                raw: true,
-            });
+            const seq = ctx.sequelize;
 
-            if (!pins.length) return res.json({ api_status: 200, messages: [] });
+            // Get pinned message ids from new table
+            const rows = await seq.query(
+                `SELECT message_id FROM wm_pinned_messages
+                 WHERE user_id = :uid AND chat_id = :cid AND chat_type = :ct
+                 ORDER BY pinned_at DESC`,
+                { replacements: { uid: userId, cid: chatId, ct: chatType }, type: seq.constructor.QueryTypes.SELECT }
+            );
 
-            const ids = pins.map(p => p.message_id);
-            const rows = await ctx.wo_messages.findAll({
+            if (!rows.length) return res.json({ api_status: 200, messages: [] });
+
+            const ids = rows.map(r => r.message_id);
+            const msgs = await ctx.wo_messages.findAll({
                 where: { id: { [Op.in]: ids } },
                 order: [['id', 'DESC']],
                 raw: true,
             });
 
-            const messages = [];
-            for (const m of rows) {
+            const messages = msgs.map(m => {
                 const { position, type } = resolveType(m, userId);
-                messages.push({
+                return {
                     id:       m.id,
                     from_id:  m.from_id,
                     to_id:    m.to_id,
@@ -202,8 +218,8 @@ function getPinnedMessages(ctx, io) {
                     time:     m.time,
                     position,
                     type,
-                });
-            }
+                };
+            });
 
             res.json({ api_status: 200, messages });
         } catch (err) {

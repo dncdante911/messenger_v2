@@ -132,8 +132,17 @@ class MessagesViewModel(application: Application) :
     // ==================== END GROUPS ====================
 
     // ==================== PRIVATE CHAT PIN ====================
-    private val _pinnedPrivateMessage = MutableStateFlow<Message?>(null)
-    val pinnedPrivateMessage: StateFlow<Message?> = _pinnedPrivateMessage
+    // Supports up to 5 pinned messages (backend limit MAX_PINS=5)
+    private val _pinnedPrivateMessages = MutableStateFlow<List<Message>>(emptyList())
+    val pinnedPrivateMessages: StateFlow<List<Message>> = _pinnedPrivateMessages
+    // Single-pin convenience (first pinned message) — used by existing MessagesScreen banner
+    val pinnedPrivateMessage: StateFlow<Message?> get() =
+        object : StateFlow<Message?> {
+            override val value get() = _pinnedPrivateMessages.value.firstOrNull()
+            override val replayCache get() = listOf(value)
+            override suspend fun collect(collector: kotlinx.coroutines.flow.FlowCollector<Message?>) =
+                _pinnedPrivateMessages.collect { collector.emit(it.firstOrNull()) }
+        }
     // ==================== END PRIVATE CHAT PIN ====================
 
     // ==================== PRIVATE CHAT MUTE ====================
@@ -1642,13 +1651,15 @@ class MessagesViewModel(application: Application) :
 
     override fun onMessagePinned(messageId: Long, isPinned: Boolean, chatId: Long) {
         if (recipientId != 0L && (chatId == recipientId || chatId == UserSession.userId)) {
+            val current = _pinnedPrivateMessages.value.toMutableList()
             if (isPinned) {
-                val pinnedMsg = _messages.value.find { it.id == messageId }
-                _pinnedPrivateMessage.value = pinnedMsg
-            } else {
-                if (_pinnedPrivateMessage.value?.id == messageId) {
-                    _pinnedPrivateMessage.value = null
+                val msg = _messages.value.find { it.id == messageId }
+                if (msg != null && current.none { it.id == messageId }) {
+                    current.add(0, msg)
+                    _pinnedPrivateMessages.value = current.take(5) // cap at 5
                 }
+            } else {
+                _pinnedPrivateMessages.value = current.filter { it.id != messageId }
             }
             Log.d(TAG, "Socket: повідомлення $messageId ${if (isPinned) "закріплено" else "відкріплено"}")
         }
@@ -2325,13 +2336,15 @@ class MessagesViewModel(application: Application) :
                     pin = if (pin) "yes" else "no"
                 )
                 if (resp.apiStatus == 200) {
+                    val current = _pinnedPrivateMessages.value.toMutableList()
                     if (pin) {
-                        val pinnedMsg = _messages.value.find { it.id == messageId }
-                        _pinnedPrivateMessage.value = pinnedMsg
-                    } else {
-                        if (_pinnedPrivateMessage.value?.id == messageId) {
-                            _pinnedPrivateMessage.value = null
+                        val msg = _messages.value.find { it.id == messageId }
+                        if (msg != null && current.none { it.id == messageId }) {
+                            current.add(0, msg)
+                            _pinnedPrivateMessages.value = current.take(5)
                         }
+                    } else {
+                        _pinnedPrivateMessages.value = current.filter { it.id != messageId }
                     }
                     Log.d(TAG, "📌 Message $messageId ${if (pin) "pinned" else "unpinned"} in private chat")
                 } else {

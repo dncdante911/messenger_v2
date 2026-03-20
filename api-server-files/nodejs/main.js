@@ -530,6 +530,25 @@ async function runMigrations(ctx) {
     console.warn('[Migration] Wo_UserCloudBackupSettings:', e.message);
   }
 
+  // ── wm_pinned_messages — per-conversation pins (up to 5) ─────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_pinned_messages (
+        id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id    INT          NOT NULL,
+        chat_id    INT          NOT NULL,
+        chat_type  ENUM('user','group') NOT NULL DEFAULT 'user',
+        message_id INT          NOT NULL,
+        pinned_at  INT UNSIGNED NOT NULL DEFAULT 0,
+        UNIQUE KEY uq_pin   (user_id, chat_id, chat_type, message_id),
+        KEY        idx_chat  (user_id, chat_id, chat_type)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('[Migration] wm_pinned_messages table ensured');
+  } catch (e) {
+    console.warn('[Migration] wm_pinned_messages:', e.message);
+  }
+
   // ── wm_saved_messages — "Saved Messages" personal notes/bookmarks ────────
   try {
     await ctx.sequelize.query(`

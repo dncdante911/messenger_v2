@@ -245,6 +245,16 @@ object Constants {
     // ── App update ────────────────────────────────────────────────────────────
     const val NODE_UPDATE_CHECK = "api/node/update/check"
 
+    // ── Global Search ─────────────────────────────────────────────────────────
+    const val NODE_SEARCH_GLOBAL = "api/node/search/global"
+    const val NODE_SEARCH_USERS  = "api/node/search/users"
+
+    // ── Notes (Telegram-style personal storage) ───────────────────────────────
+    const val NODE_NOTES_LIST    = "api/node/notes"
+    const val NODE_NOTES_CREATE  = "api/node/notes/create"
+    const val NODE_NOTES_DELETE  = "api/node/notes/{id}"
+    const val NODE_NOTES_STORAGE = "api/node/notes/storage"
+
     // ==================== SOCKET.IO EVENTS ====================
     const val SOCKET_EVENT_AUTH                = "join"
     const val SOCKET_EVENT_PRIVATE_MESSAGE     = "private_message"
