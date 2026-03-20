@@ -842,15 +842,20 @@ fun SettingsDrawerContent(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top
                 ) {
+                    var showAccountSwitcher by remember { mutableStateOf(false) }
                     AsyncImage(
                         model = currentAvatar,
                         contentDescription = "Avatar",
                         modifier = Modifier
                             .size(60.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.2f), CircleShape),
+                            .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                            .clickable { showAccountSwitcher = true },
                         contentScale = ContentScale.Crop
                     )
+                    if (showAccountSwitcher) {
+                        AccountSwitcherDialog(onDismiss = { showAccountSwitcher = false })
+                    }
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = onClose) {
                         Icon(
@@ -942,6 +947,18 @@ fun SettingsDrawerContent(
             // Secondary actions
             item {
                 DrawerMenuItem(
+                    icon = Icons.Outlined.Search,
+                    title = stringResource(R.string.global_search_title),
+                    onClick = {
+                        onClose()
+                        context.startActivity(
+                            com.worldmates.messenger.ui.search.GlobalSearchActivity.createIntent(context)
+                        )
+                    }
+                )
+            }
+            item {
+                DrawerMenuItem(
                     icon = Icons.Outlined.Call,
                     title = stringResource(R.string.calls),
                     onClick = {
@@ -960,6 +977,18 @@ fun SettingsDrawerContent(
                         onClose()
                         context.startActivity(
                             android.content.Intent(context, com.worldmates.messenger.ui.saved.SavedMessagesActivity::class.java)
+                        )
+                    }
+                )
+            }
+            item {
+                DrawerMenuItem(
+                    icon = Icons.Outlined.Note,
+                    title = stringResource(R.string.notes_title),
+                    onClick = {
+                        onClose()
+                        context.startActivity(
+                            android.content.Intent(context, com.worldmates.messenger.ui.notes.NotesActivity::class.java)
                         )
                     }
                 )

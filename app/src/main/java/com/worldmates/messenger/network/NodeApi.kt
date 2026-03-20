@@ -462,6 +462,51 @@ interface NodeApi {
     @POST(Constants.NODE_SAVED_CLEAR)
     suspend fun clearSaved(): NodeSimpleResponse
 
+    // ═══════════════════════ GLOBAL SEARCH ═══════════════════════════════════
+
+    /** Search across all messages (private + group). */
+    @FormUrlEncoded
+    @POST(Constants.NODE_SEARCH_GLOBAL)
+    suspend fun globalSearch(
+        @Field("query")  query:  String,
+        @Field("limit")  limit:  Int = 50,
+        @Field("offset") offset: Int = 0
+    ): NodeGlobalSearchResponse
+
+    /** Search users by username / name. */
+    @FormUrlEncoded
+    @POST(Constants.NODE_SEARCH_USERS)
+    suspend fun searchUsers(
+        @Field("query") query: String,
+        @Field("limit") limit: Int = 30
+    ): NodeUserSearchResponse
+
+    // ═══════════════════════ NOTES ════════════════════════════════════════════
+
+    /** List personal notes (newest first). */
+    @GET(Constants.NODE_NOTES_LIST)
+    suspend fun listNotes(
+        @Query("limit")  limit:  Int = 50,
+        @Query("offset") offset: Int = 0
+    ): NodeNotesListResponse
+
+    /** Create a text note. */
+    @FormUrlEncoded
+    @POST(Constants.NODE_NOTES_CREATE)
+    suspend fun createNote(
+        @Field("text") text: String
+    ): NodeNoteResponse
+
+    /** Delete a note by id. */
+    @DELETE(Constants.NODE_NOTES_DELETE)
+    suspend fun deleteNote(
+        @Path("id") id: Long
+    ): NodeSimpleResponse
+
+    /** Get storage usage stats. */
+    @GET(Constants.NODE_NOTES_STORAGE)
+    suspend fun getNotesStorage(): NodeNotesStorageResponse
+
     // ═══════════════════════ USER ACCOUNT ════════════════════════════════════
 
     /**
@@ -1295,5 +1340,75 @@ data class NodeSessionItem(
 data class NodeSessionsResponse(
     @SerializedName("api_status") val apiStatus: Int = 0,
     @SerializedName("sessions")   val sessions:  List<NodeSessionItem> = emptyList(),
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+// ==================== GLOBAL SEARCH ====================
+
+data class GlobalSearchResult(
+    @SerializedName("id")           val id:          Long   = 0,
+    @SerializedName("chat_type")    val chatType:    String = "user",  // "user" | "group"
+    @SerializedName("chat_id")      val chatId:      Long   = 0,
+    @SerializedName("from_id")      val fromId:      Long   = 0,
+    @SerializedName("group_id")     val groupId:     Long   = 0,
+    @SerializedName("text_preview") val textPreview: String = "",
+    @SerializedName("time")         val time:        Long   = 0,
+    @SerializedName("has_media")    val hasMedia:    Boolean = false,
+    @SerializedName("has_sticker")  val hasSticker:  Boolean = false,
+)
+
+data class NodeGlobalSearchResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("query")      val query:     String = "",
+    @SerializedName("total")      val total:     Int    = 0,
+    @SerializedName("results")    val results:   List<GlobalSearchResult> = emptyList(),
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+data class UserSearchResult(
+    @SerializedName("user_id")    val userId:     Long   = 0,
+    @SerializedName("username")   val username:   String = "",
+    @SerializedName("first_name") val firstName:  String = "",
+    @SerializedName("last_name")  val lastName:   String = "",
+    @SerializedName("avatar")     val avatar:     String = "",
+    @SerializedName("last_seen")  val lastSeen:   Long   = 0,
+    @SerializedName("is_verified") val isVerified: Boolean = false,
+)
+
+data class NodeUserSearchResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("users")      val users:     List<UserSearchResult> = emptyList(),
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+// ==================== NOTES ====================
+
+data class NoteItem(
+    @SerializedName("id")         val id:        Long   = 0,
+    @SerializedName("type")       val type:      String = "text",  // text | image | video | audio | file
+    @SerializedName("text")       val text:      String? = null,
+    @SerializedName("file_name")  val fileName:  String? = null,
+    @SerializedName("file_size")  val fileSize:  Long   = 0,
+    @SerializedName("mime_type")  val mimeType:  String? = null,
+    @SerializedName("created_at") val createdAt: Long   = 0,
+)
+
+data class NodeNotesListResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("notes")      val notes:     List<NoteItem> = emptyList(),
+    @SerializedName("total")      val total:     Int = 0,
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+data class NodeNoteResponse(
+    @SerializedName("api_status") val apiStatus: Int = 0,
+    @SerializedName("note")       val note:      NoteItem? = null,
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+data class NodeNotesStorageResponse(
+    @SerializedName("api_status")   val apiStatus:   Int  = 0,
+    @SerializedName("used_bytes")   val usedBytes:   Long = 0,
+    @SerializedName("quota_bytes")  val quotaBytes:  Long = 0,
     @SerializedName("error_message") val errorMessage: String? = null,
 )

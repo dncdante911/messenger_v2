@@ -2439,4 +2439,20 @@
     <string name="media_download_error">Помилка завантаження</string>
     <string name="media_downloading">Завантаження…</string>
 
+    <!-- ── Global Search ──────────────────────────────────────────────────── -->
+    <string name="global_search_title">Пошук</string>
+    <string name="search_placeholder">Повідомлення, люди…</string>
+    <string name="search_hint">Введіть мінімум 2 символи</string>
+    <string name="search_tab_messages">Повідомлення</string>
+    <string name="search_tab_users">Люди</string>
+    <string name="search_no_results">Нічого не знайдено за «%1$s»</string>
+    <string name="search_no_users">Користувачів не знайдено</string>
+
+    <!-- ── Notes ──────────────────────────────────────────────────────────── -->
+    <string name="notes_title">Нотатки</string>
+    <string name="notes_hint">Написати нотатку…</string>
+    <string name="notes_empty">Тут зберігатимуться ваші нотатки</string>
+    <string name="delete_note_title">Видалити нотатку?</string>
+    <string name="delete_note_body">Цю нотатку буде видалено безповоротно.</string>
+
 </resources>

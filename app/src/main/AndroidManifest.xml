@@ -175,6 +175,23 @@
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
             android:parentActivityName=".ui.chats.ChatsActivity" />
 
+        <!-- Global Search Activity -->
+        <activity
+            android:name=".ui.search.GlobalSearchActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.chats.ChatsActivity"
+            android:windowSoftInputMode="stateVisible|adjustResize" />
+
+        <!-- Notes Activity -->
+        <activity
+            android:name=".ui.notes.NotesActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.chats.ChatsActivity" />
+
         <!-- Bot Store Activity -->
         <activity
             android:name=".ui.bots.BotStoreActivity"

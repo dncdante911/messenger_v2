@@ -145,12 +145,62 @@ function globalSearch(ctx) {
     };
 }
 
+// ─── POST /api/node/search/users ─────────────────────────────────────────────
+// Search users by username / first_name / last_name (excludes self + blocked).
+
+function searchUsers(ctx) {
+    return async (req, res) => {
+        try {
+            const userId = req.userId;
+            const query  = (req.body.query || '').trim();
+            const limit  = Math.min(parseInt(req.body.limit) || 30, 100);
+
+            if (!query || query.length < 2)
+                return res.status(400).json({ api_status: 400, error_message: 'query must be at least 2 characters' });
+
+            const rows = await ctx.wo_users.findAll({
+                where: {
+                    [Op.and]: [
+                        { user_id: { [Op.ne]: userId } },
+                        {
+                            [Op.or]: [
+                                { username:   { [Op.like]: `%${query}%` } },
+                                { first_name: { [Op.like]: `%${query}%` } },
+                                { last_name:  { [Op.like]: `%${query}%` } },
+                            ],
+                        },
+                    ],
+                },
+                attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar', 'last_seen', 'user_verified'],
+                limit,
+                raw: true,
+            });
+
+            const users = rows.map(u => ({
+                user_id:       u.user_id,
+                username:      u.username   || '',
+                first_name:    u.first_name || '',
+                last_name:     u.last_name  || '',
+                avatar:        u.avatar     || '',
+                last_seen:     u.last_seen  || 0,
+                is_verified:   !!u.user_verified,
+            }));
+
+            res.json({ api_status: 200, query, users, total: users.length });
+        } catch (err) {
+            console.error('[Search/users]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'User search failed' });
+        }
+    };
+}
+
 // ─── registration ─────────────────────────────────────────────────────────────
 
 function registerSearchRoutes(app, ctx) {
     const auth = (req, res, next) => authMiddleware(ctx, req, res, next);
     app.post('/api/node/search/global', auth, globalSearch(ctx));
-    console.log('[Search] Routes registered: POST /api/node/search/global');
+    app.post('/api/node/search/users',  auth, searchUsers(ctx));
+    console.log('[Search] Routes registered: /api/node/search/global, /api/node/search/users');
 }
 
 module.exports = { registerSearchRoutes };
