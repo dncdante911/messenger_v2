@@ -221,6 +221,12 @@ interface MessageDao {
     @Query("DELETE FROM cached_messages")
     suspend fun clearAllCache()
 
+    /**
+     * Получить уникальные ID личных чатов (для синхронизации).
+     */
+    @Query("SELECT DISTINCT chatId FROM cached_messages WHERE chatType = 'user' ORDER BY chatId ASC")
+    suspend fun getDistinctUserChatIds(): List<Long>
+
     // ==================== СЕКРЕТНІ ЧАТИ ====================
 
     /**

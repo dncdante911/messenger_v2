@@ -209,6 +209,18 @@ class SettingsActivity : AppCompatActivity() {
                         )
                         currentScreen = SettingsScreen.Main
                     }
+                    SettingsScreen.Followers -> {
+                        FollowListScreen(
+                            showFollowers = true,
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
+                    SettingsScreen.Following -> {
+                        FollowListScreen(
+                            showFollowers = false,
+                            onBackClick = { currentScreen = SettingsScreen.Main }
+                        )
+                    }
                 }
             }
         }
@@ -234,6 +246,8 @@ sealed class SettingsScreen {
     object ActiveSessions : SettingsScreen()
     object DeleteAccount : SettingsScreen()
     object Business : SettingsScreen()
+    object Followers : SettingsScreen()
+    object Following : SettingsScreen()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -408,6 +422,28 @@ fun SettingsMainScreen(
 
             // ── Security ──
             item {
+                SettingsItem(
+                    icon = Icons.Default.Group,
+                    title = stringResource(R.string.my_groups_settings),
+                    subtitle = stringResource(R.string.groups_count_fmt, userData?.groupsCount ?: "0"),
+                    onClick = { onNavigate(SettingsScreen.MyGroups) }
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.People,
+                    title = stringResource(R.string.followers_settings),
+                    subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
+                    onClick = { onNavigate(SettingsScreen.Followers) }
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Default.PersonAdd,
+                    title = stringResource(R.string.following_settings),
+                    subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
+                    onClick = { onNavigate(SettingsScreen.Following) }
+                )
                 SettingsGroupHeader(title = stringResource(R.string.security_section))
                 SettingsGroup {
                     val twoFactorEnabled = stringResource(R.string.two_factor_enabled)

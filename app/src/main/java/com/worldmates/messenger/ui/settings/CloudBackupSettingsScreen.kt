@@ -43,6 +43,7 @@ fun CloudBackupSettingsScreen(
     val scope = rememberCoroutineScope()
 
     var showBackupProviderDialog by remember { mutableStateOf(false) }
+    var showBackupFrequencyDialog by remember { mutableStateOf(false) }
     var showCreateBackupDialog by remember { mutableStateOf(false) }
     var showBackupListDialog by remember { mutableStateOf(false) }
     var showRestoreBackupDialog by remember { mutableStateOf<BackupFileInfo?>(null) }
@@ -166,6 +167,19 @@ fun CloudBackupSettingsScreen(
 
             item {
                 settings?.let { s ->
+                    if (s.backupEnabled) {
+                        SettingsItem(
+                            icon = Icons.Default.Schedule,
+                            title = stringResource(R.string.backup_frequency),
+                            subtitle = frequencyDisplayName(s.backupFrequency),
+                            onClick = { showBackupFrequencyDialog = true }
+                        )
+                    }
+                }
+            }
+
+            item {
+                settings?.let { s ->
                     if (s.backupEnabled && s.lastBackupTime != null) {
                         Card(
                             modifier = Modifier
@@ -267,6 +281,17 @@ fun CloudBackupSettingsScreen(
             onSelect = { provider ->
                 viewModel.updateBackupProvider(provider)
                 showBackupProviderDialog = false
+            }
+        )
+    }
+
+    if (showBackupFrequencyDialog) {
+        BackupFrequencyDialog(
+            currentFrequency = settings!!.backupFrequency,
+            onDismiss = { showBackupFrequencyDialog = false },
+            onSelect = { frequency ->
+                viewModel.updateBackupFrequency(frequency)
+                showBackupFrequencyDialog = false
             }
         )
     }
@@ -491,6 +516,53 @@ private fun BackupProgressBar(progress: com.worldmates.messenger.data.model.Back
 }
 
 // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+
+@Composable
+private fun frequencyDisplayName(frequency: CloudBackupSettings.BackupFrequency): String =
+    when (frequency) {
+        CloudBackupSettings.BackupFrequency.NEVER   -> stringResource(R.string.backup_frequency_never)
+        CloudBackupSettings.BackupFrequency.DAILY   -> stringResource(R.string.backup_frequency_daily)
+        CloudBackupSettings.BackupFrequency.WEEKLY  -> stringResource(R.string.backup_frequency_weekly)
+        CloudBackupSettings.BackupFrequency.MONTHLY -> stringResource(R.string.backup_frequency_monthly)
+    }
+
+@Composable
+private fun BackupFrequencyDialog(
+    currentFrequency: CloudBackupSettings.BackupFrequency,
+    onDismiss: () -> Unit,
+    onSelect: (CloudBackupSettings.BackupFrequency) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.backup_frequency)) },
+        text = {
+            Column {
+                CloudBackupSettings.BackupFrequency.values().forEach { freq ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(freq) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = freq == currentFrequency,
+                            onClick = { onSelect(freq) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(frequencyDisplayName(freq), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
 
 private fun formatTime(timestamp: Long): String {
     val now = System.currentTimeMillis()

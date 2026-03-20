@@ -769,6 +769,10 @@
     <string name="auto_backup">Автоматичне резервне копіювання</string>
     <string name="enable_backup">Увімкнути бекап</string>
     <string name="backup_frequency">Частота резервного копіювання</string>
+    <string name="backup_frequency_never">Ніколи</string>
+    <string name="backup_frequency_daily">Щодня</string>
+    <string name="backup_frequency_weekly">Щотижня</string>
+    <string name="backup_frequency_monthly">Щомісяця</string>
     <string name="last_backup">Останній бекап:</string>
     <string name="backup_size">Розмір резервної копії</string>
     <string name="google_drive">Google Drive</string>
