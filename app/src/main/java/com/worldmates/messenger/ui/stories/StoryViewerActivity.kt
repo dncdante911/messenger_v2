@@ -388,6 +388,9 @@ fun StoryViewerScreen(
             onAddComment = { text ->
                 currentStory?.let { viewModel.createComment(it.id, text) }
             },
+            onAddCommentWithReply = { text, replyToId ->
+                currentStory?.let { viewModel.createComment(it.id, text, replyToId) }
+            },
             onDeleteComment = { viewModel.deleteComment(it) }
         )
     }
@@ -888,7 +891,10 @@ fun StoryCommentsSheet(
                             comment = comment,
                             onDelete = { onDeleteComment(comment.id) },
                             onReply = { replyingTo = it },
-                            onUserMenu = { userActionsTarget = it }
+                            onUserMenu = { userActionsTarget = it },
+                            replyToComment = comment.replyToCommentId?.let { rid ->
+                                comments.find { it.id == rid }
+                            }
                         )
                     }
                 }
@@ -1096,7 +1102,8 @@ fun CommentItem(
     comment: StoryComment,
     onDelete: () -> Unit,
     onReply: ((StoryComment) -> Unit)? = null,
-    onUserMenu: ((StoryComment) -> Unit)? = null
+    onUserMenu: ((StoryComment) -> Unit)? = null,
+    replyToComment: StoryComment? = null
 ) {
     Row(
         modifier = Modifier
@@ -1129,6 +1136,13 @@ fun CommentItem(
                     text = formatStoryTime(comment.time),
                     color = Color.White.copy(alpha = 0.4f),
                     fontSize = 11.sp
+                )
+            }
+            if (replyToComment != null) {
+                com.worldmates.messenger.ui.components.CommentReplyQuote(
+                    replyToUsername = replyToComment.userData?.name ?: replyToComment.userData?.username ?: "User",
+                    replyToText = replyToComment.text,
+                    modifier = androidx.compose.ui.Modifier.padding(top = 3.dp, bottom = 2.dp)
                 )
             }
             Text(

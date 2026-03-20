@@ -774,6 +774,21 @@ fun ChannelDetailsScreen(
                         )
                     }
                 },
+                onAddCommentWithReply = { text, replyToId ->
+                    selectedPost?.let { post ->
+                        detailsViewModel.addComment(
+                            postId = post.id,
+                            text = text,
+                            replyToId = replyToId,
+                            onSuccess = {
+                                Toast.makeText(context, "Коментар додано!", Toast.LENGTH_SHORT).show()
+                            },
+                            onError = { error ->
+                                Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                },
                 onDeleteComment = { commentId ->
                     selectedPost?.let { post ->
                         detailsViewModel.deleteComment(
@@ -832,6 +847,22 @@ fun ChannelDetailsScreen(
                         detailsViewModel.addComment(
                             postId = post.id,
                             text = text,
+                            onSuccess = {
+                                Toast.makeText(context, "Коментар додано!", Toast.LENGTH_SHORT).show()
+                                detailsViewModel.loadComments(post.id)
+                            },
+                            onError = { error ->
+                                Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                },
+                onAddCommentWithReply = { text, replyToId ->
+                    selectedPostForDetail?.let { post ->
+                        detailsViewModel.addComment(
+                            postId = post.id,
+                            text = text,
+                            replyToId = replyToId,
                             onSuccess = {
                                 Toast.makeText(context, "Коментар додано!", Toast.LENGTH_SHORT).show()
                                 detailsViewModel.loadComments(post.id)

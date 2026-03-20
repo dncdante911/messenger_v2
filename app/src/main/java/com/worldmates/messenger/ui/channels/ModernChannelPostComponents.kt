@@ -1016,6 +1016,7 @@ fun CommentsBottomSheet(
     isAdmin: Boolean,
     onDismiss: () -> Unit,
     onAddComment: (String) -> Unit,
+    onAddCommentWithReply: ((String, Long?) -> Unit)? = null,
     onDeleteComment: (Long) -> Unit,
     onCommentReaction: (commentId: Long, emoji: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
@@ -1194,7 +1195,10 @@ fun CommentsBottomSheet(
                             onDeleteClick = { onDeleteComment(comment.id) },
                             onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) },
                             onReply = { replyingToComment = it },
-                            onUserMenu = { userActionsComment = it }
+                            onUserMenu = { userActionsComment = it },
+                            replyToComment = comment.replyToCommentId?.let { rid ->
+                                comments.find { it.id == rid }
+                            }
                         )
                     }
                 }
@@ -1344,10 +1348,11 @@ fun CommentsBottomSheet(
                     Surface(
                         onClick = {
                             if (sendEnabled) {
-                                val textToSend = if (replyingToComment != null) {
-                                    "@${replyingToComment!!.username ?: replyingToComment!!.userName ?: ""} ${commentText}"
-                                } else commentText
-                                onAddComment(textToSend)
+                                if (onAddCommentWithReply != null) {
+                                    onAddCommentWithReply(commentText, replyingToComment?.id)
+                                } else {
+                                    onAddComment(commentText)
+                                }
                                 commentText = ""
                                 replyingToComment = null
                             }
@@ -1584,6 +1589,7 @@ fun PremiumCommentItem(
     onReactionClick: (String) -> Unit = {},
     onReply: ((ChannelComment) -> Unit)? = null,
     onUserMenu: ((ChannelComment) -> Unit)? = null,
+    replyToComment: ChannelComment? = null,
     modifier: Modifier = Modifier
 ) {
     var showActions by remember { mutableStateOf(false) }
@@ -1656,6 +1662,17 @@ fun PremiumCommentItem(
             }
 
             Spacer(modifier = Modifier.height(2.dp))
+
+            // Reply quote (if this is a reply)
+            if (replyToComment != null) {
+                com.worldmates.messenger.ui.components.CommentReplyQuote(
+                    replyToUsername = replyToComment.userName
+                        ?: replyToComment.username
+                        ?: "User",
+                    replyToText = replyToComment.text,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
 
             // Comment text
             CommentContent(text = comment.text)
@@ -2829,6 +2846,7 @@ fun PostDetailDialog(
     onDismiss: () -> Unit,
     onReactionClick: (String) -> Unit,
     onAddComment: (String) -> Unit,
+    onAddCommentWithReply: ((String, Long?) -> Unit)? = null,
     onDeleteComment: (Long) -> Unit,
     onCommentReaction: (commentId: Long, emoji: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
@@ -3234,6 +3252,9 @@ fun PostDetailDialog(
                                 onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) },
                                 onReply = { replyingToCommentDetail = it },
                                 onUserMenu = { userActionsCommentDetail = it },
+                                replyToComment = comment.replyToCommentId?.let { rid ->
+                                    comments.find { it.id == rid }
+                                },
                                 modifier = Modifier.padding(horizontal = 12.dp)
                             )
                         }
@@ -3416,10 +3437,11 @@ fun PostDetailDialog(
                             Surface(
                                 onClick = {
                                     if (sendEnabled) {
-                                        val textToSend = if (replyingToCommentDetail != null) {
-                                            "@${replyingToCommentDetail!!.username ?: replyingToCommentDetail!!.userName ?: ""} $commentText"
-                                        } else commentText
-                                        onAddComment(textToSend)
+                                        if (onAddCommentWithReply != null) {
+                                            onAddCommentWithReply(commentText, replyingToCommentDetail?.id)
+                                        } else {
+                                            onAddComment(commentText)
+                                        }
                                         commentText = ""
                                         replyingToCommentDetail = null
                                     }
