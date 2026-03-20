@@ -16,6 +16,15 @@ import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.CloudBackupSettings
 import com.worldmates.messenger.data.model.BackupFileInfo
 
+@Composable
+internal fun backupProviderDisplayName(provider: CloudBackupSettings.BackupProvider): String =
+    when (provider) {
+        CloudBackupSettings.BackupProvider.LOCAL_SERVER -> stringResource(R.string.backup_provider_local_server)
+        CloudBackupSettings.BackupProvider.GOOGLE_DRIVE -> "Google Drive"
+        CloudBackupSettings.BackupProvider.MEGA         -> "MEGA"
+        CloudBackupSettings.BackupProvider.DROPBOX      -> "Dropbox"
+    }
+
 /**
  * 📦 Диалог настройки автозагрузки медиа
  */
@@ -260,7 +269,7 @@ fun BackupProviderDialog(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                provider.displayName,
+                                backupProviderDisplayName(provider),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             if (provider == CloudBackupSettings.BackupProvider.LOCAL_SERVER) {
@@ -327,7 +336,7 @@ fun CreateBackupDialog(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.upload_to_cloud))
                             Text(
-                                currentProvider.displayName,
+                                backupProviderDisplayName(currentProvider),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -418,7 +427,7 @@ private fun BackupListItem(
             .padding(vertical = 8.dp)
     ) {
         Text(
-            text = backup.filename,
+            text = backup.filename ?: "",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold
         )
@@ -472,7 +481,7 @@ fun RestoreBackupDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    stringResource(R.string.file_label, backup.filename),
+                    stringResource(R.string.file_label, backup.filename ?: ""),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

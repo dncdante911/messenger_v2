@@ -1095,6 +1095,7 @@
     <string name="max_cache_size_title">Максимальний розмір кешу</string>
     <string name="choose_cloud_provider_title">Виберіть провайдер хмари</string>
     <string name="store_on_your_server">Зберігання на вашому сервері</string>
+    <string name="backup_provider_local_server">Особистий сервер</string>
     <string name="create_backup_title">Створити бекап</string>
     <string name="backup_created_on_server">Бекап буде створено на вашому сервері.</string>
     <string name="upload_to_cloud">Завантажити в хмару</string>

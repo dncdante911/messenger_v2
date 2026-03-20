@@ -158,7 +158,7 @@ fun CloudBackupSettingsScreen(
                         BackupSettingsItem(
                             icon = Icons.Default.Cloud,
                             title = stringResource(R.string.cloud_provider),
-                            subtitle = s.backupProvider.displayName,
+                            subtitle = backupProviderDisplayName(s.backupProvider),
                             onClick = { showBackupProviderDialog = true }
                         )
                     }
@@ -564,13 +564,14 @@ private fun BackupFrequencyDialog(
     )
 }
 
+@Composable
 private fun formatTime(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
     val hours = diff / (1000 * 60 * 60)
     return when {
-        hours < 1 -> "щойно"
-        hours < 24 -> "$hours год. тому"
-        else -> "${hours / 24} дн. тому"
+        hours < 1 -> stringResource(R.string.time_just_now)
+        hours < 24 -> stringResource(R.string.time_hours_ago, hours)
+        else -> stringResource(R.string.time_days_ago, hours / 24)
     }
 }
