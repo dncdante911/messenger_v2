@@ -155,7 +155,7 @@ fun CloudBackupSettingsScreen(
             item {
                 settings?.let { s ->
                     if (s.backupEnabled) {
-                        SettingsItem(
+                        BackupSettingsItem(
                             icon = Icons.Default.Cloud,
                             title = stringResource(R.string.cloud_provider),
                             subtitle = s.backupProvider.displayName,
@@ -168,7 +168,7 @@ fun CloudBackupSettingsScreen(
             item {
                 settings?.let { s ->
                     if (s.backupEnabled) {
-                        SettingsItem(
+                        BackupSettingsItem(
                             icon = Icons.Default.Schedule,
                             title = stringResource(R.string.backup_frequency),
                             subtitle = frequencyDisplayName(s.backupFrequency),
@@ -214,7 +214,7 @@ fun CloudBackupSettingsScreen(
             }
 
             item {
-                SettingsItem(
+                BackupSettingsItem(
                     icon = Icons.Default.Add,
                     title = stringResource(R.string.backup_now),
                     subtitle = stringResource(R.string.backup_now_desc),
@@ -223,7 +223,7 @@ fun CloudBackupSettingsScreen(
             }
 
             item {
-                SettingsItem(
+                BackupSettingsItem(
                     icon = Icons.Default.List,
                     title = stringResource(R.string.backup_list),
                     subtitle = if (backupList.isEmpty()) stringResource(R.string.no_backups_available) else "${backupList.size} ${stringResource(R.string.backup_list)}",
@@ -371,7 +371,7 @@ private fun StatRow(label: String, value: String) {
 }
 
 @Composable
-private fun SettingsItem(
+private fun BackupSettingsItem(
     icon: ImageVector,
     title: String,
     subtitle: String?,
