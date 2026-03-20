@@ -3,7 +3,6 @@ package com.worldmates.messenger.ui.search
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.GlobalSearchResult
 import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.UserSearchResult
@@ -50,7 +49,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
     private suspend fun performSearch(query: String) {
         _uiState.value = _uiState.value.copy(isLoading = true)
         try {
-            val api = NodeRetrofitClient.getApi(UserSession.accessToken ?: "")
+            val api = NodeRetrofitClient.api
 
             // Run both searches concurrently
             val messagesDeferred = viewModelScope.launch {
