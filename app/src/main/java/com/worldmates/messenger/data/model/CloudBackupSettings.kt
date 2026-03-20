@@ -98,7 +98,7 @@ data class CloudBackupSettings(
      */
     enum class BackupProvider(val displayName: String) {
         @SerializedName("local_server")
-        LOCAL_SERVER("Личный сервер"),
+        LOCAL_SERVER("Personal Server"),
 
         @SerializedName("google_drive")
         GOOGLE_DRIVE("Google Drive"),
@@ -121,16 +121,16 @@ data class CloudBackupSettings(
      */
     enum class BackupFrequency(val displayName: String, val hours: Int) {
         @SerializedName("never")
-        NEVER("Никогда", 0),
+        NEVER("Never", 0),
 
         @SerializedName("daily")
-        DAILY("Ежедневно", 24),
+        DAILY("Daily", 24),
 
         @SerializedName("weekly")
-        WEEKLY("Еженедельно", 168),
+        WEEKLY("Weekly", 168),
 
         @SerializedName("monthly")
-        MONTHLY("Ежемесячно", 720);
+        MONTHLY("Monthly", 720);
 
         companion object {
             fun fromValue(value: String): BackupFrequency {
@@ -151,7 +151,7 @@ data class CloudBackupSettings(
 
         fun cacheSizeToString(bytes: Long): String {
             return when (bytes) {
-                CACHE_SIZE_UNLIMITED -> "Бесконечно"
+                CACHE_SIZE_UNLIMITED -> "∞"
                 else -> {
                     val gb = bytes / (1024 * 1024 * 1024)
                     "$gb GB"

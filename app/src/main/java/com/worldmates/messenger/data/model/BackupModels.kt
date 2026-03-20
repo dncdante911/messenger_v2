@@ -123,10 +123,10 @@ data class ImportStats(
  */
 data class BackupFileInfo(
     @SerializedName("filename")
-    val filename: String,
+    val filename: String?,
 
     @SerializedName("url")
-    val url: String,
+    val url: String?,
 
     @SerializedName("size")
     val size: Long,
@@ -138,7 +138,7 @@ data class BackupFileInfo(
     val createdAt: Long,
 
     @SerializedName("provider")
-    val provider: String
+    val provider: String?
 )
 
 /**
