@@ -91,3 +91,55 @@ data class SearchUser(
     @SerializedName("lastseen_status") val lastSeenStatus: String?,
     @SerializedName("about") val about: String?
 )
+
+// ==================== AUTH / PASSWORD RESET ====================
+// Used by NodeApi, ForgotPasswordActivity
+
+data class PasswordResetRequestResponse(
+    @SerializedName("api_status")    val apiStatus:    Int,
+    @SerializedName("message")       val message:      String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class PasswordResetResponse(
+    @SerializedName("api_status")    val apiStatus:    Int,
+    @SerializedName("message")       val message:      String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ==================== QUICK REGISTER / VERIFY ====================
+// Used by NodeApi, QuickRegisterActivity
+
+data class QuickRegisterResponse(
+    @SerializedName("api_status")    val apiStatus:    Int,
+    @SerializedName("user_id")       val userId:       Long?   = null,
+    @SerializedName("username")      val username:     String? = null,
+    @SerializedName("message")       val message:      String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class QuickVerifyResponse(
+    @SerializedName("api_status")    val apiStatus:    Int,
+    @SerializedName("access_token")  val accessToken:  String? = null,
+    @SerializedName("user_id")       val userId:       Long?   = null,
+    @SerializedName("username")      val username:     String? = null,
+    @SerializedName("avatar")        val avatar:       String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ==================== SEND CODE / VERIFY CODE ====================
+// Used by NodeApi, VerificationViewModel
+
+data class SendCodeResponse(
+    @SerializedName("actual_status") val actualStatus: Int,
+    @SerializedName("errors")        val errors:       String? = null,
+    @SerializedName("message")       val message:      String? = null
+)
+
+data class VerifyCodeResponse(
+    @SerializedName("api_status")   val apiStatus:   Int,
+    @SerializedName("access_token") val accessToken: String? = null,
+    @SerializedName("user_id")      val userId:      Long?   = null,
+    @SerializedName("errors")       val errors:      String? = null,
+    @SerializedName("message")      val message:     String? = null
+)
