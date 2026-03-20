@@ -5,14 +5,16 @@
  *
  * Worker math
  * ───────────
- *   instances       : 30  (leaves ~26 threads for OS, Redis, MariaDB, Nginx)
+ *   instances       : 18  (leaves ~38 threads for OS, Redis, MariaDB, Nginx)
  *   RAM per worker  : ~1.7 GB average; restart at 1.5 GB to keep headroom
- *   Total Node RAM  : 30 × 1.5 GB = 45 GB  (leaves ~19 GB for OS + DB)
+ *   Total Node RAM  : 18 × 1.5 GB = 27 GB  (leaves ~37 GB for OS + DB)
+ *   Worker 0        : "primary" — runs migrations, cron, WallyBot, sweepers
+ *                     (ensures heavy background tasks fire exactly once)
  *
  * DB pool math (MariaDB default max_connections = 151)
  * ───────────────────────────────────────────────────
- *   DB_POOL_MAX = floor(151 × 0.8 / 30) = 4  per worker
- *   Total open connections ≤ 4 × 30 = 120  (< 151 × 0.8 = 120.8 ✓)
+ *   DB_POOL_MAX = floor(151 × 0.8 / 18) = 6  per worker
+ *   Total open connections ≤ 6 × 18 = 108  (< 151 × 0.8 = 120.8 ✓)
  *   DB_POOL_MIN = 1  (lazy — don't pre-open 30 idle connections per worker)
  */
 
@@ -26,7 +28,7 @@ module.exports = {
     cwd: '/www/wwwroot/worldmates.club/nodejs',
 
     // ── Cluster ──────────────────────────────────────────────────────────────
-    instances:  30,
+    instances:  18,
     exec_mode: 'cluster',
 
     // ── Worker readiness ─────────────────────────────────────────────────────
@@ -34,7 +36,7 @@ module.exports = {
     // PM2 will NOT start the next worker until the previous one is ready,
     // preventing port-binding races under high instance counts.
     wait_ready:     true,
-    listen_timeout: 60000,  // 60 s — worker 0 runs DB migrations on first deploy
+    listen_timeout: 30000,  // 30 s — migrations run in background AFTER process.send('ready')
     kill_timeout:   8000,   // 8 s graceful SIGTERM window before SIGKILL
 
     // ── Memory guard ─────────────────────────────────────────────────────────
@@ -53,8 +55,8 @@ module.exports = {
       NODE_ENV: 'production',
 
       // DB connection pool — keep total connections within MariaDB limits.
-      // Formula: floor(max_connections × 0.8 / instances) = floor(151×0.8/30) = 4
-      DB_POOL_MAX: '4',
+      // Formula: floor(max_connections × 0.8 / instances) = floor(151×0.8/18) = 6
+      DB_POOL_MAX: '6',
       DB_POOL_MIN: '1',
 
       // Winston log level (override per environment if needed)
