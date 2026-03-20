@@ -207,81 +207,77 @@ fun CreateStoryDialog(
                         else Modifier
                     )
             ) {
-                // Empty picker
-                AnimatedVisibility(
-                    visible = selectedMediaUri == null,
-                    enter = fadeIn(tween(250)),
-                    exit = fadeOut(tween(180))
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        listOf(
-                                            AccentPurple.copy(alpha = 0.22f),
-                                            Color.Transparent
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
+                // Crossfade avoids ColumnScope/BoxScope AnimatedVisibility conflict
+                Crossfade(
+                    targetState = selectedMediaUri,
+                    animationSpec = tween(250),
+                    label = "media_zone",
+                    modifier = Modifier.fillMaxSize()
+                ) { uri ->
+                    if (uri == null) {
+                        // ── Empty picker ──────────────────────────────────────
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Image,
-                                contentDescription = null,
-                                tint = AccentPurple,
-                                modifier = Modifier.size(38.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.radialGradient(
+                                            listOf(
+                                                AccentPurple.copy(alpha = 0.22f),
+                                                Color.Transparent
+                                            )
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = null,
+                                    tint = AccentPurple,
+                                    modifier = Modifier.size(38.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Text(
+                                text = "Оберіть медіа для сторіс",
+                                color = TextMuted,
+                                fontSize = 14.sp
                             )
+
+                            Spacer(modifier = Modifier.height(22.dp))
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                MediaTypeButton(
+                                    icon = Icons.Default.Image,
+                                    label = stringResource(R.string.photo),
+                                    gradient = PhotoGradient,
+                                    onClick = {
+                                        photoPickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    }
+                                )
+                                MediaTypeButton(
+                                    icon = Icons.Default.VideoLibrary,
+                                    label = stringResource(R.string.video),
+                                    gradient = VideoGradient,
+                                    onClick = {
+                                        videoPickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                        )
+                                    }
+                                )
+                            }
                         }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Text(
-                            text = "Оберіть медіа для сторіс",
-                            color = TextMuted,
-                            fontSize = 14.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(22.dp))
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            MediaTypeButton(
-                                icon = Icons.Default.Image,
-                                label = stringResource(R.string.photo),
-                                gradient = PhotoGradient,
-                                onClick = {
-                                    photoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                }
-                            )
-                            MediaTypeButton(
-                                icon = Icons.Default.VideoLibrary,
-                                label = stringResource(R.string.video),
-                                gradient = VideoGradient,
-                                onClick = {
-                                    videoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Media preview
-                AnimatedVisibility(
-                    visible = selectedMediaUri != null,
-                    enter = fadeIn(tween(250)),
-                    exit = fadeOut(tween(180))
-                ) {
-                    selectedMediaUri?.let { uri ->
+                    } else {
+                        // ── Media preview ─────────────────────────────────────
                         Box(modifier = Modifier.fillMaxSize()) {
                             AsyncImage(
                                 model = uri,
