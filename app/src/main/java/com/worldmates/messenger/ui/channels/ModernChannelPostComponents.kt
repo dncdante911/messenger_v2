@@ -1025,6 +1025,8 @@ fun CommentsBottomSheet(
     var showGifPicker by remember { mutableStateOf(false) }
     var showStrapiPicker by remember { mutableStateOf(false) }
     var activePickerTab by remember { mutableStateOf<String?>(null) }
+    var replyingToComment by remember { mutableStateOf<ChannelComment?>(null) }
+    var userActionsComment by remember { mutableStateOf<ChannelComment?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1190,8 +1192,61 @@ fun CommentsBottomSheet(
                             comment = comment,
                             canDelete = isAdmin || comment.userId == currentUserId,
                             onDeleteClick = { onDeleteComment(comment.id) },
-                            onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) }
+                            onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) },
+                            onReply = { replyingToComment = it },
+                            onUserMenu = { userActionsComment = it }
                         )
+                    }
+                }
+            }
+
+            // Reply banner
+            androidx.compose.animation.AnimatedVisibility(
+                visible = replyingToComment != null,
+                enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+            ) {
+                replyingToComment?.let { replying ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Reply,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = replying.userName ?: replying.username ?: "",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = replying.text,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(
+                            onClick = { replyingToComment = null },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.Close,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1289,8 +1344,12 @@ fun CommentsBottomSheet(
                     Surface(
                         onClick = {
                             if (sendEnabled) {
-                                onAddComment(commentText)
+                                val textToSend = if (replyingToComment != null) {
+                                    "@${replyingToComment!!.username ?: replyingToComment!!.userName ?: ""} ${commentText}"
+                                } else commentText
+                                onAddComment(textToSend)
                                 commentText = ""
+                                replyingToComment = null
                             }
                         },
                         enabled = sendEnabled,
@@ -1355,6 +1414,29 @@ fun CommentsBottomSheet(
                 }
             }
         }
+    }
+
+    // User actions sheet for comment author
+    userActionsComment?.let { target ->
+        com.worldmates.messenger.ui.components.CommentUserActionsSheet(
+            userId = target.userId,
+            username = target.userName ?: target.username ?: "User",
+            avatar = target.userAvatar,
+            isOwnComment = target.userId == currentUserId,
+            isAdmin = isAdmin,
+            context = "channel",
+            commentText = target.text,
+            onDismiss = { userActionsComment = null },
+            onAction = { action ->
+                when (action) {
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Reply ->
+                        replyingToComment = target
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Mention ->
+                        commentText = "@${target.username ?: ""} $commentText"
+                    else -> { /* caller handles ViewProfile, Follow, Block, Ban etc. */ }
+                }
+            }
+        )
     }
 }
 
@@ -1500,6 +1582,8 @@ fun PremiumCommentItem(
     canDelete: Boolean,
     onDeleteClick: () -> Unit,
     onReactionClick: (String) -> Unit = {},
+    onReply: ((ChannelComment) -> Unit)? = null,
+    onUserMenu: ((ChannelComment) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var showActions by remember { mutableStateOf(false) }
@@ -1610,18 +1694,33 @@ fun PremiumCommentItem(
             }
         }
 
-        // Delete
-        if (canDelete && showActions) {
-            IconButton(
-                onClick = onDeleteClick,
-                modifier = Modifier.size(30.dp)
-            ) {
-                Icon(
-                    Icons.Outlined.DeleteOutline,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                    modifier = Modifier.size(18.dp)
-                )
+        // Actions: 3-dot menu + delete (only when showActions)
+        if (showActions) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (canDelete) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.size(30.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.DeleteOutline,
+                            contentDescription = "Delete",
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = { onUserMenu?.invoke(comment) },
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
@@ -1634,9 +1733,11 @@ fun CommentItem(
     canDelete: Boolean,
     onDeleteClick: () -> Unit,
     onReactionClick: (String) -> Unit = {},
+    onReply: ((ChannelComment) -> Unit)? = null,
+    onUserMenu: ((ChannelComment) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    PremiumCommentItem(comment, canDelete, onDeleteClick, onReactionClick, modifier)
+    PremiumCommentItem(comment, canDelete, onDeleteClick, onReactionClick, onReply, onUserMenu, modifier)
 }
 
 // ==================== POST OPTIONS COMPONENTS ====================
@@ -2754,6 +2855,8 @@ fun PostDetailDialog(
     // Video player state
     var showVideoPlayer by remember { mutableStateOf(false) }
     var videoPlayerUrl by remember { mutableStateOf("") }
+    var replyingToCommentDetail by remember { mutableStateOf<ChannelComment?>(null) }
+    var userActionsCommentDetail by remember { mutableStateOf<ChannelComment?>(null) }
 
     // Voice recording states
     val voiceRecorder = remember { com.worldmates.messenger.utils.VoiceRecorder(context) }
@@ -3129,6 +3232,8 @@ fun PostDetailDialog(
                                 canDelete = isAdmin || comment.userId == currentUserId,
                                 onDeleteClick = { onDeleteComment(comment.id) },
                                 onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) },
+                                onReply = { replyingToCommentDetail = it },
+                                onUserMenu = { userActionsCommentDetail = it },
                                 modifier = Modifier.padding(horizontal = 12.dp)
                             )
                         }
@@ -3311,8 +3416,12 @@ fun PostDetailDialog(
                             Surface(
                                 onClick = {
                                     if (sendEnabled) {
-                                        onAddComment(commentText)
+                                        val textToSend = if (replyingToCommentDetail != null) {
+                                            "@${replyingToCommentDetail!!.username ?: replyingToCommentDetail!!.userName ?: ""} $commentText"
+                                        } else commentText
+                                        onAddComment(textToSend)
                                         commentText = ""
+                                        replyingToCommentDetail = null
                                     }
                                 },
                                 enabled = sendEnabled,
@@ -3394,6 +3503,29 @@ fun PostDetailDialog(
         com.worldmates.messenger.ui.media.FullscreenVideoPlayer(
             videoUrl = videoPlayerUrl,
             onDismiss = { showVideoPlayer = false }
+        )
+    }
+
+    // User actions sheet (detail view)
+    userActionsCommentDetail?.let { target ->
+        com.worldmates.messenger.ui.components.CommentUserActionsSheet(
+            userId = target.userId,
+            username = target.userName ?: target.username ?: "User",
+            avatar = target.userAvatar,
+            isOwnComment = target.userId == currentUserId,
+            isAdmin = isAdmin,
+            context = "channel",
+            commentText = target.text,
+            onDismiss = { userActionsCommentDetail = null },
+            onAction = { action ->
+                when (action) {
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Reply ->
+                        replyingToCommentDetail = target
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Mention ->
+                        commentText = "@${target.username ?: ""} $commentText"
+                    else -> {}
+                }
+            }
         )
     }
 }

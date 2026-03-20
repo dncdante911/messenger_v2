@@ -216,6 +216,9 @@
     <string name="contact_share">Контакт</string>
     <string name="reply">Ответить</string>
     <string name="reply_to">Ответ</string>
+    <string name="reply_to_user">Ответ для %s</string>
+    <string name="cancel_reply">Отменить ответ</string>
+    <string name="mention_in_reply">Упомянуть в сообщении</string>
     <string name="forward">Переслать</string>
     <string name="forward_message">Переслать сообщение</string>
     <string name="copy">Копировать</string>
@@ -575,6 +578,11 @@
     <string name="block_user">Заблокировать</string>
     <string name="unblock_user">Разблокировать</string>
     <string name="report_user">Пожаловаться</string>
+    <string name="mute_user">Игнорировать сообщения</string>
+    <string name="unmute_user">Отменить игнорирование</string>
+    <string name="ban_in_channel">Заблокировать в канале</string>
+    <string name="ban_in_group">Заблокировать в группе</string>
+    <string name="comment_user_actions">Действия с пользователем</string>
     <string name="user_profile">Профиль пользователя</string>
     <string name="change_profile_photo">Изменить фото профиля</string>
     <string name="take_photo">Сделать фото</string>

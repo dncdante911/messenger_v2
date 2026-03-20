@@ -53,6 +53,7 @@ fun ChannelThreadScreen(
     var inputText       by remember { mutableStateOf("") }
     var replyToMessage  by remember { mutableStateOf<ThreadMessage?>(null) }
     var showDeleteDialog by remember { mutableStateOf<ThreadMessage?>(null) }
+    var userActionsMsg  by remember { mutableStateOf<ThreadMessage?>(null) }
 
     val currentUserId = UserSession.userId ?: 0L
 
@@ -193,6 +194,9 @@ fun ChannelThreadScreen(
                             onReplyClick   = { replyToMessage = msg },
                             onDeleteClick  = if (msg.userId == currentUserId)
                                 ({ showDeleteDialog = msg })
+                            else null,
+                            onUserMenu     = if (msg.userId != currentUserId)
+                                ({ userActionsMsg = msg })
                             else null
                         )
                     }
@@ -219,6 +223,30 @@ fun ChannelThreadScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = null }) {
                     Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    // User actions sheet for thread message author
+    userActionsMsg?.let { target ->
+        com.worldmates.messenger.ui.components.CommentUserActionsSheet(
+            userId = target.userId,
+            username = target.author?.name ?: target.author?.username ?: "User",
+            avatar = target.author?.avatar,
+            isOwnComment = false,
+            context = "channel",
+            commentText = target.text,
+            onDismiss = { userActionsMsg = null },
+            onAction = { action ->
+                when (action) {
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Reply -> {
+                        replyToMessage = target
+                    }
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Mention -> {
+                        inputText = "@${target.author?.username ?: ""} $inputText"
+                    }
+                    else -> {}
                 }
             }
         )
@@ -264,7 +292,8 @@ private fun ThreadMessageBubble(
     replyParent: ThreadMessage?,
     isOwn: Boolean,
     onReplyClick: () -> Unit,
-    onDeleteClick: (() -> Unit)?
+    onDeleteClick: (() -> Unit)?,
+    onUserMenu: (() -> Unit)? = null
 ) {
     val alignment = if (isOwn) Alignment.End else Alignment.Start
     val bubbleColor = if (isOwn)
@@ -381,6 +410,20 @@ private fun ThreadMessageBubble(
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            // 3-dot menu for other users
+            if (!isOwn && onUserMenu != null) {
+                IconButton(
+                    onClick = onUserMenu,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
             }
