@@ -54,6 +54,9 @@ class GroupWebRTCManager(private val context: Context) {
     /** Вызывается при ошибке соединения с участником */
     var onPeerConnectionError: ((userId: Long, error: String) -> Unit)? = null
 
+    /** Вызывается когда ICE-соединение с участником установлено (CONNECTED/COMPLETED) */
+    var onPeerConnected: ((userId: Long) -> Unit)? = null
+
     // ─── Инициализация ────────────────────────────────────────────────────────
 
     fun initialize() {
@@ -205,6 +208,12 @@ class GroupWebRTCManager(private val context: Context) {
             override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
                 Log.d(TAG, "Peer $userId — ICE connection: $state")
                 when (state) {
+                    PeerConnection.IceConnectionState.CONNECTED,
+                    PeerConnection.IceConnectionState.COMPLETED -> {
+                        // Соединение установлено — уведомить ViewModel даже если поток ещё не пришёл
+                        onPeerConnected?.invoke(userId)
+                        Log.d(TAG, "✅ Peer $userId — ICE connected!")
+                    }
                     PeerConnection.IceConnectionState.DISCONNECTED,
                     PeerConnection.IceConnectionState.FAILED,
                     PeerConnection.IceConnectionState.CLOSED -> {
@@ -457,12 +466,27 @@ class GroupWebRTCManager(private val context: Context) {
             Log.w(TAG, "Error stopping video capturer: ${e.message}")
         }
 
-        // Освободить ресурсы
-        surfaceTextureHelper?.dispose()
-        videoSource?.dispose()
-        localAudioTrack?.dispose()
-        localVideoTrack?.dispose()
-        localMediaStream?.dispose()
+        // Освободить ресурсы в правильном порядке:
+        // 1. Сначала dispose стрим — он вызывает removeTrack() внутри.
+        //    Делаем это ДО dispose отдельных треков, иначе removeTrack()
+        //    получит уже освобождённый трек и бросит IllegalStateException.
+        try { localMediaStream?.dispose() } catch (e: Exception) {
+            Log.w(TAG, "MediaStream dispose: ${e.message}")
+        }
+        // 2. Теперь безопасно освободить треки
+        try { localAudioTrack?.dispose() } catch (e: Exception) {
+            Log.w(TAG, "AudioTrack dispose: ${e.message}")
+        }
+        try { localVideoTrack?.dispose() } catch (e: Exception) {
+            Log.w(TAG, "VideoTrack dispose: ${e.message}")
+        }
+        // 3. Освободить видео-пайплайн (зависит от треков)
+        try { videoSource?.dispose() } catch (e: Exception) {
+            Log.w(TAG, "VideoSource dispose: ${e.message}")
+        }
+        try { surfaceTextureHelper?.dispose() } catch (e: Exception) {
+            Log.w(TAG, "SurfaceTextureHelper dispose: ${e.message}")
+        }
 
         videoCapturer = null
         videoSource = null
