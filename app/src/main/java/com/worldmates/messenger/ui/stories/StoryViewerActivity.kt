@@ -1142,7 +1142,7 @@ fun CommentItem(
                 com.worldmates.messenger.ui.components.CommentReplyQuote(
                     replyToUsername = replyToComment.userData?.name ?: replyToComment.userData?.username ?: "User",
                     replyToText = replyToComment.text,
-                    modifier = androidx.compose.ui.Modifier.padding(top = 3.dp, bottom = 2.dp)
+                    modifier = Modifier.padding(top = 3.dp, bottom = 2.dp)
                 )
             }
             Text(

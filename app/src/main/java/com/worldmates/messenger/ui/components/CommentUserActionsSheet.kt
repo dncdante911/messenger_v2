@@ -327,7 +327,7 @@ fun CommentReplyQuote(
     ) {
         // ↩ иконка
         Icon(
-            imageVector = Icons.Outlined.SubdirectoryArrowRight,
+            imageVector = Icons.Outlined.Reply,
             contentDescription = null,
             tint = accentColor,
             modifier = Modifier.size(13.dp)
