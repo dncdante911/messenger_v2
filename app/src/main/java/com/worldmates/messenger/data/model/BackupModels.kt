@@ -74,6 +74,9 @@ data class ExportDataResponse(
     @SerializedName("message")
     val message: String,
 
+    @SerializedName("error_message")
+    val errorMessage: String? = null,
+
     @SerializedName("backup_file")
     val backupFile: String,
 

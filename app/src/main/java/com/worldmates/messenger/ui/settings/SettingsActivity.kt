@@ -420,30 +420,31 @@ fun SettingsMainScreen(
                 }
             }
 
-            // ── Security ──
+            // ── Social ──
             item {
-                SettingsItem(
-                    icon = Icons.Default.Group,
-                    title = stringResource(R.string.my_groups_settings),
-                    subtitle = stringResource(R.string.groups_count_fmt, userData?.groupsCount ?: "0"),
-                    onClick = { onNavigate(SettingsScreen.MyGroups) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.People,
-                    title = stringResource(R.string.followers_settings),
-                    subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
-                    onClick = { onNavigate(SettingsScreen.Followers) }
-                )
-            }
-            item {
-                SettingsItem(
-                    icon = Icons.Default.PersonAdd,
-                    title = stringResource(R.string.following_settings),
-                    subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
-                    onClick = { onNavigate(SettingsScreen.Following) }
-                )
+                SettingsGroupHeader(title = stringResource(R.string.social_section))
+                SettingsGroup {
+                    SettingsRow(
+                        icon = Icons.Outlined.Group,
+                        title = stringResource(R.string.my_groups_settings),
+                        subtitle = stringResource(R.string.groups_count_fmt, userData?.groupsCount ?: "0"),
+                        onClick = { onNavigate(SettingsScreen.MyGroups) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.People,
+                        title = stringResource(R.string.followers_settings),
+                        subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
+                        onClick = { onNavigate(SettingsScreen.Followers) }
+                    )
+                    GroupDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.PersonAdd,
+                        title = stringResource(R.string.following_settings),
+                        subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
+                        onClick = { onNavigate(SettingsScreen.Following) }
+                    )
+                }
                 SettingsGroupHeader(title = stringResource(R.string.security_section))
                 SettingsGroup {
                     val twoFactorEnabled = stringResource(R.string.two_factor_enabled)
@@ -475,33 +476,6 @@ fun SettingsMainScreen(
                         title = stringResource(R.string.active_sessions),
                         subtitle = stringResource(R.string.active_sessions_subtitle),
                         onClick = { onNavigate(SettingsScreen.ActiveSessions) }
-                    )
-                }
-            }
-
-            // ── Social ──
-            item {
-                SettingsGroupHeader(title = stringResource(R.string.social_section))
-                SettingsGroup {
-                    SettingsRow(
-                        icon = Icons.Outlined.Group,
-                        title = stringResource(R.string.my_groups_settings),
-                        subtitle = stringResource(R.string.groups_count_fmt, userData?.groupsCount ?: "0"),
-                        onClick = { onNavigate(SettingsScreen.MyGroups) }
-                    )
-                    GroupDivider()
-                    SettingsRow(
-                        icon = Icons.Outlined.People,
-                        title = stringResource(R.string.followers_settings),
-                        subtitle = stringResource(R.string.followers_count_fmt, userData?.followersCount ?: "0"),
-                        onClick = { /* TODO */ }
-                    )
-                    GroupDivider()
-                    SettingsRow(
-                        icon = Icons.Outlined.PersonAdd,
-                        title = stringResource(R.string.following_settings),
-                        subtitle = stringResource(R.string.following_count_fmt, userData?.followingCount ?: "0"),
-                        onClick = { /* TODO */ }
                     )
                 }
             }
