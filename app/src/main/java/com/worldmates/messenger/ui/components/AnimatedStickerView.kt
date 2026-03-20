@@ -127,12 +127,11 @@ private fun TgsAnimationView(
 
     LaunchedEffect(url) {
         try {
-            // Завантажуємо TGS файл як ByteArray
-            val tgsBytes = loadTgsFromUrl(url)
-
-            // Розпаковуємо gzip
-            val jsonString = decompressTgs(tgsBytes)
-
+            // Download + gzip decompression both run on IO to avoid blocking the UI thread
+            val jsonString = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val tgsBytes = java.net.URL(url).openStream().use { it.readBytes() }
+                decompressTgs(tgsBytes)
+            }
             tgsJsonString = jsonString
             isLoading = false
         } catch (e: Exception) {
@@ -175,16 +174,6 @@ private fun TgsAnimationView(
                 modifier = modifier
             )
         }
-    }
-}
-
-/**
- * Завантажує TGS файл з URL як ByteArray
- * TODO: Це синхронна операція, краще перенести в background thread
- */
-private suspend fun loadTgsFromUrl(url: String): ByteArray {
-    return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        java.net.URL(url).openStream().use { it.readBytes() }
     }
 }
 

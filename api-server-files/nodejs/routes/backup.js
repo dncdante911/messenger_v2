@@ -14,8 +14,12 @@
  *   POST /api/node/backup/statistics  — get backup statistics
  */
 
+const path              = require('path');
+const fs                = require('fs');
 const { QueryTypes }    = require('sequelize');
 const { requireAuth }   = require('../helpers/validate-token');
+
+const BACKUP_DIR = process.env.BACKUP_DIR || '/www/wwwroot/worldmates.club/upload/backups';
 
 const TABLE = 'Wo_UserCloudBackupSettings';
 
@@ -179,7 +183,7 @@ function getBackupStatistics(ctx) {
             // Groups count
             const [groupsRow] = await seq.query(
                 `SELECT COUNT(*) AS groups_count FROM Wo_GroupChat
-                 WHERE id IN (SELECT group_id FROM Wo_GroupChatUsers WHERE user_id = :uid)
+                 WHERE group_id IN (SELECT group_id FROM Wo_GroupChatUsers WHERE user_id = :uid)
                     OR user_id = :uid`,
                 { replacements: { uid: userId }, type: QueryTypes.SELECT }
             );
@@ -346,12 +350,12 @@ function exportUserData(ctx) {
         try {
             const { Op } = require('sequelize');
 
-            // Messages involving this user
+            // Messages involving this user (wo_userschat uses conversation_user_id, not to_id)
             const messages = await ctx.wo_userschat.findAll({
                 where: {
                     [Op.or]: [
                         { user_id: userId },
-                        { to_id: userId },
+                        { conversation_user_id: userId },
                     ],
                 },
                 limit: 5000,
@@ -366,7 +370,7 @@ function exportUserData(ctx) {
             });
             const groupIds = groupMemberships.map(m => m.group_id);
             const groups   = groupIds.length
-                ? await ctx.wo_groupchat.findAll({ where: { id: { [Op.in]: groupIds } }, raw: true })
+                ? await ctx.wo_groupchat.findAll({ where: { group_id: { [Op.in]: groupIds } }, raw: true })
                 : [];
 
             // User profile
@@ -399,13 +403,25 @@ function exportUserData(ctx) {
 
             const backupJson = JSON.stringify(exportData);
             const sizeBytes  = Buffer.byteLength(backupJson, 'utf8');
+            const fileName   = `backup_${userId}_${now}.json`;
 
-            console.log(`[Backup/export] user=${userId}: ${messages.length} msgs, ${groups.length} groups`);
+            // Save to server backup directory
+            let savedPath = null;
+            try {
+                await fs.promises.mkdir(BACKUP_DIR, { recursive: true });
+                const filePath = path.join(BACKUP_DIR, fileName);
+                await fs.promises.writeFile(filePath, backupJson, 'utf8');
+                savedPath = filePath;
+            } catch (saveErr) {
+                console.warn(`[Backup/export] Could not save to disk: ${saveErr.message}`);
+            }
+
+            console.log(`[Backup/export] user=${userId}: ${messages.length} msgs, ${groups.length} groups${savedPath ? ` → ${savedPath}` : ''}`);
 
             return res.json({
                 api_status:  200,
                 message:     'Export successful',
-                backup_file: `backup_${userId}_${now}.json`,
+                backup_file: fileName,
                 backup_url:  '',
                 backup_size: sizeBytes,
                 export_data: exportData,
@@ -419,16 +435,34 @@ function exportUserData(ctx) {
 }
 
 // ─── GET /api/node/backup/list ───────────────────────────────────────────────
-// Returns server-side backup files for the user. Currently returns an empty
-// list — backups live on the client's chosen cloud provider (Drive, Dropbox…).
+// Returns server-side backup files for the authenticated user.
+// Files are stored in BACKUP_DIR as backup_<userId>_<timestamp>.json
 
 function listBackups(ctx) {
     return async (req, res) => {
-        return res.json({
-            api_status:    200,
-            backups:       [],
-            total_backups: 0,
-        });
+        const userId = req.userId;
+        try {
+            await fs.promises.mkdir(BACKUP_DIR, { recursive: true });
+            const allFiles = await fs.promises.readdir(BACKUP_DIR);
+            const prefix   = `backup_${userId}_`;
+            const userFiles = allFiles
+                .filter(f => f.startsWith(prefix) && f.endsWith('.json'))
+                .map(f => {
+                    const tsStr = f.slice(prefix.length, -5); // strip prefix + .json
+                    const ts    = parseInt(tsStr, 10) || 0;
+                    return { file_name: f, created_at: ts };
+                })
+                .sort((a, b) => b.created_at - a.created_at); // newest first
+
+            return res.json({
+                api_status:    200,
+                backups:       userFiles,
+                total_backups: userFiles.length,
+            });
+        } catch (err) {
+            console.error('[Backup/list]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
     };
 }
 

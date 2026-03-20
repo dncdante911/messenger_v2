@@ -517,6 +517,25 @@ async function runMigrations(ctx) {
     console.warn('[Migration] Wo_UserCloudBackupSettings:', e.message);
   }
 
+  // ── wm_saved_messages — "Saved Messages" personal notes/bookmarks ────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_saved_messages (
+        id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id    INT          NOT NULL,
+        text       TEXT         NULL,
+        media      VARCHAR(255) NOT NULL DEFAULT '',
+        media_type VARCHAR(32)  NOT NULL DEFAULT '',
+        file_size  INT          NOT NULL DEFAULT 0,
+        time       INT UNSIGNED NOT NULL DEFAULT 0,
+        KEY idx_user_time (user_id, time)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('[Migration] wm_saved_messages table ensured');
+  } catch (e) {
+    console.warn('[Migration] wm_saved_messages:', e.message);
+  }
+
   console.log('[Migration] All background migrations complete');
 }
 
@@ -818,7 +837,10 @@ async function main() {
   //   3. Set "is_mandatory": true to force update
   //   4. Update "apk_url" if the APK location changed
   //   5. Restart the Node.js server (or it auto-reloads if you use pm2 --watch)
-  const UPDATE_CONFIG_PATH = path.resolve(__dirname, '../../api/v2/endpoints/mobile_update_config.json');
+  // UPDATE_CONFIG_PATH: use env var for production flexibility.
+  // Default resolves relative to this file: nodejs/ → api-server-files/ → api/v2/endpoints/
+  const UPDATE_CONFIG_PATH = process.env.UPDATE_CONFIG_PATH ||
+    path.resolve(__dirname, '../api/v2/endpoints/mobile_update_config.json');
   app.get('/api/node/update/check', (req, res) => {
     try {
       // Always read fresh from disk so edits take effect without restart

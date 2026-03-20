@@ -140,6 +140,10 @@ async function initRedisSub(io) {
 
 module.exports.registerListeners = async (socket, io, ctx) => {
 
+    // Raise listener limit: main handler + 4 sub-listeners (calls, channels, stories, bots)
+    // + groups online handler each add their own 'disconnect' listener (11 total without this).
+    socket.setMaxListeners(25);
+
     console.log('🔌 User connected: socket_id=' + socket.id + " query=" + JSON.stringify(socket.handshake.query));
 
     initRedisSub(io);

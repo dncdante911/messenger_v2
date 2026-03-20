@@ -1228,7 +1228,7 @@ fun MessagesScreen(
                 Log.d("MessagesScreen", "✅ Показуємо VideoMessageRecorder!")
                 VideoMessageRecorder(
                     maxDurationSeconds = 120,  // 2 хвилини для звичайних користувачів
-                    isPremiumUser = false,     // TODO: перевірити статус преміум
+                    isPremiumUser = com.worldmates.messenger.data.UserSession.isProActive,
                     onVideoRecorded = { videoFile ->
                         Log.d("MessagesScreen", "📹 Відео записано: ${videoFile.absolutePath}")
                         showVideoMessageRecorder = false
