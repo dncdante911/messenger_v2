@@ -69,7 +69,8 @@ interface NodeStoriesApi {
     @POST("api/node/stories/create-comment")
     suspend fun createStoryComment(
         @Field("story_id") storyId: Long,
-        @Field("text") text: String
+        @Field("text") text: String,
+        @Field("reply_to_comment_id") replyToCommentId: Long? = null
     ): CreateStoryCommentResponse
 
     /** Анонімний перегляд сторіс (без прив'язки до user_id) */

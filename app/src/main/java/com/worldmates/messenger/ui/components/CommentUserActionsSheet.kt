@@ -288,6 +288,97 @@ fun CommentUserActionsSheet(
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Визуальный блок цитаты ответа — используется в CommentItem / PremiumCommentItem
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Компактная визуальная цитата ответа. Отображается ВЫШЕ текста комментария.
+ *
+ * Дизайн намеренно отличается от Telegram:
+ *  - закруглённая «таблетка» с лёгким градиентом от primary
+ *  - слева иконка ↩ + кружок с начальной буквой автора
+ *  - жирный username и срезанный текст в одну строку
+ *
+ * @param replyToUsername    имя автора цитируемого комментария
+ * @param replyToText        текст цитируемого комментария
+ * @param onTap              опциональный клик для перехода к цитате (можно null)
+ */
+@Composable
+fun CommentReplyQuote(
+    replyToUsername: String,
+    replyToText: String,
+    onTap: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val initial = replyToUsername.take(1).uppercase()
+    val bgColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+    val accentColor = MaterialTheme.colorScheme.primary
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(bgColor)
+            .then(if (onTap != null) Modifier.clickable { onTap() } else Modifier)
+            .padding(horizontal = 8.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // ↩ иконка
+        Icon(
+            imageVector = Icons.Outlined.SubdirectoryArrowRight,
+            contentDescription = null,
+            tint = accentColor,
+            modifier = Modifier.size(13.dp)
+        )
+
+        // Кружок с начальной буквой
+        Box(
+            modifier = Modifier
+                .size(18.dp)
+                .clip(CircleShape)
+                .background(accentColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = initial,
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+
+        // Имя + текст
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = replyToUsername,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = accentColor,
+                maxLines = 1
+            )
+            Text(
+                text = "·",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+            Text(
+                text = replyToText,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
 @Composable
 private fun ActionRow(
     icon: ImageVector,
