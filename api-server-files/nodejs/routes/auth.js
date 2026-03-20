@@ -29,15 +29,20 @@ const { t }      = require('../helpers/i18n');
 const BCRYPT_ROUNDS = 10;
 
 // ─── Redis OTP client ──────────────────────────────────────────────────────────
+// reconnectStrategy: exponential backoff up to 5 s so the client auto-heals
+// after Redis restarts (e.g. PM2 pm2 restart redis / system reboot).
 const _redisPass = process.env.REDIS_PASSWORD || '';
 const otpRedis = redis.createClient({
     socket: {
         host: process.env.REDIS_HOST || '127.0.0.1',
         port: parseInt(process.env.REDIS_PORT) || 6379,
+        reconnectStrategy: (retries) => Math.min(retries * 150, 5000),
     },
     ...(_redisPass ? { password: _redisPass } : {}),
 });
-otpRedis.on('error', err => console.error('[Auth/Redis] OTP client error:', err.message));
+otpRedis.on('error',        err => console.error('[Auth/Redis] OTP client error:', err.message));
+otpRedis.on('reconnecting', ()  => console.warn('[Auth/Redis] OTP client reconnecting…'));
+otpRedis.on('ready',        ()  => console.log('[Auth/Redis] OTP client ready'));
 otpRedis.connect()
     .then(() => console.log('[Auth/Redis] OTP Redis client connected'))
     .catch(err => console.error('[Auth/Redis] Failed to connect:', err.message));
@@ -312,9 +317,20 @@ async function requireAuth(ctx, req, res, next) {
     if (!token)
         return res.status(401).json({ api_status: 401, error_message: 'access_token is required' });
     try {
-        const session = await ctx.wo_appssessions.findOne({ where: { session_id: token } });
+        const session = await ctx.wo_appssessions.findOne({
+            where:      { session_id: token },
+            attributes: ['id', 'user_id', 'expires_at'],
+            raw:        true,
+        });
         if (!session)
             return res.status(401).json({ api_status: 401, error_message: 'Invalid or expired access_token' });
+
+        // Check token expiry — return error_id '401' so the client knows to refresh
+        const now = Math.floor(Date.now() / 1000);
+        if (session.expires_at && session.expires_at < now) {
+            return res.status(401).json({ api_status: 401, error_id: '401', error_message: 'Access token has expired' });
+        }
+
         req.userId    = session.user_id;
         req.sessionId = session.id;
         next();
