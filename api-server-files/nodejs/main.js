@@ -135,10 +135,22 @@ async function init() {
     dialect: "mysql",
     logging: false,
     pool: {
-        max: 20,
-        min: 2,        // держим 2 соединения всегда открытыми — меньше задержка на первый запрос
-        idle: 30000,   // закрывать idle-соединение через 30 с
-        acquire: 15000 // timeout на получение соединения из пула (мс) — не висеть вечно
+        // ── Connection pool sizing for PM2 cluster mode ──────────────────────
+        // With 30–34 workers you MUST cap max per worker or MariaDB will reject
+        // connections (default max_connections = 151).
+        //
+        // Rule of thumb:  DB_POOL_MAX ≤ floor( DB_MAX_CONNECTIONS × 0.8 / workers )
+        //   MariaDB default (151):  floor(151 × 0.8 / 34) ≈ 3  → DB_POOL_MAX=3
+        //   MariaDB tuned  (300):   floor(300 × 0.8 / 34) ≈ 7  → DB_POOL_MAX=7
+        //   MariaDB tuned  (500):   floor(500 × 0.8 / 34) ≈ 11 → DB_POOL_MAX=11
+        //
+        // Set in ecosystem.config.js env section:
+        //   DB_POOL_MAX=5    ← connections per worker
+        //   DB_POOL_MIN=1    ← always-open connections per worker
+        max:     parseInt(process.env.DB_POOL_MAX) || 5,
+        min:     parseInt(process.env.DB_POOL_MIN) || 1,
+        idle:    30000,   // close idle connection after 30 s
+        acquire: 15000,   // timeout waiting for a connection (ms) — fail fast, don't queue forever
     }
   });
 

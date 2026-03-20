@@ -167,23 +167,54 @@ async function runNotificationPurge(ctx) {
     }
 }
 
+// ─── 4. SESSION CLEANUP ──────────────────────────────────────────────────────
+// Runs every 24 hours.
+// Deletes Wo_AppsSessions rows whose access token has expired.
+// Without this, the table grows forever — a zombie session row per login,
+// plus one extra row per token refresh. With 30k DAU this is ~1M rows/year.
+//
+// Only removes rows where expires_at IS set and in the past.
+// Legacy rows (expires_at = NULL) are kept — they are permanent-session devices.
+
+async function runSessionCleanup(ctx) {
+    try {
+        const now = nowSec();
+        const deleted = await ctx.wo_appssessions.destroy({
+            where: {
+                expires_at: { [Op.gt]: 0, [Op.lt]: now }
+            }
+        });
+        if (deleted > 0) {
+            log('SESSIONS', `Purged ${deleted} expired session row(s).`);
+        }
+    } catch (err) {
+        log('SESSIONS', `ERROR: ${err.message}`);
+    }
+}
+
 // ─── ENTRY POINT ─────────────────────────────────────────────────────────────
 
 function startCronJobs(ctx) {
-    const PREMIUM_INTERVAL  = 15 * 60 * 1000;  // 15 min
-    const STORY_INTERVAL    = 60 * 60 * 1000;  // 1 hour
-    const NOTIF_INTERVAL    = 24 * 60 * 60 * 1000; // 24 hours
+    const PREMIUM_INTERVAL  = 15 * 60 * 1000;       // 15 min
+    const STORY_INTERVAL    = 60 * 60 * 1000;        // 1 hour
+    const NOTIF_INTERVAL    = 24 * 60 * 60 * 1000;  // 24 hours
+    const SESSION_INTERVAL  = 24 * 60 * 60 * 1000;  // 24 hours
 
     // Run once immediately on startup, then on schedule
     runPremiumExpiry(ctx);
     runStoryCleanup(ctx);
     runNotificationPurge(ctx);
+    // Session cleanup runs with a 5-minute delay so it doesn't race startup DB queries
+    setTimeout(() => {
+        runSessionCleanup(ctx);
+        setInterval(() => runSessionCleanup(ctx), SESSION_INTERVAL);
+    }, 5 * 60 * 1000);
 
-    setInterval(() => runPremiumExpiry(ctx),     PREMIUM_INTERVAL);
-    setInterval(() => runStoryCleanup(ctx),       STORY_INTERVAL);
-    setInterval(() => runNotificationPurge(ctx),  NOTIF_INTERVAL);
+    setInterval(() => runPremiumExpiry(ctx),    PREMIUM_INTERVAL);
+    setInterval(() => runStoryCleanup(ctx),      STORY_INTERVAL);
+    setInterval(() => runNotificationPurge(ctx), NOTIF_INTERVAL);
 
-    log('INIT', `Cron jobs started — premium every 15 min, stories every 1 h, notifs every 24 h`);
+    log('INIT', `Cron jobs started — premium every 15 min, stories every 1 h, notifs/sessions every 24 h`);
 }
 
 module.exports = { startCronJobs };
