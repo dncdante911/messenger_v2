@@ -94,8 +94,9 @@ class CloudBackupManager(private val context: Context) {
             val response = api.exportUserData()
 
             if (response.apiStatus != 200) {
-                _backupProgress.value = BackupProgress(error = "Помилка експорту: ${response.message}")
-                return@withContext Result.failure(Exception(response.message))
+                val errText = response.errorMessage ?: response.message.ifBlank { "api_status=${response.apiStatus}" }
+                _backupProgress.value = BackupProgress(error = "Помилка експорту: $errText")
+                return@withContext Result.failure(Exception(errText))
             }
 
             Log.d(TAG, "✅ Data exported: ${response.backupSize} bytes, ${response.exportData.manifest.totalMessages} messages")
