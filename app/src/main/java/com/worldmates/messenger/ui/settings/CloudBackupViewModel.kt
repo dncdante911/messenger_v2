@@ -300,9 +300,7 @@ class CloudBackupViewModel(application: Application) : AndroidViewModel(applicat
             try {
                 _syncProgress.value = SyncProgress(isRunning = true)
 
-                // TODO: Получить список чатов для синхронизации
-                // Для примера синхронизируем фейковые чаты
-                val chatIds = listOf(1L, 2L, 3L, 4L, 5L)
+                val chatIds = messageDao.getDistinctUserChatIds()
 
                 chatIds.forEachIndexed { index, chatId ->
                     _syncProgress.value = _syncProgress.value.copy(
@@ -350,8 +348,7 @@ class CloudBackupViewModel(application: Application) : AndroidViewModel(applicat
     suspend fun deleteDrafts() {
         withContext(Dispatchers.IO) {
             try {
-                val draftDao = database.draftDao()
-                // TODO: Удалить все черновики
+                database.draftDao().deleteAll()
                 Log.d(TAG, "✅ Drafts deleted successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to delete drafts: ${e.message}", e)

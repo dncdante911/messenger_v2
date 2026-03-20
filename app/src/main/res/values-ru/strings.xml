@@ -746,6 +746,10 @@
     <string name="auto_backup">Автоматическое резервное копирование</string>
     <string name="enable_backup">Включить бэкап</string>
     <string name="backup_frequency">Частота резервного копирования</string>
+    <string name="backup_frequency_never">Никогда</string>
+    <string name="backup_frequency_daily">Ежедневно</string>
+    <string name="backup_frequency_weekly">Еженедельно</string>
+    <string name="backup_frequency_monthly">Ежемесячно</string>
     <string name="last_backup">Последний бэкап:</string>
     <string name="backup_size">Размер резервной копии</string>
     <string name="google_drive">Google Drive</string>
