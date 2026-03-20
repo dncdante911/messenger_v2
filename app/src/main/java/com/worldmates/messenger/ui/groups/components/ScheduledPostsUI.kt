@@ -3,6 +3,10 @@ package com.worldmates.messenger.ui.groups.components
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +35,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.ScheduledPost
+import com.worldmates.messenger.utils.FileUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -348,6 +353,18 @@ fun CreateScheduledPostDialog(
     var isPinned by remember { mutableStateOf(existingPost?.isPinned ?: false) }
     var notifyMembers by remember { mutableStateOf(existingPost?.notifyMembers ?: true) }
 
+    var selectedMediaUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedMediaType by remember { mutableStateOf<String?>(null) }
+
+    val mediaPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            selectedMediaUri = it
+            selectedMediaType = if (FileUtils.isVideo(context, it)) "video" else "image"
+        }
+    }
+
     val calendar = remember { Calendar.getInstance().apply { timeInMillis = scheduledTime } }
 
     Dialog(
@@ -376,7 +393,7 @@ fun CreateScheduledPostDialog(
                         TextButton(
                             onClick = {
                                 if (text.isNotBlank()) {
-                                    onSave(text, scheduledTime, null, repeatType, isPinned, notifyMembers)
+                                    onSave(text, scheduledTime, selectedMediaUri?.toString(), repeatType, isPinned, notifyMembers)
                                 }
                             },
                             enabled = text.isNotBlank()
@@ -583,14 +600,78 @@ fun CreateScheduledPostDialog(
                         }
                     }
 
-                    // Media attachment (placeholder)
-                    OutlinedButton(
-                        onClick = { /* TODO: Implement media picker */ },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.AttachFile, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.add_media))
+                    // Media attachment
+                    if (selectedMediaUri == null) {
+                        OutlinedButton(
+                            onClick = {
+                                mediaPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.AttachFile, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.add_media))
+                        }
+                    } else {
+                        // Preview of selected media
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (selectedMediaType == "video") Icons.Default.VideoLibrary else Icons.Default.Image,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = selectedMediaUri!!.lastPathSegment ?: stringResource(R.string.badge_attachment),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                IconButton(
+                                    onClick = {
+                                        selectedMediaUri = null
+                                        selectedMediaType = null
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.delete_action),
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        TextButton(
+                            onClick = {
+                                mediaPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                                )
+                            },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(stringResource(R.string.edit), style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }

@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -213,18 +214,21 @@ fun GroupDetailsScreen(
         }
     }
 
+    // URI для фото з камери (зберігаємо між launch і callback)
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
+
     // Лаунчер для камери
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            // Фото збережено, завантажуємо на сервер
-            // TODO: Implement camera upload
-            android.widget.Toast.makeText(
-                context,
-                "Камера поки не підтримується",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            cameraImageUri?.let { uri ->
+                viewModel.uploadGroupAvatar(
+                    groupId = groupId,
+                    imageUri = uri,
+                    context = context
+                )
+            }
         }
     }
 
@@ -664,12 +668,25 @@ fun GroupDetailsScreen(
                 onDismiss = { showAvatarChangeDialog = false },
                 onCameraClick = {
                     showAvatarChangeDialog = false
-                    // TODO: Implement camera upload
-                    android.widget.Toast.makeText(
-                        context,
-                        "Камера поки не підтримується",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    try {
+                        val file = java.io.File(
+                            context.cacheDir,
+                            "group_avatar_camera_${System.currentTimeMillis()}.jpg"
+                        )
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            file
+                        )
+                        cameraImageUri = uri
+                        cameraLauncher.launch(uri)
+                    } catch (e: Exception) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "Помилка відкриття камери: ${e.message}",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 },
                 onGalleryClick = {
                     showAvatarChangeDialog = false
