@@ -33,6 +33,7 @@ class GroupWebRTCManager(private val context: Context) {
 
     private var iceServersConfig: List<PeerConnection.IceServer> = emptyList()
     private var isInitialized = false
+    private var isCapturing = false
 
     // ─── Callbacks ────────────────────────────────────────────────────────────
 
@@ -114,26 +115,26 @@ class GroupWebRTCManager(private val context: Context) {
         localAudioTrack = peerConnectionFactory.createAudioTrack("audio_group", audioSource)
         localAudioTrack?.setEnabled(true)
 
-        // Видео
-        if (!audioOnly) {
-            try {
-                surfaceTextureHelper = SurfaceTextureHelper.create(
-                    "GroupCaptureThread", WebRTCManager.getEglContext()
-                )
+        // Видео — всегда создаём pipeline; если audioOnly, трек отключён и захват не стартует.
+        // Это позволяет пользователю включить камеру во время звонка без пересоздания PeerConnection.
+        try {
+            surfaceTextureHelper = SurfaceTextureHelper.create(
+                "GroupCaptureThread", WebRTCManager.getEglContext()
+            )
+            videoCapturer = createCameraCapturer()
+            videoSource = peerConnectionFactory.createVideoSource(false)
+            videoCapturer?.initialize(surfaceTextureHelper, context, videoSource!!.capturerObserver)
 
-                videoCapturer = createCameraCapturer()
-                videoSource = peerConnectionFactory.createVideoSource(false)
-
-                videoCapturer?.initialize(surfaceTextureHelper, context, videoSource!!.capturerObserver)
+            if (!audioOnly) {
                 videoCapturer?.startCapture(640, 480, 24)
-
-                localVideoTrack = peerConnectionFactory.createVideoTrack("video_group", videoSource)
-                localVideoTrack?.setEnabled(true)
-
-                Log.d(TAG, "✅ Local video track created")
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to create video capturer: ${e.message}")
+                isCapturing = true
             }
+
+            localVideoTrack = peerConnectionFactory.createVideoTrack("video_group", videoSource)
+            localVideoTrack?.setEnabled(!audioOnly)
+            Log.d(TAG, "✅ Local video track created (active=${!audioOnly})")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to create video capturer: ${e.message}")
         }
 
         // Создать локальный медиа-поток
@@ -260,10 +261,16 @@ class GroupWebRTCManager(private val context: Context) {
             }
 
             override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
-                streams?.firstOrNull()?.let { stream ->
-                    Log.d(TAG, "✅ Track added from peer $userId via onAddTrack")
+                val stream = streams?.firstOrNull()
+                if (stream != null) {
+                    Log.d(TAG, "✅ Track added from peer $userId via onAddTrack (stream=${stream.id})")
                     remoteStreams[userId] = stream
                     onRemoteStreamAdded?.invoke(userId, stream)
+                } else {
+                    // Unified Plan may call onAddTrack with empty streams[].
+                    // Peer is connected — at minimum clear the "connecting" spinner.
+                    Log.d(TAG, "✅ Track added from peer $userId via onAddTrack (no stream, invoking connected)")
+                    onPeerConnected?.invoke(userId)
                 }
             }
         }
@@ -430,6 +437,23 @@ class GroupWebRTCManager(private val context: Context) {
     }
 
     fun setVideoEnabled(enabled: Boolean) {
+        if (enabled && !isCapturing) {
+            try {
+                videoCapturer?.startCapture(640, 480, 24)
+                isCapturing = true
+                Log.d(TAG, "🎥 Camera capture started")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to start camera capture: ${e.message}")
+            }
+        } else if (!enabled && isCapturing) {
+            try {
+                videoCapturer?.stopCapture()
+                isCapturing = false
+                Log.d(TAG, "🎥 Camera capture stopped")
+            } catch (e: Exception) {
+                Log.w(TAG, "stopCapture: ${e.message}")
+            }
+        }
         localVideoTrack?.setEnabled(enabled)
         Log.d(TAG, "Video ${if (enabled) "enabled" else "disabled"}")
     }
@@ -494,6 +518,7 @@ class GroupWebRTCManager(private val context: Context) {
         localAudioTrack = null
         localVideoTrack = null
         localMediaStream = null
+        isCapturing = false
 
         isInitialized = false
         Log.d(TAG, "✅ GroupWebRTCManager closed")
