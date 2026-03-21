@@ -15,6 +15,44 @@ class GroupWebRTCManager(private val context: Context) {
 
     companion object {
         private const val TAG = "GroupWebRTCManager"
+
+        // 🔐 coturn static-auth-secret (same server as 1-on-1 calls)
+        private const val TURN_SECRET = "ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9"
+        private const val TURN_IP_1 = "195.22.131.11"
+        private const val TURN_IP_2 = "46.232.232.38"
+
+        /**
+         * Generates time-limited TURN credentials via HMAC-SHA1 (coturn use-auth-secret).
+         * Used as fallback when the server hasn't provided ICE servers yet.
+         */
+        fun buildFallbackTurnServers(): List<PeerConnection.IceServer> {
+            return try {
+                val expiry = System.currentTimeMillis() / 1000 + 86400
+                val username = "$expiry:group_user"
+                val mac = javax.crypto.Mac.getInstance("HmacSHA1")
+                mac.init(javax.crypto.spec.SecretKeySpec(TURN_SECRET.toByteArray(Charsets.UTF_8), "HmacSHA1"))
+                val credential = android.util.Base64.encodeToString(
+                    mac.doFinal(username.toByteArray(Charsets.UTF_8)),
+                    android.util.Base64.NO_WRAP
+                )
+                listOf(
+                    PeerConnection.IceServer.builder("stun:$TURN_IP_1:3478").createIceServer(),
+                    PeerConnection.IceServer.builder("stun:$TURN_IP_2:3478").createIceServer(),
+                    PeerConnection.IceServer.builder(listOf(
+                        "turn:$TURN_IP_1:3478?transport=udp",
+                        "turn:$TURN_IP_1:3478?transport=tcp",
+                        "turns:$TURN_IP_1:5349?transport=tcp"
+                    )).setUsername(username).setPassword(credential).createIceServer(),
+                    PeerConnection.IceServer.builder(listOf(
+                        "turn:$TURN_IP_2:3478?transport=udp",
+                        "turn:$TURN_IP_2:3478?transport=tcp"
+                    )).setUsername(username).setPassword(credential).createIceServer()
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to build fallback TURN servers", e)
+                listOf(PeerConnection.IceServer.builder("stun:$TURN_IP_1:3478").createIceServer())
+            }
+        }
     }
 
     // PeerConnection для каждого удалённого участника
@@ -190,9 +228,8 @@ class GroupWebRTCManager(private val context: Context) {
         }
 
         val iceServers = iceServersConfig.ifEmpty {
-            listOf(
-                PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
-            )
+            Log.w(TAG, "⚠️ No ICE servers set — using local HMAC TURN fallback")
+            buildFallbackTurnServers()
         }
 
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {

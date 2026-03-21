@@ -1748,7 +1748,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
             )
         } catch (e: Exception) {
             Log.e("CallsViewModel", "❌ Failed to build HMAC TURN servers", e)
-            listOf(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer())
+            listOf(PeerConnection.IceServer.builder("stun:$TURN_HOST_1:3478").createIceServer())
         }
     }
 
