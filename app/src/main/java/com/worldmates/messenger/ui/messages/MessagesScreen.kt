@@ -159,6 +159,7 @@ fun MessagesScreen(
     val connectionQuality by viewModel.connectionQuality.collectAsState()
     val pinnedPrivateMessage by viewModel.pinnedPrivateMessage.collectAsState()
     val isMutedPrivate by viewModel.isMutedPrivate.collectAsState()
+    val mediaAutoDeleteOptionState by viewModel.mediaAutoDeleteOption.collectAsState()
 
     // 📝 Draft state
     val currentDraft by viewModel.currentDraft.collectAsState()
@@ -757,6 +758,9 @@ fun MessagesScreen(
                 onExportClick = { showExportSheet = true },
                 onSelfDestructClick = {
                     if (!isGroup) showSelfDestructDialog = true
+                },
+                onMediaAutoDeleteClick = {
+                    if (!isGroup) showMediaAutoDeleteDialog = true
                 },
                 isMuted = if (isGroup) currentGroup?.isMuted == true else isMutedPrivate,
                 // 🔥 Group-specific parameters
@@ -1734,6 +1738,17 @@ fun MessagesScreen(
                         SecretChatManager.setTimer(chatId, "user", seconds)
                     },
                     onDismiss = { showSelfDestructDialog = false }
+                )
+            }
+
+            // 🗑️ Media auto-delete dialog
+            if (showMediaAutoDeleteDialog && !isGroup) {
+                MediaAutoDeleteDialog(
+                    currentOption = mediaAutoDeleteOptionState,
+                    onOptionSelected = { option ->
+                        viewModel.saveMediaAutoDeleteSetting(option)
+                    },
+                    onDismiss = { showMediaAutoDeleteDialog = false }
                 )
             }
 
