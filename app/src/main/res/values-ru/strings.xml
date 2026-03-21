@@ -2574,5 +2574,15 @@
     <string name="cd_image_preview">Предпросмотр</string>
     <string name="cd_previous">Предыдущее</string>
     <string name="cd_youtube_thumbnail">Превью YouTube</string>
+    <string name="cd_video_thumbnail">Превью видео</string>
+    <string name="cd_album_image">Изображение альбома</string>
+
+    <!-- ===== ADMIN PANEL ===== -->
+    <string name="format_short">Формат</string>
+    <string name="no_join_requests_title">Нет запросов на вступление</string>
+    <string name="no_join_requests_desc">Когда кто-то захочет вступить в приватную группу,\nзапрос появится здесь</string>
+    <string name="join_requests_count">%d запросов</string>
+    <string name="scheduled_posts_count">%d постов</string>
+
 
 </resources>

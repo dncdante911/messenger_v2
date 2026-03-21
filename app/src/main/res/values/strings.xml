@@ -2590,5 +2590,14 @@
     <string name="cd_image_preview">Попередній перегляд</string>
     <string name="cd_previous">Попереднє</string>
     <string name="cd_youtube_thumbnail">Мініатюра YouTube</string>
+    <string name="cd_video_thumbnail">Прев\'ю відео</string>
+    <string name="cd_album_image">Зображення альбому</string>
+
+    <!-- ===== ADMIN PANEL ===== -->
+    <string name="format_short">Формат</string>
+    <string name="no_join_requests_title">Немає запитів на вступ</string>
+    <string name="no_join_requests_desc">Коли хтось захоче приєднатися до приватної групи,\nзапит з\'явиться тут</string>
+    <string name="join_requests_count">%d запитів</string>
+    <string name="scheduled_posts_count">%d постів</string>
 
 </resources>
