@@ -105,6 +105,12 @@ class GroupAdminPanelActivity : AppCompatActivity() {
                             }
                             startActivity(intent)
                         },
+                        onOpenAdminLogs = {
+                            val intent = Intent(this@GroupAdminPanelActivity, GroupAdminLogsActivity::class.java).apply {
+                                putExtra("group_id", groupId)
+                            }
+                            startActivity(intent)
+                        },
                         onRefresh = {
                             viewModel.fetchGroupDetails(groupId)
                             viewModel.fetchGroupMembers(groupId)

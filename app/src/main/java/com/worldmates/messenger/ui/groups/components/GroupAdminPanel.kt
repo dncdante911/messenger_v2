@@ -53,7 +53,8 @@ fun GroupAdminPanelScreen(
     onRefresh: () -> Unit,
     isAnonymousAdmin: Boolean = false,
     isAnonymousAdminLoading: Boolean = false,
-    onToggleAnonymousAdmin: (Boolean) -> Unit = {}
+    onToggleAnonymousAdmin: (Boolean) -> Unit = {},
+    onOpenAdminLogs: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf(
@@ -74,6 +75,9 @@ fun GroupAdminPanelScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenAdminLogs) {
+                        Icon(Icons.Default.History, contentDescription = stringResource(R.string.admin_logs_title))
+                    }
                     IconButton(onClick = onRefresh) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }

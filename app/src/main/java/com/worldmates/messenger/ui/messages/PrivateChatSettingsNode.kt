@@ -1,6 +1,7 @@
 package com.worldmates.messenger.ui.messages
 
 import android.util.Log
+import com.worldmates.messenger.data.model.MediaAutoDeleteOption
 import com.worldmates.messenger.network.NodeApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,6 +102,78 @@ fun clearHistoryViaNode(
         } catch (e: Exception) {
             error.value = "Помилка: ${e.localizedMessage}"
             Log.e(TAG_SETTINGS, "clearHistoryViaNode exception", e)
+        } finally {
+            isLoading.value = false
+        }
+    }
+}
+
+// ─── mediaAutoDeleteSetting ───────────────────────────────────────────────────
+
+/**
+ * Loads the current media auto-delete setting for a private chat from Node.js.
+ *
+ * @param onResult Called with the resolved [MediaAutoDeleteOption].
+ */
+fun loadMediaAutoDeleteSettingViaNode(
+    scope:    CoroutineScope,
+    api:      NodeApi,
+    chatId:   Long,
+    onResult: (MediaAutoDeleteOption) -> Unit
+) {
+    if (chatId <= 0L) return
+
+    scope.launch {
+        try {
+            val resp = api.getMediaAutoDeleteSetting(chatId = chatId)
+            if (resp.apiStatus == 200) {
+                val option = MediaAutoDeleteOption.fromSeconds(resp.seconds)
+                Log.d(TAG_SETTINGS, "MediaAutoDeleteSetting for chat $chatId: ${resp.seconds}s → $option")
+                onResult(option)
+            } else {
+                Log.w(TAG_SETTINGS, "getMediaAutoDeleteSetting returned ${resp.apiStatus}: ${resp.errorMessage}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG_SETTINGS, "loadMediaAutoDeleteSettingViaNode exception", e)
+        }
+    }
+}
+
+/**
+ * Saves the media auto-delete setting for a private chat via Node.js.
+ *
+ * @param option   The chosen [MediaAutoDeleteOption].
+ * @param onSuccess Called with the confirmed [MediaAutoDeleteOption] on success.
+ */
+fun saveMediaAutoDeleteSettingViaNode(
+    scope:     CoroutineScope,
+    api:       NodeApi,
+    chatId:    Long,
+    option:    MediaAutoDeleteOption,
+    isLoading: MutableStateFlow<Boolean>,
+    error:     MutableStateFlow<String?>,
+    onSuccess: (MediaAutoDeleteOption) -> Unit
+) {
+    if (chatId <= 0L) {
+        error.value = "Невірний ідентифікатор чату"
+        return
+    }
+
+    scope.launch {
+        isLoading.value = true
+        try {
+            val resp = api.setMediaAutoDeleteSetting(chatId = chatId, seconds = option.seconds)
+            if (resp.apiStatus == 200) {
+                Log.d(TAG_SETTINGS, "MediaAutoDeleteSetting saved for chat $chatId: ${option.seconds}s")
+                error.value = null
+                onSuccess(option)
+            } else {
+                error.value = resp.errorMessage ?: "Не вдалося зберегти налаштування автовидалення медіа"
+                Log.e(TAG_SETTINGS, "saveMediaAutoDeleteSettingViaNode error: ${resp.errorMessage}")
+            }
+        } catch (e: Exception) {
+            error.value = "Помилка: ${e.localizedMessage}"
+            Log.e(TAG_SETTINGS, "saveMediaAutoDeleteSettingViaNode exception", e)
         } finally {
             isLoading.value = false
         }

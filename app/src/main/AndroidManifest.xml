@@ -258,6 +258,14 @@
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
             android:parentActivityName=".ui.groups.GroupAdminPanelActivity" />
 
+        <!-- Group Admin Logs Activity -->
+        <activity
+            android:name=".ui.groups.GroupAdminLogsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.groups.GroupAdminPanelActivity" />
+
         <!-- Channel Details Activity -->
         <activity
             android:name=".ui.channels.ChannelDetailsActivity"

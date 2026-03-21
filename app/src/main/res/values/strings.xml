@@ -1657,6 +1657,13 @@
     <!-- ===== GROUP ADMIN PANEL ===== -->
     <string name="detailed_statistics">Детальна статистика</string>
     <string name="group_management">Управління групою</string>
+    <string name="admin_logs_title">Журнал действий</string>
+    <string name="admin_logs_empty">Действий не найдено</string>
+    <string name="admin_logs_added_member">добавил участника</string>
+    <string name="admin_logs_removed_member">удалил участника</string>
+    <string name="admin_logs_deleted_message">удалил сообщение</string>
+    <string name="admin_logs_changed_settings">изменил настройки</string>
+    <string name="admin_logs_pinned_message">закрепил сообщение</string>
 
     <!-- ===== SCHEDULED POSTS UI ===== -->
     <string name="new_scheduled_post_title">Новий запланований пост</string>

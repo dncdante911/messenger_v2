@@ -51,6 +51,7 @@ fun MessagesHeaderBar(
     isGroup: Boolean = false,
     isGroupAdmin: Boolean = false,
     onSelfDestructClick: () -> Unit = {},
+    onMediaAutoDeleteClick: () -> Unit = {},
     onCreateSubgroupClick: () -> Unit = {},
     onAddMembersClick: () -> Unit = {},
     onGroupSettingsClick: () -> Unit = {},
