@@ -283,12 +283,12 @@ private fun JoinRequestsTab(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Немає запитів на вступ",
+                    text = stringResource(R.string.no_join_requests_title),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Коли хтось захоче приєднатися до приватної групи,\nзапит з'явиться тут",
+                    text = stringResource(R.string.no_join_requests_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
@@ -392,7 +392,7 @@ private fun StatisticsTab(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Статистика недоступна",
+                    text = stringResource(R.string.statistics_unavailable),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -481,22 +481,22 @@ fun QuickAdminControlsCard(
             ) {
                 QuickActionButton(
                     icon = Icons.Default.Edit,
-                    label = "Редагувати",
+                    label = stringResource(R.string.edit),
                     onClick = onEditClick
                 )
                 QuickActionButton(
                     icon = Icons.Default.Group,
-                    label = "Учасники",
+                    label = stringResource(R.string.channel_tab_members),
                     onClick = onMembersClick
                 )
                 QuickActionButton(
                     icon = Icons.Default.QrCode,
-                    label = "QR-код",
+                    label = stringResource(R.string.qr_code_label),
                     onClick = onQrCodeClick
                 )
                 QuickActionButton(
                     icon = Icons.Default.TextFormat,
-                    label = "Формат",
+                    label = stringResource(R.string.format_short),
                     onClick = onFormattingClick
                 )
             }
@@ -529,7 +529,7 @@ fun QuickAdminControlsCard(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "$joinRequestsCount запитів",
+                                    text = stringResource(R.string.join_requests_count, joinRequestsCount),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.error
                                 )
@@ -555,7 +555,7 @@ fun QuickAdminControlsCard(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "$scheduledPostsCount постів",
+                                    text = stringResource(R.string.scheduled_posts_count, scheduledPostsCount),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -633,7 +633,7 @@ fun GroupTypeIndicator(
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = if (isPrivate) "Приватна" else "Публічна",
+                text = if (isPrivate) stringResource(R.string.private_group) else stringResource(R.string.public_group),
                 style = MaterialTheme.typography.labelMedium,
                 color = if (isPrivate)
                     MaterialTheme.colorScheme.error
@@ -654,11 +654,14 @@ fun MemberRoleBadge(
     role: String,
     modifier: Modifier = Modifier
 ) {
+    val ownerLabel    = stringResource(R.string.group_owner)
+    val adminLabel    = stringResource(R.string.role_admin_short)
+    val moderLabel    = stringResource(R.string.role_moderator_short)
     val (color, label) = when (role) {
-        "owner" -> MaterialTheme.colorScheme.primary to "Власник"
-        "admin" -> Color(0xFF2196F3) to "Адмін"
-        "moderator" -> Color(0xFF4CAF50) to "Модератор"
-        else -> return // No badge for regular members
+        "owner"     -> MaterialTheme.colorScheme.primary to ownerLabel
+        "admin"     -> Color(0xFF2196F3) to adminLabel
+        "moderator" -> Color(0xFF4CAF50) to moderLabel
+        else        -> return // No badge for regular members
     }
 
     Surface(

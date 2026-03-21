@@ -223,7 +223,7 @@ private fun MediaCell(
     ) {
         AsyncImage(
             model              = url,
-            contentDescription = if (type == "video") "Video thumbnail" else "Album image",
+            contentDescription = if (type == "video") stringResource(R.string.cd_video_thumbnail) else stringResource(R.string.cd_album_image),
             modifier           = Modifier.fillMaxSize(),
             contentScale       = ContentScale.Crop,
             onError            = {
