@@ -185,7 +185,6 @@ fun MessagesScreen(
     var showSelfDestructDialog by remember { mutableStateOf(false) }
     // 🗑️ Media auto-delete dialog
     var showMediaAutoDeleteDialog by remember { mutableStateOf(false) }
-    var mediaAutoDeleteOption by remember { mutableStateOf(MediaAutoDeleteOption.NEVER) }
     // 📊 Create poll dialog
     var showCreatePollDialog by remember { mutableStateOf(false) }
 

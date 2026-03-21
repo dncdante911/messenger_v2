@@ -40,6 +40,15 @@ fun FileMessageComponent(
     showTextAbove: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    // Show deleted placeholder when media has been auto-deleted from the server
+    if (fileUrl == "deleted") {
+        DeletedMediaPlaceholder(
+            showTextAbove = showTextAbove,
+            modifier = modifier
+        )
+        return
+    }
+
     val context = LocalContext.current
     val displayFileName = fileName ?: fileUrl.substringAfterLast("/")
     val fileExtension = displayFileName.substringAfterLast(".", "")
