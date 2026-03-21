@@ -318,6 +318,17 @@ fun MessagesHeaderBar(
                                     Icon(Icons.Default.Timer, contentDescription = null, tint = Color(0xFFF44336))
                                 }
                             )
+                            // 🗑️ Media auto-delete — only for private chats
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.media_auto_delete_menu_item)) },
+                                onClick = {
+                                    showUserMenu = false
+                                    onMediaAutoDeleteClick()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Timer, contentDescription = null, tint = Color(0xFF607D8B))
+                                }
+                            )
                         }
 
                         // ✅ User-only option: block user
