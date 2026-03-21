@@ -430,6 +430,16 @@ interface NodeGroupApi {
         @Field("group_id") groupId: Long
     ): GroupAnonAdminResponse
 
+    // ═══════════════════════ ADMIN LOGS ══════════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_ADMIN_LOGS)
+    suspend fun getAdminLogs(
+        @Field("group_id") groupId: Long,
+        @Field("page")     page: Int = 1,
+        @Field("limit")    limit: Int = 50
+    ): GroupAdminLogsResponse
+
     // ═══════════════════════ POLLS ═══════════════════════════════════════════
 
     @FormUrlEncoded

@@ -115,6 +115,9 @@ import com.worldmates.messenger.ui.messages.MessageTouchWrapper
 import com.worldmates.messenger.ui.messages.MessageTouchConfig
 import com.worldmates.messenger.ui.components.CompactMediaMenu
 import com.worldmates.messenger.ui.components.media.VideoMessageComponent
+import com.worldmates.messenger.ui.components.media.MediaAlbumComponent
+import com.worldmates.messenger.ui.components.media.AudioAlbumComponent
+import com.worldmates.messenger.ui.components.media.AudioItem
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 
@@ -390,6 +393,20 @@ fun MessagesScreen(
         }
         Log.d("MessagesScreen", "📸 Всього фото в галереї: ${urls.size}")
         urls
+    }
+
+    // 📸 Album grouping: map albumId -> ordered list of messages in that album
+    //    and a set of message IDs that should be SKIPPED (already rendered inside
+    //    their album's first cell).
+    val albumGroups: Map<Long, List<com.worldmates.messenger.data.model.Message>> = remember(messages) {
+        messages
+            .filter { it.albumId != null }
+            .groupBy { it.albumId!! }
+    }
+    val albumSecondaryIds: Set<Long> = remember(albumGroups) {
+        albumGroups.flatMap { (_, msgs) ->
+            msgs.drop(1).map { it.id }  // skip first message (it is the album renderer)
+        }.toSet()
     }
 
     // 🎵 Мінімізований аудіо плеєр
@@ -1076,6 +1093,9 @@ fun MessagesScreen(
                     items = messages.reversed(),
                     key = { it.id }
                 ) { message ->
+                    // 🖼️ Skip secondary album messages — they are rendered inside the album block
+                    if (message.id in albumSecondaryIds) return@items
+
                     // 💫 Thanos disintegration when the message is being deleted
                     ThanosDisintegrationEffect(
                         isDisintegrating = message.id in deletingMessages,
@@ -1091,6 +1111,42 @@ fun MessagesScreen(
                         ),
                         modifier = Modifier.animateItem()
                     ) {
+                        // 📸 Album rendering: first message of an album → MediaAlbumComponent
+                        val albumId = message.albumId
+                        if (albumId != null) {
+                            val albumMessages = albumGroups[albumId] ?: listOf(message)
+                            val isOwn = message.fromId == com.worldmates.messenger.data.UserSession.userId
+                            val albumMediaUrls  = albumMessages.mapNotNull {
+                                it.decryptedMediaUrl ?: it.mediaUrl
+                            }
+                            val albumMediaTypes = albumMessages.map { msg ->
+                                val t = msg.typeTwo?.lowercase() ?: msg.type?.lowercase() ?: ""
+                                when {
+                                    t.contains("video") -> "video"
+                                    else                -> "image"
+                                }
+                            }
+                            androidx.compose.foundation.layout.Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                contentAlignment = if (isOwn) Alignment.CenterEnd else Alignment.CenterStart
+                            ) {
+                                MediaAlbumComponent(
+                                    mediaUrls  = albumMediaUrls,
+                                    mediaTypes = albumMediaTypes,
+                                    onMediaClick = { index ->
+                                        val url = albumMediaUrls.getOrNull(index)
+                                        if (url != null) {
+                                            clickedImageUrl    = url
+                                            selectedImageIndex = imageUrls.indexOf(url).coerceAtLeast(0)
+                                            showImageGallery   = true
+                                        }
+                                    },
+                                    modifier = Modifier.widthIn(max = 280.dp)
+                                )
+                            }
+                        } else {
                         MessageBubbleComposable(
                             message = message,
                             voicePlayer = voicePlayer,
@@ -1168,6 +1224,7 @@ fun MessagesScreen(
                             onLinkClick = onLinkClick,
                             viewModel = viewModel
                         )
+                        }  // Закриття else (album/normal branch)
                     }  // Закриття AnimatedVisibility
                     }  // Закриття ThanosDisintegrationEffect
                 }

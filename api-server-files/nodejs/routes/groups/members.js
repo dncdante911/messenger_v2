@@ -18,6 +18,24 @@
 const { Op } = require('sequelize');
 const funcs  = require('../../functions/functions');
 
+// ─── admin log helper ─────────────────────────────────────────────────────────
+
+async function logAdminAction(ctx, groupId, adminId, action, targetUserId = null, details = null) {
+    try {
+        const WmGroupAdminLogs = require('../../models/wm_group_admin_logs')(ctx.sequelize);
+        await WmGroupAdminLogs.create({
+            group_id: groupId,
+            admin_id: adminId,
+            action,
+            target_user_id: targetUserId,
+            target_message_id: null,
+            details: details ? JSON.stringify(details) : null
+        });
+    } catch (e) {
+        // non-critical, don't break main flow
+    }
+}
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 async function isGroupAdmin(ctx, groupId, userId) {
@@ -171,6 +189,10 @@ function addMember(ctx, io) {
 
             console.log(`[Groups] Added ${added.length} member(s) to group ${groupId} by ${userId}`);
 
+            for (const addedId of added) {
+                await logAdminAction(ctx, groupId, userId, 'add_member', addedId);
+            }
+
             return res.json({ api_status: 200, added_count: added.length, error_code: null, error_message: null });
         } catch (err) {
             console.error('[Groups/addMember]', err.message);
@@ -229,6 +251,12 @@ function removeMember(ctx, io) {
 
             console.log(`[Groups] Removed ${targetIds.length} member(s) from group ${groupId} by ${userId}`);
 
+            for (const tid of targetIds) {
+                if (group.user_id != tid) {
+                    await logAdminAction(ctx, groupId, userId, 'remove_member', tid);
+                }
+            }
+
             return res.json({ api_status: 200, error_code: null, error_message: null });
         } catch (err) {
             console.error('[Groups/removeMember]', err.message);
@@ -283,6 +311,8 @@ function setRole(ctx, io) {
             if (s) io.to(s).emit('group_role_changed', { group_id: groupId, role });
 
             console.log(`[Groups] Member ${targetId} role set to '${role}' in group ${groupId} by ${userId}`);
+
+            await logAdminAction(ctx, groupId, userId, 'change_role', targetId, { new_role: role });
 
             return res.json({ api_status: 200, error_code: null, error_message: null });
         } catch (err) {
@@ -580,6 +610,9 @@ function banMember(ctx, io) {
             );
 
             io.to('group_' + groupId).emit('group_member_banned', { group_id: groupId, user_id: targetId, banned_by: userId });
+
+            await logAdminAction(ctx, groupId, userId, 'ban_user', targetId);
+
             return res.json({ api_status: 200, message: 'User banned' });
         } catch (err) {
             console.error('[Groups/banMember]', err.message);
@@ -615,6 +648,9 @@ function unbanMember(ctx, io) {
             );
 
             io.to('group_' + groupId).emit('group_member_unbanned', { group_id: groupId, user_id: targetId });
+
+            await logAdminAction(ctx, groupId, userId, 'unban_user', targetId);
+
             return res.json({ api_status: 200, message: 'User unbanned' });
         } catch (err) {
             console.error('[Groups/unbanMember]', err.message);

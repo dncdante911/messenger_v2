@@ -127,6 +127,8 @@ function registerGroupRoutes(app, ctx, io) {
     app.post('/api/node/group/statistics',    auth, admin.getStatistics(ctx, io));
     app.post('/api/node/group/add-admin',     auth, admin.addGroupAdmin(ctx, io));
     app.post('/api/node/group/remove-admin',  auth, admin.removeGroupAdmin(ctx, io));
+    app.get( '/api/node/group/admin-logs',    auth, admin.getAdminLogs(ctx, io));
+    app.post('/api/node/group/admin-logs',    auth, admin.getAdminLogs(ctx, io));
 
     // ── Anonymous Admin ──────────────────────────────────────────────────────
     app.post('/api/node/group/admin/set-anonymous', auth, anonAdmin.setAnonymousAdmin(ctx, io));

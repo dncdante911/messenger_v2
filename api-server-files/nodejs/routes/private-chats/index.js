@@ -108,6 +108,12 @@ function registerPrivateChatRoutes(app, ctx, io) {
     app.post('/api/node/chat/secret/set-timer',   auth, secret.setTimerHandler(ctx, io));
     app.get( '/api/node/chat/secret/timer/:userId', auth, secret.getTimerHandler(ctx));
 
+    // ── media auto-delete setting ─────────────────────────────────────────────
+    // GET  /api/node/chat/media-auto-delete-setting?chat_id=X  – fetch current setting
+    // POST /api/node/chat/media-auto-delete-setting            – update setting
+    app.get( '/api/node/chat/media-auto-delete-setting', auth, actions.getMediaAutoDeleteSetting(ctx));
+    app.post('/api/node/chat/media-auto-delete-setting', auth, actions.setMediaAutoDeleteSetting(ctx));
+
     // ── media upload (replaces PHP /xhr/upload_*.php) ─────────────────────────
     // POST /api/node/chat/upload  body: { file (multipart), type: image|video|audio|voice|file }
     app.post('/api/node/chat/upload', auth, mediaUp.uploadChatMedia(ctx));
@@ -120,6 +126,7 @@ function registerPrivateChatRoutes(app, ctx, io) {
     console.log('  Saved    : saved/save, saved/unsave, saved/list, saved/clear');
     console.log('  User     : /api/node/user/status');
     console.log('  Secret   : secret/cleanup, secret/set-timer, secret/timer/:userId');
+    console.log('  Media    : media-auto-delete-setting (GET/POST)');
 }
 
 module.exports = { registerPrivateChatRoutes };

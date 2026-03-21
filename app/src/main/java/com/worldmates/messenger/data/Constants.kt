@@ -181,6 +181,9 @@ object Constants {
     const val NODE_GROUP_ANON_ADMIN_SET = "api/node/group/admin/set-anonymous"
     const val NODE_GROUP_ANON_ADMIN_GET = "api/node/group/admin/get-anonymous"
 
+    // ── Admin Logs ────────────────────────────────────────────────────────────
+    const val NODE_GROUP_ADMIN_LOGS     = "api/node/group/admin-logs"
+
     // ── Group Polls ───────────────────────────────────────────────────────────
     const val NODE_GROUP_POLL_CREATE   = "api/node/group/poll/create"
     const val NODE_GROUP_POLL_GET      = "api/node/group/poll/get"

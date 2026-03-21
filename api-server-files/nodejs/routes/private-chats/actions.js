@@ -350,6 +350,78 @@ function forwardMessage(ctx, io) {
     };
 }
 
+// ─── MEDIA AUTO-DELETE SETTING ───────────────────────────────────────────────
+// GET  /api/node/chat/media-auto-delete-setting?chat_id=X
+// POST /api/node/chat/media-auto-delete-setting  { chat_id, seconds }
+//
+// Stores/retrieves the per-user per-chat media auto-delete interval.
+// seconds: 0=never, 86400=1day, 259200=3days, 604800=1week, 1209600=2weeks, 2592000=1month
+
+const VALID_SECONDS = new Set([0, 86400, 259200, 604800, 1209600, 2592000]);
+
+function getMediaAutoDeleteSetting(ctx) {
+    return async (req, res) => {
+        try {
+            const userId = req.userId;
+            const chatId = parseInt(req.query.chat_id || req.body.chat_id);
+
+            if (!chatId || isNaN(chatId))
+                return res.status(400).json({ api_status: 400, error_message: 'chat_id is required' });
+
+            const seq = ctx.sequelize;
+            const [rows] = await seq.query(
+                `SELECT media_auto_delete_seconds FROM wm_chat_media_settings
+                 WHERE user_id = :uid AND chat_id = :cid LIMIT 1`,
+                { replacements: { uid: userId, cid: chatId }, type: seq.constructor.QueryTypes.SELECT }
+            );
+
+            const setting = Array.isArray(rows[0]) ? rows[0][0] : rows[0];
+            const seconds = setting ? (setting.media_auto_delete_seconds || 0) : 0;
+
+            res.json({ api_status: 200, seconds, chat_id: chatId });
+        } catch (err) {
+            console.error('[Node/chat/media-auto-delete-setting GET]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to get media auto-delete setting' });
+        }
+    };
+}
+
+function setMediaAutoDeleteSetting(ctx) {
+    return async (req, res) => {
+        try {
+            const userId  = req.userId;
+            const chatId  = parseInt(req.body.chat_id);
+            const seconds = parseInt(req.body.seconds);
+
+            if (!chatId || isNaN(chatId))
+                return res.status(400).json({ api_status: 400, error_message: 'chat_id is required' });
+            if (isNaN(seconds) || !VALID_SECONDS.has(seconds))
+                return res.status(400).json({ api_status: 400, error_message: 'Invalid seconds value. Use: 0, 86400, 259200, 604800, 1209600, or 2592000' });
+
+            const seq = ctx.sequelize;
+            await seq.query(
+                `INSERT INTO wm_chat_media_settings (user_id, chat_id, media_auto_delete_seconds)
+                 VALUES (:uid, :cid, :sec)
+                 ON DUPLICATE KEY UPDATE media_auto_delete_seconds = :sec`,
+                { replacements: { uid: userId, cid: chatId, sec: seconds } }
+            );
+
+            res.json({ api_status: 200, seconds, chat_id: chatId });
+        } catch (err) {
+            console.error('[Node/chat/media-auto-delete-setting POST]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to set media auto-delete setting' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
-module.exports = { deleteMessage, reactMessage, pinMessage, getPinnedMessages, forwardMessage };
+module.exports = {
+    deleteMessage,
+    reactMessage,
+    pinMessage,
+    getPinnedMessages,
+    forwardMessage,
+    getMediaAutoDeleteSetting,
+    setMediaAutoDeleteSetting,
+};
