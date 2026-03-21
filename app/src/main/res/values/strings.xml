@@ -2507,4 +2507,13 @@
     <string name="photo_filter_blur">Розмиття</string>
     <string name="photo_filter_sharpen">Різкість</string>
 
+    <!-- ===== BUSINESS DIRECTORY ===== -->
+    <string name="business_directory">Бизнес-каталог</string>
+    <string name="business_directory_search_hint">Поиск бизнесов...</string>
+    <string name="business_directory_all_categories">Все</string>
+    <string name="business_directory_message_btn">Написать</string>
+    <string name="business_directory_verified">Проверено</string>
+    <string name="business_directory_empty">Бизнесы не найдены</string>
+    <string name="business_directory_loading">Загрузка...</string>
+
 </resources>
