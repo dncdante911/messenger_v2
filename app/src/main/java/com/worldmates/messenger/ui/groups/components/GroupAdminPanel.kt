@@ -319,6 +319,7 @@ private fun ScheduledPostsTab(
     onPublish: (ScheduledPost) -> Unit
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
+    var postToEdit by remember { mutableStateOf<ScheduledPost?>(null) }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -326,7 +327,7 @@ private fun ScheduledPostsTab(
         ScheduledPostsPanel(
             scheduledPosts = posts,
             onCreateClick = { showCreateDialog = true },
-            onEditClick = { /* TODO */ },
+            onEditClick = { post -> postToEdit = post },
             onDeleteClick = onDelete,
             onPublishNowClick = onPublish,
             isAdmin = true,
@@ -341,6 +342,18 @@ private fun ScheduledPostsTab(
             onSave = { text, time, media, repeat, pinned, notify ->
                 onCreate(text, time, media, repeat, pinned, notify)
                 showCreateDialog = false
+            }
+        )
+    }
+
+    postToEdit?.let { post ->
+        CreateScheduledPostDialog(
+            existingPost = post,
+            groupId = groupId,
+            onDismiss = { postToEdit = null },
+            onSave = { text, time, media, repeat, pinned, notify ->
+                onCreate(text, time, media, repeat, pinned, notify)
+                postToEdit = null
             }
         )
     }

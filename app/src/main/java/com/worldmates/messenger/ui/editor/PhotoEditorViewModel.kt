@@ -75,6 +75,10 @@ class PhotoEditorViewModel : ViewModel() {
     private val _rotationAngle = MutableStateFlow(0)
     val rotationAngle: StateFlow<Int> = _rotationAngle.asStateFlow()
 
+    // Crop rect state — normalized 0-1 coordinates (left, top, right, bottom)
+    private val _cropRect = MutableStateFlow(CropRect(0f, 0f, 1f, 1f))
+    val cropRect: StateFlow<CropRect> = _cropRect.asStateFlow()
+
     // Undo/Redo stacks
     private val undoStack = mutableListOf<EditorState>()
     private val redoStack = mutableListOf<EditorState>()
@@ -267,9 +271,33 @@ class PhotoEditorViewModel : ViewModel() {
         Log.d(TAG, "Rotated ${degrees} (total: ${_rotationAngle.value})")
     }
 
+    fun resetCrop() {
+        _cropRect.value = CropRect(0f, 0f, 1f, 1f)
+    }
+
+    fun updateCropRect(left: Float, top: Float, right: Float, bottom: Float) {
+        val minSize = 0.05f
+        _cropRect.value = CropRect(
+            left   = left.coerceIn(0f, (right - minSize).coerceAtLeast(0f)),
+            top    = top.coerceIn(0f, (bottom - minSize).coerceAtLeast(0f)),
+            right  = right.coerceIn((left + minSize).coerceAtMost(1f), 1f),
+            bottom = bottom.coerceIn((top + minSize).coerceAtMost(1f), 1f)
+        )
+    }
+
     fun applyCrop() {
         saveStateForUndo()
-        Log.d(TAG, "Crop not yet implemented")
+        val bitmap = _editedBitmap.value ?: return
+        val rect = _cropRect.value
+
+        val x = (rect.left * bitmap.width).toInt().coerceIn(0, bitmap.width - 1)
+        val y = (rect.top * bitmap.height).toInt().coerceIn(0, bitmap.height - 1)
+        val w = ((rect.right - rect.left) * bitmap.width).toInt().coerceIn(1, bitmap.width - x)
+        val h = ((rect.bottom - rect.top) * bitmap.height).toInt().coerceIn(1, bitmap.height - y)
+
+        _editedBitmap.value = Bitmap.createBitmap(bitmap, x, y, w, h)
+        _cropRect.value = CropRect(0f, 0f, 1f, 1f)  // reset after applying
+        Log.d(TAG, "Crop applied: x=$x y=$y w=$w h=$h")
     }
 
     /**
@@ -548,4 +576,14 @@ data class TextElement(
     val size: Float,
     val x: Float,  // Normalized 0-1
     val y: Float   // Normalized 0-1
+)
+
+/**
+ * Crop Rect — all values normalized to 0-1 range relative to the image size.
+ */
+data class CropRect(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float
 )
