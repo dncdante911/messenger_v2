@@ -1868,6 +1868,18 @@
     <string name="export_menu_item">Експортувати чат</string>
     <string name="secret_timer_menu_item">🔒 Self-destruct timer</string>
 
+    <!-- ===== MEDIA AUTO-DELETE ===== -->
+    <string name="media_auto_delete_title">Автоудаление медиа</string>
+    <string name="media_auto_delete_description">Медиафайлы автоматически удаляются с сервера. Текст сообщения сохраняется.</string>
+    <string name="media_auto_delete_never">Никогда</string>
+    <string name="media_auto_delete_1day">1 день</string>
+    <string name="media_auto_delete_3days">3 дня</string>
+    <string name="media_auto_delete_1week">1 неделя</string>
+    <string name="media_auto_delete_2weeks">2 недели</string>
+    <string name="media_auto_delete_1month">1 месяц</string>
+    <string name="media_deleted_placeholder">Медиафайл удалён</string>
+    <string name="media_auto_delete_menu_item">Автоудаление медиа</string>
+
     <!-- ===== GROUP TOPICS ===== -->
     <string name="topics_title">Теми</string>
     <string name="topics_create">Нова тема</string>
@@ -2515,5 +2527,11 @@
     <string name="business_directory_verified">Проверено</string>
     <string name="business_directory_empty">Бизнесы не найдены</string>
     <string name="business_directory_loading">Загрузка...</string>
+
+    <!-- ===== MEDIA ALBUMS ===== -->
+    <string name="media_album_more">+%d ещё</string>
+    <string name="media_album_photo_count">%d фото</string>
+    <string name="media_album_video">Відео</string>
+    <string name="audio_album_title">Аудіо</string>
 
 </resources>

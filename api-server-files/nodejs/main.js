@@ -68,6 +68,7 @@ const { registerBusinessRoutes, handleBusinessAutoReply } = require('./routes/bu
 const { registerBusinessDirectoryRoutes } = require('./routes/business-directory')
 const { registerSearchRoutes }       = require('./routes/search/index')
 const { startCronJobs }              = require('./jobs/cronJobs')
+const setupMediaAutoDeleteJob        = require('./jobs/media-auto-delete')
 const { createGeoblockMiddleware }   = require('./middleware/geoblock')
 
 // Worker 0 is the "primary" worker: runs migrations, cron jobs, background
@@ -875,6 +876,10 @@ async function main() {
   // ── Background cron jobs (premium expiry, story cleanup, notification purge)
   // Run on worker 0 only to avoid 18× redundant DB load in cluster mode.
   if (isFirstWorker) startCronJobs(ctx);
+
+  // ── Media auto-delete job (deletes media files when timer expires)
+  // Runs every hour on worker 0 only.
+  if (isFirstWorker) setupMediaAutoDeleteJob(ctx.sequelize, io);
 
   // ── App update check ──────────────────────────────────────────────────────
   // GET /api/node/update/check — serves mobile_update_config.json (no auth required)
