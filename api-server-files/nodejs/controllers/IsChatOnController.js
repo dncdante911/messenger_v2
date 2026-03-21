@@ -12,7 +12,9 @@ const IsChatOnController = async (ctx, data, io, socket) => {
         isGroup: data.isGroup
     });
 
-    let last_message = {}
+    try {
+
+    let last_message = null
 
     if (data.message_id) {
         last_message = await ctx.wo_messages.findOne({
@@ -52,7 +54,7 @@ const IsChatOnController = async (ctx, data, io, socket) => {
         ctx.userIdGroupChatOpen[ctx.userHashUserId[data.user_id]] = Array.from(arr)
     }
 
-    if (last_message.seen == 0) {
+    if (last_message && last_message.seen == 0) {
         var seen = Math.floor(Date.now() / 1000);
         let seenMsg = funcs.Wo_Time_Elapsed_String(ctx, seen)
 
@@ -68,7 +70,7 @@ const IsChatOnController = async (ctx, data, io, socket) => {
         console.log(`📤 Emitted lastseen to room: "${recipientRoom}"`);
     }
 
-    if (last_message.seen > 0) {
+    if (last_message && last_message.seen > 0) {
         let seenMsg = funcs.Wo_Time_Elapsed_String(ctx, last_message.seen)
 
         // 🔥 КРИТИЧНО: Емітити в РЯДКОВИЙ room
@@ -93,6 +95,10 @@ const IsChatOnController = async (ctx, data, io, socket) => {
     const userRoom = String(user_id);
     await io.to(userRoom).emit("messages_count", { count: unseenmessages })
     console.log(`📤 Emitted messages_count to room: "${userRoom}", count: ${unseenmessages}`);
+
+    } catch (err) {
+        console.error('[IsChatOnController] error:', err.message)
+    }
 };
 
 module.exports = { IsChatOnController };
