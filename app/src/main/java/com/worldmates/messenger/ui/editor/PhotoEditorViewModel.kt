@@ -236,7 +236,7 @@ class PhotoEditorViewModel : ViewModel() {
             PhotoFilter.SHARPEN -> applySharpen(filtered)
         }
 
-        Log.d(TAG, "Applied filter: ${filter.displayName}")
+        Log.d(TAG, "Applied filter: ${filter.name}")
     }
 
     fun setBrightness(value: Float) {

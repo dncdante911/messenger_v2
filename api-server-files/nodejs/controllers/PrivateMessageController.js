@@ -13,10 +13,8 @@ const sendNotification = async (ctx, io, data, responseData) => {
   await io.to(data.to_id).emit('notification', responseData);
 };
 
-const PrivateMessageController = async (ctx, data, io,socket,callback) => {
-  //console.log(data)
-        
-        
+const PrivateMessageController = async (ctx, data, io, socket, callback) => {
+  try {
   if ((!data.msg || data.msg.trim() === "") && !data.mediaId && !data.record && !data.lng && !data.lat) {
       console.log("Message has no text, neither media, skipping")
       return
@@ -361,12 +359,9 @@ const PrivateMessageController = async (ctx, data, io,socket,callback) => {
 
   }
 
-
-
-
-  
-  
-  
+  } catch (err) {
+      console.error('[PrivateMessageController] error:', err.message, err.stack)
+  }
 };
 
 

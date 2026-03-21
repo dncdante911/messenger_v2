@@ -5,7 +5,9 @@ const { Sequelize, Op, DataTypes } = require("sequelize");
 const striptags = require('striptags');
 const moment = require("moment")
 
-const RecordingController = async (ctx, data, io,socket) => {
+const RecordingController = async (ctx, data, io, socket) => {
+  if (!data || !data.user_id) return;
+  try {
   let fromUser = await ctx.wo_users.findOne({
       where: {
           user_id: {
@@ -36,6 +38,9 @@ const RecordingController = async (ctx, data, io,socket) => {
   }
   // await funcs.Wo_RegisterTyping(data.user_id, data.recipient_id, 1)
   await socketEvents.recording(ctx, io, fromUser.avatar, data.recipient_id, ctx.userHashUserId[data.user_id])
+  } catch (err) {
+      console.error('[RecordingController] error:', err.message)
+  }
 };
 
 module.exports = { RecordingController };

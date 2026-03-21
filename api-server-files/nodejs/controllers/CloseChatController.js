@@ -5,16 +5,21 @@ const { Sequelize, Op, DataTypes } = require("sequelize");
 const striptags = require('striptags');
 const moment = require("moment")
 
-const CloseChatController = async (ctx, data, io,socket) => {
-  if (data.group) {
-      if (ctx.userIdGroupChatOpen[ctx.userHashUserId[data.user_id]] && ctx.userIdGroupChatOpen[ctx.userHashUserId[data.user_id]].length) {
-          ctx.userIdGroupChatOpen[ctx.userHashUserId[data.user_id]] = ctx.userIdGroupChatOpen[ctx.userHashUserId[data.user_id]].filter(d => d != data.recipient_id)
-      }
-  }
-  else if (ctx.userIdChatOpen[ctx.userHashUserId[data.user_id]] && ctx.userIdChatOpen[ctx.userHashUserId[data.user_id]].length) {
-      ctx.userIdChatOpen[ctx.userHashUserId[data.user_id]] = ctx.userIdChatOpen[ctx.userHashUserId[data.user_id]].filter(d => d != data.recipient_id);
-      //ctx.userIdChatOpen[ctx.userHashUserId[data.user_id]] = 0;
-  }
+const CloseChatController = async (ctx, data, io, socket) => {
+    if (!data || !data.user_id) return;
+    try {
+        const userId = ctx.userHashUserId[data.user_id];
+        if (!userId) return;
+        if (data.group) {
+            if (ctx.userIdGroupChatOpen[userId] && ctx.userIdGroupChatOpen[userId].length) {
+                ctx.userIdGroupChatOpen[userId] = ctx.userIdGroupChatOpen[userId].filter(d => d != data.recipient_id)
+            }
+        } else if (ctx.userIdChatOpen[userId] && ctx.userIdChatOpen[userId].length) {
+            ctx.userIdChatOpen[userId] = ctx.userIdChatOpen[userId].filter(d => d != data.recipient_id);
+        }
+    } catch (err) {
+        console.error('[CloseChatController] error:', err.message)
+    }
 };
 
 module.exports = { CloseChatController };
