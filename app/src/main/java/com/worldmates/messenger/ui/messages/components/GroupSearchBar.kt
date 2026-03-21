@@ -18,8 +18,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 
 /**
  * 🔍 Search Bar для поиска сообщений в группе
@@ -69,7 +71,7 @@ fun GroupSearchBar(
                 // Search Icon
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
+                    contentDescription = stringResource(R.string.search),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 8.dp, end = 4.dp)
                 )
@@ -121,7 +123,7 @@ fun GroupSearchBar(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ArrowUpward,
-                                contentDescription = "Previous",
+                                contentDescription = stringResource(R.string.cd_previous),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -134,7 +136,7 @@ fun GroupSearchBar(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ArrowDownward,
-                                contentDescription = "Next",
+                                contentDescription = stringResource(R.string.next),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -149,7 +151,7 @@ fun GroupSearchBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.close),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )

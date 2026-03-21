@@ -120,17 +120,17 @@ fun GroupDetailsHeader(
             StatCard(
                 icon = Icons.Default.Group,
                 value = "${group.membersCount}",
-                label = "Учасників"
+                label = stringResource(R.string.members_count_label)
             )
             StatCard(
                 icon = if (group.isPrivate) Icons.Default.Lock else Icons.Default.Public,
-                value = if (group.isPrivate) "Приватна" else "Публічна",
-                label = "Тип"
+                value = if (group.isPrivate) stringResource(R.string.private_group) else stringResource(R.string.public_group),
+                label = stringResource(R.string.type_label)
             )
             StatCard(
                 icon = Icons.Default.Shield,
-                value = if (group.isAdmin || group.isOwner == true) "Адмін" else "Учасник",
-                label = "Роль"
+                value = if (group.isAdmin || group.isOwner == true) stringResource(R.string.role_admin_short) else stringResource(R.string.role_member_short),
+                label = stringResource(R.string.role_label)
             )
         }
     }
@@ -365,10 +365,10 @@ fun GroupSettings(
             .padding(16.dp)
     ) {
         // Секція: Повідомлення
-        SettingsSection(title = "Повідомлення") {
+        SettingsSection(title = stringResource(R.string.messages)) {
             SettingItem(
                 icon = Icons.Default.Notifications,
-                title = "Сповіщення",
+                title = stringResource(R.string.notifications_on),
                 description = "Отримувати повідомлення з групи",
                 checked = notificationsEnabled,
                 onCheckedChange = { onSettingChange("notifications", it) }
@@ -376,7 +376,7 @@ fun GroupSettings(
 
             SettingItem(
                 icon = Icons.Default.VolumeOff,
-                title = "Без звуку",
+                title = stringResource(R.string.muted),
                 description = "Вимкнути звук повідомлень",
                 checked = isMuted,
                 onCheckedChange = { onSettingChange("mute", it) }
@@ -387,10 +387,10 @@ fun GroupSettings(
 
         // Секція: Конфіденційність (тільки для адмінів)
         if (isAdmin) {
-            SettingsSection(title = "Конфіденційність") {
+            SettingsSection(title = stringResource(R.string.group_privacy)) {
                 SettingItem(
                     icon = Icons.Default.Lock,
-                    title = "Приватна група",
+                    title = stringResource(R.string.private_group_label),
                     description = "Тільки запрошені можуть приєднатися",
                     checked = group.isPrivate,
                     onCheckedChange = { onSettingChange("private", it) }
@@ -398,7 +398,7 @@ fun GroupSettings(
 
                 SettingItem(
                     icon = Icons.Default.CheckCircle,
-                    title = "Підтвердження нових учасників",
+                    title = stringResource(R.string.confirm_new_members),
                     description = "Адмін повинен схвалити запити",
                     checked = joinRequestsEnabled,
                     onCheckedChange = { onSettingChange("approve_members", it) }
@@ -409,10 +409,10 @@ fun GroupSettings(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Секція: Дії
-        SettingsSection(title = "Дії") {
+        SettingsSection(title = stringResource(R.string.actions_section)) {
             DangerButton(
                 icon = Icons.Default.ExitToApp,
-                title = "Вийти з групи",
+                title = stringResource(R.string.leave_group),
                 onClick = onLeaveGroup
             )
 
@@ -420,7 +420,7 @@ fun GroupSettings(
                 Spacer(modifier = Modifier.height(8.dp))
                 DangerButton(
                     icon = Icons.Default.Delete,
-                    title = "Видалити групу",
+                    title = stringResource(R.string.delete_group),
                     onClick = onDeleteGroup,
                     color = Color(0xFFEF5350)
                 )

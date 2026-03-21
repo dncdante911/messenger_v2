@@ -21,7 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.LinkPreviewData
 import com.worldmates.messenger.utils.extractYouTubeVideoId
 import com.worldmates.messenger.utils.fetchLinkPreview
@@ -204,7 +206,7 @@ fun YouTubeVideoCard(
     ) {
         AsyncImage(
             model = thumbnailUrl,
-            contentDescription = "YouTube thumbnail",
+            contentDescription = stringResource(R.string.cd_youtube_thumbnail),
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
@@ -217,7 +219,7 @@ fun YouTubeVideoCard(
         // Play button
         Icon(
             imageVector = Icons.Default.PlayCircleFilled,
-            contentDescription = "Play",
+            contentDescription = stringResource(R.string.cd_play),
             tint = Color.White,
             modifier = Modifier.size(56.dp)
         )

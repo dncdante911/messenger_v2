@@ -140,13 +140,14 @@ fun MediaAutoDeleteDialog(
  * Returns an approximate storage hint string for a given auto-delete period.
  * This is a rough estimate shown next to each option (e.g. "~50–200 MB").
  */
+@Composable
 private fun formatStorageHint(option: MediaAutoDeleteOption): String {
     return when (option) {
-        MediaAutoDeleteOption.ONE_DAY    -> "~1 день"
-        MediaAutoDeleteOption.THREE_DAYS -> "~3 дня"
-        MediaAutoDeleteOption.ONE_WEEK   -> "~1 нед."
-        MediaAutoDeleteOption.TWO_WEEKS  -> "~2 нед."
-        MediaAutoDeleteOption.ONE_MONTH  -> "~1 мес."
+        MediaAutoDeleteOption.ONE_DAY    -> stringResource(R.string.media_auto_delete_hint_1day)
+        MediaAutoDeleteOption.THREE_DAYS -> stringResource(R.string.media_auto_delete_hint_3days)
+        MediaAutoDeleteOption.ONE_WEEK   -> stringResource(R.string.media_auto_delete_hint_1week)
+        MediaAutoDeleteOption.TWO_WEEKS  -> stringResource(R.string.media_auto_delete_hint_2weeks)
+        MediaAutoDeleteOption.ONE_MONTH  -> stringResource(R.string.media_auto_delete_hint_1month)
         else                             -> ""
     }
 }

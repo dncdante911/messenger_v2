@@ -6,7 +6,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Message
 import com.worldmates.messenger.ui.media.InlineVideoPlayer
 import com.worldmates.messenger.ui.video.AdvancedVideoPlayer
@@ -105,7 +107,7 @@ fun VideoMessageComponent(
             // Показуємо помилку якщо дешифрування не вдалося
             decryptionError -> {
                 androidx.compose.material3.Text(
-                    text = "❌ Помилка завантаження відео",
+                    text = stringResource(R.string.error_video_loading),
                     color = androidx.compose.material3.MaterialTheme.colorScheme.error
                 )
             }

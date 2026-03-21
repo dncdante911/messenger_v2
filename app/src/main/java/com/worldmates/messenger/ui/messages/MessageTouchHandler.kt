@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -124,7 +126,7 @@ fun MessageTouchWrapper(
 
                 Icon(
                     imageVector = Icons.Default.Reply,
-                    contentDescription = "Reply",
+                    contentDescription = stringResource(R.string.reply),
                     tint = colorScheme.primary.copy(alpha = replyAlpha),
                     modifier = Modifier
                         .size(28.dp)
@@ -309,7 +311,7 @@ private fun SelectionCheckbox(
     ) {
         Icon(
             imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.Circle,
-            contentDescription = if (isSelected) "Вибрано" else "Не вибрано",
+            contentDescription = if (isSelected) stringResource(R.string.selected_cd) else stringResource(R.string.not_selected),
             tint = if (isSelected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.3f),
             modifier = Modifier.size(22.dp)
         )

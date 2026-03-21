@@ -15,9 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 
 /**
  * Компонент для отображения файла в сообщении
@@ -74,7 +76,7 @@ fun FileMessageComponent(
         // Иконка в зависимости от типа файла
         Icon(
             imageVector = getFileIcon(fileExtension),
-            contentDescription = "File",
+            contentDescription = stringResource(R.string.cd_file),
             tint = textColor,
             modifier = Modifier.size(32.dp)
         )
@@ -106,7 +108,7 @@ fun FileMessageComponent(
         // Иконка скачивания
         Icon(
             imageVector = Icons.Default.Download,
-            contentDescription = "Download",
+            contentDescription = stringResource(R.string.cd_download),
             tint = textColor.copy(alpha = 0.6f),
             modifier = Modifier.size(20.dp)
         )
