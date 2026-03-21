@@ -851,17 +851,17 @@ fun GroupActionButtons(
         ) {
             ActionButton(
                 icon = Icons.Default.Search,
-                label = "Пошук",
+                label = stringResource(R.string.search),
                 onClick = onSearchClick
             )
             ActionButton(
                 icon = Icons.Default.Notifications,
-                label = "Сповіщення",
+                label = stringResource(R.string.notifications_on),
                 onClick = onNotificationsClick
             )
             ActionButton(
                 icon = Icons.Default.Share,
-                label = "Поділитися",
+                label = stringResource(R.string.share),
                 onClick = onShareClick
             )
         }
@@ -909,25 +909,25 @@ fun AdminControlsSection(
         Column {
             SettingsItem(
                 icon = Icons.Default.Edit,
-                title = "Редагувати групу",
+                title = stringResource(R.string.edit_group),
                 onClick = onEditClick
             )
             Divider(color = Color(0xFFEEEEEE), thickness = 1.dp, modifier = Modifier.padding(start = 56.dp))
             SettingsItem(
                 icon = Icons.Default.PersonAdd,
-                title = "Додати учасників",
+                title = stringResource(R.string.add_members),
                 onClick = onAddMembersClick
             )
             Divider(color = Color(0xFFEEEEEE), thickness = 1.dp, modifier = Modifier.padding(start = 56.dp))
             SettingsItem(
                 icon = Icons.Default.QrCode,
-                title = "QR код групи",
+                title = stringResource(R.string.qr_code),
                 onClick = onQrCodeClick
             )
             Divider(color = Color(0xFFEEEEEE), thickness = 1.dp, modifier = Modifier.padding(start = 56.dp))
             SettingsItem(
                 icon = Icons.Default.TextFormat,
-                title = "Налаштування форматування",
+                title = stringResource(R.string.formatting_settings),
                 onClick = onFormattingSettingsClick
             )
         }
@@ -1028,7 +1028,7 @@ fun GroupActionsSection(
         Column {
             SettingsItem(
                 icon = Icons.Default.ExitToApp,
-                title = "Вийти з групи",
+                title = stringResource(R.string.leave_group),
                 titleColor = Color.Red,
                 iconTint = Color.Red,
                 onClick = onLeaveClick
@@ -1038,7 +1038,7 @@ fun GroupActionsSection(
                 Divider(color = Color(0xFFEEEEEE), thickness = 1.dp, modifier = Modifier.padding(start = 56.dp))
                 SettingsItem(
                     icon = Icons.Default.Delete,
-                    title = "Видалити групу",
+                    title = stringResource(R.string.delete_group),
                     titleColor = Color.Red,
                     iconTint = Color.Red,
                     onClick = onDeleteClick

@@ -2515,4 +2515,64 @@
     <string name="photo_filter_blur">Размытие</string>
     <string name="photo_filter_sharpen">Резкость</string>
 
+    <!-- ===== BUSINESS DIRECTORY ===== -->
+    <string name="business_directory">Бизнес-каталог</string>
+    <string name="business_directory_search_hint">Поиск бизнесов…</string>
+    <string name="business_directory_all_categories">Все</string>
+    <string name="business_directory_message_btn">Написать</string>
+    <string name="business_directory_verified">Проверено</string>
+    <string name="business_directory_empty">Бизнесы не найдены</string>
+    <string name="business_directory_loading">Загрузка…</string>
+
+    <!-- ===== MEDIA ALBUMS ===== -->
+    <string name="media_album_more">+%d ещё</string>
+    <string name="media_album_photo_count">%d фото</string>
+    <string name="media_album_video">Видео</string>
+    <string name="audio_album_title">Аудио</string>
+
+    <!-- ===== AUTO-DELETE MEDIA ===== -->
+    <string name="media_auto_delete_hint_1day">~1 день</string>
+    <string name="media_auto_delete_hint_3days">~3 дня</string>
+    <string name="media_auto_delete_hint_1week">~1 нед.</string>
+    <string name="media_auto_delete_hint_2weeks">~2 нед.</string>
+    <string name="media_auto_delete_hint_1month">~1 мес.</string>
+
+    <!-- ===== ADMIN LOGS ===== -->
+    <string name="admin_log_add_member">добавил участника</string>
+    <string name="admin_log_remove_member">удалил участника</string>
+    <string name="admin_log_ban_user">заблокировал пользователя</string>
+    <string name="admin_log_unban_user">разблокировал пользователя</string>
+    <string name="admin_log_delete_message">удалил сообщение</string>
+    <string name="admin_log_pin_message">закрепил сообщение</string>
+    <string name="admin_log_unpin_message">открепил сообщение</string>
+    <string name="admin_log_change_title">изменил название группы</string>
+    <string name="admin_log_change_avatar">изменил аватар группы</string>
+    <string name="admin_log_change_description">изменил описание группы</string>
+    <string name="admin_log_change_role">изменил роль участника</string>
+    <string name="admin_log_change_settings">изменил настройки группы</string>
+    <string name="admin_log_enable_slow_mode">включил медленный режим</string>
+    <string name="admin_log_disable_slow_mode">отключил медленный режим</string>
+
+    <!-- ===== TIME FORMATTING ===== -->
+    <string name="time_just_now">только что</string>
+    <string name="time_minutes_ago">%d мин. назад</string>
+    <string name="time_hours_ago">%d ч. назад</string>
+    <string name="time_yesterday">вчера</string>
+    <string name="time_days_ago">%d дн. назад</string>
+
+    <!-- ===== GROUP LABELS ===== -->
+    <string name="type_label">Тип</string>
+    <string name="role_label">Роль</string>
+    <string name="actions_section">Действия</string>
+
+    <!-- ===== CONTENT DESCRIPTIONS ===== -->
+    <string name="cd_play">Воспроизвести</string>
+    <string name="cd_pause">Пауза</string>
+    <string name="cd_download">Скачать</string>
+    <string name="cd_file">Файл</string>
+    <string name="cd_image_message">Изображение</string>
+    <string name="cd_image_preview">Предпросмотр</string>
+    <string name="cd_previous">Предыдущее</string>
+    <string name="cd_youtube_thumbnail">Превью YouTube</string>
+
 </resources>

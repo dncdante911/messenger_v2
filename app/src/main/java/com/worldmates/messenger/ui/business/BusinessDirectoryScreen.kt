@@ -108,7 +108,7 @@ fun BusinessDirectoryScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector        = Icons.Default.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.back),
                                 tint               = Color.White
                             )
                         }
@@ -122,7 +122,7 @@ fun BusinessDirectoryScreen(
                         }) {
                             Icon(
                                 imageVector        = if (showSearch) Icons.Default.Close else Icons.Default.Search,
-                                contentDescription = "Search",
+                                contentDescription = stringResource(R.string.search),
                                 tint               = Color.White
                             )
                         }

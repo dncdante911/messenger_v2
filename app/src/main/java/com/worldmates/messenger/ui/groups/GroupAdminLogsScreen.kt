@@ -206,23 +206,24 @@ private fun AdminLogItem(log: AdminLogDto) {
     }
 }
 
+@Composable
 private fun buildActionText(log: AdminLogDto): String {
     val action = when (log.action) {
-        "add_member" -> "добавил участника"
-        "remove_member" -> "удалил участника"
-        "ban_user" -> "заблокировал пользователя"
-        "unban_user" -> "разблокировал пользователя"
-        "delete_message" -> "удалил сообщение"
-        "pin_message" -> "закрепил сообщение"
-        "unpin_message" -> "открепил сообщение"
-        "change_title" -> "изменил название группы"
-        "change_avatar" -> "изменил аватар группы"
-        "change_description" -> "изменил описание группы"
-        "change_role" -> "изменил роль участника"
-        "change_settings" -> "изменил настройки группы"
-        "enable_slow_mode" -> "включил медленный режим"
-        "disable_slow_mode" -> "отключил медленный режим"
-        else -> log.action.replace("_", " ")
+        "add_member"       -> stringResource(R.string.admin_log_add_member)
+        "remove_member"    -> stringResource(R.string.admin_log_remove_member)
+        "ban_user"         -> stringResource(R.string.admin_log_ban_user)
+        "unban_user"       -> stringResource(R.string.admin_log_unban_user)
+        "delete_message"   -> stringResource(R.string.admin_log_delete_message)
+        "pin_message"      -> stringResource(R.string.admin_log_pin_message)
+        "unpin_message"    -> stringResource(R.string.admin_log_unpin_message)
+        "change_title"     -> stringResource(R.string.admin_log_change_title)
+        "change_avatar"    -> stringResource(R.string.admin_log_change_avatar)
+        "change_description" -> stringResource(R.string.admin_log_change_description)
+        "change_role"      -> stringResource(R.string.admin_log_change_role)
+        "change_settings"  -> stringResource(R.string.admin_log_change_settings)
+        "enable_slow_mode" -> stringResource(R.string.admin_log_enable_slow_mode)
+        "disable_slow_mode" -> stringResource(R.string.admin_log_disable_slow_mode)
+        else               -> log.action.replace("_", " ")
     }
     return if (log.targetUserName != null) {
         "${log.adminName} $action ${log.targetUserName}"
@@ -245,7 +246,14 @@ private fun actionIcon(action: String): ImageVector = when (action) {
     else -> Icons.Default.Info
 }
 
+@Composable
 private fun formatTimestamp(createdAt: String): String {
+    val justNow    = stringResource(R.string.time_just_now)
+    val minutesAgo = stringResource(R.string.time_minutes_ago)
+    val hoursAgo   = stringResource(R.string.time_hours_ago)
+    val yesterday  = stringResource(R.string.time_yesterday)
+    val daysAgo    = stringResource(R.string.time_days_ago)
+
     if (createdAt.isBlank()) return ""
     return try {
         val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
@@ -257,11 +265,11 @@ private fun formatTimestamp(createdAt: String): String {
         val hours = diff / 3_600_000
         val days = diff / 86_400_000
         when {
-            minutes < 1 -> "только что"
-            minutes < 60 -> "$minutes мин. назад"
-            hours < 24 -> "$hours ч. назад"
-            days == 1L -> "вчера"
-            days < 7 -> "$days дн. назад"
+            minutes < 1  -> justNow
+            minutes < 60 -> minutesAgo.format(minutes)
+            hours < 24   -> hoursAgo.format(hours)
+            days == 1L   -> yesterday
+            days < 7     -> daysAgo.format(days)
             else -> {
                 val outFmt = java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
                 outFmt.format(date)

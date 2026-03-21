@@ -65,7 +65,7 @@ fun ImageMessageComponent(
     ) {
         AsyncImage(
             model = imageUrl,
-            contentDescription = "Image message",
+            contentDescription = stringResource(R.string.cd_image_message),
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(messageId) {
@@ -109,7 +109,7 @@ fun ImageMessagePreview(
     ) {
         AsyncImage(
             model = imageUrl,
-            contentDescription = "Image preview",
+            contentDescription = stringResource(R.string.cd_image_preview),
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )

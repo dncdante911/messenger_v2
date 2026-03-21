@@ -118,7 +118,7 @@ private fun AudioTrackRow(
         ) {
             Icon(
                 imageVector        = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
+                contentDescription = if (isPlaying) stringResource(R.string.cd_pause) else stringResource(R.string.cd_play),
                 tint               = Color.White,
                 modifier           = Modifier.size(24.dp)
             )

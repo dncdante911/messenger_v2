@@ -2535,18 +2535,60 @@
     <string name="photo_filter_sharpen">Різкість</string>
 
     <!-- ===== BUSINESS DIRECTORY ===== -->
-    <string name="business_directory">Бизнес-каталог</string>
-    <string name="business_directory_search_hint">Поиск бизнесов...</string>
-    <string name="business_directory_all_categories">Все</string>
-    <string name="business_directory_message_btn">Написать</string>
-    <string name="business_directory_verified">Проверено</string>
-    <string name="business_directory_empty">Бизнесы не найдены</string>
-    <string name="business_directory_loading">Загрузка...</string>
+    <string name="business_directory">Бізнес-каталог</string>
+    <string name="business_directory_search_hint">Пошук бізнесів…</string>
+    <string name="business_directory_all_categories">Всі</string>
+    <string name="business_directory_message_btn">Написати</string>
+    <string name="business_directory_verified">Перевірено</string>
+    <string name="business_directory_empty">Бізнеси не знайдено</string>
+    <string name="business_directory_loading">Завантаження…</string>
 
     <!-- ===== MEDIA ALBUMS ===== -->
-    <string name="media_album_more">+%d ещё</string>
+    <string name="media_album_more">+%d ще</string>
     <string name="media_album_photo_count">%d фото</string>
     <string name="media_album_video">Відео</string>
     <string name="audio_album_title">Аудіо</string>
+
+    <!-- ===== AUTO-DELETE MEDIA ===== -->
+    <string name="media_auto_delete_hint_1day">~1 день</string>
+    <string name="media_auto_delete_hint_3days">~3 дні</string>
+    <string name="media_auto_delete_hint_1week">~1 тиж.</string>
+    <string name="media_auto_delete_hint_2weeks">~2 тиж.</string>
+    <string name="media_auto_delete_hint_1month">~1 міс.</string>
+
+    <!-- ===== ADMIN LOGS ===== -->
+    <string name="admin_log_add_member">додав учасника</string>
+    <string name="admin_log_remove_member">видалив учасника</string>
+    <string name="admin_log_ban_user">заблокував користувача</string>
+    <string name="admin_log_unban_user">розблокував користувача</string>
+    <string name="admin_log_delete_message">видалив повідомлення</string>
+    <string name="admin_log_pin_message">закріпив повідомлення</string>
+    <string name="admin_log_unpin_message">відкріпив повідомлення</string>
+    <string name="admin_log_change_title">змінив назву групи</string>
+    <string name="admin_log_change_avatar">змінив аватар групи</string>
+    <string name="admin_log_change_description">змінив опис групи</string>
+    <string name="admin_log_change_role">змінив роль учасника</string>
+    <string name="admin_log_change_settings">змінив налаштування групи</string>
+    <string name="admin_log_enable_slow_mode">увімкнув повільний режим</string>
+    <string name="admin_log_disable_slow_mode">вимкнув повільний режим</string>
+
+    <!-- ===== TIME FORMATTING ===== -->
+    <string name="time_minutes_ago">%d хв. тому</string>
+    <string name="time_yesterday">вчора</string>
+
+    <!-- ===== GROUP LABELS ===== -->
+    <string name="type_label">Тип</string>
+    <string name="role_label">Роль</string>
+    <string name="actions_section">Дії</string>
+
+    <!-- ===== CONTENT DESCRIPTIONS ===== -->
+    <string name="cd_play">Відтворити</string>
+    <string name="cd_pause">Пауза</string>
+    <string name="cd_download">Завантажити</string>
+    <string name="cd_file">Файл</string>
+    <string name="cd_image_message">Зображення</string>
+    <string name="cd_image_preview">Попередній перегляд</string>
+    <string name="cd_previous">Попереднє</string>
+    <string name="cd_youtube_thumbnail">Мініатюра YouTube</string>
 
 </resources>

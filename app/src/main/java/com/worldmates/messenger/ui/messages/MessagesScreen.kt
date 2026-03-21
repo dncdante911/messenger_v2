@@ -556,7 +556,7 @@ fun MessagesScreen(
                 Log.d("MessagesScreen", "Applying custom background image: ${themeState.backgroundImageUri}")
                 AsyncImage(
                     model = Uri.parse(themeState.backgroundImageUri),
-                    contentDescription = "Chat background",
+                    contentDescription = stringResource(R.string.chat_background),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     alpha = 0.3f  // Напівпрозорість для кращої читабельності
