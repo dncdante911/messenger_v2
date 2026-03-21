@@ -2479,4 +2479,37 @@
     <string name="delete_note_title">Видалити нотатку?</string>
     <string name="delete_note_body">Цю нотатку буде видалено безповоротно.</string>
 
+    <!-- ── Bot Management ─────────────────────────────────────────────────── -->
+    <string name="bot_status_active">Активний</string>
+    <string name="bot_status_inactive">Неактивний</string>
+    <string name="create_bot_cd">Створити бота</string>
+
+    <!-- ── Photo Editor (new strings) ────────────────────────────────────── -->
+    <string name="crop_reset">Скинути</string>
+    <string name="crop_reset_cd">Скинути кадр</string>
+    <string name="crop_apply">Застосувати обрізку</string>
+    <string name="crop_apply_cd">Обрізати</string>
+    <string name="save_photo_title">Зберегти фото</string>
+    <string name="save_choose_option">Оберіть варіант збереження:</string>
+    <string name="save_modified">Зберегти змінене</string>
+    <string name="save_modified_desc">Тільки відредагована версія</string>
+    <string name="save_both">Зберегти обидва</string>
+    <string name="save_both_desc">Оригінал + змінена версія</string>
+    <string name="dont_save">Не зберігати</string>
+    <string name="save_error">Помилка збереження</string>
+    <string name="save_both_success">Збережено обидва варіанти</string>
+    <string name="editor_tool_draw">Малювати</string>
+    <string name="editor_tool_filter">Фільтри</string>
+    <string name="editor_tool_adjust">Налаш.</string>
+    <string name="editor_tool_rotate">Поворот</string>
+    <string name="editor_tool_text">Текст</string>
+    <string name="editor_tool_sticker">Стікери</string>
+    <string name="editor_tool_crop">Обрізка</string>
+    <string name="photo_filter_none">Ні</string>
+    <string name="photo_filter_grayscale">Ч/Б</string>
+    <string name="photo_filter_sepia">Сепія</string>
+    <string name="photo_filter_invert">Негатив</string>
+    <string name="photo_filter_blur">Розмиття</string>
+    <string name="photo_filter_sharpen">Різкість</string>
+
 </resources>

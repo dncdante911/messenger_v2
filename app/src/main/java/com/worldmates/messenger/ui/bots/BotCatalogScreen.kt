@@ -19,8 +19,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Bot
 import com.worldmates.messenger.data.model.BotCategory
 import com.worldmates.messenger.data.model.BotCommand
@@ -45,18 +47,18 @@ fun BotCatalogScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Bot Store") },
+                title = { Text(stringResource(R.string.bot_store)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back_cd))
                     }
                 },
                 actions = {
                     IconButton(onClick = onMyBotsClick) {
-                        Icon(Icons.Default.Settings, contentDescription = "My Bots")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.my_bots))
                     }
                     IconButton(onClick = onCreateBotClick) {
-                        Icon(Icons.Default.Add, contentDescription = "Create Bot")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.create_bot_cd))
                     }
                 }
             )
@@ -323,7 +325,7 @@ fun BotDetailScreen(
                 title = { Text(state.bot?.displayName ?: "Bot") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back_cd))
                     }
                 }
             )

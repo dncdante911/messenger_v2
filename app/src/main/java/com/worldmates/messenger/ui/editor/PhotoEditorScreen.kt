@@ -30,7 +30,10 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.annotation.StringRes
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -81,10 +84,10 @@ fun PhotoEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Редактор фото", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.photo_editor), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, "Закрити")
+                        Icon(Icons.Default.Close, stringResource(R.string.close_cd))
                     }
                 },
                 actions = {
@@ -93,7 +96,7 @@ fun PhotoEditorScreen(
                         onClick = { viewModel.undo() },
                         enabled = viewModel.canUndo()
                     ) {
-                        Icon(Icons.Default.Undo, "Скасувати")
+                        Icon(Icons.Default.Undo, stringResource(R.string.cancel))
                     }
 
                     // Redo button
@@ -101,12 +104,12 @@ fun PhotoEditorScreen(
                         onClick = { viewModel.redo() },
                         enabled = viewModel.canRedo()
                     ) {
-                        Icon(Icons.Default.Redo, "Повернути")
+                        Icon(Icons.Default.Redo, stringResource(R.string.save))
                     }
 
                     // Save button
                     IconButton(onClick = { showSaveDialog = true }) {
-                        Icon(Icons.Default.Check, "Зберегти")
+                        Icon(Icons.Default.Check, stringResource(R.string.save))
                     }
                 }
             )
@@ -196,7 +199,7 @@ fun PhotoEditorScreen(
                 if (savedFile != null) {
                     onSave(savedFile)
                 } else {
-                    android.widget.Toast.makeText(context, "Помилка збереження", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, context.getString(R.string.save_error), android.widget.Toast.LENGTH_SHORT).show()
                 }
             },
             onSaveBoth = {
@@ -207,7 +210,7 @@ fun PhotoEditorScreen(
                 viewModel.applyAllDrawingsTobitmap()
                 val modifiedFile = viewModel.saveImage(context)
                 if (modifiedFile != null) {
-                    android.widget.Toast.makeText(context, "Збережено обидва варіанти", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, context.getString(R.string.save_both_success), android.widget.Toast.LENGTH_SHORT).show()
                     onSave(modifiedFile)
                 }
             },
@@ -233,10 +236,10 @@ private fun SaveDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Save, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-        title = { Text("Зберегти фото") },
+        title = { Text(stringResource(R.string.save_photo_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Оберіть варіант збереження:")
+                Text(stringResource(R.string.save_choose_option))
 
                 // Save modified only
                 Surface(
@@ -252,8 +255,8 @@ private fun SaveDialog(
                     ) {
                         Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.primary)
                         Column {
-                            Text("Зберегти змінене", fontWeight = FontWeight.SemiBold)
-                            Text("Тільки відредагована версія", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.save_modified), fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.save_modified_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -272,8 +275,8 @@ private fun SaveDialog(
                     ) {
                         Icon(Icons.Default.FileCopy, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Column {
-                            Text("Зберегти обидва", fontWeight = FontWeight.SemiBold)
-                            Text("Оригінал + змінена версія", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.save_both), fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.save_both_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -282,7 +285,7 @@ private fun SaveDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDontSave) {
-                Text("Не зберігати")
+                Text(stringResource(R.string.dont_save))
             }
         }
     )
@@ -565,7 +568,7 @@ private fun ToolSelector(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = tool.icon,
-                            contentDescription = tool.displayName,
+                            contentDescription = stringResource(tool.labelRes),
                             tint = if (currentTool == tool) {
                                 MaterialTheme.colorScheme.onPrimary
                             } else {
@@ -576,7 +579,7 @@ private fun ToolSelector(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = tool.displayName,
+                    text = stringResource(tool.labelRes),
                     fontSize = 11.sp,
                     color = if (currentTool == tool) {
                         MaterialTheme.colorScheme.primary
@@ -719,7 +722,7 @@ private fun FilterControls(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = filter.displayName,
+                    text = stringResource(filter.labelRes),
                     fontSize = 11.sp,
                     color = if (selectedFilter == filter) {
                         MaterialTheme.colorScheme.primary
@@ -934,15 +937,15 @@ private fun CropControls(
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         OutlinedButton(onClick = onReset) {
-            Icon(Icons.Default.Refresh, "Скинути", modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Refresh, stringResource(R.string.crop_reset_cd), modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Скинути")
+            Text(stringResource(R.string.crop_reset))
         }
 
         Button(onClick = onCrop) {
-            Icon(Icons.Default.Crop, "Обрізати")
+            Icon(Icons.Default.Crop, stringResource(R.string.crop_apply_cd))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Застосувати обрізку")
+            Text(stringResource(R.string.crop_apply))
         }
     }
 }
@@ -983,29 +986,29 @@ private val availableStickers = listOf(
  * Editor Tools
  */
 enum class EditorTool(
-    val displayName: String,
+    @StringRes val labelRes: Int,
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
-    DRAW("Малювати", Icons.Default.Brush),
-    FILTER("Фільтри", Icons.Default.FilterVintage),
-    ADJUST("Налаш.", Icons.Default.Tune),
-    ROTATE("Поворот", Icons.Default.RotateRight),
-    TEXT("Текст", Icons.Default.TextFields),
-    STICKER("Стікери", Icons.Default.EmojiEmotions),
-    CROP("Обрізка", Icons.Default.Crop)
+    DRAW(R.string.editor_tool_draw, Icons.Default.Brush),
+    FILTER(R.string.editor_tool_filter, Icons.Default.FilterVintage),
+    ADJUST(R.string.editor_tool_adjust, Icons.Default.Tune),
+    ROTATE(R.string.editor_tool_rotate, Icons.Default.RotateRight),
+    TEXT(R.string.editor_tool_text, Icons.Default.TextFields),
+    STICKER(R.string.editor_tool_sticker, Icons.Default.EmojiEmotions),
+    CROP(R.string.editor_tool_crop, Icons.Default.Crop)
 }
 
 /**
  * Photo Filters
  */
 enum class PhotoFilter(
-    val displayName: String,
+    @StringRes val labelRes: Int,
     val icon: String
 ) {
-    NONE("Ні", "🖼\uFE0F"),
-    GRAYSCALE("Ч/Б", "⚫"),
-    SEPIA("Сепія", "🟤"),
-    INVERT("Негатив", "🔄"),
-    BLUR("Розмиття", "🌫\uFE0F"),
-    SHARPEN("Різкість", "🔪")
+    NONE(R.string.photo_filter_none, "🖼\uFE0F"),
+    GRAYSCALE(R.string.photo_filter_grayscale, "⚫"),
+    SEPIA(R.string.photo_filter_sepia, "🟤"),
+    INVERT(R.string.photo_filter_invert, "🔄"),
+    BLUR(R.string.photo_filter_blur, "🌫\uFE0F"),
+    SHARPEN(R.string.photo_filter_sharpen, "🔪")
 }

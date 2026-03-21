@@ -2482,4 +2482,37 @@
     <string name="delete_note_title">Удалить заметку?</string>
     <string name="delete_note_body">Эта заметка будет удалена безвозвратно.</string>
 
+    <!-- ── Bot Management ─────────────────────────────────────────────────── -->
+    <string name="bot_status_active">Активный</string>
+    <string name="bot_status_inactive">Неактивный</string>
+    <string name="create_bot_cd">Создать бота</string>
+
+    <!-- ── Photo Editor (new strings) ────────────────────────────────────── -->
+    <string name="crop_reset">Сбросить</string>
+    <string name="crop_reset_cd">Сбросить кадр</string>
+    <string name="crop_apply">Применить обрезку</string>
+    <string name="crop_apply_cd">Обрезать</string>
+    <string name="save_photo_title">Сохранить фото</string>
+    <string name="save_choose_option">Выберите вариант сохранения:</string>
+    <string name="save_modified">Сохранить изменённое</string>
+    <string name="save_modified_desc">Только отредактированная версия</string>
+    <string name="save_both">Сохранить оба</string>
+    <string name="save_both_desc">Оригинал + изменённая версия</string>
+    <string name="dont_save">Не сохранять</string>
+    <string name="save_error">Ошибка сохранения</string>
+    <string name="save_both_success">Сохранены оба варианта</string>
+    <string name="editor_tool_draw">Рисовать</string>
+    <string name="editor_tool_filter">Фильтры</string>
+    <string name="editor_tool_adjust">Настр.</string>
+    <string name="editor_tool_rotate">Поворот</string>
+    <string name="editor_tool_text">Текст</string>
+    <string name="editor_tool_sticker">Стикеры</string>
+    <string name="editor_tool_crop">Обрезка</string>
+    <string name="photo_filter_none">Нет</string>
+    <string name="photo_filter_grayscale">Ч/Б</string>
+    <string name="photo_filter_sepia">Сепия</string>
+    <string name="photo_filter_invert">Негатив</string>
+    <string name="photo_filter_blur">Размытие</string>
+    <string name="photo_filter_sharpen">Резкость</string>
+
 </resources>
