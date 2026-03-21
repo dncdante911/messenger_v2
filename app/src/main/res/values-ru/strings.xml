@@ -806,6 +806,88 @@
     <string name="bot_catalog">Каталог ботов</string>
     <string name="bot_name_hint">Название бота *</string>
     <string name="bot_description_hint">Описание</string>
+    <!-- Bot catalog -->
+    <string name="bot_search_hint">Поиск ботов...</string>
+    <string name="bot_category_all">Все</string>
+    <string name="bot_not_found">Ботов не найдено</string>
+    <string name="bot_not_found_hint">Попробуйте другую категорию или поисковый запрос</string>
+    <string name="bot_verified_label">Проверенный</string>
+    <string name="bot_verified_bot_label">Проверенный бот</string>
+    <string name="bot_stat_users">Пользователей</string>
+    <string name="bot_stat_category">Категория</string>
+    <string name="bot_start_chat">Начать чат</string>
+    <string name="bot_description_label">Описание</string>
+    <string name="bot_commands_count">Команды (%d)</string>
+    <!-- Bot categories -->
+    <string name="bot_category_general">Общее</string>
+    <string name="bot_category_news">Новости</string>
+    <string name="bot_category_weather">Погода</string>
+    <string name="bot_category_tools">Инструменты</string>
+    <string name="bot_category_entertainment">Развлечения</string>
+    <string name="bot_category_support">Поддержка</string>
+    <string name="bot_category_tech">Технологии</string>
+    <string name="bot_category_finance">Финансы</string>
+    <string name="bot_category_education">Образование</string>
+    <string name="bot_category_games">Игры</string>
+    <!-- Bot chat components -->
+    <string name="bot_commands_menu_title">Команды бота</string>
+    <string name="bot_badge_label">бот</string>
+    <string name="bot_start_button">СТАРТ</string>
+    <string name="bot_poll">Опрос</string>
+    <string name="bot_poll_closed">Опрос закрыт</string>
+    <string name="bot_poll_votes">%d голосов</string>
+    <string name="bot_badge">БОТ</string>
+    <string name="bot_poll_closed_footer">Опрос закрыт · %d голосов</string>
+    <!-- Bot management -->
+    <string name="bot_no_bots_title">У вас нет ботов</string>
+    <string name="bot_no_bots_hint">Создайте своего первого бота</string>
+    <string name="bot_create_button">Создать бота</string>
+    <string name="bot_new_token_title">Новый токен</string>
+    <string name="bot_token_save_label">Ваш новый токен бота:</string>
+    <string name="bot_token_once_warning">Сохраните токен. Он не будет показан повторно.</string>
+    <string name="bot_delete_confirm_title">Удалить бота?</string>
+    <string name="bot_delete_confirm_message">Бот @%s и все его данные будут удалены. Это действие необратимо.</string>
+    <string name="bot_stat_users_count">Пользователей: %d</string>
+    <string name="bot_stat_messages_count">Сообщений: %d</string>
+    <string name="bot_stat_commands_count">Команд: %d</string>
+    <string name="bot_regenerate_token">Перегенерировать токен</string>
+    <!-- Bot creation -->
+    <string name="bot_created_success">Бот @%s создан!</string>
+    <string name="bot_new_bot_title">Новый бот</string>
+    <string name="bot_created_title">Бот создан!</string>
+    <string name="bot_token_save_hint">Bot Token (сохраните!):</string>
+    <string name="bot_token_once_warning2">Этот токен не будет показан повторно!</string>
+    <string name="bot_username_label">Username *</string>
+    <string name="bot_username_supporting">Должен заканчиваться на _bot</string>
+    <string name="bot_description_placeholder">Что делает бот...</string>
+    <string name="bot_about_placeholder">Короткий текст в профиле</string>
+    <string name="bot_category_label">Категория:</string>
+    <string name="bot_public_label">Публичный бот (виден в каталоге)</string>
+    <string name="bot_can_join_groups">Может вступать в группы</string>
+    <!-- Bot RSS Feeds -->
+    <string name="bot_rss_title">RSS-ленты</string>
+    <string name="bot_rss_add">Добавить RSS-ленту</string>
+    <string name="bot_rss_empty_title">Нет RSS-лент</string>
+    <string name="bot_rss_empty_desc">Добавьте RSS-ленту и бот будет автоматически публиковать новые записи в указанный чат.</string>
+    <string name="bot_rss_delete_title">Удалить RSS-ленту?</string>
+    <string name="bot_rss_delete_message">«%s» будет удалена. История опубликованных записей также будет очищена.</string>
+    <string name="bot_rss_stat_chat">Чат: %s</string>
+    <string name="bot_rss_stat_interval">Каждые %dмин</string>
+    <string name="bot_rss_stat_posted">Опубликовано: %d</string>
+    <string name="bot_rss_field_url">URL ленты *</string>
+    <string name="bot_rss_error_url">Введите действительный URL</string>
+    <string name="bot_rss_field_chat_id">ID целевого чата *</string>
+    <string name="bot_rss_field_chat_id_hint">ID канала или группы</string>
+    <string name="bot_rss_error_chat_id">ID чата обязателен</string>
+    <string name="bot_rss_field_name">Название ленты (необязательно)</string>
+    <string name="bot_rss_field_name_hint">Моя лента новостей</string>
+    <!-- Bot errors -->
+    <string name="bot_error_not_authenticated">Не аутентифицирован</string>
+    <string name="bot_error_load_failed">Не удалось загрузить ботов</string>
+    <string name="bot_error_username_required">Username обязателен</string>
+    <string name="bot_error_name_required">Название обязательно</string>
+    <string name="bot_error_username_format">Username должен заканчиваться на _bot</string>
+    <string name="bot_error_create_failed">Ошибка создания бота</string>
 
     <!-- ===== MEDIA ===== -->
     <string name="gallery">Галерея</string>

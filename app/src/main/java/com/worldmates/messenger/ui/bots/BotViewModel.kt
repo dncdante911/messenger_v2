@@ -1,8 +1,10 @@
 package com.worldmates.messenger.ui.bots
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.network.BotRepository
@@ -23,8 +25,10 @@ import kotlinx.coroutines.launch
  * - Створення нового бота
  */
 class BotViewModel(
+    application: Application
+) : AndroidViewModel(application) {
+
     private val botRepository: BotRepository = BotRepository()
-) : ViewModel() {
 
     companion object {
         private const val TAG = "BotViewModel"
@@ -55,7 +59,10 @@ class BotViewModel(
             _catalogState.value = _catalogState.value.copy(isLoading = true, error = null)
 
             val token = UserSession.accessToken ?: run {
-                _catalogState.value = _catalogState.value.copy(isLoading = false, error = "Not authenticated")
+                _catalogState.value = _catalogState.value.copy(
+                    isLoading = false,
+                    error = getApplication<Application>().getString(R.string.bot_error_not_authenticated)
+                )
                 return@launch
             }
 
@@ -80,7 +87,7 @@ class BotViewModel(
                     Log.e(TAG, "loadBotCatalog error", e)
                     _catalogState.value = _catalogState.value.copy(
                         isLoading = false,
-                        error = e.message ?: "Failed to load bots"
+                        error = e.message ?: getApplication<Application>().getString(R.string.bot_error_load_failed)
                     )
                 }
             )
@@ -202,18 +209,19 @@ class BotViewModel(
         viewModelScope.launch {
             val state = _createBotState.value
             val token = UserSession.accessToken ?: return@launch
+            val app = getApplication<Application>()
 
             // Validate
             if (state.username.isBlank()) {
-                _createBotState.value = state.copy(error = "Username обов'язковий")
+                _createBotState.value = state.copy(error = app.getString(R.string.bot_error_username_required))
                 return@launch
             }
             if (state.displayName.isBlank()) {
-                _createBotState.value = state.copy(error = "Назва обов'язкова")
+                _createBotState.value = state.copy(error = app.getString(R.string.bot_error_name_required))
                 return@launch
             }
             if (!state.username.endsWith("_bot")) {
-                _createBotState.value = state.copy(error = "Username повинен закінчуватися на _bot")
+                _createBotState.value = state.copy(error = app.getString(R.string.bot_error_username_format))
                 return@launch
             }
 
@@ -241,7 +249,7 @@ class BotViewModel(
                 onFailure = { e ->
                     _createBotState.value = state.copy(
                         isCreating = false,
-                        error = e.message ?: "Помилка створення бота"
+                        error = e.message ?: app.getString(R.string.bot_error_create_failed)
                     )
                 }
             )

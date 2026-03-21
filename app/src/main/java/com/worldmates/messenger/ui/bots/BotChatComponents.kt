@@ -17,6 +17,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.*
 
 /**
@@ -85,12 +87,12 @@ fun BotCommandBar(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Команди бота",
+                            stringResource(R.string.bot_commands_menu_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
                         IconButton(onClick = onToggleExpand, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), modifier = Modifier.size(16.dp))
                         }
                     }
                     commands.forEach { command ->
@@ -260,14 +262,14 @@ fun BotChatHeader(
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         Icons.Default.Verified,
-                        contentDescription = "Verified",
+                        contentDescription = stringResource(R.string.bot_verified_label),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
             Text(
-                text = "bot",
+                text = stringResource(R.string.bot_badge_label),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -324,7 +326,7 @@ fun BotStartMessage(
                 .height(48.dp),
             shape = RoundedCornerShape(24.dp)
         ) {
-            Text("START", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.bot_start_button), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -355,7 +357,7 @@ fun BotPollCard(
                 Icon(Icons.Default.Poll, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isClosed) "Опитування закрито" else "Опитування",
+                    text = if (isClosed) stringResource(R.string.bot_poll_closed) else stringResource(R.string.bot_poll),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -436,7 +438,7 @@ fun BotPollCard(
             // Total votes
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "$totalVotes голосів",
+                text = stringResource(R.string.bot_poll_votes, totalVotes),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

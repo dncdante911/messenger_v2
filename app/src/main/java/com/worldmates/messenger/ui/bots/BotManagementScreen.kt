@@ -74,9 +74,9 @@ fun BotManagementScreen(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("У вас немає ботів", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.bot_no_bots_title), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "Створіть свого першого бота",
+                            stringResource(R.string.bot_no_bots_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -84,7 +84,7 @@ fun BotManagementScreen(
                         Button(onClick = onCreateBot) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Створити бота")
+                            Text(stringResource(R.string.bot_create_button))
                         }
                     }
                 }
@@ -115,10 +115,10 @@ fun BotManagementScreen(
     if (state.regeneratedToken != null && showTokenDialog) {
         AlertDialog(
             onDismissRequest = { showTokenDialog = false },
-            title = { Text("Новий токен") },
+            title = { Text(stringResource(R.string.bot_new_token_title)) },
             text = {
                 Column {
-                    Text("Ваш новий токен бота:")
+                    Text(stringResource(R.string.bot_token_save_label))
                     Spacer(modifier = Modifier.height(8.dp))
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Text(
@@ -129,7 +129,7 @@ fun BotManagementScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Збережіть токен. Він не буде показаний повторно.",
+                        stringResource(R.string.bot_token_once_warning),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -137,7 +137,7 @@ fun BotManagementScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showTokenDialog = false }) {
-                    Text("OK")
+                    Text(stringResource(R.string.ok))
                 }
             }
         )
@@ -147,8 +147,8 @@ fun BotManagementScreen(
     showDeleteDialog?.let { bot ->
         AlertDialog(
             onDismissRequest = { showDeleteDialog = null },
-            title = { Text("Видалити бота?") },
-            text = { Text("Бот @${bot.username} та всі його дані будуть видалені. Ця дія незворотна.") },
+            title = { Text(stringResource(R.string.bot_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.bot_delete_confirm_message, bot.username)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -157,7 +157,7 @@ fun BotManagementScreen(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Видалити")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
@@ -228,9 +228,9 @@ fun MyBotCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                BotStatChip("Користувачів: ${bot.totalUsers}")
-                BotStatChip("Повідомлень: ${bot.messagesSent}")
-                BotStatChip("Команд: ${bot.commandsCount}")
+                BotStatChip(stringResource(R.string.bot_stat_users_count, bot.totalUsers))
+                BotStatChip(stringResource(R.string.bot_stat_messages_count, bot.messagesSent))
+                BotStatChip(stringResource(R.string.bot_stat_commands_count, bot.commandsCount))
             }
 
             // Webhook status
@@ -268,7 +268,7 @@ fun MyBotCard(
                 ) {
                     Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Редагувати")
+                    Text(stringResource(R.string.edit))
                 }
                 OutlinedButton(
                     onClick = onRssFeeds,
@@ -283,12 +283,12 @@ fun MyBotCard(
                     onClick = { expanded = true },
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More")
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options_label))
                 }
 
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     DropdownMenuItem(
-                        text = { Text("Перегенерувати токен") },
+                        text = { Text(stringResource(R.string.bot_regenerate_token)) },
                         onClick = {
                             expanded = false
                             onRegenerateToken()
@@ -296,7 +296,7 @@ fun MyBotCard(
                         leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Видалити", color = MaterialTheme.colorScheme.error) },
+                        text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                         onClick = {
                             expanded = false
                             onDelete()
@@ -345,7 +345,12 @@ fun CreateBotScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (state.createdBot != null) "Бот створено!" else "Новий бот") },
+                title = {
+                    Text(
+                        if (state.createdBot != null) stringResource(R.string.bot_created_title)
+                        else stringResource(R.string.bot_new_bot_title)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back_cd))
@@ -372,7 +377,7 @@ fun CreateBotScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Бот @${state.createdBot.username} створено!",
+                    stringResource(R.string.bot_created_success, state.createdBot.username),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -381,7 +386,7 @@ fun CreateBotScreen(
                 if (state.createdToken != null) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Bot Token (збережіть!):", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.bot_token_save_hint), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = state.createdToken,
@@ -389,7 +394,7 @@ fun CreateBotScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "Цей токен не буде показано повторно!",
+                                stringResource(R.string.bot_token_once_warning2),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error
                             )
@@ -399,7 +404,7 @@ fun CreateBotScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-                    Text("Готово")
+                    Text(stringResource(R.string.done))
                 }
             }
         } else {
@@ -415,9 +420,9 @@ fun CreateBotScreen(
                     OutlinedTextField(
                         value = state.username,
                         onValueChange = { onUpdateForm(it.lowercase().filter { c -> c.isLetterOrDigit() || c == '_' }, null, null, null, null, null, null) },
-                        label = { Text("Username *") },
+                        label = { Text(stringResource(R.string.bot_username_label)) },
                         placeholder = { Text("my_cool_bot") },
-                        supportingText = { Text("Повинен закінчуватися на _bot") },
+                        supportingText = { Text(stringResource(R.string.bot_username_supporting)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         isError = state.error?.contains("username", ignoreCase = true) == true
@@ -428,7 +433,7 @@ fun CreateBotScreen(
                     OutlinedTextField(
                         value = state.displayName,
                         onValueChange = { onUpdateForm(null, it, null, null, null, null, null) },
-                        label = { Text("Назва бота *") },
+                        label = { Text(stringResource(R.string.bot_name_hint)) },
                         placeholder = { Text("My Cool Bot") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
@@ -439,8 +444,8 @@ fun CreateBotScreen(
                     OutlinedTextField(
                         value = state.description,
                         onValueChange = { onUpdateForm(null, null, it, null, null, null, null) },
-                        label = { Text("Опис") },
-                        placeholder = { Text("Що робить бот...") },
+                        label = { Text(stringResource(R.string.bot_description_label)) },
+                        placeholder = { Text(stringResource(R.string.bot_description_placeholder)) },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
                         maxLines = 4
@@ -451,8 +456,8 @@ fun CreateBotScreen(
                     OutlinedTextField(
                         value = state.about,
                         onValueChange = { onUpdateForm(null, null, null, it, null, null, null) },
-                        label = { Text("Короткий опис (about)") },
-                        placeholder = { Text("Короткий текст у профілі") },
+                        label = { Text(stringResource(R.string.bot_short_about)) },
+                        placeholder = { Text(stringResource(R.string.bot_about_placeholder)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -460,17 +465,18 @@ fun CreateBotScreen(
 
                 // Category selector
                 item {
-                    Text("Категорія:", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.bot_category_label), style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categories.size) { idx ->
+                            val catName = getCategoryName(categories[idx])
                             FilterChip(
                                 selected = idx == selectedCategoryIndex,
                                 onClick = {
                                     selectedCategoryIndex = idx
                                     onUpdateForm(null, null, null, null, categories[idx], null, null)
                                 },
-                                label = { Text(getCategoryName(categories[idx])) }
+                                label = { Text(catName) }
                             )
                         }
                     }
@@ -483,7 +489,7 @@ fun CreateBotScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Публічний бот (видимий у каталозі)")
+                        Text(stringResource(R.string.bot_public_label))
                         Switch(
                             checked = state.isPublic,
                             onCheckedChange = { onUpdateForm(null, null, null, null, null, it, null) }
@@ -497,7 +503,7 @@ fun CreateBotScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Може приєднуватися до груп")
+                        Text(stringResource(R.string.bot_can_join_groups))
                         Switch(
                             checked = state.canJoinGroups,
                             onCheckedChange = { onUpdateForm(null, null, null, null, null, null, it) }
@@ -532,7 +538,7 @@ fun CreateBotScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-                        Text("Створити бота")
+                        Text(stringResource(R.string.bot_create_button))
                     }
                 }
             }
