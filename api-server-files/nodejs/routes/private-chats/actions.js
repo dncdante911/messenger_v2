@@ -118,7 +118,8 @@ function reactMessage(ctx, io) {
 // Stores pins in wm_pinned_messages table (max MAX_PINS per conversation).
 // Falls back to legacy wo_mute.pin for backwards compat read on old clients.
 
-const MAX_PINS = 5;
+const MAX_PINS_FREE = 5;
+const MAX_PINS_PRO  = 15;
 
 function pinMessage(ctx, io) {
     return async (req, res) => {
@@ -137,15 +138,20 @@ function pinMessage(ctx, io) {
             const seq = ctx.sequelize;
 
             if (pin === 'yes') {
+                // Check premium status for limit
+                const userRow = await ctx.wo_users.findOne({ attributes: ['is_pro'], where: { user_id: userId }, raw: true });
+                const maxPins = userRow?.is_pro ? MAX_PINS_PRO : MAX_PINS_FREE;
+
                 // Check current count for this conversation
                 const [[countRow]] = await seq.query(
                     `SELECT COUNT(*) AS cnt FROM wm_pinned_messages WHERE user_id = :uid AND chat_id = :cid AND chat_type = :ct`,
                     { replacements: { uid: userId, cid: chatId, ct: chatType }, type: seq.constructor.QueryTypes.SELECT }
                 );
-                if (parseInt(countRow.cnt) >= MAX_PINS) {
+                if (parseInt(countRow.cnt) >= maxPins) {
                     return res.status(400).json({
                         api_status: 400,
-                        error_message: `Maximum ${MAX_PINS} pinned messages reached. Unpin one first.`,
+                        error_message: `Maximum ${maxPins} pinned messages reached.${userRow?.is_pro ? '' : ' Upgrade to Premium for up to 15 pins.'}`,
+                        limit: maxPins,
                     });
                 }
                 // Upsert: ignore duplicate (already pinned)

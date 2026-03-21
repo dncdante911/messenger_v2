@@ -21,7 +21,8 @@ const { Op } = require('sequelize');
 
 const ALLOWED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif'];
 const ALLOWED_VIDEO_EXTS = ['.mp4', '.mov', '.webm'];
-const ALLOWED_EXTS = [...ALLOWED_IMAGE_EXTS, ...ALLOWED_VIDEO_EXTS];
+const ALLOWED_AUDIO_EXTS = ['.mp3', '.m4a', '.aac', '.ogg', '.wav'];
+const ALLOWED_EXTS = [...ALLOWED_IMAGE_EXTS, ...ALLOWED_VIDEO_EXTS, ...ALLOWED_AUDIO_EXTS];
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const STORY_TTL = 86400; // 24 hours in seconds
 
@@ -144,7 +145,13 @@ async function buildStoryResponse(ctx, story, loggedUserId) {
     const images = [];
     const videos = [];
     const mediaItems = [];
+    let musicUrl = null;
     for (const m of mediaRows) {
+        if (m.type === 'music') {
+            const siteUrl = ctx.globalconfig?.site_url || '';
+            musicUrl = m.filename.startsWith('http') ? m.filename : `${siteUrl.replace(/\/$/, '')}/${m.filename}`;
+            continue;
+        }
         const item = {
             id:       m.id,
             story_id: m.story_id,
@@ -226,6 +233,7 @@ async function buildStoryResponse(ctx, story, loggedUserId) {
         view_count:    totalViews,
         comment_count: story.comment_count || 0,
         reaction:      reactionResult,
+        music_url:     musicUrl,
     };
 }
 
@@ -342,6 +350,24 @@ function createStory(ctx, io) {
                     { where: { id: storyId } }
                 );
                 storyRow.thumbnail = thumbnail;
+            }
+
+            // Save music file if provided
+            const musicFile = req.files?.music?.[0];
+            if (musicFile) {
+                const musicDir = `upload/audios/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+                const musicAbsDir = path.join(SITE_ROOT, musicDir);
+                ensureDir(musicAbsDir);
+                const musicFilename = generateFilename(musicFile.originalname, 'music');
+                const musicRelPath = `${musicDir}/${musicFilename}`;
+                await fs.promises.writeFile(path.join(musicAbsDir, musicFilename), musicFile.buffer);
+                await ctx.wo_userstorymedia.create({
+                    story_id: storyId,
+                    type: 'music',
+                    filename: musicRelPath,
+                    expire: '',
+                    duration: 0,
+                });
             }
 
             // 5. Build response
@@ -1119,8 +1145,9 @@ function registerStoryRoutes(app, ctx, io) {
 
     // Multer fields: 'file' (required) and 'cover' (optional, for video thumbnails)
     const uploadFields = upload.fields([
-        { name: 'file', maxCount: 1 },
-        { name: 'cover', maxCount: 1 },
+        { name: 'file',   maxCount: 1 },
+        { name: 'cover',  maxCount: 1 },
+        { name: 'music',  maxCount: 1 },
     ]);
 
     // Wrap multer to catch errors gracefully

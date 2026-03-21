@@ -98,7 +98,8 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
         title: String? = null,
         description: String? = null,
         videoDuration: Int? = null,
-        coverUri: Uri? = null
+        coverUri: Uri? = null,
+        musicUri: android.net.Uri? = null
     ) {
         // Перевірка обмежень
         if (!canCreateStory()) {
@@ -132,7 +133,8 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
                     title = title,
                     description = description,
                     videoDuration = videoDuration,
-                    coverUri = coverUri
+                    coverUri = coverUri,
+                    musicUri = musicUri
                 ).onSuccess {
                     _success.value = "Story створена успішно!"
                     Log.d(TAG, "Story created: ${it.storyId}")

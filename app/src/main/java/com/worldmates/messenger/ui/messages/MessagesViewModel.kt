@@ -1656,7 +1656,7 @@ class MessagesViewModel(application: Application) :
                 val msg = _messages.value.find { it.id == messageId }
                 if (msg != null && current.none { it.id == messageId }) {
                     current.add(0, msg)
-                    _pinnedPrivateMessages.value = current.take(5) // cap at 5
+                    _pinnedPrivateMessages.value = current.take(if (UserSession.isProActive) 15 else 5)
                 }
             } else {
                 _pinnedPrivateMessages.value = current.filter { it.id != messageId }
@@ -2073,6 +2073,7 @@ class MessagesViewModel(application: Application) :
      * 📌 Відкріпити повідомлення в групі
      */
     fun unpinGroupMessage(
+        messageId: Long? = null,
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
@@ -2083,12 +2084,12 @@ class MessagesViewModel(application: Application) :
 
         viewModelScope.launch {
             try {
-                val response = groupApi.unpinGroupMessage(groupId = groupId)
+                val response = groupApi.unpinGroupMessage(groupId = groupId, messageId = messageId)
 
                 if (response.apiStatus == 200) {
                     fetchGroupDetails(groupId)
                     onSuccess()
-                    Log.d(TAG, "📌 Message unpinned in group $groupId")
+                    Log.d(TAG, "📌 Message $messageId unpinned in group $groupId")
                 } else {
                     val errorMsg = response.errorMessage ?: "Не вдалося відкріпити повідомлення"
                     onError(errorMsg)
@@ -2341,7 +2342,7 @@ class MessagesViewModel(application: Application) :
                         val msg = _messages.value.find { it.id == messageId }
                         if (msg != null && current.none { it.id == messageId }) {
                             current.add(0, msg)
-                            _pinnedPrivateMessages.value = current.take(5)
+                            _pinnedPrivateMessages.value = current.take(if (UserSession.isProActive) 15 else 5)
                         }
                     } else {
                         _pinnedPrivateMessages.value = current.filter { it.id != messageId }

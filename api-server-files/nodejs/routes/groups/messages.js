@@ -244,18 +244,17 @@ function getMessages(ctx, io) {
                 messages.push(await buildMessage(ctx, m, userId));
             }
 
-            // Fetch pinned message if set in group settings
-            // (group/settings вже завантажено вище — перевикористовуємо)
-            let pinnedMessage = null;
-            if (settings.pinned_message_id) {
-                const pm = await ctx.wo_messages.findOne({
-                    where: { id: settings.pinned_message_id },
-                    raw: true,
-                });
-                if (pm) pinnedMessage = await buildMessage(ctx, pm, userId);
+            // Fetch pinned messages — supports multi-pin array
+            const pinnedMessages = [];
+            const pinnedIds = Array.isArray(settings.pinned_message_ids)
+                ? settings.pinned_message_ids
+                : (settings.pinned_message_id ? [settings.pinned_message_id] : []);
+            for (const pid of pinnedIds) {
+                const pm = await ctx.wo_messages.findOne({ where: { id: pid }, raw: true });
+                if (pm) pinnedMessages.push(await buildMessage(ctx, pm, userId));
             }
 
-            res.json({ api_status: 200, messages, pinned_message: pinnedMessage });
+            res.json({ api_status: 200, messages, pinned_message: pinnedMessages[0] || null, pinned_messages: pinnedMessages });
         } catch (err) {
             console.error('[Node/group/messages/get]', err.message);
             res.status(500).json({ api_status: 500, error_message: 'Failed to fetch messages' });
@@ -510,16 +509,26 @@ function deleteMessage(ctx, io) {
             if (!isOwner && !admin)
                 return res.status(403).json({ api_status: 403, error_message: 'Not allowed to delete this message' });
 
-            // If this message is pinned, unpin it first
+            // If this message is pinned, remove it from the pinned list
             const group    = await ctx.wo_groupchat.findOne({ where: { group_id: msg.group_id }, raw: true });
             const settings = parseSettings(group);
-            if (settings.pinned_message_id === messageId) {
-                delete settings.pinned_message_id;
+            const wasInIds = Array.isArray(settings.pinned_message_ids) && settings.pinned_message_ids.includes(messageId);
+            const wasLegacy = settings.pinned_message_id === messageId;
+            if (wasInIds || wasLegacy) {
+                let ids = Array.isArray(settings.pinned_message_ids)
+                    ? settings.pinned_message_ids.filter(id => id !== messageId)
+                    : [];
+                settings.pinned_message_ids = ids;
+                if (ids.length > 0) {
+                    settings.pinned_message_id = ids[0];
+                } else {
+                    delete settings.pinned_message_id;
+                }
                 await ctx.wo_groupchat.update(
                     { settings: JSON.stringify(settings) },
                     { where: { group_id: msg.group_id } }
                 );
-                io.to('group_' + msg.group_id).emit('group_message_unpinned', { group_id: msg.group_id });
+                io.to('group_' + msg.group_id).emit('group_message_unpinned', { group_id: msg.group_id, message_id: messageId });
             }
 
             await ctx.wo_messages.destroy({ where: { id: messageId } });
@@ -559,9 +568,34 @@ function pinMessage(ctx, io) {
             if (!msg)
                 return res.status(404).json({ api_status: 404, error_message: 'Message not found in this group' });
 
+            // Premium pin limit
+            const userRow = await ctx.wo_users.findOne({ attributes: ['is_pro'], where: { user_id: userId }, raw: true });
+            const maxPins = userRow?.is_pro ? 15 : 5;
+
             const group    = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
             const settings = parseSettings(group);
-            settings.pinned_message_id = messageId;
+
+            // Build ids array (migrate from legacy single pinned_message_id)
+            let ids = Array.isArray(settings.pinned_message_ids)
+                ? [...settings.pinned_message_ids]
+                : (settings.pinned_message_id ? [settings.pinned_message_id] : []);
+
+            if (ids.includes(messageId)) {
+                // Already pinned — return success without duplicate
+                const pinnedData = await buildMessage(ctx, msg, userId);
+                return res.json({ api_status: 200, pinned_message: pinnedData });
+            }
+            if (ids.length >= maxPins) {
+                return res.status(400).json({
+                    api_status: 400,
+                    error_message: `Max ${maxPins} pinned messages.${userRow?.is_pro ? '' : ' Upgrade to Premium for up to 15 pins.'}`,
+                    limit: maxPins,
+                });
+            }
+
+            ids.unshift(messageId);
+            settings.pinned_message_ids = ids;
+            settings.pinned_message_id  = ids[0]; // backward compat
 
             await ctx.wo_groupchat.update(
                 { settings: JSON.stringify(settings) },
@@ -589,8 +623,9 @@ function pinMessage(ctx, io) {
 function unpinMessage(ctx, io) {
     return async (req, res) => {
         try {
-            const userId  = req.userId;
-            const groupId = parseInt(req.body.group_id);
+            const userId    = req.userId;
+            const groupId   = parseInt(req.body.group_id);
+            const messageId = req.body.message_id ? parseInt(req.body.message_id) : null;
 
             if (!groupId || isNaN(groupId))
                 return res.status(400).json({ api_status: 400, error_message: 'group_id is required' });
@@ -601,14 +636,30 @@ function unpinMessage(ctx, io) {
 
             const group    = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
             const settings = parseSettings(group);
-            delete settings.pinned_message_id;
+
+            let ids = Array.isArray(settings.pinned_message_ids)
+                ? [...settings.pinned_message_ids]
+                : (settings.pinned_message_id ? [settings.pinned_message_id] : []);
+
+            if (messageId) {
+                ids = ids.filter(id => id !== messageId);
+            } else {
+                ids = [];
+            }
+
+            settings.pinned_message_ids = ids;
+            if (ids.length > 0) {
+                settings.pinned_message_id = ids[0];
+            } else {
+                delete settings.pinned_message_id;
+            }
 
             await ctx.wo_groupchat.update(
                 { settings: JSON.stringify(settings) },
                 { where: { group_id: groupId } }
             );
 
-            io.to('group_' + groupId).emit('group_message_unpinned', { group_id: groupId });
+            io.to('group_' + groupId).emit('group_message_unpinned', { group_id: groupId, message_id: messageId });
 
             res.json({ api_status: 200, message: 'Message unpinned' });
         } catch (err) {
@@ -800,11 +851,12 @@ function clearHistoryAdmin(ctx, io) {
                 where: { group_id: groupId }
             });
 
-            // Unpin message if any
+            // Clear all pinned messages
             const group    = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
             const settings = parseSettings(group);
-            if (settings.pinned_message_id) {
+            if (settings.pinned_message_id || settings.pinned_message_ids?.length) {
                 delete settings.pinned_message_id;
+                settings.pinned_message_ids = [];
                 await ctx.wo_groupchat.update(
                     { settings: JSON.stringify(settings) },
                     { where: { group_id: groupId } }

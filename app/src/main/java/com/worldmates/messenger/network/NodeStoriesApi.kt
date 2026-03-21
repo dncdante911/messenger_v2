@@ -22,7 +22,8 @@ interface NodeStoriesApi {
         @Part("story_title") storyTitle: RequestBody? = null,
         @Part("story_description") storyDescription: RequestBody? = null,
         @Part("video_duration") videoDuration: RequestBody? = null,
-        @Part cover: MultipartBody.Part? = null
+        @Part cover: MultipartBody.Part? = null,
+        @Part musicFile: MultipartBody.Part? = null
     ): CreateStoryResponse
 
     /** Get active stories list */

@@ -88,6 +88,11 @@ import com.worldmates.messenger.ui.messages.selection.ForwardMessageDialog
 // 📌 Імпорт компонента закріпленого повідомлення
 import com.worldmates.messenger.ui.groups.components.PinnedMessageBanner
 
+// 🔒 Secret chat imports
+import com.worldmates.messenger.data.SecretChatManager
+import com.worldmates.messenger.ui.messages.SelfDestructTimerDialog
+import com.worldmates.messenger.ui.messages.SecretChatTimerBadge
+
 // 🔍 Імпорт компонента пошуку
 import com.worldmates.messenger.ui.messages.components.GroupSearchBar
 import com.worldmates.messenger.ui.search.MediaSearchScreen
@@ -168,6 +173,8 @@ fun MessagesScreen(
 
     // 📤 Export chat sheet
     var showExportSheet by remember { mutableStateOf(false) }
+    // 🔒 Secret chat timer dialog
+    var showSelfDestructDialog by remember { mutableStateOf(false) }
     // 📊 Create poll dialog
     var showCreatePollDialog by remember { mutableStateOf(false) }
 
@@ -724,6 +731,9 @@ fun MessagesScreen(
                     context.startActivity(intent)
                 },
                 onExportClick = { showExportSheet = true },
+                onSelfDestructClick = {
+                    if (!isGroup) showSelfDestructDialog = true
+                },
                 isMuted = if (isGroup) currentGroup?.isMuted == true else isMutedPrivate,
                 // 🔥 Group-specific parameters
                 isGroup = isGroup,
@@ -846,59 +856,61 @@ fun MessagesScreen(
             // 📶 Connection Quality Banner (показується при поганому з'єднанні)
             ConnectionQualityBanner(quality = connectionQuality)
 
-            // 📌 Pinned Message Banner (for groups only)
-            if (isGroup && currentGroup?.pinnedMessage != null) {
-                val pinnedMsg = currentGroup!!.pinnedMessage!!
-                val decryptedText = pinnedMsg.decryptedText ?: pinnedMsg.encryptedText ?: ""
-
-                // Перевіряємо чи є користувач адміном/модератором
+            // 📌 Pinned Message Banner (for groups only) — supports multi-pin
+            if (isGroup) {
+                val allPinned = currentGroup?.pinnedMessages?.takeIf { it.isNotEmpty() }
+                    ?: listOfNotNull(currentGroup?.pinnedMessage)
                 val canUnpin = currentGroup?.isAdmin == true || currentGroup?.isModerator == true
 
-                PinnedMessageBanner(
-                    pinnedMessage = pinnedMsg,
-                    decryptedText = decryptedText,
-                    onBannerClick = {
-                        // Прокручуємо до закріпленого повідомлення
-                        val messageIndex = messages.indexOfFirst { it.id == pinnedMsg.id }
-                        if (messageIndex != -1) {
-                            // Реверсимо індекс, оскільки LazyColumn має reverseLayout = true
-                            val reversedIndex = messages.size - messageIndex - 1
-                            scope.launch {
-                                listState.animateScrollToItem(reversedIndex)
+                allPinned.forEachIndexed { index, pinnedMsg ->
+                    val decryptedText = pinnedMsg.decryptedText ?: pinnedMsg.encryptedText ?: ""
+                    PinnedMessageBanner(
+                        pinnedMessage = pinnedMsg,
+                        decryptedText = decryptedText,
+                        onBannerClick = {
+                            val messageIndex = messages.indexOfFirst { it.id == pinnedMsg.id }
+                            if (messageIndex != -1) {
+                                val reversedIndex = messages.size - messageIndex - 1
+                                scope.launch { listState.animateScrollToItem(reversedIndex) }
+                                android.widget.Toast.makeText(context, context.getString(R.string.message_pinned_toast), android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.widget.Toast.makeText(context, context.getString(R.string.pinned_message_not_found), android.widget.Toast.LENGTH_SHORT).show()
                             }
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.message_pinned_toast),
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.pinned_message_not_found),
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    },
-                    onUnpinClick = {
-                        viewModel.unpinGroupMessage(
-                            onSuccess = {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.message_unpinned_toast),
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            },
-                            onError = { error ->
-                                android.widget.Toast.makeText(
-                                    context,
-                                    error,
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                        },
+                        onUnpinClick = {
+                            viewModel.unpinGroupMessage(
+                                messageId = pinnedMsg.id,
+                                onSuccess = {
+                                    android.widget.Toast.makeText(context, context.getString(R.string.message_unpinned_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        },
+                        canUnpin = canUnpin
+                    )
+                }
+            }
+
+            // 🔒 Secret chat timer badge (private chats only)
+            if (!isGroup) {
+                val chatId = viewModel.getRecipientId()
+                if (SecretChatManager.getTimer(chatId, "user") > 0L) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f))
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        SecretChatTimerBadge(
+                            chatId = chatId,
+                            chatType = "user",
+                            onClick = { showSelfDestructDialog = true }
                         )
-                    },
-                    canUnpin = canUnpin
-                )
+                    }
+                }
             }
 
             // 📌 Pinned Message Banner для особистих чатів
@@ -1648,6 +1660,18 @@ fun MessagesScreen(
                     }
                 }
             }  // Закриття if (!isSelectionMode)
+
+            // 🔒 Secret chat self-destruct timer dialog
+            if (showSelfDestructDialog && !isGroup) {
+                val chatId = viewModel.getRecipientId()
+                SelfDestructTimerDialog(
+                    currentTimer = SecretChatManager.getTimer(chatId, "user"),
+                    onTimerSelected = { seconds ->
+                        SecretChatManager.setTimer(chatId, "user", seconds)
+                    },
+                    onDismiss = { showSelfDestructDialog = false }
+                )
+            }
 
             // 📤 Export chat bottom sheet (client-side, uses already-decrypted messages)
             if (showExportSheet) {
