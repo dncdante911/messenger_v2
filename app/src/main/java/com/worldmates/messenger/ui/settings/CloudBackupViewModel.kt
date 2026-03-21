@@ -2,6 +2,7 @@ package com.worldmates.messenger.ui.settings
 
 import android.app.Application
 import android.util.Log
+import java.io.File
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.local.AppDatabase
@@ -230,11 +231,21 @@ class CloudBackupViewModel(application: Application) : AndroidViewModel(applicat
     private fun calculateCacheSize() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val app = getApplication<Application>()
+                var totalSize = 0L
+
+                // Real database file size (main + WAL + SHM)
+                val dbFile = app.getDatabasePath("worldmates_messenger.db")
+                if (dbFile.exists()) totalSize += dbFile.length()
+                File("${dbFile.path}-wal").takeIf { it.exists() }?.let { totalSize += it.length() }
+                File("${dbFile.path}-shm").takeIf { it.exists() }?.let { totalSize += it.length() }
+
+                // Internal cache directory (downloaded media, thumbnails, coil cache, etc.)
+                app.cacheDir?.walkTopDown()?.filter { it.isFile }?.forEach { totalSize += it.length() }
+
+                _cacheSize.value = totalSize
                 val messageCount = messageDao.getCacheSize()
-                // Примерный подсчет: 1 сообщение ≈ 1KB (без медиа)
-                // TODO: Добавить реальный подсчет с медиафайлами
-                _cacheSize.value = messageCount * 1024L
-                Log.d(TAG, "📊 Cache size: ${messageCount} messages, ${_cacheSize.value} bytes")
+                Log.d(TAG, "📊 Cache size: $messageCount messages, $totalSize bytes (real)")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to calculate cache size: ${e.message}", e)
             }

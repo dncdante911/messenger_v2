@@ -24,7 +24,8 @@ data class Channel(
     @SerializedName("is_subscribed") val isSubscribed: Boolean = false,
     @SerializedName("created_time") val createdTime: Long = 0,
     @SerializedName("settings") val settings: ChannelSettings? = null,
-    @SerializedName("category") val category: String? = null // Категорія каналу
+    @SerializedName("category") val category: String? = null, // Категорія каналу
+    @SerializedName("formatting_permissions") val formattingPermissions: String? = null
 )
 
 /**
