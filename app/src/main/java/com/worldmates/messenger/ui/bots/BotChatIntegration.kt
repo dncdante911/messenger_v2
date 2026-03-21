@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Bot
 import com.worldmates.messenger.data.model.BotCommand
 import com.worldmates.messenger.data.model.BotInlineButton
@@ -104,7 +106,7 @@ fun BotStartOverlay(
             modifier = Modifier.padding(top = 4.dp)
         ) {
             Text(
-                text = "BOT",
+                text = stringResource(R.string.bot_badge),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
@@ -137,7 +139,7 @@ fun BotStartOverlay(
             )
         ) {
             Text(
-                text = "START",
+                text = stringResource(R.string.bot_start_button),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp
@@ -186,7 +188,7 @@ fun BotSlashCommandMenu(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Commands",
+                        text = stringResource(R.string.bot_commands_menu_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -194,7 +196,7 @@ fun BotSlashCommandMenu(
                     IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Close",
+                            contentDescription = stringResource(R.string.close),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -347,7 +349,7 @@ fun BotChatHeaderBadge(
         modifier = modifier
     ) {
         Text(
-            text = "BOT",
+            text = stringResource(R.string.bot_badge),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -497,8 +499,8 @@ fun BotPollCardInline(
             // Footer
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (isClosed) "Poll closed · $totalVoters votes"
-                       else "$totalVoters votes",
+                text = if (isClosed) stringResource(R.string.bot_poll_closed_footer, totalVoters)
+                       else stringResource(R.string.bot_poll_votes, totalVoters),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

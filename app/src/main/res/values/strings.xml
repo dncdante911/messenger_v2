@@ -839,6 +839,88 @@
     <string name="bot_catalog">Каталог ботів</string>
     <string name="bot_name_hint">Назва бота *</string>
     <string name="bot_description_hint">Опис</string>
+    <!-- Bot catalog -->
+    <string name="bot_search_hint">Пошук ботів...</string>
+    <string name="bot_category_all">Усі</string>
+    <string name="bot_not_found">Ботів не знайдено</string>
+    <string name="bot_not_found_hint">Спробуйте іншу категорію або пошуковий запит</string>
+    <string name="bot_verified_label">Перевірений</string>
+    <string name="bot_verified_bot_label">Перевірений бот</string>
+    <string name="bot_stat_users">Користувачів</string>
+    <string name="bot_stat_category">Категорія</string>
+    <string name="bot_start_chat">Почати чат</string>
+    <string name="bot_description_label">Опис</string>
+    <string name="bot_commands_count">Команди (%d)</string>
+    <!-- Bot categories -->
+    <string name="bot_category_general">Загальне</string>
+    <string name="bot_category_news">Новини</string>
+    <string name="bot_category_weather">Погода</string>
+    <string name="bot_category_tools">Інструменти</string>
+    <string name="bot_category_entertainment">Розваги</string>
+    <string name="bot_category_support">Підтримка</string>
+    <string name="bot_category_tech">Технології</string>
+    <string name="bot_category_finance">Фінанси</string>
+    <string name="bot_category_education">Освіта</string>
+    <string name="bot_category_games">Ігри</string>
+    <!-- Bot chat components -->
+    <string name="bot_commands_menu_title">Команди бота</string>
+    <string name="bot_badge_label">бот</string>
+    <string name="bot_start_button">СТАРТ</string>
+    <string name="bot_poll">Опитування</string>
+    <string name="bot_poll_closed">Опитування закрито</string>
+    <string name="bot_poll_votes">%d голосів</string>
+    <string name="bot_badge">БОТ</string>
+    <string name="bot_poll_closed_footer">Опитування закрито · %d голосів</string>
+    <!-- Bot management -->
+    <string name="bot_no_bots_title">У вас немає ботів</string>
+    <string name="bot_no_bots_hint">Створіть свого першого бота</string>
+    <string name="bot_create_button">Створити бота</string>
+    <string name="bot_new_token_title">Новий токен</string>
+    <string name="bot_token_save_label">Ваш новий токен бота:</string>
+    <string name="bot_token_once_warning">Збережіть токен. Він не буде показаний повторно.</string>
+    <string name="bot_delete_confirm_title">Видалити бота?</string>
+    <string name="bot_delete_confirm_message">Бот @%s та всі його дані будуть видалені. Ця дія незворотна.</string>
+    <string name="bot_stat_users_count">Користувачів: %d</string>
+    <string name="bot_stat_messages_count">Повідомлень: %d</string>
+    <string name="bot_stat_commands_count">Команд: %d</string>
+    <string name="bot_regenerate_token">Перегенерувати токен</string>
+    <!-- Bot creation -->
+    <string name="bot_created_success">Бот @%s створено!</string>
+    <string name="bot_new_bot_title">Новий бот</string>
+    <string name="bot_created_title">Бот створено!</string>
+    <string name="bot_token_save_hint">Bot Token (збережіть!):</string>
+    <string name="bot_token_once_warning2">Цей токен не буде показано повторно!</string>
+    <string name="bot_username_label">Username *</string>
+    <string name="bot_username_supporting">Повинен закінчуватися на _bot</string>
+    <string name="bot_description_placeholder">Що робить бот...</string>
+    <string name="bot_about_placeholder">Короткий текст у профілі</string>
+    <string name="bot_category_label">Категорія:</string>
+    <string name="bot_public_label">Публічний бот (видимий у каталозі)</string>
+    <string name="bot_can_join_groups">Може приєднуватися до груп</string>
+    <!-- Bot RSS Feeds -->
+    <string name="bot_rss_title">RSS-стрічки</string>
+    <string name="bot_rss_add">Додати RSS-стрічку</string>
+    <string name="bot_rss_empty_title">Немає RSS-стрічок</string>
+    <string name="bot_rss_empty_desc">Додайте RSS-стрічку і бот автоматично публікуватиме нові записи у вказаний чат.</string>
+    <string name="bot_rss_delete_title">Видалити RSS-стрічку?</string>
+    <string name="bot_rss_delete_message">«%s» буде видалено. Історія опублікованих записів також буде очищена.</string>
+    <string name="bot_rss_stat_chat">Чат: %s</string>
+    <string name="bot_rss_stat_interval">Кожні %dхв</string>
+    <string name="bot_rss_stat_posted">Опубліковано: %d</string>
+    <string name="bot_rss_field_url">URL стрічки *</string>
+    <string name="bot_rss_error_url">Введіть дійсний URL</string>
+    <string name="bot_rss_field_chat_id">ID цільового чату *</string>
+    <string name="bot_rss_field_chat_id_hint">ID каналу або групи</string>
+    <string name="bot_rss_error_chat_id">ID чату обов\'язковий</string>
+    <string name="bot_rss_field_name">Назва стрічки (необов\'язково)</string>
+    <string name="bot_rss_field_name_hint">Моя стрічка новин</string>
+    <!-- Bot errors -->
+    <string name="bot_error_not_authenticated">Не аутентифікований</string>
+    <string name="bot_error_load_failed">Не вдалося завантажити ботів</string>
+    <string name="bot_error_username_required">Username обов\'язковий</string>
+    <string name="bot_error_name_required">Назва обов\'язкова</string>
+    <string name="bot_error_username_format">Username повинен закінчуватися на _bot</string>
+    <string name="bot_error_create_failed">Помилка створення бота</string>
 
     <!-- ===== MEDIA ===== -->
     <string name="gallery">Галерея</string>
@@ -1665,13 +1747,13 @@
     <!-- ===== GROUP ADMIN PANEL ===== -->
     <string name="detailed_statistics">Детальна статистика</string>
     <string name="group_management">Управління групою</string>
-    <string name="admin_logs_title">Журнал действий</string>
-    <string name="admin_logs_empty">Действий не найдено</string>
-    <string name="admin_logs_added_member">добавил участника</string>
-    <string name="admin_logs_removed_member">удалил участника</string>
-    <string name="admin_logs_deleted_message">удалил сообщение</string>
-    <string name="admin_logs_changed_settings">изменил настройки</string>
-    <string name="admin_logs_pinned_message">закрепил сообщение</string>
+    <string name="admin_logs_title">Журнал дій</string>
+    <string name="admin_logs_empty">Дій не знайдено</string>
+    <string name="admin_logs_added_member">додав учасника</string>
+    <string name="admin_logs_removed_member">видалив учасника</string>
+    <string name="admin_logs_deleted_message">видалив повідомлення</string>
+    <string name="admin_logs_changed_settings">змінив налаштування</string>
+    <string name="admin_logs_pinned_message">закріпив повідомлення</string>
 
     <!-- ===== SCHEDULED POSTS UI ===== -->
     <string name="new_scheduled_post_title">Новий запланований пост</string>
@@ -1884,16 +1966,16 @@
     <string name="secret_timer_menu_item">🔒 Self-destruct timer</string>
 
     <!-- ===== MEDIA AUTO-DELETE ===== -->
-    <string name="media_auto_delete_title">Автоудаление медиа</string>
-    <string name="media_auto_delete_description">Медиафайлы автоматически удаляются с сервера. Текст сообщения сохраняется.</string>
-    <string name="media_auto_delete_never">Никогда</string>
+    <string name="media_auto_delete_title">Автовидалення медіа</string>
+    <string name="media_auto_delete_description">Медіафайли автоматично видаляються з сервера. Текст повідомлення зберігається.</string>
+    <string name="media_auto_delete_never">Ніколи</string>
     <string name="media_auto_delete_1day">1 день</string>
-    <string name="media_auto_delete_3days">3 дня</string>
-    <string name="media_auto_delete_1week">1 неделя</string>
-    <string name="media_auto_delete_2weeks">2 недели</string>
-    <string name="media_auto_delete_1month">1 месяц</string>
-    <string name="media_deleted_placeholder">Медиафайл удалён</string>
-    <string name="media_auto_delete_menu_item">Автоудаление медиа</string>
+    <string name="media_auto_delete_3days">3 дні</string>
+    <string name="media_auto_delete_1week">1 тиждень</string>
+    <string name="media_auto_delete_2weeks">2 тижні</string>
+    <string name="media_auto_delete_1month">1 місяць</string>
+    <string name="media_deleted_placeholder">Медіафайл видалено</string>
+    <string name="media_auto_delete_menu_item">Автовидалення медіа</string>
 
     <!-- ===== GROUP TOPICS ===== -->
     <string name="topics_title">Теми</string>

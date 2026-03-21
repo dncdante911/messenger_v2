@@ -10,9 +10,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.RssFeed
 
 /**
@@ -36,7 +38,7 @@ fun BotRssFeedsScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("RSS Feeds", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.bot_rss_title), fontWeight = FontWeight.SemiBold)
                         if (state.botId != null) {
                             Text(
                                 text = state.botId,
@@ -48,12 +50,12 @@ fun BotRssFeedsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back_cd))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add RSS feed")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.bot_rss_add))
                     }
                 }
             )
@@ -82,10 +84,14 @@ fun BotRssFeedsScreen(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("No RSS feeds", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            stringResource(R.string.bot_rss_empty_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Add an RSS feed and this bot will automatically post new items to the specified chat.",
+                            stringResource(R.string.bot_rss_empty_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -93,7 +99,7 @@ fun BotRssFeedsScreen(
                         Button(onClick = { showAddDialog = true }) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Add RSS feed")
+                            Text(stringResource(R.string.bot_rss_add))
                         }
                     }
                 }
@@ -143,16 +149,16 @@ fun BotRssFeedsScreen(
     feedToDelete?.let { feed ->
         AlertDialog(
             onDismissRequest = { feedToDelete = null },
-            title = { Text("Delete RSS feed?") },
-            text = { Text("\"${feed.displayName}\" will be removed. Posted items history will also be cleared.") },
+            title = { Text(stringResource(R.string.bot_rss_delete_title)) },
+            text = { Text(stringResource(R.string.bot_rss_delete_message, feed.displayName)) },
             confirmButton = {
                 TextButton(
                     onClick = { onDeleteFeed(feed.id); feedToDelete = null },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { feedToDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { feedToDelete = null }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -206,9 +212,9 @@ private fun RssFeedCard(feed: RssFeed, onToggle: () -> Unit, onDelete: () -> Uni
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                RssStat("Chat: ${feed.chatId}")
-                RssStat("Every ${feed.checkIntervalMinutes}m")
-                RssStat("Posted: ${feed.itemsPosted}")
+                RssStat(stringResource(R.string.bot_rss_stat_chat, feed.chatId))
+                RssStat(stringResource(R.string.bot_rss_stat_interval, feed.checkIntervalMinutes))
+                RssStat(stringResource(R.string.bot_rss_stat_posted, feed.itemsPosted))
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -220,7 +226,7 @@ private fun RssFeedCard(feed: RssFeed, onToggle: () -> Unit, onDelete: () -> Uni
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Remove")
+                    Text(stringResource(R.string.delete))
                 }
             }
         }
@@ -253,36 +259,39 @@ private fun AddRssFeedDialog(
     var urlError by remember { mutableStateOf(false) }
     var chatError by remember { mutableStateOf(false) }
 
+    val errorUrlText = stringResource(R.string.bot_rss_error_url)
+    val errorChatText = stringResource(R.string.bot_rss_error_chat_id)
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add RSS feed") },
+        title = { Text(stringResource(R.string.bot_rss_add)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = feedUrl,
                     onValueChange = { feedUrl = it; urlError = false },
-                    label = { Text("Feed URL *") },
+                    label = { Text(stringResource(R.string.bot_rss_field_url)) },
                     placeholder = { Text("https://example.com/rss") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = urlError,
-                    supportingText = if (urlError) ({ Text("Enter a valid URL") }) else null
+                    supportingText = if (urlError) ({ Text(errorUrlText) }) else null
                 )
                 OutlinedTextField(
                     value = chatId,
                     onValueChange = { chatId = it; chatError = false },
-                    label = { Text("Target chat ID *") },
-                    placeholder = { Text("Channel or group ID") },
+                    label = { Text(stringResource(R.string.bot_rss_field_chat_id)) },
+                    placeholder = { Text(stringResource(R.string.bot_rss_field_chat_id_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = chatError,
-                    supportingText = if (chatError) ({ Text("Chat ID required") }) else null
+                    supportingText = if (chatError) ({ Text(errorChatText) }) else null
                 )
                 OutlinedTextField(
                     value = feedName,
                     onValueChange = { feedName = it },
-                    label = { Text("Feed name (optional)") },
-                    placeholder = { Text("My news feed") },
+                    label = { Text(stringResource(R.string.bot_rss_field_name)) },
+                    placeholder = { Text(stringResource(R.string.bot_rss_field_name_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -295,10 +304,10 @@ private fun AddRssFeedDialog(
                 if (!urlError && !chatError) {
                     onConfirm(feedUrl.trim(), chatId.trim(), feedName.takeIf { it.isNotBlank() })
                 }
-            }) { Text("Add") }
+            }) { Text(stringResource(R.string.add)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }

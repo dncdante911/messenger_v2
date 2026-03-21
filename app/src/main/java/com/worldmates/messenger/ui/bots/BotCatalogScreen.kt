@@ -81,7 +81,7 @@ fun BotCatalogScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Пошук ботів...") },
+                placeholder = { Text(stringResource(R.string.bot_search_hint)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (searchText.isNotEmpty()) {
@@ -89,7 +89,7 @@ fun BotCatalogScreen(
                             searchText = ""
                             onSearch("")
                         }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.close))
                         }
                     }
                 },
@@ -109,14 +109,15 @@ fun BotCatalogScreen(
                         FilterChip(
                             selected = catalogState.selectedCategory == null,
                             onClick = { onCategorySelected(null) },
-                            label = { Text("Усі") }
+                            label = { Text(stringResource(R.string.bot_category_all)) }
                         )
                     }
                     items(catalogState.categories) { category ->
+                        val categoryName = getCategoryName(category.category)
                         FilterChip(
                             selected = catalogState.selectedCategory == category.category,
                             onClick = { onCategorySelected(category.category) },
-                            label = { Text("${getCategoryName(category.category)} (${category.count})") }
+                            label = { Text("$categoryName (${category.count})") }
                         )
                     }
                 }
@@ -135,7 +136,7 @@ fun BotCatalogScreen(
                             Text(catalogState.error, color = MaterialTheme.colorScheme.error)
                             Spacer(modifier = Modifier.height(8.dp))
                             Button(onClick = { onSearch(searchText) }) {
-                                Text("Retry")
+                                Text(stringResource(R.string.retry))
                             }
                         }
                     }
@@ -150,9 +151,9 @@ fun BotCatalogScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Ботів не знайдено", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.bot_not_found), style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "Спробуйте іншу категорію або пошуковий запит",
+                                stringResource(R.string.bot_not_found_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -184,6 +185,7 @@ fun BotListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val verifiedLabel = stringResource(R.string.bot_verified_label)
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -220,7 +222,7 @@ fun BotListItem(
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             Icons.Default.Verified,
-                            contentDescription = "Verified",
+                            contentDescription = verifiedLabel,
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -252,12 +254,13 @@ fun BotListItem(
                     )
                 }
                 bot.category?.let {
+                    val catName = getCategoryName(it)
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer
                     ) {
                         Text(
-                            text = getCategoryName(it),
+                            text = catName,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -319,10 +322,17 @@ fun BotDetailScreen(
     onStartChat: (Bot) -> Unit,
     onBack: () -> Unit
 ) {
+    val verifiedLabel = stringResource(R.string.bot_verified_label)
+    val verifiedBotLabel = stringResource(R.string.bot_verified_bot_label)
+    val botStatUsers = stringResource(R.string.bot_stat_users)
+    val botStatCategory = stringResource(R.string.bot_stat_category)
+    val botStartChat = stringResource(R.string.bot_start_chat)
+    val botDescriptionLabel = stringResource(R.string.bot_description_label)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.bot?.displayName ?: "Bot") },
+                title = { Text(state.bot?.displayName ?: stringResource(R.string.bots_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back_cd))
@@ -375,12 +385,12 @@ fun BotDetailScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     Icons.Default.Verified,
-                                    contentDescription = "Verified",
+                                    contentDescription = verifiedLabel,
                                     modifier = Modifier.size(16.dp),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Verified Bot", style = MaterialTheme.typography.labelSmall)
+                                Text(verifiedBotLabel, style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -392,8 +402,8 @@ fun BotDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        StatItem("Користувачів", formatUserCount(bot.totalUsers))
-                        StatItem("Категорія", getCategoryName(bot.category ?: "general"))
+                        StatItem(botStatUsers, formatUserCount(bot.totalUsers))
+                        StatItem(botStatCategory, getCategoryName(bot.category ?: "general"))
                     }
                 }
 
@@ -406,7 +416,7 @@ fun BotDetailScreen(
                     ) {
                         Icon(Icons.Default.Chat, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Почати чат")
+                        Text(botStartChat)
                     }
                 }
 
@@ -418,7 +428,7 @@ fun BotDetailScreen(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Опис", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(botDescriptionLabel, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(bot.description, style = MaterialTheme.typography.bodyMedium)
                             }
@@ -429,13 +439,14 @@ fun BotDetailScreen(
                 // Commands
                 if (state.commands.isNotEmpty()) {
                     item {
+                        val commandsTitle = stringResource(R.string.bot_commands_count, state.commands.size)
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    "Команди (${state.commands.size})",
+                                    commandsTitle,
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -492,18 +503,19 @@ fun StatItem(label: String, value: String) {
 
 // ==================== UTILITY ====================
 
+@Composable
 fun getCategoryName(key: String): String = when (key) {
-    "general" -> "Загальне"
-    "news" -> "Новини"
-    "weather" -> "Погода"
-    "tools" -> "Інструменти"
-    "entertainment" -> "Розваги"
-    "support" -> "Підтримка"
-    "tech" -> "Технології"
-    "finance" -> "Фінанси"
-    "education" -> "Освіта"
-    "games" -> "Ігри"
-    else -> key.replaceFirstChar { it.uppercase() }
+    "general"       -> stringResource(R.string.bot_category_general)
+    "news"          -> stringResource(R.string.bot_category_news)
+    "weather"       -> stringResource(R.string.bot_category_weather)
+    "tools"         -> stringResource(R.string.bot_category_tools)
+    "entertainment" -> stringResource(R.string.bot_category_entertainment)
+    "support"       -> stringResource(R.string.bot_category_support)
+    "tech"          -> stringResource(R.string.bot_category_tech)
+    "finance"       -> stringResource(R.string.bot_category_finance)
+    "education"     -> stringResource(R.string.bot_category_education)
+    "games"         -> stringResource(R.string.bot_category_games)
+    else            -> key.replaceFirstChar { it.uppercase() }
 }
 
 fun formatUserCount(count: Int): String = when {
