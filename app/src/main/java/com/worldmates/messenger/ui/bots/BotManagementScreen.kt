@@ -13,7 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Bot
 
 /**
@@ -36,15 +38,15 @@ fun BotManagementScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Мої боти") },
+                title = { Text(stringResource(R.string.my_bots)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back_cd))
                     }
                 },
                 actions = {
                     IconButton(onClick = onCreateBot) {
-                        Icon(Icons.Default.Add, contentDescription = "Create Bot")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.create_bot_cd))
                     }
                 }
             )
@@ -160,7 +162,7 @@ fun BotManagementScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = null }) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -210,7 +212,7 @@ fun MyBotCard(
                             else MaterialTheme.colorScheme.errorContainer
                 ) {
                     Text(
-                        text = if (bot.isActive) "Active" else bot.status,
+                        text = if (bot.isActive) stringResource(R.string.bot_status_active) else bot.status,
                         style = MaterialTheme.typography.labelSmall,
                         color = if (bot.isActive) MaterialTheme.colorScheme.onPrimaryContainer
                                 else MaterialTheme.colorScheme.onErrorContainer,
@@ -346,7 +348,7 @@ fun CreateBotScreen(
                 title = { Text(if (state.createdBot != null) "Бот створено!" else "Новий бот") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back_cd))
                     }
                 }
             )
