@@ -286,7 +286,9 @@ async function deleteAvatar(ctx, req, res) {
 
         // Delete file from disk
         const absPath = path.join(SITE_ROOT, avatar.file_path);
-        if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
+        try {
+            await fs.promises.unlink(absPath);
+        } catch (_) { /* file already gone — ignore */ }
 
         // Normalize positions after deletion
         const remaining = await ctx.wo_user_avatars.findAll({
