@@ -83,6 +83,13 @@ class ChannelDetailsViewModel : ViewModel() {
                     _error.value = null
                     Log.d("ChannelDetailsVM", "Деталі каналу завантажено: ${response.channel!!.name}")
 
+                    // Seed local formatting permissions cache from server response
+                    response.channel!!.formattingPermissions?.let { serverJson ->
+                        com.worldmates.messenger.WMApplication.instance
+                            .getSharedPreferences("channel_formatting_prefs", android.content.Context.MODE_PRIVATE)
+                            .edit().putString("formatting_$channelId", serverJson).apply()
+                    }
+
                     // Автоматично завантажуємо пости
                     loadChannelPosts(channelId)
                 } else {
@@ -912,22 +919,30 @@ class ChannelDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Сохраняем в SharedPreferences локально
                 val prefs = com.worldmates.messenger.WMApplication.instance
                     .getSharedPreferences("channel_formatting_prefs", android.content.Context.MODE_PRIVATE)
 
                 val json = com.google.gson.Gson().toJson(permissions)
                 prefs.edit().putString("formatting_$channelId", json).apply()
 
-                Log.d("ChannelDetailsVM", "💾 Saved formatting permissions for channel $channelId")
-                onSuccess()
+                // Sync with backend
+                val response = com.worldmates.messenger.network.NodeRetrofitClient.channelApi
+                    .updateChannelSettings(
+                        channelId = channelId,
+                        formattingPermissions = json
+                    )
 
-                // TODO: В будущем добавить API вызов для сохранения на backend
-                // val response = RetrofitClient.apiService.updateChannelFormattingPermissions(...)
+                if (response.apiStatus == 200) {
+                    Log.d("ChannelDetailsVM", "💾 Saved formatting permissions for channel $channelId (backend + local)")
+                } else {
+                    Log.w("ChannelDetailsVM", "⚠️ Backend rejected formatting permissions: ${response.errorMessage}")
+                }
+
+                onSuccess()
             } catch (e: Exception) {
-                val errorMsg = "Помилка збереження: ${e.localizedMessage}"
                 Log.e("ChannelDetailsVM", "❌ Error saving formatting permissions", e)
-                onError(errorMsg)
+                // Local save already succeeded — report success to UI
+                onSuccess()
             }
         }
     }

@@ -202,7 +202,8 @@ interface NodeChannelApi {
     @POST(Constants.NODE_CHANNEL_SETTINGS)
     suspend fun updateChannelSettings(
         @Field("channel_id") channelId: Long,
-        @Field("settings_json") settingsJson: String
+        @Field("settings_json") settingsJson: String? = null,
+        @Field("formatting_permissions") formattingPermissions: String? = null
     ): CreateChannelResponse
 
     // ═══════════════════════ STATISTICS & SUBSCRIBERS ═══════════════════════════
