@@ -16,6 +16,8 @@ import com.worldmates.messenger.data.Constants
 import com.worldmates.messenger.data.UserPreferences
 import com.worldmates.messenger.data.UserPreferencesRepository
 import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.ui.calls.IncomingCallActivity
+import com.worldmates.messenger.ui.calls.IncomingGroupCallActivity
 import com.worldmates.messenger.ui.messages.MessagesActivity
 import com.worldmates.messenger.utils.DecryptionUtility
 import com.worldmates.messenger.utils.signal.SignalKeyStore
@@ -48,6 +50,10 @@ class MessageNotificationService : Service() {
         const val CHANNEL_MESSAGES_ID   = "wm_messages"
         const val CHANNEL_MESSAGES_NAME = "Повідомлення"
 
+        // Канал для вхідних дзвінків (MAX priority + ringtone, full-screen intent)
+        const val CHANNEL_CALLS_ID   = "wm_calls"
+        const val CHANNEL_CALLS_NAME = "Дзвінки"
+
         // Канал для постійного фонового сповіщення самого сервісу (LOW, тихий)
         private const val CHANNEL_SERVICE_ID   = "wm_service"
         private const val CHANNEL_SERVICE_NAME = "WorldMates — фоновий сервіс"
@@ -57,6 +63,10 @@ class MessageNotificationService : Service() {
 
         // AlarmManager request code для перезапуску
         private const val RESTART_ALARM_REQUEST_CODE = 9002
+
+        // Notification IDs для вхідних дзвінків
+        private const val CALL_NOTIF_ID       = 9003
+        private const val GROUP_CALL_NOTIF_ID = 9004
 
         // Інтервал страховочного AlarmManager (5 хвилин)
         private const val RESTART_ALARM_INTERVAL_MS = 5 * 60 * 1000L
@@ -215,6 +225,14 @@ class MessageNotificationService : Service() {
                 socket?.emit(Constants.SOCKET_EVENT_AUTH, JSONObject().apply {
                     put("user_id", token)
                 })
+                // Register for incoming calls on this socket so the server routes
+                // call:incoming / group_call:incoming events here even when CallsActivity
+                // is not open (which is the normal case when device is idle / on chat screen).
+                socket?.emit("call:register", JSONObject().apply {
+                    put("userId", UserSession.userId)
+                    put("user_id", UserSession.userId)
+                })
+                Log.d(TAG, "📞 Registered for calls (userId=${UserSession.userId})")
             }
 
             socket?.on(Socket.EVENT_DISCONNECT) {
@@ -223,6 +241,16 @@ class MessageNotificationService : Service() {
 
             socket?.on(Socket.EVENT_CONNECT_ERROR) { args ->
                 Log.w(TAG, "Socket error: ${args.firstOrNull()}")
+            }
+
+            // ── Incoming 1-on-1 call ─────────────────────────────────────────────
+            socket?.on("call:incoming") { args ->
+                (args.firstOrNull() as? JSONObject)?.let { handleIncomingCall(it) }
+            }
+
+            // ── Incoming group call ──────────────────────────────────────────────
+            socket?.on("group_call:incoming") { args ->
+                (args.firstOrNull() as? JSONObject)?.let { handleIncomingGroupCall(it) }
             }
 
             // Private chat messages (two possible event names for compatibility)
@@ -255,6 +283,143 @@ class MessageNotificationService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Socket connection error", e)
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Call handling
+    // ------------------------------------------------------------------
+
+    /**
+     * Handle incoming 1-on-1 call event from the background socket.
+     * Mirrors the logic in CallsViewModel.onIncomingCall() but runs in the
+     * foreground service — this is the only listener active when the user
+     * is NOT inside CallsActivity.
+     */
+    private fun handleIncomingCall(data: JSONObject) {
+        try {
+            val fromId = listOf(
+                data.optInt("fromId", 0),
+                data.optInt("from_id", 0),
+                data.optInt("callerId", 0)
+            ).firstOrNull { it > 0 } ?: 0
+
+            val fromName = listOf(
+                data.optString("fromName", ""),
+                data.optString("from_name", ""),
+                data.optString("callerName", "")
+            ).firstOrNull { it.isNotEmpty() } ?: getString(R.string.user_label)
+
+            val fromAvatar = listOf(
+                data.optString("fromAvatar", ""),
+                data.optString("from_avatar", ""),
+                data.optString("avatar", "")
+            ).firstOrNull { it.isNotEmpty() } ?: ""
+
+            val callType = data.optString("callType", data.optString("call_type", "audio"))
+            val roomName = data.optString("roomName", data.optString("room_name", ""))
+            val sdpOffer = data.optString("sdpOffer", data.optString("sdp_offer", ""))
+                .takeIf { it.isNotEmpty() }
+
+            // Ignore own calls or empty room
+            if (fromId == 0 || fromId == UserSession.userId.toInt() || roomName.isEmpty()) {
+                Log.w(TAG, "⚠️ Ignoring invalid call: fromId=$fromId, room=$roomName")
+                return
+            }
+
+            Log.d(TAG, "📞 Incoming call from $fromName ($fromId), type=$callType")
+
+            val intent = IncomingCallActivity.createIntent(
+                context = this,
+                fromId = fromId,
+                fromName = fromName,
+                fromAvatar = fromAvatar,
+                callType = callType,
+                roomName = roomName,
+                sdpOffer = sdpOffer
+            )
+
+            // Full-screen intent for locked-screen / heads-up display (Android 10+)
+            showIncomingCallNotification(intent, fromName, callType, CALL_NOTIF_ID)
+            // Direct Activity start — works on Android < 10 and many OEM ROMs
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling incoming call", e)
+        }
+    }
+
+    /**
+     * Handle incoming group call event from the background socket.
+     */
+    private fun handleIncomingGroupCall(data: JSONObject) {
+        try {
+            val groupId      = data.optInt("groupId", 0)
+            val groupName    = data.optString("groupName", getString(R.string.group_default_name))
+            val initiatedBy  = data.optInt("initiatedBy", 0)
+            val initiatorName = data.optString("initiatorName", getString(R.string.user_label))
+            val initiatorAvatar = data.optString("initiatorAvatar", "")
+            val callType     = data.optString("callType", "audio")
+            val roomName     = data.optString("roomName", "")
+            val maxParticipants = data.optInt("maxParticipants", 5)
+            val isPremiumCall = data.optBoolean("isPremiumCall", false)
+
+            if (initiatedBy == UserSession.userId.toInt() || roomName.isEmpty() || groupId == 0) {
+                Log.w(TAG, "⚠️ Ignoring invalid group call: initiatedBy=$initiatedBy, room=$roomName")
+                return
+            }
+
+            Log.d(TAG, "📞 Incoming group call for group $groupId ($groupName) from $initiatorName")
+
+            val intent = Intent(this, IncomingGroupCallActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("group_id",         groupId)
+                putExtra("group_name",       groupName)
+                putExtra("initiated_by",     initiatedBy)
+                putExtra("initiator_name",   initiatorName)
+                putExtra("initiator_avatar", initiatorAvatar)
+                putExtra("call_type",        callType)
+                putExtra("room_name",        roomName)
+                putExtra("max_participants", maxParticipants)
+                putExtra("is_premium_call",  isPremiumCall)
+            }
+
+            showIncomingCallNotification(intent, "$initiatorName → $groupName", callType, GROUP_CALL_NOTIF_ID)
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling incoming group call", e)
+        }
+    }
+
+    /**
+     * Show a high-priority full-screen intent notification for an incoming call.
+     * On Android 10+ this is the only reliable way to surface a call UI when the
+     * app is in the background — a direct startActivity() may be silently blocked.
+     */
+    private fun showIncomingCallNotification(
+        activityIntent: Intent,
+        callerName: String,
+        callType: String,
+        notifId: Int
+    ) {
+        val fullScreenPi = PendingIntent.getActivity(
+            this, notifId, activityIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val callTypeText = if (callType == "video")
+            getString(R.string.video_call) else getString(R.string.incoming_call)
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_CALLS_ID)
+            .setSmallIcon(R.drawable.ic_notification_service)
+            .setContentTitle(callerName)
+            .setContentText(callTypeText)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setFullScreenIntent(fullScreenPi, true)
+            .setAutoCancel(true)
+            .setOngoing(true)
+            .build()
+
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(notifId, notification)
     }
 
     // ------------------------------------------------------------------
@@ -580,6 +745,28 @@ class MessageNotificationService : Service() {
             )
         }
         nm.createNotificationChannel(msgChannel)
+
+        // MAX — incoming calls (ringtone + vibration + full-screen)
+        val callChannel = NotificationChannel(
+            CHANNEL_CALLS_ID,
+            CHANNEL_CALLS_NAME,
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Вхідні дзвінки WorldMates"
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setSound(
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 1000, 1000)
+            enableLights(true)
+            lightColor = 0xFF00C853.toInt()
+        }
+        nm.createNotificationChannel(callChannel)
 
         // MIN — silent persistent service notification
         val svcChannel = NotificationChannel(
