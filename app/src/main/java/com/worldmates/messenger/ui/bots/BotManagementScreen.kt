@@ -203,21 +203,20 @@ fun MyBotCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                // Status chip
-                AssistChip(
-                    onClick = { },
-                    label = {
-                        Text(
-                            text = if (bot.isActive) "Active" else bot.status,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    },
-                    modifier = Modifier.height(24.dp),
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = if (bot.isActive) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.errorContainer
+                // Status badge (display-only, not clickable)
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (bot.isActive) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text(
+                        text = if (bot.isActive) "Active" else bot.status,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (bot.isActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
-                )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

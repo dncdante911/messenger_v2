@@ -23,7 +23,10 @@ import com.worldmates.messenger.R
  *
  * Дозволяє:
  * - Ввести QR код вручну
- * - Сканувати QR код (TODO)
+ * - Сканувати QR код через камеру (via QrScannerActivity — передати onScanClick)
+ *
+ * Кнопка сканування з'являється тільки якщо caller передає onScanClick != null.
+ * У GroupsActivity це вже підключено через qrScanLauncher → QrScannerActivity.
  */
 @Composable
 fun JoinGroupByQrDialog(

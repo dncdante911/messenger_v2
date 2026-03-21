@@ -250,11 +250,17 @@ fun BotListItem(
                     )
                 }
                 bot.category?.let {
-                    AssistChip(
-                        onClick = { },
-                        label = { Text(getCategoryName(it), style = MaterialTheme.typography.labelSmall) },
-                        modifier = Modifier.height(24.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Text(
+                            text = getCategoryName(it),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
         }

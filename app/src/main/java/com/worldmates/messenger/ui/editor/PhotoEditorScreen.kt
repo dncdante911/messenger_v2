@@ -153,7 +153,8 @@ fun PhotoEditorScreen(
                         }
                     )
                     EditorTool.CROP -> CropControls(
-                        onCrop = { viewModel.applyCrop() }
+                        onCrop = { viewModel.applyCrop() },
+                        onReset = { viewModel.resetCrop() }
                     )
                 }
 
@@ -287,6 +288,13 @@ private fun SaveDialog(
     )
 }
 
+// Which part of the crop rect is being dragged
+private enum class CropDragHandle {
+    TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT,
+    LEFT_EDGE, RIGHT_EDGE, TOP_EDGE, BOTTOM_EDGE,
+    MOVE
+}
+
 /**
  * Photo Editor Canvas with real drawing support
  */
@@ -300,10 +308,12 @@ private fun PhotoEditorCanvas(
     brushSize: Float
 ) {
     val editedBitmap by viewModel.editedBitmap.collectAsState()
+    val cropRect by viewModel.cropRect.collectAsState()
 
     // Current path being drawn
     var currentPoints by remember { mutableStateOf<List<Offset>>(emptyList()) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    var cropDragHandle by remember { mutableStateOf<CropDragHandle?>(null) }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -328,8 +338,8 @@ private fun PhotoEditorCanvas(
                     modifier = Modifier
                         .fillMaxSize()
                         .pointerInput(currentTool, selectedColor, brushSize) {
-                            if (currentTool == EditorTool.DRAW) {
-                                detectDragGestures(
+                            when (currentTool) {
+                                EditorTool.DRAW -> detectDragGestures(
                                     onDragStart = { offset ->
                                         currentPoints = listOf(offset)
                                     },
@@ -352,6 +362,53 @@ private fun PhotoEditorCanvas(
                                         currentPoints = emptyList()
                                     }
                                 )
+                                EditorTool.CROP -> detectDragGestures(
+                                    onDragStart = { offset ->
+                                        val w = canvasSize.width.toFloat()
+                                        val h = canvasSize.height.toFloat()
+                                        if (w == 0f || h == 0f) return@detectDragGestures
+                                        val r = viewModel.cropRect.value
+                                        val l = r.left * w;  val t = r.top * h
+                                        val ri = r.right * w; val b = r.bottom * h
+                                        val tolerance = 48f
+                                        fun near(a: Float, v: Float) = kotlin.math.abs(a - v) < tolerance
+                                        cropDragHandle = when {
+                                            near(offset.x, l)  && near(offset.y, t)  -> CropDragHandle.TOP_LEFT
+                                            near(offset.x, ri) && near(offset.y, t)  -> CropDragHandle.TOP_RIGHT
+                                            near(offset.x, l)  && near(offset.y, b)  -> CropDragHandle.BOTTOM_LEFT
+                                            near(offset.x, ri) && near(offset.y, b)  -> CropDragHandle.BOTTOM_RIGHT
+                                            near(offset.x, l)                        -> CropDragHandle.LEFT_EDGE
+                                            near(offset.x, ri)                       -> CropDragHandle.RIGHT_EDGE
+                                            near(offset.y, t)                        -> CropDragHandle.TOP_EDGE
+                                            near(offset.y, b)                        -> CropDragHandle.BOTTOM_EDGE
+                                            else                                     -> CropDragHandle.MOVE
+                                        }
+                                    },
+                                    onDrag = { change, delta ->
+                                        change.consume()
+                                        val w = canvasSize.width.toFloat()
+                                        val h = canvasSize.height.toFloat()
+                                        if (w == 0f || h == 0f) return@detectDragGestures
+                                        val dx = delta.x / w
+                                        val dy = delta.y / h
+                                        val r = viewModel.cropRect.value
+                                        when (cropDragHandle) {
+                                            CropDragHandle.TOP_LEFT     -> viewModel.updateCropRect(r.left + dx, r.top + dy, r.right, r.bottom)
+                                            CropDragHandle.TOP_RIGHT    -> viewModel.updateCropRect(r.left, r.top + dy, r.right + dx, r.bottom)
+                                            CropDragHandle.BOTTOM_LEFT  -> viewModel.updateCropRect(r.left + dx, r.top, r.right, r.bottom + dy)
+                                            CropDragHandle.BOTTOM_RIGHT -> viewModel.updateCropRect(r.left, r.top, r.right + dx, r.bottom + dy)
+                                            CropDragHandle.LEFT_EDGE    -> viewModel.updateCropRect(r.left + dx, r.top, r.right, r.bottom)
+                                            CropDragHandle.RIGHT_EDGE   -> viewModel.updateCropRect(r.left, r.top, r.right + dx, r.bottom)
+                                            CropDragHandle.TOP_EDGE     -> viewModel.updateCropRect(r.left, r.top + dy, r.right, r.bottom)
+                                            CropDragHandle.BOTTOM_EDGE  -> viewModel.updateCropRect(r.left, r.top, r.right, r.bottom + dy)
+                                            CropDragHandle.MOVE         -> viewModel.updateCropRect(r.left + dx, r.top + dy, r.right + dx, r.bottom + dy)
+                                            null                        -> {}
+                                        }
+                                    },
+                                    onDragEnd   = { cropDragHandle = null },
+                                    onDragCancel = { cropDragHandle = null }
+                                )
+                                else -> {}
                             }
                         }
                 ) {
@@ -414,6 +471,56 @@ private fun PhotoEditorCanvas(
                                 paint
                             )
                         }
+                    }
+
+                    // Crop overlay — drawn on top when CROP tool is active
+                    if (currentTool == EditorTool.CROP) {
+                        val cr = cropRect
+                        val cLeft   = cr.left   * size.width
+                        val cTop    = cr.top    * size.height
+                        val cRight  = cr.right  * size.width
+                        val cBottom = cr.bottom * size.height
+                        val cW = cRight - cLeft
+                        val cH = cBottom - cTop
+                        val dimColor = Color.Black.copy(alpha = 0.55f)
+
+                        // Dim outside crop rect (4 rectangles)
+                        drawRect(dimColor, topLeft = Offset(0f, 0f),     size = androidx.compose.ui.geometry.Size(size.width, cTop))
+                        drawRect(dimColor, topLeft = Offset(0f, cBottom), size = androidx.compose.ui.geometry.Size(size.width, size.height - cBottom))
+                        drawRect(dimColor, topLeft = Offset(0f, cTop),    size = androidx.compose.ui.geometry.Size(cLeft, cH))
+                        drawRect(dimColor, topLeft = Offset(cRight, cTop), size = androidx.compose.ui.geometry.Size(size.width - cRight, cH))
+
+                        // Crop border
+                        drawRect(
+                            color = Color.White,
+                            topLeft = Offset(cLeft, cTop),
+                            size = androidx.compose.ui.geometry.Size(cW, cH),
+                            style = Stroke(width = 2f)
+                        )
+
+                        // Rule-of-thirds grid lines
+                        val gridAlpha = Color.White.copy(alpha = 0.4f)
+                        drawLine(gridAlpha, Offset(cLeft + cW / 3, cTop), Offset(cLeft + cW / 3, cBottom), 1f)
+                        drawLine(gridAlpha, Offset(cLeft + 2 * cW / 3, cTop), Offset(cLeft + 2 * cW / 3, cBottom), 1f)
+                        drawLine(gridAlpha, Offset(cLeft, cTop + cH / 3), Offset(cRight, cTop + cH / 3), 1f)
+                        drawLine(gridAlpha, Offset(cLeft, cTop + 2 * cH / 3), Offset(cRight, cTop + 2 * cH / 3), 1f)
+
+                        // Corner handles
+                        val hs = 28f  // handle length in px
+                        val hw = 4f   // handle stroke width
+                        val handleColor = Color.White
+                        // Top-left
+                        drawLine(handleColor, Offset(cLeft, cTop), Offset(cLeft + hs, cTop), hw)
+                        drawLine(handleColor, Offset(cLeft, cTop), Offset(cLeft, cTop + hs), hw)
+                        // Top-right
+                        drawLine(handleColor, Offset(cRight, cTop), Offset(cRight - hs, cTop), hw)
+                        drawLine(handleColor, Offset(cRight, cTop), Offset(cRight, cTop + hs), hw)
+                        // Bottom-left
+                        drawLine(handleColor, Offset(cLeft, cBottom), Offset(cLeft + hs, cBottom), hw)
+                        drawLine(handleColor, Offset(cLeft, cBottom), Offset(cLeft, cBottom - hs), hw)
+                        // Bottom-right
+                        drawLine(handleColor, Offset(cRight, cBottom), Offset(cRight - hs, cBottom), hw)
+                        drawLine(handleColor, Offset(cRight, cBottom), Offset(cRight, cBottom - hs), hw)
                     }
                 }
             }
@@ -816,7 +923,8 @@ private fun StickerControls(
  */
 @Composable
 private fun CropControls(
-    onCrop: () -> Unit
+    onCrop: () -> Unit,
+    onReset: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -825,7 +933,9 @@ private fun CropControls(
             .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        OutlinedButton(onClick = { /* Reset crop */ }) {
+        OutlinedButton(onClick = onReset) {
+            Icon(Icons.Default.Refresh, "Скинути", modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text("Скинути")
         }
 
