@@ -93,6 +93,10 @@ import com.worldmates.messenger.data.SecretChatManager
 import com.worldmates.messenger.ui.messages.SelfDestructTimerDialog
 import com.worldmates.messenger.ui.messages.SecretChatTimerBadge
 
+// 🗑️ Media auto-delete imports
+import com.worldmates.messenger.data.model.MediaAutoDeleteOption
+import com.worldmates.messenger.ui.messages.MediaAutoDeleteDialog
+
 // 🔍 Імпорт компонента пошуку
 import com.worldmates.messenger.ui.messages.components.GroupSearchBar
 import com.worldmates.messenger.ui.search.MediaSearchScreen
@@ -178,6 +182,9 @@ fun MessagesScreen(
     var showExportSheet by remember { mutableStateOf(false) }
     // 🔒 Secret chat timer dialog
     var showSelfDestructDialog by remember { mutableStateOf(false) }
+    // 🗑️ Media auto-delete dialog
+    var showMediaAutoDeleteDialog by remember { mutableStateOf(false) }
+    var mediaAutoDeleteOption by remember { mutableStateOf(MediaAutoDeleteOption.NEVER) }
     // 📊 Create poll dialog
     var showCreatePollDialog by remember { mutableStateOf(false) }
 
