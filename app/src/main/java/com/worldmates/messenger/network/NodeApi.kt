@@ -400,6 +400,28 @@ interface NodeApi {
         @Field("chat_id") chatId: Long
     ): NodeMuteStatusResponse
 
+    // ═══════════════════════ MEDIA AUTO-DELETE ═══════════════════════════════
+
+    /**
+     * GET the current media auto-delete setting for a chat.
+     * Returns: { api_status, seconds, chat_id }
+     */
+    @GET(Constants.NODE_CHAT_MEDIA_AUTO_DELETE)
+    suspend fun getMediaAutoDeleteSetting(
+        @Query("chat_id") chatId: Long
+    ): com.worldmates.messenger.data.model.MediaAutoDeleteSettingResponse
+
+    /**
+     * SET (update) the media auto-delete setting for a chat.
+     * seconds: 0=never, 86400=1day, 259200=3days, 604800=1week, 1209600=2weeks, 2592000=1month
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHAT_MEDIA_AUTO_DELETE)
+    suspend fun setMediaAutoDeleteSetting(
+        @Field("chat_id") chatId: Long,
+        @Field("seconds") seconds: Long
+    ): com.worldmates.messenger.data.model.MediaAutoDeleteSettingResponse
+
     // ═══════════════════════ FAVORITES ═══════════════════════════════════════
 
     /**

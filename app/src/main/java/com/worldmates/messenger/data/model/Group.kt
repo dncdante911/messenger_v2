@@ -83,6 +83,8 @@ data class Message(
     // System message type: 'group_call' = group call notification card
     @SerializedName("type_two") val typeTwo: String? = null,
     @SerializedName("stickers") val stickers: String? = null,
+    // Album grouping: non-null means this message is part of a media album
+    @SerializedName("album_id") val albumId: Long? = null,
     // Локальные поля (не приходят с сервера)
     val decryptedText: String? = null,
     val decryptedMediaUrl: String? = null, // Розшифрований URL медіа (для веб-версії)
@@ -594,6 +596,29 @@ data class GroupPollData(
 data class GroupPollResponse(
     @SerializedName("api_status")    val apiStatus: Int = 0,
     @SerializedName("poll")          val poll: GroupPollData? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ── Admin Logs ────────────────────────────────────────────────────────────────
+
+data class AdminLogDto(
+    @SerializedName("id")               val id: Long = 0,
+    @SerializedName("action")           val action: String = "",
+    @SerializedName("admin_id")         val adminId: Long = 0,
+    @SerializedName("admin_name")       val adminName: String = "",
+    @SerializedName("admin_avatar")     val adminAvatar: String? = null,
+    @SerializedName("target_user_id")   val targetUserId: Long? = null,
+    @SerializedName("target_user_name") val targetUserName: String? = null,
+    @SerializedName("target_message_id") val targetMessageId: Long? = null,
+    @SerializedName("details")          val details: Map<String, String>? = null,
+    @SerializedName("created_at")       val createdAt: String = ""
+)
+
+data class GroupAdminLogsResponse(
+    @SerializedName("api_status")    val apiStatus: Int = 0,
+    @SerializedName("logs")          val logs: List<AdminLogDto>? = null,
+    @SerializedName("total")         val total: Int = 0,
+    @SerializedName("page")          val page: Int = 1,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 

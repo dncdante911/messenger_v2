@@ -141,8 +141,70 @@ async function buildMessage(ctx, msg, userId) {
         forward:        msg.forward        || 0,
         edited:         msg.edited         || 0,
         remove_at:      msg.remove_at      || 0,
+        album_id:       msg.album_id       || null,
+        media_deleted:  msg.media_deleted  || 0,
         user_data:      sender,
     };
+}
+
+// ─── Album grouping ───────────────────────────────────────────────────────────
+
+/**
+ * Groups consecutive media messages (image/video) from the same sender within
+ * 60 seconds into albums.  Mutates the `messages` array in place by setting
+ * `album_id` to the id of the first message in each group.
+ */
+function assignAlbumIds(messages) {
+    const ALBUM_WINDOW_SECONDS = 60;
+    const ALBUM_MEDIA_TYPES    = new Set(['image', 'video']);
+
+    /**
+     * Returns true when a formatted message object should participate in an album.
+     * We detect media type from `type_two` (server field) or from the resolved
+     * `type` string that already contains the position prefix ("left_video", etc.)
+     */
+    function isAlbumMedia(msg) {
+        if (ALBUM_MEDIA_TYPES.has(msg.type_two)) return true;
+        if (msg.type_two === 'image')             return true;
+        if (msg.type && msg.type.endsWith('_video')) return true;
+        // Generic file that looks like an image/video in the type field
+        if (msg.type && (msg.type.endsWith('_image') || msg.type.includes('image'))) return true;
+        return false;
+    }
+
+    let albumStart   = null;   // index in messages[] where current group started
+    let albumSender  = null;
+    let albumTime    = null;
+
+    for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
+        const eligible = isAlbumMedia(msg);
+
+        if (
+            eligible &&
+            albumSender === msg.from_id &&
+            albumTime   !== null &&
+            (msg.time - albumTime) <= ALBUM_WINDOW_SECONDS
+        ) {
+            // Extend current album
+            const albumId = messages[albumStart].id;
+            msg.album_id  = albumId;
+            messages[albumStart].album_id = albumId;
+            albumTime = msg.time;
+        } else if (eligible) {
+            // Start a new potential album group
+            albumStart  = i;
+            albumSender = msg.from_id;
+            albumTime   = msg.time;
+            // album_id will be assigned once a second item joins the group
+            msg.album_id = null;
+        } else {
+            // Non-media message — reset album tracking
+            albumStart  = null;
+            albumSender = null;
+            albumTime   = null;
+        }
+    }
 }
 
 // ─── GET messages ─────────────────────────────────────────────────────────────
@@ -186,6 +248,9 @@ function getMessages(ctx, io) {
             for (const m of rows.reverse()) {
                 messages.push(await buildMessage(ctx, m, userId));
             }
+
+            // Group consecutive image/video messages into albums
+            assignAlbumIds(messages);
 
             res.json({ api_status: 200, messages });
         } catch (err) {
@@ -699,6 +764,29 @@ function sendMediaMessage(ctx, io) {
                 ? crypto.encryptForStorage(captionRaw, now)
                 : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: crypto.CIPHER_VERSION_GCM };
 
+            // Check if the sender has media auto-delete enabled for this chat
+            let mediaDeleteAt = null;
+            if (recipientId > 0) {
+                try {
+                    const [settingRows] = await ctx.sequelize.query(
+                        `SELECT media_auto_delete_seconds FROM wm_chat_media_settings
+                         WHERE user_id = :uid AND chat_id = :cid LIMIT 1`,
+                        {
+                            replacements: { uid: userId, cid: recipientId },
+                            type: ctx.sequelize.constructor.QueryTypes.SELECT,
+                        }
+                    );
+                    const setting = Array.isArray(settingRows[0]) ? settingRows[0][0] : settingRows[0];
+                    const secs = setting ? (setting.media_auto_delete_seconds || 0) : 0;
+                    if (secs > 0) {
+                        mediaDeleteAt = new Date(Date.now() + secs * 1000);
+                    }
+                } catch (settingErr) {
+                    // Non-fatal: if the table doesn't exist yet (pre-migration), skip
+                    console.warn('[Node/chat/send-media] Could not fetch media-auto-delete setting:', settingErr.message);
+                }
+            }
+
             // Create message in database
             const row = await ctx.wo_messages.create({
                 from_id:        userId,
@@ -722,6 +810,8 @@ function sendMediaMessage(ctx, io) {
                 type_two:       typeTwo,
                 forward:        0,
                 edited:         0,
+                media_delete_at: mediaDeleteAt,
+                media_deleted:   0,
             });
 
             const sender = await getUserBasicData(ctx, userId);

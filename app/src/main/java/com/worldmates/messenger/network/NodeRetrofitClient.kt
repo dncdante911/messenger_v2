@@ -140,6 +140,9 @@ object NodeRetrofitClient {
     /** Business Mode API — профіль, графік, швидкі відповіді, посилання. */
     val businessApi: NodeBusinessApi = retrofit.create(NodeBusinessApi::class.java)
 
+    /** Business Directory API — public catalogue for browsing/searching registered businesses. */
+    val businessDirectoryApi: NodeBusinessDirectoryApi = retrofit.create(NodeBusinessDirectoryApi::class.java)
+
     /** Creates any Retrofit service backed by the Node.js base URL + auth interceptor. */
     fun <T> createService(cls: Class<T>): T = retrofit.create(cls)
 }

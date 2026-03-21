@@ -23,6 +23,22 @@ const { formatGroup } = require('./management');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
+async function logAdminAction(ctx, groupId, adminId, action, targetUserId = null, targetMessageId = null, details = null) {
+    try {
+        const WmGroupAdminLogs = require('../../models/wm_group_admin_logs')(ctx.sequelize);
+        await WmGroupAdminLogs.create({
+            group_id: groupId,
+            admin_id: adminId,
+            action,
+            target_user_id: targetUserId,
+            target_message_id: targetMessageId,
+            details: details ? JSON.stringify(details) : null
+        });
+    } catch (e) {
+        // non-critical, don't break main flow
+    }
+}
+
 async function isGroupOwner(ctx, groupId, userId) {
     const g = await ctx.wo_groupchat.findOne({
         attributes: ['user_id'],
@@ -98,6 +114,8 @@ function uploadAvatar(ctx, io) {
 
             console.log(`[Node/group/upload-avatar] Success: group=${groupId} avatar=${avatarUrl}`);
 
+            await logAdminAction(ctx, groupId, userId, 'change_avatar');
+
             return res.json({ api_status: 200, url: avatarUrl, group });
         } catch (err) {
             console.error('[Node/group/upload-avatar]', err.message);
@@ -171,6 +189,15 @@ function updateSettings(ctx, io) {
 
             // Notify members about settings change
             io.to('group_' + groupId).emit('group_updated', { group_id: groupId, ...groupData });
+
+            // Determine specific action type for logging
+            let settingsAction = 'change_settings';
+            if (req.body.group_name !== undefined) settingsAction = 'change_title';
+            else if (req.body.description !== undefined) settingsAction = 'change_description';
+            else if (req.body.slow_mode_seconds !== undefined) {
+                settingsAction = parseInt(req.body.slow_mode_seconds) > 0 ? 'enable_slow_mode' : 'disable_slow_mode';
+            }
+            await logAdminAction(ctx, groupId, userId, settingsAction, null, null, { updated_fields: Object.keys(updates) });
 
             return res.json({ api_status: 200, group: groupData });
         } catch (err) {
@@ -504,6 +531,8 @@ function addGroupAdmin(ctx, io) {
                 });
             }
 
+            await logAdminAction(ctx, groupId, userId, 'change_role', targetUserId, null, { new_role: 'admin' });
+
             return res.json({ api_status: 200, message: 'Admin added', permissions });
         } catch (err) {
             console.error('[Node/group/add-admin]', err.message);
@@ -553,9 +582,95 @@ function removeGroupAdmin(ctx, io) {
                 });
             }
 
+            await logAdminAction(ctx, groupId, userId, 'change_role', targetUserId, null, { new_role: 'member' });
+
             return res.json({ api_status: 200, message: 'Admin removed' });
         } catch (err) {
             console.error('[Node/group/remove-admin]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── GET ADMIN LOGS ───────────────────────────────────────────────────────────
+
+function getAdminLogs(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId  = req.userId;
+            const groupId = parseInt(req.body.group_id || req.query.group_id);
+            const page    = parseInt(req.body.page  || req.query.page)  || 1;
+            const limit   = parseInt(req.body.limit || req.query.limit) || 50;
+            const offset  = (page - 1) * limit;
+
+            if (!groupId || isNaN(groupId))
+                return res.json({ api_status: 400, error_message: 'group_id is required' });
+
+            if (!await isGroupAdmin(ctx, groupId, userId))
+                return res.json({ api_status: 403, error_message: 'Only admins can view admin logs' });
+
+            const WmGroupAdminLogs = require('../../models/wm_group_admin_logs')(ctx.sequelize);
+
+            const total = await WmGroupAdminLogs.count({ where: { group_id: groupId } });
+
+            const rows = await WmGroupAdminLogs.findAll({
+                where:   { group_id: groupId },
+                order:   [['created_at', 'DESC']],
+                limit,
+                offset,
+                raw: true,
+            });
+
+            // Enrich each log entry with admin and target user info
+            const logs = [];
+            for (const row of rows) {
+                const adminUser = await ctx.wo_users.findOne({
+                    attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar'],
+                    where: { user_id: row.admin_id },
+                    raw: true,
+                });
+
+                const adminName = adminUser
+                    ? (adminUser.first_name && adminUser.last_name
+                        ? `${adminUser.first_name} ${adminUser.last_name}`.trim()
+                        : adminUser.username || '')
+                    : '';
+
+                const adminAvatar = adminUser && adminUser.avatar
+                    ? await require('../../functions/functions').Wo_GetMedia(ctx, adminUser.avatar)
+                    : null;
+
+                let targetUserName = null;
+                if (row.target_user_id) {
+                    const targetUser = await ctx.wo_users.findOne({
+                        attributes: ['user_id', 'username', 'first_name', 'last_name'],
+                        where: { user_id: row.target_user_id },
+                        raw: true,
+                    });
+                    if (targetUser) {
+                        targetUserName = (targetUser.first_name && targetUser.last_name)
+                            ? `${targetUser.first_name} ${targetUser.last_name}`.trim()
+                            : targetUser.username || '';
+                    }
+                }
+
+                logs.push({
+                    id:               row.id,
+                    action:           row.action,
+                    admin_id:         row.admin_id,
+                    admin_name:       adminName,
+                    admin_avatar:     adminAvatar,
+                    target_user_id:   row.target_user_id || null,
+                    target_user_name: targetUserName,
+                    target_message_id: row.target_message_id || null,
+                    details:          row.details ? (() => { try { return JSON.parse(row.details); } catch { return null; } })() : null,
+                    created_at:       row.created_at,
+                });
+            }
+
+            return res.json({ api_status: 200, logs, total, page });
+        } catch (err) {
+            console.error('[Node/group/admin-logs]', err.message);
             return res.json({ api_status: 500, error_message: 'Server error' });
         }
     };
@@ -573,4 +688,5 @@ module.exports = {
     getStatistics,
     addGroupAdmin,
     removeGroupAdmin,
+    getAdminLogs,
 };

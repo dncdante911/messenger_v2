@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.Constants
 import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.data.model.MediaAutoDeleteOption
 import com.worldmates.messenger.data.model.Message
 import com.worldmates.messenger.data.model.MessageReaction
 import com.worldmates.messenger.data.model.ReactionGroup
@@ -150,6 +151,11 @@ class MessagesViewModel(application: Application) :
     val isMutedPrivate: StateFlow<Boolean> = _isMutedPrivate
     // ==================== END PRIVATE CHAT MUTE ====================
 
+    // ==================== MEDIA AUTO-DELETE ====================
+    private val _mediaAutoDeleteOption = MutableStateFlow(MediaAutoDeleteOption.NEVER)
+    val mediaAutoDeleteOption: StateFlow<MediaAutoDeleteOption> = _mediaAutoDeleteOption
+    // ==================== END MEDIA AUTO-DELETE ====================
+
     // ==================== LOAD MORE (PAGINATION) ====================
     private val _canLoadMore = MutableStateFlow(true)
     val canLoadMore: StateFlow<Boolean> = _canLoadMore
@@ -233,6 +239,9 @@ class MessagesViewModel(application: Application) :
         fetchRecipientStatus()  // initialise header status bar without waiting for socket events
         loadMuteStatusViaNode(viewModelScope, nodeApi, recipientId) { isMuted ->
             _isMutedPrivate.value = isMuted
+        }
+        loadMediaAutoDeleteSettingViaNode(viewModelScope, nodeApi, recipientId) { option ->
+            _mediaAutoDeleteOption.value = option
         }
         // Log Signal session status for debug
         viewModelScope.launch {
@@ -2223,6 +2232,28 @@ class MessagesViewModel(application: Application) :
             error     = _error,
             onSuccess = { isMuted ->
                 _isMutedPrivate.value = isMuted
+                onSuccess()
+            }
+        )
+    }
+
+    /**
+     * 🗑️ Save media auto-delete setting for the current private chat (Node.js)
+     */
+    fun saveMediaAutoDeleteSetting(
+        option: MediaAutoDeleteOption,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        saveMediaAutoDeleteSettingViaNode(
+            scope     = viewModelScope,
+            api       = nodeApi,
+            chatId    = recipientId,
+            option    = option,
+            isLoading = _isLoading,
+            error     = _error,
+            onSuccess = { saved ->
+                _mediaAutoDeleteOption.value = saved
                 onSuccess()
             }
         )

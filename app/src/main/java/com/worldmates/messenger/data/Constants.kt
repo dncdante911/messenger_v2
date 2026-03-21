@@ -65,6 +65,7 @@ object Constants {
     const val NODE_CHAT_READ        = "api/node/chat/read"         // mark all as read
     const val NODE_CHAT_CLEAR_HIST  = "api/node/chat/clear-history" // clear history (soft-delete)
     const val NODE_CHAT_MUTE_STATUS = "api/node/chat/mute-status"  // get mute/notify status
+    const val NODE_CHAT_MEDIA_AUTO_DELETE = "api/node/chat/media-auto-delete-setting" // media auto-delete setting
 
     // Favorites
     const val NODE_CHAT_FAV      = "api/node/chat/fav"                 // fav/unfav message
@@ -180,6 +181,9 @@ object Constants {
     // ── Anonymous Admin ───────────────────────────────────────────────────────
     const val NODE_GROUP_ANON_ADMIN_SET = "api/node/group/admin/set-anonymous"
     const val NODE_GROUP_ANON_ADMIN_GET = "api/node/group/admin/get-anonymous"
+
+    // ── Admin Logs ────────────────────────────────────────────────────────────
+    const val NODE_GROUP_ADMIN_LOGS     = "api/node/group/admin-logs"
 
     // ── Group Polls ───────────────────────────────────────────────────────────
     const val NODE_GROUP_POLL_CREATE   = "api/node/group/poll/create"

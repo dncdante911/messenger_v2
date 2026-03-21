@@ -13,6 +13,8 @@ import com.worldmates.messenger.ui.video.AdvancedVideoPlayer
 import com.worldmates.messenger.utils.EncryptedMediaHandler
 import kotlinx.coroutines.launch
 
+// Deleted placeholder is defined in ImageMessageComponent.kt (same package)
+
 /**
  * Компонент для отображения видео в сообщении
  *
@@ -35,6 +37,15 @@ fun VideoMessageComponent(
     enablePiP: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    // Show deleted placeholder when media has been auto-deleted from the server
+    if (videoUrl == "deleted") {
+        DeletedMediaPlaceholder(
+            showTextAbove = showTextAbove,
+            modifier = modifier
+        )
+        return
+    }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 

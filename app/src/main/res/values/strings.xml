@@ -1665,6 +1665,13 @@
     <!-- ===== GROUP ADMIN PANEL ===== -->
     <string name="detailed_statistics">Детальна статистика</string>
     <string name="group_management">Управління групою</string>
+    <string name="admin_logs_title">Журнал действий</string>
+    <string name="admin_logs_empty">Действий не найдено</string>
+    <string name="admin_logs_added_member">добавил участника</string>
+    <string name="admin_logs_removed_member">удалил участника</string>
+    <string name="admin_logs_deleted_message">удалил сообщение</string>
+    <string name="admin_logs_changed_settings">изменил настройки</string>
+    <string name="admin_logs_pinned_message">закрепил сообщение</string>
 
     <!-- ===== SCHEDULED POSTS UI ===== -->
     <string name="new_scheduled_post_title">Новий запланований пост</string>
@@ -1875,6 +1882,18 @@
     <string name="export_success">Експорт завершено</string>
     <string name="export_menu_item">Експортувати чат</string>
     <string name="secret_timer_menu_item">🔒 Self-destruct timer</string>
+
+    <!-- ===== MEDIA AUTO-DELETE ===== -->
+    <string name="media_auto_delete_title">Автоудаление медиа</string>
+    <string name="media_auto_delete_description">Медиафайлы автоматически удаляются с сервера. Текст сообщения сохраняется.</string>
+    <string name="media_auto_delete_never">Никогда</string>
+    <string name="media_auto_delete_1day">1 день</string>
+    <string name="media_auto_delete_3days">3 дня</string>
+    <string name="media_auto_delete_1week">1 неделя</string>
+    <string name="media_auto_delete_2weeks">2 недели</string>
+    <string name="media_auto_delete_1month">1 месяц</string>
+    <string name="media_deleted_placeholder">Медиафайл удалён</string>
+    <string name="media_auto_delete_menu_item">Автоудаление медиа</string>
 
     <!-- ===== GROUP TOPICS ===== -->
     <string name="topics_title">Теми</string>
@@ -2514,5 +2533,20 @@
     <string name="photo_filter_invert">Негатив</string>
     <string name="photo_filter_blur">Розмиття</string>
     <string name="photo_filter_sharpen">Різкість</string>
+
+    <!-- ===== BUSINESS DIRECTORY ===== -->
+    <string name="business_directory">Бизнес-каталог</string>
+    <string name="business_directory_search_hint">Поиск бизнесов...</string>
+    <string name="business_directory_all_categories">Все</string>
+    <string name="business_directory_message_btn">Написать</string>
+    <string name="business_directory_verified">Проверено</string>
+    <string name="business_directory_empty">Бизнесы не найдены</string>
+    <string name="business_directory_loading">Загрузка...</string>
+
+    <!-- ===== MEDIA ALBUMS ===== -->
+    <string name="media_album_more">+%d ещё</string>
+    <string name="media_album_photo_count">%d фото</string>
+    <string name="media_album_video">Відео</string>
+    <string name="audio_album_title">Аудіо</string>
 
 </resources>
