@@ -112,12 +112,11 @@ class WebRTCManager(private val context: Context) {
         private fun createDefaultIceServers(): List<PeerConnection.IceServer> {
             val servers = mutableListOf<PeerConnection.IceServer>()
 
-            // 1. STUN серверы Google (бесплатные, для NAT traversal)
-            servers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer())
-            servers.add(PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer())
-            servers.add(PeerConnection.IceServer.builder("stun:stun2.l.google.com:19302").createIceServer())
+            // STUN on own coturn servers (no Google dependency)
+            servers.add(PeerConnection.IceServer.builder("stun:$TURN_IP_1:3478").createIceServer())
+            servers.add(PeerConnection.IceServer.builder("stun:$TURN_IP_2:3478").createIceServer())
 
-            // 2. TURN серверы WorldMates (с credentials для relay)
+            // TURN серверы WorldMates (с credentials для relay)
             val (username, credential) = generateTurnCredentials()
 
             if (credential.isNotEmpty()) {
