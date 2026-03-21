@@ -65,6 +65,7 @@ const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
 const { registerStickerRoutes }      = require('./routes/stickers')
 const { registerBusinessRoutes, handleBusinessAutoReply } = require('./routes/business')
+const { registerBusinessDirectoryRoutes } = require('./routes/business-directory')
 const { registerSearchRoutes }       = require('./routes/search/index')
 const { startCronJobs }              = require('./jobs/cronJobs')
 const { createGeoblockMiddleware }   = require('./middleware/geoblock')
@@ -863,6 +864,9 @@ async function main() {
 
   // Register Business Mode routes (profile, hours, quick replies, links, auto-reply)
   registerBusinessRoutes(app, ctx);
+
+  // Register Business Directory routes (public browsable business catalogue)
+  registerBusinessDirectoryRoutes(app, ctx);
 
   // Register Global Search route
   registerSearchRoutes(app, ctx);
