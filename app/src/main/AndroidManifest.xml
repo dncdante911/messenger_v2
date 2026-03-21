@@ -44,6 +44,8 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Keep-alive: точні аларми для перезапуску сервісу (Android 12+) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Incoming calls: full-screen activity on locked screen / Android 11+ -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <!-- Features -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
