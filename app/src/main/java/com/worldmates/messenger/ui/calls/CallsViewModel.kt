@@ -6,6 +6,7 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
+import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
@@ -21,6 +22,8 @@ import org.webrtc.*
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import org.json.JSONObject
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 data class CallData(
     val callId: Int,
@@ -62,6 +65,13 @@ data class GroupCallIncomingData(
 )
 
 class CallsViewModel(application: Application) : AndroidViewModel(application), SocketManager.SocketListener {
+
+    companion object {
+        // coturn static-auth-secret from worldmates.club server config
+        private const val TURN_SECRET = "ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9"
+        private const val TURN_HOST_1 = "195.22.131.11"
+        private const val TURN_HOST_2 = "46.232.232.38"
+    }
 
     private val webRTCManager = WebRTCManager(application)
     val socketManager = SocketManager(this, application)  // ✅ public для доступу з CallsActivity
@@ -1042,6 +1052,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
     fun toggleGroupVideo(enabled: Boolean) {
         groupWebRTCManager.setVideoEnabled(enabled)
+        // Re-post local stream so the UI recomposes and picks up the video track
+        groupWebRTCManager.getLocalMediaStream()?.let { localStreamAdded.postValue(it) }
         val roomName = currentGroupRoomName ?: return
         val event = JSONObject().apply {
             put("roomName", roomName)
@@ -1674,7 +1686,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
     /**
      * Fetch ICE servers via Socket.IO (more reliable than HTTP API)
-     * Uses Socket.IO acknowledgments for synchronous request-response
+     * Uses Socket.IO acknowledgments for synchronous request-response.
+     * Falls back to locally-computed HMAC TURN credentials if server is unavailable.
      */
     private suspend fun fetchIceServersFromApi(): List<PeerConnection.IceServer>? {
         return try {
@@ -1696,10 +1709,46 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 Log.w("CallsViewModel", "⚠️ Failed to fetch ICE servers via Socket.IO: success=${response?.optBoolean("success")}")
             }
 
-            null
+            // Fallback: compute HMAC TURN credentials locally using coturn static-auth-secret
+            Log.w("CallsViewModel", "⚠️ Using HMAC TURN fallback credentials")
+            buildHmacTurnServers()
         } catch (e: Exception) {
-            Log.e("CallsViewModel", "❌ Error fetching ICE servers via Socket.IO", e)
-            null
+            Log.e("CallsViewModel", "❌ Error fetching ICE servers via Socket.IO — using HMAC fallback", e)
+            buildHmacTurnServers()
+        }
+    }
+
+    /**
+     * Compute coturn time-limited credentials from the static-auth-secret (HMAC-SHA1).
+     * This matches the coturn `use-auth-secret` / `lt-cred-mech` configuration on worldmates.club.
+     * Format: username = "<expiry_unix>:<userId>",  password = Base64(HMAC-SHA1(username, secret))
+     */
+    private fun buildHmacTurnServers(): List<PeerConnection.IceServer> {
+        return try {
+            val expiry = System.currentTimeMillis() / 1000 + 86400   // valid 24 h
+            val username = "$expiry:${getUserId()}"
+            val mac = Mac.getInstance("HmacSHA1")
+            mac.init(SecretKeySpec(TURN_SECRET.toByteArray(Charsets.UTF_8), "HmacSHA1"))
+            val credential = Base64.encodeToString(
+                mac.doFinal(username.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP
+            )
+            Log.d("CallsViewModel", "🔑 HMAC TURN creds built for user ${getUserId()}")
+            listOf(
+                PeerConnection.IceServer.builder("stun:$TURN_HOST_1:3478").createIceServer(),
+                PeerConnection.IceServer.builder("stun:$TURN_HOST_2:3478").createIceServer(),
+                PeerConnection.IceServer.builder(listOf(
+                    "turn:$TURN_HOST_1:3478?transport=udp",
+                    "turn:$TURN_HOST_1:3478?transport=tcp",
+                    "turns:$TURN_HOST_1:5349"
+                )).setUsername(username).setPassword(credential).createIceServer(),
+                PeerConnection.IceServer.builder(listOf(
+                    "turn:$TURN_HOST_2:3478?transport=udp",
+                    "turn:$TURN_HOST_2:3478?transport=tcp"
+                )).setUsername(username).setPassword(credential).createIceServer()
+            )
+        } catch (e: Exception) {
+            Log.e("CallsViewModel", "❌ Failed to build HMAC TURN servers", e)
+            listOf(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer())
         }
     }
 
