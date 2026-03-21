@@ -26,7 +26,8 @@ data class Story(
     @SerializedName("is_viewed") val isViewed: Int = 0,
     @SerializedName("view_count") val viewCount: Int = 0,
     @SerializedName("comment_count") val commentCount: Int = 0,
-    @SerializedName("reaction") val reaction: StoryReactions? = null
+    @SerializedName("reaction") val reaction: StoryReactions? = null,
+    @SerializedName("music_url") val musicUrl: String? = null,
 ) {
     /**
      * Чи активна ще story (не протермінована)

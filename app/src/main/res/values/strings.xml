@@ -806,6 +806,8 @@
     <string name="story_title_hint">Заголовок (опціонально)</string>
     <string name="story_description_hint">Опис (опціонально)</string>
     <string name="publish_story">Опублікувати Story</string>
+    <string name="add_music">Додати музику</string>
+    <string name="music_selected">Музику вибрано</string>
     <string name="story_privacy">Приватність історії</string>
     <string name="close_friends">Близькі друзі</string>
     <string name="reply_to_story">Відповісти на історію</string>
@@ -1864,6 +1866,7 @@
     <string name="export_error">Помилка експорту</string>
     <string name="export_success">Експорт завершено</string>
     <string name="export_menu_item">Експортувати чат</string>
+    <string name="secret_timer_menu_item">🔒 Self-destruct timer</string>
 
     <!-- ===== GROUP TOPICS ===== -->
     <string name="topics_title">Теми</string>

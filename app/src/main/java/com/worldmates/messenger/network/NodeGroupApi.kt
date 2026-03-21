@@ -241,7 +241,8 @@ interface NodeGroupApi {
     @FormUrlEncoded
     @POST(Constants.NODE_GROUP_MESSAGES_UNPIN)
     suspend fun unpinGroupMessage(
-        @Field("group_id") groupId: Long
+        @Field("group_id")   groupId: Long,
+        @Field("message_id") messageId: Long? = null
     ): GroupSimpleResponse
 
     @FormUrlEncoded

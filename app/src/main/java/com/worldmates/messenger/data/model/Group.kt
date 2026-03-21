@@ -108,6 +108,7 @@ data class Group(
     @SerializedName("members") val members: List<GroupMember>? = null,
     @SerializedName("pinned_message_id") val pinnedMessageId: Long? = null,
     @SerializedName("pinned_message") val pinnedMessage: Message? = null,
+    @SerializedName("pinned_messages") val pinnedMessages: List<Message>? = null,
     @SerializedName("settings") val settings: GroupSettings? = null
 )
 

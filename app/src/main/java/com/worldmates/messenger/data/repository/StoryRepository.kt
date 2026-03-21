@@ -63,7 +63,8 @@ class StoryRepository(private val context: Context) {
         title: String? = null,
         description: String? = null,
         videoDuration: Int? = null,
-        coverUri: Uri? = null
+        coverUri: Uri? = null,
+        musicUri: android.net.Uri? = null
     ): Result<CreateStoryResponse> {
         return try {
             if (UserSession.accessToken == null) {
@@ -133,13 +134,22 @@ class StoryRepository(private val context: Context) {
                 }
             }
 
+            // Якщо є музика
+            val musicPart = musicUri?.let { uri ->
+                FileUtils.getFileFromUri(context, uri)?.let { musicFile ->
+                    val musicRequestFile = musicFile.asRequestBody("multipart/form-data".toMediaTypeOrNull())
+                    MultipartBody.Part.createFormData("music", musicFile.name, musicRequestFile)
+                }
+            }
+
             val response = nodeStoriesApi.createStory(
                 file = filePart,
                 fileType = fileTypeBody,
                 storyTitle = titleBody,
                 storyDescription = descriptionBody,
                 videoDuration = durationBody,
-                cover = coverPart
+                cover = coverPart,
+                musicFile = musicPart
             )
 
             _isLoading.value = false

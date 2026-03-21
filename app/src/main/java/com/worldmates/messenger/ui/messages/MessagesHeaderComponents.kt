@@ -50,6 +50,7 @@ fun MessagesHeaderBar(
     // 🔥 Group-specific parameters
     isGroup: Boolean = false,
     isGroupAdmin: Boolean = false,
+    onSelfDestructClick: () -> Unit = {},
     onCreateSubgroupClick: () -> Unit = {},
     onAddMembersClick: () -> Unit = {},
     onGroupSettingsClick: () -> Unit = {},
@@ -303,6 +304,20 @@ fun MessagesHeaderBar(
                                 Icon(Icons.Default.Download, contentDescription = null)
                             }
                         )
+
+                        // 🔒 Secret chat timer — only for private chats
+                        if (!isGroup) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.secret_timer_menu_item)) },
+                                onClick = {
+                                    showUserMenu = false
+                                    onSelfDestructClick()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Timer, contentDescription = null, tint = Color(0xFFF44336))
+                                }
+                            )
+                        }
 
                         // ✅ User-only option: block user
                         if (!isGroup) {

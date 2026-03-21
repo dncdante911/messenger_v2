@@ -72,6 +72,7 @@ fun CreateStoryDialog(
     val scope = rememberCoroutineScope()
 
     var selectedMediaUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedMusicUri by remember { mutableStateOf<Uri?>(null) }
     var isVideo by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -133,6 +134,12 @@ fun CreateStoryDialog(
             isVideo = FileUtils.isVideo(context, it)
             videoDurationSeconds = null
         }
+    }
+
+    val audioPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { selectedMusicUri = it }
     }
 
     LaunchedEffect(success) {
@@ -405,6 +412,48 @@ fun CreateStoryDialog(
                 }
             }
 
+            // ── Add Music button ──────────────────────────────────────────────
+            AnimatedVisibility(
+                visible = selectedMediaUri != null,
+                enter = expandVertically(tween(300)) + fadeIn(tween(300)),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(bgCard)
+                        .clickable { audioPickerLauncher.launch("audio/*") }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = if (selectedMusicUri != null) AccentPurple else textMuted,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = if (selectedMusicUri != null) stringResource(R.string.music_selected) else stringResource(R.string.add_music),
+                        color = if (selectedMusicUri != null) AccentPurple else textMuted,
+                        fontSize = 14.sp
+                    )
+                    if (selectedMusicUri != null) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = textMuted,
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { selectedMusicUri = null }
+                        )
+                    }
+                }
+            }
+
             // ── PRO hint ──────────────────────────────────────────────────────
             if (!isPro) {
                 Text(
@@ -439,7 +488,8 @@ fun CreateStoryDialog(
                                     title = title.ifBlank { null },
                                     description = description.ifBlank { null },
                                     videoDuration = videoDurationSeconds,
-                                    coverUri = null
+                                    coverUri = null,
+                                    musicUri = selectedMusicUri
                                 )
                             }
                         }

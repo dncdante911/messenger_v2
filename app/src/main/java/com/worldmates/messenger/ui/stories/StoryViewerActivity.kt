@@ -146,6 +146,15 @@ fun StoryViewerScreen(
     var floatingEmoji by remember { mutableStateOf<String?>(null) }
     var floatingEmojiKey by remember { mutableStateOf(0) }
 
+    // MediaPlayer for story music
+    val mediaPlayer = remember { android.media.MediaPlayer() }
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayer.stop()
+            mediaPlayer.release()
+        }
+    }
+
     // User stories filtered by userId
     val userStories = remember(allStories, currentStory) {
         currentStory?.let { story ->
@@ -182,6 +191,21 @@ fun StoryViewerScreen(
             }
             // Mark as viewed
             viewModel.markStoryViewed(newStory.id)
+
+            // Play music if story has musicUrl
+            try {
+                mediaPlayer.stop()
+                mediaPlayer.reset()
+                val musicUrl = newStory.musicUrl
+                if (!musicUrl.isNullOrBlank()) {
+                    mediaPlayer.setDataSource(musicUrl)
+                    mediaPlayer.isLooping = true
+                    mediaPlayer.prepareAsync()
+                    mediaPlayer.setOnPreparedListener { it.start() }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to play story music: ${e.message}")
+            }
         }
     }
 
