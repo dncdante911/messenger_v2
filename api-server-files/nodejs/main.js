@@ -60,6 +60,7 @@ const { registerSessionRoutes }      = require('./routes/users/sessions')
 const { registerTwoFactorRoutes }    = require('./routes/users/two-factor')
 const { registerDeleteAccountRoutes } = require('./routes/users/delete-account')
 const { registerReportUserRoutes }    = require('./routes/users/report-user')
+const { registerModerationRoutes }   = require('./routes/moderation/index')
 const { registerScheduledRoutes }    = require('./routes/scheduled')
 const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
@@ -276,6 +277,11 @@ async function init() {
   ctx.signal_keys              = require("./models/signal_keys")(sequelize, DataTypes)
   // Signal Sender Key Distribution для групових E2EE чатів
   ctx.signal_group_sender_keys = require("./models/signal_group_sender_keys")(sequelize, DataTypes)
+
+  // ==================== Content Moderation Models ====================
+  ctx.wm_content_hash_blacklist = require("./models/wm_content_hash_blacklist")(sequelize, DataTypes)
+  ctx.wm_moderation_queue       = require("./models/wm_moderation_queue")(sequelize, DataTypes)
+  ctx.wm_content_policy         = require("./models/wm_content_policy")(sequelize, DataTypes)
 
   ctx.globalconfig = {}
   ctx.globallangs = {}
@@ -818,6 +824,8 @@ async function main() {
   registerDeleteAccountRoutes(app, ctx);
   // Register Report User REST API (replaces PHP report_user.php)
   registerReportUserRoutes(app, ctx);
+  // Register Content Moderation REST API (очередь, блэклист, политики контента)
+  registerModerationRoutes(app, ctx);
   // Register Profile REST API (own profile, other users, follow, block, search)
   registerProfileRoutes(app, ctx);
   // Register User Rating / karma system

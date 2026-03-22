@@ -7,14 +7,16 @@
  *   POST /api/node/chat/upload
  *
  * Body (multipart/form-data):
- *   file   – the file to upload (any field name: image, video, audio, file)
- *   type   – media type: "image" | "video" | "audio" | "voice" | "file"
+ *   file        – the file to upload (any field name: image, video, audio, file)
+ *   type        – media type: "image" | "video" | "audio" | "voice" | "file"
+ *   chat_type   – 'private' | 'group' | 'channel' (для политики контента)
+ *   entity_id   – ID группы или канала (0 для приватного чата)
  *
  * Response (compatible with Android XhrUploadResponse):
- *   { status: 200, image: "url", image_src: "path" }   for images
- *   { status: 200, video: "url", video_src: "path" }   for videos
- *   { status: 200, audio: "url", audio_src: "path" }   for audio/voice
- *   { status: 200, file:  "url", file_src:  "path" }   for files
+ *   { status: 200, image: "url", image_src: "path", is_sensitive: false }
+ *   { status: 200, video: "url", video_src: "path" }
+ *   { status: 200, audio: "url", audio_src: "path" }
+ *   { status: 200, file:  "url", file_src:  "path" }
  *
  * File size limits (match Android Constants):
  *   Images : 25 MB
@@ -27,6 +29,12 @@ const path   = require('path');
 const fs     = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
+
+const {
+    DECISION,
+    checkContent,
+    addToModerationQueue
+} = require('../../helpers/content-moderator');
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -52,15 +60,15 @@ const UPLOAD_DIRS = {
 // Block executable/script files disguised as media regardless of extension.
 
 const BLOCKED_SIGNATURES = [
-    { sig: Buffer.from([0x7F, 0x45, 0x4C, 0x46]),                   label: 'ELF executable'      }, // ELF
-    { sig: Buffer.from([0x4D, 0x5A]),                                label: 'Windows PE/EXE/DLL'  }, // MZ
-    { sig: Buffer.from([0x3C, 0x3F, 0x70, 0x68, 0x70]),             label: 'PHP script'           }, // <?php
-    { sig: Buffer.from([0x23, 0x21, 0x2F, 0x62, 0x69, 0x6E]),       label: 'shell script (bin)'  }, // #!/bin
-    { sig: Buffer.from([0x23, 0x21, 0x2F, 0x75, 0x73, 0x72]),       label: 'shell script (usr)'  }, // #!/usr
-    { sig: Buffer.from([0xCA, 0xFE, 0xBA, 0xBE]),                   label: 'Java class / Mach-O' }, // .class
-    { sig: Buffer.from([0xCF, 0xFA, 0xED, 0xFE]),                   label: 'Mach-O 64-bit'       }, // Mach-O 64
-    { sig: Buffer.from([0x50, 0x4B, 0x03, 0x04]),                   label: 'ZIP / APK archive'   }, // PK
-    { sig: Buffer.from([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07]),       label: 'RAR archive'         }, // Rar!
+    { sig: Buffer.from([0x7F, 0x45, 0x4C, 0x46]),                   label: 'ELF executable'      },
+    { sig: Buffer.from([0x4D, 0x5A]),                                label: 'Windows PE/EXE/DLL'  },
+    { sig: Buffer.from([0x3C, 0x3F, 0x70, 0x68, 0x70]),             label: 'PHP script'           },
+    { sig: Buffer.from([0x23, 0x21, 0x2F, 0x62, 0x69, 0x6E]),       label: 'shell script (bin)'  },
+    { sig: Buffer.from([0x23, 0x21, 0x2F, 0x75, 0x73, 0x72]),       label: 'shell script (usr)'  },
+    { sig: Buffer.from([0xCA, 0xFE, 0xBA, 0xBE]),                   label: 'Java class / Mach-O' },
+    { sig: Buffer.from([0xCF, 0xFA, 0xED, 0xFE]),                   label: 'Mach-O 64-bit'       },
+    { sig: Buffer.from([0x50, 0x4B, 0x03, 0x04]),                   label: 'ZIP / APK archive'   },
+    { sig: Buffer.from([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07]),       label: 'RAR archive'         },
 ];
 
 function checkMagicBytes(buffer) {
@@ -96,7 +104,6 @@ function fullUrl(ctx, relPath) {
 
 // ─── multer — memory storage, write to disk ourselves ─────────────────────────
 
-// Accept any field name (image, video, audio, file) that Android might send
 const upload = multer({
     storage: multer.memoryStorage(),
     limits:  { fileSize: Math.max(...Object.values(LIMITS)) },
@@ -115,7 +122,6 @@ function uploadChatMedia(ctx) {
             }
 
             try {
-                // Determine media type from body param or from the field name used
                 const files = req.files || [];
                 if (files.length === 0) {
                     return res.json({ status: 400, error: 'No file uploaded' });
@@ -123,27 +129,49 @@ function uploadChatMedia(ctx) {
 
                 const uploadedFile = files[0];
 
-                // type from body > field name > default to 'file'
                 let mediaType = (req.body.type || uploadedFile.fieldname || 'file').toLowerCase();
                 if (!LIMITS[mediaType]) mediaType = 'file';
 
-                // Enforce size limit for the detected type
                 if (uploadedFile.size > LIMITS[mediaType]) {
                     const limitMb = Math.round(LIMITS[mediaType] / 1024 / 1024);
                     return res.json({ status: 400, error: `File too large. Max ${limitMb} MB for type "${mediaType}"` });
                 }
 
-                // Magic bytes check — reject executables and scripts disguised as media
+                // Magic bytes check
                 const magicCheck = checkMagicBytes(uploadedFile.buffer);
                 if (!magicCheck.ok) {
                     console.warn(`[ChatUpload] Blocked dangerous file from ${req.ip}: ${magicCheck.reason}`);
                     return res.json({ status: 400, error: `Upload rejected: ${magicCheck.reason}` });
                 }
 
+                // ── Content Moderation ──────────────────────────────────────
+                // chat_type и entity_id передаются клиентом чтобы применить правильную политику
+                const chatType  = (req.body.chat_type  || 'private').toLowerCase();
+                const entityId  = parseInt(req.body.entity_id || '0', 10);
+                const senderId  = req.user?.user_id || 0; // если requireAuth включён выше
+
+                const moderationResult = await checkContent(
+                    ctx,
+                    uploadedFile.buffer,
+                    mediaType,
+                    { senderId, chatType, entityId }
+                );
+
+                if (moderationResult.decision === DECISION.BLOCK) {
+                    console.warn(
+                        `[ChatUpload] BLOCK: user=${senderId} reason=${moderationResult.reason} ` +
+                        `sha256=${moderationResult.sha256.slice(0, 12)}...`
+                    );
+                    return res.json({
+                        status: 451,  // 451 Unavailable For Legal Reasons
+                        error:  'Загрузка запрещена: контент нарушает правила платформы',
+                        reason: moderationResult.reason
+                    });
+                }
+                // ── End Content Moderation ──────────────────────────────────
+
                 // Build output path
                 let subDir = UPLOAD_DIRS[mediaType];
-
-                // For images, organise into YYYY/MM sub-directories like avatars do
                 if (mediaType === 'image') {
                     const now = new Date();
                     subDir = `${subDir}/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -157,17 +185,36 @@ function uploadChatMedia(ctx) {
                 const relPath  = `${subDir}/${filename}`;
                 const url      = fullUrl(ctx, relPath);
 
-                // Write buffer to disk (async — avoids blocking the Event Loop)
                 await fs.promises.writeFile(absPath, uploadedFile.buffer);
+
+                // Если решение HOLD — добавляем в очередь модерации
+                if (moderationResult.decision === DECISION.HOLD) {
+                    console.log(`[ChatUpload] HOLD: файл сохранён, добавлен в очередь модерации: ${relPath}`);
+                    await addToModerationQueue(ctx, {
+                        filePath:     relPath,
+                        fileUrl:      url,
+                        mediaType,
+                        senderId,
+                        channelId:    chatType === 'channel' ? entityId : 0,
+                        groupId:      chatType === 'group'   ? entityId : 0,
+                        chatType,
+                        contentLevel: moderationResult.reason,
+                        sha256:       moderationResult.sha256,
+                        nudeNetResult: moderationResult.nudeNet,
+                        reason:       moderationResult.reason
+                    });
+                }
 
                 // Build XhrUploadResponse-compatible JSON
                 const resp = {
-                    status:     200,
-                    image:      null, image_src: null,
-                    video:      null, video_src: null,
-                    audio:      null, audio_src: null,
-                    file:       null, file_src:  null,
-                    error:      null,
+                    status:       200,
+                    image:        null, image_src: null,
+                    video:        null, video_src: null,
+                    audio:        null, audio_src: null,
+                    file:         null, file_src:  null,
+                    error:        null,
+                    is_sensitive: moderationResult.isSensitive,  // клиент ставит блюр если true
+                    moderation:   moderationResult.decision       // 'allow' | 'blur' | 'hold'
                 };
 
                 switch (mediaType) {
@@ -189,7 +236,11 @@ function uploadChatMedia(ctx) {
                         resp.file_src  = relPath;
                 }
 
-                console.log(`[ChatUpload] ${mediaType} uploaded: ${relPath} (${Math.round(uploadedFile.size / 1024)} KB)`);
+                const sizeKb = Math.round(uploadedFile.size / 1024);
+                console.log(
+                    `[ChatUpload] ${mediaType} uploaded: ${relPath} (${sizeKb} KB) ` +
+                    `decision=${moderationResult.decision} sensitive=${moderationResult.isSensitive}`
+                );
                 return res.json(resp);
 
             } catch (e) {
