@@ -1,0 +1,28 @@
+[Unit]
+Description=NudeNet Content Moderation Service — WorldMates
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+# Укажите реальный путь к папке moderation на сервере:
+WorkingDirectory=/var/www/www-root/data/www/worldmates.club/api-server-files/moderation
+ExecStart=/var/www/www-root/data/www/worldmates.club/api-server-files/moderation/venv/bin/gunicorn \
+    --bind 127.0.0.1:5001 \
+    --workers 2 \
+    --threads 2 \
+    --timeout 30 \
+    --log-level info \
+    nudenet_service:app
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nudenet
+
+# Переменные окружения
+Environment="NUDENET_PORT=5001"
+Environment="NUDENET_HOST=127.0.0.1"
+
+[Install]
+WantedBy=multi-user.target
