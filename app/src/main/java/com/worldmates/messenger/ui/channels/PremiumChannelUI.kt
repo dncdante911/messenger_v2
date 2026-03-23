@@ -16,6 +16,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -57,7 +58,8 @@ import com.worldmates.messenger.ui.fonts.AppFonts
  */
 
 // ==================== PREMIUM CHANNEL HEADER ====================
-// Toolbar-style header: avatar + info inline, stats as small text, no big cards
+// Full cover-banner style: large gradient banner, avatar overlapping bottom,
+// channel name in Exo2, stats row with Orbitron numbers — nothing like a chat header.
 
 @Composable
 fun PremiumChannelHeader(
@@ -70,274 +72,379 @@ fun PremiumChannelHeader(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val bannerHeight = 190.dp
+    val avatarSize = 80.dp
+    val avatarOverlap = avatarSize / 2
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Top bar — slim, functional
-        Row(
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+    ) {
+        // ── BANNER ─────────────────────────────────────────────────────
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .height(bannerHeight)
         ) {
-            IconButton(onClick = onBackClick) {
+            // Primary gradient background
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                colorScheme.primary.copy(alpha = 0.95f),
+                                colorScheme.tertiary.copy(alpha = 0.85f),
+                                colorScheme.secondary.copy(alpha = 0.80f)
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                        )
+                    )
+            )
+
+            // Decorative blurred circles for depth
+            Box(
+                modifier = Modifier
+                    .size(180.dp)
+                    .offset(x = (-40).dp, y = (-40).dp)
+                    .blur(60.dp)
+                    .background(
+                        color = colorScheme.onPrimary.copy(alpha = 0.08f),
+                        shape = CircleShape
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .size(140.dp)
+                    .align(Alignment.TopEnd)
+                    .offset(x = 30.dp, y = (-20).dp)
+                    .blur(50.dp)
+                    .background(
+                        color = colorScheme.tertiary.copy(alpha = 0.25f),
+                        shape = CircleShape
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 10.dp, y = 20.dp)
+                    .blur(40.dp)
+                    .background(
+                        color = colorScheme.primary.copy(alpha = 0.3f),
+                        shape = CircleShape
+                    )
+            )
+
+            // Bottom scrim so text is readable
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .align(Alignment.BottomStart)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.55f)
+                            )
+                        )
+                    )
+            )
+
+            // ── Floating back button (top-left) ──
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(8.dp)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.28f))
+                    .clickable(onClick = onBackClick),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     Icons.Default.ArrowBack,
                     contentDescription = stringResource(R.string.back),
-                    tint = colorScheme.onSurface
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // ── Floating action buttons (top-right) ──
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(end = 8.dp, top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 if (onAddMembersClick != null && channel.isAdmin) {
-                    IconButton(onClick = onAddMembersClick) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.28f))
+                            .clickable(onClick = onAddMembersClick),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             Icons.Default.PersonAdd,
                             contentDescription = null,
-                            tint = colorScheme.primary
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
                 if (onSettingsClick != null && channel.isAdmin) {
-                    IconButton(onClick = onSettingsClick) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.28f))
+                            .clickable(onClick = onSettingsClick),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             Icons.Default.Settings,
                             contentDescription = null,
-                            tint = colorScheme.onSurface.copy(alpha = 0.7f)
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
-        }
 
-        // Compact horizontal channel info
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Avatar — clean, subtle border
-            Box(contentAlignment = Alignment.Center) {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = 2.dp,
-                            brush = Brush.sweepGradient(
-                                colors = listOf(
-                                    colorScheme.primary,
-                                    colorScheme.tertiary,
-                                    colorScheme.secondary,
-                                    colorScheme.primary
-                                )
-                            ),
-                            shape = CircleShape
-                        )
-                        .padding(2.dp)
+            // ── Channel name + username at bottom of banner ──
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = avatarSize + 24.dp, end = 16.dp, bottom = 14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    if (channel.avatarUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = channel.avatarUrl.toFullMediaUrl(),
-                            contentDescription = channel.name,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            colorScheme.primary,
-                                            colorScheme.tertiary
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = channel.name.take(2).uppercase(),
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colorScheme.onPrimary
-                            )
-                        }
-                    }
-                }
-
-                // Camera button for admin
-                if (onAvatarClick != null && channel.isAdmin) {
-                    Surface(
-                        onClick = onAvatarClick,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(24.dp),
-                        shape = CircleShape,
-                        color = colorScheme.primary,
-                        shadowElevation = 2.dp
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.CameraAlt,
-                                contentDescription = null,
-                                tint = colorScheme.onPrimary,
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            // Channel info — name, username, description, stats
-            Column(modifier = Modifier.weight(1f)) {
-                // Name + verified
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = channel.name,
-                        style = MaterialTheme.typography.titleMedium,
                         fontFamily = AppFonts.Exo2,
                         fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurface,
+                        fontSize = 20.sp,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     if (channel.isVerified) {
-                        Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             Icons.Default.Verified,
                             contentDescription = null,
-                            tint = colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    if (channel.isPrivate) {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
-
-                // Username
                 if (channel.username != null) {
                     Text(
                         text = "@${channel.username}",
                         fontSize = 13.sp,
-                        color = colorScheme.primary.copy(alpha = 0.8f),
-                        fontWeight = FontWeight.Medium
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontWeight = FontWeight.Normal
                     )
                 }
+            }
+        }
 
-                // Description
-                if (!channel.description.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = channel.description!!,
-                        fontSize = 12.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.55f),
-                        lineHeight = 16.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+        // ── AVATAR overlapping banner ──────────────────────────────────
+        Box(
+            modifier = Modifier
+                .offset(y = bannerHeight - avatarOverlap)
+                .padding(start = 16.dp)
+        ) {
+            // White ring behind avatar
+            Box(
+                modifier = Modifier
+                    .size(avatarSize + 4.dp)
+                    .clip(CircleShape)
+                    .background(colorScheme.surface)
+            ) {
+                val avatarModifier = Modifier
+                    .size(avatarSize)
+                    .align(Alignment.Center)
+                    .clip(CircleShape)
+
+                if (channel.avatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = channel.avatarUrl.toFullMediaUrl(),
+                        contentDescription = channel.name,
+                        modifier = avatarModifier,
+                        contentScale = ContentScale.Crop
                     )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Inline stats
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PremiumInlineStat(
-                        value = formatCountPremium(channel.subscribersCount),
-                        label = stringResource(R.string.channel_detail_subscribers),
-                        onClick = onSubscribersClick
-                    )
+                } else {
                     Box(
-                        modifier = Modifier
-                            .padding(horizontal = 10.dp)
-                            .size(3.dp)
-                            .clip(CircleShape)
-                            .background(colorScheme.onSurface.copy(alpha = 0.2f))
-                    )
-                    PremiumInlineStat(
-                        value = formatCountPremium(channel.postsCount),
-                        label = stringResource(R.string.channel_detail_posts)
-                    )
-                    if (!channel.category.isNullOrBlank()) {
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 10.dp)
-                                .size(3.dp)
-                                .clip(CircleShape)
-                                .background(colorScheme.onSurface.copy(alpha = 0.2f))
-                        )
+                        modifier = avatarModifier
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        colorScheme.primary,
+                                        colorScheme.tertiary
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            text = channel.category!!,
-                            fontSize = 11.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.45f),
-                            fontWeight = FontWeight.Medium
+                            text = channel.name.take(2).uppercase(),
+                            fontFamily = AppFonts.RussoOne,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            // Camera overlay for admin
+            if (onAvatarClick != null && channel.isAdmin) {
+                Surface(
+                    onClick = onAvatarClick,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
+                        .size(28.dp),
+                    shape = CircleShape,
+                    color = colorScheme.primary,
+                    shadowElevation = 4.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = null,
+                            tint = colorScheme.onPrimary,
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Accent line — thin gradient divider
-        Box(
+        // ── INFO + STATS below banner ──────────────────────────────────
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(2.dp)
-                .padding(horizontal = 20.dp)
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            colorScheme.primary.copy(alpha = 0.4f),
-                            colorScheme.tertiary.copy(alpha = 0.4f),
-                            Color.Transparent
-                        )
-                    ),
-                    shape = RoundedCornerShape(1.dp)
+                .padding(
+                    top = bannerHeight + avatarOverlap - 4.dp,
+                    start = 16.dp,
+                    end = 16.dp
                 )
-        )
+        ) {
+            // Description
+            if (!channel.description.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = channel.description!!,
+                    fontSize = 13.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.62f),
+                    lineHeight = 18.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Stats row — numbers in Orbitron, labels in default font
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PremiumBannerStat(
+                    value = formatCountPremium(channel.subscribersCount),
+                    label = stringResource(R.string.channel_detail_subscribers),
+                    onClick = onSubscribersClick
+                )
+                PremiumBannerStat(
+                    value = formatCountPremium(channel.postsCount),
+                    label = stringResource(R.string.channel_detail_posts)
+                )
+                if (!channel.category.isNullOrBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    ) {
+                        Text(
+                            text = channel.category!!,
+                            fontFamily = AppFonts.Righteous,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Bottom divider
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                colorScheme.primary.copy(alpha = 0.3f),
+                                colorScheme.tertiary.copy(alpha = 0.3f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+        }
     }
 }
 
-// ==================== INLINE STAT ====================
-
+// ── Banner stat block ─────────────────────────────────────────────────────────
 @Composable
-private fun PremiumInlineStat(
+private fun PremiumBannerStat(
     value: String,
     label: String,
     onClick: (() -> Unit)? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val mod = if (onClick != null) {
-        Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = ripple(bounded = false, radius = 40.dp),
-            onClick = onClick
-        )
-    } else Modifier
+    val mod = if (onClick != null) Modifier.clickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = ripple(bounded = false, radius = 40.dp),
+        onClick = onClick
+    ) else Modifier
 
-    Row(
+    Column(
         modifier = mod,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = value,
-            fontSize = 16.sp,
+            fontFamily = AppFonts.Orbitron,
+            fontSize = 17.sp,
             fontWeight = FontWeight.Bold,
-            color = colorScheme.onSurface
+            color = colorScheme.primary
         )
         Text(
             text = label,
-            fontSize = 13.sp,
+            fontSize = 11.sp,
             color = colorScheme.onSurface.copy(alpha = 0.5f)
         )
     }

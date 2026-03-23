@@ -9,8 +9,12 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -364,22 +368,37 @@ fun ImageGalleryViewer(
                                 translationY = currentOffset.y
                             )
                             .pointerInput(page) {
-                                detectTransformGestures { _, pan, zoom, _ ->
-                                    val newScale = (currentScale * zoom).coerceIn(1f, 5f)
-                                    scaleStates[page] = newScale
-
-                                    showControls = true
-
-                                    if (newScale > 1f) {
-                                        val maxX = (size.width * (newScale - 1)) / 2
-                                        val maxY = (size.height * (newScale - 1)) / 2
-                                        offsetStates[page] = Offset(
-                                            x = (currentOffset.x + pan.x).coerceIn(-maxX, maxX),
-                                            y = (currentOffset.y + pan.y).coerceIn(-maxY, maxY)
-                                        )
-                                    } else {
-                                        offsetStates[page] = Offset.Zero
-                                    }
+                                // Custom gesture handler: only consume events when pinch/zoom
+                                // (multi-touch) OR already zoomed in. Single-finger swipe at
+                                // scale=1f passes through to HorizontalPager for photo navigation.
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.any { it.isConsumed }) break
+                                        val scale = scaleStates[page] ?: 1f
+                                        val isMultiTouch = event.changes.count { it.pressed } >= 2
+                                        if (isMultiTouch || scale > 1f) {
+                                            val zoom = event.calculateZoom()
+                                            val pan = event.calculatePan()
+                                            val newScale = (scale * zoom).coerceIn(1f, 5f)
+                                            scaleStates[page] = newScale
+                                            showControls = true
+                                            if (newScale > 1f) {
+                                                val maxX = (size.width * (newScale - 1)) / 2f
+                                                val maxY = (size.height * (newScale - 1)) / 2f
+                                                val off = offsetStates[page] ?: Offset.Zero
+                                                offsetStates[page] = Offset(
+                                                    x = (off.x + pan.x).coerceIn(-maxX, maxX),
+                                                    y = (off.y + pan.y).coerceIn(-maxY, maxY)
+                                                )
+                                            } else {
+                                                offsetStates[page] = Offset.Zero
+                                            }
+                                            event.changes.forEach { it.consume() }
+                                        }
+                                        // single-touch at scale=1f → don't consume → pager handles
+                                    } while (event.changes.any { it.pressed })
                                 }
                             }
                             .pointerInput(page) {
