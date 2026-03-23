@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,20 +33,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.model.Channel
+import com.worldmates.messenger.ui.theme.PremiumFonts
 import com.worldmates.messenger.util.toFullMediaUrl
 
-// ==================== PREMIUM CHANNEL LIST ITEM ====================
+// ==================== PREMIUM CHANNEL LIST ITEM (Telegram-style tile) ====================
 
 /**
- * Преміальний елемент списку каналів — повністю новий дизайн.
- *
- * Відмінності від Telegram:
- * - Горизонтальна карточка з внутрішнім градієнтним акцентом
- * - Аватар-мініатюра з glassmorphism ефектом
- * - Інлайн статистика з мікро-іконками
- * - Кнопка дії прямо в картці (підписка/адмін)
- * - Кольорова категорія-тег
- * - Анімоване свічення при натисканні
+ * Telegram-style channel tile: circular avatar, channel name with Exo2 font,
+ * subscriber stats, category badge, and animated subscribe/action button.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -55,170 +50,211 @@ fun PremiumChannelListItem(
     onSubscribeToggle: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
+        targetValue = if (isPressed) 0.982f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessHigh
         ),
-        label = "premium_scale"
+        label = "tile_scale"
     )
 
-    // Градієнт для лівої акцентної смужки
-    val accentGradient = Brush.verticalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primary,
-            MaterialTheme.colorScheme.tertiary
-        )
-    )
-
-    Card(
+    Surface(
+        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            },
+            .graphicsLayer { scaleX = scale; scaleY = scale },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp,
-            pressedElevation = 0.dp
-        )
+        color = colorScheme.surface,
+        shadowElevation = 1.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(
-                        bounded = true,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
-                    ),
-                    onClick = onClick
-                )
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Ліва акцентна смужка
-            Box(
-                modifier = Modifier
-                    .width(3.5.dp)
-                    .fillMaxHeight()
-                    .background(accentGradient)
+            // Circular avatar with gradient ring for verified
+            TgChannelAvatar(
+                avatarUrl = channel.avatarUrl,
+                channelName = channel.name,
+                isVerified = channel.isVerified,
+                size = 56.dp
             )
 
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 12.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Аватар з glass-підложкою
-                PremiumListAvatar(
-                    avatarUrl = channel.avatarUrl,
-                    channelName = channel.name,
-                    isVerified = channel.isVerified,
-                    size = 54.dp
-                )
+            Spacer(modifier = Modifier.width(13.dp))
 
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Інформаційний блок
-                Column(
-                    modifier = Modifier.weight(1f)
+            // Info column
+            Column(modifier = Modifier.weight(1f)) {
+                // Name row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Рядок 1: Назва + верифікація
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Text(
-                            text = channel.name,
-                            fontSize = 15.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            letterSpacing = 0.1.sp,
-                            modifier = Modifier.weight(1f, fill = false)
+                    Text(
+                        text = channel.name,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = PremiumFonts.Exo2,
+                        color = colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (channel.isPrivate) {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = colorScheme.onSurface.copy(alpha = 0.28f),
+                            modifier = Modifier.size(12.dp)
                         )
-                        if (channel.isVerified) {
-                            PremiumVerifiedIcon(size = 16.dp)
-                        }
-                        if (channel.isPrivate) {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = "Private",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(3.dp))
-
-                    // Рядок 2: Статистика з мікро-іконками
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        // Підписники
-                        PremiumMicroStat(
-                            icon = Icons.Outlined.PeopleAlt,
-                            value = formatCount(channel.subscribersCount),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        // Пости
-                        if (channel.postsCount > 0) {
-                            PremiumMicroStat(
-                                icon = Icons.Outlined.Article,
-                                value = formatCount(channel.postsCount),
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                        }
-                    }
-
-                    // Рядок 3: Категорія тег або опис
-                    if (channel.category != null || channel.description != null) {
-                        Spacer(modifier = Modifier.height(5.dp))
-                        if (channel.category != null) {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
-                            ) {
-                                Text(
-                                    text = channel.category!!,
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    maxLines = 1
-                                )
-                            }
-                        } else if (channel.description != null) {
-                            Text(
-                                text = channel.description!!,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                lineHeight = 16.sp
-                            )
-                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
-                // Кнопка дії
-                PremiumChannelAction(
-                    channel = channel,
-                    onSubscribeToggle = onSubscribeToggle
+                // Subscribers + posts row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    PremiumMicroStat(
+                        icon = Icons.Outlined.PeopleAlt,
+                        value = formatCount(channel.subscribersCount),
+                        color = colorScheme.primary
+                    )
+                    if (channel.postsCount > 0) {
+                        PremiumMicroStat(
+                            icon = Icons.Outlined.Article,
+                            value = formatCount(channel.postsCount),
+                            color = colorScheme.tertiary
+                        )
+                    }
+                }
+
+                // Category badge or description
+                if (channel.category != null || channel.description != null) {
+                    Spacer(modifier = Modifier.height(5.dp))
+                    if (channel.category != null) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = colorScheme.primaryContainer.copy(alpha = 0.55f),
+                            border = BorderStroke(
+                                0.5.dp,
+                                colorScheme.primary.copy(alpha = 0.15f)
+                            )
+                        ) {
+                            Text(
+                                text = channel.category!!,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = PremiumFonts.Righteous,
+                                color = colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                maxLines = 1
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = channel.description!!,
+                            fontSize = 12.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.48f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Action button
+            PremiumChannelAction(
+                channel = channel,
+                onSubscribeToggle = onSubscribeToggle
+            )
+        }
+    }
+}
+
+// ==================== TG CHANNEL AVATAR ====================
+
+@Composable
+private fun TgChannelAvatar(
+    avatarUrl: String,
+    channelName: String,
+    isVerified: Boolean,
+    size: Dp = 56.dp
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Box(modifier = Modifier.size(size + if (isVerified) 4.dp else 0.dp)) {
+        if (isVerified) {
+            // Gradient ring for verified
+            Box(
+                modifier = Modifier
+                    .size(size + 4.dp)
+                    .clip(CircleShape)
+                    .background(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(
+                                colorScheme.primary,
+                                colorScheme.tertiary,
+                                colorScheme.primary
+                            )
+                        )
+                    )
+                    .padding(2.dp)
+            )
+        }
+        if (avatarUrl.isNotBlank()) {
+            AsyncImage(
+                model = avatarUrl.toFullMediaUrl(),
+                contentDescription = channelName,
+                modifier = Modifier
+                    .size(size)
+                    .clip(CircleShape)
+                    .align(Alignment.Center),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .clip(CircleShape)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                colorScheme.primary.copy(alpha = 0.85f),
+                                colorScheme.tertiary.copy(alpha = 0.9f)
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(size.value, size.value)
+                        )
+                    )
+                    .align(Alignment.Center),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = channelName.take(2).uppercase(),
+                    fontSize = (size.value / 2.6f).sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = PremiumFonts.RussoOne,
+                    color = Color.White,
+                    letterSpacing = 1.sp
                 )
+            }
+        }
+        // Verified badge
+        if (isVerified) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 2.dp, y = 2.dp)
+            ) {
+                PremiumVerifiedIcon(size = (size.value / 3.2f).dp)
             }
         }
     }

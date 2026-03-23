@@ -46,7 +46,19 @@ data class ChannelPost(
     @SerializedName("views_count") val viewsCount: Int = 0,
     @SerializedName("reactions_count") val reactionsCount: Int = 0,
     @SerializedName("comments_count") val commentsCount: Int = 0,
-    @SerializedName("reactions") val reactions: List<PostReaction>? = null
+    @SerializedName("reactions") val reactions: List<PostReaction>? = null,
+    // Inline keyboard buttons (TG-style), rows × columns
+    @SerializedName("inline_buttons") val inlineButtons: List<List<InlinePostButton>>? = null
+)
+
+/**
+ * Inline-кнопка поста (аналог Telegram inline-keyboard).
+ * Кожен рядок — це List<InlinePostButton>, відображається як горизонтальний ряд кнопок.
+ */
+data class InlinePostButton(
+    @SerializedName("text") val text: String,
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("callback") val callback: String? = null
 )
 
 /**
