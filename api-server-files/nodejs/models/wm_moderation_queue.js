@@ -51,6 +51,10 @@ module.exports = function(sequelize, DataTypes) {
             allowNull:    false,
             defaultValue: ''
         },
+        phash_int: {
+            type:      DataTypes.BIGINT.UNSIGNED,
+            allowNull: true
+        },
         nudenet_labels: {
             type:      DataTypes.TEXT,
             allowNull: true

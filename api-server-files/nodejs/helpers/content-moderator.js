@@ -35,12 +35,14 @@ const https  = require('https');
 
 // ─── Конфиг из окружения ──────────────────────────────────────────────────────
 
-const NUDENET_ENABLED = process.env.NUDENET_ENABLED !== 'false';
-const NUDENET_URL     = (process.env.NUDENET_SERVICE_URL || 'http://127.0.0.1:5001').replace(/\/$/, '');
-const NUDENET_TIMEOUT = parseInt(process.env.NUDENET_TIMEOUT_MS   || '8000',  10);
-const THRESHOLD_BLOCK = parseFloat(process.env.NUDENET_BLOCK_THRESHOLD || '0.85');
-const THRESHOLD_BLUR  = parseFloat(process.env.NUDENET_BLUR_THRESHOLD  || '0.60');
-const THRESHOLD_QUEUE = parseFloat(process.env.NUDENET_QUEUE_THRESHOLD || '0.45');
+const NUDENET_ENABLED  = process.env.NUDENET_ENABLED !== 'false';
+const NUDENET_URL      = (process.env.NUDENET_SERVICE_URL || 'http://127.0.0.1:5001').replace(/\/$/, '');
+const NUDENET_TIMEOUT  = parseInt(process.env.NUDENET_TIMEOUT_MS    || '8000',  10);
+const THRESHOLD_BLOCK  = parseFloat(process.env.NUDENET_BLOCK_THRESHOLD || '0.85');
+const THRESHOLD_BLUR   = parseFloat(process.env.NUDENET_BLUR_THRESHOLD  || '0.60');
+const THRESHOLD_QUEUE  = parseFloat(process.env.NUDENET_QUEUE_THRESHOLD || '0.45');
+// pHash: максимальное расстояние Хэмминга (0-64). ≤10 — очень похоже, ≤20 — похоже
+const PHASH_MAX_DIST   = parseInt(process.env.PHASH_HAMMING_THRESHOLD || '10', 10);
 
 // ─── Решения ─────────────────────────────────────────────────────────────────
 
@@ -57,26 +59,58 @@ function sha256hex(buffer) {
     return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
+// ─── Расстояние Хэмминга для pHash (BigInt) ──────────────────────────────────
+
+function hammingDistanceBigInt(a, b) {
+    // XOR двух BigInt, считаем количество единичных бит (popcount)
+    let xor = BigInt(a) ^ BigInt(b);
+    let dist = 0;
+    while (xor > 0n) {
+        dist += Number(xor & 1n);
+        xor >>= 1n;
+    }
+    return dist;
+}
+
 // ─── Проверка блэклиста ───────────────────────────────────────────────────────
 
-async function checkHashBlacklist(ctx, hash) {
+async function checkHashBlacklist(ctx, sha256, phashInt = null) {
     try {
-        const entry = await ctx.wm_content_hash_blacklist.findOne({
-            where:      { sha256_hash: hash },
+        // 1. Точное совпадение SHA-256
+        const exact = await ctx.wm_content_hash_blacklist.findOne({
+            where:      { sha256_hash: sha256 },
             attributes: ['reason'],
             raw:        true
         });
-        if (entry) return { blocked: true, reason: entry.reason };
+        if (exact) return { blocked: true, reason: exact.reason, matchType: 'sha256' };
+
+        // 2. Perceptual hash — ищем похожие изображения (только если pHash передан)
+        if (phashInt !== null && PHASH_MAX_DIST >= 0) {
+            const withPhash = await ctx.wm_content_hash_blacklist.findAll({
+                where:      { phash_int: { [require('sequelize').Op.ne]: null } },
+                attributes: ['phash_int', 'reason'],
+                raw:        true
+            });
+            for (const entry of withPhash) {
+                if (entry.phash_int === null) continue;
+                const dist = hammingDistanceBigInt(phashInt, entry.phash_int);
+                if (dist <= PHASH_MAX_DIST) {
+                    console.warn(`[ContentModerator] pHash hit: dist=${dist} reason=${entry.reason}`);
+                    return { blocked: true, reason: entry.reason, matchType: 'phash', distance: dist };
+                }
+            }
+        }
     } catch (e) {
         console.error('[ContentModerator] checkHashBlacklist error:', e.message);
     }
     return { blocked: false, reason: null };
 }
 
-async function addToHashBlacklist(ctx, hash, reason, addedBy = 0) {
+async function addToHashBlacklist(ctx, sha256, reason, addedBy = 0, phashInt = null) {
     try {
         await ctx.wm_content_hash_blacklist.upsert({
-            sha256_hash: hash,
+            sha256_hash: sha256,
+            phash_int:   phashInt !== null ? String(phashInt) : null,
             reason:      reason || 'explicit',
             added_by:    addedBy,
             created_at:  new Date()
@@ -241,15 +275,15 @@ async function checkContent(ctx, buffer, mediaType, context = {}) {
 
     const sha256 = sha256hex(buffer);
 
-    // 1. Блэклист — мгновенная проверка
-    const blacklistCheck = await checkHashBlacklist(ctx, sha256);
-    if (blacklistCheck.blocked) {
-        console.warn(`[ContentModerator] Блэклист: sha256=${sha256.slice(0, 12)}... reason=${blacklistCheck.reason}`);
+    // 1. Блэклист SHA-256 — до NudeNet (дёшево и быстро)
+    const quickCheck = await checkHashBlacklist(ctx, sha256, null);
+    if (quickCheck.blocked) {
+        console.warn(`[ContentModerator] SHA-256 блэклист: sha256=${sha256.slice(0, 12)}... reason=${quickCheck.reason}`);
         return {
             decision:    DECISION.BLOCK,
             sha256,
             isSensitive: false,
-            reason:      `blacklisted:${blacklistCheck.reason}`,
+            reason:      `blacklisted:${quickCheck.reason}`,
             nudeNet:     null
         };
     }
@@ -268,10 +302,30 @@ async function checkContent(ctx, buffer, mediaType, context = {}) {
     // 2. Политика контента
     const contentLevel = await getContentLevel(ctx, chatType, entityId);
 
-    // 3. NudeNet анализ
+    // 3. NudeNet анализ (возвращает sha256 + phash_int)
     const nudeNetResult = await callNudeNet(buffer);
 
-    // 4. Решение
+    // 4. pHash блэклист — после NudeNet (у нас уже есть phash_int из ответа)
+    const phashInt = nudeNetResult?.phash_int ?? null;
+    if (phashInt !== null) {
+        const phashCheck = await checkHashBlacklist(ctx, sha256, phashInt);
+        if (phashCheck.blocked) {
+            console.warn(
+                `[ContentModerator] pHash блэклист: dist=${phashCheck.distance ?? '?'} ` +
+                `sha256=${sha256.slice(0, 12)}... reason=${phashCheck.reason}`
+            );
+            return {
+                decision:    DECISION.BLOCK,
+                sha256,
+                phashInt,
+                isSensitive: false,
+                reason:      `phash_blacklisted:${phashCheck.reason}`,
+                nudeNet:     nudeNetResult
+            };
+        }
+    }
+
+    // 5. Решение по контенту
     const { decision, reason, isSensitive } = makeDecision(contentLevel, nudeNetResult);
 
     console.log(
@@ -279,7 +333,7 @@ async function checkContent(ctx, buffer, mediaType, context = {}) {
         `level=${contentLevel} decision=${decision} reason=${reason}`
     );
 
-    return { decision, sha256, isSensitive, reason, nudeNet: nudeNetResult };
+    return { decision, sha256, phashInt, isSensitive, reason, nudeNet: nudeNetResult };
 }
 
 // ─── Экспорт ──────────────────────────────────────────────────────────────────
@@ -290,5 +344,6 @@ module.exports = {
     addToHashBlacklist,
     addToModerationQueue,
     getContentLevel,
-    sha256hex
+    sha256hex,
+    hammingDistanceBigInt
 };

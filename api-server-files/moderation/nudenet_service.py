@@ -50,6 +50,13 @@ except ImportError:
     log.error("Pillow не установлен. Запустите: pip install Pillow")
     sys.exit(1)
 
+try:
+    import imagehash
+    PHASH_AVAILABLE = True
+except ImportError:
+    log.warning("ImageHash не установлен — pHash отключён. Запустите: pip install ImageHash")
+    PHASH_AVAILABLE = False
+
 # ─── Конфиг ───────────────────────────────────────────────────────────────────
 
 PORT          = int(os.environ.get('NUDENET_PORT', 5001))
@@ -133,12 +140,25 @@ def analyze():
         # SHA-256 хэш для блэклиста
         sha256 = hashlib.sha256(img_bytes).hexdigest()
 
-        # Проверяем что это валидное изображение
+        # Проверяем что это валидное изображение и вычисляем pHash
         try:
             img = Image.open(io.BytesIO(img_bytes))
             img.verify()
+            # После verify() объект нужно переоткрыть для pHash
+            img = Image.open(io.BytesIO(img_bytes))
         except Exception:
             return jsonify({'ok': False, 'error': 'Невалидное изображение'}), 400
+
+        # Perceptual hash (pHash) — 64-битный, устойчив к ресайзу/JPG-пересжатию
+        phash_str = None
+        phash_int = None
+        if PHASH_AVAILABLE:
+            try:
+                ph = imagehash.phash(img)
+                phash_str = str(ph)           # 16-символьный hex
+                phash_int = int(str(ph), 16)  # BIGINT для Hamming-сравнения
+            except Exception as e:
+                log.warning(f"pHash не вычислен: {e}")
 
         # Запускаем NudeNet детекцию
         # NudeNet работает с путём к файлу, временно сохраняем в память
@@ -180,6 +200,8 @@ def analyze():
         result = {
             'ok': True,
             'sha256': sha256,
+            'phash':  phash_str,   # 16-char hex или null
+            'phash_int': phash_int, # BIGINT для Hamming distance на стороне Node.js
             'detections': detections,
             'summary': {
                 'has_explicit':    len(explicit_found) > 0,

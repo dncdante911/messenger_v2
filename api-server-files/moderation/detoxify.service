@@ -1,0 +1,28 @@
+[Unit]
+Description=Detoxify Text Moderation Service — WorldMates Messenger
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/api-server-files/moderation
+ExecStart=/usr/bin/python3 /var/www/html/api-server-files/moderation/detoxify_service.py
+Restart=on-failure
+RestartSec=5
+
+# Порт 5002 — только localhost, Node.js обращается к нему напрямую
+Environment="DETOXIFY_PORT=5002"
+Environment="DETOXIFY_HOST=127.0.0.1"
+# Используем multilingual для поддержки русского языка
+Environment="DETOXIFY_MODEL=multilingual"
+Environment="DETOXIFY_BLOCK_THRESHOLD=0.85"
+Environment="DETOXIFY_WARN_THRESHOLD=0.60"
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=detoxify
+
+[Install]
+WantedBy=multi-user.target
