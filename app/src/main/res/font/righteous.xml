@@ -1,9 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Righteous — rounded bold display font. Friendly yet strong character.
-  Ideal for premium UI labels and category badges.
-  Source: fonts.google.com/specimen/Righteous
--->
 <font-family xmlns:app="http://schemas.android.com/apk/res-auto"
     app:fontProviderAuthority="com.google.android.gms.fonts"
     app:fontProviderPackage="com.google.android.gms"
