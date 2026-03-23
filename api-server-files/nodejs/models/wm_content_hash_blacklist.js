@@ -13,6 +13,10 @@ module.exports = function(sequelize, DataTypes) {
             allowNull: false,
             unique:    true
         },
+        phash_int: {
+            type:      DataTypes.BIGINT.UNSIGNED,
+            allowNull: true
+        },
         reason: {
             type:         DataTypes.STRING(100),
             allowNull:    false,

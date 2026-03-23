@@ -24,6 +24,7 @@ const { Op }   = require('sequelize');
 const funcs    = require('../../functions/functions');
 const crypto   = require('../../helpers/crypto');
 const { cleanupExpiredMessages } = require('./secret');
+const { TEXT_DECISION, checkText } = require('../../helpers/text-moderator');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -283,6 +284,21 @@ function sendMessage(ctx, io) {
             const hasContent = plaintext || stickers || (lat !== '0' && lng !== '0') || contact;
             if (!hasContent)
                 return res.status(400).json({ api_status: 400, error_message: 'Message has no content' });
+
+            // ── Текстовая модерация (только для cipher_version=1/2, не E2EE) ──
+            if (plaintext) {
+                const clientCv = parseInt(req.body.cipher_version) || 0;
+                const textCheck = await checkText(plaintext, clientCv, {
+                    senderId: userId, chatType: 'private', entityId: recipientId
+                }, ctx);
+                if (textCheck.decision === TEXT_DECISION.BLOCK) {
+                    return res.status(400).json({
+                        api_status:    400,
+                        error_message: 'Message blocked by content policy',
+                        moderation:    { blocked: true, category: textCheck.category, score: textCheck.score }
+                    });
+                }
+            }
 
             const now           = Math.floor(Date.now() / 1000);
             const clientVersion = parseInt(req.body.cipher_version) || 0;

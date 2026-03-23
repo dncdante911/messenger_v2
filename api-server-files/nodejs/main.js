@@ -282,6 +282,7 @@ async function init() {
   ctx.wm_content_hash_blacklist = require("./models/wm_content_hash_blacklist")(sequelize, DataTypes)
   ctx.wm_moderation_queue       = require("./models/wm_moderation_queue")(sequelize, DataTypes)
   ctx.wm_content_policy         = require("./models/wm_content_policy")(sequelize, DataTypes)
+  ctx.wm_text_violations        = require("./models/wm_text_violations")(sequelize, DataTypes)
 
   ctx.globalconfig = {}
   ctx.globallangs = {}
