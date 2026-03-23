@@ -925,8 +925,29 @@ async function main() {
     }
   })
 
+  // ── Server error handler ─────────────────────────────────────────────────
+  // Must be attached BEFORE server.listen() so EADDRINUSE (and other bind
+  // errors) are caught here rather than leaking to uncaughtException.
+  // In PM2 cluster mode the master process holds the TCP socket; a worker
+  // receiving EADDRINUSE means the master itself could not bind the port
+  // (e.g. a previous PM2 instance is still holding it).  We log the error
+  // clearly and exit with code 1 so PM2 retries after restart_delay.
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `[Server] FATAL: port ${serverPort} is already in use (EADDRINUSE). ` +
+        `Another process may still hold the port. ` +
+        `PM2 will retry after restart_delay. ` +
+        `Run: lsof -i :${serverPort}  to identify the owner.`
+      );
+    } else {
+      console.error('[Server] Fatal listen error:', err.message);
+    }
+    process.exit(1);
+  });
+
   server.listen(serverPort, function() {
-    console.log('server up and running at %s port', serverPort);
+    console.log(`server up and running at port ${serverPort}`);
 
     // ── Signal PM2 FIRST so the next cluster worker can start immediately.
     // Required when ecosystem.config.js sets wait_ready: true.
@@ -945,12 +966,12 @@ async function main() {
 }
 
 // ── Graceful Shutdown ─────────────────────────────────────────────────────────
-// Timeline (must fit inside ecosystem.config.js kill_timeout: 8000 ms):
+// Timeline (must fit inside ecosystem.config.js kill_timeout: 10000 ms):
 //   0 ms  — SIGTERM received → server.close() (stop accepting new connections)
 //   5 s   — force-disconnect remaining Socket.IO clients so server.close()
 //            callback fires and the DB pool is closed cleanly
-//   7 s   — hard process.exit(1) fallback in case server.close() never fires
-//   8 s   — PM2 would send SIGKILL (we are already gone by now)
+//   7 s   — hard process.exit(0) fallback in case server.close() never fires
+//  10 s   — PM2 would send SIGKILL (we are already gone by now)
 //
 // Why drain must be < kill_timeout:
 //   If the process is still alive when PM2 sends SIGKILL, the OS may keep the
@@ -981,11 +1002,12 @@ function gracefulShutdown(signal) {
   }, 5_000);
   drainTimer.unref();
 
-  // Step 3: hard kill at 7 s — before PM2's SIGKILL at 8 s so we exit cleanly
-  // and release the port before the next worker starts.
+  // Step 3: hard exit at 7 s — before PM2's SIGKILL at 10 s so we release the
+  // port cleanly before the next worker starts.  Use exit code 0 so PM2 does
+  // not log this as a crash (it was a controlled shutdown that just timed out).
   setTimeout(() => {
-    console.error('[Shutdown] Forced exit after 7 s');
-    process.exit(1);
+    console.error('[Shutdown] Forced exit after 7 s (server.close() timed out)');
+    process.exit(0);
   }, 7_000).unref();
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
