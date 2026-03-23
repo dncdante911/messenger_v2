@@ -47,7 +47,7 @@ import java.util.*
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.messages.components.PollMessageComponent
-import com.worldmates.messenger.ui.theme.PremiumFonts
+import com.worldmates.messenger.ui.fonts.AppFonts
 
 /**
  * Premium Channel UI — radically different design.
@@ -204,7 +204,7 @@ fun PremiumChannelHeader(
                     Text(
                         text = channel.name,
                         style = MaterialTheme.typography.titleMedium,
-                        fontFamily = PremiumFonts.Exo2,
+                        fontFamily = AppFonts.Exo2,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurface,
                         maxLines = 1,
@@ -438,7 +438,7 @@ fun PremiumPostCard(
                         text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        fontFamily = PremiumFonts.Exo2,
+                        fontFamily = AppFonts.Exo2,
                         color = colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -634,7 +634,7 @@ private fun TgInlineButton(
                 text = button.text,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.Medium,
-                fontFamily = PremiumFonts.Exo2,
+                fontFamily = AppFonts.Exo2,
                 color = colorScheme.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
