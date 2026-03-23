@@ -2295,7 +2295,7 @@ private fun ChannelSubGroupsDialog(
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        "${group.membersCount} " + stringResource(R.string.members),
+                                        "${group.membersCount} ${stringResource(R.string.members_count)}",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
                                     )
@@ -2330,7 +2330,7 @@ private fun ChannelSubGroupsDialog(
                         OutlinedTextField(
                             value = newGroupDesc,
                             onValueChange = { if (it.length <= 500) newGroupDesc = it },
-                            label = { Text(stringResource(R.string.description)) },
+                            label = { Text(stringResource(R.string.group_description)) },
                             singleLine = false,
                             maxLines = 3,
                             modifier = Modifier.fillMaxWidth()
