@@ -16,6 +16,7 @@
 
 const { Op } = require('sequelize');
 const funcs = require('../../functions/functions');
+const channelGroups = require('./channel-groups');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,9 @@ function subscribe(ctx, io) {
 
             console.log(`[Channels] User ${userId} subscribed to channel ${channelId}`);
 
+            // Auto-join all attached sub-groups
+            await channelGroups.onChannelSubscribe(ctx, channelId, userId);
+
             return res.json({
                 api_status: 200,
                 channel_id: channelId,
@@ -148,6 +152,9 @@ function unsubscribe(ctx, io) {
             );
 
             console.log(`[Channels] User ${userId} unsubscribed from channel ${channelId}`);
+
+            // Auto-leave all attached sub-groups
+            await channelGroups.onChannelUnsubscribe(ctx, channelId, userId);
 
             return res.json({
                 api_status: 200,

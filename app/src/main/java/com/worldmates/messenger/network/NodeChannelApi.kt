@@ -6,6 +6,8 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.*
 
+// Response types defined in Channel.kt: ChannelGroupsResponse, ChannelGroupCreateResponse
+
 /**
  * Node.js REST API — Retrofit interface for channels.
  *
@@ -326,6 +328,36 @@ interface NodeChannelApi {
         @Part("media_type") mediaType: RequestBody,
         @Part file: MultipartBody.Part
     ): MediaUploadResponse
+
+    // ═══════════════════════ CHANNEL SUB-GROUPS ═════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_GROUPS_LIST)
+    suspend fun getChannelGroups(
+        @Field("channel_id") channelId: Long
+    ): ChannelGroupsResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_GROUPS_CREATE)
+    suspend fun createChannelGroup(
+        @Field("channel_id") channelId: Long,
+        @Field("group_name") groupName: String,
+        @Field("description") description: String? = null
+    ): ChannelGroupCreateResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_GROUPS_ATTACH)
+    suspend fun attachChannelGroup(
+        @Field("channel_id") channelId: Long,
+        @Field("group_id") groupId: Long
+    ): ChannelGroupCreateResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_GROUPS_DETACH)
+    suspend fun detachChannelGroup(
+        @Field("channel_id") channelId: Long,
+        @Field("group_id") groupId: Long
+    ): ChannelGroupCreateResponse
 }
 
 /** QR code response. */

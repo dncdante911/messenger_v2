@@ -316,6 +316,31 @@ data class CreateChannelResponse(
     @SerializedName("error_message") val errorMessage: String?
 )
 
+// ─── Sub-group models (private premium channel linked groups) ─────────────────
+
+data class ChannelSubGroupItem(
+    @SerializedName("id")            val id: Long,
+    @SerializedName("name")          val name: String,
+    @SerializedName("avatar")        val avatar: String? = null,
+    @SerializedName("description")   val description: String? = null,
+    @SerializedName("members_count") val membersCount: Int = 0,
+    @SerializedName("is_member")     val isMember: Boolean = false,
+    @SerializedName("created_time")  val createdTime: String? = null
+)
+
+data class ChannelGroupsResponse(
+    @SerializedName("api_status")    val apiStatus: Int,
+    @SerializedName("groups")        val groups: List<ChannelSubGroupItem>? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+data class ChannelGroupCreateResponse(
+    @SerializedName("api_status")    val apiStatus: Int,
+    @SerializedName("group_id")      val groupId: Long? = null,
+    @SerializedName("group_name")    val groupName: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
 data class CreatePostResponse(
     @SerializedName("api_status") val apiStatus: Int,
     @SerializedName("post_id") val postId: Long?,
