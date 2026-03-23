@@ -5,11 +5,16 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/html/api-server-files/moderation
-ExecStart=/usr/bin/python3 /var/www/html/api-server-files/moderation/detoxify_service.py
-Restart=on-failure
+# Путь к папке moderation на сервере (совпадает с nudenet.service)
+WorkingDirectory=/var/www/www-root/data/www/worldmates.club/api-server-files/moderation
+ExecStart=/var/www/www-root/data/www/worldmates.club/api-server-files/moderation/venv/bin/gunicorn \
+    --bind 127.0.0.1:5002 \
+    --workers 1 \
+    --threads 4 \
+    --timeout 60 \
+    --log-level info \
+    detoxify_service:app
+Restart=always
 RestartSec=5
 
 # Порт 5002 — только localhost, Node.js обращается к нему напрямую
