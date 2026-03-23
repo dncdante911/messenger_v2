@@ -56,7 +56,7 @@ class WebRTCManager(private val context: Context) {
     // 📹 Поточна якість відео (за замовчуванням HIGH - 720p)
     private var currentVideoQuality: VideoQuality = VideoQuality.HIGH
 
-    private var iceServers: List<PeerConnection.IceServer> = createDefaultIceServers()
+    private var iceServers: List<PeerConnection.IceServer> = emptyList()
 
     // ─── Адаптивний бітрейт ───────────────────────────────────────────────────
     private val _adaptiveBitrateQuality = MutableStateFlow(VideoQuality.HIGH)
@@ -359,9 +359,11 @@ class WebRTCManager(private val context: Context) {
      * Создать PeerConnection для вызова
      */
     fun createPeerConnection(): PeerConnection? {
-        // ✅ Обновить TURN credentials перед каждым звонком
-        iceServers = createDefaultIceServers()
-        Log.d(TAG, "📡 ICE servers refreshed: ${iceServers.size} servers configured")
+        // Если ICE серверы не были установлены через setIceServers() — генерируем локально
+        if (iceServers.isEmpty()) {
+            iceServers = createDefaultIceServers()
+        }
+        Log.d(TAG, "📡 ICE servers for PeerConnection: ${iceServers.size} servers configured")
 
         return try {
             val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
