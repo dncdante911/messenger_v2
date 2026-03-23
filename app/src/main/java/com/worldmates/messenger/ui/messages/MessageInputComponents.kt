@@ -81,16 +81,16 @@ fun MessageInputBar(
     var showFontPicker by remember { mutableStateOf(false) }
     var activeFontStyle by remember { mutableStateOf(FontStyle.NORMAL) }
     // Plain (unstyled) text saved before first font conversion.
-    // Lets the user switch between styles without each apply being a re-conversion
-    // of already-styled Unicode (which would leave the text unchanged).
     var rawBeforeFont by remember { mutableStateOf("") }
-    // Reset font state when the message is cleared (e.g. after sending)
-    LaunchedEffect(messageText.isBlank()) {
-        if (messageText.isBlank()) {
-            activeFontStyle = FontStyle.NORMAL
-            rawBeforeFont = ""
-        }
-    }
+    // Was the message blank when the font picker was opened?
+    // If yes → don't inject the picker's preview text into the real message field.
+    var messageWasEmptyOnPickerOpen by remember { mutableStateOf(false) }
+
+    // Reset font state only when the message is explicitly cleared by the user
+    // (effectiveOnChange handles this via the empty branch).
+    // We do NOT reset here on blank so that the user can:
+    //   1. Select a style while message is empty
+    //   2. Then type with that style active
 
     // Intercepts TextField input to apply live font conversion while typing.
     // When a style is active, each new character is appended to rawBeforeFont
@@ -116,10 +116,22 @@ fun MessageInputBar(
                 onMessageChange(converted)
             }
             rawBeforeFont.isNotEmpty() && messageText.length > newText.length -> {
-                // Backspace — remove from raw text and re-convert
-                val deletedCount = messageText.length - newText.length
-                val charsToRemove = minOf(deletedCount, rawBeforeFont.length)
-                val newRaw = rawBeforeFont.dropLast(charsToRemove)
+                // Backspace — remove from raw text and re-convert.
+                // Use codePointCount because styled chars are surrogate pairs (length=2 per char).
+                val deletedCodePoints = messageText.codePointCount(0, messageText.length) -
+                        newText.codePointCount(0, newText.length)
+                val rawCodePoints = rawBeforeFont.codePointCount(0, rawBeforeFont.length)
+                val newRawCodePoints = maxOf(0, rawCodePoints - deletedCodePoints)
+                // Rebuild raw string by keeping the first newRawCodePoints code points
+                val newRaw = buildString {
+                    var cp = 0; var idx = 0
+                    while (cp < newRawCodePoints && idx < rawBeforeFont.length) {
+                        val c = rawBeforeFont.codePointAt(idx)
+                        appendCodePoint(c)
+                        idx += Character.charCount(c)
+                        cp++
+                    }
+                }
                 rawBeforeFont = newRaw
                 val converted = if (newRaw.isEmpty()) "" else FontStyleConverter.convert(newRaw, activeFontStyle)
                 Log.d("FontStyle", "effectiveOnChange: backspace raw='$newRaw' converted='$converted'")
@@ -330,7 +342,10 @@ fun MessageInputBar(
 
                             // ✨ Кнопка стилю шрифту (Premium)
                             IconButton(
-                                onClick = { showFontPicker = true },
+                                onClick = {
+                                    messageWasEmptyOnPickerOpen = messageText.isBlank()
+                                    showFontPicker = true
+                                },
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Text(
@@ -661,17 +676,25 @@ fun MessageInputBar(
                 previewText = previewBase.ifBlank { "Привіт" },
                 currentStyle = activeFontStyle,
                 onStyleSelected = { style, styledText, rawPreview ->
-                    Log.d("FontStyle", "onStyleSelected: style=$style styledText='$styledText' rawPreview='$rawPreview'")
+                    Log.d("FontStyle", "onStyleSelected: style=$style styledText='$styledText' rawPreview='$rawPreview' wasEmpty=$messageWasEmptyOnPickerOpen")
                     if (style == FontStyle.NORMAL) {
                         activeFontStyle = FontStyle.NORMAL
-                        val plain = rawBeforeFont.ifEmpty { rawPreview }
+                        if (!messageWasEmptyOnPickerOpen) {
+                            val plain = rawBeforeFont.ifEmpty { rawPreview }
+                            onMessageChange(plain)
+                        }
                         rawBeforeFont = ""
-                        onMessageChange(plain)
                     } else {
                         activeFontStyle = style
-                        rawBeforeFont = rawPreview
-                        onMessageChange(styledText)
+                        if (messageWasEmptyOnPickerOpen) {
+                            // Don't inject preview text into an empty message field
+                            rawBeforeFont = ""
+                        } else {
+                            rawBeforeFont = rawPreview
+                            onMessageChange(styledText)
+                        }
                     }
+                    showFontPicker = false
                 },
                 onDismiss = { showFontPicker = false }
             )
