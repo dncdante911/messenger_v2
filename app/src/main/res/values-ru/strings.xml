@@ -2666,5 +2666,12 @@
     <string name="join_requests_count">%d запросов</string>
     <string name="scheduled_posts_count">%d постов</string>
 
+    <!-- Закрытые группы канала (sub-groups) -->
+    <string name="channel_subgroups_title">Закрытые группы канала</string>
+    <string name="channel_subgroups_subtitle">Группы только для подписчиков (до 5)</string>
+    <string name="channel_subgroups_empty">Нет подключённых групп. Добавьте первую!</string>
+    <string name="channel_subgroup_create">Создать новую группу</string>
+    <string name="channel_subgroup_detach">Отсоединить группу</string>
+    <string name="channel_subgroup_created">Группа создана и подключена к каналу</string>
 
 </resources>
