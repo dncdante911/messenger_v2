@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.Brush
 import com.worldmates.messenger.ui.preferences.ChannelViewStyle
@@ -179,6 +180,7 @@ fun ChannelDetailsScreen(
     var showEditChannelDialog by remember { mutableStateOf(false) }
     var showChannelMenuDialog by remember { mutableStateOf(false) }
     var showChannelSettingsDialog by remember { mutableStateOf(false) }
+    var showSubGroupsDialog by remember { mutableStateOf(false) }
     var showPostDetailDialog by remember { mutableStateOf(false) }
     var selectedPostForOptions by remember { mutableStateOf<ChannelPost?>(null) }
     var selectedPostForDetail by remember { mutableStateOf<ChannelPost?>(null) }
@@ -1092,6 +1094,21 @@ fun ChannelDetailsScreen(
                                 }
                             )
 
+                            // Sub-groups (only for private channels with premium)
+                            if (channel.isPrivate) {
+                                PremiumMenuItem(
+                                    icon = Icons.Default.Group,
+                                    title = stringResource(R.string.channel_subgroups_title),
+                                    subtitle = stringResource(R.string.channel_subgroups_subtitle),
+                                    iconTint = Color(0xFF7C4DFF),
+                                    onClick = {
+                                        showChannelMenuDialog = false
+                                        detailsViewModel.loadSubGroups(channelId)
+                                        showSubGroupsDialog = true
+                                    }
+                                )
+                            }
+
                             // Formatting
                             PremiumMenuItem(
                                 icon = Icons.Outlined.TextFormat,
@@ -1219,6 +1236,34 @@ fun ChannelDetailsScreen(
                     )
                 },
                 onDismiss = { showFormattingSettings = false }
+            )
+        }
+
+        // Sub-groups management dialog (private channels, admin only)
+        if (showSubGroupsDialog && channel?.isAdmin == true && channel.isPrivate) {
+            val subGroups by detailsViewModel.subGroups.collectAsState()
+            val subGroupsLoading by detailsViewModel.subGroupsLoading.collectAsState()
+            ChannelSubGroupsDialog(
+                channelId = channelId,
+                subGroups = subGroups,
+                isLoading = subGroupsLoading,
+                onDismiss = { showSubGroupsDialog = false },
+                onCreateGroup = { name, desc ->
+                    detailsViewModel.createSubGroup(
+                        channelId = channelId,
+                        groupName = name,
+                        description = desc.ifBlank { null },
+                        onSuccess = {
+                            Toast.makeText(context, context.getString(R.string.channel_subgroup_created), Toast.LENGTH_SHORT).show()
+                        },
+                        onError = { error ->
+                            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                        }
+                    )
+                },
+                onDetachGroup = { groupId ->
+                    detailsViewModel.detachSubGroup(channelId, groupId)
+                }
             )
         }
 
@@ -2160,6 +2205,179 @@ fun CreateChannelPollDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Channel Sub-Groups Dialog
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Dialog for managing channel sub-groups (private premium channels only).
+ * Admins can create new groups (up to 5) or detach existing ones.
+ * Subscribers see the list and can navigate to any sub-group.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChannelSubGroupsDialog(
+    channelId: Long,
+    subGroups: List<ChannelSubGroup>,
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onCreateGroup: (name: String, description: String) -> Unit,
+    onDetachGroup: (groupId: Long) -> Unit
+) {
+    var showCreateSheet by remember { mutableStateOf(false) }
+    var newGroupName by remember { mutableStateOf("") }
+    var newGroupDesc by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Group,
+                    contentDescription = null,
+                    tint = Color(0xFF7C4DFF),
+                    modifier = Modifier.size(22.dp)
+                )
+                Text(
+                    stringResource(R.string.channel_subgroups_title),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 60.dp, max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isLoading) {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp), color = Color(0xFF7C4DFF))
+                    }
+                } else if (subGroups.isEmpty()) {
+                    Text(
+                        stringResource(R.string.channel_subgroups_empty),
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    subGroups.forEach { group ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        group.name,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        "${group.membersCount} " + stringResource(R.string.members),
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { onDetachGroup(group.id) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.channel_subgroup_detach),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // "Add sub-group" button — only shown when below the 5-group limit
+                if (subGroups.size < 5) {
+                    if (showCreateSheet) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        OutlinedTextField(
+                            value = newGroupName,
+                            onValueChange = { if (it.length <= 255) newGroupName = it },
+                            label = { Text(stringResource(R.string.group_name)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = newGroupDesc,
+                            onValueChange = { if (it.length <= 500) newGroupDesc = it },
+                            label = { Text(stringResource(R.string.description)) },
+                            singleLine = false,
+                            maxLines = 3,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = { showCreateSheet = false; newGroupName = ""; newGroupDesc = "" }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                            Spacer(Modifier.width(4.dp))
+                            Button(
+                                onClick = {
+                                    if (newGroupName.isNotBlank()) {
+                                        onCreateGroup(newGroupName.trim(), newGroupDesc.trim())
+                                        showCreateSheet = false
+                                        newGroupName = ""
+                                        newGroupDesc = ""
+                                    }
+                                },
+                                enabled = newGroupName.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF))
+                            ) {
+                                Text(stringResource(R.string.create))
+                            }
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { showCreateSheet = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF7C4DFF))
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF7C4DFF), modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.channel_subgroup_create), color = Color(0xFF7C4DFF))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.close))
+            }
         }
     )
 }

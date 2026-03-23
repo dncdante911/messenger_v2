@@ -115,6 +115,11 @@ object Constants {
     const val NODE_CHANNEL_UNBAN_MEMBER  = "api/node/channel/unban-member"
     const val NODE_CHANNEL_KICK_MEMBER   = "api/node/channel/kick-member"
     const val NODE_CHANNEL_BANNED        = "api/node/channel/banned-members"
+    // Sub-groups (private channel linked groups)
+    const val NODE_CHANNEL_GROUPS_LIST   = "api/node/channel/groups/list"
+    const val NODE_CHANNEL_GROUPS_CREATE = "api/node/channel/groups/create"
+    const val NODE_CHANNEL_GROUPS_ATTACH = "api/node/channel/groups/attach"
+    const val NODE_CHANNEL_GROUPS_DETACH = "api/node/channel/groups/detach"
 
     // ==================== NODE.JS REST API (group chats) ====================
     // All group chat operations through Node.js (port 449)

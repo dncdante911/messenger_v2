@@ -2682,4 +2682,12 @@
     <string name="join_requests_count">%d запитів</string>
     <string name="scheduled_posts_count">%d постів</string>
 
+    <!-- Channel Sub-Groups -->
+    <string name="channel_subgroups_title">Закриті групи каналу</string>
+    <string name="channel_subgroups_subtitle">Групи тільки для підписників (до 5)</string>
+    <string name="channel_subgroups_empty">Немає підключених груп. Додайте першу!</string>
+    <string name="channel_subgroup_create">Створити нову групу</string>
+    <string name="channel_subgroup_detach">Від\'єднати групу</string>
+    <string name="channel_subgroup_created">Групу створено та підключено до каналу</string>
+
 </resources>

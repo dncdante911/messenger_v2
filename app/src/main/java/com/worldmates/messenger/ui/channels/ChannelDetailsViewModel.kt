@@ -1231,6 +1231,54 @@ class ChannelDetailsViewModel : ViewModel() {
         }
     }
 
+    // ==================== CHANNEL SUB-GROUPS ====================
+
+    private val _subGroups = MutableStateFlow<List<ChannelSubGroup>>(emptyList())
+    val subGroups: StateFlow<List<ChannelSubGroup>> = _subGroups
+
+    private val _subGroupsLoading = MutableStateFlow(false)
+    val subGroupsLoading: StateFlow<Boolean> = _subGroupsLoading
+
+    private val _subGroupsError = MutableStateFlow<String?>(null)
+    val subGroupsError: StateFlow<String?> = _subGroupsError
+
+    private val groupsManager = ChannelGroupsManager(NodeRetrofitClient.channelApi)
+
+    fun loadSubGroups(channelId: Long) {
+        viewModelScope.launch {
+            _subGroupsLoading.value = true
+            groupsManager.loadGroups(channelId)
+                .onSuccess { _subGroups.value = it; _subGroupsError.value = null }
+                .onFailure { _subGroupsError.value = it.message }
+            _subGroupsLoading.value = false
+        }
+    }
+
+    fun createSubGroup(
+        channelId: Long,
+        groupName: String,
+        description: String? = null,
+        onSuccess: (Long) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            groupsManager.createGroup(channelId, groupName, description)
+                .onSuccess { resp ->
+                    onSuccess(resp.groupId ?: 0L)
+                    loadSubGroups(channelId)
+                }
+                .onFailure { onError(it.message ?: "Error") }
+        }
+    }
+
+    fun detachSubGroup(channelId: Long, groupId: Long) {
+        viewModelScope.launch {
+            groupsManager.detachGroup(channelId, groupId)
+                .onSuccess { loadSubGroups(channelId) }
+                .onFailure { _subGroupsError.value = it.message }
+        }
+    }
+
     /**
      * Disconnect Socket.IO. Call from Activity's onPause/onDestroy.
      */

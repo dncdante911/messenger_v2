@@ -32,8 +32,9 @@ const posts        = require('./posts');
 const comments     = require('./comments');
 const reactions    = require('./reactions');
 const admin        = require('./admin');
-const channelPolls = require('./polls');
-const threads      = require('./threads');
+const channelPolls  = require('./polls');
+const threads       = require('./threads');
+const channelGroups = require('./channel-groups');
 
 // ─── Upload base path from config ───────────────────────────────────────────
 // Use site_path from config.json (absolute filesystem path to web root).
@@ -286,12 +287,19 @@ function registerChannelRoutes(app, ctx, io) {
     app.get ('/api/node/channel/post/:postId/thread/count', auth, (req, res) => threads.getThreadCount(ctx, req, res));
     app.post('/api/node/channel/threads/counts',            auth, (req, res) => threads.batchCounts(ctx, req, res));
 
+    // ── Channel Sub-Groups ───────────────────────────────────────────────────
+    app.post('/api/node/channel/groups/list',   auth, channelGroups.listGroups(ctx));
+    app.post('/api/node/channel/groups/create', auth, channelGroups.createGroup(ctx, io));
+    app.post('/api/node/channel/groups/attach', auth, channelGroups.attachGroup(ctx, io));
+    app.post('/api/node/channel/groups/detach', auth, channelGroups.detachGroup(ctx, io));
+
     console.log('[Channel API] Endpoints registered:');
-    console.log('  Main    : POST /api/v2/channels.php');
-    console.log('  QR      : generate_channel_qr, subscribe_channel_by_qr');
-    console.log('  Mute    : mute_channel, unmute_channel');
-    console.log('  Upload  : upload_channel_avatar');
-    console.log('  Media   : /api/node/media/upload (+aliases)');
+    console.log('  Main      : POST /api/v2/channels.php');
+    console.log('  QR        : generate_channel_qr, subscribe_channel_by_qr');
+    console.log('  Mute      : mute_channel, unmute_channel');
+    console.log('  Upload    : upload_channel_avatar');
+    console.log('  Media     : /api/node/media/upload (+aliases)');
+    console.log('  SubGroups : /api/node/channel/groups/{list,create,attach,detach}');
 }
 
 module.exports = { registerChannelRoutes };
