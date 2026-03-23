@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.model.Channel
-import com.worldmates.messenger.ui.theme.PremiumFonts
+import com.worldmates.messenger.ui.fonts.AppFonts
 import com.worldmates.messenger.util.toFullMediaUrl
 
 // ==================== PREMIUM CHANNEL LIST ITEM (Telegram-style tile) ====================
@@ -97,7 +97,7 @@ fun PremiumChannelListItem(
                         text = channel.name,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = PremiumFonts.Exo2,
+                        fontFamily = AppFonts.Exo2,
                         color = colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -150,7 +150,7 @@ fun PremiumChannelListItem(
                                 text = channel.category!!,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                fontFamily = PremiumFonts.Righteous,
+                                fontFamily = AppFonts.Righteous,
                                 color = colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                                 maxLines = 1
@@ -241,7 +241,7 @@ private fun TgChannelAvatar(
                     text = channelName.take(2).uppercase(),
                     fontSize = (size.value / 2.6f).sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = PremiumFonts.RussoOne,
+                    fontFamily = AppFonts.RussoOne,
                     color = Color.White,
                     letterSpacing = 1.sp
                 )
