@@ -494,6 +494,7 @@
     <string name="channel_detail_subscribers">подписчиков</string>
     <string name="channel_detail_posts">постов</string>
     <string name="channel_detail_pinned">Закреплено</string>
+    <string name="post_edited">изменено</string>
     <string name="channel_detail_subscribe">Подписаться</string>
     <string name="channel_detail_subscribed">Подписано</string>
     <string name="channel_detail_create_post">Создать пост</string>

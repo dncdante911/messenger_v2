@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Exo 2 — futuristic geometric display font.
+  Perfect for premium channel names and headings.
+  Source: fonts.google.com/specimen/Exo+2
+-->
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:fontProviderAuthority="com.google.android.gms.fonts"
+    app:fontProviderPackage="com.google.android.gms"
+    app:fontProviderQuery="name=Exo+2&amp;weight=400"
+    app:fontProviderCerts="@array/com_google_android_gms_fonts_certs">
+</font-family>

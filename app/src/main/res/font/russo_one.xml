@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Russo One — bold geometric display font. Authoritative, wide letterforms.
+  Great for channel names and section headings in premium style.
+  Source: fonts.google.com/specimen/Russo+One
+-->
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:fontProviderAuthority="com.google.android.gms.fonts"
+    app:fontProviderPackage="com.google.android.gms"
+    app:fontProviderQuery="Russo One"
+    app:fontProviderCerts="@array/com_google_android_gms_fonts_certs">
+</font-family>

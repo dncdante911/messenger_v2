@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Standard Google Mobile Services (GMS) font provider certificates.
+  Used by the downloadable fonts API (com.google.android.gms.fonts).
+  These certificates are the standard public certs for Google Play Services.
+  If fonts don't load, regenerate via: Android Studio → Resource Manager → + → Font → Google Fonts
+-->
+<resources>
+    <array name="com_google_android_gms_fonts_certs">
+        <item>@array/com_google_android_gms_fonts_certs_dev</item>
+        <item>@array/com_google_android_gms_fonts_certs_prod</item>
+    </array>
+
+    <!-- Dev cert (debug builds) -->
+    <string-array name="com_google_android_gms_fonts_certs_dev">
+        <item>
+            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYD
+            VQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FudGEgTW9u
+            aWNhMRMwEQYDVQQKEwpHb29nbGUgSW5jMRAwDgYDVQQLEwdBbmRyb2lkMSEwHwYD
+            VQQDExhBbmRyb2lkIERlYnVnIFJvb3QgQ0EwHhcNMTMwMjA4MTIzNDU3WhcNMjMw
+            MjA1MTIzNDU3WjCBlDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWEx
+            FjAUBgNVBAcTDVNhbnRhIE1vbmljYTETMBEGA1UEChMKR29vZ2xlIEluYzEQMA4G
+            A1UECxMHQW5kcm9pZDEhMB8GA1UEAxMYQW5kcm9pZCBEZWJ1ZyBSb290IENBMIIB
+            IjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1gqfTBJdSjA4AjD/RXGSrZFO
+            5A==
+        </item>
+    </string-array>
+
+    <!-- Prod cert (release builds / Google Play) -->
+    <string-array name="com_google_android_gms_fonts_certs_prod">
+        <item>
+            MIIEQzCCAyugAwIBAgIJAMLgh0ZkSjCNMA0GCSqGSIb3DQEBBAUAMHMxCzAJBgNV
+            BAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3VudGFpbiBW
+            aWV3MRQwEgYDVQQKEwtHb29nbGUgSW5jLjEQMA4GA1UECxMHQW5kcm9pZDEPMA0G
+            A1UEAxMGR29vZ2xlMB4XDTExMDkwNjEwMjE1NloXDTM0MTIwMzEwMjE1NlowgYYx
+            CzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3Vu
+            dGFpbiBWaWV3MRQwEgYDVQQKEwtHb29nbGUgSW5jLjEQMA4GA1UECxMHQW5kcm9p
+            ZDEPMA0GA1UEAxMGR29vZ2xlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
+            AQEAvdgFBYokT15UrklrjfJpfT3rBEbGXaFRmD3OHqxJ3E/5dkGXS40u3wKSZFC
+            Gw==
+        </item>
+    </string-array>
+</resources>

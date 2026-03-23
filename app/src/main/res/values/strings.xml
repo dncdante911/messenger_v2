@@ -517,6 +517,7 @@
     <string name="channel_detail_subscribers">підписників</string>
     <string name="channel_detail_posts">постів</string>
     <string name="channel_detail_pinned">Закріплено</string>
+    <string name="post_edited">редаговано</string>
     <string name="channel_detail_subscribe">Підписатися</string>
     <string name="channel_detail_subscribed">Підписано</string>
     <string name="channel_detail_create_post">Створити пост</string>

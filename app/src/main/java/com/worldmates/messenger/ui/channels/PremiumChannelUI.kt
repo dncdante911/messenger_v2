@@ -3,6 +3,7 @@ package com.worldmates.messenger.ui.channels
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +29,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.model.Channel
 import com.worldmates.messenger.data.model.ChannelPost
+import com.worldmates.messenger.data.model.InlinePostButton
 import com.worldmates.messenger.data.model.PostMedia
 import com.worldmates.messenger.util.toFullMediaUrl
 import java.text.SimpleDateFormat
@@ -44,6 +47,7 @@ import java.util.*
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.messages.components.PollMessageComponent
+import com.worldmates.messenger.ui.theme.PremiumFonts
 
 /**
  * Premium Channel UI — radically different design.
@@ -200,6 +204,7 @@ fun PremiumChannelHeader(
                     Text(
                         text = channel.name,
                         style = MaterialTheme.typography.titleMedium,
+                        fontFamily = PremiumFonts.Exo2,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onSurface,
                         maxLines = 1,
@@ -338,8 +343,9 @@ private fun PremiumInlineStat(
     }
 }
 
-// ==================== PREMIUM POST CARD ====================
-// Full-bleed editorial style: no card borders, accent left bar, clean typography
+// ==================== PREMIUM POST CARD (Telegram-style) ====================
+// Full card with rounded corners, full-bleed media, inline keyboard buttons.
+// Inspired by Telegram channel post layout.
 
 @Composable
 fun PremiumPostCard(
@@ -352,226 +358,305 @@ fun PremiumPostCard(
     onMediaClick: ((Int) -> Unit)? = null,
     onPollVote: (pollId: Long, optionId: Long) -> Unit = { _, _ -> },
     canEdit: Boolean = false,
+    onInlineButtonClick: ((InlinePostButton) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val hasMedia = !post.media.isNullOrEmpty()
     val hasReactions = post.reactions?.isNotEmpty() == true
     val reactionsCount = post.reactions?.sumOf { it.count } ?: 0
+    val hasInlineButtons = !post.inlineButtons.isNullOrEmpty()
 
-    Column(
+    Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(color = colorScheme.primary.copy(alpha = 0.1f)),
-                onClick = onPostClick
-            )
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp,
+            pressedElevation = 0.dp
+        ),
+        onClick = onPostClick
     ) {
-        // Pinned indicator — subtle top bar
-        if (post.isPinned) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+
+            // ── Pinned banner ────────────────────────────────────────────────
+            if (post.isPinned) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colorScheme.primary.copy(alpha = 0.08f))
+                        .padding(horizontal = 14.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Icon(
+                        Icons.Default.PushPin,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.channel_detail_pinned),
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.primary,
+                        letterSpacing = 0.3.sp
+                    )
+                }
+            }
+
+            // ── Full-bleed media ─────────────────────────────────────────────
+            if (hasMedia) {
+                val topShape = if (post.isPinned) RoundedCornerShape(0.dp)
+                else RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                PremiumMediaGallery(
+                    media = post.media!!,
+                    onMediaClick = onMediaClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(topShape)
+                )
+            }
+
+            // ── Author row ───────────────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colorScheme.primaryContainer.copy(alpha = 0.3f))
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(start = 14.dp, end = 10.dp, top = 10.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.PushPin,
-                    contentDescription = null,
-                    tint = colorScheme.primary,
-                    modifier = Modifier.size(14.dp)
+                PremiumSmallAvatar(
+                    avatarUrl = post.authorAvatar ?: "",
+                    name = post.authorName ?: post.authorUsername ?: "?",
+                    size = 34.dp
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = PremiumFonts.Exo2,
+                        color = colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                // Time
                 Text(
-                    text = stringResource(R.string.channel_detail_pinned),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = colorScheme.primary
+                    text = formatPostTime(post.createdTime),
+                    fontSize = 11.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.4f)
                 )
+                if (canEdit) {
+                    IconButton(
+                        onClick = onMoreClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.MoreHoriz,
+                            contentDescription = null,
+                            tint = colorScheme.onSurface.copy(alpha = 0.35f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
-        }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-        ) {
-            // Left accent line — thin, uses theme primary
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .fillMaxHeight()
-                    .padding(vertical = 8.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = if (post.isPinned) {
-                                listOf(colorScheme.tertiary, colorScheme.primary)
-                            } else {
-                                listOf(
-                                    colorScheme.primary.copy(alpha = 0.6f),
-                                    colorScheme.primary.copy(alpha = 0.1f)
-                                )
-                            }
-                        ),
-                        shape = RoundedCornerShape(2.dp)
-                    )
-            )
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp, end = 20.dp, top = 12.dp, bottom = 8.dp)
-            ) {
-                // Author row — compact
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Small avatar
-                    PremiumSmallAvatar(
-                        avatarUrl = post.authorAvatar ?: "",
-                        name = post.authorName ?: post.authorUsername ?: "User",
-                        size = 36.dp
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = formatPostTime(post.createdTime),
-                            fontSize = 12.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.45f)
-                        )
-                    }
-
-                    if (canEdit) {
-                        IconButton(
-                            onClick = onMoreClick,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.MoreHoriz,
-                                contentDescription = null,
-                                tint = colorScheme.onSurface.copy(alpha = 0.4f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Media first — full-bleed with rounded corners
-                if (!post.media.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    PremiumMediaGallery(
-                        media = post.media!!,
-                        onMediaClick = onMediaClick,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                    )
-                }
-
-                // Poll or post text
-                if (post.poll != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
+            // ── Post content ─────────────────────────────────────────────────
+            if (post.poll != null) {
+                Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
                     PollMessageComponent(
                         poll = post.poll,
                         isMine = false,
                         onVote = { optionId -> onPollVote(post.poll.id, optionId) }
                     )
-                } else if (post.text.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = post.text,
-                        fontSize = 15.sp,
-                        color = colorScheme.onSurface,
-                        lineHeight = 22.sp
+                }
+            } else if (post.text.isNotBlank()) {
+                Text(
+                    text = post.text,
+                    fontSize = 15.sp,
+                    color = colorScheme.onSurface,
+                    lineHeight = 22.sp,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp)
+                )
+            }
+
+            // ── Edited label ─────────────────────────────────────────────────
+            if (post.isEdited) {
+                Text(
+                    text = stringResource(R.string.post_edited),
+                    fontSize = 11.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.35f),
+                    fontStyle = FontStyle.Italic,
+                    modifier = Modifier.padding(start = 14.dp, top = 2.dp)
+                )
+            }
+
+            // ── Reactions row ────────────────────────────────────────────────
+            if (hasReactions) {
+                LazyReactionsRow(
+                    reactions = post.reactions ?: emptyList(),
+                    onReactionClick = onReactionClick,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+
+            // ── Bottom stats bar ─────────────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 14.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Left: reactions add button + comments
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    // Add reaction
+                    TgActionButton(
+                        icon = Icons.Outlined.EmojiEmotions,
+                        count = if (reactionsCount > 0) reactionsCount else null,
+                        isActive = hasReactions,
+                        activeColor = colorScheme.primary,
+                        onClick = { onReactionClick("👍") }
+                    )
+                    // Comments
+                    TgActionButton(
+                        icon = Icons.Outlined.ChatBubbleOutline,
+                        count = if (post.commentsCount > 0) post.commentsCount else null,
+                        isActive = false,
+                        activeColor = colorScheme.tertiary,
+                        onClick = onCommentsClick
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Bottom action bar — icon-centric, compact
+                // Right: views + share
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    // Left: views
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Icon(
-                            Icons.Outlined.Visibility,
-                            contentDescription = null,
-                            tint = colorScheme.onSurface.copy(alpha = 0.35f),
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = formatCountPremium(post.viewsCount),
-                            fontSize = 12.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.35f)
-                        )
+                    if (post.viewsCount > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Visibility,
+                                contentDescription = null,
+                                tint = colorScheme.onSurface.copy(alpha = 0.35f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = formatCountPremium(post.viewsCount),
+                                fontSize = 11.5.sp,
+                                color = colorScheme.onSurface.copy(alpha = 0.35f)
+                            )
+                        }
                     }
+                    TgActionButton(
+                        icon = Icons.Outlined.Share,
+                        count = null,
+                        isActive = false,
+                        activeColor = colorScheme.secondary,
+                        onClick = onShareClick
+                    )
+                }
+            }
 
-                    // Right: action buttons
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Reaction
-                        PremiumCompactAction(
-                            icon = if (hasReactions) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
-                            count = if (reactionsCount > 0) reactionsCount else null,
-                            isActive = hasReactions,
-                            activeColor = colorScheme.primary,
-                            onClick = { onReactionClick("\uD83D\uDC4D") }
-                        )
-
-                        // Comments
-                        PremiumCompactAction(
-                            icon = Icons.Outlined.ChatBubbleOutline,
-                            count = if (post.commentsCount > 0) post.commentsCount else null,
-                            isActive = post.commentsCount > 0,
-                            activeColor = colorScheme.tertiary,
-                            onClick = onCommentsClick
-                        )
-
-                        // Share
-                        PremiumCompactAction(
-                            icon = Icons.Outlined.Share,
-                            count = null,
-                            isActive = false,
-                            activeColor = colorScheme.secondary,
-                            onClick = onShareClick
-                        )
+            // ── Inline keyboard buttons (Telegram-style) ─────────────────────
+            if (hasInlineButtons) {
+                HorizontalDivider(
+                    color = colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    thickness = 0.5.dp
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    post.inlineButtons!!.forEach { buttonRow ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            buttonRow.forEach { button ->
+                                TgInlineButton(
+                                    button = button,
+                                    onClick = { onInlineButtonClick?.invoke(button) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
-
-        // Subtle separator
-        HorizontalDivider(
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp),
-            color = colorScheme.onSurface.copy(alpha = 0.06f)
-        )
     }
 }
 
-// ==================== COMPACT ACTION BUTTON ====================
+// ==================== TG INLINE BUTTON ====================
 
 @Composable
-private fun PremiumCompactAction(
+private fun TgInlineButton(
+    button: InlinePostButton,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val hasUrl = !button.url.isNullOrBlank()
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        border = BorderStroke(
+            width = 0.5.dp,
+            color = colorScheme.outline.copy(alpha = 0.25f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = button.text,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = PremiumFonts.Exo2,
+                color = colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+            if (hasUrl) {
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    Icons.Default.OpenInNew,
+                    contentDescription = null,
+                    tint = colorScheme.primary.copy(alpha = 0.6f),
+                    modifier = Modifier.size(13.dp)
+                )
+            }
+        }
+    }
+}
+
+// ==================== TG ACTION BUTTON ====================
+
+@Composable
+private fun TgActionButton(
     icon: ImageVector,
     count: Int?,
     isActive: Boolean,
@@ -584,8 +669,8 @@ private fun PremiumCompactAction(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
-        color = if (isActive) activeColor.copy(alpha = 0.08f) else Color.Transparent,
-        modifier = Modifier.height(32.dp)
+        color = if (isActive) activeColor.copy(alpha = 0.1f) else Color.Transparent,
+        modifier = Modifier.height(34.dp)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp),
@@ -605,6 +690,58 @@ private fun PremiumCompactAction(
                     fontWeight = FontWeight.Medium,
                     color = color
                 )
+            }
+        }
+    }
+}
+
+// ==================== REACTIONS ROW ====================
+
+@Composable
+private fun LazyReactionsRow(
+    reactions: List<com.worldmates.messenger.data.model.PostReaction>,
+    onReactionClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        reactions.take(6).forEach { reaction ->
+            Surface(
+                onClick = { onReactionClick(reaction.emoji) },
+                shape = RoundedCornerShape(12.dp),
+                color = if (reaction.userReacted)
+                    colorScheme.primary.copy(alpha = 0.12f)
+                else
+                    colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                border = if (reaction.userReacted)
+                    BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.35f))
+                else null
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        text = reaction.emoji,
+                        fontSize = 14.sp
+                    )
+                    if (reaction.count > 1) {
+                        Text(
+                            text = reaction.count.toString(),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (reaction.userReacted)
+                                colorScheme.primary
+                            else
+                                colorScheme.onSurface.copy(alpha = 0.55f)
+                        )
+                    }
+                }
             }
         }
     }
