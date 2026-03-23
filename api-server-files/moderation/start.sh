@@ -1,8 +1,11 @@
 #!/bin/bash
-# ─── Запуск NudeNet сервиса ───────────────────────────────────────────────────
-# Использование: ./start.sh [prod|dev]
-# Для продакшена используется gunicorn (многопоточный, стабильный)
-# Для разработки — встроенный Flask сервер
+# ─── Запуск сервисов модерации ────────────────────────────────────────────────
+# Использование:
+#   ./start.sh [prod|dev]          — запуск NudeNet (порт 5001)
+#   ./start-detoxify.sh [prod|dev] — запуск Detoxify (порт 5002)
+#
+# Оба сервиса используют один общий venv.
+# При первом запуске venv создаётся автоматически (~500MB).
 
 set -e
 
@@ -12,16 +15,18 @@ SERVICE_FILE="$SCRIPT_DIR/nudenet_service.py"
 
 # Создаём virtualenv если нет
 if [ ! -d "$VENV_DIR" ]; then
-    echo "[NudeNet] Создаю виртуальное окружение..."
+    echo "[setup] Создаю виртуальное окружение..."
     python3 -m venv "$VENV_DIR"
 fi
 
 # Активируем
 source "$VENV_DIR/bin/activate"
 
-# Обновляем зависимости
-echo "[NudeNet] Устанавливаю зависимости..."
+# Устанавливаем все зависимости (NudeNet + Detoxify + ImageHash)
+echo "[setup] Устанавливаю зависимости NudeNet..."
 pip install -q -r "$SCRIPT_DIR/requirements.txt"
+echo "[setup] Устанавливаю зависимости Detoxify..."
+pip install -q -r "$SCRIPT_DIR/requirements-detoxify.txt"
 
 MODE="${1:-prod}"
 PORT="${NUDENET_PORT:-5001}"
