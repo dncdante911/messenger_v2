@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.model.*
+import com.worldmates.messenger.ui.fonts.AppFonts
 import com.worldmates.messenger.ui.messages.components.PollMessageComponent
 import java.text.SimpleDateFormat
 import java.util.*
@@ -201,8 +202,9 @@ fun ChannelPostCard(
                         ) {
                             Text(
                                 text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontFamily = AppFonts.Exo2,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 letterSpacing = 0.15.sp
                             )
