@@ -1743,7 +1743,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 )).setUsername(username).setPassword(credential).createIceServer(),
                 PeerConnection.IceServer.builder(listOf(
                     "turn:$TURN_HOST_2:3478?transport=udp",
-                    "turn:$TURN_HOST_2:3478?transport=tcp"
+                    "turn:$TURN_HOST_2:3478?transport=tcp",
+                    "turns:$TURN_HOST_2:5349"
                 )).setUsername(username).setPassword(credential).createIceServer()
             )
         } catch (e: Exception) {
