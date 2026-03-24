@@ -333,13 +333,6 @@ class MessageNotificationService : Service() {
 
             Log.d(TAG, "📞 Incoming call from $fromName ($fromId), type=$callType")
 
-            // When app is in foreground, CallsViewModel handles the call UI directly —
-            // no notification needed. This prevents the "double ring" problem.
-            if (isAppInForeground) {
-                Log.d(TAG, "📞 App in foreground — skipping notification, ViewModel will handle")
-                return
-            }
-
             val intent = IncomingCallActivity.createIntent(
                 context = this,
                 fromId = fromId,
@@ -350,10 +343,15 @@ class MessageNotificationService : Service() {
                 sdpOffer = sdpOffer
             )
 
-            // Full-screen intent for locked-screen / heads-up display (Android 10+)
-            showIncomingCallNotification(intent, fromName, callType, CALL_NOTIF_ID)
-            // Direct Activity start — works on Android < 10 and many OEM ROMs
-            startActivity(intent)
+            if (isAppInForeground) {
+                // App is visible — launch call screen directly, no notification needed
+                Log.d(TAG, "📞 App in foreground — launching activity without notification")
+                startActivity(intent)
+            } else {
+                // App in background / screen locked — show full-screen notification
+                showIncomingCallNotification(intent, fromName, callType, CALL_NOTIF_ID)
+                startActivity(intent)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling incoming call", e)
         }
@@ -381,12 +379,6 @@ class MessageNotificationService : Service() {
 
             Log.d(TAG, "📞 Incoming group call for group $groupId ($groupName) from $initiatorName")
 
-            // When app is in foreground, CallsViewModel handles the call UI directly
-            if (isAppInForeground) {
-                Log.d(TAG, "📞 App in foreground — skipping group call notification, ViewModel will handle")
-                return
-            }
-
             val intent = Intent(this, IncomingGroupCallActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra("group_id",         groupId)
@@ -400,8 +392,13 @@ class MessageNotificationService : Service() {
                 putExtra("is_premium_call",  isPremiumCall)
             }
 
-            showIncomingCallNotification(intent, "$initiatorName → $groupName", callType, GROUP_CALL_NOTIF_ID)
-            startActivity(intent)
+            if (isAppInForeground) {
+                Log.d(TAG, "📞 App in foreground — launching group call activity without notification")
+                startActivity(intent)
+            } else {
+                showIncomingCallNotification(intent, "$initiatorName → $groupName", callType, GROUP_CALL_NOTIF_ID)
+                startActivity(intent)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling incoming group call", e)
         }

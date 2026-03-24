@@ -307,14 +307,24 @@ class GroupWebRTCManager(private val context: Context) {
             override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
                 val stream = streams?.firstOrNull()
                 if (stream != null) {
-                    Log.d(TAG, "✅ Track added from peer $userId via onAddTrack (stream=${stream.id})")
+                    Log.d(TAG, "✅ Track added from peer $userId via onAddTrack (stream=${stream.id}, " +
+                            "audio=${stream.audioTracks.size}, video=${stream.videoTracks.size})")
                     remoteStreams[userId] = stream
                     onRemoteStreamAdded?.invoke(userId, stream)
                 } else {
                     // Unified Plan may call onAddTrack with empty streams[].
-                    // Peer is connected — at minimum clear the "connecting" spinner.
-                    Log.d(TAG, "✅ Track added from peer $userId via onAddTrack (no stream, invoking connected)")
-                    onPeerConnected?.invoke(userId)
+                    // Build/update a synthetic stream so the UI can render the track.
+                    val track = receiver?.track()
+                    Log.d(TAG, "✅ Track added from peer $userId via onAddTrack (no stream, " +
+                            "track=${track?.kind()}, building synthetic stream)")
+                    val existing = remoteStreams.getOrPut(userId) {
+                        peerConnectionFactory.createLocalMediaStream("remote_$userId")
+                    }
+                    when (track) {
+                        is AudioTrack -> existing.addTrack(track)
+                        is VideoTrack -> existing.addTrack(track)
+                    }
+                    onRemoteStreamAdded?.invoke(userId, existing)
                 }
             }
         }
