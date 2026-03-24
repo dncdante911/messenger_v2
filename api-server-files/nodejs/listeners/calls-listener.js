@@ -4,14 +4,15 @@
  * ✅ CLUSTER-SAFE: Все emit() идут через io.to(String(userId)) вместо
  * ctx.userIdSocket[userId], что работает через Redis adapter между воркерами.
  * JoinController уже помещает каждый сокет в room = String(user_id).
+ *
+ * ✅ Group call participant tracking хранится в Redis (hashes), а не в in-memory Map.
+ * Это критично для PM2 cluster mode — каждый воркер видит одних и тех же участников.
  */
 
 const turnHelper = require('../helpers/turn-credentials');
 const { createClient } = require('redis');
 
-// ── Redis client для буфера ICE кандидатов (cluster-safe) ────────────────
-// ctx.iceCandidateBuffer был Map в памяти — не расшарен между PM2 воркерами.
-// Redis хранит JSON-массив с TTL 120 сек (звонок должен быть принят за это время).
+// ── Redis client (shared for ICE buffer + group call participants) ────────
 let _redis = null;
 async function getRedis() {
     if (_redis && _redis.isOpen) return _redis;
@@ -32,6 +33,7 @@ async function getRedis() {
     return _redis;
 }
 
+// ── ICE candidate buffer (Redis list with TTL) ──────────────────────────
 const ICE_BUFFER_TTL = 120; // seconds
 async function bufferIceCandidate(roomName, candidateData) {
     try {
@@ -59,6 +61,85 @@ async function clearIceBuffer(roomName) {
     } catch { /* non-fatal */ }
 }
 
+// ── Group call participant tracking (Redis hash, cluster-safe) ──────────
+// Key: `gcall:{roomName}` → hash { "userId1": JSON({userName, userAvatar}), ... }
+const GCALL_TTL = 3600; // 1 hour auto-cleanup for stale rooms
+
+async function addGroupCallParticipant(roomName, userId, userName, userAvatar) {
+    try {
+        const r = await getRedis();
+        if (!r) return;
+        const key = `gcall:${roomName}`;
+        await r.hSet(key, String(userId), JSON.stringify({ userName, userAvatar }));
+        await r.expire(key, GCALL_TTL);
+    } catch (e) { console.warn('[CALLS] Redis addGroupCallParticipant error:', e.message); }
+}
+
+async function removeGroupCallParticipant(roomName, userId) {
+    try {
+        const r = await getRedis();
+        if (!r) return;
+        const key = `gcall:${roomName}`;
+        await r.hDel(key, String(userId));
+        // Clean up empty rooms
+        const remaining = await r.hLen(key);
+        if (remaining === 0) await r.del(key);
+    } catch (e) { console.warn('[CALLS] Redis removeGroupCallParticipant error:', e.message); }
+}
+
+async function getGroupCallParticipants(roomName) {
+    try {
+        const r = await getRedis();
+        if (!r) return new Map();
+        const key = `gcall:${roomName}`;
+        const all = await r.hGetAll(key);
+        const map = new Map();
+        for (const [uid, json] of Object.entries(all)) {
+            try { map.set(parseInt(uid), JSON.parse(json)); } catch { /* skip bad entry */ }
+        }
+        return map;
+    } catch (e) {
+        console.warn('[CALLS] Redis getGroupCallParticipants error:', e.message);
+        return new Map();
+    }
+}
+
+async function deleteGroupCallRoom(roomName) {
+    try {
+        const r = await getRedis();
+        if (r) await r.del(`gcall:${roomName}`);
+    } catch { /* non-fatal */ }
+}
+
+// ── Noise cancellation state (Redis hash, cluster-safe) ─────────────────
+async function setNoiseCancellation(roomName, userId, enabled) {
+    try {
+        const r = await getRedis();
+        if (!r) return;
+        const key = `gcall_nc:${roomName}`;
+        await r.hSet(key, String(userId), enabled ? '1' : '0');
+        await r.expire(key, GCALL_TTL);
+    } catch { /* non-fatal */ }
+}
+
+async function getNoiseCancellationStates(roomName) {
+    try {
+        const r = await getRedis();
+        if (!r) return {};
+        const all = await r.hGetAll(`gcall_nc:${roomName}`);
+        const result = {};
+        for (const [uid, val] of Object.entries(all)) result[uid] = val === '1';
+        return result;
+    } catch { return {}; }
+}
+
+async function deleteNoiseCancellationRoom(roomName) {
+    try {
+        const r = await getRedis();
+        if (r) await r.del(`gcall_nc:${roomName}`);
+    } catch { /* non-fatal */ }
+}
+
 /**
  * Регистрация обработчиков звонков
  * @param {Object} socket - Socket.IO socket объект
@@ -67,20 +148,14 @@ async function clearIceBuffer(roomName) {
  */
 async function registerCallsListeners(socket, io, ctx) {
 
-    // Хранилище активных звонков
+    // Хранилище активных звонков (1-on-1 only, not critical for cluster)
     if (!ctx.activeCalls) {
         ctx.activeCalls = new Map();
     }
 
-    // Хранилище участников групповых звонков
-    if (!ctx.activeGroupCalls) {
-        ctx.activeGroupCalls = new Map();
-    }
-
-    // Шумоподавление: состояние по комнате
-    if (!ctx.noiseCancellationState) {
-        ctx.noiseCancellationState = new Map();
-    }
+    // ✅ Group call participants + noise cancellation now stored in Redis.
+    // ctx.activeGroupCalls and ctx.noiseCancellationState are NO LONGER USED.
+    // See: addGroupCallParticipant(), getGroupCallParticipants(), etc.
 
     /**
      * Регистрация пользователя для звонков
@@ -295,16 +370,9 @@ async function registerCallsListeners(socket, io, ctx) {
                     `${initiator.first_name} ${initiator.last_name}` : 'Unknown';
                 const initiatorAvatar = initiator?.avatar || '';
 
-                // Зареєструвати ініціатора в кімнаті — без цього перший participant_joined
-                // ніколи не знайде нікого в existingParticipantIds і WebRTC offer не буде
-                if (!ctx.activeGroupCalls.has(roomName)) {
-                    ctx.activeGroupCalls.set(roomName, new Map());
-                }
-                ctx.activeGroupCalls.get(roomName).set(fromId, {
-                    userName:   initiatorName,
-                    userAvatar: initiatorAvatar,
-                    socketId:   socket.id
-                });
+                // ✅ CLUSTER-SAFE: Register initiator in Redis so other workers
+                // can see them when participants join from different PM2 workers
+                await addGroupCallParticipant(roomName, fromId, initiatorName, initiatorAvatar);
                 socket.join(roomName);
                 console.log(`[CALLS] 👥 Initiator ${fromId} joined room ${roomName}`);
 
@@ -708,17 +776,14 @@ async function registerCallsListeners(socket, io, ctx) {
      * Share noise cancellation status with participants
      * Data: { roomName, userId, enabled: boolean }
      */
-    socket.on('call:noise_cancellation', (data) => {
+    socket.on('call:noise_cancellation', async (data) => {
         try {
             const { roomName, userId, enabled } = data;
             console.log(`[CALLS] 🔇 Noise cancellation ${enabled ? 'ON' : 'OFF'} for user ${userId} in room ${roomName}`);
 
-            // Persist state so late joiners know who has it on
+            // ✅ CLUSTER-SAFE: Persist in Redis so late joiners on any worker see state
             if (roomName) {
-                if (!ctx.noiseCancellationState.has(roomName)) {
-                    ctx.noiseCancellationState.set(roomName, new Map());
-                }
-                ctx.noiseCancellationState.get(roomName).set(String(userId), !!enabled);
+                await setNoiseCancellation(roomName, userId, !!enabled);
             }
 
             socket.to(roomName).emit('call:noise_cancellation', {
@@ -762,34 +827,28 @@ async function registerCallsListeners(socket, io, ctx) {
                 }
             } catch (e) { /* ignore */ }
 
-            // Зарегистрировать участника в комнате
-            if (!ctx.activeGroupCalls.has(roomName)) {
-                ctx.activeGroupCalls.set(roomName, new Map());
-            }
-            const roomParticipants = ctx.activeGroupCalls.get(roomName);
+            // ✅ CLUSTER-SAFE: Read existing participants from Redis (shared across all PM2 workers)
+            const roomParticipants = await getGroupCallParticipants(roomName);
             const existingParticipantIds = [...roomParticipants.keys()];
 
-            roomParticipants.set(userId, { userName, userAvatar, socketId: socket.id });
+            // Register new participant in Redis
+            await addGroupCallParticipant(roomName, userId, userName, userAvatar);
             socket.join(roomName);
 
-            console.log(`[CALLS] 👥 Room ${roomName} now has ${roomParticipants.size} participants: ${[...roomParticipants.keys()].join(', ')}`);
+            console.log(`[CALLS] 👥 Room ${roomName} now has ${roomParticipants.size + 1} participants: ${[...existingParticipantIds, userId].join(', ')}`);
 
             // Отправить новому участнику список уже подключённых участников + ICE серверы
-            // shouldCreateOffer: true — новый участник СРАЗУ создаёт offers ко всем существующим,
-            // не ждёт пассивно. Это исправляет "Ожидание участников" на стороне присоединяющегося.
             const joinerIceServers = turnHelper.getIceServers(userId);
             const existingList = existingParticipantIds.map(uid => ({
                 userId: uid,
                 userName: roomParticipants.get(uid)?.userName || 'Unknown',
                 userAvatar: roomParticipants.get(uid)?.userAvatar || '',
-                shouldCreateOffer: true,  // новый участник создаёт offer к каждому существующему
+                shouldCreateOffer: true,
                 iceServers: joinerIceServers,
             }));
 
-            // Include noise-cancellation states so the joiner knows which participants have it on
-            const ncStates = {};
-            const ncRoom = ctx.noiseCancellationState?.get(roomName);
-            if (ncRoom) ncRoom.forEach((v, k) => { ncStates[k] = v; });
+            // Include noise-cancellation states from Redis
+            const ncStates = await getNoiseCancellationStates(roomName);
 
             socket.emit('group_call:current_participants', {
                 roomName,
@@ -870,12 +929,8 @@ async function registerCallsListeners(socket, io, ctx) {
 
             socket.leave(roomName);
 
-            if (ctx.activeGroupCalls.has(roomName)) {
-                ctx.activeGroupCalls.get(roomName).delete(userId);
-                if (ctx.activeGroupCalls.get(roomName).size === 0) {
-                    ctx.activeGroupCalls.delete(roomName);
-                }
-            }
+            // ✅ CLUSTER-SAFE: Remove from Redis
+            await removeGroupCallParticipant(roomName, userId);
 
             // Уведомить остальных участников
             socket.to(roomName).emit('group_call:participant_left', {
@@ -906,9 +961,9 @@ async function registerCallsListeners(socket, io, ctx) {
                 endedBy: userId
             });
 
-            // Очистить комнату
-            ctx.activeGroupCalls.delete(roomName);
-            ctx.noiseCancellationState?.delete(roomName);
+            // ✅ CLUSTER-SAFE: Clean up Redis
+            await deleteGroupCallRoom(roomName);
+            await deleteNoiseCancellationRoom(roomName);
 
             // Обновить БД
             try {
