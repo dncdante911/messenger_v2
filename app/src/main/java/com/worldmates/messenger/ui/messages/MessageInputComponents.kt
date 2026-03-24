@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import com.worldmates.messenger.R
 import androidx.compose.ui.text.style.TextOverflow
@@ -378,6 +380,15 @@ fun MessageInputBar(
                                     focusedTextColor = colorScheme.onSurface,
                                     unfocusedTextColor = colorScheme.onSurface
                                 ),
+                                keyboardOptions = if (activeFontStyle != FontStyle.NORMAL) {
+                                    // Disable autocorrect/autocomplete when a decorative font
+                                    // style is active — IME text replacement corrupts the
+                                    // Unicode-styled characters stored in the field.
+                                    KeyboardOptions(
+                                        autoCorrect = false,
+                                        keyboardType = KeyboardType.Text
+                                    )
+                                } else KeyboardOptions.Default,
                                 textStyle = MaterialTheme.typography.bodyLarge,
                                 maxLines = 4
                             )

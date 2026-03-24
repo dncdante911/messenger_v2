@@ -66,7 +66,13 @@ object FontStyleConverter {
         FontStyle.WAVY_STRIKETHROUGH     -> addCombiningMark(text,            '\u0334', '\u0336')
         FontStyle.BOLD_FRAKTUR_UNDERLINE -> addCombiningMark(toBoldFraktur(text),   '\u0332')
         FontStyle.DOUBLE_STRUCK_UNDERLINE-> addCombiningMark(toDoubleStruck(text),  '\u0332')
-        FontStyle.DIAERESIS_OVERLINE     -> addCombiningMark(text,            '\u0308', '\u0305')
+        FontStyle.DIAERESIS_OVERLINE          -> addCombiningMark(text,                   '\u0308', '\u0305')
+        // ── extra combined styles ────────────────────────────────────────────
+        FontStyle.FRAKTUR_UNDERLINE           -> addCombiningMark(toFraktur(text),        '\u0332')
+        FontStyle.SANS_SERIF_ITALIC_UNDERLINE -> addCombiningMark(toSansSerifItalic(text),'\u0332')
+        FontStyle.BOLD_WAVY                   -> addCombiningMark(toBold(text),           '\u0330')
+        FontStyle.DOTTED_STRIKETHROUGH        -> addCombiningMark(text,                   '\u0307', '\u0336')
+        FontStyle.DOUBLE_UNDERLINE_OVERLINE   -> addCombiningMark(text,                   '\u0333', '\u0305')
     }
 
     // ═══════════════════════ CORE HELPERS ════════════════════════════════════

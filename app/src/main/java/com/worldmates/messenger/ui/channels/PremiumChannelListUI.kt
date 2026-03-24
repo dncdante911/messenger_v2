@@ -37,13 +37,17 @@ import com.worldmates.messenger.data.model.Channel
 import com.worldmates.messenger.ui.fonts.AppFonts
 import com.worldmates.messenger.util.toFullMediaUrl
 
-// ==================== PREMIUM CHANNEL LIST ITEM (Telegram-style tile) ====================
+// ==================== PREMIUM CHANNEL LIST ITEM (Cover Card) ====================
 
 /**
- * Telegram-style channel tile: circular avatar, channel name with Exo2 font,
- * subscriber stats, category badge, and animated subscribe/action button.
+ * Magazine-style "cover card":
+ *  – 64dp gradient banner at top (primary→tertiary) with subtle wave overlay
+ *  – Square-rounded avatar (not circular) overlapping the banner bottom-left
+ *  – Channel name in Exo2 + verified badge, username in muted color
+ *  – Stats row with Orbitron numbers for subs/posts
+ *  – Subscribe/action on the right of the card body
+ * Looks nothing like the standard chat list item.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PremiumChannelListItem(
     channel: Channel,
@@ -52,170 +56,217 @@ fun PremiumChannelListItem(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.982f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh
-        ),
-        label = "tile_scale"
-    )
+    val avatarSize = 52.dp
+    val bannerHeight = 62.dp
+    val avatarOverlap = avatarSize / 2
 
-    Surface(
+    Card(
         onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .graphicsLayer { scaleX = scale; scaleY = scale },
-        shape = RoundedCornerShape(16.dp),
-        color = colorScheme.surface,
-        shadowElevation = 2.dp
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp, pressedElevation = 1.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            // ── Category color stripe (left accent) ──────────────────
+        Box(modifier = Modifier.fillMaxWidth()) {
+
+            // ── Gradient banner ───────────────────────────────────────────────
             Box(
                 modifier = Modifier
-                    .width(4.dp)
-                    .height(76.dp)
-                    .align(Alignment.CenterVertically)
-                    .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+                    .fillMaxWidth()
+                    .height(bannerHeight)
                     .background(
-                        brush = Brush.verticalGradient(
+                        brush = Brush.linearGradient(
                             colors = listOf(
-                                colorScheme.primary.copy(alpha = 0.85f),
-                                colorScheme.tertiary.copy(alpha = 0.7f)
-                            )
+                                colorScheme.primary.copy(alpha = 0.88f),
+                                colorScheme.tertiary.copy(alpha = 0.80f)
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                         )
                     )
-            )
-
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Circular avatar with gradient ring for verified
-                TgChannelAvatar(
-                    avatarUrl = channel.avatarUrl,
-                    channelName = channel.name,
-                    isVerified = channel.isVerified,
-                    size = 56.dp
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Info column
-                Column(modifier = Modifier.weight(1f)) {
-                    // Name row
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = channel.name,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = AppFonts.Exo2,
-                            color = colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+                // Decorative blurred orb for depth
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .align(Alignment.CenterEnd)
+                        .offset(x = 20.dp)
+                        .blur(30.dp)
+                        .background(
+                            color = colorScheme.onPrimary.copy(alpha = 0.12f),
+                            shape = CircleShape
                         )
-                        if (channel.isPrivate) {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = colorScheme.onSurface.copy(alpha = 0.28f),
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                        if (channel.isVerified) {
-                            Icon(
-                                Icons.Default.Verified,
-                                contentDescription = null,
-                                tint = colorScheme.primary,
-                                modifier = Modifier.size(13.dp)
-                            )
-                        }
+                )
+            }
+
+            // ── Action button (top-right of banner) ───────────────────────────
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 10.dp, end = 12.dp)
+            ) {
+                PremiumChannelAction(channel = channel, onSubscribeToggle = onSubscribeToggle)
+            }
+
+            // ── Card body below banner ────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = bannerHeight - avatarOverlap + 4.dp)
+                    .padding(bottom = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    // Square-rounded avatar overlapping the banner
+                    Box(
+                        modifier = Modifier
+                            .offset(y = -avatarOverlap)
+                            .size(avatarSize)
+                    ) {
+                        // White border behind avatar
+                        Box(
+                            modifier = Modifier
+                                .size(avatarSize + 3.dp)
+                                .align(Alignment.Center)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(colorScheme.surface)
+                        )
+                        TgChannelAvatar(
+                            avatarUrl = channel.avatarUrl,
+                            channelName = channel.name,
+                            isVerified = channel.isVerified,
+                            size = avatarSize,
+                            squareRadius = 13.dp
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
-                    // Subscribers row — Orbitron for numbers
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
+                    // Name + username column (vertically anchored to bottom)
+                    Column(modifier = Modifier.weight(1f)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(
-                                Icons.Outlined.PeopleAlt,
-                                contentDescription = null,
-                                tint = colorScheme.primary.copy(alpha = 0.7f),
-                                modifier = Modifier.size(12.dp)
-                            )
                             Text(
-                                text = formatCount(channel.subscribersCount),
-                                fontFamily = AppFonts.Orbitron,
-                                fontSize = 11.sp,
+                                text = channel.name,
+                                fontSize = 15.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = colorScheme.primary.copy(alpha = 0.9f)
-                            )
-                        }
-                        if (channel.postsCount > 0) {
-                            PremiumMicroStat(
-                                icon = Icons.Outlined.Article,
-                                value = formatCount(channel.postsCount),
-                                color = colorScheme.tertiary
-                            )
-                        }
-                    }
-
-                    // Category badge or description
-                    if (channel.category != null || channel.description != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        if (channel.category != null) {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = colorScheme.primaryContainer.copy(alpha = 0.55f),
-                                border = BorderStroke(
-                                    0.5.dp,
-                                    colorScheme.primary.copy(alpha = 0.15f)
-                                )
-                            ) {
-                                Text(
-                                    text = channel.category!!,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontFamily = AppFonts.Righteous,
-                                    color = colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                    maxLines = 1
-                                )
-                            }
-                        } else {
-                            Text(
-                                text = channel.description!!,
-                                fontSize = 12.sp,
-                                color = colorScheme.onSurface.copy(alpha = 0.48f),
+                                fontFamily = AppFonts.Exo2,
+                                color = colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                lineHeight = 16.sp
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (channel.isVerified) {
+                                Icon(
+                                    Icons.Default.Verified,
+                                    contentDescription = null,
+                                    tint = colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            if (channel.isPrivate) {
+                                Icon(
+                                    Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = colorScheme.onSurface.copy(alpha = 0.25f),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
+                        if (channel.username != null) {
+                            Text(
+                                text = "@${channel.username}",
+                                fontSize = 11.5.sp,
+                                color = colorScheme.primary.copy(alpha = 0.65f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else if (channel.category != null) {
+                            Text(
+                                text = channel.category!!,
+                                fontSize = 11.sp,
+                                color = colorScheme.tertiary.copy(alpha = 0.75f),
+                                fontFamily = AppFonts.Righteous,
+                                maxLines = 1
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
-                // Action button
-                PremiumChannelAction(
-                    channel = channel,
-                    onSubscribeToggle = onSubscribeToggle
-                )
+                // ── Stats row ─────────────────────────────────────────────────
+                Row(
+                    modifier = Modifier.padding(start = 14.dp, end = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Subscribers
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.PeopleAlt,
+                            contentDescription = null,
+                            tint = colorScheme.primary.copy(alpha = 0.6f),
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Text(
+                            text = formatCount(channel.subscribersCount),
+                            fontFamily = AppFonts.Orbitron,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colorScheme.primary.copy(alpha = 0.85f)
+                        )
+                        Text(
+                            text = "subs",
+                            fontSize = 10.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.4f)
+                        )
+                    }
+                    if (channel.postsCount > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Article,
+                                contentDescription = null,
+                                tint = colorScheme.tertiary.copy(alpha = 0.6f),
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Text(
+                                text = formatCount(channel.postsCount),
+                                fontFamily = AppFonts.Orbitron,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colorScheme.tertiary.copy(alpha = 0.85f)
+                            )
+                            Text(
+                                text = "posts",
+                                fontSize = 10.sp,
+                                color = colorScheme.onSurface.copy(alpha = 0.4f)
+                            )
+                        }
+                    }
+
+                    if (channel.description != null && channel.username == null) {
+                        Text(
+                            text = channel.description!!,
+                            fontSize = 11.sp,
+                            color = colorScheme.onSurface.copy(alpha = 0.45f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             }
         }
     }
@@ -228,16 +279,18 @@ private fun TgChannelAvatar(
     avatarUrl: String,
     channelName: String,
     isVerified: Boolean,
-    size: Dp = 56.dp
+    size: Dp = 56.dp,
+    squareRadius: Dp? = null   // if non-null, use rounded square instead of circle
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val shape = if (squareRadius != null) RoundedCornerShape(squareRadius) else CircleShape
     Box(modifier = Modifier.size(size + if (isVerified) 4.dp else 0.dp)) {
         if (isVerified) {
             // Gradient ring for verified
             Box(
                 modifier = Modifier
                     .size(size + 4.dp)
-                    .clip(CircleShape)
+                    .clip(shape)
                     .background(
                         brush = Brush.sweepGradient(
                             colors = listOf(
@@ -256,7 +309,7 @@ private fun TgChannelAvatar(
                 contentDescription = channelName,
                 modifier = Modifier
                     .size(size)
-                    .clip(CircleShape)
+                    .clip(shape)
                     .align(Alignment.Center),
                 contentScale = ContentScale.Crop
             )
@@ -264,7 +317,7 @@ private fun TgChannelAvatar(
             Box(
                 modifier = Modifier
                     .size(size)
-                    .clip(CircleShape)
+                    .clip(shape)
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(

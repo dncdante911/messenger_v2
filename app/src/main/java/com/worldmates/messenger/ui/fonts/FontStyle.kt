@@ -270,5 +270,32 @@ enum class FontStyle(
         displayName = "Умлаут з надрядковим",
         emoji = "\u041F\u0308\u0305",
         sampleText = "\u041F\u0308\u0305\u0440\u0308\u0305\u0438\u0308\u0305\u0432\u0308\u0305\u0456\u0308\u0305\u0442\u0308\u0305"
+    ),
+
+    // ─── 51–55  Extra combined styles ────────────────────────────────────────
+    FRAKTUR_UNDERLINE(
+        displayName = "Готика підкреслена (звичайна)",
+        emoji = "\uD835\uDD24\u0332",                   // 𝔤̲
+        sampleText = "\u210C\u0332\uD835\uDD22\u0332\uD835\uDD29\u0332\uD835\uDD29\u0332\uD835\uDD2C\u0332"  // ℌ̲𝔢̲𝔩̲𝔩̲𝔬̲
+    ),
+    SANS_SERIF_ITALIC_UNDERLINE(
+        displayName = "Курсив без засічок підкреслений",
+        emoji = "\uD835\uDE08\u0332",                   // 𝘈̲
+        sampleText = "\uD835\uDE17\u0332\uD835\uDE2E\u0332\uD835\uDE35\u0332\uD835\uDE35\u0332\uD835\uDE38\u0332"
+    ),
+    BOLD_WAVY(
+        displayName = "Жирний хвилястий",
+        emoji = "\uD835\uDC01\u0330",                   // 𝐁̰
+        sampleText = "\uD835\uDC07\u0330\uD835\uDC1E\u0330\uD835\uDC25\u0330\uD835\uDC25\u0330\uD835\uDC28\u0330"
+    ),
+    DOTTED_STRIKETHROUGH(
+        displayName = "Крапки закреслені",
+        emoji = "\u041F\u0307\u0336",
+        sampleText = "\u041F\u0307\u0336\u0440\u0307\u0336\u0438\u0307\u0336\u0432\u0307\u0336\u0456\u0307\u0336\u0442\u0307\u0336"
+    ),
+    DOUBLE_UNDERLINE_OVERLINE(
+        displayName = "Подвійне підкреслення + надрядкове",
+        emoji = "\u041F\u0333\u0305",
+        sampleText = "\u041F\u0333\u0305\u0440\u0333\u0305\u0438\u0333\u0305\u0432\u0333\u0305\u0456\u0333\u0305\u0442\u0333\u0305"
     )
 }

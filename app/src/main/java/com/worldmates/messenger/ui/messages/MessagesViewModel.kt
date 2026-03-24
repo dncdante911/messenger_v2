@@ -205,6 +205,16 @@ class MessagesViewModel(application: Application) :
     private var qualityMonitorJob: Job? = null
     // ==================== END ADAPTIVE TRANSPORT ====================
 
+    /**
+     * In-memory plaintext cache for messages sent this session.
+     * Keyed by server message ID. Populated immediately after a successful send
+     * (alongside the Signal DB cache) so that a concurrent fetchMessages() call
+     * triggered by a socket event doesn't show "encrypted_message" for our own
+     * just-sent message during the brief window before the Signal DB cache is
+     * confirmed written.  Cleared only when the ViewModel is destroyed.
+     */
+    private val sentPlaintextCache = java.util.concurrent.ConcurrentHashMap<Long, String>()
+
     private var recipientId: Long = 0
     private var groupId: Long = 0
     private var topicId: Long = 0 // 📁 Topic/Subgroup ID for topic-based filtering
@@ -469,6 +479,10 @@ class MessagesViewModel(application: Application) :
                                 // without attempting to re-decrypt (own ciphertext is
                                 // encrypted for the recipient, not for us).
                                 signalService.cacheDecryptedMessage(rawMsg.id, text)
+                                // Also store in the in-memory sent cache so concurrent
+                                // socket-triggered fetchMessages() calls can find it
+                                // immediately without waiting for DB write confirmation.
+                                sentPlaintextCache[rawMsg.id] = text
                                 rawMsg.copy(decryptedText = text)
                             }
                             else                  -> decryptMessageFully(rawMsg)
@@ -1890,6 +1904,14 @@ class MessagesViewModel(application: Application) :
         // Never call decryptIncoming() with senderId == ourself: there is no self-session,
         // and doing so would just pollute the logs with spurious auth-failure errors.
         if (senderId == myUserId) {
+            // First try the in-memory cache populated right after each successful send.
+            // This covers the race where a socket-triggered fetchMessages() fires before
+            // the Signal DB cache write (line below) has been confirmed.
+            val memCached = sentPlaintextCache[msg.id]
+            if (memCached != null) {
+                Log.d(TAG, "📬 [Signal] msg ${msg.id} from in-memory sent cache")
+                return msg.copy(decryptedText = memCached)
+            }
             Log.w(TAG, "⚠️ [Signal] msg ${msg.id} is own message not in cache — plaintext unavailable")
             return msg.copy(decryptedText = getApplication<Application>().getString(R.string.encrypted_message))
         }
