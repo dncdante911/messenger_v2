@@ -1,6 +1,7 @@
 package com.worldmates.messenger.ui.messages
 
 import android.util.Log
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -1034,32 +1035,31 @@ fun MessageStatusIcon(
     isRead: Boolean,
     modifier: Modifier = Modifier
 ) {
+    // Smooth animated tint: grey when delivered, primary blue when read
+    val tintColor by animateColorAsState(
+        targetValue = if (isRead) Color(0xFF0084FF) else Color(0xFF8E8E93),
+        animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing),
+        label = "receipt_tint"
+    )
+
     Row(
         modifier = modifier
-            .shadow(
-                elevation = 1.dp,
-                shape = CircleShape
-            )
-            .background(
-                color = Color.White.copy(alpha = 0.3f),
-                shape = CircleShape
-            )
+            .shadow(elevation = 1.dp, shape = CircleShape)
+            .background(color = Color.White.copy(alpha = 0.3f), shape = CircleShape)
             .padding(horizontal = 3.dp, vertical = 1.dp),
-        horizontalArrangement = Arrangement.spacedBy((-6).dp)  // Накладання галочок
+        horizontalArrangement = Arrangement.spacedBy((-6).dp)
     ) {
-        // Перша галочка - більший розмір і краща видимість
         Icon(
             imageVector = Icons.Default.Done,
             contentDescription = if (isRead) stringResource(R.string.message_read) else stringResource(R.string.message_sent),
-            tint = if (isRead) Color(0xFF0084FF) else Color(0xFF8E8E93),  // Світліший сірий
-            modifier = Modifier.size(16.dp)  // Збільшено з 14dp до 16dp
+            tint = tintColor,
+            modifier = Modifier.size(16.dp)
         )
-        // Друга галочка (тільки коли доставлено або прочитано)
         Icon(
             imageVector = Icons.Default.Done,
             contentDescription = if (isRead) stringResource(R.string.message_read) else stringResource(R.string.message_delivered),
-            tint = if (isRead) Color(0xFF0084FF) else Color(0xFF8E8E93),  // Світліший сірий
-            modifier = Modifier.size(16.dp)  // Збільшено з 14dp до 16dp
+            tint = tintColor,
+            modifier = Modifier.size(16.dp)
         )
     }
 }
