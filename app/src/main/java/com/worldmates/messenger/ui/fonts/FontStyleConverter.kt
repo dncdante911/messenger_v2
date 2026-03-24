@@ -33,17 +33,8 @@ object FontStyleConverter {
         FontStyle.BREVE                      -> addMark(text, '\u0306')
         FontStyle.CARON                      -> addMark(text, '\u030C')
 
-        // ── Enclosing / special symbols ───────────────────────────────────────
-        FontStyle.CIRCLE_OVERLAY             -> addMark(text, '\u20DD')
-        FontStyle.SQUARE_OVERLAY             -> addMark(text, '\u20DE')
-        FontStyle.DIAMOND_OVERLAY            -> addMark(text, '\u20DF')
+        // ── Vector arrow above ────────────────────────────────────────────────
         FontStyle.ARROW_ABOVE                -> addMark(text, '\u20D7')
-
-        // ── Cyrillic-specific / extended ─────────────────────────────────────
-        FontStyle.CYRILLIC_TITLO             -> addMark(text, '\u0483')
-        FontStyle.TRIPLE_DOT_ABOVE           -> addMark(text, '\u20DB')
-        FontStyle.FOUR_DOTS_ABOVE            -> addMark(text, '\u20DC')
-        FontStyle.TRIPLE_UNDERDOT            -> addMark(text, '\u20E8')
 
         // ── Multi-mark combinations ───────────────────────────────────────────
         FontStyle.OVERLINE_UNDERLINE         -> addMark(text, '\u0305', '\u0332')
@@ -52,7 +43,6 @@ object FontStyleConverter {
         FontStyle.DOTTED_STRIKETHROUGH       -> addMark(text, '\u0307', '\u0336')
         FontStyle.DOUBLE_UNDERLINE_OVERLINE  -> addMark(text, '\u0333', '\u0305')
         FontStyle.DIAERESIS_STRIKETHROUGH    -> addMark(text, '\u0308', '\u0336')
-        FontStyle.CIRCLE_UNDERLINE           -> addMark(text, '\u20DD', '\u0332')
 
         // ── Triple combinations ───────────────────────────────────────────────
         FontStyle.OVERLINE_STRIKETHROUGH_UNDERLINE -> addMark(text, '\u0305', '\u0336', '\u0332')

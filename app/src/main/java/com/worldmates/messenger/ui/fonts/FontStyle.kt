@@ -7,7 +7,9 @@ package com.worldmates.messenger.ui.fonts
  * Combining marks attach visually to the preceding character regardless of script —
  * no Unicode Mathematical block remapping needed (those only cover Latin/digits).
  *
- * Total: 42 styles (including NORMAL).
+ * Total: 34 styles (including NORMAL).
+ * Excluded: enclosing marks (⃝⃞⃟) and multi-dot marks (⃨⃛⃜) — render as vertical
+ * symbol columns on Android and look broken in chat bubbles.
  */
 enum class FontStyle(
     val displayName: String,
@@ -122,53 +124,15 @@ enum class FontStyle(
         sampleText = "П̌р̌и̌в̌і̌т̌"
     ),
 
-    // ─── 21–24  Enclosing / special symbols ──────────────────────────────────
+    // ─── 21  Vector arrow above ───────────────────────────────────────────────
 
-    CIRCLE_OVERLAY(
-        displayName = "В колі",
-        emoji = "О⃝",
-        sampleText = "П⃝р⃝и⃝в⃝і⃝т⃝"
-    ),
-    SQUARE_OVERLAY(
-        displayName = "В квадраті",
-        emoji = "О⃞",
-        sampleText = "П⃞р⃞и⃞в⃞і⃞т⃞"
-    ),
-    DIAMOND_OVERLAY(
-        displayName = "В ромбі",
-        emoji = "О⃟",
-        sampleText = "П⃟р⃟и⃟в⃟і⃟т⃟"
-    ),
     ARROW_ABOVE(
         displayName = "Стрілка зверху",
         emoji = "П⃗",
         sampleText = "П⃗р⃗и⃗в⃗і⃗т⃗"
     ),
 
-    // ─── 25–28  Cyrillic-specific marks ──────────────────────────────────────
-
-    CYRILLIC_TITLO(
-        displayName = "Тітло (кирил. скорочення)",
-        emoji = "П҃",
-        sampleText = "П҃р҃и҃в҃і҃т҃"
-    ),
-    TRIPLE_DOT_ABOVE(
-        displayName = "Три крапки зверху",
-        emoji = "П⃛",
-        sampleText = "П⃛р⃛и⃛в⃛і⃛т⃛"
-    ),
-    FOUR_DOTS_ABOVE(
-        displayName = "Чотири крапки зверху",
-        emoji = "П⃜",
-        sampleText = "П⃜р⃜и⃜в⃜і⃜т⃜"
-    ),
-    TRIPLE_UNDERDOT(
-        displayName = "Три крапки знизу",
-        emoji = "П⃨",
-        sampleText = "П⃨р⃨и⃨в⃨і⃨т⃨"
-    ),
-
-    // ─── 29–35  Multi-mark combinations ──────────────────────────────────────
+    // ─── 22–28  Multi-mark combinations ──────────────────────────────────────
 
     OVERLINE_UNDERLINE(
         displayName = "Обрамлений (над + під)",
@@ -200,13 +164,8 @@ enum class FontStyle(
         emoji = "П̶̈",
         sampleText = "П̶̈р̶̈ӥ̶в̶̈ї̶т̶̈"
     ),
-    CIRCLE_UNDERLINE(
-        displayName = "Коло + підкреслення",
-        emoji = "О⃝̲",
-        sampleText = "П⃝̲р⃝̲и⃝̲в⃝̲і⃝̲т⃝̲"
-    ),
 
-    // ─── 36–42  Triple combinations / extra effects ───────────────────────────
+    // ─── 29–34  Triple combinations / extra effects ───────────────────────────
 
     OVERLINE_STRIKETHROUGH_UNDERLINE(
         displayName = "Повне обрамлення",

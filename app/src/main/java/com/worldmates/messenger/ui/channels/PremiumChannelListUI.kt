@@ -57,8 +57,7 @@ fun PremiumChannelListItem(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val avatarSize = 52.dp
-    val bannerHeight = 62.dp
-    val avatarOverlap = avatarSize / 2
+    val bannerHeight = 52.dp
 
     Card(
         onClick = onClick,
@@ -67,9 +66,9 @@ fun PremiumChannelListItem(
         colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp, pressedElevation = 1.dp)
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
 
-            // ── Gradient banner ───────────────────────────────────────────────
+            // ── Gradient banner with avatar embedded at bottom-left ───────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -97,175 +96,151 @@ fun PremiumChannelListItem(
                             shape = CircleShape
                         )
                 )
+                // Action button anchored top-right inside the banner
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 8.dp, end = 10.dp)
+                ) {
+                    PremiumChannelAction(channel = channel, onSubscribeToggle = onSubscribeToggle)
+                }
             }
 
-            // ── Action button (top-right of banner) ───────────────────────────
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 10.dp, end = 12.dp)
-            ) {
-                PremiumChannelAction(channel = channel, onSubscribeToggle = onSubscribeToggle)
-            }
-
-            // ── Card body below banner ────────────────────────────────────────
-            Column(
+            // ── Card body: avatar + name ──────────────────────────────────────
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = bannerHeight - avatarOverlap + 4.dp)
-                    .padding(bottom = 12.dp)
+                    .padding(start = 12.dp, end = 12.dp, top = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    // Square-rounded avatar overlapping the banner
-                    Box(
-                        modifier = Modifier
-                            .offset(y = -avatarOverlap)
-                            .size(avatarSize)
+                // Square-rounded avatar
+                TgChannelAvatar(
+                    avatarUrl = channel.avatarUrl,
+                    channelName = channel.name,
+                    isVerified = channel.isVerified,
+                    size = avatarSize,
+                    squareRadius = 13.dp
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Name + username / category
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // White border behind avatar
-                        Box(
-                            modifier = Modifier
-                                .size(avatarSize + 3.dp)
-                                .align(Alignment.Center)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(colorScheme.surface)
+                        Text(
+                            text = channel.name,
+                            fontSize = 15.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = AppFonts.Exo2,
+                            color = colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
-                        TgChannelAvatar(
-                            avatarUrl = channel.avatarUrl,
-                            channelName = channel.name,
-                            isVerified = channel.isVerified,
-                            size = avatarSize,
-                            squareRadius = 13.dp
-                        )
+                        if (channel.isVerified) {
+                            Icon(
+                                Icons.Default.Verified,
+                                contentDescription = null,
+                                tint = colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        if (channel.isPrivate) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = colorScheme.onSurface.copy(alpha = 0.25f),
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                     }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    // Name + username column (vertically anchored to bottom)
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = channel.name,
-                                fontSize = 15.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = AppFonts.Exo2,
-                                color = colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            if (channel.isVerified) {
-                                Icon(
-                                    Icons.Default.Verified,
-                                    contentDescription = null,
-                                    tint = colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                            if (channel.isPrivate) {
-                                Icon(
-                                    Icons.Default.Lock,
-                                    contentDescription = null,
-                                    tint = colorScheme.onSurface.copy(alpha = 0.25f),
-                                    modifier = Modifier.size(12.dp)
-                                )
-                            }
-                        }
-                        if (channel.username != null) {
-                            Text(
-                                text = "@${channel.username}",
-                                fontSize = 11.5.sp,
-                                color = colorScheme.primary.copy(alpha = 0.65f),
-                                fontWeight = FontWeight.Medium
-                            )
-                        } else if (channel.category != null) {
-                            Text(
-                                text = channel.category!!,
-                                fontSize = 11.sp,
-                                color = colorScheme.tertiary.copy(alpha = 0.75f),
-                                fontFamily = AppFonts.Righteous,
-                                maxLines = 1
-                            )
-                        }
+                    if (channel.username != null) {
+                        Text(
+                            text = "@${channel.username}",
+                            fontSize = 11.5.sp,
+                            color = colorScheme.primary.copy(alpha = 0.65f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else if (channel.category != null) {
+                        Text(
+                            text = channel.category!!,
+                            fontSize = 11.sp,
+                            color = colorScheme.tertiary.copy(alpha = 0.75f),
+                            fontFamily = AppFonts.Righteous,
+                            maxLines = 1
+                        )
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-                // ── Stats row ─────────────────────────────────────────────────
+            // ── Stats row ─────────────────────────────────────────────────────
+            Row(
+                modifier = Modifier.padding(start = 14.dp, end = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 Row(
-                    modifier = Modifier.padding(start = 14.dp, end = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    // Subscribers
+                    Icon(
+                        Icons.Outlined.PeopleAlt,
+                        contentDescription = null,
+                        tint = colorScheme.primary.copy(alpha = 0.6f),
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Text(
+                        text = formatCount(channel.subscribersCount),
+                        fontFamily = AppFonts.Orbitron,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary.copy(alpha = 0.85f)
+                    )
+                    Text(
+                        text = "subs",
+                        fontSize = 10.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                }
+                if (channel.postsCount > 0) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Icon(
-                            Icons.Outlined.PeopleAlt,
+                            Icons.Outlined.Article,
                             contentDescription = null,
-                            tint = colorScheme.primary.copy(alpha = 0.6f),
+                            tint = colorScheme.tertiary.copy(alpha = 0.6f),
                             modifier = Modifier.size(11.dp)
                         )
                         Text(
-                            text = formatCount(channel.subscribersCount),
+                            text = formatCount(channel.postsCount),
                             fontFamily = AppFonts.Orbitron,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = colorScheme.primary.copy(alpha = 0.85f)
+                            color = colorScheme.tertiary.copy(alpha = 0.85f)
                         )
                         Text(
-                            text = "subs",
+                            text = "posts",
                             fontSize = 10.sp,
                             color = colorScheme.onSurface.copy(alpha = 0.4f)
                         )
                     }
-                    if (channel.postsCount > 0) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Icon(
-                                Icons.Outlined.Article,
-                                contentDescription = null,
-                                tint = colorScheme.tertiary.copy(alpha = 0.6f),
-                                modifier = Modifier.size(11.dp)
-                            )
-                            Text(
-                                text = formatCount(channel.postsCount),
-                                fontFamily = AppFonts.Orbitron,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colorScheme.tertiary.copy(alpha = 0.85f)
-                            )
-                            Text(
-                                text = "posts",
-                                fontSize = 10.sp,
-                                color = colorScheme.onSurface.copy(alpha = 0.4f)
-                            )
-                        }
-                    }
-
-                    if (channel.description != null && channel.username == null) {
-                        Text(
-                            text = channel.description!!,
-                            fontSize = 11.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.45f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                }
+                if (channel.description != null && channel.username == null) {
+                    Text(
+                        text = channel.description!!,
+                        fontSize = 11.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.45f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
