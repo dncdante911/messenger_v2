@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -124,6 +125,10 @@ import com.worldmates.messenger.ui.components.media.AudioAlbumComponent
 import com.worldmates.messenger.ui.components.media.AudioItem
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 // 🎯 Enum для режимів введення (як в Telegram/Viber)
 enum class InputMode {
@@ -415,6 +420,9 @@ fun MessagesScreen(
             msgs.drop(1).map { it.id }  // skip first message (it is the album renderer)
         }.toSet()
     }
+
+    // Reversed list used both by the LazyColumn and date separator logic
+    val reversedMessages = remember(messages) { messages.reversed() }
 
     // 🎵 Мінімізований аудіо плеєр
     val playbackState by voicePlayer.playbackState.collectAsState()
@@ -1099,12 +1107,18 @@ fun MessagesScreen(
                 reverseLayout = true,
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(
-                    items = messages.reversed(),
-                    key = { it.id }
-                ) { message ->
+                itemsIndexed(
+                    items = reversedMessages,
+                    key = { _, msg -> msg.id }
+                ) { index, message ->
                     // 🖼️ Skip secondary album messages — they are rendered inside the album block
-                    if (message.id in albumSecondaryIds) return@items
+                    if (message.id in albumSecondaryIds) return@itemsIndexed
+
+                    // 📅 Floating date separator: show when day changes going upward
+                    val nextMsg = reversedMessages.getOrNull(index + 1)
+                    if (nextMsg == null || !chatIsSameDay(message.timeStamp, nextMsg.timeStamp)) {
+                        FloatingDateChip(message.timeStamp)
+                    }
 
                     // 💫 Thanos disintegration when the message is being deleted
                     ThanosDisintegrationEffect(
@@ -2007,4 +2021,69 @@ private fun MessagesMediaPickersAndDialogs(
         onForward = onForward,
         onDismiss = onForwardDismiss
     )
+}
+
+// ── Date separator helpers ────────────────────────────────────────────────────
+
+/** Normalise Unix seconds or milliseconds to milliseconds. */
+private fun normChatTs(ts: Long): Long = if (ts < 1_000_000_000_000L) ts * 1000L else ts
+
+/** True when two timestamps fall on the same calendar day. */
+private fun chatIsSameDay(ts1: Long, ts2: Long): Boolean {
+    val c1 = Calendar.getInstance().apply { timeInMillis = normChatTs(ts1) }
+    val c2 = Calendar.getInstance().apply { timeInMillis = normChatTs(ts2) }
+    return c1.get(Calendar.YEAR) == c2.get(Calendar.YEAR) &&
+           c1.get(Calendar.DAY_OF_YEAR) == c2.get(Calendar.DAY_OF_YEAR)
+}
+
+/**
+ * Frosted-glass pill shown between groups of messages from different days.
+ * Appears centered in the chat stream: "Сьогодні", "Вчора", "12 березня", etc.
+ */
+@Composable
+private fun FloatingDateChip(timestamp: Long) {
+    val colorScheme = MaterialTheme.colorScheme
+    val label = remember(timestamp) {
+        val ms = normChatTs(timestamp)
+        val msgCal = Calendar.getInstance().apply {
+            timeInMillis = ms
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val today = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val yesterday = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }
+        when (msgCal.timeInMillis) {
+            today.timeInMillis     -> "Сьогодні"
+            yesterday.timeInMillis -> "Вчора"
+            else -> {
+                val pattern = if (msgCal.get(Calendar.YEAR) == today.get(Calendar.YEAR))
+                    "d MMMM" else "d MMMM yyyy"
+                SimpleDateFormat(pattern, Locale.getDefault()).format(Date(ms))
+            }
+        }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = colorScheme.surfaceVariant.copy(alpha = 0.88f),
+            shadowElevation = 2.dp,
+            tonalElevation = 1.dp
+        ) {
+            Text(
+                text = label,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
