@@ -1,5 +1,8 @@
 // Завантажуємо змінні оточення з .env до будь-яких require (крім вбудованих)
-require('dotenv').config();
+// Use __dirname (not process.cwd()) so the path is always correct regardless
+// of which directory PM2 launches the process from.
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // ── Professional logging via Winston ─────────────────────────────────────────
 // Must be required BEFORE any other module so every subsequent console.*
@@ -18,7 +21,6 @@ const moment = require("moment");
 var fs = require('fs');
 var express = require('express');
 var app = express();
-const path = require('path');
 const compiledTemplates = require('./compiledTemplates/compiledTemplates');
 
 let ctx = {};
@@ -755,51 +757,52 @@ async function main() {
   // @socket.io/redis-adapter v8: комнаты хранятся В ПАМЯТИ каждого воркера,
   // Redis используется ТОЛЬКО для роутинга emit()-ов между воркерами.
   //
-  // Resilient setup: если Redis не доступен при старте, retry каждые 3 сек
-  // до успешного подключения. Без адаптера cluster mode теряет сообщения.
-  const { createAdapter } = require('@socket.io/redis-adapter');
-  const { createClient: createRedisClient }  = require('redis');
-  const redisPass = process.env.REDIS_PASSWORD || '';
-  const redisOpts = {
-    socket: {
-      host: process.env.REDIS_HOST || '127.0.0.1',
-      port: parseInt(process.env.REDIS_PORT) || 6379,
-      connectTimeout: 5000,
-      reconnectStrategy: (retries) => Math.min(retries * 500, 5000),
-    },
-    ...(redisPass ? { password: redisPass } : {}),
-  };
-
-  let redisAdapterReady = false;
-  async function setupRedisAdapter() {
-    try {
-      const pubClient = createRedisClient(redisOpts);
-      const subClient = pubClient.duplicate();
-      // Suppress error spam — log only once per 60 seconds
-      let lastErrLog = 0;
-      const errHandler = (label) => (err) => {
-        const now = Date.now();
-        if (now - lastErrLog > 60000) {
-          console.error(`[Redis Adapter] ${label} error: ${err.message}`);
-          lastErrLog = now;
-        }
-      };
-      pubClient.on('error', errHandler('pub'));
-      subClient.on('error', errHandler('sub'));
-
-      await Promise.race([
-        Promise.all([pubClient.connect(), subClient.connect()]),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Redis connect timeout (5 s)')), 5000)
-        ),
-      ]);
-      io.adapter(createAdapter(pubClient, subClient));
-      redisAdapterReady = true;
-      console.log('[Redis Adapter] ✅ Socket.IO Redis adapter active — cluster ready');
-    } catch (err) {
-      console.error('[Redis Adapter] ❌ Could not connect:', err.message, '— retrying in 3 s…');
-      setTimeout(setupRedisAdapter, 3000);
-    }
+  // Почему НЕ socket.io-redis (старый):
+  //   Он хранил socket rooms в Redis. При реконнекте Redis комнаты терялись
+  //   → io.to(room).emit() попадал в пустоту, сообщения пропадали молча.
+  //
+  // Почему @socket.io/redis-adapter (новый, v8):
+  //   Комнаты хранятся В ПАМЯТИ каждого воркера.
+  //   Redis используется ТОЛЬКО для роутинга emit()-ов между воркерами/серверами.
+  //   Реконнект Redis ≠ потеря комнат. Проблема старого адаптера устранена.
+  try {
+    const { createAdapter } = require('@socket.io/redis-adapter');
+    const { createClient }  = require('redis');
+    const redisHost = process.env.REDIS_HOST || '127.0.0.1';
+    const redisPort = parseInt(process.env.REDIS_PORT) || 6379;
+    const redisPass = process.env.REDIS_PASSWORD || '';
+    // Diagnostic: show connection target (never log the password)
+    console.log(`[Redis Adapter] Connecting to ${redisHost}:${redisPort} auth=${redisPass ? 'yes' : 'NO — REDIS_PASSWORD not set'}`);
+    const redisOpts = {
+      socket: {
+        host:               redisHost,
+        port:               redisPort,
+        reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
+      },
+      // Only include password key when a non-empty value is configured.
+      // Passing password:'' causes the client to send AUTH with an empty string,
+      // which Redis rejects with WRONGPASS if requirepass is set.
+      ...(redisPass ? { password: redisPass } : {}),
+    };
+    const pubClient = createClient(redisOpts);
+    const subClient = pubClient.duplicate();
+    pubClient.on('error', err => console.error('[Redis Adapter] pub error:', err.message));
+    subClient.on('error', err => console.error('[Redis Adapter] sub error:', err.message));
+    // Race with an explicit timeout so a slow Redis cannot block server.listen()
+    // and prevent process.send('ready') from reaching PM2.
+    await Promise.race([
+      Promise.all([pubClient.connect(), subClient.connect()]),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Redis connect timeout (8 s)')), 8000)
+      ),
+    ]);
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('[Redis Adapter] Socket.IO Redis adapter active — cluster/multi-server ready');
+  } catch (redisErr) {
+    // Non-fatal: server works fine without the adapter (single-process mode).
+    // Most common causes: wrong REDIS_PASSWORD in .env, Redis not running,
+    // or .env file not found (check dotenv path = __dirname/.env).
+    console.error('[Redis Adapter] DISABLED — could not connect:', redisErr.message);
   }
   await setupRedisAdapter();
   // ─────────────────────────────────────────────────────────────────────────────
