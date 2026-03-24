@@ -170,13 +170,9 @@ fun TelegramBubble(
         bottomStart = if (isOwn) 14.dp else 2.dp,
         bottomEnd = if (isOwn) 2.dp else 14.dp
     )
+    // Flat — no shadow, no border, intentionally "blank slate" like real Telegram
     Box(
         modifier = modifier
-            .shadow(
-                elevation = if (isOwn) 3.dp else 1.dp,
-                shape = tgShape,
-                spotColor = if (isOwn) bgColor.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.06f)
-            )
             .clip(tgShape)
             .background(bgColor)
             .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -195,18 +191,29 @@ fun MinimalBubble(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .shadow(
-                elevation = if (isOwn) 2.dp else 1.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = bgColor.copy(alpha = 0.25f)
+    // Zero shadow, zero border — the purest possible style
+    Row(modifier = modifier) {
+        if (!isOwn) {
+            // Thin accent bar on incoming messages — the only decoration
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(topStart = 22.dp, bottomStart = 22.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
             )
-            .clip(RoundedCornerShape(16.dp))
-            .background(bgColor)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
-    ) {
-        Column(content = content)
+        }
+        Box(
+            modifier = Modifier
+                .clip(
+                    if (isOwn) RoundedCornerShape(22.dp)
+                    else RoundedCornerShape(topStart = 0.dp, topEnd = 22.dp, bottomStart = 0.dp, bottomEnd = 22.dp)
+                )
+                .background(bgColor)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            Column(content = content)
+        }
     }
 }
 
@@ -379,27 +386,34 @@ fun GradientBubble(
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
+    // Radial — radiates from center outward; clearly different from Modern's linear
     val gradientBrush = if (isOwn) {
-        Brush.linearGradient(
-            colors = listOf(colorScheme.primary, colorScheme.tertiary)
+        Brush.radialGradient(
+            colors = listOf(
+                colorScheme.tertiary,          // bright centre
+                colorScheme.primary.copy(alpha = 0.85f)   // deeper edge
+            )
         )
     } else {
-        Brush.linearGradient(
-            colors = listOf(colorScheme.surfaceVariant, colorScheme.surface)
+        Brush.radialGradient(
+            colors = listOf(
+                colorScheme.surface,
+                colorScheme.surfaceVariant.copy(alpha = 0.90f)
+            )
         )
     }
 
     Box(
         modifier = modifier
             .shadow(
-                elevation = if (isOwn) 4.dp else 2.dp,
-                shape = RoundedCornerShape(18.dp),
-                spotColor = if (isOwn) colorScheme.primary.copy(alpha = 0.45f)
-                            else Color.Black.copy(alpha = 0.08f)
+                elevation = if (isOwn) 5.dp else 2.dp,
+                shape = RoundedCornerShape(24.dp),
+                spotColor = if (isOwn) colorScheme.tertiary.copy(alpha = 0.50f)
+                            else Color.Black.copy(alpha = 0.07f)
             )
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(24.dp))
             .background(gradientBrush)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .padding(horizontal = 14.dp, vertical = 7.dp)
     ) {
         Column(content = content)
     }
@@ -423,18 +437,48 @@ fun NeumorphismBubble(
     Box(
         modifier = modifier
             .shadow(
-                elevation = if (isOwn) 8.dp else 4.dp,
+                elevation = if (isOwn) 10.dp else 5.dp,
                 shape = RoundedCornerShape(22.dp),
-                spotColor = if (isOwn) colorScheme.primary.copy(alpha = if (isDark) 0.35f else 0.22f)
-                            else Color.Black.copy(alpha = if (isDark) 0.25f else 0.10f),
-                ambientColor = if (isOwn) colorScheme.primary.copy(alpha = 0.08f)
-                               else Color.Black.copy(alpha = if (isDark) 0.15f else 0.05f)
+                spotColor = if (isOwn) colorScheme.primary.copy(alpha = if (isDark) 0.40f else 0.28f)
+                            else Color.Black.copy(alpha = if (isDark) 0.30f else 0.12f),
+                ambientColor = if (isOwn) colorScheme.primary.copy(alpha = 0.10f)
+                               else Color.Black.copy(alpha = if (isDark) 0.18f else 0.06f)
             )
             .clip(RoundedCornerShape(22.dp))
             .background(surfaceColor)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
     ) {
-        Column(content = content)
+        // ── Embossed inner light: top highlight (light source from top-left) ──
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            if (isDark) Color.White.copy(alpha = 0.22f)
+                            else Color.White.copy(alpha = 0.55f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+        // ── Embossed inner shadow: bottom-right pressed depression ──
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            if (isDark) Color.Black.copy(alpha = 0.28f)
+                            else Color.Black.copy(alpha = 0.10f)
+                        )
+                    )
+                )
+        )
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            content = content
+        )
     }
 }
 
