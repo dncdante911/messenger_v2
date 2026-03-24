@@ -20,6 +20,8 @@ class GroupWebRTCManager(private val context: Context) {
         private const val TURN_SECRET = "ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9"
         private const val TURN_IP_1 = "195.22.131.11"
         private const val TURN_IP_2 = "46.232.232.38"
+        // TURNS (TLS) — по домену, т.к. SSL сертификат привязан к домену
+        private const val TURNS_DOMAIN = "worldmates.club"
 
         /**
          * Generates time-limited TURN credentials via HMAC-SHA1 (coturn use-auth-secret).
@@ -40,13 +42,15 @@ class GroupWebRTCManager(private val context: Context) {
                     PeerConnection.IceServer.builder("stun:$TURN_IP_2:3478").createIceServer(),
                     PeerConnection.IceServer.builder(listOf(
                         "turn:$TURN_IP_1:3478?transport=udp",
-                        "turn:$TURN_IP_1:3478?transport=tcp",
-                        "turns:$TURN_IP_1:5349?transport=tcp"
+                        "turn:$TURN_IP_1:3478?transport=tcp"
                     )).setUsername(username).setPassword(credential).createIceServer(),
                     PeerConnection.IceServer.builder(listOf(
                         "turn:$TURN_IP_2:3478?transport=udp",
                         "turn:$TURN_IP_2:3478?transport=tcp"
-                    )).setUsername(username).setPassword(credential).createIceServer()
+                    )).setUsername(username).setPassword(credential).createIceServer(),
+                    // TURNS TLS — по домену (SSL сертификат привязан к домену, не к IP)
+                    PeerConnection.IceServer.builder("turns:$TURNS_DOMAIN:5349?transport=tcp")
+                        .setUsername(username).setPassword(credential).createIceServer()
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to build fallback TURN servers", e)

@@ -82,6 +82,8 @@ class WebRTCManager(private val context: Context) {
         private const val TURN_REALM = "worldmates.club"
         private const val TURN_IP_1 = "195.22.131.11"
         private const val TURN_IP_2 = "46.232.232.38"
+        // TURNS (TLS) должен использовать доменное имя — SSL сертификат привязан к домену
+        private const val TURNS_DOMAIN = "worldmates.club"
 
         /**
          * 🔐 Генерирует TURN credentials используя HMAC-SHA1
@@ -148,15 +150,9 @@ class WebRTCManager(private val context: Context) {
                         .createIceServer()
                 )
 
-                // TURNS TLS (безопасный - порт 5349)
+                // TURNS TLS (безопасный - порт 5349) — по домену, т.к. SSL сертификат на домен
                 servers.add(
-                    PeerConnection.IceServer.builder("turns:$TURN_IP_1:5349?transport=tcp")
-                        .setUsername(username)
-                        .setPassword(credential)
-                        .createIceServer()
-                )
-                servers.add(
-                    PeerConnection.IceServer.builder("turns:$TURN_IP_2:5349?transport=tcp")
+                    PeerConnection.IceServer.builder("turns:$TURNS_DOMAIN:5349?transport=tcp")
                         .setUsername(username)
                         .setPassword(credential)
                         .createIceServer()
