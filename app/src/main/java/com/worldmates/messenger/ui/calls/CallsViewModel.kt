@@ -112,6 +112,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     private var isInitiator = false
     private var pendingCallInitiation: (() -> Unit)? = null  // ✅ Очікуючий вихідний виклик
     private var pendingCallAcceptance: (() -> Unit)? = null  // ✅ Очікуюче прийняття вхідного виклику
+    private var callListenersSetUp = false  // guard against duplicate socket listeners on reconnect
 
     // Вспомогательная карта: userId → info участника (для обновления состояния)
     private val groupParticipantInfoMap = mutableMapOf<Long, GroupCallParticipant>()
@@ -1453,8 +1454,11 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         // ✅ Зареєструватись для дзвінків ПІСЛЯ підключення
         registerForCalls()
 
-        // ✅ Налаштувати listeners для call events
-        setupCallSocketListeners()
+        // ✅ Налаштувати listeners для call events (тільки один раз — Socket.IO зберігає listeners між reconnect)
+        if (!callListenersSetUp) {
+            callListenersSetUp = true
+            setupCallSocketListeners()
+        }
 
         // ✅ Виконати відкладений вихідний дзвінок якщо є
         pendingCallInitiation?.let {
