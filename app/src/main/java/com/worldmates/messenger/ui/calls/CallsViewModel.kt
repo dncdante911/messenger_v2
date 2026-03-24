@@ -1091,9 +1091,19 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
      * ✅ ВИПРАВЛЕНО: Тепер правильно обробляє випадок коли Socket ще не підключений
      * і отримує ICE сервери ПЕРЕД створенням PeerConnection
      */
+    // Guard against acceptCall() being called multiple times for the same room
+    @Volatile private var acceptedRoomName: String? = null
+
     fun acceptCall(callData: CallData) {
         Log.d("CallsViewModel", "📞 acceptCall() called for room: ${callData.roomName}")
         pendingIncomingRooms.remove(callData.roomName)
+
+        // ✅ Prevent double-accept: if we already accepted this room, skip
+        if (acceptedRoomName == callData.roomName) {
+            Log.w("CallsViewModel", "⚠️ Already accepted room ${callData.roomName}, ignoring duplicate acceptCall()")
+            return
+        }
+        acceptedRoomName = callData.roomName
 
         val acceptLogic: () -> Unit = {
             // 🔊 CRITICAL: Setup audio for calls BEFORE creating WebRTC connection
@@ -1225,6 +1235,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         releaseCallAudio()
 
         callFullyEstablished = false
+        acceptedRoomName = null
         callEnded.postValue(true)
         currentCallData = null
     }
@@ -1550,8 +1561,10 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 return
             }
 
-            if (currentCallData?.roomName == roomName || !pendingIncomingRooms.add(roomName)) {
-                Log.d("CallsViewModel", "⚠️ Ignoring duplicate incoming call for room: $roomName")
+            if (currentCallData?.roomName == roomName
+                || acceptedRoomName == roomName
+                || !pendingIncomingRooms.add(roomName)) {
+                Log.d("CallsViewModel", "⚠️ Ignoring duplicate incoming call for room: $roomName (currentCall=${currentCallData?.roomName}, accepted=$acceptedRoomName)")
                 return
             }
 
