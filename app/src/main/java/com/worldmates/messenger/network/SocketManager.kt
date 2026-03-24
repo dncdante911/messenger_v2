@@ -254,14 +254,23 @@ class SocketManager(
             }
 
             // 10. Обработка прочтения сообщения
+            // Server payload: { can_seen: 1, seen: unix_ts_seconds, user_id: readerId }
             socket?.on(Constants.SOCKET_EVENT_MESSAGE_SEEN) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
                     val data = args[0] as JSONObject
-                    val messageId = data.optLong("message_id", 0)
-                    val userId = data.optLong("user_id", 0)
-                    Log.d("SocketManager", "Message $messageId seen by user $userId")
+                    val canSeen = data.optInt("can_seen", 0)
+                    val seenAt  = data.optLong("seen", 0L)
+                    val userId  = data.optLong("user_id", 0L)
+                    Log.d("SocketManager", "lastseen: can_seen=$canSeen seenAt=$seenAt userId=$userId")
                     if (listener is ExtendedSocketListener) {
-                        listener.onMessageSeen(messageId, userId)
+                        if (canSeen == 1 && userId > 0) {
+                            // Bulk-seen: recipient has read all our messages
+                            listener.onChatSeen(userId, seenAt)
+                        } else {
+                            // Fallback: legacy per-message seen (message_id based)
+                            val messageId = data.optLong("message_id", 0L)
+                            if (messageId > 0) listener.onMessageSeen(messageId, userId)
+                        }
                     }
                 }
             }
@@ -1151,6 +1160,8 @@ class SocketManager(
         fun onRecordingStatus(userId: Long?, isRecording: Boolean) {}
         fun onLastSeen(userId: Long, lastSeen: Long) {}
         fun onMessageSeen(messageId: Long, userId: Long) {}
+        /** Bulk-seen: user [userId] has read all messages sent to them (server "lastseen" event) */
+        fun onChatSeen(userId: Long, seenAt: Long) {}
         fun onGroupMessage(messageJson: JSONObject) {}
         fun onUserOnline(userId: Long) {}
         fun onUserOffline(userId: Long) {}
