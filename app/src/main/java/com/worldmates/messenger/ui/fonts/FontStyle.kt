@@ -1,301 +1,246 @@
 package com.worldmates.messenger.ui.fonts
 
 /**
- * Decorative text styles for premium users.
+ * Decorative text styles that work for ALL scripts: Cyrillic, Ukrainian, Latin, digits.
  *
- * Styles 1–17  : Unicode Mathematical Alphanumeric blocks (Latin/digits only).
- * Styles 18–31 : Unicode combining marks — work for ALL scripts incl. Cyrillic/Ukrainian.
- * Styles 32–35 : Enclosed Latin uppercase/lowercase (supplementary-plane symbols).
- * Styles 36–50 : Combined effects (base Unicode style + combining mark).
+ * Every style uses Unicode combining marks appended after each character.
+ * Combining marks attach visually to the preceding character regardless of script —
+ * no Unicode Mathematical block remapping needed (those only cover Latin/digits).
  *
- * All styled text is stored as plain Unicode, visible to all recipients with no font download.
+ * Total: 42 styles (including NORMAL).
  */
 enum class FontStyle(
     val displayName: String,
     val emoji: String,
-    val sampleText: String   // precomputed short preview
+    val sampleText: String   // short preview in Cyrillic so user sees real result
 ) {
-    // ─── 1 ─────────────────────────────────────────────────────────────────
+    // ─── 1  Normal ───────────────────────────────────────────────────────────
     NORMAL(
         displayName = "Звичайний",
         emoji = "✏️",
-        sampleText = "Hello"
+        sampleText = "Привіт"
     ),
 
-    // ─── 2–17  Unicode Math blocks (Latin / digits) ─────────────────────────
-    BOLD(
-        displayName = "Жирний",
-        emoji = "𝐁",
-        sampleText = "𝐇𝐞𝐥𝐥𝐨"
-    ),
-    ITALIC(
-        displayName = "Курсив",
-        emoji = "𝐼",
-        sampleText = "𝐻𝑒𝑙𝑙𝑜"
-    ),
-    BOLD_ITALIC(
-        displayName = "Жирний курсив",
-        emoji = "𝑩",
-        sampleText = "𝑯𝒆𝒍𝒍𝒐"
-    ),
-    SCRIPT(
-        displayName = "Рукопис",
-        emoji = "𝒜",
-        sampleText = "ℋℯ𝓁𝓁ℴ"
-    ),
-    BOLD_SCRIPT(
-        displayName = "Жирний рукопис",
-        emoji = "𝓑",
-        sampleText = "𝓗𝓮𝓵𝓵𝓸"
-    ),
-    FRAKTUR(
-        displayName = "Готика",
-        emoji = "𝔄",
-        sampleText = "ℌ𝔢𝔩𝔩𝔬"
-    ),
-    BOLD_FRAKTUR(
-        displayName = "Жирна готика",
-        emoji = "𝕬",
-        sampleText = "𝕳𝖊𝖑𝖑𝖔"
-    ),
-    DOUBLE_STRUCK(
-        displayName = "Подвійний",
-        emoji = "𝔸",
-        sampleText = "ℍ𝕖𝕝𝕝𝕠"
-    ),
-    MONOSPACE(
-        displayName = "Моноширний",
-        emoji = "𝙰",
-        sampleText = "𝙷𝚎𝚕𝚕𝚘"
-    ),
-    SANS_SERIF(
-        displayName = "Без засічок",
-        emoji = "𝖠",
-        sampleText = "𝖧𝖾𝗅𝗅𝗈"
-    ),
-    SANS_SERIF_BOLD(
-        displayName = "Жирний без засічок",
-        emoji = "𝗔",
-        sampleText = "𝗛𝗲𝗹𝗹𝗼"
-    ),
-    SANS_SERIF_ITALIC(
-        displayName = "Курсив без засічок",
-        emoji = "𝘈",
-        sampleText = "𝘏𝘦𝘭𝘭𝘰"
-    ),
-    SANS_SERIF_BOLD_ITALIC(
-        displayName = "Жирний курсив без засічок",
-        emoji = "𝘼",
-        sampleText = "𝙃𝙚𝙡𝙡𝙤"
-    ),
-    FULLWIDTH(
-        displayName = "Широкий",
-        emoji = "Ａ",
-        sampleText = "Ｈｅｌｌｏ"
-    ),
-    SMALL_CAPS(
-        displayName = "Малі великі",
-        emoji = "ꜱ",
-        sampleText = "ʜᴇʟʟᴏ"
-    ),
-    CIRCLED(
-        displayName = "В кружечках",
-        emoji = "Ⓐ",
-        sampleText = "ⒽⓔⓁⓁⓞ"
-    ),
+    // ─── 2–14  Single combining marks ────────────────────────────────────────
 
-    // ─── 18  First combining-mark style ─────────────────────────────────────
     STRIKETHROUGH(
         displayName = "Закреслений",
-        emoji = "S̶",
-        sampleText = "H̶e̶l̶l̶o̶"
+        emoji = "П̶",
+        sampleText = "П̶р̶и̶в̶і̶т̶"
     ),
-
-    // ─── 19–31  Combining marks — work for ALL scripts incl. Cyrillic ────────
     UNDERLINE(
         displayName = "Підкреслений",
-        emoji = "\u041F\u0332",                          // П̲
-        sampleText = "\u041F\u0332\u0440\u0332\u0438\u0332\u0432\u0332\u0456\u0332\u0442\u0332"  // П̲р̲и̲в̲і̲т̲
+        emoji = "П̲",
+        sampleText = "П̲р̲и̲в̲і̲т̲"
     ),
     DOUBLE_UNDERLINE(
         displayName = "Подвійне підкреслення",
-        emoji = "\u041F\u0333",
-        sampleText = "\u041F\u0333\u0440\u0333\u0438\u0333\u0432\u0333\u0456\u0333\u0442\u0333"
+        emoji = "П̳",
+        sampleText = "П̳р̳и̳в̳і̳т̳"
     ),
     OVERLINE(
         displayName = "Надрядковий",
-        emoji = "\u041F\u0305",
-        sampleText = "\u041F\u0305\u0440\u0305\u0438\u0305\u0432\u0305\u0456\u0305\u0442\u0305"
+        emoji = "П̅",
+        sampleText = "П̅р̅и̅в̅і̅т̅"
     ),
     DOUBLE_OVERLINE(
         displayName = "Подвійне надрядкове",
-        emoji = "\u041F\u033F",
-        sampleText = "\u041F\u033F\u0440\u033F\u0438\u033F\u0432\u033F\u0456\u033F\u0442\u033F"
+        emoji = "П̿",
+        sampleText = "П̿р̿и̿в̿і̿т̿"
     ),
     WAVY(
-        displayName = "Хвилястий",
-        emoji = "\u041F\u0330",
-        sampleText = "\u041F\u0330\u0440\u0330\u0438\u0330\u0432\u0330\u0456\u0330\u0442\u0330"
+        displayName = "Хвилястий знизу",
+        emoji = "П̰",
+        sampleText = "П̰р̰и̰в̰і̰т̰"
     ),
     SLASH(
         displayName = "Косий перекрес",
-        emoji = "\u041F\u0338",
-        sampleText = "\u041F\u0338\u0440\u0338\u0438\u0338\u0432\u0338\u0456\u0338\u0442\u0338"
+        emoji = "П̸",
+        sampleText = "П̸р̸и̸в̸і̸т̸"
     ),
     TILDE_OVERLAY(
         displayName = "Тільда поверх",
-        emoji = "\u041F\u0334",
-        sampleText = "\u041F\u0334\u0440\u0334\u0438\u0334\u0432\u0334\u0456\u0334\u0442\u0334"
+        emoji = "П̴",
+        sampleText = "П̴р̴и̴в̴і̴т̴"
     ),
     DOTTED(
-        displayName = "Крапки зверху",
-        emoji = "\u041F\u0307",
-        sampleText = "\u041F\u0307\u0440\u0307\u0438\u0307\u0432\u0307\u0456\u0307\u0442\u0307"
+        displayName = "Крапка зверху",
+        emoji = "П̇",
+        sampleText = "П̇р̇и̇в̇і̇т̇"
     ),
     DIAERESIS(
-        displayName = "Умлаут",
-        emoji = "\u041F\u0308",
-        sampleText = "\u041F\u0308\u0440\u0308\u0438\u0308\u0432\u0308\u0456\u0308\u0442\u0308"
+        displayName = "Умлаут (дві крапки)",
+        emoji = "П̈",
+        sampleText = "П̈р̈ӥв̈їт̈"
     ),
+    RING_ABOVE(
+        displayName = "Кружечок зверху",
+        emoji = "П̊",
+        sampleText = "П̊р̊и̊в̊і̊т̊"
+    ),
+    DOT_BELOW(
+        displayName = "Крапка знизу",
+        emoji = "Ṗ",
+        sampleText = "П̣р̣и̣в̣і̣т̣"
+    ),
+    RING_BELOW(
+        displayName = "Кружечок знизу",
+        emoji = "П̥",
+        sampleText = "П̥р̥и̥в̥і̥т̥"
+    ),
+
+    // ─── 15–20  Accent marks (diacritics) ────────────────────────────────────
+
+    GRAVE(
+        displayName = "Гравіс (ліво) над",
+        emoji = "П̀",
+        sampleText = "П̀р̀ѝв̀і̀т̀"
+    ),
+    ACUTE(
+        displayName = "Акут (право) над",
+        emoji = "П́",
+        sampleText = "П́р́и́в́і́т́"
+    ),
+    CIRCUMFLEX(
+        displayName = "Циркумфлекс (^) над",
+        emoji = "П̂",
+        sampleText = "П̂р̂и̂в̂і̂т̂"
+    ),
+    MACRON(
+        displayName = "Макрон (рисочка) над",
+        emoji = "П̄",
+        sampleText = "П̄р̄ӣв̄і̄т̄"
+    ),
+    BREVE(
+        displayName = "Бреве (дуга) над",
+        emoji = "П̆",
+        sampleText = "П̆р̆йв̆і̆т̆"
+    ),
+    CARON(
+        displayName = "Карон (v) над",
+        emoji = "П̌",
+        sampleText = "П̌р̌и̌в̌і̌т̌"
+    ),
+
+    // ─── 21–24  Enclosing / special symbols ──────────────────────────────────
+
     CIRCLE_OVERLAY(
         displayName = "В колі",
-        emoji = "\u004F\u20DD",                          // O⃝
-        sampleText = "\u041F\u20DD\u0440\u20DD\u0438\u20DD\u0432\u20DD\u0456\u20DD\u0442\u20DD"
+        emoji = "О⃝",
+        sampleText = "П⃝р⃝и⃝в⃝і⃝т⃝"
     ),
     SQUARE_OVERLAY(
         displayName = "В квадраті",
-        emoji = "\u004F\u20DE",
-        sampleText = "\u041F\u20DE\u0440\u20DE\u0438\u20DE\u0432\u20DE\u0456\u20DE\u0442\u20DE"
+        emoji = "О⃞",
+        sampleText = "П⃞р⃞и⃞в⃞і⃞т⃞"
     ),
     DIAMOND_OVERLAY(
         displayName = "В ромбі",
-        emoji = "\u004F\u20DF",
-        sampleText = "\u041F\u20DF\u0440\u20DF\u0438\u20DF\u0432\u20DF\u0456\u20DF\u0442\u20DF"
+        emoji = "О⃟",
+        sampleText = "П⃟р⃟и⃟в⃟і⃟т⃟"
+    ),
+    ARROW_ABOVE(
+        displayName = "Стрілка зверху",
+        emoji = "П⃗",
+        sampleText = "П⃗р⃗и⃗в⃗і⃗т⃗"
     ),
 
-    // ─── 32–35  Enclosed Latin (uppercase/lowercase, pass-through for Cyrillic) ─
-    NEGATIVE_CIRCLED(
-        displayName = "Темний кружок",
-        emoji = "\uD83C\uDD50",                          // 🅐
-        sampleText = "\uD83C\uDD57\uD83C\uDD54\uD83C\uDD5B\uD83C\uDD5B\uD83C\uDD5E"  // 🅗🅔🅛🅛🅞
+    // ─── 25–28  Cyrillic-specific marks ──────────────────────────────────────
+
+    CYRILLIC_TITLO(
+        displayName = "Тітло (кирил. скорочення)",
+        emoji = "П҃",
+        sampleText = "П҃р҃и҃в҃і҃т҃"
     ),
-    PARENTHESIZED_CAPS(
-        displayName = "В дужках (великі)",
-        emoji = "\uD83C\uDD10",                          // 🄐
-        sampleText = "\uD83C\uDD17\uD83C\uDD14\uD83C\uDD1B\uD83C\uDD1B\uD83C\uDD1E"  // 🄗🄔🄛🄛🄞
+    TRIPLE_DOT_ABOVE(
+        displayName = "Три крапки зверху",
+        emoji = "П⃛",
+        sampleText = "П⃛р⃛и⃛в⃛і⃛т⃛"
     ),
-    SQUARED_LATIN(
-        displayName = "В рамці",
-        emoji = "\uD83C\uDD30",                          // 🄰
-        sampleText = "\uD83C\uDD37\uD83C\uDD34\uD83C\uDD3B\uD83C\uDD3B\uD83C\uDD3E"  // 🄷🄴🄻🄻🄾
+    FOUR_DOTS_ABOVE(
+        displayName = "Чотири крапки зверху",
+        emoji = "П⃜",
+        sampleText = "П⃜р⃜и⃜в⃜і⃜т⃜"
     ),
-    PARENTHESIZED(
-        displayName = "В дужках (малі)",
-        emoji = "\u249C",                                // ⒜
-        sampleText = "\u24A3\u24A0\u24A7\u24A7\u24AA"  // ⒣⒠⒧⒧⒪
+    TRIPLE_UNDERDOT(
+        displayName = "Три крапки знизу",
+        emoji = "П⃨",
+        sampleText = "П⃨р⃨и⃨в⃨і⃨т⃨"
     ),
 
-    // ─── 36–50  Combined effects ─────────────────────────────────────────────
-    BOLD_UNDERLINE(
-        displayName = "Жирний підкреслений",
-        emoji = "\uD835\uDC01\u0332",                   // 𝐁̲
-        sampleText = "\uD835\uDC07\u0332\uD835\uDC1E\u0332\uD835\uDC25\u0332\uD835\uDC25\u0332\uD835\uDC28\u0332"
-    ),
-    ITALIC_UNDERLINE(
-        displayName = "Курсив підкреслений",
-        emoji = "\uD835\uDC3C\u0332",                   // 𝐼̲
-        sampleText = "\uD835\uDC3B\u0332\uD835\uDC52\u0332\uD835\uDC59\u0332\uD835\uDC59\u0332\uD835\uDC5C\u0332"
-    ),
-    SCRIPT_UNDERLINE(
-        displayName = "Рукопис підкреслений",
-        emoji = "\uD835\uDC9C\u0332",                   // 𝒜̲
-        sampleText = "\u210B\u0332\u212F\u0332\uD835\uDCC1\u0332\uD835\uDCC1\u0332\u2134\u0332"
-    ),
-    BOLD_SCRIPT_UNDERLINE(
-        displayName = "Жирний рукопис підкреслений",
-        emoji = "\uD835\uDCD1\u0332",                   // 𝓑̲
-        sampleText = "\uD835\uDCCF\u0332\uD835\uDCEE\u0332\uD835\uDCF5\u0332\uD835\uDCF5\u0332\uD835\uDCF8\u0332"
-    ),
-    MONOSPACE_UNDERLINE(
-        displayName = "Моно підкреслений",
-        emoji = "\uD835\uDE70\u0332",                   // 𝙰̲
-        sampleText = "\uD835\uDE77\u0332\uD835\uDE8E\u0332\uD835\uDE95\u0332\uD835\uDE95\u0332\uD835\uDE98\u0332"
-    ),
-    SANS_BOLD_UNDERLINE(
-        displayName = "Жирний без засічок підкреслений",
-        emoji = "\uD835\uDDD4\u0332",                   // 𝗔̲
-        sampleText = "\uD835\uDDDB\u0332\uD835\uDDF2\u0332\uD835\uDDF9\u0332\uD835\uDDF9\u0332\uD835\uDDFC\u0332"
-    ),
-    BOLD_STRIKETHROUGH(
-        displayName = "Жирний закреслений",
-        emoji = "\uD835\uDC01\u0336",                   // 𝐁̶
-        sampleText = "\uD835\uDC07\u0336\uD835\uDC1E\u0336\uD835\uDC25\u0336\uD835\uDC25\u0336\uD835\uDC28\u0336"
-    ),
-    ITALIC_STRIKETHROUGH(
-        displayName = "Курсив закреслений",
-        emoji = "\uD835\uDC3C\u0336",
-        sampleText = "\uD835\uDC3B\u0336\uD835\uDC52\u0336\uD835\uDC59\u0336\uD835\uDC59\u0336\uD835\uDC5C\u0336"
-    ),
-    SCRIPT_STRIKETHROUGH(
-        displayName = "Рукопис закреслений",
-        emoji = "\uD835\uDC9C\u0336",
-        sampleText = "\u210B\u0336\u212F\u0336\uD835\uDCC1\u0336\uD835\uDCC1\u0336\u2134\u0336"
-    ),
-    MONOSPACE_STRIKETHROUGH(
-        displayName = "Моно закреслений",
-        emoji = "\uD835\uDE70\u0336",
-        sampleText = "\uD835\uDE77\u0336\uD835\uDE8E\u0336\uD835\uDE95\u0336\uD835\uDE95\u0336\uD835\uDE98\u0336"
-    ),
+    // ─── 29–35  Multi-mark combinations ──────────────────────────────────────
+
     OVERLINE_UNDERLINE(
-        displayName = "Обрамлений",
-        emoji = "\u041F\u0305\u0332",
-        sampleText = "\u041F\u0305\u0332\u0440\u0305\u0332\u0438\u0305\u0332\u0432\u0305\u0332\u0456\u0305\u0332\u0442\u0305\u0332"
+        displayName = "Обрамлений (над + під)",
+        emoji = "П̲̅",
+        sampleText = "П̲̅р̲̅и̲̅в̲̅і̲̅т̲̅"
     ),
     WAVY_STRIKETHROUGH(
         displayName = "Хвилястий закреслений",
-        emoji = "\u041F\u0334\u0336",
-        sampleText = "\u041F\u0334\u0336\u0440\u0334\u0336\u0438\u0334\u0336\u0432\u0334\u0336\u0456\u0334\u0336\u0442\u0334\u0336"
-    ),
-    BOLD_FRAKTUR_UNDERLINE(
-        displayName = "Готика підкреслена",
-        emoji = "\uD835\uDD6C\u0332",                   // 𝕬̲
-        sampleText = "\uD835\uDD73\u0332\uD835\uDD8A\u0332\uD835\uDD91\u0332\uD835\uDD91\u0332\uD835\uDD94\u0332"
-    ),
-    DOUBLE_STRUCK_UNDERLINE(
-        displayName = "Подвійний підкреслений",
-        emoji = "\uD835\uDD38\u0332",                   // 𝔸̲
-        sampleText = "\u210D\u0332\uD835\uDD56\u0332\uD835\uDD5D\u0332\uD835\uDD5D\u0332\uD835\uDD60\u0332"
+        emoji = "П̴̶",
+        sampleText = "П̴̶р̴̶и̴̶в̴̶і̴̶т̴̶"
     ),
     DIAERESIS_OVERLINE(
         displayName = "Умлаут з надрядковим",
-        emoji = "\u041F\u0308\u0305",
-        sampleText = "\u041F\u0308\u0305\u0440\u0308\u0305\u0438\u0308\u0305\u0432\u0308\u0305\u0456\u0308\u0305\u0442\u0308\u0305"
-    ),
-
-    // ─── 51–55  Extra combined styles ────────────────────────────────────────
-    FRAKTUR_UNDERLINE(
-        displayName = "Готика підкреслена (звичайна)",
-        emoji = "\uD835\uDD24\u0332",                   // 𝔤̲
-        sampleText = "\u210C\u0332\uD835\uDD22\u0332\uD835\uDD29\u0332\uD835\uDD29\u0332\uD835\uDD2C\u0332"  // ℌ̲𝔢̲𝔩̲𝔩̲𝔬̲
-    ),
-    SANS_SERIF_ITALIC_UNDERLINE(
-        displayName = "Курсив без засічок підкреслений",
-        emoji = "\uD835\uDE08\u0332",                   // 𝘈̲
-        sampleText = "\uD835\uDE17\u0332\uD835\uDE2E\u0332\uD835\uDE35\u0332\uD835\uDE35\u0332\uD835\uDE38\u0332"
-    ),
-    BOLD_WAVY(
-        displayName = "Жирний хвилястий",
-        emoji = "\uD835\uDC01\u0330",                   // 𝐁̰
-        sampleText = "\uD835\uDC07\u0330\uD835\uDC1E\u0330\uD835\uDC25\u0330\uD835\uDC25\u0330\uD835\uDC28\u0330"
+        emoji = "П̈̅",
+        sampleText = "П̈̅р̈̅ӥ̅в̈̅ї̅т̈̅"
     ),
     DOTTED_STRIKETHROUGH(
-        displayName = "Крапки закреслені",
-        emoji = "\u041F\u0307\u0336",
-        sampleText = "\u041F\u0307\u0336\u0440\u0307\u0336\u0438\u0307\u0336\u0432\u0307\u0336\u0456\u0307\u0336\u0442\u0307\u0336"
+        displayName = "Крапка + закреслення",
+        emoji = "П̶̇",
+        sampleText = "П̶̇р̶̇и̶̇в̶̇і̶̇т̶̇"
     ),
     DOUBLE_UNDERLINE_OVERLINE(
-        displayName = "Подвійне підкреслення + надрядкове",
-        emoji = "\u041F\u0333\u0305",
-        sampleText = "\u041F\u0333\u0305\u0440\u0333\u0305\u0438\u0333\u0305\u0432\u0333\u0305\u0456\u0333\u0305\u0442\u0333\u0305"
+        displayName = "Подвійне під + надрядкове",
+        emoji = "П̳̅",
+        sampleText = "П̳̅р̳̅и̳̅в̳̅і̳̅т̳̅"
+    ),
+    DIAERESIS_STRIKETHROUGH(
+        displayName = "Умлаут + закреслення",
+        emoji = "П̶̈",
+        sampleText = "П̶̈р̶̈ӥ̶в̶̈ї̶т̶̈"
+    ),
+    CIRCLE_UNDERLINE(
+        displayName = "Коло + підкреслення",
+        emoji = "О⃝̲",
+        sampleText = "П⃝̲р⃝̲и⃝̲в⃝̲і⃝̲т⃝̲"
+    ),
+
+    // ─── 36–42  Triple combinations / extra effects ───────────────────────────
+
+    OVERLINE_STRIKETHROUGH_UNDERLINE(
+        displayName = "Повне обрамлення",
+        emoji = "П̶̲̅",
+        sampleText = "П̶̲̅р̶̲̅и̶̲̅в̶̲̅і̶̲̅т̶̲̅"
+    ),
+    DOTTED_UNDERLINE(
+        displayName = "Крапка + підкреслення",
+        emoji = "П̲̇",
+        sampleText = "П̲̇р̲̇и̲̇в̲̇і̲̇т̲̇"
+    ),
+    GRAVE_UNDERLINE(
+        displayName = "Гравіс + підкреслення",
+        emoji = "П̲̀",
+        sampleText = "П̲̀р̲̀ѝ̲в̲̀і̲̀т̲̀"
+    ),
+    DIAERESIS_UNDERLINE(
+        displayName = "Умлаут + підкреслення",
+        emoji = "П̲̈",
+        sampleText = "П̲̈р̲̈ӥ̲в̲̈ї̲т̲̈"
+    ),
+    MACRON_UNDERLINE(
+        displayName = "Макрон + підкреслення",
+        emoji = "П̲̄",
+        sampleText = "П̲̄р̲̄ӣ̲в̲̄і̲̄т̲̄"
+    ),
+    CARON_STRIKETHROUGH(
+        displayName = "Карон + закреслення",
+        emoji = "П̶̌",
+        sampleText = "П̶̌р̶̌и̶̌в̶̌і̶̌т̶̌"
+    ),
+    ACUTE_OVERLINE(
+        displayName = "Акут + надрядкове",
+        emoji = "П́̅",
+        sampleText = "П́̅р́̅и́̅в́̅і́̅т́̅"
     )
 }

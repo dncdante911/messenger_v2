@@ -783,7 +783,7 @@ fun PremiumPostCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, bottom = 8.dp),
+                    .padding(start = 14.dp, end = 14.dp, bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 post.inlineButtons!!.forEach { buttonRow ->
