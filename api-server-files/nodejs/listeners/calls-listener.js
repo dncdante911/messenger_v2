@@ -36,6 +36,16 @@ async function registerCallsListeners(socket, io, ctx) {
         ctx.noiseCancellationState = new Map();
     }
 
+    // ===== Буфер ICE кандидатов =====
+    // Проблема: вызывающий начинает собирать ICE кандидаты сразу после offer,
+    // но получатель ещё не принял звонок и не создал PeerConnection.
+    // Кандидаты пересылаются на сокет MessageNotificationService, который их не обрабатывает.
+    // Решение: буферизируем кандидаты и отдаём при call:accept.
+    // roomName -> { fromCaller: [...candidates], fromReceiver: [...candidates] }
+    if (!ctx.iceCandidateBuffer) {
+        ctx.iceCandidateBuffer = new Map();
+    }
+
     /**
      * Регистрация пользователя для звонков
      * Data: { userId }
@@ -399,6 +409,28 @@ async function registerCallsListeners(socket, io, ctx) {
 
                     console.log(`[CALLS] Answer sent to initiator ${initiatorId} with TURN credentials`);
                 }
+
+                // ✅ CRITICAL: Доставить буферизированные ICE кандидаты.
+                // Вызывающий начинает собирать ICE кандидаты сразу после offer,
+                // но получатель ещё не имел PeerConnection — кандидаты были потеряны.
+                // Теперь отправляем все буферизированные кандидаты получателю (acceptor).
+                const bufferedCandidates = ctx.iceCandidateBuffer?.get(roomName) || [];
+                if (bufferedCandidates.length > 0) {
+                    console.log(`[CALLS] 📦 Delivering ${bufferedCandidates.length} buffered ICE candidates for room ${roomName}`);
+                    bufferedCandidates.forEach(candidateData => {
+                        // Отправить кандидаты ОТ вызывающего получателю (acceptor)
+                        if (String(candidateData.fromUserId) === String(initiatorId)) {
+                            socket.emit('ice:candidate', candidateData);
+                        }
+                        // И кандидаты ОТ получателя вызывающему (initiator)
+                        if (String(candidateData.fromUserId) === String(userId)) {
+                            const initiatorSocks = ctx.userIdSocket[initiatorId] || [];
+                            initiatorSocks.forEach(s => s.emit('ice:candidate', candidateData));
+                        }
+                    });
+                }
+                // Очистить буфер для этой комнаты
+                ctx.iceCandidateBuffer?.delete(roomName);
             }
 
         } catch (error) {
@@ -415,34 +447,28 @@ async function registerCallsListeners(socket, io, ctx) {
         try {
             const { roomName, toUserId, fromUserId, candidate, sdpMLineIndex, sdpMid } = data;
 
-            // Опционально: сохранить в БД для восстановления (может не работать если нет таблицы)
-            if (ctx.wo_ice_candidates) {
-                try {
-                    await ctx.wo_ice_candidates.create({
-                        room_name: roomName,
-                        candidate: JSON.stringify(candidate),
-                        sdp_mid: sdpMid,
-                        sdp_m_line_index: sdpMLineIndex,
-                        created_at: new Date()
-                    });
-                } catch (dbError) {
-                    // ✅ Если таблица не существует или нет нужных колонок - игнорируем
-                    console.warn('[CALLS] Could not save ICE candidate to DB (not critical):', dbError.message);
-                }
-            }
+            const candidateData = {
+                roomName: roomName,
+                fromUserId: fromUserId,
+                candidate: candidate,
+                sdpMLineIndex: sdpMLineIndex,
+                sdpMid: sdpMid
+            };
 
             if (toUserId) {
-                // Отправить конкретному пользователю
+                // ✅ Буферизируем кандидат для 1-на-1 звонков.
+                // Получатель может ещё не иметь PeerConnection (не принял звонок).
+                // Кандидаты будут отданы при call:accept.
+                if (roomName && ctx.iceCandidateBuffer) {
+                    if (!ctx.iceCandidateBuffer.has(roomName)) {
+                        ctx.iceCandidateBuffer.set(roomName, []);
+                    }
+                    ctx.iceCandidateBuffer.get(roomName).push(candidateData);
+                }
+
+                // Также пытаемся доставить сразу — если PeerConnection уже есть, кандидат дойдёт
                 const recipientSockets = ctx.userIdSocket[toUserId];
                 if (recipientSockets && recipientSockets.length > 0) {
-                    const candidateData = {
-                        roomName: roomName,
-                        fromUserId: fromUserId,
-                        candidate: candidate,
-                        sdpMLineIndex: sdpMLineIndex,
-                        sdpMid: sdpMid
-                    };
-
                     recipientSockets.forEach(recipientSocket => {
                         recipientSocket.emit('ice:candidate', candidateData);
                     });
@@ -477,6 +503,9 @@ async function registerCallsListeners(socket, io, ctx) {
             }
 
             console.log(`[CALLS] Call ended: ${roomName} by ${userId} (${reason})`);
+
+            // Очистить буфер ICE кандидатов
+            ctx.iceCandidateBuffer?.delete(roomName);
 
             // Обновить в БД
             const call = await ctx.wo_calls.findOne({
