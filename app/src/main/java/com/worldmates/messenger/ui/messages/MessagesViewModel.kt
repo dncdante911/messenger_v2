@@ -1477,6 +1477,23 @@ class MessagesViewModel(application: Application) :
     }
 
     /**
+     * Recipient [userId] has read all our messages (server "lastseen" bulk event).
+     * Marks every outgoing message in this chat as isRead=true in the in-memory list.
+     */
+    override fun onChatSeen(userId: Long, seenAt: Long) {
+        if (userId != recipientId) return
+        val readAtMs = if (seenAt > 0) seenAt * 1000L else System.currentTimeMillis()
+        val myId = UserSession.userId
+        _messages.update { list ->
+            list.map { msg ->
+                if (msg.fromId == myId && !msg.isRead) msg.copy(isRead = true, readAt = readAtMs)
+                else msg
+            }
+        }
+        Log.d(TAG, "onChatSeen: marked messages as read for recipient $userId seenAt=$seenAt")
+    }
+
+    /**
      * Fetches the recipient's current online/last-seen status from the REST API and
      * immediately updates the header bar.  Called on chat open so the status dot is
      * correct from the first frame — without waiting for socket events, which only
