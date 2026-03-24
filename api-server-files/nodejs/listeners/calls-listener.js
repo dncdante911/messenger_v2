@@ -138,11 +138,20 @@ async function registerCallsListeners(socket, io, ctx) {
                     avatar: initiator?.avatar
                 });
 
-                // Найти сокеты получателя
-                const recipientSockets = ctx.userIdSocket[toId];
-                console.log(`[CALLS] 🔍 Looking for recipient ${toId}, found: ${recipientSockets ? recipientSockets.length : 0} sockets`);
+                // Найти сокеты получателя (фильтруем отключённые, чтобы не потерять звонок в стале)
+                const allRecipientSockets = ctx.userIdSocket[toId] || [];
+                const recipientSockets = allRecipientSockets.filter(s => s.connected);
 
-                if (recipientSockets && recipientSockets.length > 0) {
+                // Очищаем устаревшие (disconnected) сокеты из карты
+                if (recipientSockets.length !== allRecipientSockets.length) {
+                    ctx.userIdSocket[toId] = recipientSockets;
+                    if (recipientSockets.length === 0) delete ctx.userIdSocket[toId];
+                    console.log(`[CALLS] 🧹 Removed ${allRecipientSockets.length - recipientSockets.length} stale socket(s) for user ${toId}`);
+                }
+
+                console.log(`[CALLS] 🔍 Looking for recipient ${toId}, found: ${recipientSockets.length} active socket(s) (${allRecipientSockets.length} total)`);
+
+                if (recipientSockets.length > 0) {
                     // Получить ICE servers с TURN credentials для получателя
                     const iceServers = turnHelper.getIceServers(toId);
 
