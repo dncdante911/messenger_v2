@@ -489,9 +489,15 @@ class MessagesViewModel(application: Application) :
                         }
 
                         if (newMsg != null) {
-                            val curr = _messages.value
-                            if (!curr.any { it.id == newMsg.id }) {
-                                _messages.value = (curr + newMsg).sortedBy { it.timeStamp }
+                            // Upsert: replace any existing entry with the same id (e.g. an
+                            // "encrypted" placeholder written by a stale socket echo) with the
+                            // correct plaintext version that we have here from the HTTP response.
+                            _messages.update { curr ->
+                                if (curr.any { it.id == newMsg.id }) {
+                                    curr.map { if (it.id == newMsg.id) newMsg else it }
+                                } else {
+                                    (curr + newMsg).sortedBy { it.timeStamp }
+                                }
                             }
                         } else {
                             _messages.value = emptyList()
@@ -1302,6 +1308,23 @@ class MessagesViewModel(application: Application) :
         viewModelScope.launch {
             try {
                 Log.d(TAG, "📨 [Socket.IO] Incoming message: ${messageJson.toString().take(120)}")
+
+                // ── Skip own Signal echoes ────────────────────────────────────────────
+                // The server emits `new_message { self: true }` back to the sender after
+                // storing an outgoing Signal (cipher_version=3) message.  The payload
+                // contains the ciphertext that was encrypted FOR THE RECIPIENT — the
+                // sender cannot decrypt it, and the plaintext cache is always empty at
+                // this point because the socket event arrives over WebSocket BEFORE the
+                // HTTP response from sendMessage() comes back (server emits first, then
+                // writes the REST response).  sendMessage() handles adding the message
+                // with the known plaintext, so we just skip the echo here.
+                val isSelfSignalEcho = messageJson.optBoolean("self", false) &&
+                    messageJson.optInt("cipher_version", 0) == SignalEncryptionService.CIPHER_VERSION_SIGNAL
+                if (isSelfSignalEcho) {
+                    Log.d(TAG, "⏭️ [Socket.IO] Skipping own Signal echo " +
+                        "(msg id=${messageJson.optLong("id")} — plaintext handled by sendMessage())")
+                    return@launch
+                }
 
                 val timestamp     = messageJson.getLong("time")
                 val encryptedText = messageJson.optString("text", null)
