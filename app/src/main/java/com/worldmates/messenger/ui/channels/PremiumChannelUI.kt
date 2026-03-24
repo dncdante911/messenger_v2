@@ -450,9 +450,13 @@ private fun PremiumBannerStat(
     }
 }
 
-// ==================== PREMIUM POST CARD (Telegram-style) ====================
-// Full card with rounded corners, full-bleed media, inline keyboard buttons.
-// Inspired by Telegram channel post layout.
+// ==================== PREMIUM POST CARD (Editorial magazine style) ====================
+// Radically different from the standard ChannelPostCard:
+//  • No Card container — transparent background, editorial feel.
+//  • Media posts: full-bleed image edge-to-edge, author/time overlaid on dark scrim.
+//  • Text-only posts: thick left accent gradient bar, generous whitespace, bold typography.
+//  • View count in Orbitron for the "digital dashboard" feel.
+//  • Separated from next post by a thin accent gradient rule rather than a card shadow.
 
 @Composable
 fun PremiumPostCard(
@@ -474,108 +478,122 @@ fun PremiumPostCard(
     val reactionsCount = post.reactions?.sumOf { it.count } ?: 0
     val hasInlineButtons = !post.inlineButtons.isNullOrEmpty()
 
-    Card(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp,
-            pressedElevation = 0.dp
-        ),
-        onClick = onPostClick
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true),
+                onClick = onPostClick
+            )
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
 
-            // ── Pinned banner ────────────────────────────────────────────────
-            if (post.isPinned) {
+        // ── PINNED golden banner ──────────────────────────────────────────────
+        if (post.isPinned) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFFFFAB00).copy(alpha = 0.18f),
+                                Color(0xFFFF8F00).copy(alpha = 0.08f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+                    .padding(horizontal = 16.dp, vertical = 5.dp)
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(colorScheme.primary.copy(alpha = 0.08f))
-                        .padding(horizontal = 14.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     Icon(
                         Icons.Default.PushPin,
                         contentDescription = null,
-                        tint = colorScheme.primary,
-                        modifier = Modifier.size(13.dp)
+                        tint = Color(0xFFFFAB00),
+                        modifier = Modifier.size(12.dp)
                     )
                     Text(
                         text = stringResource(R.string.channel_detail_pinned),
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.primary,
-                        letterSpacing = 0.3.sp
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFAB00),
+                        letterSpacing = 1.sp
                     )
                 }
             }
+        }
 
-            // ── Full-bleed media ─────────────────────────────────────────────
-            if (hasMedia) {
-                val topShape = if (post.isPinned) RoundedCornerShape(0.dp)
-                else RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+        if (hasMedia) {
+            // ── MEDIA POST layout: full-bleed image → author overlaid → text below ──
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // Full-bleed media gallery — no padding, no rounded corners
                 PremiumMediaGallery(
                     media = post.media!!,
                     onMediaClick = onMediaClick,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Dark scrim at bottom of image for text readability
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(topShape)
+                        .height(72.dp)
+                        .align(Alignment.BottomStart)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.62f))
+                            )
+                        )
                 )
-            }
 
-            // ── Author row ───────────────────────────────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 14.dp, end = 10.dp, top = 10.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                PremiumSmallAvatar(
-                    avatarUrl = post.authorAvatar ?: "",
-                    name = post.authorName ?: post.authorUsername ?: "?",
-                    size = 34.dp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
+                // Author + time overlaid at bottom of image
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomStart)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    PremiumSmallAvatar(
+                        avatarUrl = post.authorAvatar ?: "",
+                        name = post.authorName ?: post.authorUsername ?: "?",
+                        size = 28.dp
+                    )
                     Text(
                         text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
-                        fontSize = 13.5.sp,
+                        fontSize = 12.5.sp,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = AppFonts.Exo2,
-                        color = colorScheme.onSurface,
+                        color = Color.White,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                // Time
-                Text(
-                    text = formatPostTime(post.createdTime),
-                    fontSize = 11.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.4f)
-                )
-                if (canEdit) {
-                    IconButton(
-                        onClick = onMoreClick,
-                        modifier = Modifier.size(32.dp)
-                    ) {
+                    Text(
+                        text = formatPostTime(post.createdTime),
+                        fontSize = 10.sp,
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontFamily = AppFonts.Orbitron
+                    )
+                    if (canEdit) {
                         Icon(
                             Icons.Default.MoreHoriz,
                             contentDescription = null,
-                            tint = colorScheme.onSurface.copy(alpha = 0.35f),
-                            modifier = Modifier.size(18.dp)
+                            tint = Color.White.copy(alpha = 0.65f),
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable(onClick = onMoreClick)
                         )
                     }
                 }
             }
 
-            // ── Post content ─────────────────────────────────────────────────
+            // Text content below image
             if (post.poll != null) {
-                Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+                Box(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp)) {
                     PollMessageComponent(
                         poll = post.poll,
                         isMine = false,
@@ -587,124 +605,254 @@ fun PremiumPostCard(
                     text = post.text,
                     fontSize = 15.sp,
                     color = colorScheme.onSurface,
-                    lineHeight = 22.sp,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp)
+                    lineHeight = 23.sp,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp)
                 )
             }
 
-            // ── Edited label ─────────────────────────────────────────────────
-            if (post.isEdited) {
-                Text(
-                    text = stringResource(R.string.post_edited),
-                    fontSize = 11.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.35f),
-                    fontStyle = FontStyle.Italic,
-                    modifier = Modifier.padding(start = 14.dp, top = 2.dp)
-                )
-            }
-
-            // ── Reactions row ────────────────────────────────────────────────
-            if (hasReactions) {
-                LazyReactionsRow(
-                    reactions = post.reactions ?: emptyList(),
-                    onReactionClick = onReactionClick,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-            }
-
-            // ── Bottom stats bar ─────────────────────────────────────────────
+        } else {
+            // ── TEXT-ONLY POST layout: thick accent bar + editorial typography ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 14.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(top = if (post.isPinned) 6.dp else 12.dp, bottom = 4.dp)
             ) {
-                // Left: reactions add button + comments
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    // Add reaction
-                    TgActionButton(
-                        icon = Icons.Outlined.EmojiEmotions,
-                        count = if (reactionsCount > 0) reactionsCount else null,
-                        isActive = hasReactions,
-                        activeColor = colorScheme.primary,
-                        onClick = { onReactionClick("👍") }
-                    )
-                    // Comments
-                    TgActionButton(
-                        icon = Icons.Outlined.ChatBubbleOutline,
-                        count = if (post.commentsCount > 0) post.commentsCount else null,
-                        isActive = false,
-                        activeColor = colorScheme.tertiary,
-                        onClick = onCommentsClick
-                    )
-                }
-
-                // Right: views + share
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    if (post.viewsCount > 0) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            modifier = Modifier.padding(end = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Outlined.Visibility,
-                                contentDescription = null,
-                                tint = colorScheme.onSurface.copy(alpha = 0.35f),
-                                modifier = Modifier.size(14.dp)
+                // Thick left accent gradient bar
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .heightIn(min = 48.dp)
+                        .padding(start = 14.dp)
+                        .clip(RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    colorScheme.primary,
+                                    colorScheme.tertiary.copy(alpha = 0.7f)
+                                )
                             )
-                            Text(
-                                text = formatCountPremium(post.viewsCount),
-                                fontSize = 11.5.sp,
-                                color = colorScheme.onSurface.copy(alpha = 0.35f)
-                            )
-                        }
-                    }
-                    TgActionButton(
-                        icon = Icons.Outlined.Share,
-                        count = null,
-                        isActive = false,
-                        activeColor = colorScheme.secondary,
-                        onClick = onShareClick
-                    )
-                }
-            }
-
-            // ── Inline keyboard buttons (Telegram-style) ─────────────────────
-            if (hasInlineButtons) {
-                HorizontalDivider(
-                    color = colorScheme.outlineVariant.copy(alpha = 0.5f),
-                    thickness = 0.5.dp
+                        )
                 )
+
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                        .weight(1f)
+                        .padding(start = 12.dp, end = 14.dp)
                 ) {
-                    post.inlineButtons!!.forEach { buttonRow ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            buttonRow.forEach { button ->
-                                TgInlineButton(
-                                    button = button,
-                                    onClick = { onInlineButtonClick?.invoke(button) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
+                    // Author + time
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        PremiumSmallAvatar(
+                            avatarUrl = post.authorAvatar ?: "",
+                            name = post.authorName ?: post.authorUsername ?: "?",
+                            size = 26.dp
+                        )
+                        Text(
+                            text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = AppFonts.Exo2,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = formatPostTime(post.createdTime),
+                            fontSize = 10.sp,
+                            color = colorScheme.primary.copy(alpha = 0.65f),
+                            fontFamily = AppFonts.Orbitron
+                        )
+                        if (canEdit) {
+                            Icon(
+                                Icons.Default.MoreHoriz,
+                                contentDescription = null,
+                                tint = colorScheme.onSurface.copy(alpha = 0.3f),
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable(onClick = onMoreClick)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(7.dp))
+
+                    // Content
+                    if (post.poll != null) {
+                        PollMessageComponent(
+                            poll = post.poll,
+                            isMine = false,
+                            onVote = { optionId -> onPollVote(post.poll.id, optionId) }
+                        )
+                    } else if (post.text.isNotBlank()) {
+                        Text(
+                            text = post.text,
+                            fontSize = 15.sp,
+                            color = colorScheme.onSurface,
+                            lineHeight = 23.sp,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Edited label ─────────────────────────────────────────────────────
+        if (post.isEdited) {
+            Text(
+                text = stringResource(R.string.post_edited),
+                fontSize = 11.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.35f),
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                modifier = Modifier.padding(start = 16.dp, top = 2.dp)
+            )
+        }
+
+        // ── Reactions row ─────────────────────────────────────────────────────
+        if (hasReactions) {
+            LazyReactionsRow(
+                reactions = post.reactions ?: emptyList(),
+                onReactionClick = onReactionClick,
+                modifier = Modifier.padding(start = 16.dp, end = 12.dp, top = 6.dp, bottom = 2.dp)
+            )
+        }
+
+        // ── Bottom actions bar ────────────────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 14.dp, end = 8.dp, top = 4.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Reaction button
+            EditorialActionChip(
+                icon = Icons.Outlined.EmojiEmotions,
+                label = if (reactionsCount > 0) formatCountPremium(reactionsCount) else null,
+                isActive = hasReactions,
+                activeColor = colorScheme.primary,
+                onClick = { onReactionClick("👍") }
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            // Comments
+            EditorialActionChip(
+                icon = Icons.Outlined.ChatBubbleOutline,
+                label = if (post.commentsCount > 0) formatCountPremium(post.commentsCount) else null,
+                isActive = false,
+                activeColor = colorScheme.tertiary,
+                onClick = onCommentsClick
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // View count in Orbitron
+            if (post.viewsCount > 0) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    modifier = Modifier.padding(end = 6.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.Visibility,
+                        contentDescription = null,
+                        tint = colorScheme.primary.copy(alpha = 0.45f),
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = formatCountPremium(post.viewsCount),
+                        fontSize = 11.sp,
+                        fontFamily = AppFonts.Orbitron,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary.copy(alpha = 0.5f)
+                    )
+                }
+            }
+            // Share
+            EditorialActionChip(
+                icon = Icons.Outlined.Share,
+                label = null,
+                isActive = false,
+                activeColor = colorScheme.secondary,
+                onClick = onShareClick
+            )
+        }
+
+        // ── Inline keyboard buttons ───────────────────────────────────────────
+        if (hasInlineButtons) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                post.inlineButtons!!.forEach { buttonRow ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        buttonRow.forEach { button ->
+                            TgInlineButton(
+                                button = button,
+                                onClick = { onInlineButtonClick?.invoke(button) },
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
             }
+        }
+
+        // ── Post separator: thin gradient rule (replaces card shadow) ─────────
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .padding(horizontal = 16.dp)
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            colorScheme.primary.copy(alpha = 0.18f),
+                            colorScheme.tertiary.copy(alpha = 0.12f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+    }
+}
+
+// ── Editorial action chip (replaces TgActionButton for premium posts) ─────────
+@Composable
+private fun EditorialActionChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String?,
+    isActive: Boolean,
+    activeColor: Color,
+    onClick: () -> Unit
+) {
+    val color = if (isActive) activeColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, radius = 20.dp),
+                onClick = onClick
+            )
+            .padding(horizontal = 9.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(17.dp))
+        if (label != null) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = color
+            )
         }
     }
 }
