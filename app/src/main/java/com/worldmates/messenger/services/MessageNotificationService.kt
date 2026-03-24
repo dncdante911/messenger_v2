@@ -74,6 +74,11 @@ class MessageNotificationService : Service() {
         var isRunning = false
             private set
 
+        // True when any Activity is visible (started). Set by WMApplication lifecycle callbacks.
+        // When foreground: service skips call notification → ViewModel handles it in-app.
+        // When background: service shows full-screen notification (works on locked screens).
+        @Volatile var isAppInForeground = false
+
         // Які чати зараз відкриті — для них сповіщення не показуємо
         @Volatile var activeRecipientId: Long = 0   // приватний чат
         @Volatile var activeGroupId: Long = 0        // груповий чат
@@ -328,6 +333,13 @@ class MessageNotificationService : Service() {
 
             Log.d(TAG, "📞 Incoming call from $fromName ($fromId), type=$callType")
 
+            // When app is in foreground, CallsViewModel handles the call UI directly —
+            // no notification needed. This prevents the "double ring" problem.
+            if (isAppInForeground) {
+                Log.d(TAG, "📞 App in foreground — skipping notification, ViewModel will handle")
+                return
+            }
+
             val intent = IncomingCallActivity.createIntent(
                 context = this,
                 fromId = fromId,
@@ -368,6 +380,12 @@ class MessageNotificationService : Service() {
             }
 
             Log.d(TAG, "📞 Incoming group call for group $groupId ($groupName) from $initiatorName")
+
+            // When app is in foreground, CallsViewModel handles the call UI directly
+            if (isAppInForeground) {
+                Log.d(TAG, "📞 App in foreground — skipping group call notification, ViewModel will handle")
+                return
+            }
 
             val intent = Intent(this, IncomingGroupCallActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
