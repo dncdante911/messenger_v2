@@ -1,5 +1,8 @@
 // Завантажуємо змінні оточення з .env до будь-яких require (крім вбудованих)
-require('dotenv').config();
+// Use __dirname (not process.cwd()) so the path is always correct regardless
+// of which directory PM2 launches the process from.
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // ── Professional logging via Winston ─────────────────────────────────────────
 // Must be required BEFORE any other module so every subsequent console.*
@@ -18,7 +21,6 @@ const moment = require("moment");
 var fs = require('fs');
 var express = require('express');
 var app = express();
-const path = require('path');
 const compiledTemplates = require('./compiledTemplates/compiledTemplates');
 
 let ctx = {};
@@ -765,20 +767,20 @@ async function main() {
   try {
     const { createAdapter } = require('@socket.io/redis-adapter');
     const { createClient }  = require('redis');
+    const redisHost = process.env.REDIS_HOST || '127.0.0.1';
+    const redisPort = parseInt(process.env.REDIS_PORT) || 6379;
     const redisPass = process.env.REDIS_PASSWORD || '';
+    // Diagnostic: show connection target (never log the password)
+    console.log(`[Redis Adapter] Connecting to ${redisHost}:${redisPort} auth=${redisPass ? 'yes' : 'NO — REDIS_PASSWORD not set'}`);
     const redisOpts = {
       socket: {
-        host: process.env.REDIS_HOST || '127.0.0.1',
-        port: parseInt(process.env.REDIS_PORT) || 6379,
-        // connectTimeout prevents workers hanging forever if Redis is slow/down.
-        // If connect does not complete within 5 s the Promise rejects and we fall
-        // through to the catch block → server starts without the adapter.
-        connectTimeout: 5000,
+        host:               redisHost,
+        port:               redisPort,
         reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
       },
       // Only include password key when a non-empty value is configured.
-      // Passing password:undefined causes the client to send AUTH with an
-      // empty string, which Redis rejects with NOAUTH.
+      // Passing password:'' causes the client to send AUTH with an empty string,
+      // which Redis rejects with WRONGPASS if requirepass is set.
       ...(redisPass ? { password: redisPass } : {}),
     };
     const pubClient = createClient(redisOpts);
@@ -790,14 +792,15 @@ async function main() {
     await Promise.race([
       Promise.all([pubClient.connect(), subClient.connect()]),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Redis connect timeout (5 s)')), 5000)
+        setTimeout(() => reject(new Error('Redis connect timeout (8 s)')), 8000)
       ),
     ]);
     io.adapter(createAdapter(pubClient, subClient));
     console.log('[Redis Adapter] Socket.IO Redis adapter active — cluster/multi-server ready');
   } catch (redisErr) {
     // Non-fatal: server works fine without the adapter (single-process mode).
-    // Fix: set REDIS_PASSWORD in environment if Redis requires authentication.
+    // Most common causes: wrong REDIS_PASSWORD in .env, Redis not running,
+    // or .env file not found (check dotenv path = __dirname/.env).
     console.error('[Redis Adapter] DISABLED — could not connect:', redisErr.message);
   }
   // ─────────────────────────────────────────────────────────────────────────────
