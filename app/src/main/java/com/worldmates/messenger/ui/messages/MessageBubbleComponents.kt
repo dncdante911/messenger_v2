@@ -1,7 +1,12 @@
 package com.worldmates.messenger.ui.messages
 
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -1035,32 +1040,40 @@ fun MessageStatusIcon(
     isRead: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Smooth animated tint: grey when delivered, primary blue when read
-    val tintColor by animateColorAsState(
-        targetValue = if (isRead) Color(0xFF0084FF) else Color(0xFF8E8E93),
+    val readColor = Color(0xFF0084FF)
+    val greyColor = Color(0xFF8E8E93)
+    // First checkmark animates from grey (sent) to blue (read)
+    val firstTint by animateColorAsState(
+        targetValue = if (isRead) readColor else greyColor,
         animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing),
         label = "receipt_tint"
     )
 
     Row(
-        modifier = modifier
-            .shadow(elevation = 1.dp, shape = CircleShape)
-            .background(color = Color.White.copy(alpha = 0.3f), shape = CircleShape)
-            .padding(horizontal = 3.dp, vertical = 1.dp),
-        horizontalArrangement = Arrangement.spacedBy((-6).dp)
+        modifier = modifier.padding(horizontal = 1.dp, vertical = 1.dp),
+        horizontalArrangement = Arrangement.spacedBy((-6).dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        // First checkmark — always visible (sent / read)
         Icon(
             imageVector = Icons.Default.Done,
             contentDescription = if (isRead) stringResource(R.string.message_read) else stringResource(R.string.message_sent),
-            tint = tintColor,
+            tint = firstTint,
             modifier = Modifier.size(16.dp)
         )
-        Icon(
-            imageVector = Icons.Default.Done,
-            contentDescription = if (isRead) stringResource(R.string.message_read) else stringResource(R.string.message_delivered),
-            tint = tintColor,
-            modifier = Modifier.size(16.dp)
-        )
+        // Second checkmark — only appears when message is actually read
+        AnimatedVisibility(
+            visible = isRead,
+            enter = fadeIn(tween(300)) + scaleIn(tween(300), initialScale = 0.6f),
+            exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.6f)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Done,
+                contentDescription = stringResource(R.string.message_read),
+                tint = readColor,
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }
 
