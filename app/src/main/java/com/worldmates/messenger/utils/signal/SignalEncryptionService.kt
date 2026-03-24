@@ -104,80 +104,98 @@ class SignalEncryptionService private constructor(
         recipientId: Long,
         plaintext:   String
     ): SignalOutgoingPayload? = withContext(Dispatchers.Default) {
-        try {
-            var session    = keyStore.loadSession(recipientId)
-            var x3dhHeader: X3DHHeader? = null
+        // ── Serialise all outgoing encryptions for this recipient ─────────────
+        // DR session state is advanced (load → encrypt → save) for every message.
+        // Without a lock, two concurrent sendMessage() coroutines (e.g. rapid
+        // taps or a retry) both call loadSession(), get the SAME session state,
+        // encrypt with the SAME ratchet position (same counter n, same key K),
+        // then both save a state derived from the same starting point.  The
+        // recipient can decrypt the first message but the second produces
+        // AEADBadTagException (key already consumed) → session deleted → all
+        // subsequent messages fail until a new X3DH is performed.
+        // The same senderLocks map is used for decryptIncoming(), keyed by the
+        // remote user ID.  Each device has its own map instance, so a lock for
+        // recipientId=8 on Alice's phone does not interact with the lock for
+        // senderId=8 on Bob's phone.
+        val lock = senderLocks.getOrPut(recipientId) { Mutex() }
+        lock.withLock {
+            try {
+                var session    = keyStore.loadSession(recipientId)
+                var x3dhHeader: X3DHHeader? = null
 
-            // ── Stale session detection ───────────────────────────────────────
-            // If we have a cached session, verify the remote user's identity key
-            // still matches the server. If the remote user reinstalled the app and
-            // the signal:identity_changed socket event was missed (e.g. device
-            // was offline), our session is stale and will produce undecryptable
-            // ciphertext on the recipient side. This check uses a lightweight
-            // endpoint that does NOT consume any one-time pre-key.
-            if (session != null) {
-                val remoteIkB64 = extractRemoteIkB64FromSession(session)
-                val serverIkB64 = fetchRemoteIdentityKey(recipientId)
-                if (serverIkB64 != null && remoteIkB64 != null && serverIkB64 != remoteIkB64) {
-                    Log.w(TAG, "Remote IK changed for $recipientId — clearing stale session and re-keying")
-                    keyStore.deleteSession(recipientId)
-                    session = null
-                    // Fall through to fresh X3DH below
-                }
-            }
-
-            // ── X3DH session establishment ────────────────────────────────────
-            if (session == null) {
-                val bundle = fetchPreKeyBundle(recipientId)
-                    ?: return@withContext null.also {
-                        Log.e(TAG, "No pre-key bundle for user $recipientId")
+                // ── Stale session detection ───────────────────────────────────────
+                // If we have a cached session, verify the remote user's identity key
+                // still matches the server. If the remote user reinstalled the app and
+                // the signal:identity_changed socket event was missed (e.g. device
+                // was offline), our session is stale and will produce undecryptable
+                // ciphertext on the recipient side. This check uses a lightweight
+                // endpoint that does NOT consume any one-time pre-key.
+                if (session != null) {
+                    val remoteIkB64 = extractRemoteIkB64FromSession(session)
+                    val serverIkB64 = fetchRemoteIdentityKey(recipientId)
+                    if (serverIkB64 != null && remoteIkB64 != null && serverIkB64 != remoteIkB64) {
+                        Log.w(TAG, "Remote IK changed for $recipientId — clearing stale session and re-keying")
+                        keyStore.deleteSession(recipientId)
+                        session = null
+                        // Fall through to fresh X3DH below
                     }
+                }
 
-                val ik   = keyStore.getOrCreateIdentityKey()
-                val ekA  = DoubleRatchetManager.generateKeyPair()
+                // ── X3DH session establishment ────────────────────────────────────
+                if (session == null) {
+                    val bundle = fetchPreKeyBundle(recipientId)
+                        ?: return@withLock null.also {
+                            Log.e(TAG, "No pre-key bundle for user $recipientId")
+                        }
 
-                val (sk, ad) = DoubleRatchetManager.x3dhAlice(
-                    ikA     = ik,
-                    ikBPub  = bundle.identityKey,
-                    spkBPub = bundle.signedPreKey,
-                    opkBPub = bundle.oneTimePreKey,
-                    ekA     = ekA
+                    val ik   = keyStore.getOrCreateIdentityKey()
+                    val ekA  = DoubleRatchetManager.generateKeyPair()
+
+                    val (sk, ad) = DoubleRatchetManager.x3dhAlice(
+                        ikA     = ik,
+                        ikBPub  = bundle.identityKey,
+                        spkBPub = bundle.signedPreKey,
+                        opkBPub = bundle.oneTimePreKey,
+                        ekA     = ekA
+                    )
+                    session = DoubleRatchetManager.initAliceSession(
+                        sk           = sk,
+                        ad           = ad,
+                        spkBPub      = bundle.signedPreKey,
+                        remoteUserId = recipientId
+                    )
+                    x3dhHeader = X3DHHeader(
+                        identityKey     = Base64.encodeToString(ik.publicKey,  Base64.NO_WRAP),
+                        ephemeralKey    = Base64.encodeToString(ekA.publicKey, Base64.NO_WRAP),
+                        oneTimePreKeyId = bundle.oneTimePreKeyId
+                    )
+                    Log.i(TAG, "X3DH completed for user $recipientId opk=${bundle.oneTimePreKeyId}")
+                }
+
+                // ── DR encrypt ────────────────────────────────────────────────────
+                val (newSession, encMsg) = DoubleRatchetManager.ratchetEncrypt(
+                    state     = session,
+                    plaintext = plaintext.toByteArray(Charsets.UTF_8)
                 )
-                session = DoubleRatchetManager.initAliceSession(
-                    sk           = sk,
-                    ad           = ad,
-                    spkBPub      = bundle.signedPreKey,
-                    remoteUserId = recipientId
+                keyStore.saveSession(recipientId, newSession)
+
+                // Replenish OPKs quietly in background if running low (outside
+                // the critical section would be ideal, but replenish is idempotent
+                // and does not touch the session for recipientId).
+                if (keyStore.opkCount() < SignalKeyStore.OPK_REPLENISH_LOW) {
+                    replenishOPKsSilently()
+                }
+
+                SignalOutgoingPayload(
+                    ciphertext   = Base64.encodeToString(encMsg.ciphertext, Base64.NO_WRAP),
+                    iv           = Base64.encodeToString(encMsg.iv,         Base64.NO_WRAP),
+                    tag          = Base64.encodeToString(encMsg.tag,        Base64.NO_WRAP),
+                    signalHeader = buildHeaderJson(encMsg.header, x3dhHeader)
                 )
-                x3dhHeader = X3DHHeader(
-                    identityKey     = Base64.encodeToString(ik.publicKey,  Base64.NO_WRAP),
-                    ephemeralKey    = Base64.encodeToString(ekA.publicKey, Base64.NO_WRAP),
-                    oneTimePreKeyId = bundle.oneTimePreKeyId
-                )
-                Log.i(TAG, "X3DH completed for user $recipientId opk=${bundle.oneTimePreKeyId}")
+            } catch (e: Exception) {
+                Log.e(TAG, "encryptForSend error for user $recipientId", e)
+                null
             }
-
-            // ── DR encrypt ────────────────────────────────────────────────────
-            val (newSession, encMsg) = DoubleRatchetManager.ratchetEncrypt(
-                state     = session,
-                plaintext = plaintext.toByteArray(Charsets.UTF_8)
-            )
-            keyStore.saveSession(recipientId, newSession)
-
-            // Replenish OPKs quietly in background if running low
-            if (keyStore.opkCount() < SignalKeyStore.OPK_REPLENISH_LOW) {
-                replenishOPKsSilently()
-            }
-
-            SignalOutgoingPayload(
-                ciphertext   = Base64.encodeToString(encMsg.ciphertext, Base64.NO_WRAP),
-                iv           = Base64.encodeToString(encMsg.iv,         Base64.NO_WRAP),
-                tag          = Base64.encodeToString(encMsg.tag,        Base64.NO_WRAP),
-                signalHeader = buildHeaderJson(encMsg.header, x3dhHeader)
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "encryptForSend error for user $recipientId", e)
-            null
         }
     }
 
