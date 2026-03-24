@@ -112,7 +112,15 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     private var isInitiator = false
     private var pendingCallInitiation: (() -> Unit)? = null  // ✅ Очікуючий вихідний виклик
     private var pendingCallAcceptance: (() -> Unit)? = null  // ✅ Очікуюче прийняття вхідного виклику
-    private var callListenersSetUp = false  // guard against duplicate socket listeners on reconnect
+    private var callListenersSetUp = false      // guard against duplicate socket listeners on reconnect
+    private var callFullyEstablished = false    // true once ICE reaches CONNECTED; gates renegotiation
+
+    companion object {
+        // Class-level set of roomNames currently showing an IncomingCallActivity.
+        // Prevents two CallsViewModel instances (e.g. ChatsActivity + IncomingCallActivity)
+        // from each launching a second instance of IncomingCallActivity for the same room.
+        private val pendingIncomingRooms = java.util.concurrent.CopyOnWriteArraySet<String>()
+    }
 
     // Вспомогательная карта: userId → info участника (для обновления состояния)
     private val groupParticipantInfoMap = mutableMapOf<Long, GroupCallParticipant>()
@@ -739,13 +747,19 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
         webRTCManager.onIceConnectionStateChangeListener = { state ->
             Log.d("CallsViewModel", "ICE Connection State: $state")
+            if (state == PeerConnection.IceConnectionState.CONNECTED ||
+                state == PeerConnection.IceConnectionState.COMPLETED) {
+                callFullyEstablished = true
+            }
         }
 
-        // ✅ Обработка renegotiation когда добавляется/удаляется track
+        // ✅ Renegotiation (добавление/удаление треков во время активного звонка).
+        // Намеренно NOT вызываем до полного установления ICE, иначе первый onRenegotiationNeeded,
+        // который браузерный WebRTC вызывает сразу после addTrack() на стороне callee
+        // (пока signaling state ещё STABLE после ответа), создаёт лишний offer и ломает хендшейк.
         webRTCManager.onRenegotiationNeededListener = {
-            Log.d("CallsViewModel", "🔄 Renegotiation needed - creating new offer")
-            // Только если мы инициатор или уже в звонке
-            if (currentCallData != null) {
+            Log.d("CallsViewModel", "🔄 Renegotiation needed (established=$callFullyEstablished)")
+            if (currentCallData != null && callFullyEstablished) {
                 performRenegotiation()
             }
         }
@@ -1079,6 +1093,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
      */
     fun acceptCall(callData: CallData) {
         Log.d("CallsViewModel", "📞 acceptCall() called for room: ${callData.roomName}")
+        pendingIncomingRooms.remove(callData.roomName)
 
         val acceptLogic: () -> Unit = {
             // 🔊 CRITICAL: Setup audio for calls BEFORE creating WebRTC connection
@@ -1172,6 +1187,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
      * Отклонить вызов
      */
     fun rejectCall(roomName: String) {
+        pendingIncomingRooms.remove(roomName)
         // ✅ Використовуємо org.json.JSONObject для Socket.IO
         val rejectEvent = JSONObject().apply {
             put("roomName", roomName)
@@ -1208,6 +1224,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         // 🔊 Release audio after call ends
         releaseCallAudio()
 
+        callFullyEstablished = false
         callEnded.postValue(true)
         currentCallData = null
     }
@@ -1533,8 +1550,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 return
             }
 
-            if (currentCallData?.roomName == roomName) {
-                Log.d("CallsViewModel", "⚠️ Игнорируем дубликат входящего звонка для комнаты: $roomName")
+            if (currentCallData?.roomName == roomName || !pendingIncomingRooms.add(roomName)) {
+                Log.d("CallsViewModel", "⚠️ Ignoring duplicate incoming call for room: $roomName")
                 return
             }
 
@@ -1547,6 +1564,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
             }
             if (callData.roomName.isEmpty()) {
                 Log.e("CallsViewModel", "❌ Room name is empty, ignoring call")
+                pendingIncomingRooms.remove(roomName)
                 return
             }
 
@@ -1554,19 +1572,27 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
             Log.d("CallsViewModel", "📞 Incoming call from ${callData.fromName}")
 
-            // Запуск Activity через контекст приложения
-            val intent = IncomingCallActivity.createIntent(
-                context = getApplication(),
-                fromId = callData.fromId,
-                fromName = callData.fromName,
-                fromAvatar = callData.fromAvatar,
-                callType = callData.callType,
-                roomName = callData.roomName,
-                sdpOffer = callData.sdpOffer
-            ).apply {
-                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            // Launch IncomingCallActivity only when MessageNotificationService is NOT running.
+            // When the service is alive it handles the launch (with a full-screen notification
+            // that works on locked screens too). The ViewModel is a fallback for the case where
+            // the service has been killed by battery optimization.
+            if (!com.worldmates.messenger.services.MessageNotificationService.isRunning) {
+                val intent = IncomingCallActivity.createIntent(
+                    context = getApplication(),
+                    fromId = callData.fromId,
+                    fromName = callData.fromName,
+                    fromAvatar = callData.fromAvatar,
+                    callType = callData.callType,
+                    roomName = callData.roomName,
+                    sdpOffer = callData.sdpOffer
+                ).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                getApplication<Application>().startActivity(intent)
+                Log.d("CallsViewModel", "📞 Launched IncomingCallActivity (service not running)")
+            } else {
+                Log.d("CallsViewModel", "📞 Skipping startActivity — MessageNotificationService will handle it")
             }
-            getApplication<Application>().startActivity(intent)
 
         } catch (e: Exception) {
             Log.e("CallsViewModel", "🔥 Error parsing incoming call safely: ${e.message}")
