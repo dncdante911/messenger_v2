@@ -366,7 +366,7 @@ fun PremiumChannelHeader(
 
             // Stats row — numbers in Orbitron, labels in default font
             Row(
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PremiumBannerStat(
@@ -389,6 +389,8 @@ fun PremiumChannelHeader(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = colorScheme.onPrimaryContainer,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
@@ -445,7 +447,9 @@ private fun PremiumBannerStat(
         Text(
             text = label,
             fontSize = 11.sp,
-            color = colorScheme.onSurface.copy(alpha = 0.5f)
+            color = colorScheme.onSurface.copy(alpha = 0.5f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
