@@ -1959,11 +1959,19 @@ class MessagesViewModel(application: Application) :
     /**
      * Decrypt a list of messages sequentially.
      * Must be called from a coroutine context (suspend).
+     *
+     * Signal Double Ratchet requires messages to be decrypted in chronological
+     * order (ascending ID). The server typically returns messages in DESC order,
+     * so we sort ascending before decryption to ensure the X3DH init message
+     * (which contains "ik"/"ek" fields) is always processed before the DR-only
+     * messages that depend on the session it establishes.
+     * After decryption we restore the original server order.
      */
     private suspend fun List<Message>.decryptAll(): List<Message> {
-        val result = ArrayList<Message>(size)
-        for (msg in this) result.add(decryptMessageFully(msg))
-        return result
+        val ascendingOrder = sortedBy { it.id }
+        val decryptedById = HashMap<Long, Message>(size)
+        for (msg in ascendingOrder) decryptedById[msg.id] = decryptMessageFully(msg)
+        return map { decryptedById[it.id] ?: it }
     }
 
     /**
