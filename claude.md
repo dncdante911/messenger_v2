@@ -103,3 +103,50 @@
 * **Внешние каналы:** На всякий случай вот внешние ип 195.22.131.11 и 46.232.232.38
 
 **Твоя задача (Claude):** Не выдумывай IP-адреса и порты. При генерации кода, особенно блоков подключения к БД, Redis, WebSocket-серверам или WebRTC, используй исключительно данные из этого списка.
+
+---
+
+## ⛔ ЗОНА ПОВЫШЕННОЙ ОПАСНОСТИ — Signal Double Ratchet (НЕ ТРОГАТЬ без явного запроса)
+
+### Файлы под защитой:
+```
+app/src/main/java/com/worldmates/messenger/utils/signal/
+  ├── SignalEncryptionService.kt   ← КРИТИЧНО
+  ├── SignalKeyStore.kt            ← КРИТИЧНО
+  ├── DoubleRatchetManager.kt      ← КРИТИЧНО
+  └── (все остальные в этой папке)
+
+app/src/main/java/com/worldmates/messenger/ui/messages/MessagesViewModel.kt
+  └── методы: encryptForSend, decryptSignalMessage, onNewMessage, sendMessage (блок Signal)
+```
+
+### Почему это опасно:
+Signal Double Ratchet — это криптографический протокол, где **каждый ключ одноразовый и необратимый**.
+Одна неверная правка в порядке операций → `AEADBadTagException` у получателя → сессия сломана → все последующие сообщения нечитаемы. Восстановление требует форс-реки X3DH с обоих устройств.
+
+### Что было исправлено (история багов — не повторять):
+
+**Баг 1 — Race condition в encryptForSend (ИСПРАВЛЕНО):**
+`encryptForSend` не имел mutex-а. Два coroutine при быстрой отправке загружали одно состояние сессии → оба шифровали с одинаковым ключом → `AEADBadTagException` у получателя.
+**Фикс:** весь блок `loadSession → ratchetEncrypt → saveSession` обёрнут в `senderLocks[recipientId].withLock { }`.
+
+**Баг 2 — Socket echo перезаписывал правильный plaintext (ИСПРАВЛЕНО):**
+Сервер шлёт `new_message { self: true }` через WebSocket ДО HTTP-ответа. Socket-событие приходило первым, кеш ещё пуст, отправитель видел "зашифрованное сообщение". Потом HTTP-ответ приходил, но `if (!curr.any { it.id == id })` пропускал обновление.
+**Фикс 1:** в `onNewMessage()` — ранний return если `self: true` && `cipher_version=3`.
+**Фикс 2:** в `sendMessage()` — upsert вместо insert-if-absent.
+
+### Правила для Claude при работе с этими файлами:
+
+1. **НЕ** рефакторить, упрощать или "улучшать" структуру без явного запроса — каждое изменение порядка операций ломает DR цепочку.
+2. **НЕ** убирать mutex-ы (`senderLocks`) — они критически важны для сериализации `load→encrypt/decrypt→save`.
+3. **НЕ** менять порядок: `loadSession → encrypt → saveSession` или `cache check → decrypt → saveSession → cacheDecryptedMessage`.
+4. **НЕ** переносить cache check из-под lock в `decryptIncoming` наружу — он там намеренно.
+5. **НЕ** менять `SharedPreferences.commit()` на `apply()` в SignalKeyStore — нужна синхронная запись.
+6. Перед любым изменением — спросить у пользователя подтверждение.
+
+### Допустимые изменения (без риска):
+- Логирование (добавить `Log.d(...)`) — безопасно
+- Изменение порога `OPK_REPLENISH_LOW` — безопасно
+- `MAX_SKIP` в DoubleRatchetManager — осторожно, но допустимо
+- UI-отображение зашифрованного fallback-текста — безопасно
+
