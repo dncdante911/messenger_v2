@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -71,8 +73,13 @@ fun MessagesHeaderBar(
     val colorScheme = MaterialTheme.colorScheme
     var showUserMenu by remember { mutableStateOf(false) }
 
-    // Telegram-style AppBar - четкий и читаемый
+    // Telegram-style AppBar - with subtle depth shadow
     TopAppBar(
+        modifier = Modifier.shadow(
+            elevation = 6.dp,
+            spotColor = colorScheme.primary.copy(alpha = 0.18f),
+            ambientColor = colorScheme.primary.copy(alpha = 0.06f)
+        ),
         title = {
             // 🔥 В режимі вибору показуємо кількість вибраних
             if (isSelectionMode) {
@@ -89,35 +96,59 @@ fun MessagesHeaderBar(
                         .fillMaxHeight()
                         .clickable { onUserProfileClick() }
                 ) {
-                    // Avatar with online status dot
+                    // Avatar with gradient ring for active status + glowing dot
                     if (recipientAvatar.isNotEmpty()) {
-                        Box {
+                        val isActive = presenceStatus is UserPresenceStatus.Online ||
+                            presenceStatus is UserPresenceStatus.Typing ||
+                            presenceStatus is UserPresenceStatus.GroupTyping ||
+                            presenceStatus is UserPresenceStatus.RecordingVoice ||
+                            presenceStatus is UserPresenceStatus.RecordingVideo ||
+                            presenceStatus is UserPresenceStatus.ListeningAudio ||
+                            presenceStatus is UserPresenceStatus.ViewingMedia ||
+                            presenceStatus is UserPresenceStatus.ChoosingSticker
+                        val dotColor = if (isActive) Color(0xFF4CAF50) else Color(0xFF9E9E9E)
+
+                        Box(modifier = Modifier.size(44.dp)) {
+                            // Gradient ring shown only when active
+                            if (isActive) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                        .background(
+                                            Brush.sweepGradient(
+                                                colors = listOf(
+                                                    Color(0xFF4CAF50),
+                                                    Color(0xFF69F0AE),
+                                                    Color(0xFF00E676),
+                                                    Color(0xFF4CAF50)
+                                                )
+                                            )
+                                        )
+                                )
+                            }
                             AsyncImage(
                                 model = recipientAvatar,
                                 contentDescription = recipientName,
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape),
+                                    .size(if (isActive) 39.dp else 40.dp)
+                                    .clip(CircleShape)
+                                    .align(Alignment.Center),
                                 contentScale = ContentScale.Crop
                             )
-                            val dotColor = when (presenceStatus) {
-                                is UserPresenceStatus.Online,
-                                is UserPresenceStatus.Typing,
-                                is UserPresenceStatus.GroupTyping,
-                                is UserPresenceStatus.RecordingVoice,
-                                is UserPresenceStatus.RecordingVideo,
-                                is UserPresenceStatus.ListeningAudio,
-                                is UserPresenceStatus.ViewingMedia,
-                                is UserPresenceStatus.ChoosingSticker -> Color(0xFF4CAF50)
-                                else -> Color.Gray
-                            }
+                            // Glowing status dot
                             Box(
                                 modifier = Modifier
-                                    .size(12.dp)
+                                    .size(13.dp)
                                     .align(Alignment.BottomEnd)
+                                    .shadow(
+                                        elevation = if (isActive) 4.dp else 0.dp,
+                                        shape = CircleShape,
+                                        spotColor = dotColor.copy(alpha = 0.7f)
+                                    )
                                     .clip(CircleShape)
                                     .background(dotColor)
-                                    .border(2.dp, Color.White, CircleShape)
+                                    .border(2.dp, colorScheme.primary, CircleShape)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
