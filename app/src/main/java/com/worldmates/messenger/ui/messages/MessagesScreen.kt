@@ -2038,12 +2038,16 @@ private fun chatIsSameDay(ts1: Long, ts2: Long): Boolean {
 
 /**
  * Frosted-glass pill shown between groups of messages from different days.
- * Appears centered in the chat stream: "Сьогодні", "Вчора", "12 березня", etc.
+ * Uses R.string.today / R.string.yesterday so both RU and UK locales work.
  */
 @Composable
 private fun FloatingDateChip(timestamp: Long) {
     val colorScheme = MaterialTheme.colorScheme
-    val label = remember(timestamp) {
+    // Resolve locale-aware strings outside remember (stringResource is @Composable)
+    val todayStr     = stringResource(R.string.today)
+    val yesterdayStr = stringResource(R.string.yesterday)
+
+    val label = remember(timestamp, todayStr, yesterdayStr) {
         val ms = normChatTs(timestamp)
         val msgCal = Calendar.getInstance().apply {
             timeInMillis = ms
@@ -2056,8 +2060,8 @@ private fun FloatingDateChip(timestamp: Long) {
         }
         val yesterday = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }
         when (msgCal.timeInMillis) {
-            today.timeInMillis     -> "Сьогодні"
-            yesterday.timeInMillis -> "Вчора"
+            today.timeInMillis     -> todayStr
+            yesterday.timeInMillis -> yesterdayStr
             else -> {
                 val pattern = if (msgCal.get(Calendar.YEAR) == today.get(Calendar.YEAR))
                     "d MMMM" else "d MMMM yyyy"
