@@ -377,7 +377,10 @@ function sendMessage(ctx, io) {
             const msgData = await buildMessage(ctx, row.toJSON ? row.toJSON() : row, userId);
 
             // Real-time доставка через Socket.IO
-            io.to(String(recipientId)).emit('new_message',     msgData);
+            // Emit only ONE event per recipient — previously both 'new_message' and
+            // 'private_message' were emitted, causing the Android client to call
+            // decryptIncoming() twice concurrently for the same E2EE message,
+            // which could corrupt the Double Ratchet chain state.
             io.to(String(recipientId)).emit('private_message', msgData);
             io.to(String(userId)).emit('new_message', { ...msgData, self: true });
 
@@ -714,7 +717,6 @@ function notifyMediaMessage(ctx, io) {
 
             if (msg) {
                 const msgData = await buildMessage(ctx, msg, userId);
-                io.to(String(recipientId)).emit('new_message',     msgData);
                 io.to(String(recipientId)).emit('private_message', msgData);
                 io.to(String(userId)).emit('new_message', { ...msgData, self: true });
                 console.log(`[Node/chat/notify-media] ${userId} -> ${recipientId} msg=${msg.id}`);
@@ -844,7 +846,6 @@ function sendMediaMessage(ctx, io) {
                 const msgData = await buildMessage(ctx, row.toJSON ? row.toJSON() : row, userId);
 
                 // Real-time delivery via Socket.IO
-                io.to(String(recipientId)).emit('new_message',     msgData);
                 io.to(String(recipientId)).emit('private_message', msgData);
                 io.to(String(userId)).emit('new_message', { ...msgData, self: true });
 

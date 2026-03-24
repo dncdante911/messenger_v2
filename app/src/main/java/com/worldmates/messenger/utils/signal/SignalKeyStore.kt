@@ -227,7 +227,12 @@ class SignalKeyStore(private val context: Context) {
     /** Persist a DR session state for a remote user. */
     @Synchronized
     fun saveSession(remoteUserId: Long, session: SessionState) {
-        prefs.edit().putString(sessionKey(remoteUserId), gson.toJson(session)).apply()
+        // commit() (synchronous) instead of apply() (async background write):
+        // DR chain state must be on-disk before the lock is released — a second
+        // concurrent decryption that reads the session after apply() but before
+        // the async write flushes would re-advance the same ratchet step and
+        // corrupt all subsequent message keys.
+        prefs.edit().putString(sessionKey(remoteUserId), gson.toJson(session)).commit()
     }
 
     /** Load DR session state for a remote user. Returns null if not found. */
