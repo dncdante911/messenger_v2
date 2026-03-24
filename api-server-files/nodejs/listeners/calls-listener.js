@@ -1,15 +1,63 @@
 /**
  * WebRTC Calls Listener для WorldMates Messenger
- * Интегрируется в существующий Node.js проект
  *
- * Использует:
- * - Sequelize модели из ctx
- * - Существующие структуры ctx (userIdSocket, socketIdUserHash и т.д.)
- * - Паттерн registerListeners(socket, io, ctx)
+ * ✅ CLUSTER-SAFE: Все emit() идут через io.to(String(userId)) вместо
+ * ctx.userIdSocket[userId], что работает через Redis adapter между воркерами.
+ * JoinController уже помещает каждый сокет в room = String(user_id).
  */
 
-// Импорт TURN credentials helper
 const turnHelper = require('../helpers/turn-credentials');
+const { createClient } = require('redis');
+
+// ── Redis client для буфера ICE кандидатов (cluster-safe) ────────────────
+// ctx.iceCandidateBuffer был Map в памяти — не расшарен между PM2 воркерами.
+// Redis хранит JSON-массив с TTL 120 сек (звонок должен быть принят за это время).
+let _redis = null;
+async function getRedis() {
+    if (_redis && _redis.isOpen) return _redis;
+    try {
+        const redisPass = process.env.REDIS_PASSWORD || '';
+        _redis = createClient({
+            socket: {
+                host: process.env.REDIS_HOST || '127.0.0.1',
+                port: parseInt(process.env.REDIS_PORT) || 6379,
+                connectTimeout: 3000,
+                reconnectStrategy: (retries) => Math.min(retries * 200, 5000),
+            },
+            ...(redisPass ? { password: redisPass } : {}),
+        });
+        _redis.on('error', () => {}); // suppress unhandled errors
+        await _redis.connect();
+    } catch { _redis = null; }
+    return _redis;
+}
+
+const ICE_BUFFER_TTL = 120; // seconds
+async function bufferIceCandidate(roomName, candidateData) {
+    try {
+        const r = await getRedis();
+        if (!r) return;
+        const key = `ice_buf:${roomName}`;
+        await r.rPush(key, JSON.stringify(candidateData));
+        await r.expire(key, ICE_BUFFER_TTL);
+    } catch { /* non-fatal */ }
+}
+async function getBufferedIceCandidates(roomName) {
+    try {
+        const r = await getRedis();
+        if (!r) return [];
+        const key = `ice_buf:${roomName}`;
+        const items = await r.lRange(key, 0, -1);
+        await r.del(key);
+        return items.map(i => JSON.parse(i));
+    } catch { return []; }
+}
+async function clearIceBuffer(roomName) {
+    try {
+        const r = await getRedis();
+        if (r) await r.del(`ice_buf:${roomName}`);
+    } catch { /* non-fatal */ }
+}
 
 /**
  * Регистрация обработчиков звонков
@@ -19,31 +67,19 @@ const turnHelper = require('../helpers/turn-credentials');
  */
 async function registerCallsListeners(socket, io, ctx) {
 
-    // Хранилище активных звонков (можно добавить в ctx если нужно)
+    // Хранилище активных звонков
     if (!ctx.activeCalls) {
-        ctx.activeCalls = new Map(); // roomName -> { initiator, recipient, callType }
+        ctx.activeCalls = new Map();
     }
 
-    // ===== Хранилище участников групповых звонков =====
-    // roomName -> Map<userId, { userName, userAvatar }>
+    // Хранилище участников групповых звонков
     if (!ctx.activeGroupCalls) {
         ctx.activeGroupCalls = new Map();
     }
 
-    // ===== Шумоподавление: состояние по комнате =====
-    // roomName -> Map<userId, boolean>  (true = включено)
+    // Шумоподавление: состояние по комнате
     if (!ctx.noiseCancellationState) {
         ctx.noiseCancellationState = new Map();
-    }
-
-    // ===== Буфер ICE кандидатов =====
-    // Проблема: вызывающий начинает собирать ICE кандидаты сразу после offer,
-    // но получатель ещё не принял звонок и не создал PeerConnection.
-    // Кандидаты пересылаются на сокет MessageNotificationService, который их не обрабатывает.
-    // Решение: буферизируем кандидаты и отдаём при call:accept.
-    // roomName -> { fromCaller: [...candidates], fromReceiver: [...candidates] }
-    if (!ctx.iceCandidateBuffer) {
-        ctx.iceCandidateBuffer = new Map();
     }
 
     /**
@@ -54,15 +90,17 @@ async function registerCallsListeners(socket, io, ctx) {
         const userId = data.userId || data.user_id;
         console.log(`[CALLS] 📝 User registered for calls: ${userId}, socket: ${socket.id}`);
 
-        // Добавить в существующую структуру если нужно
+        // ✅ Join user room (cluster-safe via Redis adapter).
+        // JoinController usually does this, but call:register may fire
+        // before join (e.g. from MessageNotificationService).
+        socket.join(String(userId));
+
+        // Local userIdSocket for backward compat with non-call code
         if (!ctx.userIdSocket[userId]) {
             ctx.userIdSocket[userId] = [];
         }
         if (!ctx.userIdSocket[userId].includes(socket)) {
             ctx.userIdSocket[userId].push(socket);
-            console.log(`[CALLS] ✅ Added socket to user ${userId}, total sockets: ${ctx.userIdSocket[userId].length}`);
-        } else {
-            console.log(`[CALLS] ⚠️ Socket already registered for user ${userId}`);
         }
     });
 
@@ -148,24 +186,17 @@ async function registerCallsListeners(socket, io, ctx) {
                     avatar: initiator?.avatar
                 });
 
-                // Найти сокеты получателя (фильтруем отключённые, чтобы не потерять звонок в стале)
-                const allRecipientSockets = ctx.userIdSocket[toId] || [];
-                const recipientSockets = allRecipientSockets.filter(s => s.connected);
+                // ✅ CLUSTER-SAFE: Используем io.to(room) вместо ctx.userIdSocket.
+                // Redis adapter маршрутизирует emit между воркерами PM2.
+                // Проверяем есть ли получатель в online через fetchSockets().
+                const recipientRoom = String(toId);
+                const recipientSids = await io.in(recipientRoom).fetchSockets();
 
-                // Очищаем устаревшие (disconnected) сокеты из карты
-                if (recipientSockets.length !== allRecipientSockets.length) {
-                    ctx.userIdSocket[toId] = recipientSockets;
-                    if (recipientSockets.length === 0) delete ctx.userIdSocket[toId];
-                    console.log(`[CALLS] 🧹 Removed ${allRecipientSockets.length - recipientSockets.length} stale socket(s) for user ${toId}`);
-                }
+                console.log(`[CALLS] 🔍 Looking for recipient ${toId}, found: ${recipientSids.length} socket(s) via room`);
 
-                console.log(`[CALLS] 🔍 Looking for recipient ${toId}, found: ${recipientSockets.length} active socket(s) (${allRecipientSockets.length} total)`);
-
-                if (recipientSockets.length > 0) {
-                    // Получить ICE servers с TURN credentials для получателя
+                if (recipientSids.length > 0) {
                     const iceServers = turnHelper.getIceServers(toId);
 
-                    // ✅ Формируем имя с проверками
                     let fromName = 'Unknown';
                     if (initiator) {
                         const firstName = initiator.first_name || '';
@@ -173,7 +204,6 @@ async function registerCallsListeners(socket, io, ctx) {
                         fromName = `${firstName} ${lastName}`.trim() || 'Unknown';
                     }
 
-                    // Отправить уведомление о входящем звонке на все устройства
                     const callData = {
                         fromId: fromId,
                         fromName: fromName,
@@ -181,20 +211,13 @@ async function registerCallsListeners(socket, io, ctx) {
                         callType: callType,
                         roomName: roomName,
                         sdpOffer: sdpOffer,
-                        iceServers: iceServers  // ✅ Добавлены TURN credentials
+                        iceServers: iceServers
                     };
 
-                    // ✅ DEBUG: Логируем что отправляем
-                    console.log(`[CALLS] 📤 Sending call:incoming with fromName="${fromName}", fromId=${fromId}, toId=${toId}`);
-
-                    recipientSockets.forEach(recipientSocket => {
-                        recipientSocket.emit('call:incoming', callData);
-                    });
-
-                    console.log(`[CALLS] Incoming call sent to user ${toId} with TURN credentials (${recipientSockets.length} devices)`);
+                    console.log(`[CALLS] 📤 Sending call:incoming to user ${toId} (${recipientSids.length} sockets)`);
+                    io.to(recipientRoom).emit('call:incoming', callData);
 
                 } else {
-                    // Получатель оффлайн
                     await ctx.wo_calls.update(
                         { status: 'missed' },
                         { where: { room_name: roomName } }
@@ -285,32 +308,25 @@ async function registerCallsListeners(socket, io, ctx) {
                 socket.join(roomName);
                 console.log(`[CALLS] 👥 Initiator ${fromId} joined room ${roomName}`);
 
-                // Отправить всем участникам кроме инициатора
-                members.forEach(member => {
+                // ✅ CLUSTER-SAFE: отправить всем участникам кроме инициатора
+                for (const member of members) {
                     if (member.user_id !== fromId) {
-                        const memberSockets = ctx.userIdSocket[member.user_id];
-                        if (memberSockets && memberSockets.length > 0) {
-                            // Получить ICE servers для каждого участника
-                            const iceServers = turnHelper.getIceServers(member.user_id);
-
-                            const callData = {
-                                groupId: groupId,
-                                initiatedBy: fromId,
-                                initiatorName: initiatorName,
-                                callType: callType,
-                                roomName: roomName,
-                                sdpOffer: sdpOffer,
-                                iceServers: iceServers,
-                                maxParticipants: maxParticipants,
-                                isPremiumCall: isPro
-                            };
-
-                            memberSockets.forEach(memberSocket => {
-                                memberSocket.emit('group_call:incoming', callData);
-                            });
-                        }
+                        const iceServers = turnHelper.getIceServers(member.user_id);
+                        const callData = {
+                            groupId: groupId,
+                            initiatedBy: fromId,
+                            initiatorName: initiatorName,
+                            initiatorAvatar: initiatorAvatar,
+                            callType: callType,
+                            roomName: roomName,
+                            sdpOffer: sdpOffer,
+                            iceServers: iceServers,
+                            maxParticipants: maxParticipants,
+                            isPremiumCall: isPro
+                        };
+                        io.to(String(member.user_id)).emit('group_call:incoming', callData);
                     }
-                });
+                }
 
                 // ── Send a system message to the group so members see a call card in chat ──
                 try {
@@ -389,48 +405,32 @@ async function registerCallsListeners(socket, io, ctx) {
 
             if (callInfo) {
                 const initiatorId = callInfo.from_id;
-                const initiatorSockets = ctx.userIdSocket[initiatorId];
+                const iceServers = turnHelper.getIceServers(initiatorId);
 
-                if (initiatorSockets && initiatorSockets.length > 0) {
-                    // Получить ICE servers с TURN credentials для инициатора
-                    const iceServers = turnHelper.getIceServers(initiatorId);
+                // ✅ CLUSTER-SAFE: отправить SDP answer через io.to(room)
+                io.to(String(initiatorId)).emit('call:answer', {
+                    roomName: roomName,
+                    sdpAnswer: sdpAnswer,
+                    acceptedBy: userId,
+                    iceServers: iceServers
+                });
+                console.log(`[CALLS] Answer sent to initiator ${initiatorId} with TURN credentials`);
 
-                    // Отправить SDP answer инициатору
-                    const answerData = {
-                        roomName: roomName,
-                        sdpAnswer: sdpAnswer,
-                        acceptedBy: userId,
-                        iceServers: iceServers  // ✅ Добавлены TURN credentials
-                    };
-
-                    initiatorSockets.forEach(initiatorSocket => {
-                        initiatorSocket.emit('call:answer', answerData);
-                    });
-
-                    console.log(`[CALLS] Answer sent to initiator ${initiatorId} with TURN credentials`);
-                }
-
-                // ✅ CRITICAL: Доставить буферизированные ICE кандидаты.
-                // Вызывающий начинает собирать ICE кандидаты сразу после offer,
-                // но получатель ещё не имел PeerConnection — кандидаты были потеряны.
-                // Теперь отправляем все буферизированные кандидаты получателю (acceptor).
-                const bufferedCandidates = ctx.iceCandidateBuffer?.get(roomName) || [];
+                // ✅ CLUSTER-SAFE: доставить буферизированные ICE кандидаты из Redis
+                const bufferedCandidates = await getBufferedIceCandidates(roomName);
                 if (bufferedCandidates.length > 0) {
                     console.log(`[CALLS] 📦 Delivering ${bufferedCandidates.length} buffered ICE candidates for room ${roomName}`);
-                    bufferedCandidates.forEach(candidateData => {
-                        // Отправить кандидаты ОТ вызывающего получателю (acceptor)
+                    for (const candidateData of bufferedCandidates) {
                         if (String(candidateData.fromUserId) === String(initiatorId)) {
+                            // Кандидаты caller'а → receiver'у (через сокет который вызвал accept)
                             socket.emit('ice:candidate', candidateData);
                         }
-                        // И кандидаты ОТ получателя вызывающему (initiator)
                         if (String(candidateData.fromUserId) === String(userId)) {
-                            const initiatorSocks = ctx.userIdSocket[initiatorId] || [];
-                            initiatorSocks.forEach(s => s.emit('ice:candidate', candidateData));
+                            // Кандидаты receiver'а → caller'у
+                            io.to(String(initiatorId)).emit('ice:candidate', candidateData);
                         }
-                    });
+                    }
                 }
-                // Очистить буфер для этой комнаты
-                ctx.iceCandidateBuffer?.delete(roomName);
             }
 
         } catch (error) {
@@ -448,41 +448,17 @@ async function registerCallsListeners(socket, io, ctx) {
             const { roomName, toUserId, fromUserId, candidate, sdpMLineIndex, sdpMid } = data;
 
             const candidateData = {
-                roomName: roomName,
-                fromUserId: fromUserId,
-                candidate: candidate,
-                sdpMLineIndex: sdpMLineIndex,
-                sdpMid: sdpMid
+                roomName, fromUserId, candidate, sdpMLineIndex, sdpMid
             };
 
             if (toUserId) {
-                // ✅ Буферизируем кандидат для 1-на-1 звонков.
-                // Получатель может ещё не иметь PeerConnection (не принял звонок).
-                // Кандидаты будут отданы при call:accept.
-                if (roomName && ctx.iceCandidateBuffer) {
-                    if (!ctx.iceCandidateBuffer.has(roomName)) {
-                        ctx.iceCandidateBuffer.set(roomName, []);
-                    }
-                    ctx.iceCandidateBuffer.get(roomName).push(candidateData);
-                }
-
-                // Также пытаемся доставить сразу — если PeerConnection уже есть, кандидат дойдёт
-                const recipientSockets = ctx.userIdSocket[toUserId];
-                if (recipientSockets && recipientSockets.length > 0) {
-                    recipientSockets.forEach(recipientSocket => {
-                        recipientSocket.emit('ice:candidate', candidateData);
-                    });
-                }
+                // Буферизируем в Redis (cluster-safe) + пытаемся доставить сразу
+                if (roomName) bufferIceCandidate(roomName, candidateData);
+                io.to(String(toUserId)).emit('ice:candidate', candidateData);
             } else {
-                // Broadcast в комнату (для групповых звонков)
-                socket.to(roomName).emit('ice:candidate', {
-                    fromUserId: fromUserId,
-                    candidate: candidate,
-                    sdpMLineIndex: sdpMLineIndex,
-                    sdpMid: sdpMid
-                });
+                // Broadcast в комнату (групповые звонки)
+                socket.to(roomName).emit('ice:candidate', candidateData);
             }
-
         } catch (error) {
             console.error('[CALLS] Error in ice:candidate:', error);
         }
@@ -504,8 +480,8 @@ async function registerCallsListeners(socket, io, ctx) {
 
             console.log(`[CALLS] Call ended: ${roomName} by ${userId} (${reason})`);
 
-            // Очистить буфер ICE кандидатов
-            ctx.iceCandidateBuffer?.delete(roomName);
+            // Очистить буфер ICE кандидатов в Redis
+            clearIceBuffer(roomName);
 
             // Обновить в БД
             const call = await ctx.wo_calls.findOne({
@@ -529,20 +505,11 @@ async function registerCallsListeners(socket, io, ctx) {
                     { where: { room_name: roomName } }
                 );
 
-                // Оповестить обоих участников
-                const participants = [call.from_id, call.to_id];
-                participants.forEach(participantId => {
-                    if (participantId !== userId) {
-                        const participantSockets = ctx.userIdSocket[participantId];
-                        if (participantSockets && participantSockets.length > 0) {
-                            participantSockets.forEach(participantSocket => {
-                                participantSocket.emit('call:ended', {
-                                    roomName: roomName,
-                                    reason: reason,
-                                    endedBy: userId
-                                });
-                            });
-                        }
+                // ✅ CLUSTER-SAFE: оповестить обоих участников
+                const endPayload = { roomName, reason, endedBy: userId };
+                [call.from_id, call.to_id].forEach(pid => {
+                    if (pid !== userId) {
+                        io.to(String(pid)).emit('call:ended', endPayload);
                     }
                 });
             }
@@ -583,19 +550,13 @@ async function registerCallsListeners(socket, io, ctx) {
             });
 
             if (call) {
-                // Уведомить инициатора
-                const initiatorSockets = ctx.userIdSocket[call.from_id];
-                if (initiatorSockets && initiatorSockets.length > 0) {
-                    initiatorSockets.forEach(initiatorSocket => {
-                        initiatorSocket.emit('call:rejected', {
-                            roomName: roomName,
-                            rejectedBy: userId
-                        });
-                    });
-                }
+                io.to(String(call.from_id)).emit('call:rejected', {
+                    roomName, rejectedBy: userId
+                });
             }
 
             ctx.activeCalls.delete(roomName);
+            clearIceBuffer(roomName);
 
         } catch (error) {
             console.error('[CALLS] Error in call:reject:', error);
@@ -662,32 +623,13 @@ async function registerCallsListeners(socket, io, ctx) {
             console.log(`[CALLS] 🔄 Renegotiation from ${fromUserId} to ${toUserId} in room ${roomName}`);
 
             if (toUserId) {
-                // Отправить конкретному пользователю
-                const recipientSockets = ctx.userIdSocket[toUserId];
-                if (recipientSockets && recipientSockets.length > 0) {
-                    const renegotiateData = {
-                        roomName: roomName,
-                        fromUserId: fromUserId,
-                        sdpOffer: sdpOffer,
-                        type: 'renegotiate'
-                    };
-
-                    recipientSockets.forEach(recipientSocket => {
-                        recipientSocket.emit('call:renegotiate', renegotiateData);
-                    });
-
-                    console.log(`[CALLS] ✅ Renegotiation offer sent to user ${toUserId}`);
-                } else {
-                    console.warn(`[CALLS] ⚠️ No sockets found for user ${toUserId}`);
-                }
-            } else {
-                // Broadcast в комнату (для групповых звонков)
-                socket.to(roomName).emit('call:renegotiate', {
-                    fromUserId: fromUserId,
-                    sdpOffer: sdpOffer,
-                    type: 'renegotiate'
+                io.to(String(toUserId)).emit('call:renegotiate', {
+                    roomName, fromUserId, sdpOffer, type: 'renegotiate'
                 });
-                console.log(`[CALLS] ✅ Renegotiation offer broadcast to room ${roomName}`);
+            } else {
+                socket.to(roomName).emit('call:renegotiate', {
+                    fromUserId, sdpOffer, type: 'renegotiate'
+                });
             }
 
         } catch (error) {
@@ -695,43 +637,18 @@ async function registerCallsListeners(socket, io, ctx) {
         }
     });
 
-    /**
-     * 🔄 Renegotiation Answer - ответ на renegotiation offer
-     * Data: { roomName, fromUserId, toUserId, sdpAnswer, type }
-     */
     socket.on('call:renegotiate_answer', async (data) => {
         try {
             const { roomName, fromUserId, toUserId, sdpAnswer } = data;
 
-            console.log(`[CALLS] 🔄 Renegotiation answer from ${fromUserId} to ${toUserId} in room ${roomName}`);
-
             if (toUserId) {
-                // Отправить конкретному пользователю
-                const recipientSockets = ctx.userIdSocket[toUserId];
-                if (recipientSockets && recipientSockets.length > 0) {
-                    const answerData = {
-                        roomName: roomName,
-                        fromUserId: fromUserId,
-                        sdpAnswer: sdpAnswer,
-                        type: 'renegotiate_answer'
-                    };
-
-                    recipientSockets.forEach(recipientSocket => {
-                        recipientSocket.emit('call:renegotiate_answer', answerData);
-                    });
-
-                    console.log(`[CALLS] ✅ Renegotiation answer sent to user ${toUserId}`);
-                } else {
-                    console.warn(`[CALLS] ⚠️ No sockets found for user ${toUserId}`);
-                }
-            } else {
-                // Broadcast в комнату (для групповых звонков)
-                socket.to(roomName).emit('call:renegotiate_answer', {
-                    fromUserId: fromUserId,
-                    sdpAnswer: sdpAnswer,
-                    type: 'renegotiate_answer'
+                io.to(String(toUserId)).emit('call:renegotiate_answer', {
+                    roomName, fromUserId, sdpAnswer, type: 'renegotiate_answer'
                 });
-                console.log(`[CALLS] ✅ Renegotiation answer broadcast to room ${roomName}`);
+            } else {
+                socket.to(roomName).emit('call:renegotiate_answer', {
+                    fromUserId, sdpAnswer, type: 'renegotiate_answer'
+                });
             }
 
         } catch (error) {
@@ -881,23 +798,13 @@ async function registerCallsListeners(socket, io, ctx) {
                 noiseCancellationStates: ncStates,
             });
 
-            // Уведомить каждого существующего участника о новом — чтобы тоже создал offer
-            // (оба конца инициируют; при коллизии Android-клиент откатывается через perfect negotiation)
+            // ✅ CLUSTER-SAFE: уведомить каждого существующего участника
             for (const existingUserId of existingParticipantIds) {
-                const existingSockets = ctx.userIdSocket[existingUserId];
-                if (existingSockets && existingSockets.length > 0) {
-                    const iceServers = turnHelper.getIceServers(existingUserId);
-                    existingSockets.forEach(s => {
-                        s.emit('group_call:participant_joined', {
-                            roomName,
-                            userId,
-                            userName,
-                            userAvatar,
-                            iceServers,
-                            shouldCreateOffer: true,
-                        });
-                    });
-                }
+                const iceServers = turnHelper.getIceServers(existingUserId);
+                io.to(String(existingUserId)).emit('group_call:participant_joined', {
+                    roomName, userId, userName, userAvatar, iceServers,
+                    shouldCreateOffer: true,
+                });
             }
 
             console.log(`[CALLS] ✅ Notified ${existingParticipantIds.length} existing participants about user ${userId}`);
@@ -919,21 +826,11 @@ async function registerCallsListeners(socket, io, ctx) {
 
             console.log(`[CALLS] 📤 group_call:offer from ${fromUserId} to ${toUserId} in room ${roomName}`);
 
-            const recipientSockets = ctx.userIdSocket[toUserId];
-            if (recipientSockets && recipientSockets.length > 0) {
-                const iceServers = turnHelper.getIceServers(toUserId);
-                recipientSockets.forEach(s => {
-                    s.emit('group_call:offer', {
-                        roomName,
-                        fromUserId,
-                        sdpOffer,
-                        iceServers
-                    });
-                });
-                console.log(`[CALLS] ✅ Offer relayed to user ${toUserId}`);
-            } else {
-                console.warn(`[CALLS] ⚠️ No sockets found for user ${toUserId} to relay offer`);
-            }
+            const iceServers = turnHelper.getIceServers(toUserId);
+            io.to(String(toUserId)).emit('group_call:offer', {
+                roomName, fromUserId, sdpOffer, iceServers
+            });
+            console.log(`[CALLS] ✅ Offer relayed to user ${toUserId}`);
         } catch (error) {
             console.error('[CALLS] Error in group_call:offer:', error);
         }
@@ -951,19 +848,10 @@ async function registerCallsListeners(socket, io, ctx) {
 
             console.log(`[CALLS] 📥 group_call:answer from ${fromUserId} to ${toUserId} in room ${roomName}`);
 
-            const recipientSockets = ctx.userIdSocket[toUserId];
-            if (recipientSockets && recipientSockets.length > 0) {
-                recipientSockets.forEach(s => {
-                    s.emit('group_call:answer', {
-                        roomName,
-                        fromUserId,
-                        sdpAnswer
-                    });
-                });
-                console.log(`[CALLS] ✅ Answer relayed to user ${toUserId}`);
-            } else {
-                console.warn(`[CALLS] ⚠️ No sockets found for user ${toUserId} to relay answer`);
-            }
+            io.to(String(toUserId)).emit('group_call:answer', {
+                roomName, fromUserId, sdpAnswer
+            });
+            console.log(`[CALLS] ✅ Answer relayed to user ${toUserId}`);
         } catch (error) {
             console.error('[CALLS] Error in group_call:answer:', error);
         }
@@ -1048,19 +936,9 @@ async function registerCallsListeners(socket, io, ctx) {
             const { roomName, fromUserId, toUserId, candidate, sdpMLineIndex, sdpMid } = data;
 
             if (toUserId) {
-                // Отправить конкретному участнику
-                const recipientSockets = ctx.userIdSocket[toUserId];
-                if (recipientSockets && recipientSockets.length > 0) {
-                    recipientSockets.forEach(s => {
-                        s.emit('group_call:ice_candidate', {
-                            roomName,
-                            fromUserId,
-                            candidate,
-                            sdpMLineIndex,
-                            sdpMid
-                        });
-                    });
-                }
+                io.to(String(toUserId)).emit('group_call:ice_candidate', {
+                    roomName, fromUserId, candidate, sdpMLineIndex, sdpMid
+                });
             } else {
                 // Broadcast всем в комнате
                 socket.to(roomName).emit('group_call:ice_candidate', {
@@ -1171,11 +1049,7 @@ async function registerCallsListeners(socket, io, ctx) {
             if (target) {
                 target.emit('stream:offer', { roomName, fromUserId, sdpOffer, iceServers });
             } else {
-                // Fallback: look up via userIdSocket
-                const sockets = ctx.userIdSocket?.[toUserId];
-                if (sockets?.length) {
-                    sockets[0].emit('stream:offer', { roomName, fromUserId, sdpOffer, iceServers });
-                }
+                io.to(String(toUserId)).emit('stream:offer', { roomName, fromUserId, sdpOffer, iceServers });
             }
         } catch (e) {
             console.error('[STREAM] stream:offer error:', e);
@@ -1196,10 +1070,7 @@ async function registerCallsListeners(socket, io, ctx) {
             if (target) {
                 target.emit('stream:answer', { roomName, fromUserId, sdpAnswer });
             } else {
-                const sockets = ctx.userIdSocket?.[toUserId];
-                if (sockets?.length) {
-                    sockets[0].emit('stream:answer', { roomName, fromUserId, sdpAnswer });
-                }
+                io.to(String(toUserId)).emit('stream:answer', { roomName, fromUserId, sdpAnswer });
             }
         } catch (e) {
             console.error('[STREAM] stream:answer error:', e);
@@ -1231,9 +1102,7 @@ async function registerCallsListeners(socket, io, ctx) {
                 const target = io.sockets.sockets.get(targetSocketId);
                 target?.emit('stream:ice', payload);
             } else {
-                // Fallback via userIdSocket
-                const sockets = ctx.userIdSocket?.[toUserId];
-                if (sockets?.length) sockets[0].emit('stream:ice', payload);
+                io.to(String(toUserId)).emit('stream:ice', payload);
             }
         } catch (e) {
             console.error('[STREAM] stream:ice error:', e);
