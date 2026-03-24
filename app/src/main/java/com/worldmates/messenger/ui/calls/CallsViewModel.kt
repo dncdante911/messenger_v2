@@ -417,22 +417,30 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 )
                 incomingGroupCall.postValue(groupIncoming)
 
-                // Запустить Activity входящего группового звонка
-                val intent = android.content.Intent(
-                    getApplication(), IncomingGroupCallActivity::class.java
-                ).apply {
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra("group_id", groupId)
-                    putExtra("group_name", groupName)
-                    putExtra("initiated_by", initiatedBy)
-                    putExtra("initiator_name", initiatorName)
-                    putExtra("initiator_avatar", data.optString("initiatorAvatar", ""))
-                    putExtra("call_type", callType)
-                    putExtra("room_name", roomName)
-                    putExtra("max_participants", maxParticipants)
-                    putExtra("is_premium_call", isPremiumCall)
+                // Launch group call activity when:
+                // - App is in foreground (service skips notification) OR
+                // - Service is not running (ViewModel is the only listener)
+                val svc = com.worldmates.messenger.services.MessageNotificationService
+                if (!svc.isRunning || svc.isAppInForeground) {
+                    val intent = android.content.Intent(
+                        getApplication(), IncomingGroupCallActivity::class.java
+                    ).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("group_id", groupId)
+                        putExtra("group_name", groupName)
+                        putExtra("initiated_by", initiatedBy)
+                        putExtra("initiator_name", initiatorName)
+                        putExtra("initiator_avatar", data.optString("initiatorAvatar", ""))
+                        putExtra("call_type", callType)
+                        putExtra("room_name", roomName)
+                        putExtra("max_participants", maxParticipants)
+                        putExtra("is_premium_call", isPremiumCall)
+                    }
+                    getApplication<Application>().startActivity(intent)
+                    Log.d("CallsViewModel", "📞 Launched IncomingGroupCallActivity (foreground=${svc.isAppInForeground})")
+                } else {
+                    Log.d("CallsViewModel", "📞 Skipping group call activity — service will show notification")
                 }
-                getApplication<Application>().startActivity(intent)
             } catch (e: Exception) {
                 Log.e("CallsViewModel", "Error processing group_call:incoming", e)
             }
@@ -1585,11 +1593,12 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
             Log.d("CallsViewModel", "📞 Incoming call from ${callData.fromName}")
 
-            // Launch IncomingCallActivity only when MessageNotificationService is NOT running.
-            // When the service is alive it handles the launch (with a full-screen notification
-            // that works on locked screens too). The ViewModel is a fallback for the case where
-            // the service has been killed by battery optimization.
-            if (!com.worldmates.messenger.services.MessageNotificationService.isRunning) {
+            // Launch IncomingCallActivity when:
+            // 1. App is in foreground — service skips notification, ViewModel handles in-app
+            // 2. Service is not running — ViewModel is the only listener (battery killed service)
+            // When app is in background AND service is running — service shows full-screen notification.
+            val svc = com.worldmates.messenger.services.MessageNotificationService
+            if (!svc.isRunning || svc.isAppInForeground) {
                 val intent = IncomingCallActivity.createIntent(
                     context = getApplication(),
                     fromId = callData.fromId,
@@ -1602,9 +1611,9 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 getApplication<Application>().startActivity(intent)
-                Log.d("CallsViewModel", "📞 Launched IncomingCallActivity (service not running)")
+                Log.d("CallsViewModel", "📞 Launched IncomingCallActivity (foreground=${svc.isAppInForeground}, svcRunning=${svc.isRunning})")
             } else {
-                Log.d("CallsViewModel", "📞 Skipping startActivity — MessageNotificationService will handle it")
+                Log.d("CallsViewModel", "📞 Skipping — service will show notification (app in background)")
             }
 
         } catch (e: Exception) {
