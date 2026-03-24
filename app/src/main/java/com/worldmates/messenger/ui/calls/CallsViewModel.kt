@@ -71,6 +71,11 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         private const val TURN_SECRET = "ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9"
         private const val TURN_HOST_1 = "195.22.131.11"
         private const val TURN_HOST_2 = "46.232.232.38"
+
+        // Class-level set of roomNames currently showing an IncomingCallActivity.
+        // Prevents two CallsViewModel instances (e.g. ChatsActivity + IncomingCallActivity)
+        // from each launching a second instance of IncomingCallActivity for the same room.
+        val pendingIncomingRooms = java.util.concurrent.CopyOnWriteArraySet<String>()
     }
 
     private val webRTCManager = WebRTCManager(application)
@@ -114,13 +119,6 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     private var pendingCallAcceptance: (() -> Unit)? = null  // ✅ Очікуюче прийняття вхідного виклику
     private var callListenersSetUp = false      // guard against duplicate socket listeners on reconnect
     private var callFullyEstablished = false    // true once ICE reaches CONNECTED; gates renegotiation
-
-    companion object {
-        // Class-level set of roomNames currently showing an IncomingCallActivity.
-        // Prevents two CallsViewModel instances (e.g. ChatsActivity + IncomingCallActivity)
-        // from each launching a second instance of IncomingCallActivity for the same room.
-        private val pendingIncomingRooms = java.util.concurrent.CopyOnWriteArraySet<String>()
-    }
 
     // Вспомогательная карта: userId → info участника (для обновления состояния)
     private val groupParticipantInfoMap = mutableMapOf<Long, GroupCallParticipant>()
