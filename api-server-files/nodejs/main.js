@@ -753,8 +753,9 @@ async function main() {
   });
 
   // ── Redis Adapter (Socket.IO cluster / multi-server) ──────────────────────
-  // Обязателен при PM2 cluster mode (instances: 'max' = все ядра) и при
-  // горизонтальном масштабировании на 2+ серверах.
+  // Обязателен при PM2 cluster mode.
+  // @socket.io/redis-adapter v8: комнаты хранятся В ПАМЯТИ каждого воркера,
+  // Redis используется ТОЛЬКО для роутинга emit()-ов между воркерами.
   //
   // Почему НЕ socket.io-redis (старый):
   //   Он хранил socket rooms в Redis. При реконнекте Redis комнаты терялись
@@ -803,6 +804,7 @@ async function main() {
     // or .env file not found (check dotenv path = __dirname/.env).
     console.error('[Redis Adapter] DISABLED — could not connect:', redisErr.message);
   }
+  await setupRedisAdapter();
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Initialize Bot API /bots namespace (bot-side connections)

@@ -71,6 +71,13 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         private const val TURN_SECRET = "ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9"
         private const val TURN_HOST_1 = "195.22.131.11"
         private const val TURN_HOST_2 = "46.232.232.38"
+        // TURNS (TLS) — по домену, т.к. SSL сертификат привязан к домену
+        private const val TURNS_DOMAIN = "worldmates.club"
+
+        // Class-level set of roomNames currently showing an IncomingCallActivity.
+        // Prevents two CallsViewModel instances (e.g. ChatsActivity + IncomingCallActivity)
+        // from each launching a second instance of IncomingCallActivity for the same room.
+        val pendingIncomingRooms = java.util.concurrent.CopyOnWriteArraySet<String>()
     }
 
     private val webRTCManager = WebRTCManager(application)
@@ -112,6 +119,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     private var isInitiator = false
     private var pendingCallInitiation: (() -> Unit)? = null  // ✅ Очікуючий вихідний виклик
     private var pendingCallAcceptance: (() -> Unit)? = null  // ✅ Очікуюче прийняття вхідного виклику
+    private var callListenersSetUp = false      // guard against duplicate socket listeners on reconnect
+    private var callFullyEstablished = false    // true once ICE reaches CONNECTED; gates renegotiation
 
     // Вспомогательная карта: userId → info участника (для обновления состояния)
     private val groupParticipantInfoMap = mutableMapOf<Long, GroupCallParticipant>()
@@ -408,22 +417,30 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 )
                 incomingGroupCall.postValue(groupIncoming)
 
-                // Запустить Activity входящего группового звонка
-                val intent = android.content.Intent(
-                    getApplication(), IncomingGroupCallActivity::class.java
-                ).apply {
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra("group_id", groupId)
-                    putExtra("group_name", groupName)
-                    putExtra("initiated_by", initiatedBy)
-                    putExtra("initiator_name", initiatorName)
-                    putExtra("initiator_avatar", data.optString("initiatorAvatar", ""))
-                    putExtra("call_type", callType)
-                    putExtra("room_name", roomName)
-                    putExtra("max_participants", maxParticipants)
-                    putExtra("is_premium_call", isPremiumCall)
+                // Launch group call activity when:
+                // - App is in foreground (service skips notification) OR
+                // - Service is not running (ViewModel is the only listener)
+                val svc = com.worldmates.messenger.services.MessageNotificationService
+                if (!svc.isRunning || svc.isAppInForeground) {
+                    val intent = android.content.Intent(
+                        getApplication(), IncomingGroupCallActivity::class.java
+                    ).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("group_id", groupId)
+                        putExtra("group_name", groupName)
+                        putExtra("initiated_by", initiatedBy)
+                        putExtra("initiator_name", initiatorName)
+                        putExtra("initiator_avatar", data.optString("initiatorAvatar", ""))
+                        putExtra("call_type", callType)
+                        putExtra("room_name", roomName)
+                        putExtra("max_participants", maxParticipants)
+                        putExtra("is_premium_call", isPremiumCall)
+                    }
+                    getApplication<Application>().startActivity(intent)
+                    Log.d("CallsViewModel", "📞 Launched IncomingGroupCallActivity (foreground=${svc.isAppInForeground})")
+                } else {
+                    Log.d("CallsViewModel", "📞 Skipping group call activity — service will show notification")
                 }
-                getApplication<Application>().startActivity(intent)
             } catch (e: Exception) {
                 Log.e("CallsViewModel", "Error processing group_call:incoming", e)
             }
@@ -738,13 +755,19 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
         webRTCManager.onIceConnectionStateChangeListener = { state ->
             Log.d("CallsViewModel", "ICE Connection State: $state")
+            if (state == PeerConnection.IceConnectionState.CONNECTED ||
+                state == PeerConnection.IceConnectionState.COMPLETED) {
+                callFullyEstablished = true
+            }
         }
 
-        // ✅ Обработка renegotiation когда добавляется/удаляется track
+        // ✅ Renegotiation (добавление/удаление треков во время активного звонка).
+        // Намеренно NOT вызываем до полного установления ICE, иначе первый onRenegotiationNeeded,
+        // который браузерный WebRTC вызывает сразу после addTrack() на стороне callee
+        // (пока signaling state ещё STABLE после ответа), создаёт лишний offer и ломает хендшейк.
         webRTCManager.onRenegotiationNeededListener = {
-            Log.d("CallsViewModel", "🔄 Renegotiation needed - creating new offer")
-            // Только если мы инициатор или уже в звонке
-            if (currentCallData != null) {
+            Log.d("CallsViewModel", "🔄 Renegotiation needed (established=$callFullyEstablished)")
+            if (currentCallData != null && callFullyEstablished) {
                 performRenegotiation()
             }
         }
@@ -1076,8 +1099,19 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
      * ✅ ВИПРАВЛЕНО: Тепер правильно обробляє випадок коли Socket ще не підключений
      * і отримує ICE сервери ПЕРЕД створенням PeerConnection
      */
+    // Guard against acceptCall() being called multiple times for the same room
+    @Volatile private var acceptedRoomName: String? = null
+
     fun acceptCall(callData: CallData) {
         Log.d("CallsViewModel", "📞 acceptCall() called for room: ${callData.roomName}")
+        pendingIncomingRooms.remove(callData.roomName)
+
+        // ✅ Prevent double-accept: if we already accepted this room, skip
+        if (acceptedRoomName == callData.roomName) {
+            Log.w("CallsViewModel", "⚠️ Already accepted room ${callData.roomName}, ignoring duplicate acceptCall()")
+            return
+        }
+        acceptedRoomName = callData.roomName
 
         val acceptLogic: () -> Unit = {
             // 🔊 CRITICAL: Setup audio for calls BEFORE creating WebRTC connection
@@ -1171,6 +1205,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
      * Отклонить вызов
      */
     fun rejectCall(roomName: String) {
+        pendingIncomingRooms.remove(roomName)
         // ✅ Використовуємо org.json.JSONObject для Socket.IO
         val rejectEvent = JSONObject().apply {
             put("roomName", roomName)
@@ -1207,6 +1242,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         // 🔊 Release audio after call ends
         releaseCallAudio()
 
+        callFullyEstablished = false
+        acceptedRoomName = null
         callEnded.postValue(true)
         currentCallData = null
     }
@@ -1453,8 +1490,11 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         // ✅ Зареєструватись для дзвінків ПІСЛЯ підключення
         registerForCalls()
 
-        // ✅ Налаштувати listeners для call events
-        setupCallSocketListeners()
+        // ✅ Налаштувати listeners для call events (тільки один раз — Socket.IO зберігає listeners між reconnect)
+        if (!callListenersSetUp) {
+            callListenersSetUp = true
+            setupCallSocketListeners()
+        }
 
         // ✅ Виконати відкладений вихідний дзвінок якщо є
         pendingCallInitiation?.let {
@@ -1529,8 +1569,10 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 return
             }
 
-            if (currentCallData?.roomName == roomName) {
-                Log.d("CallsViewModel", "⚠️ Игнорируем дубликат входящего звонка для комнаты: $roomName")
+            if (currentCallData?.roomName == roomName
+                || acceptedRoomName == roomName
+                || !pendingIncomingRooms.add(roomName)) {
+                Log.d("CallsViewModel", "⚠️ Ignoring duplicate incoming call for room: $roomName (currentCall=${currentCallData?.roomName}, accepted=$acceptedRoomName)")
                 return
             }
 
@@ -1543,6 +1585,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
             }
             if (callData.roomName.isEmpty()) {
                 Log.e("CallsViewModel", "❌ Room name is empty, ignoring call")
+                pendingIncomingRooms.remove(roomName)
                 return
             }
 
@@ -1550,19 +1593,28 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
             Log.d("CallsViewModel", "📞 Incoming call from ${callData.fromName}")
 
-            // Запуск Activity через контекст приложения
-            val intent = IncomingCallActivity.createIntent(
-                context = getApplication(),
-                fromId = callData.fromId,
-                fromName = callData.fromName,
-                fromAvatar = callData.fromAvatar,
-                callType = callData.callType,
-                roomName = callData.roomName,
-                sdpOffer = callData.sdpOffer
-            ).apply {
-                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            // Launch IncomingCallActivity when:
+            // 1. App is in foreground — service skips notification, ViewModel handles in-app
+            // 2. Service is not running — ViewModel is the only listener (battery killed service)
+            // When app is in background AND service is running — service shows full-screen notification.
+            val svc = com.worldmates.messenger.services.MessageNotificationService
+            if (!svc.isRunning || svc.isAppInForeground) {
+                val intent = IncomingCallActivity.createIntent(
+                    context = getApplication(),
+                    fromId = callData.fromId,
+                    fromName = callData.fromName,
+                    fromAvatar = callData.fromAvatar,
+                    callType = callData.callType,
+                    roomName = callData.roomName,
+                    sdpOffer = callData.sdpOffer
+                ).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                getApplication<Application>().startActivity(intent)
+                Log.d("CallsViewModel", "📞 Launched IncomingCallActivity (foreground=${svc.isAppInForeground}, svcRunning=${svc.isRunning})")
+            } else {
+                Log.d("CallsViewModel", "📞 Skipping — service will show notification (app in background)")
             }
-            getApplication<Application>().startActivity(intent)
 
         } catch (e: Exception) {
             Log.e("CallsViewModel", "🔥 Error parsing incoming call safely: ${e.message}")
@@ -1738,14 +1790,15 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 PeerConnection.IceServer.builder("stun:$TURN_HOST_2:3478").createIceServer(),
                 PeerConnection.IceServer.builder(listOf(
                     "turn:$TURN_HOST_1:3478?transport=udp",
-                    "turn:$TURN_HOST_1:3478?transport=tcp",
-                    "turns:$TURN_HOST_1:5349"
+                    "turn:$TURN_HOST_1:3478?transport=tcp"
                 )).setUsername(username).setPassword(credential).createIceServer(),
                 PeerConnection.IceServer.builder(listOf(
                     "turn:$TURN_HOST_2:3478?transport=udp",
-                    "turn:$TURN_HOST_2:3478?transport=tcp",
-                    "turns:$TURN_HOST_2:5349"
-                )).setUsername(username).setPassword(credential).createIceServer()
+                    "turn:$TURN_HOST_2:3478?transport=tcp"
+                )).setUsername(username).setPassword(credential).createIceServer(),
+                // TURNS TLS — по домену (SSL сертификат привязан к домену, не к IP)
+                PeerConnection.IceServer.builder("turns:$TURNS_DOMAIN:5349?transport=tcp")
+                    .setUsername(username).setPassword(credential).createIceServer()
             )
         } catch (e: Exception) {
             Log.e("CallsViewModel", "❌ Failed to build HMAC TURN servers", e)

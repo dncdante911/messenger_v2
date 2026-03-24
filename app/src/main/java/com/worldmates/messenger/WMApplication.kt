@@ -1,7 +1,11 @@
 package com.worldmates.messenger
 
+import android.app.Activity
+import android.app.Application
+import android.os.Bundle
 import android.util.Log
 import androidx.multidex.MultiDexApplication
+import com.worldmates.messenger.services.MessageNotificationService
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
@@ -52,6 +56,29 @@ class WMApplication : MultiDexApplication(), ImageLoaderFactory {
         NotificationKeepAliveManager.initialize(this)
 
         AppUpdateManager.startPeriodicChecks(intervalMinutes = 30)
+
+        // Track foreground/background state for call notification dedup
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            private var activeCount = 0
+            override fun onActivityStarted(activity: Activity) {
+                if (activeCount++ == 0) {
+                    MessageNotificationService.isAppInForeground = true
+                    Log.d(TAG, "App entered foreground")
+                }
+            }
+            override fun onActivityStopped(activity: Activity) {
+                if (--activeCount <= 0) {
+                    activeCount = 0
+                    MessageNotificationService.isAppInForeground = false
+                    Log.d(TAG, "App entered background")
+                }
+            }
+            override fun onActivityCreated(a: Activity, s: Bundle?) {}
+            override fun onActivityResumed(a: Activity) {}
+            override fun onActivityPaused(a: Activity) {}
+            override fun onActivitySaveInstanceState(a: Activity, s: Bundle) {}
+            override fun onActivityDestroyed(a: Activity) {}
+        })
 
         Log.d(TAG, "WorldMates Messenger Application started")
     }

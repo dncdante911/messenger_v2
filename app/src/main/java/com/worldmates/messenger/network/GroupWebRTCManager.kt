@@ -20,6 +20,8 @@ class GroupWebRTCManager(private val context: Context) {
         private const val TURN_SECRET = "ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9"
         private const val TURN_IP_1 = "195.22.131.11"
         private const val TURN_IP_2 = "46.232.232.38"
+        // TURNS (TLS) — по домену, т.к. SSL сертификат привязан к домену
+        private const val TURNS_DOMAIN = "worldmates.club"
 
         /**
          * Generates time-limited TURN credentials via HMAC-SHA1 (coturn use-auth-secret).
@@ -40,13 +42,15 @@ class GroupWebRTCManager(private val context: Context) {
                     PeerConnection.IceServer.builder("stun:$TURN_IP_2:3478").createIceServer(),
                     PeerConnection.IceServer.builder(listOf(
                         "turn:$TURN_IP_1:3478?transport=udp",
-                        "turn:$TURN_IP_1:3478?transport=tcp",
-                        "turns:$TURN_IP_1:5349?transport=tcp"
+                        "turn:$TURN_IP_1:3478?transport=tcp"
                     )).setUsername(username).setPassword(credential).createIceServer(),
                     PeerConnection.IceServer.builder(listOf(
                         "turn:$TURN_IP_2:3478?transport=udp",
                         "turn:$TURN_IP_2:3478?transport=tcp"
-                    )).setUsername(username).setPassword(credential).createIceServer()
+                    )).setUsername(username).setPassword(credential).createIceServer(),
+                    // TURNS TLS — по домену (SSL сертификат привязан к домену, не к IP)
+                    PeerConnection.IceServer.builder("turns:$TURNS_DOMAIN:5349?transport=tcp")
+                        .setUsername(username).setPassword(credential).createIceServer()
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to build fallback TURN servers", e)
@@ -57,6 +61,9 @@ class GroupWebRTCManager(private val context: Context) {
 
     // PeerConnection для каждого удалённого участника
     private val peerConnections = mutableMapOf<Long, PeerConnection>()
+
+    // RtpSenders per peer — needed to replace/remove tracks later
+    private val peerSenders = mutableMapOf<Long, MutableList<RtpSender>>()
 
     // Удалённые медиа-потоки от каждого участника
     private val remoteStreams = mutableMapOf<Long, MediaStream>()
@@ -180,9 +187,9 @@ class GroupWebRTCManager(private val context: Context) {
         localAudioTrack?.let { localMediaStream?.addTrack(it) }
         localVideoTrack?.let { localMediaStream?.addTrack(it) }
 
-        // Добавить локальный поток во все существующие PeerConnections
-        peerConnections.forEach { (_, pc) ->
-            localMediaStream?.let { pc.addStream(it) }
+        // Добавить локальные треки во все существующие PeerConnections (Unified Plan: addTrack)
+        peerConnections.forEach { (userId, pc) ->
+            addLocalTracksToPeer(userId, pc)
         }
 
         Log.d(TAG, "✅ Local media stream ready")
@@ -318,10 +325,9 @@ class GroupWebRTCManager(private val context: Context) {
             return null
         }
 
-        // Добавить локальный поток в новое соединение
-        localMediaStream?.let { pc.addStream(it) }
-
+        // Добавить локальные треки в новое соединение (Unified Plan: addTrack)
         peerConnections[userId] = pc
+        addLocalTracksToPeer(userId, pc)
         Log.d(TAG, "✅ PeerConnection created for peer $userId")
         return pc
     }
@@ -456,12 +462,30 @@ class GroupWebRTCManager(private val context: Context) {
     }
 
     /**
+     * Add local audio/video tracks to a PeerConnection using addTrack (Unified Plan).
+     * addStream() is NOT supported with UNIFIED_PLAN and causes a fatal SIGABRT.
+     */
+    private fun addLocalTracksToPeer(userId: Long, pc: PeerConnection) {
+        val senders = peerSenders.getOrPut(userId) { mutableListOf() }
+        localAudioTrack?.let { track ->
+            val sender = pc.addTrack(track, listOf("local_group_stream"))
+            sender?.let { senders.add(it) }
+        }
+        localVideoTrack?.let { track ->
+            val sender = pc.addTrack(track, listOf("local_group_stream"))
+            sender?.let { senders.add(it) }
+        }
+        Log.d(TAG, "✅ Added ${senders.size} local tracks to peer $userId via addTrack")
+    }
+
+    /**
      * Удалить PeerConnection участника (когда он вышел).
      */
     fun removePeer(userId: Long) {
         Log.d(TAG, "🔴 Removing peer $userId")
         peerConnections[userId]?.close()
         peerConnections.remove(userId)
+        peerSenders.remove(userId)
         remoteStreams.remove(userId)
         onRemoteStreamRemoved?.invoke(userId)
     }
@@ -517,6 +541,7 @@ class GroupWebRTCManager(private val context: Context) {
             }
         }
         peerConnections.clear()
+        peerSenders.clear()
         remoteStreams.clear()
 
         // Остановить камеру

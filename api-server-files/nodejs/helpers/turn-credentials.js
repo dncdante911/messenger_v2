@@ -17,6 +17,9 @@ const TURN_SERVER_URL = 'worldmates.club';
 const TURN_IPS = ['195.22.131.11', '46.232.232.38'];
 const TURN_PORT = 3478;
 const TURN_TLS_PORT = 5349;
+// Для TURNS (TLS) используем доменное имя — SSL сертификат привязан к домену, а не к IP.
+// Если указать IP, TLS проверка hostname провалится → ошибка 701 (Unauthorized).
+const TURNS_DOMAIN = 'worldmates.club';
 
 /**
  * Генерирует временные учетные данные TURN для пользователя
@@ -60,7 +63,7 @@ function getIceServers(userId, ttl = 86400) {
 
     // Добавляем TURN серверы для каждого внешнего IP
     TURN_IPS.forEach(ip => {
-        // Стандартный TURN (UDP и TCP)
+        // Стандартный TURN (UDP и TCP) — по IP, TLS не нужен
         iceServers.push({
             urls: [
                 `turn:${ip}:${TURN_PORT}?transport=udp`,
@@ -69,13 +72,13 @@ function getIceServers(userId, ttl = 86400) {
             username: turnCredentials.username,
             credential: turnCredentials.password
         });
+    });
 
-        // Защищенный TURN over TLS (через TCP)
-        iceServers.push({
-            urls: `turns:${ip}:${TURN_TLS_PORT}?transport=tcp`,
-            username: turnCredentials.username,
-            credential: turnCredentials.password
-        });
+    // Защищенный TURNS over TLS — по ДОМЕНУ (сертификат привязан к домену, не к IP)
+    iceServers.push({
+        urls: `turns:${TURNS_DOMAIN}:${TURN_TLS_PORT}?transport=tcp`,
+        username: turnCredentials.username,
+        credential: turnCredentials.password
     });
 
     return iceServers;
