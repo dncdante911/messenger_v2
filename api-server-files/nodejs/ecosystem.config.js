@@ -40,11 +40,9 @@ module.exports = {
     cwd: '/www/wwwroot/worldmates.club/nodejs',
 
     // ── Cluster ──────────────────────────────────────────────────────────────
-    // Start with 1 instance to validate calls work. Scale to 4 once Redis
-    // adapter is confirmed active (`pm2 logs | grep "Redis adapter active"`).
-    // With 1 instance all sockets are local — no Redis dependency.
-    instances:  1,
-    exec_mode: 'fork',
+    // Redis 8.2 confirmed working. Adapter retries every 3s if Redis is slow at startup.
+    instances:  4,
+    exec_mode: 'cluster',
 
     // ── Worker readiness ─────────────────────────────────────────────────────
     wait_ready:     true,
