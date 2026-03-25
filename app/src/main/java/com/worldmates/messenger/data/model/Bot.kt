@@ -28,6 +28,8 @@ data class Bot(
     @SerializedName("commands") val commands: List<BotCommand>? = null,
     @SerializedName("webhook_url") val webhookUrl: String? = null,
     @SerializedName("webhook_enabled") val webhookEnabled: Int = 0,
+    // Mini Apps: URL веб-приложения бота (если задан — кнопки web_app активны)
+    @SerializedName("web_app_url") val webAppUrl: String? = null,
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("last_active_at") val lastActiveAt: String? = null,
     // Only returned on creation
@@ -36,6 +38,8 @@ data class Bot(
     val isVerified: Boolean get() = botType == "verified"
     val isSystem: Boolean get() = botType == "system"
     val isActive: Boolean get() = status == "active"
+    /** true если у бота настроен Mini App URL */
+    val hasMiniApp: Boolean get() = !webAppUrl.isNullOrBlank()
 }
 
 /**
@@ -80,13 +84,31 @@ data class BotReplyMarkup(
 )
 
 /**
- * Inline кнопка (callback або URL)
+ * Inline кнопка (callback, URL или Mini App web_app)
  */
 data class BotInlineButton(
     @SerializedName("text") val text: String,
     @SerializedName("callback_data") val callbackData: String? = null,
-    @SerializedName("url") val url: String? = null
+    @SerializedName("url") val url: String? = null,
+    // Mini Apps: кнопка открывающая WebView с веб-приложением бота
+    @SerializedName("web_app") val webApp: WebAppInfo? = null
+) {
+    /** Тип кнопки для определения логики обработки клика */
+    val type: BotButtonType get() = when {
+        webApp != null     -> BotButtonType.WEB_APP
+        url != null        -> BotButtonType.URL
+        callbackData != null -> BotButtonType.CALLBACK
+        else               -> BotButtonType.CALLBACK
+    }
+}
+
+/** Информация о Mini App для кнопки web_app */
+data class WebAppInfo(
+    @SerializedName("url") val url: String
 )
+
+/** Типы inline-кнопок бота */
+enum class BotButtonType { CALLBACK, URL, WEB_APP }
 
 /**
  * Кнопка reply клавіатури
@@ -127,7 +149,15 @@ data class BotUpdate(
     @SerializedName("update_id") val updateId: Long,
     @SerializedName("message") val message: BotUpdateMessage? = null,
     @SerializedName("command") val command: BotUpdateCommand? = null,
-    @SerializedName("callback_query") val callbackQuery: BotCallbackQuery? = null
+    @SerializedName("callback_query") val callbackQuery: BotCallbackQuery? = null,
+    // Mini Apps: данные из web_app_data события
+    @SerializedName("web_app_data") val webAppData: BotWebAppData? = null
+)
+
+/** Данные отправленные из Mini App через WorldMatesWebApp.sendData() */
+data class BotWebAppData(
+    @SerializedName("data") val data: String,
+    @SerializedName("query_id") val queryId: String? = null
 )
 
 data class BotUpdateMessage(
@@ -270,6 +300,26 @@ data class BotGenericResponse(
     @SerializedName("api_status") val apiStatus: Int,
     @SerializedName("message") val message: String? = null,
     @SerializedName("error_code") val errorCode: Int? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+// ==================== MINI APPS ====================
+
+/** Ответ на POST /api/node/bot/createWebAppToken */
+data class WebAppTokenResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    /** Подписанная строка init_data для передачи в WebView */
+    @SerializedName("init_data") val initData: String? = null,
+    @SerializedName("query_id") val queryId: String? = null,
+    @SerializedName("web_app_url") val webAppUrl: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/** Ответ на POST /api/node/bot/answerWebAppQuery */
+data class WebAppQueryResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("ok") val ok: Boolean = false,
+    @SerializedName("webhook_delivered") val webhookDelivered: Boolean = false,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 

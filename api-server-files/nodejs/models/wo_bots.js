@@ -152,6 +152,12 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.DATE,
       allowNull: true
     },
+    // URL Mini App (Web App) — если задан, бот может открывать веб-приложение
+    // внутри чата через кнопку типа web_app в inline keyboard
+    web_app_url: {
+      type: DataTypes.STRING(512),
+      allowNull: true
+    },
     // Связанный user_id в Wo_Users — нужен для появления бота в поиске Android
     // и для маршрутизации DM-сообщений из PrivateMessageController
     linked_user_id: {

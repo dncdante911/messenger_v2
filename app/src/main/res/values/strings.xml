@@ -2691,4 +2691,15 @@
     <string name="channel_subgroup_detach">Від\'єднати групу</string>
     <string name="channel_subgroup_created">Групу створено та підключено до каналу</string>
 
+    <!-- ===== MINI APPS (Bot Web Apps) ===== -->
+    <string name="mini_app_loading">Завантаження…</string>
+    <string name="mini_app_error">Не вдалося відкрити додаток</string>
+    <string name="mini_app_retry">Спробувати знову</string>
+    <string name="mini_app_close">Закрити</string>
+    <string name="mini_app_open">Відкрити додаток</string>
+    <string name="mini_app_open_in_browser">Відкрити у браузері</string>
+    <string name="mini_app_alert_ok">OK</string>
+    <string name="mini_app_confirm_ok">OK</string>
+    <string name="mini_app_confirm_cancel">Скасувати</string>
+
 </resources>

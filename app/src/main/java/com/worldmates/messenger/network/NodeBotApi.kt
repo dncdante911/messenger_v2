@@ -125,4 +125,24 @@ interface NodeBotApi {
         @Path("bot_id")  botId: String,
         @Path("feed_id") feedId: Int
     ): BotGenericResponse
+
+    // ── Mini Apps ─────────────────────────────────────────────────────────────
+    // POST /api/node/bot/createWebAppToken
+    // uAuth — signs init_data for the Mini App WebView
+    @FormUrlEncoded
+    @POST("api/node/bot/createWebAppToken")
+    suspend fun createWebAppToken(
+        @Field("bot_id")   botId: String,
+        @Field("chat_id")  chatId: String? = null
+    ): WebAppTokenResponse
+
+    // POST /api/node/bot/answerWebAppQuery
+    // uAuth — delivers web_app_data back to bot via webhook / Socket.IO
+    @FormUrlEncoded
+    @POST("api/node/bot/answerWebAppQuery")
+    suspend fun answerWebAppQuery(
+        @Field("query_id") queryId: String,
+        @Field("bot_id")   botId: String,
+        @Field("data")     data: String
+    ): WebAppQueryResponse
 }
