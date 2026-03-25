@@ -74,7 +74,10 @@ interface NodeBotApi {
         @Field("about")           about: String? = null,
         @Field("category")        category: String? = null,
         @Field("is_public")       isPublic: Int? = null,
-        @Field("can_join_groups") canJoinGroups: Int? = null
+        @Field("can_join_groups") canJoinGroups: Int? = null,
+        // Mini App URL: set to https://... to configure, or pass clear_web_app=1 to remove
+        @Field("web_app_url")     webAppUrl: String? = null,
+        @Field("clear_web_app")   clearWebApp: Int? = null
     ): BotGenericResponse
 
     // ── Видалення ─────────────────────────────────────────────────────────────

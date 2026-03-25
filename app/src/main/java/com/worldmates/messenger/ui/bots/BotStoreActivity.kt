@@ -113,6 +113,8 @@ class BotStoreActivity : AppCompatActivity() {
                         botViewModel.loadRssFeeds(bot.botId)
                         currentScreen = BotScreen.RssFeeds(bot.botId)
                     },
+                    onSetMiniApp = { botId, url -> botViewModel.setMiniAppUrl(botId, url) },
+                    onClearMiniApp = { botId -> botViewModel.clearMiniAppUrl(botId) },
                     onBack = {
                         currentScreen = BotScreen.Catalog
                     }
