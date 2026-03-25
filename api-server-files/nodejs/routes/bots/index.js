@@ -1068,7 +1068,11 @@ function legacyBotApi(ctx, io) {
             get_webhook_info:    () => getWebhookInfo(ctx)(req, res),
             set_user_state:      () => setUserState(ctx)(req, res),
             get_user_state:      () => getUserState(ctx)(req, res),
-            get_me:              () => getMe(ctx)(req, res)
+            get_me:              () => getMe(ctx)(req, res),
+            // Mini Apps
+            set_web_app:         () => setWebApp(ctx)(req, res),
+            delete_web_app:      () => deleteWebApp(ctx)(req, res),
+            answer_web_app_query: () => answerWebAppQuery(ctx, io)(req, res)
         };
 
         const handler = handlers[type];
@@ -1582,6 +1586,312 @@ function getChatMember(ctx) {
     };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── MINI APPS (WEB APPS) ─────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/node/bot/setWebApp  [bot token]
+ * Устанавливает URL Mini App для бота.
+ * Body: { url: "https://..." }
+ */
+function setWebApp(ctx) {
+    return async (req, res) => {
+        const { url } = req.body;
+
+        if (!url) {
+            return res.json({ api_status: 400, error_message: 'url required' });
+        }
+
+        // Проверяем что URL валидный HTTPS
+        let parsed;
+        try {
+            parsed = new URL(url);
+        } catch {
+            return res.json({ api_status: 400, error_message: 'Invalid URL' });
+        }
+
+        if (parsed.protocol !== 'https:') {
+            return res.json({ api_status: 400, error_message: 'Mini App URL must use HTTPS' });
+        }
+
+        try {
+            await ctx.wo_bots.update(
+                { web_app_url: sanitize(url), updated_at: new Date() },
+                { where: { bot_id: req.botId } }
+            );
+            return res.json({ api_status: 200, ok: true, web_app_url: url });
+        } catch (err) {
+            console.error('[Bots/setWebApp]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+/**
+ * DELETE /api/node/bot/deleteWebApp  [bot token]
+ * Удаляет Mini App у бота.
+ */
+function deleteWebApp(ctx) {
+    return async (req, res) => {
+        try {
+            await ctx.wo_bots.update(
+                { web_app_url: null, updated_at: new Date() },
+                { where: { bot_id: req.botId } }
+            );
+            return res.json({ api_status: 200, ok: true });
+        } catch (err) {
+            console.error('[Bots/deleteWebApp]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+/**
+ * POST /api/node/bot/createWebAppToken  [user token]
+ * Генерирует подписанный init_data для открытия Mini App.
+ * Вызывается Android-клиентом перед открытием WebView.
+ *
+ * Body: { bot_id: "bot_xxx" }
+ * Returns: { api_status: 200, init_data: "auth_date=...&user=...&hash=..." }
+ *
+ * Алгоритм подписи (совместим с проверкой в документации):
+ *   data_check_string = sorted(key=val pairs joined by \n) — без hash
+ *   secret_key        = HMAC-SHA256("WebAppData", bot_token)
+ *   hash              = HMAC-SHA256(secret_key, data_check_string)
+ */
+function createWebAppToken(ctx) {
+    return async (req, res) => {
+        const botId = req.body.bot_id || req.query.bot_id;
+        if (!botId) {
+            return res.json({ api_status: 400, error_message: 'bot_id required' });
+        }
+
+        try {
+            // Загружаем бота
+            const bot = await ctx.wo_bots.findOne({
+                where:      { bot_id: botId, status: 'active' },
+                attributes: ['bot_id', 'bot_token', 'web_app_url'],
+                raw:        true
+            });
+
+            if (!bot) {
+                return res.json({ api_status: 404, error_message: 'Bot not found or disabled' });
+            }
+
+            if (!bot.web_app_url) {
+                return res.json({ api_status: 400, error_message: 'This bot has no Mini App configured' });
+            }
+
+            // Загружаем данные пользователя
+            const user = await ctx.wo_users.findOne({
+                where:      { user_id: req.userId },
+                attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar'],
+                raw:        true
+            });
+
+            if (!user) {
+                return res.json({ api_status: 401, error_message: 'User not found' });
+            }
+
+            const authDate  = Math.floor(Date.now() / 1000);
+            const queryId   = crypto.randomBytes(8).toString('hex');
+
+            const userObj = {
+                id:         user.user_id,
+                first_name: user.first_name || '',
+                last_name:  user.last_name  || '',
+                username:   user.username   || '',
+                photo_url:  user.avatar     || ''
+            };
+
+            // Строим параметры (без hash)
+            const params = {
+                auth_date: String(authDate),
+                query_id:  queryId,
+                user:      JSON.stringify(userObj)
+            };
+
+            // data_check_string — параметры отсортированы и разделены \n
+            const dataCheckString = Object.keys(params)
+                .sort()
+                .map(k => `${k}=${params[k]}`)
+                .join('\n');
+
+            // secret_key = HMAC-SHA256("WebAppData", bot_token)
+            const secretKey = crypto.createHmac('sha256', 'WebAppData')
+                                    .update(bot.bot_token)
+                                    .digest();
+
+            // hash = HMAC-SHA256(secret_key, data_check_string)
+            const hash = crypto.createHmac('sha256', secretKey)
+                               .update(dataCheckString)
+                               .digest('hex');
+
+            // Собираем итоговую строку init_data
+            const initDataParams = new URLSearchParams({
+                ...params,
+                hash
+            });
+            const initData = initDataParams.toString();
+
+            return res.json({
+                api_status: 200,
+                init_data:  initData,
+                query_id:   queryId,
+                web_app_url: bot.web_app_url
+            });
+
+        } catch (err) {
+            console.error('[Bots/createWebAppToken]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+/**
+ * POST /api/node/bot/answerWebAppQuery  [user token]
+ * Принимает данные из Mini App и доставляет боту через webhook.
+ * Вызывается Android-клиентом когда Mini App вызывает WorldMatesWebApp.sendData().
+ *
+ * Body: { bot_id, query_id, result_data }
+ * result_data — строка, до 4096 байт, произвольный JSON от разработчика Mini App
+ */
+function answerWebAppQuery(ctx, io) {
+    return async (req, res) => {
+        const { bot_id, query_id, result_data } = req.body;
+
+        if (!bot_id || !result_data) {
+            return res.json({ api_status: 400, error_message: 'bot_id and result_data required' });
+        }
+
+        if (typeof result_data === 'string' && result_data.length > 4096) {
+            return res.json({ api_status: 400, error_message: 'result_data too large (max 4096 bytes)' });
+        }
+
+        try {
+            const bot = await ctx.wo_bots.findOne({
+                where:      { bot_id, status: 'active' },
+                attributes: ['bot_id', 'bot_token', 'webhook_url', 'webhook_enabled',
+                             'webhook_secret', 'webhook_allowed_updates'],
+                raw:        true
+            });
+
+            if (!bot) {
+                return res.json({ api_status: 404, error_message: 'Bot not found' });
+            }
+
+            // Загружаем данные пользователя
+            const user = await ctx.wo_users.findOne({
+                where:      { user_id: req.userId },
+                attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar'],
+                raw:        true
+            });
+
+            // Сохраняем в Wo_Bot_Messages как входящее сообщение типа web_app_data
+            const msg = await ctx.wo_bot_messages.create({
+                bot_id,
+                chat_id:      String(req.userId),
+                chat_type:    'private',
+                direction:    'incoming',
+                text:         result_data,
+                is_command:   0,
+                processed:    0,
+                created_at:   new Date()
+            });
+
+            await ctx.wo_bots.increment('messages_received', { where: { bot_id } });
+
+            // Строим webhook payload для web_app_data события
+            const from = user ? {
+                id:         user.user_id,
+                username:   user.username   || '',
+                first_name: user.first_name || '',
+                last_name:  user.last_name  || '',
+                avatar:     user.avatar     || ''
+            } : { id: req.userId };
+
+            const webhookPayload = {
+                update_id:    msg.id,
+                update_type:  'web_app_data',
+                bot_id,
+                message: {
+                    message_id: msg.id,
+                    from,
+                    chat: { id: String(req.userId), type: 'private' },
+                    date: Math.floor(Date.now() / 1000)
+                },
+                web_app_data: {
+                    data:     result_data,
+                    query_id: query_id || null
+                }
+            };
+
+            // Проверяем, включен ли webhook и разрешены ли web_app_data события
+            let webhookDelivered = false;
+            if (bot.webhook_enabled && bot.webhook_url) {
+                const allowed = bot.webhook_allowed_updates
+                    ? JSON.parse(bot.webhook_allowed_updates)
+                    : null;
+
+                const shouldDeliver = !allowed || allowed.includes('web_app_data') || allowed.includes('*');
+
+                if (shouldDeliver) {
+                    const sig = crypto.createHmac('sha256', bot.webhook_secret || '')
+                                      .update(JSON.stringify(webhookPayload))
+                                      .digest('hex');
+
+                    const result = await deliverWebhook(bot.webhook_url, webhookPayload, sig, bot_id);
+
+                    await ctx.wo_bot_webhook_log.create({
+                        bot_id,
+                        event_type:      'web_app_data',
+                        payload:         JSON.stringify(webhookPayload),
+                        webhook_url:     bot.webhook_url,
+                        response_code:   result.http_code,
+                        response_body:   result.response,
+                        delivery_status: result.success ? 'delivered' : 'failed',
+                        attempts:        1,
+                        delivered_at:    result.success ? new Date() : null,
+                        created_at:      new Date()
+                    });
+
+                    webhookDelivered = result.success;
+                }
+            }
+
+            // Также уведомляем бота через Socket.IO если он подключён
+            if (io && ctx.botSockets) {
+                const botSocket = ctx.botSockets.get(bot_id);
+                if (botSocket) {
+                    botSocket.emit('web_app_data', {
+                        from,
+                        data:     result_data,
+                        query_id: query_id || null,
+                        date:     Math.floor(Date.now() / 1000)
+                    });
+                }
+            }
+
+            // Помечаем сообщение как обработанное
+            await ctx.wo_bot_messages.update(
+                { processed: 1, processed_at: new Date() },
+                { where: { id: msg.id } }
+            );
+
+            return res.json({
+                api_status:       200,
+                ok:               true,
+                webhook_delivered: webhookDelivered
+            });
+
+        } catch (err) {
+            console.error('[Bots/answerWebAppQuery]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 // ─── Регистрация маршрутов ────────────────────────────────────────────────────
 
 function registerBotRoutes(app, ctx, io) {
@@ -1635,6 +1945,14 @@ function registerBotRoutes(app, ctx, io) {
     app.put(    '/api/node/bots/:bot_id/rss/:feed_id',    uAuth, updateRssFeed(ctx));
     app.delete( '/api/node/bots/:bot_id/rss/:feed_id',    uAuth, deleteRssFeed(ctx));
 
+    // ── Mini Apps (Web Apps) — bot token ─────────────────────────────────────
+    app.post(   '/api/node/bot/setWebApp',            bAuth, setWebApp(ctx));
+    app.delete( '/api/node/bot/deleteWebApp',         bAuth, deleteWebApp(ctx));
+
+    // ── Mini Apps — user token (вызывается Android-клиентом) ─────────────────
+    app.post(   '/api/node/bot/createWebAppToken',    uAuth, createWebAppToken(ctx));
+    app.post(   '/api/node/bot/answerWebAppQuery',    uAuth, answerWebAppQuery(ctx, io));
+
     // ── Legacy PHP SDK совместимость ─────────────────────────────────────────
     app.post(   '/api/node/bots/api', legacyBotApi(ctx, io));
 
@@ -1651,6 +1969,10 @@ function registerBotRoutes(app, ctx, io) {
     console.log('  POST     /api/node/bot/*             — операции бота (включно inline)');
     console.log('  GET/POST /api/node/bots/:id/rss     — RSS feeds управление');
     console.log('  POST     /api/node/bots/api          — legacy PHP SDK совместимость');
+    console.log('  POST     /api/node/bot/setWebApp     — Mini Apps: установить URL');
+    console.log('  DELETE   /api/node/bot/deleteWebApp  — Mini Apps: удалить URL');
+    console.log('  POST     /api/node/bot/createWebAppToken — Mini Apps: init_data (user)');
+    console.log('  POST     /api/node/bot/answerWebAppQuery — Mini Apps: sendData (user)');
 }
 
 module.exports = { registerBotRoutes };
