@@ -97,7 +97,7 @@ class MiniAppActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val botId       = intent.getStringExtra(EXTRA_BOT_ID)       ?: run { finish(); return }
-        val botName     = intent.getStringExtra(EXTRA_BOT_NAME)      ?: "Mini App"
+        val botName     = intent.getStringExtra(EXTRA_BOT_NAME)      ?: getString(R.string.mini_app_default_title)
         val webAppUrl   = intent.getStringExtra(EXTRA_WEB_APP_URL)   ?: run { finish(); return }
         val accessToken = intent.getStringExtra(EXTRA_ACCESS_TOKEN)  ?: run { finish(); return }
 
@@ -167,11 +167,12 @@ class MiniAppViewModel(
                         queryId  = resp.queryId
                     )
                 } else {
-                    _state.value = MiniAppState.Error(resp.errorMessage ?: "Failed to get token")
+                    Log.w(TAG, "createWebAppToken failed: ${resp.errorMessage}")
+                    _state.value = MiniAppState.Error
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "createWebAppToken error", e)
-                _state.value = MiniAppState.Error(e.message ?: "Network error")
+                _state.value = MiniAppState.Error
             }
         }
     }
@@ -211,8 +212,8 @@ class MiniAppViewModel(
 
 sealed class MiniAppState {
     object Loading : MiniAppState()
+    object Error   : MiniAppState()
     data class Ready(val url: String, val initData: String, val queryId: String?) : MiniAppState()
-    data class Error(val message: String) : MiniAppState()
 }
 
 // ─── JS Bridge ────────────────────────────────────────────────────────────────
@@ -349,7 +350,7 @@ fun MiniAppScreen(
             text    = { Text(message) },
             confirmButton = {
                 TextButton(onClick = { showAlertDialog = null }) {
-                    Text(stringResource(R.string.ok))
+                    Text(stringResource(R.string.mini_app_alert_ok))
                 }
             }
         )
@@ -362,12 +363,12 @@ fun MiniAppScreen(
             text    = { Text(message) },
             confirmButton = {
                 TextButton(onClick = { callback(true); showConfirmDialog = null }) {
-                    Text(stringResource(R.string.ok))
+                    Text(stringResource(R.string.mini_app_confirm_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { callback(false); showConfirmDialog = null }) {
-                    Text(stringResource(R.string.cancel))
+                    Text(stringResource(R.string.mini_app_confirm_cancel))
                 }
             }
         )
@@ -394,19 +395,17 @@ fun MiniAppScreen(
                     }
                 },
                 actions = {
-                    when (val s = state) {
-                        is MiniAppState.Ready -> {
-                            val context = LocalContext.current
-                            IconButton(onClick = {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, s.url.toUri()))
-                            }) {
-                                Icon(
-                                    Icons.Default.OpenInBrowser,
-                                    contentDescription = stringResource(R.string.open_in_browser)
-                                )
-                            }
+                    val ready = state as? MiniAppState.Ready
+                    if (ready != null) {
+                        val context = LocalContext.current
+                        IconButton(onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, ready.url.toUri()))
+                        }) {
+                            Icon(
+                                Icons.Default.OpenInBrowser,
+                                contentDescription = stringResource(R.string.mini_app_open_in_browser)
+                            )
                         }
-                        else -> {}
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -420,7 +419,7 @@ fun MiniAppScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (val s = state) {
+            when (state) {
                 is MiniAppState.Loading -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
@@ -436,7 +435,7 @@ fun MiniAppScreen(
                     }
                 }
 
-                is MiniAppState.Error -> {
+                MiniAppState.Error -> {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -455,21 +454,22 @@ fun MiniAppScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text  = s.message,
+                            text  = stringResource(R.string.mini_app_error_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Button(onClick = { viewModel.init() }) {
-                            Text(stringResource(R.string.retry))
+                            Text(stringResource(R.string.mini_app_retry))
                         }
                     }
                 }
 
                 is MiniAppState.Ready -> {
+                    val ready = state as MiniAppState.Ready
                     MiniAppWebView(
-                        url      = s.url,
-                        initData = s.initData,
-                        queryId  = s.queryId,
+                        url      = ready.url,
+                        initData = ready.initData,
+                        queryId  = ready.queryId,
                         viewModel = viewModel,
                         onClose  = onClose,
                         onShowAlert   = { showAlertDialog = it },
