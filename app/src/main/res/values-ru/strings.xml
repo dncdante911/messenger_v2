@@ -2675,4 +2675,17 @@
     <string name="channel_subgroup_detach">Отсоединить группу</string>
     <string name="channel_subgroup_created">Группа создана и подключена к каналу</string>
 
+    <!-- ===== MINI APPS (Веб-приложения ботов) ===== -->
+    <string name="mini_app_default_title">Mini App</string>
+    <string name="mini_app_loading">Загрузка…</string>
+    <string name="mini_app_error">Не удалось открыть приложение</string>
+    <string name="mini_app_error_desc">Проверьте подключение к сети и попробуйте ещё раз</string>
+    <string name="mini_app_retry">Попробовать снова</string>
+    <string name="mini_app_close">Закрыть</string>
+    <string name="mini_app_open">Открыть приложение</string>
+    <string name="mini_app_open_in_browser">Открыть в браузере</string>
+    <string name="mini_app_alert_ok">ОК</string>
+    <string name="mini_app_confirm_ok">ОК</string>
+    <string name="mini_app_confirm_cancel">Отмена</string>
+
 </resources>
