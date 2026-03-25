@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -103,7 +102,7 @@ class MiniAppActivity : ComponentActivity() {
 
         val viewModel = ViewModelProvider(
             this,
-            MiniAppViewModelFactory(botId, webAppUrl, accessToken)
+            MiniAppViewModelFactory(botId, webAppUrl)
         )[MiniAppViewModel::class.java]
 
         viewModel.init()
@@ -131,18 +130,16 @@ class MiniAppActivity : ComponentActivity() {
 
 class MiniAppViewModelFactory(
     private val botId: String,
-    private val webAppUrl: String,
-    private val accessToken: String
+    private val webAppUrl: String
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        MiniAppViewModel(botId, webAppUrl, accessToken) as T
+        MiniAppViewModel(botId, webAppUrl) as T
 }
 
 class MiniAppViewModel(
     private val botId: String,
-    private val webAppUrl: String,
-    private val accessToken: String
+    private val webAppUrl: String
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<MiniAppState>(MiniAppState.Loading)
@@ -155,8 +152,8 @@ class MiniAppViewModel(
         viewModelScope.launch {
             _state.value = MiniAppState.Loading
             try {
-                val resp: WebAppTokenResponse = NodeRetrofitClient.api
-                    .getWebAppToken(botId = botId, accessToken = accessToken)
+                val resp: WebAppTokenResponse = NodeRetrofitClient.botApi
+                    .createWebAppToken(botId = botId)
 
                 if (resp.apiStatus == 200 && resp.initData != null) {
                     // Строим итоговый URL: webAppUrl?initData=<encoded>
@@ -181,11 +178,10 @@ class MiniAppViewModel(
     fun sendData(data: String, queryId: String?) {
         viewModelScope.launch {
             try {
-                NodeRetrofitClient.api.answerWebAppQuery(
-                    botId       = botId,
-                    queryId     = queryId,
-                    resultData  = data,
-                    accessToken = accessToken
+                NodeRetrofitClient.botApi.answerWebAppQuery(
+                    queryId = queryId ?: "",
+                    botId   = botId,
+                    data    = data
                 )
                 Log.d(TAG, "sendData delivered: ${data.take(100)}")
             } catch (e: Exception) {
@@ -313,6 +309,22 @@ class WorldMatesWebAppBridge(
         } catch (e: Exception) {
             Log.w(TAG, "hapticFeedback error: ${e.message}")
         }
+    }
+
+    /**
+     * Показать/скрыть нативную MainButton.
+     * Сейчас — стаб: кнопка рендерится только средствами самого Mini App (через CSS/HTML).
+     * Вызов нужен чтобы не упасть с JS-ошибкой когда Mini App зовёт MainButton.show().
+     */
+    @JavascriptInterface
+    fun showMainButton(text: String, color: String, textColor: String) {
+        Log.d(TAG, "JS: showMainButton(text=$text)")
+        // TODO: показать нативную кнопку поверх WebView если потребуется
+    }
+
+    @JavascriptInterface
+    fun hideMainButton() {
+        Log.d(TAG, "JS: hideMainButton()")
     }
 
     /** Открыть внешнюю ссылку в браузере */
