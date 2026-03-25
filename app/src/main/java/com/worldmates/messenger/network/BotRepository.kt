@@ -147,6 +147,26 @@ class BotRepository(
         }
     }
 
+    suspend fun setWebAppUrl(accessToken: String, botId: String, url: String): Result<Unit> {
+        return try {
+            val resp = botApi.updateBot(botId = botId, webAppUrl = url)
+            if (resp.apiStatus == 200) Result.success(Unit)
+            else Result.failure(BotApiException(resp.errorCode ?: 0, resp.errorMessage ?: "Failed to set Mini App URL"))
+        } catch (e: Exception) {
+            Log.e(TAG, "setWebAppUrl error", e); Result.failure(e)
+        }
+    }
+
+    suspend fun clearWebAppUrl(accessToken: String, botId: String): Result<Unit> {
+        return try {
+            val resp = botApi.updateBot(botId = botId, clearWebApp = 1)
+            if (resp.apiStatus == 200) Result.success(Unit)
+            else Result.failure(BotApiException(resp.errorCode ?: 0, resp.errorMessage ?: "Failed to clear Mini App URL"))
+        } catch (e: Exception) {
+            Log.e(TAG, "clearWebAppUrl error", e); Result.failure(e)
+        }
+    }
+
     suspend fun deleteBot(accessToken: String, botId: String): Result<Unit> {
         return try {
             val resp = botApi.deleteBot(botId)

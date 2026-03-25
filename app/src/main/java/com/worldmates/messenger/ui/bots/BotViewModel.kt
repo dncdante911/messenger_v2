@@ -260,6 +260,49 @@ class BotViewModel(
         _createBotState.value = CreateBotState()
     }
 
+    // ==================== MINI APP URL ====================
+
+    fun setMiniAppUrl(botId: String, url: String) {
+        viewModelScope.launch {
+            val token = UserSession.accessToken ?: return@launch
+            _myBotsState.value = _myBotsState.value.copy(error = null)
+            botRepository.setWebAppUrl(token, botId, url).fold(
+                onSuccess = {
+                    // Update bot in the local list optimistically
+                    val updatedBots = _myBotsState.value.bots.map { b ->
+                        if (b.botId == botId) b.copy(webAppUrl = url) else b
+                    }
+                    _myBotsState.value = _myBotsState.value.copy(bots = updatedBots, miniAppSaved = botId)
+                },
+                onFailure = { e ->
+                    _myBotsState.value = _myBotsState.value.copy(error = e.message)
+                }
+            )
+        }
+    }
+
+    fun clearMiniAppUrl(botId: String) {
+        viewModelScope.launch {
+            val token = UserSession.accessToken ?: return@launch
+            _myBotsState.value = _myBotsState.value.copy(error = null)
+            botRepository.clearWebAppUrl(token, botId).fold(
+                onSuccess = {
+                    val updatedBots = _myBotsState.value.bots.map { b ->
+                        if (b.botId == botId) b.copy(webAppUrl = null) else b
+                    }
+                    _myBotsState.value = _myBotsState.value.copy(bots = updatedBots, miniAppSaved = null)
+                },
+                onFailure = { e ->
+                    _myBotsState.value = _myBotsState.value.copy(error = e.message)
+                }
+            )
+        }
+    }
+
+    fun clearMiniAppSaved() {
+        _myBotsState.value = _myBotsState.value.copy(miniAppSaved = null)
+    }
+
     fun clearError() {
         _catalogState.value = _catalogState.value.copy(error = null)
         _myBotsState.value = _myBotsState.value.copy(error = null)
@@ -339,6 +382,7 @@ data class MyBotsState(
     val isLoading: Boolean = false,
     val bots: List<Bot> = emptyList(),
     val regeneratedToken: String? = null,
+    val miniAppSaved: String? = null,   // botId of bot whose Mini App URL was just saved
     val error: String? = null
 )
 

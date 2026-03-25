@@ -2703,5 +2703,17 @@
     <string name="mini_app_alert_ok">ОК</string>
     <string name="mini_app_confirm_ok">ОК</string>
     <string name="mini_app_confirm_cancel">Скасувати</string>
+    <!-- Closing confirmation -->
+    <string name="mini_app_close_confirm_title">Закрити Mini App?</string>
+    <string name="mini_app_close_confirm_msg">Ви впевнені, що хочете закрити цей додаток? Незбережені дані буде втрачено.</string>
+    <string name="mini_app_close_confirm_ok">Закрити</string>
+    <string name="mini_app_close_confirm_stay">Залишитись</string>
+    <!-- Mini App URL management (for bot developers) -->
+    <string name="mini_app_set_url_title">Налаштування Mini App</string>
+    <string name="mini_app_set_url_desc">Вкажіть HTTPS-адресу вашого веб-застосунку. Залиште порожнім, щоб видалити.</string>
+    <string name="mini_app_set_url_label">URL веб-застосунку</string>
+    <string name="mini_app_url_error">URL повинен починатися з https://</string>
+    <string name="mini_app_add">Mini App</string>
+    <string name="mini_app_remove">Видалити Mini App</string>
 
 </resources>

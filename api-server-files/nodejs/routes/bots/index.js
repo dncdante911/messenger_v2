@@ -436,6 +436,18 @@ function updateBot(ctx) {
                     updates[field] = sanitize(String(req.body[field]));
                 }
             }
+
+            // Mini App URL management
+            if (req.body.clear_web_app == 1) {
+                updates.web_app_url = null;
+            } else if (req.body.web_app_url !== undefined) {
+                const url = String(req.body.web_app_url).trim();
+                if (url && !/^https:\/\/.+/.test(url)) {
+                    return res.json({ api_status: 400, error_message: 'web_app_url must start with https://' });
+                }
+                updates.web_app_url = url || null;
+            }
+
             updates.updated_at = new Date();
 
             await ctx.wo_bots.update(updates, { where: { bot_id: botId } });

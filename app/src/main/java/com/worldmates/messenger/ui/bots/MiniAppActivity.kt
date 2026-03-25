@@ -1,6 +1,7 @@
 package com.worldmates.messenger.ui.bots
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -11,6 +12,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import android.webkit.JavascriptInterface
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -18,12 +20,13 @@ import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -46,6 +50,7 @@ import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.ui.theme.WorldMatesTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -64,8 +69,6 @@ private const val TAG = "MiniAppActivity"
  *   3. После загрузки страницы инжектирует window.WorldMatesWebApp объект
  *   4. Mini App вызывает WorldMatesWebApp.sendData(...) → JS-мост → REST /answerWebAppQuery
  *   5. WorldMatesWebApp.close() → finish()
- *
- * ⛔ Signal Protocol и шифрование не затрагиваются.
  */
 class MiniAppActivity : ComponentActivity() {
 
@@ -93,25 +96,45 @@ class MiniAppActivity : ComponentActivity() {
         }
     }
 
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uris = if (result.resultCode == Activity.RESULT_OK)
+            WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data) ?: emptyArray()
+        else emptyArray()
+        fileChooserCallback?.onReceiveValue(uris)
+        fileChooserCallback = null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         val botId       = intent.getStringExtra(EXTRA_BOT_ID)       ?: run { finish(); return }
         val botName     = intent.getStringExtra(EXTRA_BOT_NAME)      ?: getString(R.string.mini_app_default_title)
         val webAppUrl   = intent.getStringExtra(EXTRA_WEB_APP_URL)   ?: run { finish(); return }
-        val accessToken = intent.getStringExtra(EXTRA_ACCESS_TOKEN)  ?: run { finish(); return }
 
         val viewModel = ViewModelProvider(
             this,
-            MiniAppViewModelFactory(botId, webAppUrl, accessToken)
+            MiniAppViewModelFactory(botId, webAppUrl)
         )[MiniAppViewModel::class.java]
 
         viewModel.init()
 
-        // Перехватываем аппаратную кнопку "Назад" — передаём в WebView (история навигации)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                viewModel.onBackPressed { finish() }
+                viewModel.onBackPressed(
+                    onFireJsBackButton = {
+                        viewModel.webViewRef?.evaluateJavascript(
+                            "(function(){try{var b=window.WorldMatesWebApp&&window.WorldMatesWebApp.BackButton;if(b&&b._callbacks)b._callbacks.forEach(function(c){try{c();}catch(e){}});}catch(e){}})()",
+                            null
+                        )
+                    },
+                    onExit = { finish() }
+                )
             }
         })
 
@@ -120,46 +143,72 @@ class MiniAppActivity : ComponentActivity() {
                 MiniAppScreen(
                     botName   = botName,
                     viewModel = viewModel,
-                    onClose   = { finish() }
+                    onClose   = { finish() },
+                    onFileChooser = { callback, params ->
+                        fileChooserCallback?.onReceiveValue(null)
+                        fileChooserCallback = callback
+                        try { filePickerLauncher.launch(params.createIntent()) }
+                        catch (e: Exception) { fileChooserCallback = null; callback.onReceiveValue(null) }
+                    }
                 )
             }
         }
     }
 }
 
+// ─── Data classes ─────────────────────────────────────────────────────────────
+
+data class MainButtonUiState(
+    val text: String = "",
+    val color: String = "#2196F3",
+    val textColor: String = "#FFFFFF",
+    val isVisible: Boolean = false,
+    val isActive: Boolean = true,
+    val isProgress: Boolean = false
+)
+
 // ─── ViewModel ────────────────────────────────────────────────────────────────
 
 class MiniAppViewModelFactory(
     private val botId: String,
-    private val webAppUrl: String,
-    private val accessToken: String
+    private val webAppUrl: String
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        MiniAppViewModel(botId, webAppUrl, accessToken) as T
+        MiniAppViewModel(botId, webAppUrl) as T
 }
 
 class MiniAppViewModel(
     private val botId: String,
-    private val webAppUrl: String,
-    private val accessToken: String
+    private val webAppUrl: String
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<MiniAppState>(MiniAppState.Loading)
     val state: StateFlow<MiniAppState> = _state
 
-    // Ссылка на WebView для управления навигацией (back press)
+    // MainButton
+    private val _mainButton = MutableStateFlow<MainButtonUiState?>(null)
+    val mainButton: StateFlow<MainButtonUiState?> = _mainButton
+
+    // BackButton
+    private val _backButtonVisible = MutableStateFlow(false)
+    val backButtonVisible: StateFlow<Boolean> = _backButtonVisible
+
+    // Closing confirmation
+    private val _closingConfirmEnabled = MutableStateFlow(false)
+    val closingConfirmEnabled: StateFlow<Boolean> = _closingConfirmEnabled
+
+    // Reference to WebView for navigation control
     var webViewRef: WebView? = null
 
     fun init() {
         viewModelScope.launch {
             _state.value = MiniAppState.Loading
             try {
-                val resp: WebAppTokenResponse = NodeRetrofitClient.api
-                    .getWebAppToken(botId = botId, accessToken = accessToken)
+                val resp: WebAppTokenResponse = NodeRetrofitClient.botApi
+                    .createWebAppToken(botId = botId)
 
                 if (resp.apiStatus == 200 && resp.initData != null) {
-                    // Строим итоговый URL: webAppUrl?initData=<encoded>
                     val finalUrl = buildUrl(webAppUrl, resp.initData)
                     _state.value = MiniAppState.Ready(
                         url      = finalUrl,
@@ -177,15 +226,13 @@ class MiniAppViewModel(
         }
     }
 
-    /** Отправляет данные из Mini App боту через /answerWebAppQuery */
     fun sendData(data: String, queryId: String?) {
         viewModelScope.launch {
             try {
-                NodeRetrofitClient.api.answerWebAppQuery(
-                    botId       = botId,
-                    queryId     = queryId,
-                    resultData  = data,
-                    accessToken = accessToken
+                NodeRetrofitClient.botApi.answerWebAppQuery(
+                    queryId = queryId ?: "",
+                    botId   = botId,
+                    data    = data
                 )
                 Log.d(TAG, "sendData delivered: ${data.take(100)}")
             } catch (e: Exception) {
@@ -194,14 +241,38 @@ class MiniAppViewModel(
         }
     }
 
-    fun onBackPressed(onExit: () -> Unit) {
-        val wv = webViewRef
-        if (wv != null && wv.canGoBack()) {
-            wv.goBack()
-        } else {
-            onExit()
-        }
+    // MainButton methods
+    fun showMainButton(text: String, color: String, textColor: String) {
+        _mainButton.update { (it ?: MainButtonUiState()).copy(text = text, color = color, textColor = textColor, isVisible = true) }
     }
+
+    fun hideMainButton() { _mainButton.update { it?.copy(isVisible = false) } }
+
+    fun setMainButtonText(text: String) { _mainButton.update { it?.copy(text = text) } }
+
+    fun setMainButtonProgress(show: Boolean) { _mainButton.update { it?.copy(isProgress = show) } }
+
+    fun setMainButtonEnabled(enabled: Boolean) { _mainButton.update { it?.copy(isActive = enabled) } }
+
+    fun onMainButtonClick() {
+        webViewRef?.evaluateJavascript(
+            "(function(){try{var m=window.WorldMatesWebApp;if(m&&m.MainButton&&m.MainButton._callbacks)m.MainButton._callbacks.forEach(function(c){try{c();}catch(e){}});}catch(e){}})()",
+            null
+        )
+    }
+
+    // BackButton methods
+    fun setBackButtonVisible(visible: Boolean) { _backButtonVisible.value = visible }
+
+    fun onBackPressed(onFireJsBackButton: () -> Unit, onExit: () -> Unit) {
+        if (_backButtonVisible.value) { onFireJsBackButton(); return }
+        val wv = webViewRef
+        if (wv != null && wv.canGoBack()) wv.goBack()
+        else onExit()
+    }
+
+    // Closing confirmation
+    fun setClosingConfirmEnabled(enabled: Boolean) { _closingConfirmEnabled.value = enabled }
 
     private fun buildUrl(base: String, initData: String): String {
         val encoded = Uri.encode(initData)
@@ -219,11 +290,8 @@ sealed class MiniAppState {
 // ─── JS Bridge ────────────────────────────────────────────────────────────────
 
 /**
- * JavaScript-мост: window.WorldMatesWebApp
+ * JavaScript-мост: window._WorldMatesWebAppBridge
  * Все методы вызываются из JavaScript-кода Mini App.
- *
- * Соглашение: методы помечены @JavascriptInterface и выполняются в отдельном потоке.
- * Обращения к UI (finish, toast) делаются через Handler/runOnUiThread.
  */
 class WorldMatesWebAppBridge(
     private val context: Context,
@@ -231,7 +299,6 @@ class WorldMatesWebAppBridge(
     private val onClose: () -> Unit,
     private val onShowAlert: (String) -> Unit,
     private val onShowConfirm: (String, (Boolean) -> Unit) -> Unit,
-    private val onMainButtonClick: (() -> Unit)?,
     private val queryId: String?
 ) {
 
@@ -251,15 +318,10 @@ class WorldMatesWebAppBridge(
         Log.d(TAG, "JS: expand() — already full screen")
     }
 
-    /**
-     * Отправляет данные боту (webhook web_app_data).
-     * @param data JSON-строка до 4096 байт
-     */
     @JavascriptInterface
     fun sendData(data: String) {
         Log.d(TAG, "JS: sendData(${data.take(80)}...)")
         viewModel.sendData(data, queryId)
-        // После sendData Mini App обычно закрывается
         (context as? ComponentActivity)?.runOnUiThread { onClose() }
     }
 
@@ -273,14 +335,10 @@ class WorldMatesWebAppBridge(
     fun showConfirm(message: String) {
         Log.d(TAG, "JS: showConfirm($message)")
         (context as? ComponentActivity)?.runOnUiThread {
-            onShowConfirm(message) { /* результат игнорируем если нет callback */ }
+            onShowConfirm(message) { /* result ignored if no callback */ }
         }
     }
 
-    /**
-     * Вибрация / тактильный отклик.
-     * @param type "light" | "medium" | "heavy" | "selection" | "error" | "success" | "warning"
-     */
     @JavascriptInterface
     fun hapticFeedback(type: String) {
         Log.d(TAG, "JS: hapticFeedback($type)")
@@ -315,7 +373,72 @@ class WorldMatesWebAppBridge(
         }
     }
 
-    /** Открыть внешнюю ссылку в браузере */
+    @JavascriptInterface
+    fun showMainButton(text: String, color: String, textColor: String) {
+        Log.d(TAG, "JS: showMainButton(text=$text)")
+        viewModel.showMainButton(text, color, textColor)
+    }
+
+    @JavascriptInterface
+    fun hideMainButton() {
+        Log.d(TAG, "JS: hideMainButton()")
+        viewModel.hideMainButton()
+    }
+
+    @JavascriptInterface
+    fun setMainButtonText(text: String) {
+        Log.d(TAG, "JS: setMainButtonText($text)")
+        viewModel.setMainButtonText(text)
+    }
+
+    @JavascriptInterface
+    fun enableMainButton() {
+        Log.d(TAG, "JS: enableMainButton()")
+        viewModel.setMainButtonEnabled(true)
+    }
+
+    @JavascriptInterface
+    fun disableMainButton() {
+        Log.d(TAG, "JS: disableMainButton()")
+        viewModel.setMainButtonEnabled(false)
+    }
+
+    @JavascriptInterface
+    fun showMainButtonProgress(leaveActive: Boolean) {
+        Log.d(TAG, "JS: showMainButtonProgress($leaveActive)")
+        viewModel.setMainButtonProgress(true)
+    }
+
+    @JavascriptInterface
+    fun hideMainButtonProgress() {
+        Log.d(TAG, "JS: hideMainButtonProgress()")
+        viewModel.setMainButtonProgress(false)
+    }
+
+    @JavascriptInterface
+    fun showBackButton() {
+        Log.d(TAG, "JS: showBackButton()")
+        viewModel.setBackButtonVisible(true)
+    }
+
+    @JavascriptInterface
+    fun hideBackButton() {
+        Log.d(TAG, "JS: hideBackButton()")
+        viewModel.setBackButtonVisible(false)
+    }
+
+    @JavascriptInterface
+    fun enableClosingConfirmation() {
+        Log.d(TAG, "JS: enableClosingConfirmation()")
+        viewModel.setClosingConfirmEnabled(true)
+    }
+
+    @JavascriptInterface
+    fun disableClosingConfirmation() {
+        Log.d(TAG, "JS: disableClosingConfirmation()")
+        viewModel.setClosingConfirmEnabled(false)
+    }
+
     @JavascriptInterface
     fun openLink(url: String) {
         Log.d(TAG, "JS: openLink($url)")
@@ -336,13 +459,22 @@ class WorldMatesWebAppBridge(
 fun MiniAppScreen(
     botName: String,
     viewModel: MiniAppViewModel,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onFileChooser: (ValueCallback<Array<Uri>>, WebChromeClient.FileChooserParams) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
+    val mainButton by viewModel.mainButton.collectAsState()
+    val closingConfirmEnabled by viewModel.closingConfirmEnabled.collectAsState()
+
     var showAlertDialog by remember { mutableStateOf<String?>(null) }
     var showConfirmDialog by remember { mutableStateOf<Pair<String, (Boolean) -> Unit>?>(null) }
+    var showCloseConfirm by remember { mutableStateOf(false) }
 
-    // Диалог alert (вызывается через JS WorldMatesWebApp.showAlert)
+    val handleClose: () -> Unit = {
+        if (closingConfirmEnabled) showCloseConfirm = true else onClose()
+    }
+
+    // Alert dialog
     showAlertDialog?.let { message ->
         AlertDialog(
             onDismissRequest = { showAlertDialog = null },
@@ -356,7 +488,7 @@ fun MiniAppScreen(
         )
     }
 
-    // Диалог confirm (вызывается через JS WorldMatesWebApp.showConfirm)
+    // Confirm dialog
     showConfirmDialog?.let { (message, callback) ->
         AlertDialog(
             onDismissRequest = { callback(false); showConfirmDialog = null },
@@ -374,20 +506,42 @@ fun MiniAppScreen(
         )
     }
 
+    // Closing confirmation dialog
+    if (showCloseConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCloseConfirm = false },
+            title = { Text(stringResource(R.string.mini_app_close_confirm_title)) },
+            text  = { Text(stringResource(R.string.mini_app_close_confirm_msg)) },
+            confirmButton = {
+                TextButton(
+                    onClick = { showCloseConfirm = false; onClose() },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.mini_app_close_confirm_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCloseConfirm = false }) {
+                    Text(stringResource(R.string.mini_app_close_confirm_stay))
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text     = botName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style    = MaterialTheme.typography.titleMedium,
+                        text       = botName,
+                        maxLines   = 1,
+                        overflow   = TextOverflow.Ellipsis,
+                        style      = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = handleClose) {
                         Icon(
                             Icons.Default.Close,
                             contentDescription = stringResource(R.string.mini_app_close)
@@ -466,15 +620,57 @@ fun MiniAppScreen(
 
                 is MiniAppState.Ready -> {
                     val ready = state as MiniAppState.Ready
-                    MiniAppWebView(
-                        url      = ready.url,
-                        initData = ready.initData,
-                        queryId  = ready.queryId,
-                        viewModel = viewModel,
-                        onClose  = onClose,
-                        onShowAlert   = { showAlertDialog = it },
-                        onShowConfirm = { msg, cb -> showConfirmDialog = Pair(msg, cb) }
-                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        MiniAppWebView(
+                            url           = ready.url,
+                            initData      = ready.initData,
+                            queryId       = ready.queryId,
+                            viewModel     = viewModel,
+                            onClose       = onClose,
+                            onShowAlert   = { showAlertDialog = it },
+                            onShowConfirm = { msg, cb -> showConfirmDialog = Pair(msg, cb) },
+                            onFileChooser = onFileChooser,
+                            modifier      = Modifier.weight(1f)
+                        )
+                        AnimatedVisibility(visible = mainButton?.isVisible == true) {
+                            mainButton?.let { mb ->
+                                val bgColor = remember(mb.color) {
+                                    try { androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(mb.color)) }
+                                    catch (e: Exception) { androidx.compose.ui.graphics.Color(0xFF2196F3.toInt()) }
+                                }
+                                val fgColor = remember(mb.textColor) {
+                                    try { androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(mb.textColor)) }
+                                    catch (e: Exception) { androidx.compose.ui.graphics.Color.White }
+                                }
+                                Button(
+                                    onClick  = { viewModel.onMainButtonClick() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp),
+                                    enabled  = mb.isActive && !mb.isProgress,
+                                    shape    = RoundedCornerShape(0.dp),
+                                    colors   = ButtonDefaults.buttonColors(
+                                        containerColor = bgColor,
+                                        contentColor   = fgColor
+                                    )
+                                ) {
+                                    if (mb.isProgress) {
+                                        CircularProgressIndicator(
+                                            modifier    = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                            color       = fgColor
+                                        )
+                                    } else {
+                                        Text(
+                                            mb.text,
+                                            style      = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -492,11 +688,12 @@ private fun MiniAppWebView(
     viewModel: MiniAppViewModel,
     onClose: () -> Unit,
     onShowAlert: (String) -> Unit,
-    onShowConfirm: (String, (Boolean) -> Unit) -> Unit
+    onShowConfirm: (String, (Boolean) -> Unit) -> Unit,
+    onFileChooser: (ValueCallback<Array<Uri>>, WebChromeClient.FileChooserParams) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
 
-    // Цвета темы для передачи в Mini App
     val bgColor      = MaterialTheme.colorScheme.background
     val textColor    = MaterialTheme.colorScheme.onBackground
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -510,16 +707,15 @@ private fun MiniAppWebView(
     val initDataJson = remember(initData) { buildInitDataJson(initData) }
 
     AndroidView(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier,
         factory  = { ctx ->
             WebView(ctx).apply {
-                // ── Настройки WebView ────────────────────────────────────────
                 settings.apply {
                     javaScriptEnabled        = true
-                    domStorageEnabled         = true
-                    databaseEnabled           = true
-                    allowFileAccess           = false   // безопасность: нет доступа к файлам
-                    allowContentAccess        = false
+                    domStorageEnabled        = true
+                    databaseEnabled          = true
+                    allowFileAccess          = false
+                    allowContentAccess       = false
                     javaScriptCanOpenWindowsAutomatically = false
                     setSupportMultipleWindows(false)
                     userAgentString = "${settings.userAgentString} WorldMatesApp/2.0"
@@ -527,23 +723,19 @@ private fun MiniAppWebView(
 
                 setBackgroundColor(Color.TRANSPARENT)
 
-                // ── JS-мост ─────────────────────────────────────────────────
                 val bridge = WorldMatesWebAppBridge(
-                    context         = ctx,
-                    viewModel       = viewModel,
-                    onClose         = onClose,
-                    onShowAlert     = onShowAlert,
-                    onShowConfirm   = onShowConfirm,
-                    onMainButtonClick = null,
-                    queryId         = queryId
+                    context       = ctx,
+                    viewModel     = viewModel,
+                    onClose       = onClose,
+                    onShowAlert   = onShowAlert,
+                    onShowConfirm = onShowConfirm,
+                    queryId       = queryId
                 )
                 addJavascriptInterface(bridge, "_WorldMatesWebAppBridge")
 
-                // ── WebViewClient ────────────────────────────────────────────
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView, pageUrl: String) {
                         super.onPageFinished(view, pageUrl)
-                        // Инжектируем window.WorldMatesWebApp после загрузки страницы
                         val script = buildInjectionScript(initData, initDataJson, themeJson, isDark)
                         view.evaluateJavascript(script) { result ->
                             Log.d(TAG, "JS inject result: $result")
@@ -555,32 +747,36 @@ private fun MiniAppWebView(
                         request: WebResourceRequest
                     ): Boolean {
                         val reqUrl = request.url.toString()
-                        // Разрешаем навигацию только внутри того же домена
                         return if (isSameDomain(url, reqUrl)) {
-                            false // разрешаем загрузку в WebView
+                            false
                         } else {
-                            // Внешние ссылки — открываем в браузере
                             try {
                                 ctx.startActivity(Intent(Intent.ACTION_VIEW, reqUrl.toUri()))
                             } catch (e: Exception) {
                                 Log.w(TAG, "Cannot open external URL: $reqUrl")
                             }
-                            true // перехватываем
+                            true
                         }
                     }
                 }
 
-                // ── WebChromeClient ──────────────────────────────────────────
-                webChromeClient = WebChromeClient()
+                webChromeClient = object : WebChromeClient() {
+                    override fun onShowFileChooser(
+                        webView: WebView,
+                        filePathCallback: ValueCallback<Array<Uri>>,
+                        fileChooserParams: FileChooserParams
+                    ): Boolean {
+                        onFileChooser(filePathCallback, fileChooserParams)
+                        return true
+                    }
+                }
 
-                // Сохраняем ссылку на WebView в ViewModel для back navigation
                 viewModel.webViewRef = this
 
                 loadUrl(url)
             }
         },
         update = { webView ->
-            // Обновляем ссылку если View пересоздаётся
             viewModel.webViewRef = webView
         }
     )
@@ -601,53 +797,31 @@ private fun buildInjectionScript(
     val colorScheme = if (isDark) "dark" else "light"
     return """
 (function() {
-    if (window.WorldMatesWebApp) return; // уже инжектировано
+    if (window.WorldMatesWebApp) return;
 
-    var _queryId = $initDataJson && $initDataJson.query_id || null;
-    var _mainButtonCallbacks = [];
-    var _mainButtonVisible = false;
-    var _mainButtonText = '';
-    var _mainButtonColor = '#2196F3';
-    var _mainButtonTextColor = '#FFFFFF';
-
-    // ── MainButton object ─────────────────────────────────────────────────────
     var MainButton = {
-        text: '',
-        color: '#2196F3',
-        textColor: '#FFFFFF',
-        isVisible: false,
-        isActive: true,
-        isProgressVisible: false,
-
-        show: function() {
-            this.isVisible = true;
-            _WorldMatesWebAppBridge.showMainButton(this.text, this.color, this.textColor);
-        },
-        hide: function() {
-            this.isVisible = false;
-            _WorldMatesWebAppBridge.hideMainButton();
-        },
-        enable: function()  { this.isActive = true; },
-        disable: function() { this.isActive = false; },
-        showProgress: function(leaveActive) { this.isProgressVisible = true; },
-        hideProgress: function() { this.isProgressVisible = false; },
-        onClick: function(callback) { _mainButtonCallbacks.push(callback); },
-        offClick: function(callback) {
-            _mainButtonCallbacks = _mainButtonCallbacks.filter(function(cb) { return cb !== callback; });
-        }
-    };
-
-    // ── BackButton object ─────────────────────────────────────────────────────
-    var BackButton = {
-        isVisible: false,
+        text: '', color: '#2196F3', textColor: '#FFFFFF',
+        isVisible: false, isActive: true, isProgressVisible: false,
         _callbacks: [],
-        show: function() { this.isVisible = true; },
-        hide: function() { this.isVisible = false; },
+        show: function() { this.isVisible = true; _WorldMatesWebAppBridge.showMainButton(this.text||' ', this.color, this.textColor); },
+        hide: function() { this.isVisible = false; _WorldMatesWebAppBridge.hideMainButton(); },
+        enable: function() { this.isActive = true; _WorldMatesWebAppBridge.enableMainButton(); },
+        disable: function() { this.isActive = false; _WorldMatesWebAppBridge.disableMainButton(); },
+        showProgress: function(leaveActive) { this.isProgressVisible = true; _WorldMatesWebAppBridge.showMainButtonProgress(!!leaveActive); },
+        hideProgress: function() { this.isProgressVisible = false; _WorldMatesWebAppBridge.hideMainButtonProgress(); },
+        setText: function(text) { this.text = text; _WorldMatesWebAppBridge.setMainButtonText(text); },
         onClick: function(cb) { this._callbacks.push(cb); },
-        offClick: function(cb) { this._callbacks = this._callbacks.filter(function(c) { return c !== cb; }); }
+        offClick: function(cb) { this._callbacks = this._callbacks.filter(function(c){ return c !== cb; }); }
     };
 
-    // ── WorldMatesWebApp API ──────────────────────────────────────────────────
+    var BackButton = {
+        isVisible: false, _callbacks: [],
+        show: function() { this.isVisible = true; _WorldMatesWebAppBridge.showBackButton(); },
+        hide: function() { this.isVisible = false; _WorldMatesWebAppBridge.hideBackButton(); },
+        onClick: function(cb) { this._callbacks.push(cb); },
+        offClick: function(cb) { this._callbacks = this._callbacks.filter(function(c){ return c !== cb; }); }
+    };
+
     window.WorldMatesWebApp = {
         initData:       '${initData.replace("'", "\\'")}',
         initDataUnsafe: $initDataJson,
@@ -709,22 +883,21 @@ private fun buildInjectionScript(
         },
         enableClosingConfirmation: function() {
             this.isClosingConfirmationEnabled = true;
+            _WorldMatesWebAppBridge.enableClosingConfirmation();
         },
         disableClosingConfirmation: function() {
             this.isClosingConfirmationEnabled = false;
+            _WorldMatesWebAppBridge.disableClosingConfirmation();
         },
-        // Совместимость с Telegram TWA
         onEvent: function(eventType, callback) {},
         offEvent: function(eventType, callback) {},
         sendEvent: function(eventType, eventData) {}
     };
 
-    // Для совместимости с Telegram Mini Apps SDK
     if (!window.Telegram) {
         window.Telegram = { WebApp: window.WorldMatesWebApp };
     }
 
-    // Уведомляем страницу что API готов
     document.dispatchEvent(new Event('WorldMatesWebAppReady'));
     document.dispatchEvent(new Event('TelegramGameProxyReady'));
 
