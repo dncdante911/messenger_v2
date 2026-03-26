@@ -581,6 +581,114 @@ async function runMigrations(ctx) {
     console.warn('[Migration] wm_saved_messages:', e.message);
   }
 
+  // ── WorldStars — internal currency ───────────────────────────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_stars_balance (
+        user_id          INT UNSIGNED NOT NULL,
+        balance          INT UNSIGNED NOT NULL DEFAULT 0,
+        total_purchased  INT UNSIGNED NOT NULL DEFAULT 0,
+        total_sent       INT UNSIGNED NOT NULL DEFAULT 0,
+        total_received   INT UNSIGNED NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_stars_transactions (
+        id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        from_user_id INT UNSIGNED DEFAULT NULL,
+        to_user_id   INT UNSIGNED NOT NULL,
+        amount       INT UNSIGNED NOT NULL,
+        type         ENUM('purchase','send','receive','refund') NOT NULL,
+        ref_type     VARCHAR(32)  DEFAULT NULL,
+        ref_id       INT UNSIGNED DEFAULT NULL,
+        note         VARCHAR(255) DEFAULT NULL,
+        order_id     VARCHAR(128) DEFAULT NULL,
+        created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_to_user   (to_user_id),
+        KEY idx_from_user (from_user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[Migration] wm_stars tables ensured');
+  } catch (e) {
+    console.warn('[Migration] wm_stars:', e.message);
+  }
+
+  // ── Business/Creator — stats, api keys, verification ─────────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_business_stats (
+        user_id           INT UNSIGNED NOT NULL,
+        date              DATE NOT NULL,
+        profile_views     INT UNSIGNED NOT NULL DEFAULT 0,
+        messages_received INT UNSIGNED NOT NULL DEFAULT 0,
+        link_clicks       INT UNSIGNED NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_id, date)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_business_api_keys (
+        id      INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id INT UNSIGNED NOT NULL,
+        api_key VARCHAR(64)  NOT NULL,
+        label   VARCHAR(128) NOT NULL DEFAULT 'My API Key',
+        PRIMARY KEY (id),
+        UNIQUE KEY uk_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    const bizAlters = [
+      "ALTER TABLE wm_business_profile ADD COLUMN IF NOT EXISTS bio_link VARCHAR(512) DEFAULT NULL",
+      "ALTER TABLE wm_business_profile ADD COLUMN IF NOT EXISTS verification_status ENUM('none','pending','approved','rejected') NOT NULL DEFAULT 'none'",
+      "ALTER TABLE wm_business_profile ADD COLUMN IF NOT EXISTS verification_note VARCHAR(512) DEFAULT NULL",
+      "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS is_creator_verified TINYINT(1) NOT NULL DEFAULT 0",
+    ];
+    for (const sql of bizAlters) {
+      try { await ctx.sequelize.query(sql); } catch (e) {
+        if (!e.message.includes('Duplicate column')) console.warn('[Migration] biz alter:', e.message);
+      }
+    }
+    console.log('[Migration] wm_business_stats, wm_business_api_keys, biz columns ensured');
+  } catch (e) {
+    console.warn('[Migration] business/creator:', e.message);
+  }
+
+  // ── Channel Scheduled Posts ───────────────────────────────────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_channel_scheduled_posts (
+        id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        channel_id        INT UNSIGNED NOT NULL,
+        author_id         INT UNSIGNED NOT NULL,
+        text              TEXT         DEFAULT NULL,
+        media_url         VARCHAR(255) DEFAULT NULL,
+        media_type        VARCHAR(32)  DEFAULT NULL,
+        is_pinned         TINYINT(1)   NOT NULL DEFAULT 0,
+        scheduled_at      DATETIME     NOT NULL,
+        status            ENUM('pending','published','cancelled') NOT NULL DEFAULT 'pending',
+        published_post_id INT UNSIGNED DEFAULT NULL,
+        PRIMARY KEY (id),
+        KEY idx_channel_status (channel_id, status),
+        KEY idx_scheduled_at   (scheduled_at, status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    // Add columns to existing tables (idempotent)
+    const spAlters = [
+      "ALTER TABLE wm_channel_scheduled_posts ADD COLUMN IF NOT EXISTS media_url VARCHAR(255) DEFAULT NULL",
+      "ALTER TABLE wm_channel_scheduled_posts ADD COLUMN IF NOT EXISTS media_type VARCHAR(32) DEFAULT NULL",
+      "ALTER TABLE wm_channel_scheduled_posts ADD COLUMN IF NOT EXISTS is_pinned TINYINT(1) NOT NULL DEFAULT 0",
+      "ALTER TABLE wm_channel_scheduled_posts ADD COLUMN IF NOT EXISTS published_post_id INT UNSIGNED DEFAULT NULL",
+    ];
+    for (const sql of spAlters) {
+      try { await ctx.sequelize.query(sql); } catch (e) {
+        if (!e.message.includes('Duplicate column')) console.warn('[Migration] sp alter:', e.message);
+      }
+    }
+    console.log('[Migration] wm_channel_scheduled_posts ensured');
+  } catch (e) {
+    console.warn('[Migration] channel_scheduled_posts:', e.message);
+  }
+
   console.log('[Migration] All background migrations complete');
 }
 
