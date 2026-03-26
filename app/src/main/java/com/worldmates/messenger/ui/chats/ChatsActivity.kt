@@ -83,7 +83,9 @@ import com.worldmates.messenger.ui.theme.WMGradients
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import com.worldmates.messenger.ui.security.AppLockActivity
 import com.worldmates.messenger.utils.LanguageManager
+import com.worldmates.messenger.utils.security.SecurePreferences
 
 class ChatsActivity : AppCompatActivity() {
 
@@ -92,6 +94,19 @@ class ChatsActivity : AppCompatActivity() {
     private lateinit var channelsViewModel: com.worldmates.messenger.ui.channels.ChannelsViewModel
     private lateinit var storyViewModel: com.worldmates.messenger.ui.stories.StoryViewModel
     private lateinit var callsViewModel: com.worldmates.messenger.ui.calls.CallsViewModel
+
+    // Prevents double-launch if onResume fires while AppLockActivity is already open
+    private var lockScreenActive = false
+
+    // App-lock launcher — called when ChatsActivity comes to foreground
+    private val appLockLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            lockScreenActive = false
+            if (result.resultCode != RESULT_OK) {
+                // User didn't authenticate — push app to background
+                moveTaskToBack(true)
+            }
+        }
 
     // Android 13+ runtime permission launcher for POST_NOTIFICATIONS
     private val notificationPermissionLauncher =
@@ -261,11 +276,28 @@ class ChatsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        // ── App lock check ─────────────────────────────────────────────────
+        if (!lockScreenActive && AppLockActivity.shouldShowLockScreen()) {
+            lockScreenActive = true
+            appLockLauncher.launch(
+                Intent(this, AppLockActivity::class.java)
+            )
+            return   // Skip data refresh until user unlocks
+        }
+
         // Оновлюємо список чатів при поверненні на екран
         viewModel.fetchChats()
         groupsViewModel.fetchGroups()
         channelsViewModel.fetchSubscribedChannels()
         storyViewModel.loadStories()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // App went fully to background — clear in-session unlock so the next
+        // foreground event re-evaluates the lock timeout.
+        SecurePreferences.isUnlockedInSession = false
     }
 
     internal fun navigateToMessages(chat: Chat) {

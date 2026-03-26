@@ -17,6 +17,13 @@ object SecurePreferences {
     private const val TAG = "SecurePreferences"
     private const val PREFS_NAME = "worldmates_secure_prefs"
 
+    /**
+     * In-memory flag: true after a successful unlock in the current process session.
+     * Cleared when the app goes to background so that returning from background
+     * re-triggers the lock check.
+     */
+    var isUnlockedInSession: Boolean = false
+
     // Ключи для хранения
     private const val KEY_PIN_HASH = "pin_hash"
     private const val KEY_PIN_ENABLED = "pin_enabled"
@@ -179,34 +186,39 @@ object SecurePreferences {
         set(value) = encryptedPrefs.edit().putLong(KEY_LAST_UNLOCK_TIME, value).apply()
 
     /**
-     * Проверяет, нужно ли показывать экран блокировки
+     * Проверяет, нужно ли показывать экран блокировки.
+     *
+     * Логика:
+     * - Если ни PIN ни биометрия не включены → не блокируем.
+     * - Если таймаут = -1 (NEVER) → не блокируем.
+     * - Если [isUnlockedInSession] = true → пользователь уже разблокировал
+     *   в этом сеансе; блокируем снова только когда приложение ушло в фон
+     *   (isUnlockedInSession сбрасывается из onStop ChatsActivity).
+     * - Если таймаут = 0 (IMMEDIATELY) и isUnlockedInSession = false → блокируем.
+     * - Иначе — проверяем elapsed vs timeout.
      */
     fun shouldShowLockScreen(): Boolean {
-        if (!isPINEnabled() && !isBiometricEnabled) {
-            return false
-        }
+        if (!isPINEnabled() && !isBiometricEnabled) return false
+        if (appLockTimeout == -1L) return false
 
-        if (appLockTimeout == -1L) {
-            // Блокировка отключена
-            return false
-        }
+        // Already unlocked this session — wait until app goes to background
+        if (isUnlockedInSession) return false
 
         if (appLockTimeout == 0L) {
-            // Блокировать сразу
+            // Immediately: lock every time the app returns from background
             return true
         }
 
-        val currentTime = System.currentTimeMillis()
-        val timeSinceLastUnlock = currentTime - lastUnlockTime
-
-        return timeSinceLastUnlock > appLockTimeout
+        val elapsed = System.currentTimeMillis() - lastUnlockTime
+        return elapsed > appLockTimeout
     }
 
     /**
-     * Обновляет время последней разблокировки
+     * Обновляет время последней разблокировки и помечает сеанс как разблокированный.
      */
     fun updateUnlockTime() {
         lastUnlockTime = System.currentTimeMillis()
+        isUnlockedInSession = true
     }
 
     // ==================== 2FA (TOTP) ====================
