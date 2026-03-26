@@ -142,4 +142,12 @@ interface NodeStoriesApi {
     suspend fun deleteChannelStory(
         @Field("story_id") storyId: Long
     ): DeleteStoryResponse
+
+    /** Get own story archive — all stories posted within the last 365 days (no active TTL filter) */
+    @FormUrlEncoded
+    @POST("api/node/stories/get-archive")
+    suspend fun getMyStoriesArchive(
+        @Field("limit")  limit:  Int = 50,
+        @Field("offset") offset: Int = 0
+    ): GetStoriesResponse
 }

@@ -130,6 +130,7 @@ async function buildMessage(ctx, msg, userId) {
         time:           msg.time,
         time_text:      fmtTime(msg.time),
         seen:           msg.seen,
+        is_read:        (msg.seen || 0) > 0,
         position,
         type,
         type_two:       msg.type_two       || '',

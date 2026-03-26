@@ -98,6 +98,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -108,8 +109,13 @@ import coil.compose.AsyncImage
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.layout.aspectRatio
 import com.worldmates.messenger.R
+import com.worldmates.messenger.data.Constants
+import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.data.model.Story
 import com.worldmates.messenger.data.model.User
+import com.worldmates.messenger.network.UserMediaItem
 import kotlinx.coroutines.delay
 
 /**
@@ -258,7 +264,7 @@ fun MyProfileScreen(
                 visible = tabsVisible,
                 enter   = fadeIn(tween(420)) + expandVertically()
             ) {
-                ProfileContentTabs()
+                ProfileContentTabs(viewModel = profileViewModel)
             }
         }
     }
@@ -576,6 +582,7 @@ private fun ProfileActionButton(
 @Composable
 private fun ProfileInfoCard(user: User) {
     var expanded by remember { mutableStateOf(true) }
+    val uriHandler = LocalUriHandler.current
 
     Card(
         modifier = Modifier
@@ -655,7 +662,18 @@ private fun ProfileInfoCard(user: User) {
                     }
                     if (!user.website.isNullOrBlank()) {
                         InfoDivider()
-                        ProfileInfoRow(user.website, stringResource(R.string.website_profile_label), Icons.Default.Language)
+                        ProfileInfoRow(
+                            value  = user.website,
+                            label  = stringResource(R.string.website_profile_label),
+                            icon   = Icons.Default.Language,
+                            onClick = {
+                                val url = user.website.let {
+                                    if (it.startsWith("http://") || it.startsWith("https://")) it
+                                    else "https://$it"
+                                }
+                                runCatching { uriHandler.openUri(url) }
+                            }
+                        )
                     }
                 }
             }
@@ -664,10 +682,17 @@ private fun ProfileInfoCard(user: User) {
 }
 
 @Composable
-private fun ProfileInfoRow(value: String, label: String, icon: ImageVector) {
+private fun ProfileInfoRow(
+    value: String,
+    label: String,
+    icon: ImageVector,
+    onClick: (() -> Unit)? = null
+) {
+    val clickableModifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier
     Row(
         modifier          = Modifier
             .fillMaxWidth()
+            .then(clickableModifier)
             .padding(vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -675,14 +700,16 @@ private fun ProfileInfoRow(value: String, label: String, icon: ImageVector) {
             icon,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
-            tint     = MaterialTheme.colorScheme.primary
+            tint     = if (onClick != null) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.width(11.dp))
         Column {
             Text(
                 value,
                 style    = MaterialTheme.typography.bodyMedium,
-                color    = MaterialTheme.colorScheme.onSurface,
+                color    = if (onClick != null) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurface,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
@@ -708,9 +735,18 @@ private fun InfoDivider() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ProfileContentTabs() {
+private fun ProfileContentTabs(viewModel: UserProfileViewModel) {
     val tabs        = listOf(stringResource(R.string.tab_media), stringResource(R.string.tab_archive))
     var selectedTab by remember { mutableStateOf(0) }
+
+    val mediaState   by viewModel.mediaState.collectAsState()
+    val archiveState by viewModel.archiveState.collectAsState()
+
+    // Trigger load on first render
+    LaunchedEffect(Unit) {
+        viewModel.loadMyMedia()
+        viewModel.loadMyStoriesArchive()
+    }
 
     Column(
         modifier = Modifier
@@ -757,8 +793,8 @@ private fun ProfileContentTabs() {
             label        = "tab_content_crossfade"
         ) { tab ->
             when (tab) {
-                0 -> MediaTabContent()
-                1 -> ArchiveTabContent()
+                0 -> MediaTabContent(mediaState = mediaState)
+                1 -> ArchiveTabContent(archiveState = archiveState)
             }
         }
     }
@@ -767,7 +803,8 @@ private fun ProfileContentTabs() {
 // ─── Вкладка "Медиа" ──────────────────────────────────────────────────────────
 
 @Composable
-private fun MediaTabContent() {
+private fun MediaTabContent(mediaState: MediaState) {
+    val meId        = UserSession.userId
     val subTabs     = listOf(stringResource(R.string.tab_media_personal), stringResource(R.string.tab_media_received))
     var selectedSub by remember { mutableStateOf(0) }
 
@@ -816,16 +853,59 @@ private fun MediaTabContent() {
             }
         }
 
-        Crossfade(
-            targetState   = selectedSub,
-            animationSpec = tween(240),
-            label         = "media_sub_crossfade"
-        ) { sub ->
-            EmptyMediaPlaceholder(
-                icon     = if (sub == 0) Icons.Default.Collections else Icons.Default.Photo,
-                title    = if (sub == 0) stringResource(R.string.media_personal_empty_title) else stringResource(R.string.media_received_empty_title),
-                subtitle = if (sub == 0) stringResource(R.string.media_personal_empty_subtitle) else stringResource(R.string.media_received_empty_subtitle)
-            )
+        when (mediaState) {
+            is MediaState.Loading -> {
+                Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            is MediaState.Success -> {
+                val filtered = mediaState.items.filter { item ->
+                    if (selectedSub == 0) item.senderId == meId else item.senderId != meId
+                }
+                if (filtered.isEmpty()) {
+                    EmptyMediaPlaceholder(
+                        icon     = if (selectedSub == 0) Icons.Default.Collections else Icons.Default.Photo,
+                        title    = if (selectedSub == 0) stringResource(R.string.media_personal_empty_title) else stringResource(R.string.media_received_empty_title),
+                        subtitle = if (selectedSub == 0) stringResource(R.string.media_personal_empty_subtitle) else stringResource(R.string.media_received_empty_subtitle)
+                    )
+                } else {
+                    val base = Constants.MEDIA_BASE_URL.trimEnd('/')
+                    Column(Modifier.fillMaxWidth().padding(2.dp)) {
+                        filtered.chunked(3).forEach { rowItems ->
+                            Row(Modifier.fillMaxWidth()) {
+                                rowItems.forEach { item ->
+                                    val url = if (item.media.startsWith("http")) item.media
+                                              else "$base/${item.media.trimStart('/')}"
+                                    AsyncImage(
+                                        model             = url,
+                                        contentDescription = item.userData?.displayName,
+                                        contentScale      = ContentScale.Crop,
+                                        modifier          = Modifier.weight(1f).aspectRatio(1f).padding(1.dp).background(MaterialTheme.colorScheme.surfaceVariant)
+                                    )
+                                }
+                                repeat(3 - rowItems.size) {
+                                    Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            is MediaState.Error -> {
+                EmptyMediaPlaceholder(
+                    icon     = Icons.Default.Collections,
+                    title    = stringResource(R.string.media_personal_empty_title),
+                    subtitle = mediaState.message
+                )
+            }
+            else -> {
+                EmptyMediaPlaceholder(
+                    icon     = if (selectedSub == 0) Icons.Default.Collections else Icons.Default.Photo,
+                    title    = if (selectedSub == 0) stringResource(R.string.media_personal_empty_title) else stringResource(R.string.media_received_empty_title),
+                    subtitle = if (selectedSub == 0) stringResource(R.string.media_personal_empty_subtitle) else stringResource(R.string.media_received_empty_subtitle)
+                )
+            }
         }
     }
 }
@@ -833,12 +913,59 @@ private fun MediaTabContent() {
 // ─── Вкладка "Архив" ──────────────────────────────────────────────────────────
 
 @Composable
-private fun ArchiveTabContent() {
-    EmptyMediaPlaceholder(
-        icon     = Icons.Default.Archive,
-        title    = stringResource(R.string.archive_empty_title),
-        subtitle = stringResource(R.string.archive_empty_subtitle)
-    )
+private fun ArchiveTabContent(archiveState: ArchiveState) {
+    when (archiveState) {
+        is ArchiveState.Loading -> {
+            Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        is ArchiveState.Success -> {
+            if (archiveState.stories.isEmpty()) {
+                EmptyMediaPlaceholder(
+                    icon     = Icons.Default.Archive,
+                    title    = stringResource(R.string.archive_empty_title),
+                    subtitle = stringResource(R.string.archive_empty_subtitle)
+                )
+            } else {
+                val base = Constants.MEDIA_BASE_URL.trimEnd('/')
+                Column(Modifier.fillMaxWidth().padding(2.dp)) {
+                    archiveState.stories.chunked(3).forEach { rowItems ->
+                        Row(Modifier.fillMaxWidth()) {
+                            rowItems.forEach { story ->
+                                val thumbUrl = story.thumbnail.let {
+                                    if (it.startsWith("http")) it else "$base/${it.trimStart('/')}"
+                                }
+                                AsyncImage(
+                                    model             = thumbUrl,
+                                    contentDescription = story.title,
+                                    contentScale      = ContentScale.Crop,
+                                    modifier          = Modifier.weight(1f).aspectRatio(1f).padding(1.dp).background(MaterialTheme.colorScheme.surfaceVariant)
+                                )
+                            }
+                            repeat(3 - rowItems.size) {
+                                Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        is ArchiveState.Error -> {
+            EmptyMediaPlaceholder(
+                icon     = Icons.Default.Archive,
+                title    = stringResource(R.string.archive_empty_title),
+                subtitle = archiveState.message
+            )
+        }
+        else -> {
+            EmptyMediaPlaceholder(
+                icon     = Icons.Default.Archive,
+                title    = stringResource(R.string.archive_empty_title),
+                subtitle = stringResource(R.string.archive_empty_subtitle)
+            )
+        }
+    }
 }
 
 @Composable

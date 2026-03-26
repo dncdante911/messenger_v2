@@ -6,9 +6,11 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.data.model.Story
 import com.worldmates.messenger.data.model.User
 import com.worldmates.messenger.data.model.UserRating
 import com.worldmates.messenger.network.NodeRetrofitClient
+import com.worldmates.messenger.network.UserMediaItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -30,6 +32,12 @@ class UserProfileViewModel : ViewModel() {
 
     private val _avatarUploadState = MutableStateFlow<AvatarUploadState>(AvatarUploadState.Idle)
     val avatarUploadState: StateFlow<AvatarUploadState> = _avatarUploadState
+
+    private val _mediaState = MutableStateFlow<MediaState>(MediaState.Idle)
+    val mediaState: StateFlow<MediaState> = _mediaState
+
+    private val _archiveState = MutableStateFlow<ArchiveState>(ArchiveState.Idle)
+    val archiveState: StateFlow<ArchiveState> = _archiveState
 
     /**
      * Завантажити дані профілю користувача
@@ -265,6 +273,42 @@ class UserProfileViewModel : ViewModel() {
             }
         }
     }
+
+    fun loadMyMedia() {
+        if (_mediaState.value is MediaState.Loading) return
+        _mediaState.value = MediaState.Loading
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.profileApi.getMyMedia()
+                if (response.apiStatus == 200) {
+                    _mediaState.value = MediaState.Success(response.media ?: emptyList())
+                } else {
+                    _mediaState.value = MediaState.Error(response.errorMessage ?: "Failed to load media")
+                }
+            } catch (e: Exception) {
+                Log.e("UserProfileViewModel", "Exception loading media", e)
+                _mediaState.value = MediaState.Error(e.localizedMessage ?: "Network error")
+            }
+        }
+    }
+
+    fun loadMyStoriesArchive() {
+        if (_archiveState.value is ArchiveState.Loading) return
+        _archiveState.value = ArchiveState.Loading
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.storiesApi.getMyStoriesArchive()
+                if (response.apiStatus == 200) {
+                    _archiveState.value = ArchiveState.Success(response.stories ?: emptyList())
+                } else {
+                    _archiveState.value = ArchiveState.Error(response.errorMessage ?: "Failed to load archive")
+                }
+            } catch (e: Exception) {
+                Log.e("UserProfileViewModel", "Exception loading story archive", e)
+                _archiveState.value = ArchiveState.Error(e.localizedMessage ?: "Network error")
+            }
+        }
+    }
 }
 
 sealed class ProfileState {
@@ -291,4 +335,18 @@ sealed class AvatarUploadState {
     object Loading : AvatarUploadState()
     object Success : AvatarUploadState()
     data class Error(val message: String) : AvatarUploadState()
+}
+
+sealed class MediaState {
+    object Idle : MediaState()
+    object Loading : MediaState()
+    data class Success(val items: List<UserMediaItem>) : MediaState()
+    data class Error(val message: String) : MediaState()
+}
+
+sealed class ArchiveState {
+    object Idle : ArchiveState()
+    object Loading : ArchiveState()
+    data class Success(val stories: List<Story>) : ArchiveState()
+    data class Error(val message: String) : ArchiveState()
 }

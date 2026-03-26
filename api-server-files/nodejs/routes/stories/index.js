@@ -553,6 +553,56 @@ function getUserStories(ctx) {
     };
 }
 
+// ─── POST /api/node/stories/get-archive ─────────────────────────────────────
+// Own stories archive: all stories posted within the last 365 days (no active TTL filter).
+// Accessible only to the story owner (logged-in user's own stories).
+
+function getMyStoriesArchive(ctx) {
+    return async (req, res) => {
+        try {
+            const loggedUserId = req.userId;
+            let limit = parseInt(req.body.limit) || 50;
+            let offset = parseInt(req.body.offset) || 0;
+            if (limit < 1) limit = 1;
+            if (limit > 100) limit = 100;
+
+            const ARCHIVE_TTL = 365 * 86400; // 365 days in seconds
+            const now = Math.floor(Date.now() / 1000);
+            const archiveThreshold = now - ARCHIVE_TTL;
+
+            const stories = await ctx.wo_userstory.findAll({
+                where: {
+                    user_id: loggedUserId,
+                    [Op.and]: [
+                        ctx.wo_userstory.sequelize.literal(`CAST(\`posted\` AS UNSIGNED) > ${archiveThreshold}`)
+                    ]
+                },
+                order: [['id', 'DESC']],
+                limit,
+                offset,
+                raw: true,
+            });
+
+            const result = [];
+            for (const story of stories) {
+                const storyData = await buildStoryResponse(ctx, story, loggedUserId);
+                result.push(storyData);
+            }
+
+            console.log(`[Stories/get-archive] User ${loggedUserId} fetched ${result.length} archived stories`);
+
+            res.json({ api_status: 200, stories: result });
+
+        } catch (err) {
+            console.error('[Stories/get-archive] Error:', err.message, err.stack);
+            res.status(500).json({
+                api_status: 500,
+                error_message: 'Failed to fetch story archive: ' + err.message
+            });
+        }
+    };
+}
+
 // ─── POST /api/node/stories/mark-viewed ─────────────────────────────────────
 
 function markStoryViewed(ctx) {
@@ -1172,6 +1222,7 @@ function registerStoryRoutes(app, ctx, io) {
     app.post('/api/node/stories/create',           auth, handleUpload, createStory(ctx, io));
     app.post('/api/node/stories/get',              auth, getStories(ctx));
     app.post('/api/node/stories/get-user-stories', auth, getUserStories(ctx));
+    app.post('/api/node/stories/get-archive',      auth, getMyStoriesArchive(ctx));
     app.post('/api/node/stories/mark-viewed',      auth, markStoryViewed(ctx));
     app.post('/api/node/stories/react',            auth, reactToStory(ctx));
     app.post('/api/node/stories/get-comments',     auth, getStoryComments(ctx));

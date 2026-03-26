@@ -930,6 +930,76 @@ function updateAppearance(ctx) {
     }];
 }
 
+// ─── GET /api/node/users/me/media ─────────────────────────────────────────────
+// Returns media messages (photos/videos) from all private conversations
+// involving the logged-in user, grouped by conversation partner.
+
+function getMyMedia(ctx) {
+    return async (req, res) => {
+        try {
+            const me = req.userId;
+            let limit  = parseInt(req.query.limit  || req.body?.limit)  || 60;
+            let offset = parseInt(req.query.offset || req.body?.offset) || 0;
+            if (limit < 1)   limit  = 1;
+            if (limit > 200) limit  = 200;
+
+            const rows = await ctx.wo_messages.findAll({
+                where: {
+                    [Op.or]: [{ user_id: me }, { to_id: me }],
+                    media: { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: '' }] },
+                },
+                attributes: ['id', 'user_id', 'to_id', 'media', 'mediaFileName', 'time', 'text'],
+                order: [['id', 'DESC']],
+                limit,
+                offset,
+                raw: true,
+            });
+
+            // Gather unique partner IDs to fetch user data in batch
+            const partnerIds = [...new Set(rows.map(r => r.user_id === me ? r.to_id : r.user_id))];
+            const partnerRows = partnerIds.length
+                ? await ctx.wo_users.findAll({
+                      where: { user_id: { [Op.in]: partnerIds } },
+                      attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar'],
+                      raw: true,
+                  })
+                : [];
+            const partnerMap = {};
+            for (const p of partnerRows) partnerMap[p.user_id] = p;
+
+            const base = (ctx.globalconfig?.site_url || '').replace(/\/$/, '');
+            const media = rows.map(r => {
+                const partnerId = r.user_id === me ? r.to_id : r.user_id;
+                const p = partnerMap[partnerId] || {};
+                return {
+                    message_id:      r.id,
+                    media:           r.media,
+                    media_file_name: r.mediaFileName || null,
+                    time:            parseInt(r.time) || 0,
+                    sender_id:       r.user_id,
+                    recipient_id:    r.to_id,
+                    partner_id:      partnerId,
+                    user_data: {
+                        user_id:    p.user_id   || partnerId,
+                        username:   p.username  || '',
+                        first_name: p.first_name || '',
+                        last_name:  p.last_name  || '',
+                        avatar:     p.avatar && p.avatar !== 'none'
+                                        ? (p.avatar.startsWith('http') ? p.avatar : `${base}/${p.avatar}`)
+                                        : null,
+                    },
+                };
+            });
+
+            res.json({ api_status: 200, media, count: media.length });
+
+        } catch (err) {
+            console.error('[Profile/getMyMedia]', err.message);
+            res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 function registerProfileRoutes(app, ctx) {
@@ -941,6 +1011,7 @@ function registerProfileRoutes(app, ctx) {
     app.put   ('/api/node/users/me/notifications',     updateNotifications(ctx));
     app.put   ('/api/node/users/me/appearance',        updateAppearance(ctx));
     app.get   ('/api/node/users/me/blocked',           getBlocked(ctx));
+    app.get   ('/api/node/users/me/media',             getMyMedia(ctx));
 
     // Search
     app.get   ('/api/node/users/search',              searchUsers(ctx));
