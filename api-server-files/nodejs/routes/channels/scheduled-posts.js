@@ -105,9 +105,9 @@ async function publishDuePosts(ctx) {
 async function listScheduled(ctx, req, res) {
     try {
         const [rows] = await ctx.sequelize.query(
-            `SELECT sp.*, u.fname AS author_name, u.avatar AS author_avatar
+            `SELECT sp.*, u.first_name AS author_name, u.avatar AS author_avatar
              FROM wm_channel_scheduled_posts sp
-             LEFT JOIN wo_users u ON u.uid = sp.author_id
+             LEFT JOIN Wo_Users u ON u.uid = sp.author_id
              WHERE sp.channel_id = ? AND sp.status = 'pending'
              ORDER BY sp.scheduled_at ASC`,
             { replacements: [req.channelId] }

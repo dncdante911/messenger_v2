@@ -209,9 +209,9 @@ async function getBalanceRoute(ctx, req, res) {
     try {
         const bal = await getBalance(ctx, req.userId);
         const [txRows] = await ctx.sequelize.query(
-            `SELECT t.*, u.fname AS other_user_name, u.avatar AS other_user_avatar
+            `SELECT t.*, u.first_name AS other_user_name, u.avatar AS other_user_avatar
              FROM wm_stars_transactions t
-             LEFT JOIN wo_users u ON u.uid = IF(t.from_user_id = ?, t.to_user_id, t.from_user_id)
+             LEFT JOIN Wo_Users u ON u.uid = IF(t.from_user_id = ?, t.to_user_id, t.from_user_id)
              WHERE t.to_user_id = ? OR t.from_user_id = ?
              ORDER BY t.created_at DESC LIMIT 10`,
             { replacements: [req.userId, req.userId, req.userId] }
@@ -236,9 +236,9 @@ async function getTransactionsRoute(ctx, req, res) {
         const limit  = Math.min(parseInt(req.query.limit  || '20', 10), 100);
         const offset = parseInt(req.query.offset || '0', 10);
         const [rows] = await ctx.sequelize.query(
-            `SELECT t.*, u.fname AS other_user_name, u.avatar AS other_user_avatar
+            `SELECT t.*, u.first_name AS other_user_name, u.avatar AS other_user_avatar
              FROM wm_stars_transactions t
-             LEFT JOIN wo_users u ON u.uid = IF(t.from_user_id = ?, t.to_user_id, t.from_user_id)
+             LEFT JOIN Wo_Users u ON u.uid = IF(t.from_user_id = ?, t.to_user_id, t.from_user_id)
              WHERE t.to_user_id = ? OR t.from_user_id = ?
              ORDER BY t.created_at DESC LIMIT ? OFFSET ?`,
             { replacements: [req.userId, req.userId, req.userId, limit, offset] }
