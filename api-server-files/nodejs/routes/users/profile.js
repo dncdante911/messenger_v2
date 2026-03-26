@@ -133,9 +133,9 @@ function serializeUser(ctx, u, { isSelf = false, extra = {} } = {}) {
             is_online: isOnline,
             last_seen: u.lastseen ? Number(u.lastseen) : 0,
         },
-        verified:  u.verified  || '0',
-        is_pro:    u.is_pro    || '0',
-        pro_type:  parseInt(u.pro_type || '0'),
+        verified:  parseInt(u.verified  || '0'),
+        is_pro:    parseInt(u.is_pro    || '0'),
+        pro_type:  parseInt(u.pro_type  || '0'),
         active:    u.active    || '1',
         joined:    u.joined    || 0,
         relationship_id: u.relationship_id || 0,
@@ -215,8 +215,8 @@ function serializeUserCard(ctx, u, relationship = {}) {
         name:            `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || '',
         avatar:          mediaUrl(ctx, u.avatar),
         about:           u.about || '',
-        verified:        u.verified  || '0',
-        is_pro:          u.is_pro    || '0',
+        verified:        parseInt(u.verified  || '0'),
+        is_pro:          parseInt(u.is_pro    || '0'),
         // Flat lastseen fields (BlockedUser, SearchUser models use these)
         lastseen:        showSeen ? (u.lastseen ? Number(u.lastseen) : 0) : 0,
         lastseen_status: showSeen ? (isOnline ? 'online' : 'offline') : 'offline',
@@ -311,9 +311,13 @@ const ALLOWED_UPDATE_FIELDS = [
 ];
 
 const VALID_ACCENT_COLORS = [
+    // Base colors (all users)
     '#667EEA', '#764BA2', '#FF6B35', '#4CAF50',
     '#F44336', '#00BCD4', '#E91E63', '#FF9800',
     '#795548', '#607D8B', '#009688', '#3F51B5',
+    // Premium-exclusive colors
+    '#FFD700', '#FF6B6B', '#A855F7', '#06B6D4',
+    '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
 ];
 
 const VALID_HEADER_STYLES = ['gradient', 'minimal', 'pattern'];
@@ -891,9 +895,7 @@ function updateAppearance(ctx) {
                 if (!VALID_ACCENT_COLORS.map(c => c.toUpperCase()).includes(normalized)) {
                     return res.json({ api_status: 400, error_message: 'Invalid accent color' });
                 }
-                updates.profile_accent = normalized.toLowerCase().replace(/^#/, c => '#') ;
-                // keep as provided lowercase
-                updates.profile_accent = String(req.body.profile_accent).trim();
+                updates.profile_accent = normalized.toLowerCase();
             }
 
             if (req.body.profile_badge !== undefined) {
