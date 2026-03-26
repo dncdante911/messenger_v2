@@ -34,7 +34,7 @@ async function requireChannelAdmin(ctx, req, res, next) {
 
     try {
         const [rows] = await ctx.sequelize.query(
-            `SELECT p.uid, p.owner
+            `SELECT p.uid, p.owner, l.role AS user_role
              FROM wo_pages p
              LEFT JOIN wo_pages_likes l ON l.page_id = p.uid AND l.user_id = ? AND l.role IN ('admin','owner')
              WHERE p.uid = ?`,
@@ -44,7 +44,7 @@ async function requireChannelAdmin(ctx, req, res, next) {
         if (!page) return res.status(404).json({ api_status: 404, error_message: 'Channel not found' });
 
         const isOwner = String(page.owner) === String(req.userId);
-        const isAdmin = !!rows[0]?.role;  // joined row has role when user is admin
+        const isAdmin = !!rows[0]?.user_role;
         if (!isOwner && !isAdmin) {
             return res.status(403).json({ api_status: 403, error_message: 'Only channel admins can manage scheduled posts' });
         }
@@ -182,7 +182,7 @@ function registerChannelScheduledPostRoutes(app, ctx) {
     app.delete('/api/node/channels/:id/posts/scheduled/:postId',  auth, admin, (req, res) => cancelScheduled(ctx, req, res));
 
     // Start cron ticker (every 60s)
-    setInterval(() => publishDuePosts(ctx), 60_000);
+    setInterval(function() { publishDuePosts(ctx); }, 60000);
 }
 
 module.exports = { registerChannelScheduledPostRoutes, publishDuePosts };
