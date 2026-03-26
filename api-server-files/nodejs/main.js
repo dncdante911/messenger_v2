@@ -70,7 +70,8 @@ const { registerStickerRoutes }      = require('./routes/stickers')
 const { registerBusinessRoutes, handleBusinessAutoReply } = require('./routes/business')
 const { registerBusinessDirectoryRoutes } = require('./routes/business-directory')
 const { registerSearchRoutes }       = require('./routes/search/index')
-const { registerStarsRoutes }        = require('./routes/stars')
+const { registerStarsRoutes }                = require('./routes/stars')
+const { registerChannelScheduledPostRoutes } = require('./routes/channels/scheduled-posts')
 const { startCronJobs }              = require('./jobs/cronJobs')
 const setupMediaAutoDeleteJob        = require('./jobs/media-auto-delete')
 const { createGeoblockMiddleware }   = require('./middleware/geoblock')
@@ -853,6 +854,9 @@ async function main() {
 
   // Register WorldStars internal currency routes
   registerStarsRoutes(app, ctx);
+
+  // Register Channel Scheduled Posts routes
+  registerChannelScheduledPostRoutes(app, ctx);
 
   // Register Channel Livestream routes
   ctx.io = io;   // needed by livestream routes and anywhere ctx.io is used

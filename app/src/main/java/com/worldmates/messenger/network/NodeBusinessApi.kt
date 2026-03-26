@@ -81,4 +81,31 @@ interface NodeBusinessApi {
     suspend fun getUserBusinessProfile(
         @Path("userId") userId: Long
     ): BusinessProfileResponse
+
+    // ── Creator / Business extended features ─────────────────────────────────
+
+    /** Reach statistics for the last N days (default 30). */
+    @GET("api/node/business/stats")
+    suspend fun getStats(
+        @Query("days") days: Int = 30
+    ): BusinessStatsResponse
+
+    /** Submit a verification request. */
+    @POST("api/node/business/request-verification")
+    suspend fun requestVerification(): BusinessVerificationResponse
+
+    /** Get current API key (null if not generated yet). */
+    @GET("api/node/business/api-key")
+    suspend fun getApiKey(): BusinessApiKeyResponse
+
+    /** Generate a new API key (revokes old one). */
+    @FormUrlEncoded
+    @POST("api/node/business/api-key")
+    suspend fun generateApiKey(
+        @Field("label") label: String = "My API Key"
+    ): BusinessApiKeyResponse
+
+    /** Revoke current API key. */
+    @DELETE("api/node/business/api-key")
+    suspend fun revokeApiKey(): BusinessActionResponse
 }

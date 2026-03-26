@@ -490,6 +490,17 @@ function registerBusinessRoutes(app, ctx) {
                 ...publicProfile
             } = profile;
 
+            // Track profile view in stats (non-blocking, don't count self-views)
+            if (req.userId !== targetId) {
+                const today = new Date().toISOString().slice(0, 10);
+                ctx.sequelize.query(
+                    `INSERT INTO wm_business_stats (user_id, date, profile_views)
+                     VALUES (?, ?, 1)
+                     ON DUPLICATE KEY UPDATE profile_views = profile_views + 1`,
+                    { replacements: [targetId, today] }
+                ).catch(() => {});
+            }
+
             res.json({ api_status: 200, profile: publicProfile, hours });
         } catch (e) {
             res.status(500).json({ api_status: 500, error_message: e.message });
@@ -506,12 +517,132 @@ function registerBusinessRoutes(app, ctx) {
 
             await row.increment('views', { by: 1 });
 
+            // Track link_clicks in stats
+            const today = new Date().toISOString().slice(0, 10);
+            await ctx.sequelize.query(
+                `INSERT INTO wm_business_stats (user_id, date, link_clicks)
+                 VALUES (?, ?, 1)
+                 ON DUPLICATE KEY UPDATE link_clicks = link_clicks + 1`,
+                { replacements: [row.user_id, today] }
+            );
+
             res.json({
                 api_status:     200,
                 user_id:        row.user_id,
                 title:          row.title,
                 prefilled_text: row.prefilled_text,
             });
+        } catch (e) {
+            res.status(500).json({ api_status: 500, error_message: e.message });
+        }
+    });
+
+    // ── Business stats (reach analytics) ─────────────────────────────────────
+
+    app.get('/api/node/business/stats', auth, async (req, res) => {
+        try {
+            const days = Math.min(parseInt(req.query.days || '30', 10), 90);
+            const [rows] = await ctx.sequelize.query(
+                `SELECT date, profile_views, messages_received, link_clicks
+                 FROM wm_business_stats
+                 WHERE user_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+                 ORDER BY date ASC`,
+                { replacements: [req.userId, days] }
+            );
+
+            const totals = rows.reduce((acc, r) => ({
+                profile_views:     acc.profile_views     + (r.profile_views     || 0),
+                messages_received: acc.messages_received + (r.messages_received || 0),
+                link_clicks:       acc.link_clicks       + (r.link_clicks       || 0),
+            }), { profile_views: 0, messages_received: 0, link_clicks: 0 });
+
+            res.json({ api_status: 200, days, totals, daily: rows });
+        } catch (e) {
+            console.error('[Business] stats error:', e.message);
+            res.status(500).json({ api_status: 500, error_message: e.message });
+        }
+    });
+
+    // ── Verification request ───────────────────────────────────────────────────
+
+    app.post('/api/node/business/request-verification', auth, async (req, res) => {
+        try {
+            const profile = await ctx.wm_business_profile.findOne({ where: { user_id: req.userId } });
+            if (!profile) {
+                return res.json({ api_status: 400, error_message: 'Set up your business profile first' });
+            }
+            if (profile.verification_status === 'approved') {
+                return res.json({ api_status: 200, verification_status: 'approved', message: 'Already verified' });
+            }
+            if (profile.verification_status === 'pending') {
+                return res.json({ api_status: 200, verification_status: 'pending', message: 'Request already submitted' });
+            }
+            await profile.update({ verification_status: 'pending', verification_note: null });
+            res.json({ api_status: 200, verification_status: 'pending' });
+        } catch (e) {
+            console.error('[Business] request-verification error:', e.message);
+            res.status(500).json({ api_status: 500, error_message: e.message });
+        }
+    });
+
+    // ── API key management ────────────────────────────────────────────────────
+
+    app.get('/api/node/business/api-key', auth, async (req, res) => {
+        try {
+            const [rows] = await ctx.sequelize.query(
+                'SELECT id, api_key, label, last_used_at, created_at FROM wm_business_api_keys WHERE user_id = ?',
+                { replacements: [req.userId] }
+            );
+            res.json({ api_status: 200, api_key: rows[0] || null });
+        } catch (e) {
+            res.status(500).json({ api_status: 500, error_message: e.message });
+        }
+    });
+
+    app.post('/api/node/business/api-key', auth, async (req, res) => {
+        try {
+            // Revoke old key if exists
+            await ctx.sequelize.query(
+                'DELETE FROM wm_business_api_keys WHERE user_id = ?',
+                { replacements: [req.userId] }
+            );
+            const label  = String(req.body.label || 'My API Key').slice(0, 128);
+            const newKey = 'wmk_' + crypto.randomBytes(28).toString('hex');
+            await ctx.sequelize.query(
+                'INSERT INTO wm_business_api_keys (user_id, api_key, label) VALUES (?, ?, ?)',
+                { replacements: [req.userId, newKey, label] }
+            );
+            res.json({ api_status: 200, api_key: { api_key: newKey, label, last_used_at: null } });
+        } catch (e) {
+            res.status(500).json({ api_status: 500, error_message: e.message });
+        }
+    });
+
+    app.delete('/api/node/business/api-key', auth, async (req, res) => {
+        try {
+            await ctx.sequelize.query(
+                'DELETE FROM wm_business_api_keys WHERE user_id = ?',
+                { replacements: [req.userId] }
+            );
+            res.json({ api_status: 200 });
+        } catch (e) {
+            res.status(500).json({ api_status: 500, error_message: e.message });
+        }
+    });
+
+    // ── Data export (via API key auth) ────────────────────────────────────────
+    // Accessible with: Authorization: Bearer wmk_xxx  OR  access-token header
+
+    app.get('/api/node/business/export', auth, async (req, res) => {
+        try {
+            const [profile] = await Promise.all([ctx.wm_business_profile.findOne({ where: { user_id: req.userId }, raw: true })]);
+            const [hours]   = await ctx.sequelize.query('SELECT * FROM wm_business_hours WHERE user_id = ?', { replacements: [req.userId] });
+            const [links]   = await ctx.sequelize.query('SELECT * FROM wm_business_links WHERE user_id = ?', { replacements: [req.userId] });
+            const [stats]   = await ctx.sequelize.query(
+                'SELECT * FROM wm_business_stats WHERE user_id = ? ORDER BY date DESC LIMIT 90',
+                { replacements: [req.userId] }
+            );
+            res.json({ api_status: 200, exported_at: new Date().toISOString(), profile, hours, links, stats });
         } catch (e) {
             res.status(500).json({ api_status: 500, error_message: e.message });
         }
