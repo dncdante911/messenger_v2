@@ -4,16 +4,16 @@
  * Channel Scheduled Posts API
  *
  * Endpoints:
- *   GET    /api/node/channels/:id/posts/scheduled        — list scheduled posts (owner/admin)
- *   POST   /api/node/channels/:id/posts/scheduled        — create scheduled post
+ *   GET    /api/node/channels/:id/posts/scheduled         — list scheduled posts (owner/admin)
+ *   POST   /api/node/channels/:id/posts/scheduled         — create scheduled post
  *   DELETE /api/node/channels/:id/posts/scheduled/:postId — cancel scheduled post
  *
- * Background publishing (runs every 60s from cronJobs.js or inline):
+ * Background publishing (cron every 60s):
  *   Checks wm_channel_scheduled_posts WHERE status='pending' AND scheduled_at <= NOW()
- *   Calls internal publish logic and marks status='published'
+ *   Inserts into Wo_Posts and marks status='published'
  */
 
-// ─── Auth + channel-admin check ───────────────────────────────────────────────
+// ─── Auth middleware ───────────────────────────────────────────────────────────
 async function authMiddleware(ctx, req, res, next) {
     const token = req.headers['access-token'] || req.query.access_token || req.body?.access_token;
     if (!token) return res.status(401).json({ api_status: 401, error_message: 'access_token required' });
@@ -27,26 +27,23 @@ async function authMiddleware(ctx, req, res, next) {
     }
 }
 
-/** Checks that user is owner or admin of the channel. */
+// ─── Channel-admin check ──────────────────────────────────────────────────────
+// Uses Wo_Pages (PK: page_id, owner: user_id) and Wo_PageAdmins (page_id, user_id)
 async function requireChannelAdmin(ctx, req, res, next) {
     const channelId = parseInt(req.params.id, 10);
     if (!channelId) return res.status(400).json({ api_status: 400, error_message: 'Invalid channel_id' });
-
     try {
-        const [rows] = await ctx.sequelize.query(
-            `SELECT p.uid, p.owner, l.role AS user_role
-             FROM wo_pages p
-             LEFT JOIN wo_pages_likes l ON l.page_id = p.uid AND l.user_id = ? AND l.role IN ('admin','owner')
-             WHERE p.uid = ?`,
-            { replacements: [req.userId, channelId] }
-        );
-        const page = rows[0];
+        const page = await ctx.wo_pages.findOne({ where: { page_id: channelId }, raw: true });
         if (!page) return res.status(404).json({ api_status: 404, error_message: 'Channel not found' });
 
-        const isOwner = String(page.owner) === String(req.userId);
-        const isAdmin = !!rows[0]?.user_role;
-        if (!isOwner && !isAdmin) {
-            return res.status(403).json({ api_status: 403, error_message: 'Only channel admins can manage scheduled posts' });
+        const isOwner = page.user_id === req.userId;
+        if (!isOwner) {
+            const adminCount = await ctx.wo_pageadmins.count({
+                where: { page_id: channelId, user_id: req.userId },
+            });
+            if (!adminCount) {
+                return res.status(403).json({ api_status: 403, error_message: 'Only channel admins can manage scheduled posts' });
+            }
         }
         req.channelId = channelId;
         next();
@@ -56,17 +53,23 @@ async function requireChannelAdmin(ctx, req, res, next) {
 }
 
 // ─── Publish a single scheduled post (called by cron) ────────────────────────
+// Wo_Posts columns: user_id, page_id, postText, postFile, time, active, registered
 async function publishScheduledPost(ctx, post) {
     try {
         const now = Math.floor(Date.now() / 1000);
+        const d = new Date();
+        const registered = `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+
         const [result] = await ctx.sequelize.query(
-            `INSERT INTO wo_posts
-             (page_uid, author_id, post_text, media_url, media_type, is_pinned, created_time, updated_time)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO Wo_Posts (user_id, page_id, postText, postFile, time, active, registered)
+             VALUES (?, ?, ?, ?, ?, 1, ?)`,
             { replacements: [
-                post.channel_id, post.author_id,
-                post.text || '', post.media_url || null, post.media_type || null,
-                post.is_pinned ? 1 : 0, now, now,
+                post.author_id,
+                post.channel_id,
+                post.text || '',
+                post.media_url || '',
+                now,
+                registered,
             ] }
         );
         const postId = result.insertId || result;
@@ -83,7 +86,7 @@ async function publishScheduledPost(ctx, post) {
     }
 }
 
-// ─── Cron tick — called from cronJobs.js or startup ──────────────────────────
+// ─── Cron tick ────────────────────────────────────────────────────────────────
 async function publishDuePosts(ctx) {
     try {
         const [due] = await ctx.sequelize.query(
@@ -99,15 +102,13 @@ async function publishDuePosts(ctx) {
     }
 }
 
-// ─── Route handlers ───────────────────────────────────────────────────────────
-
-/** GET /api/node/channels/:id/posts/scheduled */
+// ─── GET /api/node/channels/:id/posts/scheduled ───────────────────────────────
 async function listScheduled(ctx, req, res) {
     try {
         const [rows] = await ctx.sequelize.query(
             `SELECT sp.*, u.first_name AS author_name, u.avatar AS author_avatar
              FROM wm_channel_scheduled_posts sp
-             LEFT JOIN Wo_Users u ON u.uid = sp.author_id
+             LEFT JOIN Wo_Users u ON u.user_id = sp.author_id
              WHERE sp.channel_id = ? AND sp.status = 'pending'
              ORDER BY sp.scheduled_at ASC`,
             { replacements: [req.channelId] }
@@ -118,7 +119,7 @@ async function listScheduled(ctx, req, res) {
     }
 }
 
-/** POST /api/node/channels/:id/posts/scheduled */
+// ─── POST /api/node/channels/:id/posts/scheduled ─────────────────────────────
 async function createScheduled(ctx, req, res) {
     try {
         const { text, media_url, media_type, scheduled_at, is_pinned } = req.body;
@@ -157,11 +158,11 @@ async function createScheduled(ctx, req, res) {
     }
 }
 
-/** DELETE /api/node/channels/:id/posts/scheduled/:postId */
+// ─── DELETE /api/node/channels/:id/posts/scheduled/:postId ───────────────────
 async function cancelScheduled(ctx, req, res) {
     try {
         const postId = parseInt(req.params.postId, 10);
-        const deleted = await ctx.sequelize.query(
+        await ctx.sequelize.query(
             `UPDATE wm_channel_scheduled_posts SET status = 'cancelled'
              WHERE id = ? AND channel_id = ? AND status = 'pending'`,
             { replacements: [postId, req.channelId] }

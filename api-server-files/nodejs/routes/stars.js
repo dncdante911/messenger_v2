@@ -211,7 +211,7 @@ async function getBalanceRoute(ctx, req, res) {
         const [txRows] = await ctx.sequelize.query(
             `SELECT t.*, u.first_name AS other_user_name, u.avatar AS other_user_avatar
              FROM wm_stars_transactions t
-             LEFT JOIN Wo_Users u ON u.uid = IF(t.from_user_id = ?, t.to_user_id, t.from_user_id)
+             LEFT JOIN Wo_Users u ON u.user_id = IF(t.from_user_id = ?, t.to_user_id, t.from_user_id)
              WHERE t.to_user_id = ? OR t.from_user_id = ?
              ORDER BY t.created_at DESC LIMIT 10`,
             { replacements: [req.userId, req.userId, req.userId] }
@@ -238,7 +238,7 @@ async function getTransactionsRoute(ctx, req, res) {
         const [rows] = await ctx.sequelize.query(
             `SELECT t.*, u.first_name AS other_user_name, u.avatar AS other_user_avatar
              FROM wm_stars_transactions t
-             LEFT JOIN Wo_Users u ON u.uid = IF(t.from_user_id = ?, t.to_user_id, t.from_user_id)
+             LEFT JOIN Wo_Users u ON u.user_id = IF(t.from_user_id = ?, t.to_user_id, t.from_user_id)
              WHERE t.to_user_id = ? OR t.from_user_id = ?
              ORDER BY t.created_at DESC LIMIT ? OFFSET ?`,
             { replacements: [req.userId, req.userId, req.userId, limit, offset] }
@@ -270,7 +270,7 @@ async function sendStarsRoute(ctx, req, res) {
         }
 
         // Перевіряємо що одержувач існує
-        const recipient = await ctx.wo_users.findOne({ where: { uid: toUserId } });
+        const recipient = await ctx.wo_users.findOne({ where: { user_id: toUserId } });
         if (!recipient) return res.json({ api_status: 404, error_message: 'User not found' });
 
         // Перевіряємо баланс відправника
