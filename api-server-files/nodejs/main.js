@@ -606,14 +606,14 @@ async function main() {
   // ── Rate Limiting ────────────────────────────────────────────────────────────
   // Global limit: 300 req / min per IP. Covers all /api/* endpoints.
   const globalLimiter = createRateLimiter({
-      windowMs: 60_000,
+      windowMs: 60000,
       max:      300,
       message:  'Rate limit exceeded. Please slow down.',
   });
   // Strict limit for unauthenticated / sensitive endpoints: 15 req / 15 min per IP.
   // Prevents brute-force on login, registration, and password-reset flows.
   const authLimiter = createRateLimiter({
-      windowMs: 15 * 60_000,
+      windowMs: 15 * 60000,
       max:      15,
       message:  'Too many attempts. Please try again in 15 minutes.',
   });
@@ -1013,7 +1013,7 @@ function gracefulShutdown(signal) {
   const drainTimer = setTimeout(() => {
     console.warn('[Shutdown] 5 s drain timeout — force-disconnecting sockets…');
     if (io) io.disconnectSockets(true);
-  }, 5_000);
+  }, 5000);
   drainTimer.unref();
 
   // Step 3: hard exit at 7 s — before PM2's SIGKILL at 10 s so we release the
@@ -1022,7 +1022,7 @@ function gracefulShutdown(signal) {
   setTimeout(() => {
     console.error('[Shutdown] Forced exit after 7 s (server.close() timed out)');
     process.exit(0);
-  }, 7_000).unref();
+  }, 7000).unref();
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => gracefulShutdown('SIGINT'));

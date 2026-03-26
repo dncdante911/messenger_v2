@@ -119,7 +119,7 @@ async function sweepAllExpired(ctx, io) {
  * Returns the interval handle so it can be cleared in tests.
  */
 function startSecretSweeper(ctx, io) {
-    const handle = setInterval(() => sweepAllExpired(ctx, io), 60_000);
+    const handle = setInterval(() => sweepAllExpired(ctx, io), 60000);
     handle.unref(); // don't prevent process exit
     console.log('[SecretSweeper] Global 60 s sweeper started');
     return handle;

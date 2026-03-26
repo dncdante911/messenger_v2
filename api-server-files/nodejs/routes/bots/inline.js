@@ -37,9 +37,9 @@ const inlineCache = new Map();
 setInterval(() => {
     const now = Date.now();
     for (const [key, val] of inlineCache) {
-        if (now - val.ts > 300_000) inlineCache.delete(key);
+        if (now - val.ts > 300000) inlineCache.delete(key);
     }
-}, 300_000);
+}, 300000);
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 

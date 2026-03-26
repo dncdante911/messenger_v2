@@ -24,7 +24,7 @@
  * @returns {Function} Express middleware
  */
 function createRateLimiter({
-    windowMs = 60_000,
+    windowMs = 60000,
     max      = 100,
     message  = 'Too many requests, please try again later',
     keyFn    = defaultKeyFn,
