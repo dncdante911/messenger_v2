@@ -39,6 +39,7 @@ data class UserMenuData(
     val name: String?,
     val avatar: String?,
     val isVerified: Boolean = false,
+    val isPro: Boolean = false,
     val isOnline: Boolean = false,
     val lastSeen: String? = null,
     val karmaScore: Float? = null,
@@ -265,35 +266,64 @@ private fun UserProfileHeader(
     ) {
         // Avatar with status indicator
         Box {
-            // Gradient ring for verified users
-            if (user.isVerified) {
-                Box(
-                    modifier = Modifier
-                        .size(88.dp)
-                        .clip(CircleShape)
-                        .background(
-                            brush = Brush.sweepGradient(
-                                colors = listOf(
-                                    Color(0xFF00D4FF),
-                                    Color(0xFF0A84FF),
-                                    Color(0xFF00D4FF)
+            when {
+                // Premium gradient ring (gold/violet)
+                user.isPro -> {
+                    Box(
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.sweepGradient(
+                                    colors = listOf(
+                                        Color(0xFF667EEA),
+                                        Color(0xFF764BA2),
+                                        Color(0xFFf953c6),
+                                        Color(0xFFb91d73),
+                                        Color(0xFF667EEA)
+                                    )
                                 )
                             )
+                            .padding(3.dp)
+                    ) {
+                        AvatarImage(
+                            avatarUrl = user.avatar,
+                            name = user.name ?: user.username,
+                            size = 82
                         )
-                        .padding(3.dp)
-                ) {
+                    }
+                }
+                // Verified gradient ring (cyan/blue)
+                user.isVerified -> {
+                    Box(
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.sweepGradient(
+                                    colors = listOf(
+                                        Color(0xFF00D4FF),
+                                        Color(0xFF0A84FF),
+                                        Color(0xFF00D4FF)
+                                    )
+                                )
+                            )
+                            .padding(3.dp)
+                    ) {
+                        AvatarImage(
+                            avatarUrl = user.avatar,
+                            name = user.name ?: user.username,
+                            size = 82
+                        )
+                    }
+                }
+                else -> {
                     AvatarImage(
                         avatarUrl = user.avatar,
                         name = user.name ?: user.username,
-                        size = 82
+                        size = 84
                     )
                 }
-            } else {
-                AvatarImage(
-                    avatarUrl = user.avatar,
-                    name = user.name ?: user.username,
-                    size = 84
-                )
             }
 
             // Online indicator
@@ -335,18 +365,61 @@ private fun UserProfileHeader(
                     }
                 }
             }
+
+            // PRO crown badge
+            if (user.isPro) {
+                Box(
+                    modifier = Modifier
+                        .align(if (user.isVerified) Alignment.TopStart else Alignment.TopEnd)
+                        .size(24.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                listOf(Color(0xFF667EEA), Color(0xFFf953c6))
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✦", fontSize = 11.sp, color = Color.White)
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Name
-        Text(
-            text = user.name ?: user.username,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
+        // Name + PRO badge
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = user.name ?: user.username,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            if (user.isPro) {
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .background(
+                            brush = Brush.linearGradient(
+                                listOf(Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6))
+                            ),
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "PRO",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
 
         // Username
         Text(

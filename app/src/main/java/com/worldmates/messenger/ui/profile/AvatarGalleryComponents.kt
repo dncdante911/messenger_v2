@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -48,12 +49,21 @@ import com.worldmates.messenger.data.model.UserAvatar
  * Swiping left/right browses photos; dots indicator below.
  * Own profile: long-press opens management sheet.
  */
+private val PREMIUM_RING_COLORS = listOf(
+    Color(0xFF667EEA),
+    Color(0xFF764BA2),
+    Color(0xFFf953c6),
+    Color(0xFFb91d73),
+    Color(0xFF667EEA),
+)
+
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun AvatarPager(
     avatars: List<UserAvatar>,
     isOwnProfile: Boolean,
     modifier: Modifier = Modifier,
+    isPremium: Boolean = false,
     onAddPhotoClick: (() -> Unit)? = null,
     onManageClick: ((UserAvatar) -> Unit)? = null,
 ) {
@@ -98,7 +108,19 @@ fun AvatarPager(
     val pagerState = rememberPagerState { avatars.size }
 
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box {
+        Box(contentAlignment = Alignment.Center) {
+            // Premium gradient ring drawn behind the avatar
+            if (isPremium) {
+                Box(
+                    modifier = Modifier
+                        .size(126.dp)
+                        .background(
+                            brush = Brush.sweepGradient(PREMIUM_RING_COLORS),
+                            shape = CircleShape
+                        )
+                )
+            }
+
             HorizontalPager(
                 state    = pagerState,
                 modifier = Modifier
@@ -133,6 +155,10 @@ fun AvatarPager(
                 Box(
                     Modifier
                         .align(Alignment.BottomEnd)
+                        .offset(
+                            x = if (isPremium) (-3).dp else 0.dp,
+                            y = if (isPremium) (-3).dp else 0.dp
+                        )
                         .size(32.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
@@ -180,6 +206,7 @@ fun UserAvatarPagerInProfile(
     userId: Long,
     fallbackUrl: String?,
     modifier: Modifier = Modifier,
+    isPremium: Boolean = false,
     galleryViewModel: AvatarGalleryViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         key = "avatars_$userId"
     )
@@ -199,7 +226,8 @@ fun UserAvatarPagerInProfile(
     AvatarPager(
         avatars      = displayAvatars,
         isOwnProfile = false,
-        modifier     = modifier
+        modifier     = modifier,
+        isPremium    = isPremium
     )
 }
 

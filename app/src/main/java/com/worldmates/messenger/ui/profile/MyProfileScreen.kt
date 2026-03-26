@@ -202,6 +202,7 @@ fun MyProfileScreen(
                     AvatarPager(
                         avatars       = avatars,
                         isOwnProfile  = true,
+                        isPremium     = user.isPro > 0,
                         modifier      = Modifier.padding(vertical = 4.dp),
                         onAddPhotoClick = { showAvatarSheet = true },
                         onManageClick   = { showAvatarSheet = true }
@@ -288,6 +289,7 @@ fun MyProfileScreen(
     if (showAppearanceDialog) {
         ProfileAppearanceDialog(
             user      = user,
+            isPremium = user.isPro > 0,
             onDismiss = { showAppearanceDialog = false },
             onSave    = { accent, badge, style ->
                 profileViewModel.updateAppearance(
@@ -428,7 +430,8 @@ private fun ProfileNameSection(user: User) {
             .padding(top = 8.dp, bottom = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Имя + галочка верификации
+        // Имя + верификация + PRO
+        val isPro = user.isPro > 0
         Row(
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
@@ -448,6 +451,26 @@ private fun ProfileNameSection(user: User) {
                     tint     = Color(0xFF0084FF),
                     modifier = Modifier.size(22.dp)
                 )
+            }
+            if (isPro) {
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6))
+                            )
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text       = "PRO",
+                        style      = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color      = Color.White
+                    )
+                }
             }
         }
 
@@ -1168,21 +1191,31 @@ private fun formatBirthday(birthday: String): String {
 // PROFILE APPEARANCE DIALOG
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Accent color presets — same list as on the server. */
+/** Accent color presets — base set available to all users. */
 private val ACCENT_PRESETS = listOf(
     "#667EEA", "#764BA2", "#FF6B35", "#4CAF50",
     "#F44336", "#00BCD4", "#E91E63", "#FF9800",
     "#795548", "#607D8B", "#009688", "#3F51B5",
 )
 
-/** Badge emoji presets shown as quick-picks. */
+/** Premium-exclusive accent colors. */
+private val PREMIUM_ACCENT_PRESETS = listOf(
+    "#FFD700", "#FF6B6B", "#A855F7", "#06B6D4",
+    "#10B981", "#F59E0B", "#EF4444", "#8B5CF6",
+)
+
+/** Badge emoji presets — base set. */
 private val BADGE_PRESETS = listOf("", "🔥", "⭐", "💎", "🎮", "🎵", "📸", "✈️", "🌍", "💼", "🎓", "🏆")
+
+/** Premium-exclusive badge emojis. */
+private val PREMIUM_BADGE_PRESETS = listOf("👑", "✨", "🦋", "🌈", "🎭", "🦄", "🔮", "⚡", "🏅", "💫", "🌟", "🎪")
 
 @Composable
 fun ProfileAppearanceDialog(
-    user:     com.worldmates.messenger.data.model.User,
+    user:      com.worldmates.messenger.data.model.User,
+    isPremium: Boolean = false,
     onDismiss: () -> Unit,
-    onSave:   (accent: String?, badge: String?, style: String?) -> Unit
+    onSave:    (accent: String?, badge: String?, style: String?) -> Unit
 ) {
     var selectedAccent by remember { mutableStateOf(user.profileAccent ?: "#667EEA") }
     var selectedBadge  by remember { mutableStateOf(user.profileBadge  ?: "") }
@@ -1200,12 +1233,36 @@ fun ProfileAppearanceDialog(
                     .fillMaxWidth()
                     .padding(20.dp)
             ) {
-                Text(
-                    text       = stringResource(R.string.profile_customize_title),
-                    style      = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier   = Modifier.padding(bottom = 16.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier          = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Text(
+                        text       = stringResource(R.string.profile_customize_title),
+                        style      = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier   = Modifier.weight(1f)
+                    )
+                    if (isPremium) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6))
+                                    )
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text       = "PRO",
+                                style      = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color      = Color.White
+                            )
+                        }
+                    }
+                }
 
                 // ── Accent color ──────────────────────────────────────────
                 Text(
@@ -1220,9 +1277,10 @@ fun ProfileAppearanceDialog(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ACCENT_PRESETS.forEach { hex ->
+                    (ACCENT_PRESETS + if (isPremium) PREMIUM_ACCENT_PRESETS else emptyList()).forEach { hex ->
                         val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (e: Exception) { Color.Gray }
                         val isSelected = hex.equals(selectedAccent, ignoreCase = true)
+                        val isPremiumColor = hex in PREMIUM_ACCENT_PRESETS
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -1239,6 +1297,8 @@ fun ProfileAppearanceDialog(
                                     tint     = Color.White,
                                     modifier = Modifier.size(18.dp)
                                 )
+                            } else if (isPremiumColor) {
+                                Text("✦", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
                             }
                         }
                     }
@@ -1299,16 +1359,21 @@ fun ProfileAppearanceDialog(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    BADGE_PRESETS.forEach { emoji ->
+                    (BADGE_PRESETS + if (isPremium) PREMIUM_BADGE_PRESETS else emptyList()).forEach { emoji ->
                         val isSelected = selectedBadge == emoji
                         val accentColor = try { Color(android.graphics.Color.parseColor(selectedAccent)) } catch (e: Exception) { Color(0xFF667EEA) }
+                        val isPremiumEmoji = emoji in PREMIUM_BADGE_PRESETS
                         Surface(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clickable { selectedBadge = emoji },
                             shape    = RoundedCornerShape(10.dp),
                             color    = if (isSelected) accentColor.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            border   = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, accentColor) else null
+                            border   = if (isSelected)
+                                androidx.compose.foundation.BorderStroke(1.5.dp, accentColor)
+                            else if (isPremiumEmoji)
+                                androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFf953c6).copy(alpha = 0.4f))
+                            else null
                         ) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 if (emoji.isBlank()) {
