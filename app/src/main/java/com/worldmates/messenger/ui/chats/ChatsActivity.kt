@@ -1090,6 +1090,18 @@ fun SettingsDrawerContent(
             }
             item {
                 DrawerMenuItem(
+                    icon = Icons.Outlined.AutoAwesome,
+                    title = stringResource(R.string.stars_title),
+                    onClick = {
+                        onClose()
+                        context.startActivity(
+                            android.content.Intent(context, com.worldmates.messenger.ui.stars.StarsActivity::class.java)
+                        )
+                    }
+                )
+            }
+            item {
+                DrawerMenuItem(
                     icon = Icons.Outlined.Star,
                     title = stringResource(R.string.premium_title),
                     onClick = {

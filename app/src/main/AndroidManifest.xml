@@ -405,6 +405,13 @@
 
         <!-- Premium Subscription Screen -->
         <activity
+            android:name=".ui.stars.StarsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:launchMode="singleTop" />
+
+        <activity
             android:name=".ui.premium.PremiumActivity"
             android:exported="true"
             android:screenOrientation="portrait"
