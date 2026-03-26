@@ -134,6 +134,9 @@ object NodeRetrofitClient {
     /** WorldStars internal currency API. */
     val starsApi: NodeStarsApi = retrofit.create(NodeStarsApi::class.java)
 
+    /** Channel Scheduled Posts API. */
+    val channelScheduledApi: NodeChannelScheduledApi = retrofit.create(NodeChannelScheduledApi::class.java)
+
     /**
      * Profile API via Node.js — замінює PHP ?type=get-user-data / update-user-data
      * та систему рейтингу get_user_rating / rate_user.

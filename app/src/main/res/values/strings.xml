@@ -2568,6 +2568,52 @@
     <string name="biz_copy_link">Копіювати</string>
     <string name="biz_link_copied">Посилання скопійовано</string>
 
+    <!-- Creator features -->
+    <string name="biz_section_creator">Creator</string>
+    <!-- Stats -->
+    <string name="biz_stats_title">Статистика охоплення</string>
+    <string name="biz_stats_subtitle">Перегляди, повідомлення, кліки</string>
+    <string name="biz_stats_days">%d днів</string>
+    <string name="biz_stats_profile_views">Перегляди</string>
+    <string name="biz_stats_messages">Повідомлення</string>
+    <string name="biz_stats_link_clicks">Кліки</string>
+    <string name="biz_stats_by_day">По днях</string>
+    <string name="biz_stats_empty">Ще немає даних за цей період</string>
+    <!-- Verification -->
+    <string name="biz_verified_title">Верифікація ✅</string>
+    <string name="biz_verified_subtitle">Підтверджений значок у профілі</string>
+    <string name="biz_verified_what_gives">Що дає верифікація?</string>
+    <string name="biz_verified_benefit_badge">Значок ✅ у профілі та директорії</string>
+    <string name="biz_verified_benefit_search">Пріоритет у пошуку бізнесів</string>
+    <string name="biz_verified_benefit_stats">Розширена статистика та аналітика</string>
+    <string name="biz_verified_benefit_trust">Довіра аудиторії та партнерів</string>
+    <string name="biz_verified_requirements">Вимоги для верифікації</string>
+    <string name="biz_verified_req_name">Вказано назву бізнесу</string>
+    <string name="biz_verified_req_desc">Заповнено опис</string>
+    <string name="biz_verified_req_contacts">Вказано контактні дані (телефон або email)</string>
+    <string name="biz_verified_request_btn">Надіслати заявку</string>
+    <string name="biz_verified_status_none">Не верифіковано</string>
+    <string name="biz_verified_status_pending">Заявка на розгляді</string>
+    <string name="biz_verified_status_approved">Верифіковано ✅</string>
+    <string name="biz_verified_status_rejected">Заявку відхилено</string>
+    <!-- API Access -->
+    <string name="biz_api_title">API доступ</string>
+    <string name="biz_api_subtitle">Ключ для отримання ваших даних</string>
+    <string name="biz_api_active">Активний</string>
+    <string name="biz_api_what_is">Що це?</string>
+    <string name="biz_api_desc">API-ключ дозволяє отримати всі ваші бізнес-дані у форматі JSON. Корисно для інтеграції зі сторонніми сервісами та аналітикою.</string>
+    <string name="biz_api_usage_title">Як використовувати:</string>
+    <string name="biz_api_your_key">Ваш API-ключ</string>
+    <string name="biz_api_last_used">Останнє використання: %s</string>
+    <string name="biz_api_copy">Копіювати</string>
+    <string name="biz_api_regenerate">Оновити</string>
+    <string name="biz_api_revoke_btn">Відкликати ключ</string>
+    <string name="biz_api_revoke_title">Відкликати ключ?</string>
+    <string name="biz_api_revoke_confirm">Ключ буде видалено. Всі інтеграції перестануть працювати.</string>
+    <string name="biz_api_cancel">Скасувати</string>
+    <string name="biz_api_no_key">Ключ ще не згенеровано</string>
+    <string name="biz_api_generate_btn">Згенерувати ключ</string>
+
     <!-- Підтвердження видалення -->
     <string name="biz_delete_confirm_title">Видалити?</string>
     <string name="biz_delete_qr_message">Видалити шаблон /%s?</string>

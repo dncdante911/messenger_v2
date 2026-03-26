@@ -8,6 +8,7 @@ import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class BusinessUiState(
@@ -16,6 +17,11 @@ data class BusinessUiState(
     val hours: List<BusinessHour> = emptyList(),
     val quickReplies: List<BusinessQuickReply> = emptyList(),
     val links: List<BusinessLink> = emptyList(),
+    // Creator features
+    val stats: BusinessStatsResponse? = null,
+    val apiKey: BusinessApiKey? = null,
+    val isStatsLoading: Boolean = false,
+    val isApiKeyLoading: Boolean = false,
     val error: String? = null,
     val successMsg: String? = null
 )
@@ -235,10 +241,99 @@ class BusinessViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // ── Stats ─────────────────────────────────────────────────────────────────
+
+    fun loadStats(days: Int = 30) {
+        _state.update { it.copy(isStatsLoading = true) }
+        viewModelScope.launch {
+            try {
+                val resp = api.getStats(days)
+                if (resp.apiStatus == 200) {
+                    _state.update { it.copy(isStatsLoading = false, stats = resp) }
+                } else {
+                    _state.update { it.copy(isStatsLoading = false, error = resp.errorMessage) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "loadStats error", e)
+                _state.update { it.copy(isStatsLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    // ── Verification ─────────────────────────────────────────────────────────
+
+    fun requestVerification() {
+        _state.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            try {
+                val resp = api.requestVerification()
+                if (resp.apiStatus == 200) {
+                    // Refresh profile to get updated verification_status
+                    val profileResp = api.getMyProfile()
+                    _state.update { it.copy(
+                        isLoading  = false,
+                        profile    = profileResp.profile ?: it.profile,
+                        successMsg = "verification_requested",
+                    ) }
+                } else {
+                    _state.update { it.copy(isLoading = false, error = resp.errorMessage) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "requestVerification error", e)
+                _state.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    // ── API Key ───────────────────────────────────────────────────────────────
+
+    fun loadApiKey() {
+        _state.update { it.copy(isApiKeyLoading = true) }
+        viewModelScope.launch {
+            try {
+                val resp = api.getApiKey()
+                _state.update { it.copy(isApiKeyLoading = false, apiKey = resp.apiKey) }
+            } catch (e: Exception) {
+                Log.e(TAG, "loadApiKey error", e)
+                _state.update { it.copy(isApiKeyLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    fun generateApiKey() {
+        _state.update { it.copy(isApiKeyLoading = true, error = null) }
+        viewModelScope.launch {
+            try {
+                val resp = api.generateApiKey()
+                if (resp.apiStatus == 200) {
+                    _state.update { it.copy(isApiKeyLoading = false, apiKey = resp.apiKey, successMsg = "api_key_generated") }
+                } else {
+                    _state.update { it.copy(isApiKeyLoading = false, error = resp.errorMessage) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "generateApiKey error", e)
+                _state.update { it.copy(isApiKeyLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    fun revokeApiKey() {
+        _state.update { it.copy(isApiKeyLoading = true, error = null) }
+        viewModelScope.launch {
+            try {
+                api.revokeApiKey()
+                _state.update { it.copy(isApiKeyLoading = false, apiKey = null, successMsg = "api_key_revoked") }
+            } catch (e: Exception) {
+                Log.e(TAG, "revokeApiKey error", e)
+                _state.update { it.copy(isApiKeyLoading = false, error = e.message) }
+            }
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     fun clearMessages() {
-        _state.value = _state.value.copy(error = null, successMsg = null)
+        _state.update { it.copy(error = null, successMsg = null) }
     }
 
     private fun defaultHours(): List<BusinessHour> =

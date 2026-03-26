@@ -38,13 +38,16 @@ private val BizCard    = Color(0xFF233044)
 
 // ─── Navigation enum ──────────────────────────────────────────────────────────
 sealed class BusinessScreen {
-    object Dashboard    : BusinessScreen()
-    object Profile      : BusinessScreen()
-    object Hours        : BusinessScreen()
-    object AutoReply    : BusinessScreen()
-    object Greeting     : BusinessScreen()
-    object QuickReplies : BusinessScreen()
-    object Links        : BusinessScreen()
+    object Dashboard     : BusinessScreen()
+    object Profile       : BusinessScreen()
+    object Hours         : BusinessScreen()
+    object AutoReply     : BusinessScreen()
+    object Greeting      : BusinessScreen()
+    object QuickReplies  : BusinessScreen()
+    object Links         : BusinessScreen()
+    object Stats         : BusinessScreen()
+    object Verification  : BusinessScreen()
+    object ApiAccess     : BusinessScreen()
 }
 
 // ─── Root composable ──────────────────────────────────────────────────────────
@@ -123,6 +126,23 @@ fun BusinessModeScreen(
                         onCreate  = { t, p -> viewModel.createLink(t, p) },
                         onDelete  = { viewModel.deleteLink(it) },
                         onBack    = { currentScreen = BusinessScreen.Dashboard }
+                    )
+                    BusinessScreen.Stats -> BusinessStatsScreen(
+                        state       = state,
+                        onBack      = { currentScreen = BusinessScreen.Dashboard },
+                        onLoadStats = { days -> viewModel.loadStats(days) },
+                    )
+                    BusinessScreen.Verification -> VerificationScreen(
+                        state     = state,
+                        onBack    = { currentScreen = BusinessScreen.Dashboard },
+                        onRequest = { viewModel.requestVerification() },
+                    )
+                    BusinessScreen.ApiAccess -> ApiAccessScreen(
+                        state      = state,
+                        onBack     = { currentScreen = BusinessScreen.Dashboard },
+                        onGenerate = { viewModel.generateApiKey() },
+                        onRevoke   = { viewModel.revokeApiKey() },
+                        onLoadKey  = { viewModel.loadApiKey() },
                     )
                 }
             }
@@ -261,6 +281,46 @@ private fun DashboardScreen(
                     title   = stringResource(R.string.biz_links_title),
                     subtitle = stringResource(R.string.biz_links_count, state.links.size),
                     onClick  = { onNavigate(BusinessScreen.Links) }
+                )
+            }
+
+            item { BizSectionHeader(stringResource(R.string.biz_section_creator)) }
+
+            item {
+                BizMenuItem(
+                    icon     = Icons.Default.BarChart,
+                    title    = stringResource(R.string.biz_stats_title),
+                    subtitle = stringResource(R.string.biz_stats_subtitle),
+                    onClick  = { onNavigate(BusinessScreen.Stats) }
+                )
+            }
+            item {
+                val verStatus = state.profile?.verificationStatus ?: "none"
+                BizMenuItem(
+                    icon      = Icons.Default.Verified,
+                    title     = stringResource(R.string.biz_verified_title),
+                    subtitle  = stringResource(R.string.biz_verified_subtitle),
+                    badge     = when (verStatus) {
+                        "approved" -> "✅"
+                        "pending"  -> "⏳"
+                        else       -> null
+                    },
+                    badgeColor = when (verStatus) {
+                        "approved" -> Color(0xFF2ECC71)
+                        "pending"  -> BizGold
+                        else       -> BizAccent
+                    },
+                    onClick   = { onNavigate(BusinessScreen.Verification) }
+                )
+            }
+            item {
+                BizMenuItem(
+                    icon     = Icons.Default.Key,
+                    title    = stringResource(R.string.biz_api_title),
+                    subtitle = stringResource(R.string.biz_api_subtitle),
+                    badge    = if (state.apiKey != null) stringResource(R.string.biz_api_active) else null,
+                    badgeColor = BizAccent,
+                    onClick  = { onNavigate(BusinessScreen.ApiAccess) }
                 )
             }
 
