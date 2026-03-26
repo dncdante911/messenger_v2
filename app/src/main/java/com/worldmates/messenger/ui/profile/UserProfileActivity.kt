@@ -9,6 +9,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -443,15 +445,34 @@ private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: Strin
         )
 
         // Avatar — bottom-left, overlapping the header bottom edge
+        val isPremium = user.isPro > 0
+        val premiumRingColors = listOf(
+            Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6),
+            Color(0xFFb91d73), Color(0xFF667EEA),
+        )
         UserAvatarPagerInProfile(
             userId      = user.userId,
             fallbackUrl = user.avatar,
+            isPremium   = isPremium,
             modifier    = Modifier
                 .size(96.dp)
                 .align(Alignment.BottomStart)
                 .offset(x = 18.dp, y = 48.dp)
                 .shadow(8.dp, CircleShape)
-                .border(3.dp, MaterialTheme.colorScheme.background, CircleShape)
+                .then(
+                    if (isPremium)
+                        Modifier.drawWithContent {
+                            drawContent()
+                            val sw = 3.dp.toPx()
+                            drawCircle(
+                                brush  = Brush.sweepGradient(premiumRingColors),
+                                radius = size.minDimension / 2f - sw / 2f,
+                                style  = Stroke(width = sw)
+                            )
+                        }
+                    else
+                        Modifier.border(3.dp, MaterialTheme.colorScheme.background, CircleShape)
+                )
         )
 
         // Online dot on avatar
@@ -501,6 +522,26 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
                     tint     = accentColor,
                     modifier = Modifier.size(22.dp)
                 )
+            }
+            if (user.isPro > 0) {
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6))
+                            )
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text       = "PRO",
+                        style      = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color      = Color.White
+                    )
+                }
             }
         }
 
