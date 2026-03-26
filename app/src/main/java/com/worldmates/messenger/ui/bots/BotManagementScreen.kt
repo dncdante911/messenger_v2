@@ -16,7 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Bot
 
@@ -331,49 +334,30 @@ fun MyBotCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action buttons
+            // Action buttons — icon + short label, evenly spaced in one row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedButton(
-                    onClick = onEdit,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.edit))
-                }
-                OutlinedButton(
-                    onClick = onRssFeeds,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.Default.RssFeed, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("RSS")
-                }
-                OutlinedButton(
-                    onClick = { miniAppUrlInput = bot.webAppUrl ?: ""; showMiniAppDialog = true },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = if (bot.webAppUrl != null)
-                        ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-                    else ButtonDefaults.outlinedButtonColors()
-                ) {
-                    Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.mini_app_add))
-                }
-                OutlinedButton(
-                    onClick = { expanded = true },
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options_label))
-                }
-
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                BotActionButton(
+                    icon  = Icons.Default.Edit,
+                    label = stringResource(R.string.edit),
+                    onClick = onEdit
+                )
+                BotActionButton(
+                    icon  = Icons.Default.RssFeed,
+                    label = "RSS",
+                    onClick = onRssFeeds
+                )
+                // "⋮" more menu
+                Box {
+                    BotActionButton(
+                        icon  = Icons.Default.MoreVert,
+                        label = stringResource(R.string.more_options_label),
+                        onClick = { expanded = true }
+                    )
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.bot_regenerate_token)) },
                         onClick = {
@@ -396,6 +380,7 @@ fun MyBotCard(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -408,6 +393,32 @@ fun BotStatChip(text: String) {
             text = text,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+
+/** Small icon-button with a text label below, used in the bot card action row. */
+@Composable
+private fun BotActionButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            modifier = Modifier.size(22.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
         )
     }
 }

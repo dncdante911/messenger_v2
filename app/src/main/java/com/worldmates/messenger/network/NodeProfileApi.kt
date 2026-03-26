@@ -158,6 +158,15 @@ interface NodeProfileApi {
     @DELETE("api/node/users/{id}/block")
     suspend fun unblockUser(@Path("id") userId: Long): UpdateUserDataResponse
 
+    // ─── Media gallery ────────────────────────────────────────────────────────
+
+    /** Fetch all media (photos/videos) from own private conversations, newest first. */
+    @GET("api/node/users/me/media")
+    suspend fun getMyMedia(
+        @Query("limit")  limit:  Int = 60,
+        @Query("offset") offset: Int = 0,
+    ): GetUserMediaResponse
+
     // ─── Rating / karma ───────────────────────────────────────────────────────
 
     /**
@@ -208,5 +217,37 @@ data class NodeFollowActionResponse(
     @SerializedName("api_status")    val apiStatus:    Int,
     @SerializedName("message")       val message:      String?,
     @SerializedName("status")        val status:       String?,   // "following" | "pending" | "not_following"
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+data class UserMediaItem(
+    @SerializedName("message_id")    val messageId:    Long,
+    @SerializedName("media")         val media:        String,
+    @SerializedName("media_file_name") val mediaFileName: String? = null,
+    @SerializedName("time")          val time:         Long,
+    @SerializedName("sender_id")     val senderId:     Long,
+    @SerializedName("recipient_id")  val recipientId:  Long,
+    @SerializedName("partner_id")    val partnerId:    Long,
+    @SerializedName("user_data")     val userData:     UserMediaPartner? = null,
+)
+
+data class UserMediaPartner(
+    @SerializedName("user_id")    val userId:    Long,
+    @SerializedName("username")   val username:  String,
+    @SerializedName("first_name") val firstName: String? = null,
+    @SerializedName("last_name")  val lastName:  String? = null,
+    @SerializedName("avatar")     val avatar:    String? = null,
+) {
+    val displayName: String get() = when {
+        !firstName.isNullOrBlank() && !lastName.isNullOrBlank() -> "$firstName $lastName"
+        !firstName.isNullOrBlank() -> firstName
+        else -> username
+    }
+}
+
+data class GetUserMediaResponse(
+    @SerializedName("api_status")    val apiStatus:    Int,
+    @SerializedName("media")         val media:        List<UserMediaItem>? = null,
+    @SerializedName("count")         val count:        Int? = null,
     @SerializedName("error_message") val errorMessage: String? = null,
 )
