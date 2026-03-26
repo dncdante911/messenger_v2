@@ -62,7 +62,7 @@ async function runCleanup(sequelize, io) {
         const now = new Date();
 
         // Find all messages that need media deletion
-        const [rows] = await sequelize.query(
+        const [messages] = await sequelize.query(
             `SELECT id, from_id, to_id, media, type_two
              FROM Wo_Messages
              WHERE media_delete_at IS NOT NULL
@@ -72,14 +72,8 @@ async function runCleanup(sequelize, io) {
                AND media != ''
                AND media != 'deleted'
              LIMIT 500`,
-            {
-                replacements: { now },
-                type: sequelize.constructor.QueryTypes.SELECT,
-            }
+            { replacements: { now } }
         );
-
-        // Handle Sequelize returning [[rows], meta] vs [rows]
-        const messages = Array.isArray(rows[0]) ? rows[0] : rows;
 
         if (!messages || !messages.length) return;
 
