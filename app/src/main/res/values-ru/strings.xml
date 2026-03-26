@@ -1832,6 +1832,31 @@
     <string name="folder_groups">Группы</string>
     <string name="folder_unread">Непрочитанные</string>
 
+    <!-- ===== WORLDSTARS ===== -->
+    <string name="stars_title">WorldStars</string>
+    <string name="stars_balance_label">звёзд на балансе</string>
+    <string name="stars_unit">звёзд</string>
+    <string name="stars_tab_balance">Активность</string>
+    <string name="stars_tab_topup">Пополнить</string>
+    <string name="stars_tab_send">Отправить</string>
+    <string name="stars_stat_purchased">Куплено</string>
+    <string name="stars_stat_sent">Отправлено</string>
+    <string name="stars_stat_received">Получено</string>
+    <string name="stars_no_transactions">Пока нет активности.\nКупите звёзды или отправьте их кому-нибудь!</string>
+    <string name="stars_load_more">Загрузить ещё</string>
+    <string name="stars_choose_pack">Выберите пакет</string>
+    <string name="stars_pack_desc">Больший пакет — выгоднее цена за звезду.</string>
+    <string name="stars_popular">🔥 Хит</string>
+    <string name="stars_pay_via">Оплатить через:</string>
+    <string name="stars_send_title">Отправить звёзды</string>
+    <string name="stars_send_desc">Ваш баланс: %d ⭐. Введите ID получателя и сумму.</string>
+    <string name="stars_recipient_id">ID пользователя</string>
+    <string name="stars_amount_label">Количество звёзд</string>
+    <string name="stars_note_label">Комментарий (необязательно)</string>
+    <string name="stars_send_button">Отправить звёзды</string>
+    <string name="stars_error_recipient">Укажите корректный ID пользователя</string>
+    <string name="stars_error_amount">Укажите сумму от 1 до вашего баланса</string>
+
     <!-- ===== PREMIUM SUBSCRIPTION ===== -->
     <string name="premium_screen_title">WorldMates PRO</string>
     <string name="premium_tagline">Больше свободы. Больше возможностей.</string>
