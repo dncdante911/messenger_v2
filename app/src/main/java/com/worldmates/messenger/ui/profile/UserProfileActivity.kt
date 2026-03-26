@@ -12,6 +12,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -343,7 +344,7 @@ fun UserProfileContent(
 
         // ── Stats row ───────────────────────────────────────────────────────
         item {
-            ProfileStatsRow(user = user)
+            ProfileStatsRow(user = user, accentColor = accentColor, isPremium = user.isPro > 0)
         }
 
         // ── Rating/Karma ─────────────────────────────────────────────────
@@ -444,8 +445,33 @@ private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: Strin
                 )
         )
 
-        // Avatar — bottom-left, overlapping the header bottom edge
+        // Premium header label (top-right corner)
         val isPremium = user.isPro > 0
+        if (isPremium) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6))
+                        )
+                    )
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("✦", fontSize = 11.sp, color = Color.White)
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text       = "Premium",
+                        fontSize   = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = Color.White
+                    )
+                }
+            }
+        }
         val premiumRingColors = listOf(
             Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6),
             Color(0xFFb91d73), Color(0xFF667EEA),
@@ -503,11 +529,13 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
             .padding(horizontal = 16.dp)
     ) {
         // Name row
+        val isPremium = user.isPro > 0
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text       = "${user.firstName ?: ""} ${user.lastName ?: ""}".trim().ifBlank { user.username },
                 style      = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
+                color      = if (isPremium) accentColor else MaterialTheme.colorScheme.onSurface,
                 modifier   = Modifier.weight(1f, fill = false)
             )
             if (!user.profileBadge.isNullOrBlank()) {
@@ -587,15 +615,25 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
 // ─── Stats row ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ProfileStatsRow(user: User) {
+private fun ProfileStatsRow(user: User, accentColor: Color = Color(0xFF667EEA), isPremium: Boolean = false) {
+    val premiumColors = listOf(Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6), Color(0xFFb91d73))
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         shape     = RoundedCornerShape(18.dp),
         colors    = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = if (isPremium)
+                accentColor.copy(alpha = 0.07f)
+            else
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
+        border    = if (isPremium)
+            androidx.compose.foundation.BorderStroke(
+                width = 1.dp,
+                brush = Brush.linearGradient(premiumColors)
+            )
+        else null,
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
@@ -605,18 +643,21 @@ private fun ProfileStatsRow(user: User) {
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             ProfileStatChip(
-                count = user.followersCount ?: "0",
-                label = stringResource(R.string.followers)
+                count      = user.followersCount ?: "0",
+                label      = stringResource(R.string.followers),
+                accentColor = if (isPremium) accentColor else null
             )
             VerticalDivider()
             ProfileStatChip(
-                count = user.followingCount ?: "0",
-                label = stringResource(R.string.following_count)
+                count      = user.followingCount ?: "0",
+                label      = stringResource(R.string.following_count),
+                accentColor = if (isPremium) accentColor else null
             )
             VerticalDivider()
             ProfileStatChip(
-                count = user.details?.postCount?.toString() ?: "0",
-                label = stringResource(R.string.posts)
+                count      = user.details?.postCount?.toString() ?: "0",
+                label      = stringResource(R.string.posts),
+                accentColor = if (isPremium) accentColor else null
             )
         }
     }
@@ -633,13 +674,13 @@ private fun VerticalDivider() {
 }
 
 @Composable
-private fun ProfileStatChip(count: String, label: String) {
+private fun ProfileStatChip(count: String, label: String, accentColor: Color? = null) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text       = count,
             style      = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color      = MaterialTheme.colorScheme.onSurface
+            color      = accentColor ?: MaterialTheme.colorScheme.onSurface
         )
         Text(
             text  = label,
