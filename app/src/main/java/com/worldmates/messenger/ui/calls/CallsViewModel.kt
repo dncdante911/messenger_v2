@@ -417,11 +417,9 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 )
                 incomingGroupCall.postValue(groupIncoming)
 
-                // Launch group call activity when:
-                // - App is in foreground (service skips notification) OR
-                // - Service is not running (ViewModel is the only listener)
-                val svc = com.worldmates.messenger.services.MessageNotificationService
-                if (!svc.isRunning || svc.isAppInForeground) {
+                // Service handles activity launch in both foreground and background.
+                // ViewModel only as fallback if service was killed.
+                if (!com.worldmates.messenger.services.MessageNotificationService.isRunning) {
                     val intent = android.content.Intent(
                         getApplication(), IncomingGroupCallActivity::class.java
                     ).apply {
@@ -437,9 +435,9 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                         putExtra("is_premium_call", isPremiumCall)
                     }
                     getApplication<Application>().startActivity(intent)
-                    Log.d("CallsViewModel", "📞 Launched IncomingGroupCallActivity (foreground=${svc.isAppInForeground})")
+                    Log.d("CallsViewModel", "📞 Launched IncomingGroupCallActivity (service not running)")
                 } else {
-                    Log.d("CallsViewModel", "📞 Skipping group call activity — service will show notification")
+                    Log.d("CallsViewModel", "📞 Service will handle group call UI")
                 }
             } catch (e: Exception) {
                 Log.e("CallsViewModel", "Error processing group_call:incoming", e)
@@ -1593,12 +1591,11 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
             Log.d("CallsViewModel", "📞 Incoming call from ${callData.fromName}")
 
-            // Launch IncomingCallActivity when:
-            // 1. App is in foreground — service skips notification, ViewModel handles in-app
-            // 2. Service is not running — ViewModel is the only listener (battery killed service)
-            // When app is in background AND service is running — service shows full-screen notification.
-            val svc = com.worldmates.messenger.services.MessageNotificationService
-            if (!svc.isRunning || svc.isAppInForeground) {
+            // Launch IncomingCallActivity only when MessageNotificationService is NOT running.
+            // Service handles the launch in both foreground (no notification) and background
+            // (with full-screen notification). ViewModel is a fallback for when service was
+            // killed by battery optimization.
+            if (!com.worldmates.messenger.services.MessageNotificationService.isRunning) {
                 val intent = IncomingCallActivity.createIntent(
                     context = getApplication(),
                     fromId = callData.fromId,
@@ -1611,9 +1608,9 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 getApplication<Application>().startActivity(intent)
-                Log.d("CallsViewModel", "📞 Launched IncomingCallActivity (foreground=${svc.isAppInForeground}, svcRunning=${svc.isRunning})")
+                Log.d("CallsViewModel", "📞 Launched IncomingCallActivity (service not running)")
             } else {
-                Log.d("CallsViewModel", "📞 Skipping — service will show notification (app in background)")
+                Log.d("CallsViewModel", "📞 Service is running — it will handle the call UI")
             }
 
         } catch (e: Exception) {

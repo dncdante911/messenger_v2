@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
@@ -33,6 +35,8 @@ fun BotManagementScreen(
     onDeleteBot: (String) -> Unit,
     onRegenerateToken: (String) -> Unit,
     onRssFeeds: (Bot) -> Unit = {},
+    onSetMiniApp: (botId: String, url: String) -> Unit = { _, _ -> },
+    onClearMiniApp: (botId: String) -> Unit = {},
     onBack: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf<Bot?>(null) }
@@ -106,7 +110,9 @@ fun BotManagementScreen(
                             onEdit = { onEditBot(bot) },
                             onDelete = { showDeleteDialog = bot },
                             onRegenerateToken = { onRegenerateToken(bot.botId) },
-                            onRssFeeds = { onRssFeeds(bot) }
+                            onRssFeeds = { onRssFeeds(bot) },
+                            onSetMiniApp = { url -> onSetMiniApp(bot.botId, url) },
+                            onClearMiniApp = { onClearMiniApp(bot.botId) }
                         )
                     }
                 }
@@ -179,9 +185,52 @@ fun MyBotCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onRegenerateToken: () -> Unit,
-    onRssFeeds: () -> Unit = {}
+    onRssFeeds: () -> Unit = {},
+    onSetMiniApp: (url: String) -> Unit = {},
+    onClearMiniApp: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showMiniAppDialog by remember { mutableStateOf(false) }
+    var miniAppUrlInput by remember(bot.webAppUrl) { mutableStateOf(bot.webAppUrl ?: "") }
+    var miniAppUrlError by remember { mutableStateOf(false) }
+
+    // Mini App URL setup dialog
+    if (showMiniAppDialog) {
+        AlertDialog(
+            onDismissRequest = { showMiniAppDialog = false },
+            title = { Text(stringResource(R.string.mini_app_set_url_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.mini_app_set_url_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(
+                        value = miniAppUrlInput,
+                        onValueChange = { miniAppUrlInput = it; miniAppUrlError = false },
+                        label = { Text(stringResource(R.string.mini_app_set_url_label)) },
+                        placeholder = { Text("https://my-mini-app.example.com") },
+                        isError = miniAppUrlError,
+                        supportingText = if (miniAppUrlError) ({ Text(stringResource(R.string.mini_app_url_error), color = MaterialTheme.colorScheme.error) }) else null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val url = miniAppUrlInput.trim()
+                    if (url.isNotEmpty() && !url.startsWith("https://")) {
+                        miniAppUrlError = true
+                    } else {
+                        onSetMiniApp(url)
+                        showMiniAppDialog = false
+                    }
+                }) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMiniAppDialog = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -234,6 +283,32 @@ fun MyBotCard(
                 BotStatChip(stringResource(R.string.bot_stat_users_count, bot.totalUsers))
                 BotStatChip(stringResource(R.string.bot_stat_messages_count, bot.messagesSent))
                 BotStatChip(stringResource(R.string.bot_stat_commands_count, bot.commandsCount))
+            }
+
+            // Mini App URL status
+            if (bot.webAppUrl != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = bot.webAppUrl,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { miniAppUrlInput = bot.webAppUrl; showMiniAppDialog = true }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onClearMiniApp, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.mini_app_remove), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                    }
+                }
             }
 
             // Webhook status

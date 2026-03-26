@@ -375,6 +375,21 @@ fun ParticipantVideoView(
     modifier: Modifier = Modifier
 ) {
     var currentVideoTrack by remember { mutableStateOf<org.webrtc.VideoTrack?>(null) }
+    var rendererRef by remember { mutableStateOf<org.webrtc.SurfaceViewRenderer?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            // Remove sink before renderer is destroyed to prevent crashes
+            currentVideoTrack?.let { track ->
+                rendererRef?.let { renderer ->
+                    try { track.removeSink(renderer) } catch (_: Exception) {}
+                }
+            }
+            rendererRef?.let { renderer ->
+                try { renderer.release() } catch (_: Exception) {}
+            }
+        }
+    }
 
     AndroidView(
         factory = { androidContext ->
@@ -383,12 +398,13 @@ fun ParticipantVideoView(
                 setZOrderMediaOverlay(false)
                 setEnableHardwareScaler(true)
                 setMirror(isMirrored)
+                rendererRef = this
             }
         },
         update = { renderer ->
             val newTrack = if (stream.videoTracks.isNotEmpty()) stream.videoTracks[0] else null
             if (newTrack != currentVideoTrack) {
-                currentVideoTrack?.removeSink(renderer)
+                currentVideoTrack?.let { try { it.removeSink(renderer) } catch (_: Exception) {} }
                 newTrack?.addSink(renderer)
                 currentVideoTrack = newTrack
             }

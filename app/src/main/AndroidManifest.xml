@@ -202,6 +202,16 @@
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
             android:parentActivityName=".ui.chats.ChatsActivity" />
 
+        <!-- Mini App WebView Activity (Bot Web Apps) -->
+        <activity
+            android:name=".ui.bots.MiniAppActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:windowSoftInputMode="adjustResize"
+            android:hardwareAccelerated="true"
+            android:parentActivityName=".ui.messages.MessagesActivity" />
+
         <!-- Groups Activity -->
         <activity
             android:name=".ui.groups.GroupsActivity"

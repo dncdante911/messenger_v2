@@ -74,7 +74,10 @@ interface NodeBotApi {
         @Field("about")           about: String? = null,
         @Field("category")        category: String? = null,
         @Field("is_public")       isPublic: Int? = null,
-        @Field("can_join_groups") canJoinGroups: Int? = null
+        @Field("can_join_groups") canJoinGroups: Int? = null,
+        // Mini App URL: set to https://... to configure, or pass clear_web_app=1 to remove
+        @Field("web_app_url")     webAppUrl: String? = null,
+        @Field("clear_web_app")   clearWebApp: Int? = null
     ): BotGenericResponse
 
     // ── Видалення ─────────────────────────────────────────────────────────────
@@ -125,4 +128,24 @@ interface NodeBotApi {
         @Path("bot_id")  botId: String,
         @Path("feed_id") feedId: Int
     ): BotGenericResponse
+
+    // ── Mini Apps ─────────────────────────────────────────────────────────────
+    // POST /api/node/bot/createWebAppToken
+    // uAuth — signs init_data for the Mini App WebView
+    @FormUrlEncoded
+    @POST("api/node/bot/createWebAppToken")
+    suspend fun createWebAppToken(
+        @Field("bot_id")   botId: String,
+        @Field("chat_id")  chatId: String? = null
+    ): WebAppTokenResponse
+
+    // POST /api/node/bot/answerWebAppQuery
+    // uAuth — delivers web_app_data back to bot via webhook / Socket.IO
+    @FormUrlEncoded
+    @POST("api/node/bot/answerWebAppQuery")
+    suspend fun answerWebAppQuery(
+        @Field("query_id") queryId: String,
+        @Field("bot_id")   botId: String,
+        @Field("data")     data: String
+    ): WebAppQueryResponse
 }

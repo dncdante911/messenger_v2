@@ -1,6 +1,7 @@
 package com.worldmates.messenger.ui.bots
 
 import androidx.compose.animation.AnimatedVisibility
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -127,16 +129,25 @@ fun BotCommandBar(
 
 /**
  * Inline клавіатура бота - кнопки під повідомленням
- * (callback buttons, URL buttons)
+ * (callback buttons, URL buttons, Mini App web_app buttons)
+ *
+ * @param botId      ID бота — передаётся в MiniAppActivity для запроса init_data
+ * @param botName    Отображаемое имя бота — заголовок MiniAppActivity
+ * @param accessToken Токен текущего пользователя (для createWebAppToken)
  */
 @Composable
 fun BotInlineKeyboard(
     markup: BotReplyMarkup?,
     onButtonClick: (BotInlineButton) -> Unit,
+    botId: String = "",
+    botName: String = "",
+    accessToken: String = "",
     modifier: Modifier = Modifier
 ) {
     val keyboard = markup?.inlineKeyboard
     if (keyboard.isNullOrEmpty()) return
+
+    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -150,28 +161,70 @@ fun BotInlineKeyboard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 row.forEach { button ->
-                    OutlinedButton(
-                        onClick = { onButtonClick(button) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(36.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                    ) {
-                        if (button.url != null) {
-                            Icon(
-                                Icons.Default.OpenInNew,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                    when (button.type) {
+                        BotButtonType.WEB_APP -> {
+                            // Mini App button — distinct primary color, globe icon
+                            Button(
+                                onClick = {
+                                    val url = button.webApp?.url ?: return@Button
+                                    MiniAppActivity.start(
+                                        context = context,
+                                        botId = botId,
+                                        botName = botName,
+                                        webAppUrl = url,
+                                        accessToken = accessToken
+                                    )
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(36.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.Language,
+                                    contentDescription = stringResource(R.string.mini_app_open),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = button.text,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
-                        Text(
-                            text = button.text,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        else -> {
+                            // Callback and URL buttons — standard outlined style
+                            OutlinedButton(
+                                onClick = { onButtonClick(button) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(36.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                            ) {
+                                if (button.type == BotButtonType.URL) {
+                                    Icon(
+                                        Icons.Default.OpenInNew,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                }
+                                Text(
+                                    text = button.text,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
             }
