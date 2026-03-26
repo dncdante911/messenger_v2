@@ -806,7 +806,6 @@ async function main() {
     // or .env file not found (check dotenv path = __dirname/.env).
     console.error('[Redis Adapter] DISABLED — could not connect:', redisErr.message);
   }
-  await setupRedisAdapter();
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Initialize Bot API /bots namespace (bot-side connections)
