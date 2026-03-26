@@ -21,7 +21,7 @@ const http  = require('http');
 const { URL } = require('url');
 
 const MAX_CONTENT_BYTES = 512 * 1024; // 512 KB
-const FETCH_TIMEOUT_MS  = 7_000;
+const FETCH_TIMEOUT_MS  = 7000;
 
 const ALLOWED_SCHEMES = ['http:', 'https:'];
 
