@@ -89,7 +89,7 @@ fun BusinessHoursScreen(
             item { Spacer(Modifier.height(80.dp)) }
         }
 
-        Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Box(modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
             Button(
                 onClick = {
                     onSave(rows.mapIndexed { i, s ->
