@@ -350,6 +350,11 @@ fun MyBotCard(
                     label = "RSS",
                     onClick = onRssFeeds
                 )
+                BotActionButton(
+                    icon  = Icons.Default.Language,
+                    label = stringResource(R.string.mini_app_add),
+                    onClick = { miniAppUrlInput = bot.webAppUrl ?: ""; showMiniAppDialog = true }
+                )
                 // "⋮" more menu
                 Box {
                     BotActionButton(
