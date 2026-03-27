@@ -220,8 +220,9 @@ fs.writeFileSync(absPath, uploadedFile.buffer);
 - E2EE (Signal Protocol)
 - Premium-подписка
 - Поиск по чатам/сообщениям
-- Стикеры, GIF, реакции
+- Стикеры, GIF, реакции (Strapi CDN + PRO-паки) ✅ **обновлено**
 - Папки/фильтры чатов
+- Транскрипция голосовых сообщений (PRO, AI Whisper) ✅ **новое**
 
 ---
 
@@ -316,12 +317,14 @@ PM2:     18 workers (используется 32% ядер)
 ## 📈 Итого
 
 ```
-Android:    ~88% готово
+Android:    ~91% готово
             31 TODO, 3 хардкодных isPremium, 6 пустых onClick
-            5 из 31 уже исправлены в текущей сессии ✅
+            7 из 31 уже исправлены в текущей сессии ✅
+            + Task 3 (Strapi PRO stickers) + Task 4 (Voice transcription)
 
-Node.js:    ~92% готово
-            57 route-файлов реализованы, 61 socket-event
+Node.js:    ~94% готово
+            59 route-файлов реализованы (+voice-transcription.js, +stickers PRO)
+            61 socket-event
             Критика: 25 контроллеров без error handling, 5 blocking writes
 
 Сервер:     Железо использует ~10–15% мощности. Запас огромный.
@@ -345,3 +348,9 @@ Node.js:    ~92% готово
 | Скачивание медиа из поиска | `MediaSearchScreen.kt`, `MediaSearchViewModel.kt` | ✅ |
 | Чат во время звонка | `CallsActivity.kt`, `CallsViewModel.kt`, `calls-listener.js` | ✅ |
 | Локализация всех строк | `strings.xml`, `strings-ru.xml` | ✅ |
+| **Crash сервера** — `setupRedisAdapter` undefined + `60_000` SyntaxError | `main.js`, `rateLimiter.js`, `inline.js`, `secret.js`, `instant_view.js` | ✅ |
+| **DB ошибки** — `wo_users` / `u.fname` / `u.uid` (регистр + колонки) | `stars.js`, `scheduled-posts.js` | ✅ |
+| **CRON crash** — `media-auto-delete` QueryTypes.SELECT деструктуризация | `media-auto-delete.js` | ✅ |
+| **Кнопка "Сохранить"** перекрывалась системной навбар | `BusinessProfileEditScreen.kt`, `AutoReplyScreen.kt`, `BusinessHoursScreen.kt` | ✅ |
+| **Task 3** — Strapi PRO-паки стикеров + WorldStars покупка | `stickers.js`, `main.js`, `StrapiModels.kt`, `StrapiStickerRepository.kt`, `NodeStickerProApi.kt`, `NodeRetrofitClient.kt` | ✅ |
+| **Task 4** — Транскрипция голосовых (OpenAI Whisper, PRO) | `voice-transcription.js`, `NodeVoiceApi.kt`, `MessageBubbleComponents.kt`, `strings.xml`, `strings-ru.xml` | ✅ |
