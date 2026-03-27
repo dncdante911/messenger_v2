@@ -388,7 +388,8 @@ interface NodeApi {
     @FormUrlEncoded
     @POST(Constants.NODE_CHAT_CLEAR_HIST)
     suspend fun clearHistory(
-        @Field("recipient_id") recipientId: Long
+        @Field("recipient_id") recipientId: Long,
+        @Field("clear_type")   clearType: String = "just_me"
     ): NodeSimpleResponse
 
     /**
