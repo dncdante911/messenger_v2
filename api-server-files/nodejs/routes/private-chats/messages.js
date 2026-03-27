@@ -85,6 +85,9 @@ async function buildMessage(ctx, msg, userId) {
 
     // Reply data
     let replyData = null;
+    let replyToId   = 0;
+    let replyToText = '';
+    let replyToName = '';
     if (msg.reply_id && msg.reply_id > 0) {
         const r = await ctx.wo_messages.findOne({
             attributes: ['id', 'from_id', 'text', 'iv', 'tag', 'cipher_version',
@@ -98,6 +101,9 @@ async function buildMessage(ctx, msg, userId) {
             const replyText = replyCv === 3
                 ? ''
                 : (r.text ? crypto.decryptMessage(r) : '');
+            // Fetch sender name for the replied-to message
+            const replyAuthor = await getUserBasicData(ctx, r.from_id);
+            const replyName = replyAuthor ? replyAuthor.name : '';
             replyData = {
                 id:             r.id,
                 from_id:        r.from_id,
@@ -107,6 +113,9 @@ async function buildMessage(ctx, msg, userId) {
                 media:          r.media || '',
                 time:           r.time,
             };
+            replyToId   = r.id;
+            replyToText = replyText || (r.media ? '[медіа]' : '');
+            replyToName = replyName;
         }
     }
 
@@ -138,6 +147,10 @@ async function buildMessage(ctx, msg, userId) {
         lng:            msg.lng            || '0',
         reply_id:       msg.reply_id       || 0,
         reply:          replyData,
+        // Flat reply fields для Android-клієнта
+        reply_to_id:    replyToId,
+        reply_to_text:  replyToText,
+        reply_to_name:  replyToName,
         story_id:       msg.story_id       || 0,
         product_id:     msg.product_id     || 0,
         forward:        msg.forward        || 0,
