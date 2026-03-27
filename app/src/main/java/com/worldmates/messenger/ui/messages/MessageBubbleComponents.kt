@@ -495,50 +495,58 @@ fun MessageBubbleComposable(
                                 }
                             )
                     ) {
-                        // 💬 Цитата Reply (якщо є)
-                        if (message.replyToId != null && message.replyToText != null) {
+                        // 💬 Цитата Reply — тільки якщо повідомлення є відповіддю
+                        if ((message.replyToId ?: 0L) > 0L) {
                             val replyAuthor = when {
                                 !message.replyToName.isNullOrBlank() -> message.replyToName!!
                                 message.replyToId == UserSession.userId -> stringResource(R.string.you_label)
                                 else -> stringResource(R.string.reply_to)
                             }
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = textColor.copy(alpha = 0.1f),
+                            val replyPreview = when {
+                                !message.replyToText.isNullOrBlank() -> message.replyToText!!
+                                else -> stringResource(R.string.media_placeholder)
+                            }
+                            // Компактний блок цитати — TG-стиль
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 8.dp)
+                                    .padding(bottom = 5.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(textColor.copy(alpha = 0.08f)),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    // Вертикальна лінія
-                                    Box(
-                                        modifier = Modifier
-                                            .width(3.dp)
-                                            .height(40.dp)
-                                            .background(
-                                                color = colorScheme.primary,
-                                                shape = RoundedCornerShape(2.dp)
-                                            )
-                                    )
-                                    // Текст цитати
-                                    Column {
-                                        Text(
-                                            text = replyAuthor,
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(36.dp)
+                                        .background(
                                             color = colorScheme.primary,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
+                                            shape = RoundedCornerShape(
+                                                topStart = 6.dp, bottomStart = 6.dp
+                                            )
                                         )
-                                        Text(
-                                            text = message.replyToText!!,
-                                            color = textColor.copy(alpha = 0.7f),
-                                            fontSize = 14.sp,
-                                            maxLines = 2,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(vertical = 4.dp, end = 6.dp),
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = replyAuthor,
+                                        color = colorScheme.primary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = replyPreview,
+                                        color = textColor.copy(alpha = 0.65f),
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
                                 }
                             }
                         }

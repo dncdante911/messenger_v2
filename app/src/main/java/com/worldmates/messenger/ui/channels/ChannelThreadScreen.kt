@@ -2,6 +2,7 @@ package com.worldmates.messenger.ui.channels
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,7 +18,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -300,131 +304,161 @@ private fun ThreadMessageBubble(
         MaterialTheme.colorScheme.primaryContainer
     else
         MaterialTheme.colorScheme.surfaceVariant
+    val colorScheme = MaterialTheme.colorScheme
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = alignment
-    ) {
-        Row(
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // Avatar (only for others)
-            if (!isOwn) {
-                AsyncImage(
-                    model = message.author?.avatar,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
-                )
-                Spacer(Modifier.width(8.dp))
-            }
+    var offsetX by remember { mutableStateOf(0f) }
+    val maxSwipe = 90f
 
-            Column(modifier = Modifier.weight(1f, fill = false)) {
-                // Author name (others only)
-                if (!isOwn) {
-                    Text(
-                        text = message.author?.name ?: message.author?.username ?: "",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // Reply icon (з'являється при свайпі)
+        if (offsetX > 16f) {
+            Icon(
+                imageVector = Icons.Default.Reply,
+                contentDescription = null,
+                tint = colorScheme.primary.copy(alpha = (offsetX / maxSwipe).coerceIn(0f, 1f)),
+                modifier = Modifier
+                    .align(if (isOwn) Alignment.CenterEnd else Alignment.CenterStart)
+                    .padding(horizontal = 12.dp)
+                    .size(20.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.roundToInt(), 0) }
+                .pointerInput(message.id) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (offsetX > maxSwipe / 2) onReplyClick()
+                            offsetX = 0f
+                        },
+                        onHorizontalDrag = { _, drag ->
+                            offsetX = (offsetX + drag).coerceIn(0f, maxSwipe)
+                        }
                     )
+                },
+            horizontalAlignment = alignment
+        ) {
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Avatar (only for others)
+                if (!isOwn) {
+                    AsyncImage(
+                        model = message.author?.avatar,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+                    )
+                    Spacer(Modifier.width(8.dp))
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(
-                        topStart = 12.dp, topEnd = 12.dp,
-                        bottomStart = if (isOwn) 12.dp else 4.dp,
-                        bottomEnd   = if (isOwn) 4.dp else 12.dp
-                    ),
-                    color = bubbleColor,
-                    modifier = Modifier.widthIn(max = 280.dp)
-                ) {
-                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                        // Reply quote
-                        if (replyParent != null) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                                    Text(
-                                        text = replyParent.author?.name ?: "",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
+                Column(modifier = Modifier.weight(1f, fill = false)) {
+                    // Author name (others only)
+                    if (!isOwn) {
+                        Text(
+                            text = message.author?.name ?: message.author?.username ?: "",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(
+                            topStart = 12.dp, topEnd = 12.dp,
+                            bottomStart = if (isOwn) 12.dp else 4.dp,
+                            bottomEnd   = if (isOwn) 4.dp else 12.dp
+                        ),
+                        color = bubbleColor,
+                        modifier = Modifier.widthIn(max = 280.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            // Compact reply quote
+                            if (replyParent != null) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 5.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(colorScheme.primary.copy(alpha = 0.08f)),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(3.dp)
+                                            .height(36.dp)
+                                            .background(
+                                                colorScheme.primary,
+                                                RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp)
+                                            )
                                     )
-                                    Text(
-                                        text = replyParent.text,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(vertical = 4.dp, end = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = replyParent.author?.name ?: "",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = colorScheme.primary,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = replyParent.text,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            color = colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
-                            Spacer(Modifier.height(4.dp))
+
+                            Text(text = message.text, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                text = formatMessageTime(message.time),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                modifier = Modifier.align(Alignment.End)
+                            )
                         }
-
-                        Text(
-                            text = message.text,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-
-                        // Time
-                        Text(
-                            text = formatMessageTime(message.time),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.align(Alignment.End)
-                        )
                     }
                 }
             }
-        }
 
-        // Action row (reply / delete)
-        Row(
-            modifier = Modifier.padding(horizontal = if (isOwn) 0.dp else 40.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            TextButton(
-                onClick = onReplyClick,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+            // Delete only (reply moved to swipe)
+            Row(
+                modifier = Modifier.padding(horizontal = if (isOwn) 0.dp else 40.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(Icons.Default.Reply, contentDescription = null, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(stringResource(R.string.thread_reply), style = MaterialTheme.typography.labelSmall)
-            }
-            if (onDeleteClick != null) {
-                TextButton(
-                    onClick = onDeleteClick,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                if (onDeleteClick != null) {
+                    IconButton(onClick = onDeleteClick, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = colorScheme.error.copy(alpha = 0.6f)
+                        )
+                    }
                 }
-            }
-            // 3-dot menu for other users
-            if (!isOwn && onUserMenu != null) {
-                IconButton(
-                    onClick = onUserMenu,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        Icons.Default.MoreVert,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
+                if (!isOwn && onUserMenu != null) {
+                    IconButton(onClick = onUserMenu, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
                 }
             }
         }
