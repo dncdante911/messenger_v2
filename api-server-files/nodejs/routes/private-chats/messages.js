@@ -147,10 +147,12 @@ async function buildMessage(ctx, msg, userId) {
         lng:            msg.lng            || '0',
         reply_id:       msg.reply_id       || 0,
         reply:          replyData,
-        // Flat reply fields для Android-клієнта
-        reply_to_id:    replyToId,
-        reply_to_text:  replyToText,
-        reply_to_name:  replyToName,
+        // Flat reply fields для Android-клієнта (тільки якщо є реальна відповідь)
+        ...(replyToId > 0 ? {
+            reply_to_id:   replyToId,
+            reply_to_text: replyToText,
+            reply_to_name: replyToName,
+        } : {}),
         story_id:       msg.story_id       || 0,
         product_id:     msg.product_id     || 0,
         forward:        msg.forward        || 0,

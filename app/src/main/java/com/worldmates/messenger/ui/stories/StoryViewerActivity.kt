@@ -10,6 +10,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -38,6 +39,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -1211,9 +1214,37 @@ fun CommentItem(
     onUserMenu: ((StoryComment) -> Unit)? = null,
     replyToComment: StoryComment? = null
 ) {
+    var offsetX by remember { mutableStateOf(0f) }
+    val maxSwipe = 80f
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        if (offsetX > 14f) {
+            Icon(
+                imageVector = Icons.Default.Reply,
+                contentDescription = null,
+                tint = Color(0xFF2196F3).copy(alpha = (offsetX / maxSwipe).coerceIn(0f, 1f)),
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 12.dp)
+                    .size(18.dp)
+            )
+        }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .offset { IntOffset(offsetX.roundToInt(), 0) }
+            .pointerInput(comment.id) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (offsetX > maxSwipe / 2) onReply?.invoke(comment)
+                        offsetX = 0f
+                    },
+                    onHorizontalDrag = { _, drag ->
+                        offsetX = (offsetX + drag).coerceIn(0f, maxSwipe)
+                    }
+                )
+            }
             .clip(RoundedCornerShape(12.dp))
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.Top
@@ -1286,6 +1317,7 @@ fun CommentItem(
             }
         }
     }
+    } // Box
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

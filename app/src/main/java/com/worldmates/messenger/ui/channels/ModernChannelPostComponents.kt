@@ -4,6 +4,7 @@ import com.worldmates.messenger.util.toFullMediaUrl
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,9 +32,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlin.math.roundToInt
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.ui.fonts.AppFonts
 import com.worldmates.messenger.ui.messages.components.PollMessageComponent
@@ -1596,10 +1600,38 @@ fun PremiumCommentItem(
     modifier: Modifier = Modifier
 ) {
     var showActions by remember { mutableStateOf(false) }
+    var offsetX by remember { mutableStateOf(0f) }
+    val maxSwipe = 80f
+    val colorScheme = MaterialTheme.colorScheme
+
+    Box(modifier = modifier.fillMaxWidth()) {
+        if (offsetX > 14f) {
+            Icon(
+                imageVector = Icons.Default.Reply,
+                contentDescription = null,
+                tint = colorScheme.primary.copy(alpha = (offsetX / maxSwipe).coerceIn(0f, 1f)),
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 8.dp)
+                    .size(18.dp)
+            )
+        }
 
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
+            .offset { IntOffset(offsetX.roundToInt(), 0) }
+            .pointerInput(comment.id) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (offsetX > maxSwipe / 2) onReply?.invoke(comment)
+                        offsetX = 0f
+                    },
+                    onHorizontalDrag = { _, drag ->
+                        offsetX = (offsetX + drag).coerceIn(0f, maxSwipe)
+                    }
+                )
+            }
             .clip(RoundedCornerShape(12.dp))
             .clickable { showActions = !showActions }
             .padding(horizontal = 4.dp, vertical = 6.dp)
@@ -1744,6 +1776,7 @@ fun PremiumCommentItem(
             }
         }
     }
+    } // Box
 }
 
 // Keep backward compatibility alias
