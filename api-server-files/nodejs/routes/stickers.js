@@ -1,5 +1,15 @@
 'use strict';
 
+// ─── Monetization constants ───────────────────────────────────────────────────
+//
+//  CREATOR_SHARE   — fraction of the pack price that goes to the pack creator.
+//                    0.7 = 70% to creator, 30% kept as platform fee.
+//                    Change this one number to adjust the revenue split.
+//
+//  Example: pack costs 100 ⭐  →  creator gets 70 ⭐, platform keeps 30 ⭐.
+//
+const CREATOR_SHARE = 0.7;
+
 /**
  * Stickers & Emoji Packs REST API
  *
@@ -255,7 +265,7 @@ function buyStraPiPack(ctx) {
                 return res.status(400).json({ api_status: 400, error_message: 'Not enough WorldStars', balance, required: starsPrice });
             }
 
-            // Deduct stars and record purchase in transaction
+            // Deduct stars from buyer
             await ctx.sequelize.query(
                 'UPDATE wm_stars_balance SET balance = balance - ?, total_sent = total_sent + ? WHERE user_id = ?',
                 { replacements: [starsPrice, starsPrice, req.userId] }
@@ -263,12 +273,31 @@ function buyStraPiPack(ctx) {
             await ctx.sequelize.query(
                 `INSERT INTO wm_stars_transactions (from_user_id, to_user_id, amount, type, ref_type, note)
                  VALUES (?, ?, ?, 'send', 'sticker_pack', ?)`,
-                { replacements: [req.userId, req.userId, starsPrice, `Sticker pack: ${slug}`] }
+                { replacements: [req.userId, req.userId, starsPrice, `Sticker pack purchase: ${slug}`] }
             );
             await ctx.sequelize.query(
                 'INSERT INTO wm_sticker_purchases (user_id, slug, stars_paid) VALUES (?, ?, ?)',
                 { replacements: [req.userId, slug, starsPrice] }
             );
+
+            // Revenue share: credit creator if this is a creator-owned pack
+            const creatorId = proPacks[0].creator_user_id || null;
+            if (creatorId && creatorId !== req.userId) {
+                const creatorCut = Math.floor(starsPrice * CREATOR_SHARE);
+                if (creatorCut > 0) {
+                    await ctx.sequelize.query(
+                        `INSERT INTO wm_stars_balance (user_id, balance, total_received)
+                         VALUES (?, ?, ?)
+                         ON DUPLICATE KEY UPDATE balance = balance + ?, total_received = total_received + ?`,
+                        { replacements: [creatorId, creatorCut, creatorCut, creatorCut, creatorCut] }
+                    );
+                    await ctx.sequelize.query(
+                        `INSERT INTO wm_stars_transactions (from_user_id, to_user_id, amount, type, ref_type, note)
+                         VALUES (?, ?, ?, 'receive', 'sticker_pack', ?)`,
+                        { replacements: [req.userId, creatorId, creatorCut, `Sale of sticker pack: ${slug}`] }
+                    );
+                }
+            }
 
             const newBalance = balance - starsPrice;
             return res.json({ api_status: 200, new_balance: newBalance });
@@ -292,22 +321,24 @@ function adminSetProPack(ctx) {
                 return res.status(403).json({ api_status: 403, error_message: 'Admin only' });
             }
 
-            const { slug, stars_price } = req.body;
+            const { slug, stars_price, creator_user_id } = req.body;
             if (!slug || !stars_price) {
                 return res.status(400).json({ api_status: 400, error_message: 'slug and stars_price required' });
             }
-            const price = parseInt(stars_price, 10);
+            const price     = parseInt(stars_price, 10);
+            const creatorId = creator_user_id ? parseInt(creator_user_id, 10) : null;
             if (isNaN(price) || price <= 0) {
                 return res.status(400).json({ api_status: 400, error_message: 'stars_price must be a positive integer' });
             }
 
             await ctx.sequelize.query(
-                `INSERT INTO wm_sticker_pro_packs (slug, stars_price)
-                 VALUES (?, ?)
-                 ON DUPLICATE KEY UPDATE stars_price = VALUES(stars_price)`,
-                { replacements: [slug, price] }
+                `INSERT INTO wm_sticker_pro_packs (slug, stars_price, creator_user_id)
+                 VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE stars_price = VALUES(stars_price), creator_user_id = VALUES(creator_user_id)`,
+                { replacements: [slug, price, creatorId] }
             );
-            return res.json({ api_status: 200, slug, stars_price: price });
+            return res.json({ api_status: 200, slug, stars_price: price, creator_user_id: creatorId,
+                creator_share_pct: Math.round(CREATOR_SHARE * 100) });
         } catch (err) {
             console.error('[Stickers/adminSetPro]', err.message);
             return res.json({ api_status: 500, error_message: 'Server error' });

@@ -26,8 +26,21 @@ const crypto = require('crypto');
 const md5    = require('md5');
 const https  = require('https');
 
-// ─── Pricing ──────────────────────────────────────────────────────────────────
-const BASE_PRICE_UAH = parseFloat(process.env.SUBSCRIPTION_PRICE_UAH || '149');
+// ─── Pricing & constants ───────────────────────────────────────────────────────
+//
+//  BASE_PRICE_UAH          — monthly PRO price in UAH (override via env).
+//                            Change: set SUBSCRIPTION_PRICE_UAH in .env
+//
+//  TRIAL_DAYS              — length of the free trial period.
+//                            Change: just edit the number below.
+//
+//  GIFT_PRICE_STARS_MONTH  — how many WorldStars it costs to gift 1 month of PRO.
+//                            Change: just edit the number below.
+//                            Example: 500 stars = 1 month gift.
+//
+const BASE_PRICE_UAH         = parseFloat(process.env.SUBSCRIPTION_PRICE_UAH || '149');
+const TRIAL_DAYS             = 7;
+const GIFT_PRICE_STARS_MONTH = 500;  // ← CHANGE THIS to adjust gift pricing
 
 /**
  * Returns total price in UAH for N months with volume discount.
@@ -252,9 +265,13 @@ async function createMonobankPayment({ orderId, amountUAH, months }) {
 }
 
 // ─── DB helper: activate subscription ────────────────────────────────────────
-async function activateSubscription(ctx, userId, months) {
-    const now = Math.floor(Date.now() / 1000);
-    const newExpiry = now + months * 30 * 24 * 3600;
+// months=0 + trialDays>0  → free trial mode (adds trialDays seconds)
+// months>0                → standard subscription (adds months × 30 days)
+async function activateSubscription(ctx, userId, months, trialDays = 0) {
+    const now       = Math.floor(Date.now() / 1000);
+    const addSecs   = trialDays > 0
+        ? trialDays * 24 * 3600
+        : months * 30 * 24 * 3600;
 
     // If already PRO and not expired, extend from current expiry
     const user = await ctx.wo_users.unscoped().findOne({
@@ -263,12 +280,12 @@ async function activateSubscription(ctx, userId, months) {
     });
     let baseTime = now;
     if (user && parseInt(user.is_pro) === 1 && user.pro_time > now) {
-        baseTime = user.pro_time; // extend
+        baseTime = user.pro_time; // extend instead of reset
     }
-    const expiry = baseTime + months * 30 * 24 * 3600;
+    const expiry = baseTime + addSecs;
 
     await ctx.wo_users.unscoped().update(
-        { is_pro: '1', pro_type: months, pro_time: expiry },
+        { is_pro: '1', pro_type: months || 0, pro_time: expiry },
         { where: { user_id: userId } }
     );
     return expiry;
@@ -389,11 +406,8 @@ function registerSubscriptionRoutes(app, ctx) {
             }
 
             if (transactionStatus === 'Approved') {
-                // Parse orderId: WM-{userId}-{timestamp}
                 const parts  = (orderReference || '').split('-');
                 const userId = parseInt(parts[1]);
-                // Extract months from product name is fragile; use order amount instead:
-                // Brute-force: find months where calcPrice(m) === amount
                 const amountNum = parseFloat(amount);
                 let months = 1;
                 for (let m = 1; m <= 24; m++) {
@@ -401,8 +415,21 @@ function registerSubscriptionRoutes(app, ctx) {
                 }
 
                 if (userId > 0) {
-                    await activateSubscription(ctx, userId, months);
-                    console.log(`[Subscription/Way4Pay] PRO activated user=${userId} months=${months}`);
+                    // Idempotency: skip if already recorded
+                    const [dup] = await ctx.sequelize.query(
+                        'SELECT id FROM wm_subscription_orders WHERE order_id = ? LIMIT 1',
+                        { replacements: [orderReference] }
+                    );
+                    if (dup.length) {
+                        console.info(`[Subscription/Way4Pay] duplicate webhook ignored (order ${orderReference})`);
+                    } else {
+                        await activateSubscription(ctx, userId, months);
+                        await ctx.sequelize.query(
+                            'INSERT INTO wm_subscription_orders (order_id, user_id, provider, months, amount_uah) VALUES (?,?,?,?,?)',
+                            { replacements: [orderReference, userId, 'wayforpay', months, Math.round(amountNum)] }
+                        );
+                        console.log(`[Subscription/Way4Pay] PRO activated user=${userId} months=${months}`);
+                    }
                 }
             }
 
@@ -441,7 +468,6 @@ function registerSubscriptionRoutes(app, ctx) {
             const payload = JSON.parse(Buffer.from(data, 'base64').toString('utf8'));
 
             if (payload.status === 'success' || payload.status === 'sandbox') {
-                // order_id format: WM-{userId}-{timestamp}
                 const parts  = (payload.order_id || '').split('-');
                 const userId = parseInt(parts[1]);
                 const amountNum = parseFloat(payload.amount);
@@ -450,8 +476,20 @@ function registerSubscriptionRoutes(app, ctx) {
                     if (calcPrice(m) === amountNum) { months = m; break; }
                 }
                 if (userId > 0) {
-                    await activateSubscription(ctx, userId, months);
-                    console.log(`[Subscription/LiqPay] PRO activated user=${userId} months=${months}`);
+                    const [dup] = await ctx.sequelize.query(
+                        'SELECT id FROM wm_subscription_orders WHERE order_id = ? LIMIT 1',
+                        { replacements: [payload.order_id] }
+                    );
+                    if (dup.length) {
+                        console.info(`[Subscription/LiqPay] duplicate webhook ignored (order ${payload.order_id})`);
+                    } else {
+                        await activateSubscription(ctx, userId, months);
+                        await ctx.sequelize.query(
+                            'INSERT INTO wm_subscription_orders (order_id, user_id, provider, months, amount_uah) VALUES (?,?,?,?,?)',
+                            { replacements: [payload.order_id, userId, 'liqpay', months, Math.round(amountNum)] }
+                        );
+                        console.log(`[Subscription/LiqPay] PRO activated user=${userId} months=${months}`);
+                    }
                 }
             }
 
@@ -482,10 +520,8 @@ function registerSubscriptionRoutes(app, ctx) {
 
             // status 'success' means payment completed
             if (status === 'success') {
-                // reference = orderId = WM-{userId}-{timestamp}
                 const parts     = (reference || '').split('-');
                 const userId    = parseInt(parts[1]);
-                // Monobank amount is in kopecks (1/100 UAH)
                 const amountUAH = Math.round((amount || 0) / 100);
 
                 let months = 1;
@@ -494,8 +530,21 @@ function registerSubscriptionRoutes(app, ctx) {
                 }
 
                 if (userId > 0) {
-                    await activateSubscription(ctx, userId, months);
-                    console.log(`[Subscription/Monobank] PRO activated user=${userId} months=${months} invoiceId=${invoiceId}`);
+                    const orderId = reference || invoiceId;
+                    const [dup] = await ctx.sequelize.query(
+                        'SELECT id FROM wm_subscription_orders WHERE order_id = ? LIMIT 1',
+                        { replacements: [orderId] }
+                    );
+                    if (dup.length) {
+                        console.info(`[Subscription/Monobank] duplicate webhook ignored (order ${orderId})`);
+                    } else {
+                        await activateSubscription(ctx, userId, months);
+                        await ctx.sequelize.query(
+                            'INSERT INTO wm_subscription_orders (order_id, user_id, provider, months, amount_uah) VALUES (?,?,?,?,?)',
+                            { replacements: [orderId, userId, 'monobank', months, amountUAH] }
+                        );
+                        console.log(`[Subscription/Monobank] PRO activated user=${userId} months=${months} invoiceId=${invoiceId}`);
+                    }
                 }
             }
 
@@ -508,7 +557,124 @@ function registerSubscriptionRoutes(app, ctx) {
         }
     });
 
-    console.log('[Subscription] routes registered');
+    // POST /api/node/subscription/start-trial
+    // Activates a 7-day free trial. One per account, lifetime.
+    // Returns: { api_status, trial_days, pro_time, already_used }
+    app.post('/api/node/subscription/start-trial', (req, res, next) => authMiddleware(ctx, req, res, next), async (req, res) => {
+        try {
+            const user = await ctx.wo_users.unscoped().findOne({
+                attributes: ['user_id', 'is_pro', 'pro_time', 'trial_used'],
+                where: { user_id: req.userId }
+            });
+            if (!user) return res.status(404).json({ api_status: 404, error_message: 'User not found' });
+
+            if (parseInt(user.trial_used) === 1) {
+                return res.json({ api_status: 200, already_used: true,
+                    error_message: 'Free trial has already been used on this account' });
+            }
+
+            const expiry = await activateSubscription(ctx, req.userId, 0, TRIAL_DAYS);
+            await ctx.wo_users.unscoped().update(
+                { trial_used: 1 },
+                { where: { user_id: req.userId } }
+            );
+
+            return res.json({
+                api_status:  200,
+                already_used: false,
+                trial_days:  TRIAL_DAYS,
+                pro_time:    expiry,
+            });
+        } catch (err) {
+            console.error('[Subscription] start-trial error:', err);
+            return res.status(500).json({ api_status: 500, error_message: 'Server error' });
+        }
+    });
+
+    // POST /api/node/subscription/gift
+    // Gift PRO subscription to another user using WorldStars.
+    // Body: { to_user_id, months }
+    // Cost: GIFT_PRICE_STARS_MONTH × months  WorldStars (deducted from sender's balance)
+    // Returns: { api_status, months, stars_spent, new_balance, recipient_pro_time }
+    app.post('/api/node/subscription/gift', (req, res, next) => authMiddleware(ctx, req, res, next), async (req, res) => {
+        try {
+            const toUserId = parseInt(req.body.to_user_id, 10);
+            const months   = Math.max(1, Math.min(12, parseInt(req.body.months, 10) || 1));
+
+            if (!toUserId || toUserId === req.userId) {
+                return res.status(400).json({ api_status: 400,
+                    error_message: 'to_user_id required and must differ from sender' });
+            }
+
+            const recipient = await ctx.wo_users.unscoped().findOne({
+                attributes: ['user_id'], where: { user_id: toUserId }
+            });
+            if (!recipient) return res.status(404).json({ api_status: 404, error_message: 'Recipient not found' });
+
+            const starsNeeded = GIFT_PRICE_STARS_MONTH * months;
+
+            // Check sender balance
+            const [balRows] = await ctx.sequelize.query(
+                'SELECT balance FROM wm_stars_balance WHERE user_id = ?',
+                { replacements: [req.userId] }
+            );
+            const balance = balRows.length ? balRows[0].balance : 0;
+            if (balance < starsNeeded) {
+                return res.status(400).json({
+                    api_status: 400,
+                    error_message: `Not enough WorldStars. Need ${starsNeeded}, have ${balance}`,
+                    balance, required: starsNeeded,
+                    // Tell client the price so UI can show it
+                    stars_per_month: GIFT_PRICE_STARS_MONTH,
+                });
+            }
+
+            // Deduct from sender
+            await ctx.sequelize.query(
+                'UPDATE wm_stars_balance SET balance = balance - ?, total_sent = total_sent + ? WHERE user_id = ?',
+                { replacements: [starsNeeded, starsNeeded, req.userId] }
+            );
+            await ctx.sequelize.query(
+                `INSERT INTO wm_stars_transactions (from_user_id, to_user_id, amount, type, ref_type, note)
+                 VALUES (?, ?, ?, 'send', 'gift_pro', ?)`,
+                { replacements: [req.userId, toUserId, starsNeeded, `Gift PRO ${months} month(s)`] }
+            );
+
+            // Activate PRO for recipient
+            const expiry = await activateSubscription(ctx, toUserId, months);
+
+            return res.json({
+                api_status:         200,
+                months,
+                stars_spent:        starsNeeded,
+                new_balance:        balance - starsNeeded,
+                recipient_pro_time: expiry,
+                // Config hints for client UI
+                stars_per_month:    GIFT_PRICE_STARS_MONTH,
+            });
+        } catch (err) {
+            console.error('[Subscription] gift error:', err);
+            return res.status(500).json({ api_status: 500, error_message: 'Server error' });
+        }
+    });
+
+    // GET /api/node/subscription/gift-price
+    // Returns current gift pricing info. Useful for building the gift UI.
+    app.get('/api/node/subscription/gift-price', (req, res, next) => authMiddleware(ctx, req, res, next), (req, res) => {
+        res.json({
+            api_status:      200,
+            stars_per_month: GIFT_PRICE_STARS_MONTH,
+            trial_days:      TRIAL_DAYS,
+            plans: [1, 3, 6, 12].map(m => ({
+                months: m,
+                stars:  GIFT_PRICE_STARS_MONTH * m,
+                // Discount: same as monetary tiers
+                label:  m === 1 ? '1 month' : m === 3 ? '3 months' : m === 6 ? '6 months' : '1 year',
+            })),
+        });
+    });
+
+    console.log('[Subscription] routes registered (incl. trial + gift)');
 }
 
-module.exports = { registerSubscriptionRoutes, calcPrice };
+module.exports = { registerSubscriptionRoutes, calcPrice, GIFT_PRICE_STARS_MONTH, TRIAL_DAYS };

@@ -80,7 +80,7 @@ class MediaUploader(private val context: Context) {
         filePath: String,
         recipientId: Long? = null,
         groupId: Long? = null,
-        isPremium: Boolean = false,
+        isPremium: Boolean = com.worldmates.messenger.data.UserSession.isProActive,
         caption: String = "",
         onProgress: ((Int) -> Unit)? = null
     ): UploadResult = withContext(Dispatchers.IO) {
@@ -328,7 +328,7 @@ class MediaUploader(private val context: Context) {
         }
     }
 
-    private fun validateFileSize(file: File, mediaType: String, isPremium: Boolean = false): Boolean {
+    private fun validateFileSize(file: File, mediaType: String, isPremium: Boolean = com.worldmates.messenger.data.UserSession.isProActive): Boolean {
         val fileSize = file.length()
         val maxSize = when (mediaType) {
             Constants.MESSAGE_TYPE_IMAGE -> Constants.MAX_IMAGE_SIZE // 15MB

@@ -317,14 +317,14 @@ PM2:     18 workers (используется 32% ядер)
 ## 📈 Итого
 
 ```
-Android:    ~91% готово
-            31 TODO, 3 хардкодных isPremium, 6 пустых onClick
-            7 из 31 уже исправлены в текущей сессии ✅
-            + Task 3 (Strapi PRO stickers) + Task 4 (Voice transcription)
+Android:    ~93% готово
+            Исправлены: isPremiumCall, MediaUploader isPremium → isProActive
+            Task 3+4 реализованы, монетизация полностью подключена
 
-Node.js:    ~94% готово
-            59 route-файлов реализованы (+voice-transcription.js, +stickers PRO)
+Node.js:    ~96% готово
+            59 route-файлов (+ voice-transcription.js)
             61 socket-event
+            Монетизация: триал, подарок, creator share, idempotency
             Критика: 25 контроллеров без error handling, 5 blocking writes
 
 Сервер:     Железо использует ~10–15% мощности. Запас огромный.
@@ -354,3 +354,5 @@ Node.js:    ~94% готово
 | **Кнопка "Сохранить"** перекрывалась системной навбар | `BusinessProfileEditScreen.kt`, `AutoReplyScreen.kt`, `BusinessHoursScreen.kt` | ✅ |
 | **Task 3** — Strapi PRO-паки стикеров + WorldStars покупка | `stickers.js`, `main.js`, `StrapiModels.kt`, `StrapiStickerRepository.kt`, `NodeStickerProApi.kt`, `NodeRetrofitClient.kt` | ✅ |
 | **Task 4** — Транскрипция голосовых (OpenAI Whisper, PRO) | `voice-transcription.js`, `NodeVoiceApi.kt`, `MessageBubbleComponents.kt`, `strings.xml`, `strings-ru.xml` | ✅ |
+| **Монетизация** — Доход создателей (70/30 split), webhook idempotency, 7-дневный триал, подарок PRO за звёзды, `isPremiumCall`/`MediaUploader` → `isProActive` | `stickers.js`, `stars.js`, `subscription.js`, `main.js`, `CallsViewModel.kt`, `MediaUploader.kt`, `NodeSubscriptionApi.kt` | ✅ |
+| **Документация** — `docs/MONETIZATION.md` | Полное описание монетизации: цены, настройки, API, таблицы БД | ✅ |

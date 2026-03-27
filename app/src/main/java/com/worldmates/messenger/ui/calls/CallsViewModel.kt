@@ -61,7 +61,7 @@ data class GroupCallIncomingData(
     val callType: String,
     val roomName: String,
     val maxParticipants: Int = 5,
-    val isPremiumCall: Boolean = false
+    val isPremiumCall: Boolean = com.worldmates.messenger.data.UserSession.isProActive
 )
 
 class CallsViewModel(application: Application) : AndroidViewModel(application), SocketManager.SocketListener {
