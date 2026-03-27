@@ -1028,6 +1028,8 @@
     <string name="playback_speed">Швидкість відтворення</string>
     <string name="player_repeat">Повтор</string>
     <string name="open_player">Відкрити плеєр</string>
+    <string name="voice_transcribe">Текст (PRO)</string>
+    <string name="voice_transcribing">Розпізнавання…</string>
 
     <!-- ===== EMOJI PICKER ===== -->
     <string name="emoji_smileys">Смайлики</string>

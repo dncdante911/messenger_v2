@@ -72,6 +72,7 @@ const { registerBusinessDirectoryRoutes } = require('./routes/business-directory
 const { registerSearchRoutes }       = require('./routes/search/index')
 const { registerStarsRoutes }                = require('./routes/stars')
 const { registerChannelScheduledPostRoutes } = require('./routes/channels/scheduled-posts')
+const { registerVoiceTranscriptionRoutes }   = require('./routes/voice-transcription')
 const { startCronJobs }              = require('./jobs/cronJobs')
 const setupMediaAutoDeleteJob        = require('./jobs/media-auto-delete')
 const { createGeoblockMiddleware }   = require('./middleware/geoblock')
@@ -689,6 +690,35 @@ async function runMigrations(ctx) {
     console.warn('[Migration] channel_scheduled_posts:', e.message);
   }
 
+  // ── Sticker PRO packs (Strapi slugs + WorldStars price) ──────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_sticker_pro_packs (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        slug        VARCHAR(128) NOT NULL,
+        stars_price INT UNSIGNED NOT NULL DEFAULT 50,
+        created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uk_slug (slug)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_sticker_purchases (
+        id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id    INT UNSIGNED NOT NULL,
+        slug       VARCHAR(128) NOT NULL,
+        stars_paid INT UNSIGNED NOT NULL DEFAULT 0,
+        purchased_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uk_user_slug (user_id, slug),
+        KEY idx_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[Migration] wm_sticker_pro_packs, wm_sticker_purchases ensured');
+  } catch (e) {
+    console.warn('[Migration] sticker_pro_packs:', e.message);
+  }
+
   console.log('[Migration] All background migrations complete');
 }
 
@@ -991,6 +1021,9 @@ async function main() {
 
   // Register Sticker & Emoji Packs routes (replaces PHP sticker_pack/emoji_pack endpoints)
   registerStickerRoutes(app, ctx);
+
+  // Register Voice Transcription route (PRO — OpenAI Whisper)
+  registerVoiceTranscriptionRoutes(app, ctx);
 
   // Register Business Mode routes (profile, hours, quick replies, links, auto-reply)
   registerBusinessRoutes(app, ctx);

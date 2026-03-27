@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.worldmates.messenger.data.model.StrapiContentPack
 import com.worldmates.messenger.data.model.toStrapiContentPack
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.StrapiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -107,14 +108,17 @@ class StrapiStickerRepository(private val context: Context) {
                     Log.d(TAG, "  📦 ${pack.name} (${pack.type}): ${pack.items.size} елементів")
                 }
 
+                // Enrich with PRO metadata from Node.js
+                val enriched = enrichWithProMeta(packs)
+
                 // Оновлюємо StateFlow
-                updatePacks(packs)
+                updatePacks(enriched)
 
                 // Зберігаємо в кеш
-                saveToCache(packs)
+                saveToCache(enriched)
 
                 _isLoading.value = false
-                Result.success(packs)
+                Result.success(enriched)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Помилка завантаження пакетів", e)
                 _error.value = "Помилка завантаження: ${e.message}"
@@ -211,6 +215,31 @@ class StrapiStickerRepository(private val context: Context) {
                 Log.e(TAG, "Помилка завантаження паку $slug", e)
                 Result.failure(e)
             }
+        }
+    }
+
+    /**
+     * Fetch PRO metadata from Node.js and merge it into the pack list.
+     * Non-critical — returns original list on any error.
+     */
+    private suspend fun enrichWithProMeta(packs: List<StrapiContentPack>): List<StrapiContentPack> {
+        return try {
+            val metaResp = NodeRetrofitClient.stickerProApi.getStrapiMeta()
+            if (metaResp.apiStatus != 200) return packs
+            val metaMap = metaResp.packs.associateBy { it.slug }
+            packs.map { pack ->
+                val meta = metaMap[pack.slug]
+                if (meta != null) {
+                    pack.copy(
+                        isPro       = meta.isPro,
+                        starsPrice  = meta.starsPrice,
+                        isPurchased = meta.isPurchased,
+                    )
+                } else pack
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not load PRO sticker metadata: ${e.message}")
+            packs
         }
     }
 

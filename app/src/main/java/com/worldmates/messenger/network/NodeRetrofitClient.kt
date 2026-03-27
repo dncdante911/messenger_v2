@@ -149,6 +149,12 @@ object NodeRetrofitClient {
     /** Business Directory API — public catalogue for browsing/searching registered businesses. */
     val businessDirectoryApi: NodeBusinessDirectoryApi = retrofit.create(NodeBusinessDirectoryApi::class.java)
 
+    /** Strapi PRO sticker packs — metadata + WorldStars purchase. */
+    val stickerProApi: NodeStickerProApi = retrofit.create(NodeStickerProApi::class.java)
+
+    /** Voice message transcription — PRO only, uses OpenAI Whisper server-side. */
+    val voiceApi: NodeVoiceApi = retrofit.create(NodeVoiceApi::class.java)
+
     /** Creates any Retrofit service backed by the Node.js base URL + auth interceptor. */
     fun <T> createService(cls: Class<T>): T = retrofit.create(cls)
 }
