@@ -2772,6 +2772,27 @@ class MessagesViewModel(application: Application) :
                             setMessagesSafe((_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp })
                             Log.d(TAG, "🔄 Polling (Node.js): +${trulyNew.size} нових")
                         }
+                        // Detect messages deleted "for everyone" that weren't removed via socket.
+                        // Any local message whose timestamp falls within the server's response window
+                        // but is absent from the response was deleted on the server side.
+                        if (newMessages.isNotEmpty()) {
+                            val oldestServerTs = newMessages.minOf { it.timeStamp }
+                            val serverIds = newMessages.map { it.id }.toSet()
+                            val likelyDeleted = _messages.value.filter { local ->
+                                local.timeStamp >= oldestServerTs &&
+                                local.id !in serverIds &&
+                                !local.isLocalPending &&
+                                local.id !in permanentlyDeletedIds
+                            }
+                            if (likelyDeleted.isNotEmpty()) {
+                                val deletedIds = likelyDeleted.map { it.id }.toSet()
+                                withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                                    permanentlyDeletedIds.addAll(deletedIds)
+                                    _messages.update { list -> list.filter { it.id !in deletedIds } }
+                                }
+                                Log.d(TAG, "🔄 Polling: виявлено ${likelyDeleted.size} видалених (для всіх)")
+                            }
+                        }
                     }
                     return@launch
                 }
@@ -2786,6 +2807,25 @@ class MessagesViewModel(application: Application) :
                     if (trulyNew.isNotEmpty()) {
                         _messages.value = (_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp }
                         Log.d(TAG, "🔄 Polling: додано ${trulyNew.size} нових повідомлень")
+                    }
+                    // Same deletion-detection fallback for group chats.
+                    if (newMessages.isNotEmpty()) {
+                        val oldestServerTs = newMessages.minOf { it.timeStamp }
+                        val serverIds = newMessages.map { it.id }.toSet()
+                        val likelyDeleted = _messages.value.filter { local ->
+                            local.timeStamp >= oldestServerTs &&
+                            local.id !in serverIds &&
+                            !local.isLocalPending &&
+                            local.id !in permanentlyDeletedIds
+                        }
+                        if (likelyDeleted.isNotEmpty()) {
+                            val deletedIds = likelyDeleted.map { it.id }.toSet()
+                            withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                                permanentlyDeletedIds.addAll(deletedIds)
+                                _messages.update { list -> list.filter { it.id !in deletedIds } }
+                            }
+                            Log.d(TAG, "🔄 Polling (group): виявлено ${likelyDeleted.size} видалених")
+                        }
                     }
                 }
             } catch (e: Exception) {
