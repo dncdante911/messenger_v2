@@ -719,6 +719,43 @@ async function runMigrations(ctx) {
     console.warn('[Migration] sticker_pro_packs:', e.message);
   }
 
+  // ── Monetization: creator column, idempotency, trial, subscription orders ──
+  try {
+    // Creator gets a cut when their PRO sticker pack is bought
+    const monAlters = [
+      "ALTER TABLE wm_sticker_pro_packs ADD COLUMN IF NOT EXISTS creator_user_id INT UNSIGNED DEFAULT NULL COMMENT 'NULL = platform pack, otherwise the creator who earns 70%'",
+      // Unique index on order_id for deduplication (NULLs do not collide in MySQL UNIQUE)
+      "ALTER TABLE wm_stars_transactions ADD UNIQUE KEY IF NOT EXISTS uk_order_id (order_id)",
+      // 7-day trial flag per user
+      "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS trial_used TINYINT(1) NOT NULL DEFAULT 0",
+    ];
+    for (const sql of monAlters) {
+      try { await ctx.sequelize.query(sql); } catch (e) {
+        if (!e.message.includes('Duplicate') && !e.message.includes('already exists'))
+          console.warn('[Migration] monetization alter:', e.message);
+      }
+    }
+
+    // Orders table — idempotent webhook deduplication for subscription payments
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_subscription_orders (
+        id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        order_id     VARCHAR(128) NOT NULL,
+        user_id      INT UNSIGNED NOT NULL,
+        provider     VARCHAR(32)  NOT NULL,
+        months       TINYINT UNSIGNED NOT NULL DEFAULT 1,
+        amount_uah   INT UNSIGNED NOT NULL DEFAULT 0,
+        processed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uk_order (order_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    console.log('[Migration] monetization columns + wm_subscription_orders ensured');
+  } catch (e) {
+    console.warn('[Migration] monetization:', e.message);
+  }
+
   console.log('[Migration] All background migrations complete');
 }
 

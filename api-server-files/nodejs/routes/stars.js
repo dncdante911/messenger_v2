@@ -371,21 +371,29 @@ async function wayforpayWebhook(ctx, req, res) {
             const pack   = STAR_PACKS.find(p => p.price_uah === Math.round(parseFloat(amount)));
 
             if (userId && pack) {
-                // Нараховуємо зірки
-                await ctx.sequelize.query(
-                    `INSERT INTO wm_stars_balance (user_id, balance, total_purchased)
-                     VALUES (?, ?, ?)
-                     ON DUPLICATE KEY UPDATE balance = balance + ?, total_purchased = total_purchased + ?, updated_at = NOW()`,
-                    { replacements: [userId, pack.stars, pack.stars, pack.stars, pack.stars] }
+                // Idempotency: skip if this order was already processed
+                const [existing] = await ctx.sequelize.query(
+                    'SELECT id FROM wm_stars_transactions WHERE order_id = ? LIMIT 1',
+                    { replacements: [orderReference] }
                 );
-                await logTx(ctx, {
-                    fromUserId: null, toUserId: userId,
-                    amount: pack.stars, type: 'purchase',
-                    refType: 'pack', refId: pack.id,
-                    note: `Way4Pay — ${pack.price_uah} UAH`,
-                    orderId: orderReference,
-                });
-                console.info(`[Stars] Way4Pay: +${pack.stars}⭐ to user ${userId} (order ${orderReference})`);
+                if (existing.length) {
+                    console.info(`[Stars] Way4Pay: duplicate webhook ignored (order ${orderReference})`);
+                } else {
+                    await ctx.sequelize.query(
+                        `INSERT INTO wm_stars_balance (user_id, balance, total_purchased)
+                         VALUES (?, ?, ?)
+                         ON DUPLICATE KEY UPDATE balance = balance + ?, total_purchased = total_purchased + ?, updated_at = NOW()`,
+                        { replacements: [userId, pack.stars, pack.stars, pack.stars, pack.stars] }
+                    );
+                    await logTx(ctx, {
+                        fromUserId: null, toUserId: userId,
+                        amount: pack.stars, type: 'purchase',
+                        refType: 'pack', refId: pack.id,
+                        note: `Way4Pay — ${pack.price_uah} UAH`,
+                        orderId: orderReference,
+                    });
+                    console.info(`[Stars] Way4Pay: +${pack.stars}⭐ to user ${userId} (order ${orderReference})`);
+                }
             }
         }
 
@@ -422,20 +430,29 @@ async function liqpayWebhook(ctx, req, res) {
             const pack   = STAR_PACKS.find(p => p.price_uah === amountUAH);
 
             if (userId && pack) {
-                await ctx.sequelize.query(
-                    `INSERT INTO wm_stars_balance (user_id, balance, total_purchased)
-                     VALUES (?, ?, ?)
-                     ON DUPLICATE KEY UPDATE balance = balance + ?, total_purchased = total_purchased + ?, updated_at = NOW()`,
-                    { replacements: [userId, pack.stars, pack.stars, pack.stars, pack.stars] }
+                // Idempotency: skip if already processed
+                const [existing] = await ctx.sequelize.query(
+                    'SELECT id FROM wm_stars_transactions WHERE order_id = ? LIMIT 1',
+                    { replacements: [params.order_id] }
                 );
-                await logTx(ctx, {
-                    fromUserId: null, toUserId: userId,
-                    amount: pack.stars, type: 'purchase',
-                    refType: 'pack', refId: pack.id,
-                    note: `LiqPay — ${amountUAH} UAH`,
-                    orderId: params.order_id,
-                });
-                console.info(`[Stars] LiqPay: +${pack.stars}⭐ to user ${userId}`);
+                if (existing.length) {
+                    console.info(`[Stars] LiqPay: duplicate webhook ignored (order ${params.order_id})`);
+                } else {
+                    await ctx.sequelize.query(
+                        `INSERT INTO wm_stars_balance (user_id, balance, total_purchased)
+                         VALUES (?, ?, ?)
+                         ON DUPLICATE KEY UPDATE balance = balance + ?, total_purchased = total_purchased + ?, updated_at = NOW()`,
+                        { replacements: [userId, pack.stars, pack.stars, pack.stars, pack.stars] }
+                    );
+                    await logTx(ctx, {
+                        fromUserId: null, toUserId: userId,
+                        amount: pack.stars, type: 'purchase',
+                        refType: 'pack', refId: pack.id,
+                        note: `LiqPay — ${amountUAH} UAH`,
+                        orderId: params.order_id,
+                    });
+                    console.info(`[Stars] LiqPay: +${pack.stars}⭐ to user ${userId}`);
+                }
             }
         }
         res.send('OK');
