@@ -69,6 +69,7 @@ data class Message(
     @SerializedName("is_deleted") val isDeleted: Boolean = false,
     @SerializedName("reply_to_id") val replyToId: Long? = null,
     @SerializedName("reply_to_text") val replyToText: String? = null,
+    @SerializedName("reply_to_name") val replyToName: String? = null,
     @SerializedName("is_read") val isRead: Boolean = false,
     @SerializedName("read_at") val readAt: Long? = null,
     // Новые поля для AES-GCM шифрования (v2)

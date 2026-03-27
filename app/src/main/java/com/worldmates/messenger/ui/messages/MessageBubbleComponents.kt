@@ -156,10 +156,17 @@ fun MessageBubbleComposable(
     // 📱 Меню для медіа файлів
     var showMediaMenu by remember { mutableStateOf(false) }
 
+    // ✅ Анімований колір підсвічування при виборі
+    val selectionBgColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color.Transparent,
+        label = "selectionBg"
+    )
+
     // 💬 Обгортка з іконкою Reply для свайпу
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .background(selectionBgColor)
             .padding(vertical = 3.dp)
     ) {
         // Іконка Reply (показується при свайпі)
@@ -490,6 +497,11 @@ fun MessageBubbleComposable(
                     ) {
                         // 💬 Цитата Reply (якщо є)
                         if (message.replyToId != null && message.replyToText != null) {
+                            val replyAuthor = when {
+                                !message.replyToName.isNullOrBlank() -> message.replyToName!!
+                                message.replyToId == UserSession.userId -> stringResource(R.string.you_label)
+                                else -> stringResource(R.string.reply_to)
+                            }
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = textColor.copy(alpha = 0.1f),
@@ -514,7 +526,7 @@ fun MessageBubbleComposable(
                                     // Текст цитати
                                     Column {
                                         Text(
-                                            text = stringResource(R.string.reply_to),
+                                            text = replyAuthor,
                                             color = colorScheme.primary,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold
@@ -1459,7 +1471,11 @@ fun ReplyIndicator(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (replyToMessage.fromId == UserSession.userId) stringResource(R.string.you_label) else stringResource(R.string.user_label),
+                        text = when {
+                            replyToMessage.fromId == UserSession.userId -> stringResource(R.string.you_label)
+                            !replyToMessage.senderName.isNullOrBlank() -> replyToMessage.senderName!!
+                            else -> stringResource(R.string.user_label)
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
                     )

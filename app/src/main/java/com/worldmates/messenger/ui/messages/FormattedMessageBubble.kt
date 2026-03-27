@@ -117,6 +117,7 @@ fun FormattedMessageContent(
 fun ReplyQuoteBlock(
     replyToText: String,
     textColor: Color,
+    replyToName: String? = null,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -146,7 +147,7 @@ fun ReplyQuoteBlock(
             // Quote text
             Column {
                 Text(
-                    text = "Відповідь",
+                    text = replyToName?.takeIf { it.isNotBlank() } ?: "Відповідь",
                     color = colorScheme.primary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
