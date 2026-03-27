@@ -530,7 +530,7 @@ fun MessageBubbleComposable(
                                 Column(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .padding(vertical = 4.dp, end = 6.dp),
+                                        .padding(top = 4.dp, bottom = 4.dp, end = 6.dp),
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     Text(
