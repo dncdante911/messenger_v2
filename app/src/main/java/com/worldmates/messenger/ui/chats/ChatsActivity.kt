@@ -1078,6 +1078,18 @@ fun SettingsDrawerContent(
             }
             item {
                 DrawerMenuItem(
+                    icon = Icons.Outlined.Storefront,
+                    title = stringResource(R.string.business_directory),
+                    onClick = {
+                        onClose()
+                        context.startActivity(
+                            android.content.Intent(context, com.worldmates.messenger.ui.business.BusinessDirectoryActivity::class.java)
+                        )
+                    }
+                )
+            }
+            item {
+                DrawerMenuItem(
                     icon = Icons.Outlined.SmartToy,
                     title = stringResource(R.string.bot_store),
                     onClick = {
