@@ -1712,6 +1712,18 @@ class MessagesViewModel(application: Application) :
         }
     }
 
+    override fun onPrivateHistoryCleared(fromId: Long, recipientId: Long) {
+        val myId = UserSession.userId ?: return
+        // Applies to this conversation if we're one of the two participants
+        val isOurChat = (this.recipientId == fromId || this.recipientId == recipientId) &&
+                        (myId == fromId || myId == recipientId)
+        if (isOurChat) {
+            permanentlyDeletedIds.addAll(_messages.value.map { it.id })
+            _messages.value = emptyList()
+            Log.d(TAG, "Socket: private history cleared by $fromId (chat with $recipientId)")
+        }
+    }
+
     override fun onMessagePinned(messageId: Long, isPinned: Boolean, chatId: Long) {
         if (recipientId != 0L && (chatId == recipientId || chatId == UserSession.userId)) {
             val current = _pinnedPrivateMessages.value.toMutableList()
@@ -2652,6 +2664,34 @@ class MessagesViewModel(application: Application) :
             } catch (e: Exception) {
                 onError("Помилка: ${e.localizedMessage}")
                 Log.e(TAG, "❌ Error clearing chat history", e)
+            }
+        }
+    }
+
+    /**
+     * 🗑️ Очистити всю переписку у приватному чаті для обох сторін.
+     * Сервер позначає повідомлення deleted_one=1 + deleted_two=1 та шле
+     * socket-подію private_history_cleared другому учаснику.
+     */
+    fun clearPrivateChatHistoryForAll(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (recipientId == 0L || groupId != 0L) return
+        viewModelScope.launch {
+            try {
+                val response = nodeApi.clearHistory(recipientId = recipientId, clearType = "everyone")
+                if (response.apiStatus == 200) {
+                    permanentlyDeletedIds.addAll(_messages.value.map { it.id })
+                    _messages.value = emptyList()
+                    onSuccess()
+                    Log.d(TAG, "🗑️ Private chat history cleared for both parties")
+                } else {
+                    onError(response.errorMessage ?: "Не вдалося очистити історію")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+                Log.e(TAG, "❌ Error clearing private chat history for all", e)
             }
         }
     }

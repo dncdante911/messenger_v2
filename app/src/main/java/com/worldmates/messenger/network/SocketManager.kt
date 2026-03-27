@@ -421,7 +421,21 @@ class SocketManager(
                 }
             }
 
-            // 18d. Group typing indicator
+            // 18d. Private chat history cleared for everyone (private_history_cleared)
+            // Payload: {from_id, recipient_id}
+            socket?.on("private_history_cleared") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data        = args[0] as? org.json.JSONObject
+                    val fromId      = data?.optLong("from_id",      0L) ?: 0L
+                    val recipientId = data?.optLong("recipient_id", 0L) ?: 0L
+                    Log.d("SocketManager", "Private history cleared by $fromId in chat with $recipientId")
+                    if ((fromId > 0L || recipientId > 0L) && listener is ExtendedSocketListener) {
+                        listener.onPrivateHistoryCleared(fromId, recipientId)
+                    }
+                }
+            }
+
+            // 18e. Group typing indicator
             // Payload: {group_id, user_id}
             socket?.on(Constants.SOCKET_EVENT_GROUP_TYPING) { args ->
                 if (args.isNotEmpty() && args[0] is JSONObject) {
@@ -1170,6 +1184,8 @@ class SocketManager(
         fun onMessageReaction(messageId: Long, userId: Long, reaction: String, action: String) {}
         fun onMessagePinned(messageId: Long, isPinned: Boolean, chatId: Long) {}
         fun onGroupHistoryCleared(groupId: Long) {}
+        /** Private chat: the other party cleared the full history for both sides. */
+        fun onPrivateHistoryCleared(fromId: Long, recipientId: Long) {}
         /** Group typing: a member started/stopped typing */
         fun onGroupTyping(groupId: Long, userId: Long, isTyping: Boolean) {}
         /** User action: the other party is performing an activity (listening, viewing, etc.) */

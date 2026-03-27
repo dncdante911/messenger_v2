@@ -451,20 +451,38 @@ function clearHistory(ctx, io) {
         try {
             const userId      = req.userId;
             const recipientId = parseInt(req.body.recipient_id || req.body.user_id);
+            // "just_me" (default) — hide from caller only; "everyone" — wipe for both parties
+            const clearType   = req.body.clear_type || 'just_me';
 
             if (!recipientId || isNaN(recipientId))
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
 
-            // Soft-delete: messages sent by caller → deleted_one='1'
-            await ctx.wo_messages.update(
-                { deleted_one: '1' },
-                { where: { from_id: userId, to_id: recipientId, page_id: 0 } }
-            );
-            // Soft-delete: messages received by caller → deleted_two='1'
-            await ctx.wo_messages.update(
-                { deleted_two: '1' },
-                { where: { from_id: recipientId, to_id: userId, page_id: 0 } }
-            );
+            if (clearType === 'everyone') {
+                // Wipe every message in the conversation for both sides
+                await ctx.wo_messages.update(
+                    { deleted_one: '1', deleted_two: '1' },
+                    { where: { from_id: userId,      to_id: recipientId, page_id: 0 } }
+                );
+                await ctx.wo_messages.update(
+                    { deleted_one: '1', deleted_two: '1' },
+                    { where: { from_id: recipientId, to_id: userId,      page_id: 0 } }
+                );
+                // Notify both parties so their UI updates in real-time
+                const payload = { from_id: userId, recipient_id: recipientId };
+                io.to(String(recipientId)).emit('private_history_cleared', payload);
+                io.to(String(userId)).emit('private_history_cleared', payload);
+            } else {
+                // Soft-delete: messages sent by caller → deleted_one='1'
+                await ctx.wo_messages.update(
+                    { deleted_one: '1' },
+                    { where: { from_id: userId, to_id: recipientId, page_id: 0 } }
+                );
+                // Soft-delete: messages received by caller → deleted_two='1'
+                await ctx.wo_messages.update(
+                    { deleted_two: '1' },
+                    { where: { from_id: recipientId, to_id: userId, page_id: 0 } }
+                );
+            }
 
             res.json({ api_status: 200, message: 'Chat history cleared' });
         } catch (err) {

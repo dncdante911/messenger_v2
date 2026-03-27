@@ -731,7 +731,7 @@ fun MessagesScreen(
                 onClearHistoryClick = {
                     val isGroupAdmin = currentGroup?.isAdmin == true || currentGroup?.isOwner == true
                     if (isGroup && isGroupAdmin) {
-                        // Admin gets a choice: for me / for all
+                        // Group admin: choice between for me / for all members
                         android.app.AlertDialog.Builder(context)
                             .setTitle(context.getString(R.string.clear_history))
                             .setMessage(context.getString(R.string.search_type_title))
@@ -749,7 +749,27 @@ fun MessagesScreen(
                             }
                             .setNegativeButton(context.getString(R.string.cancel), null)
                             .show()
+                    } else if (!isGroup) {
+                        // Private chat: choice between for me / for both parties
+                        android.app.AlertDialog.Builder(context)
+                            .setTitle(context.getString(R.string.clear_history))
+                            .setMessage(context.getString(R.string.search_type_title))
+                            .setPositiveButton(context.getString(R.string.for_me_only)) { _, _ ->
+                                viewModel.clearChatHistory(
+                                    onSuccess = { android.widget.Toast.makeText(context, context.getString(R.string.history_cleared_for_me_toast), android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
+                                )
+                            }
+                            .setNeutralButton(context.getString(R.string.for_all_members)) { _, _ ->
+                                viewModel.clearPrivateChatHistoryForAll(
+                                    onSuccess = { android.widget.Toast.makeText(context, context.getString(R.string.history_cleared_for_all_toast), android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
+                                )
+                            }
+                            .setNegativeButton(context.getString(R.string.cancel), null)
+                            .show()
                     } else {
+                        // Non-admin in a group: clear for self only
                         viewModel.clearChatHistory(
                             onSuccess = { android.widget.Toast.makeText(context, context.getString(R.string.history_cleared_for_me_toast), android.widget.Toast.LENGTH_SHORT).show() },
                             onError   = { e -> android.widget.Toast.makeText(context, e, android.widget.Toast.LENGTH_SHORT).show() }
