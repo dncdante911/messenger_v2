@@ -1003,6 +1003,8 @@
     <string name="playback_speed">Скорость воспроизведения</string>
     <string name="player_repeat">Повтор</string>
     <string name="open_player">Открыть плеер</string>
+    <string name="voice_transcribe">Текст (PRO)</string>
+    <string name="voice_transcribing">Распознавание…</string>
 
     <!-- ===== EMOJI PICKER ===== -->
     <string name="emoji_smileys">Смайлики</string>
