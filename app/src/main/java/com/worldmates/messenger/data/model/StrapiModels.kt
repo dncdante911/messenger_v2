@@ -80,7 +80,11 @@ data class StrapiContentPack(
     val name: String,
     val type: ContentType,
     val slug: String,
-    val items: List<StrapiContentItem>
+    val items: List<StrapiContentItem>,
+    // PRO metadata (populated from Node.js /api/node/stickers/strapi-meta)
+    val isPro: Boolean = false,
+    val starsPrice: Int = 0,
+    val isPurchased: Boolean = false
 ) {
     enum class ContentType {
         STICKER,

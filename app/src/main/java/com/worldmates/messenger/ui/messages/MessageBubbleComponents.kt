@@ -38,6 +38,7 @@ import coil.compose.AsyncImage
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Message
 import com.worldmates.messenger.data.model.ReactionGroup
+import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.ui.components.AnimatedStickerView
 import com.worldmates.messenger.ui.components.formatting.FormattingSettings
 import com.worldmates.messenger.ui.components.media.VideoMessageComponent
@@ -47,6 +48,7 @@ import com.worldmates.messenger.utils.VoicePlayer
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import kotlinx.coroutines.launch
 import com.worldmates.messenger.utils.extractFirstUrl
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -825,9 +827,16 @@ fun VoiceMessagePlayer(
     val isThisTrackLoaded = serviceTrackInfo.url == mediaUrl
 
     val colorScheme = MaterialTheme.colorScheme
+    val scope = rememberCoroutineScope()
 
     // Стан для відображення повноекранного плеєра
     var showAdvancedPlayer by remember { mutableStateOf(false) }
+
+    // Transcript state (PRO only)
+    var transcript       by remember(message.id) { mutableStateOf<String?>(null) }
+    var transcriptLoading by remember(message.id) { mutableStateOf(false) }
+    var transcriptError  by remember(message.id) { mutableStateOf<String?>(null) }
+    val isPro = remember { UserSession.isProActive }
 
     // Витягуємо інформацію про трек з URL або оригінального імені файлу
     val trackInfo = remember(mediaUrl, message.mediaFileName) {
@@ -1005,6 +1014,88 @@ fun VoiceMessagePlayer(
                         modifier = Modifier.size(14.dp)
                     )
                 }
+        }
+    }
+
+    // Voice transcript (PRO only) — shown below the waveform for voice messages
+    if (isVoiceMessage) {
+        Spacer(modifier = Modifier.height(4.dp))
+        if (transcript != null) {
+            // Show transcript text
+            Text(
+                text = transcript!!,
+                color = textColor.copy(alpha = 0.85f),
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+        } else if (isPro) {
+            // Show "Transcribe" button for PRO users
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (transcriptLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        color = colorScheme.primary,
+                        strokeWidth = 1.5.dp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.voice_transcribing),
+                        color = textColor.copy(alpha = 0.6f),
+                        fontSize = 11.sp
+                    )
+                } else {
+                    TextButton(
+                        onClick = {
+                            transcriptError = null
+                            transcriptLoading = true
+                            scope.launch {
+                                try {
+                                    val resp = NodeRetrofitClient.voiceApi.transcribe(mediaUrl)
+                                    if (resp.apiStatus == 200 && resp.transcript.isNotBlank()) {
+                                        transcript = resp.transcript
+                                    } else {
+                                        transcriptError = resp.errorMessage ?: "Error"
+                                    }
+                                } catch (e: Exception) {
+                                    transcriptError = e.message
+                                } finally {
+                                    transcriptLoading = false
+                                }
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.TextFields,
+                            contentDescription = null,
+                            tint = colorScheme.primary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.voice_transcribe),
+                            color = colorScheme.primary,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+                if (transcriptError != null) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = transcriptError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 10.sp,
+                        maxLines = 1
+                    )
+                }
+            }
         }
     }
 
