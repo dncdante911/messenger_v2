@@ -216,8 +216,8 @@ function registerBusinessDirectoryRoutes(app, ctx) {
             }
 
             const user = await ctx.wo_users.findOne({
-                where:      { id: targetId },
-                attributes: ['id', 'username', 'avatar', 'account_type'],
+                where:      { user_id: targetId },
+                attributes: ['user_id', 'username', 'avatar', 'account_type'],
                 raw:        true,
             });
 
@@ -244,7 +244,7 @@ function buildListQuery({ search, category, countOnly, limit, offset }) {
     return `
         SELECT ${selectCols}
           FROM wm_business_profile bp
-          JOIN wo_users u ON u.id = bp.user_id
+          JOIN Wo_Users u ON u.user_id = bp.user_id
          WHERE (bp.is_listed IS NULL OR bp.is_listed = 1)
            AND bp.business_name IS NOT NULL
            AND bp.business_name != ''
