@@ -91,7 +91,7 @@ async function buildMessage(ctx, msg, userId) {
     if (msg.reply_id && msg.reply_id > 0) {
         const r = await ctx.wo_messages.findOne({
             attributes: ['id', 'from_id', 'text', 'iv', 'tag', 'cipher_version',
-                         'signal_header', 'media', 'time'],
+                         'signal_header', 'media', 'type', 'type_two', 'time'],
             where: { id: msg.reply_id },
             raw:   true,
         });
@@ -104,6 +104,19 @@ async function buildMessage(ctx, msg, userId) {
             // Fetch sender name for the replied-to message
             const replyAuthor = await getUserBasicData(ctx, r.from_id);
             const replyName = replyAuthor ? replyAuthor.name : '';
+            // Human-readable media label when message has no text
+            const mediaLabel = (() => {
+                if (replyText) return replyText;
+                if (!r.media) return '';
+                const t = (r.type_two || r.type || '').toLowerCase();
+                if (t === 'voice')                        return '🎙 Голосове';
+                if (t.includes('audio'))                  return '🎵 Аудіо';
+                if (t.includes('video'))                  return '🎥 Відео';
+                if (t.includes('image') || t === 'img')   return '📷 Фото';
+                if (t.includes('sticker'))                return '🎭 Стікер';
+                if (t.includes('file') || t.includes('document')) return '📎 Файл';
+                return '📎 Медіа';
+            })();
             replyData = {
                 id:             r.id,
                 from_id:        r.from_id,
@@ -114,7 +127,7 @@ async function buildMessage(ctx, msg, userId) {
                 time:           r.time,
             };
             replyToId   = r.id;
-            replyToText = replyText || (r.media ? '[медіа]' : '');
+            replyToText = mediaLabel;
             replyToName = replyName;
         }
     }

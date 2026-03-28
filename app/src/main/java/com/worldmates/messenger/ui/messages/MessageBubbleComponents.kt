@@ -504,7 +504,7 @@ fun MessageBubbleComposable(
                             }
                             val replyPreview = when {
                                 !message.replyToText.isNullOrBlank() -> message.replyToText!!
-                                else -> stringResource(R.string.media_placeholder)
+                                else -> "📎 Медіа"
                             }
                             // Компактний блок цитати — TG-стиль
                             Row(
@@ -1454,53 +1454,67 @@ fun ReplyIndicator(
     onCancelReply: () -> Unit
 ) {
     if (replyToMessage != null) {
-        Surface(
+        val colorScheme = MaterialTheme.colorScheme
+        val senderName = when {
+            replyToMessage.fromId == UserSession.userId -> stringResource(R.string.you_label)
+            !replyToMessage.senderName.isNullOrBlank()  -> replyToMessage.senderName!!
+            else -> stringResource(R.string.user_label)
+        }
+        val previewText = when {
+            !replyToMessage.decryptedText.isNullOrBlank() -> replyToMessage.decryptedText!!
+            replyToMessage.type == "voice"  -> "🎙 Голосове"
+            replyToMessage.type == "audio"  -> "🎵 Аудіо"
+            replyToMessage.type == "video"  -> "🎥 Відео"
+            replyToMessage.type == "image"  -> "📷 Фото"
+            replyToMessage.type == "sticker"-> "🎭 Стікер"
+            !replyToMessage.mediaUrl.isNullOrBlank() -> "📎 Медіа"
+            else -> "..."
+        }
+
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shape = RoundedCornerShape(8.dp)
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(colorScheme.surfaceVariant),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            RoundedCornerShape(2.dp)
-                        )
+                    .width(3.dp)
+                    .height(32.dp)
+                    .background(
+                        colorScheme.primary,
+                        RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+                    )
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f).padding(vertical = 4.dp)) {
+                Text(
+                    text = senderName,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colorScheme.primary,
+                    maxLines = 1
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = when {
-                            replyToMessage.fromId == UserSession.userId -> stringResource(R.string.you_label)
-                            !replyToMessage.senderName.isNullOrBlank() -> replyToMessage.senderName!!
-                            else -> stringResource(R.string.user_label)
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = replyToMessage.decryptedText ?: stringResource(R.string.media_placeholder),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
-                }
-                IconButton(onClick = onCancelReply) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = stringResource(R.string.cancel_reply_desc),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = previewText,
+                    fontSize = 12.sp,
+                    color = colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+            IconButton(
+                onClick = onCancelReply,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = stringResource(R.string.cancel_reply_desc),
+                    tint = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
