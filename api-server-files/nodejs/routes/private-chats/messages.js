@@ -487,19 +487,29 @@ function sendMessage(ctx, io) {
             });
             // ── Конец бот-детекции ──────────────────────────────────────────
 
-            // ── Business auto-reply / greeting (non-blocking) ───────────────
-            if (ctx.handleBusinessAutoReply && ctx.wm_business_profile) {
+            // ── Business auto-reply / greeting (non-blocking, business chats only) ──
+            if (isBusinessChat === 1 && ctx.handleBusinessAutoReply && ctx.wm_business_profile) {
+                // Track messages_received stat (non-blocking)
+                const today = new Date().toISOString().slice(0, 10);
+                ctx.sequelize.query(
+                    `INSERT INTO wm_business_stats (user_id, date, messages_received)
+                     VALUES (?, ?, 1)
+                     ON DUPLICATE KEY UPDATE messages_received = messages_received + 1`,
+                    { replacements: [recipientId, today] }
+                ).catch(() => {});
+
                 setImmediate(async () => {
                     try {
-                        // Determine if this is the very first message in the conversation
+                        // Count only business-chat messages to determine first contact
                         const prevCount = await ctx.wo_messages.count({
-                            where: { from_id: userId, to_id: recipientId },
+                            where: { from_id: userId, to_id: recipientId, is_business_chat: 1 },
                         });
                         const isFirstMessage = prevCount <= 1; // <=1 because current msg is already saved
                         await ctx.handleBusinessAutoReply(ctx, io, {
                             senderId:      userId,
                             recipientId,
                             isFirstMessage,
+                            isBusinessChat: 1,
                         });
                     } catch (bizErr) {
                         console.error('[Business/auto-reply]', bizErr.message);
