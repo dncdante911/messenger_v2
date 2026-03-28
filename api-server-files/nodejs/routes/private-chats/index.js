@@ -73,7 +73,8 @@ function registerPrivateChatRoutes(app, ctx, io) {
 
     // ── chats list & settings ────────────────────────────────────────────────
     app.post('/api/node/chat/chats',                auth, chatsList.getChats(ctx, io));
-    app.post('/api/node/chat/business-chats',       auth, chatsList.getBusinessChats(ctx, io));
+    app.post('/api/node/chat/business-chats',  auth, chatsList.getBusinessChats(ctx, io));
+    app.post('/api/node/chat/business-inbox',  auth, chatsList.getBusinessChats(ctx, io)); // legacy alias
     app.post('/api/node/chat/delete-conversation',  auth, chatsList.deleteConversation(ctx, io));
     app.post('/api/node/chat/clear-history',        auth, chatsList.clearHistory(ctx, io));
     app.post('/api/node/chat/mute-status',          auth, chatsList.getMuteStatus(ctx, io));

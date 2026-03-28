@@ -254,9 +254,8 @@ function getMessages(ctx, io) {
             const messageId       = parseInt(req.body.message_id)         || 0;
             const isBusinessChat  = parseInt(req.body.is_business_chat)  === 1 ? 1 : 0;
 
-            const where = {
+            const baseWhere = {
                 page_id: 0,
-                is_business_chat: isBusinessChat,
                 [Op.or]: [
                     { from_id: recipientId, to_id: userId,      deleted_two: '0' },
                     { from_id: userId,      to_id: recipientId, deleted_one: '0' },
@@ -266,16 +265,28 @@ function getMessages(ctx, io) {
             // Автоматично видаляємо прострочені секретні повідомлення перед поверненням
             await cleanupExpiredMessages(ctx, userId, recipientId);
 
-            if (messageId > 0)        where.id = messageId;
-            else if (afterMessageId  > 0) where.id = { [Op.gt]: afterMessageId };
-            else if (beforeMessageId > 0) where.id = { [Op.lt]: beforeMessageId };
+            if (messageId > 0)        baseWhere.id = messageId;
+            else if (afterMessageId  > 0) baseWhere.id = { [Op.gt]: afterMessageId };
+            else if (beforeMessageId > 0) baseWhere.id = { [Op.lt]: beforeMessageId };
 
-            const rows = await ctx.wo_messages.findAll({
-                where,
-                order: [['id', 'DESC']],
-                limit,
-                raw: true,
-            });
+            let rows;
+            try {
+                rows = await ctx.wo_messages.findAll({
+                    where: { ...baseWhere, is_business_chat: isBusinessChat },
+                    order: [['id', 'DESC']],
+                    limit,
+                    raw: true,
+                });
+            } catch (dbErr) {
+                // Fallback: is_business_chat column may not exist yet (migration pending)
+                console.warn('[Node/chat/get] is_business_chat not available, falling back:', dbErr.message);
+                rows = await ctx.wo_messages.findAll({
+                    where: baseWhere,
+                    order: [['id', 'DESC']],
+                    limit,
+                    raw: true,
+                });
+            }
 
             const messages = [];
             for (const m of rows.reverse()) {
@@ -372,7 +383,7 @@ function sendMessage(ctx, io) {
                     : { text: '', text_ecb: '', text_preview: '', iv: null, tag: null, cipher_version: crypto.CIPHER_VERSION_GCM };
             }
 
-            const row = await ctx.wo_messages.create({
+            const msgFields = {
                 from_id:          userId,
                 to_id:            recipientId,
                 // Encrypted fields
@@ -399,7 +410,19 @@ function sendMessage(ctx, io) {
                 forward:          0,
                 edited:           0,
                 remove_at:        removeAt,
-            });
+            };
+            let row;
+            try {
+                row = await ctx.wo_messages.create(msgFields);
+            } catch (dbErr) {
+                // Fallback: is_business_chat column may not exist yet
+                if (dbErr.parent && (dbErr.parent.code === 'ER_BAD_FIELD_ERROR' || dbErr.parent.code === 'ER_NO_SUCH_TABLE')) {
+                    const { is_business_chat: _, ...fieldsWithout } = msgFields;
+                    row = await ctx.wo_messages.create(fieldsWithout);
+                } else {
+                    throw dbErr;
+                }
+            }
 
             // Оновлюємо метадані переписки
             if (isBusinessChat === 1 && ctx.wm_business_chats) {
@@ -562,22 +585,33 @@ function loadMore(ctx, io) {
             if (!recipientId || isNaN(recipientId))
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
 
-            const where = {
+            const baseWhere = {
                 page_id: 0,
-                is_business_chat: isBusinessChat,
                 [Op.or]: [
                     { from_id: recipientId, to_id: userId,      deleted_two: '0' },
                     { from_id: userId,      to_id: recipientId, deleted_one: '0' },
                 ],
             };
-            if (beforeMessageId > 0) where.id = { [Op.lt]: beforeMessageId };
+            if (beforeMessageId > 0) baseWhere.id = { [Op.lt]: beforeMessageId };
 
-            const rows = await ctx.wo_messages.findAll({
-                where,
-                order: [['id', 'DESC']],
-                limit,
-                raw: true,
-            });
+            let rows;
+            try {
+                rows = await ctx.wo_messages.findAll({
+                    where: { ...baseWhere, is_business_chat: isBusinessChat },
+                    order: [['id', 'DESC']],
+                    limit,
+                    raw: true,
+                });
+            } catch (dbErr) {
+                // Fallback: is_business_chat column may not exist yet (migration pending)
+                console.warn('[Node/chat/loadmore] is_business_chat not available, falling back:', dbErr.message);
+                rows = await ctx.wo_messages.findAll({
+                    where: baseWhere,
+                    order: [['id', 'DESC']],
+                    limit,
+                    raw: true,
+                });
+            }
 
             const messages = [];
             for (const m of rows.reverse()) {
@@ -586,7 +620,7 @@ function loadMore(ctx, io) {
 
             res.json({ api_status: 200, messages });
         } catch (err) {
-            console.error('[Node/chat/loadmore]', err.message);
+            console.error('[Node/chat/loadmore]', err.message, err.stack);
             res.status(500).json({ api_status: 500, error_message: 'Failed to load more messages' });
         }
     };
