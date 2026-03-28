@@ -53,6 +53,7 @@ import com.worldmates.messenger.utils.extractFirstUrl
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.text.style.TextOverflow
 import com.google.gson.Gson
 import com.worldmates.messenger.data.model.GroupPollData
 import com.worldmates.messenger.network.Poll
@@ -495,7 +496,7 @@ fun MessageBubbleComposable(
                                 }
                             )
                     ) {
-                        // 💬 Цитата Reply — TG-стиль
+                        // 💬 Reply quote block — TG/Viber style
                         if ((message.replyToId ?: 0L) > 0L) {
                             val replyAuthor = when {
                                 !message.replyToName.isNullOrBlank() -> message.replyToName!!
@@ -506,48 +507,56 @@ fun MessageBubbleComposable(
                                 !message.replyToText.isNullOrBlank() -> message.replyToText!!
                                 else -> "🔒 Повідомлення"
                             }
+
+                            // Own msgs have coloured bg (blue/green) — use white tints
+                            // Incoming msgs have white/grey bg — use primary-accent tints
+                            val replyBg     = if (isOwn) Color.White.copy(alpha = 0.18f)
+                                              else colorScheme.primary.copy(alpha = 0.10f)
+                            val replyBar    = if (isOwn) Color.White
+                                              else colorScheme.primary
+                            val replyName   = if (isOwn) Color.White
+                                              else colorScheme.primary
+                            val replyText   = if (isOwn) Color.White.copy(alpha = 0.80f)
+                                              else textColor.copy(alpha = 0.68f)
+
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = 6.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(colorScheme.primary.copy(alpha = 0.18f)),
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(replyBg)
+                                    .height(IntrinsicSize.Min),  // lets the bar fill row height
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Кольорова ліва смужка
+                                // ▌ Left accent bar — stretches full height of the card
                                 Box(
                                     modifier = Modifier
-                                        .width(3.dp)
-                                        .height(42.dp)
-                                        .background(
-                                            color = colorScheme.primary,
-                                            shape = RoundedCornerShape(
-                                                topStart = 8.dp, bottomStart = 8.dp
-                                            )
-                                        )
+                                        .width(4.dp)
+                                        .fillMaxHeight()
+                                        .background(replyBar)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Column(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .padding(top = 6.dp, bottom = 6.dp, end = 8.dp),
+                                        .padding(top = 8.dp, bottom = 8.dp, end = 10.dp),
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     Text(
                                         text = replyAuthor,
-                                        color = colorScheme.primary,
+                                        color = replyName,
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis
                                     )
-                                    Spacer(modifier = Modifier.height(1.dp))
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = replyPreview,
-                                        color = textColor.copy(alpha = 0.72f),
+                                        color = replyText,
                                         fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
