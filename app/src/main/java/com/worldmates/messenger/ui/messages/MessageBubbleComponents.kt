@@ -508,16 +508,18 @@ fun MessageBubbleComposable(
                                 else -> "🔒 Повідомлення"
                             }
 
-                            // Own msgs have coloured bg (blue/green) — use white tints
-                            // Incoming msgs have white/grey bg — use primary-accent tints
-                            val replyBg     = if (isOwn) Color.White.copy(alpha = 0.18f)
-                                              else colorScheme.primary.copy(alpha = 0.10f)
-                            val replyBar    = if (isOwn) Color.White
-                                              else colorScheme.primary
-                            val replyName   = if (isOwn) Color.White
-                                              else colorScheme.primary
-                            val replyText   = if (isOwn) Color.White.copy(alpha = 0.80f)
-                                              else textColor.copy(alpha = 0.68f)
+                            // Pick reply colors based on bubble bg luminance:
+                            // dark bg (WM blue, TG dark) → white elements
+                            // light bg (TG light green, incoming white) → primary/dark elements
+                            val isBubbleDark = bgColor.luminance() < 0.4f
+                            val replyBg   = if (isBubbleDark) Color.White.copy(alpha = 0.18f)
+                                            else colorScheme.primary.copy(alpha = 0.10f)
+                            val replyBar  = if (isBubbleDark) Color.White
+                                            else colorScheme.primary
+                            val replyName = if (isBubbleDark) Color.White
+                                            else colorScheme.primary
+                            val replyText = if (isBubbleDark) Color.White.copy(alpha = 0.80f)
+                                            else textColor.copy(alpha = 0.75f)
 
                             Row(
                                 modifier = Modifier
