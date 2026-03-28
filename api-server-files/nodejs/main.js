@@ -310,6 +310,41 @@ async function init() {
   await compiledTemplates.DefineTemplates(ctx)
   console.log('[Init] Handlebars templates compiled');
 
+  // ── Critical schema migrations (synchronous — must complete before first request) ──
+  // is_business_chat must exist in Wo_Messages before any chat queries run.
+  // The background runMigrations() covers the full migration set, but can race
+  // with incoming requests on a fresh deploy. Run the critical ALTER here.
+  try {
+    await ctx.sequelize.query(
+      `ALTER TABLE Wo_Messages ADD COLUMN is_business_chat TINYINT(1) NOT NULL DEFAULT 0 AFTER page_id`
+    );
+    console.log('[Init] Wo_Messages.is_business_chat column added');
+  } catch (e) {
+    // Duplicate column = already exists, that is fine
+    if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+      console.warn('[Init] is_business_chat migration warning:', e.message);
+    }
+  }
+  try {
+    await ctx.sequelize.query(
+      `CREATE TABLE IF NOT EXISTS wm_business_chats (
+        id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id          INT UNSIGNED NOT NULL,
+        business_user_id INT UNSIGNED NOT NULL,
+        last_message_id  INT UNSIGNED NOT NULL DEFAULT 0,
+        last_time        INT UNSIGNED NOT NULL DEFAULT 0,
+        unread_count     SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_biz_conv (user_id, business_user_id),
+        KEY idx_user_time (user_id, last_time),
+        KEY idx_biz_user_time (business_user_id, last_time)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+    );
+  } catch (e) {
+    if (!e.message.includes('already exists')) console.warn('[Init] wm_business_chats:', e.message);
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // Migrations are deferred: runMigrations(ctx) is called from server.listen()
   // callback on worker 0 only — AFTER process.send('ready') so PM2 sees all
   // 18 workers as ready without waiting for potentially slow ALTER TABLE runs.

@@ -368,15 +368,20 @@ function getMediaAutoDeleteSetting(ctx) {
             if (!chatId || isNaN(chatId))
                 return res.status(400).json({ api_status: 400, error_message: 'chat_id is required' });
 
-            const seq = ctx.sequelize;
-            const [rows] = await seq.query(
-                `SELECT media_auto_delete_seconds FROM wm_chat_media_settings
-                 WHERE user_id = :uid AND chat_id = :cid LIMIT 1`,
-                { replacements: { uid: userId, cid: chatId }, type: seq.constructor.QueryTypes.SELECT }
-            );
-
-            const setting = Array.isArray(rows[0]) ? rows[0][0] : rows[0];
-            const seconds = setting ? (setting.media_auto_delete_seconds || 0) : 0;
+            let seconds = 0;
+            try {
+                const seq = ctx.sequelize;
+                const [rows] = await seq.query(
+                    `SELECT media_auto_delete_seconds FROM wm_chat_media_settings
+                     WHERE user_id = :uid AND chat_id = :cid LIMIT 1`,
+                    { replacements: { uid: userId, cid: chatId }, type: seq.constructor.QueryTypes.SELECT }
+                );
+                const setting = Array.isArray(rows[0]) ? rows[0][0] : rows[0];
+                seconds = setting ? (setting.media_auto_delete_seconds || 0) : 0;
+            } catch (dbErr) {
+                // Table may not exist yet (migration pending) — return default 0
+                if (!dbErr.message.includes("doesn't exist") && !dbErr.message.includes('no such table')) throw dbErr;
+            }
 
             res.json({ api_status: 200, seconds, chat_id: chatId });
         } catch (err) {
