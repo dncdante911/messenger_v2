@@ -1988,6 +1988,13 @@ class MessagesViewModel(application: Application) :
                 Log.d(TAG, "📬 [Signal] msg ${msg.id} from in-memory sent cache")
                 return msg.copy(decryptedText = memCached)
             }
+            // Fall back to Room DB — survives ViewModel recreation (e.g. leaving and re-entering chat)
+            val dbCached = signalService.getCachedDecryptedMessage(msg.id)
+            if (dbCached != null) {
+                Log.d(TAG, "📬 [Signal] msg ${msg.id} from Room DB cache")
+                sentPlaintextCache[msg.id] = dbCached  // warm the in-memory cache
+                return msg.copy(decryptedText = dbCached)
+            }
             Log.w(TAG, "⚠️ [Signal] msg ${msg.id} is own message not in cache — plaintext unavailable")
             return msg.copy(decryptedText = getApplication<Application>().getString(R.string.encrypted_message))
         }

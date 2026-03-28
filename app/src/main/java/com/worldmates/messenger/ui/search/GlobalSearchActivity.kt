@@ -64,7 +64,7 @@ class GlobalSearchActivity : ComponentActivity() {
                     onBack = { finish() },
                     onOpenChat = { userId ->
                         val intent = Intent(this, MessagesActivity::class.java).apply {
-                            putExtra("user_id", userId.toString())
+                            putExtra("recipient_id", userId)
                         }
                         startActivity(intent)
                     }
