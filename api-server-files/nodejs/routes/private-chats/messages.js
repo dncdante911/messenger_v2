@@ -125,6 +125,7 @@ async function buildMessage(ctx, msg, userId) {
         id:             msg.id,
         from_id:        msg.from_id,
         to_id:          msg.to_id,
+        is_business_chat: msg.is_business_chat || 0,
         // Encrypted text — client decrypts locally for both GCM and Signal
         text:           msg.text           || '',
         iv:             msg.iv             || null,

@@ -1376,12 +1376,15 @@ class MessagesViewModel(application: Application) :
                 // Decrypt (suspend — handles Signal v3 and legacy GCM/ECB)
                 val message = decryptMessageFully(rawMessage)
 
-                // Check relevance
+                // Check relevance — must match chat type (business vs personal) to prevent
+                // cross-thread routing that would corrupt the Signal Double Ratchet chain state.
+                val msgIsBusinessChat = messageJson.optInt("is_business_chat", 0) == 1
                 val isRelevant = if (this@MessagesViewModel.groupId != 0L) {
                     message.groupId == this@MessagesViewModel.groupId
                 } else {
-                    (message.fromId == recipientId && message.toId == UserSession.userId) ||
-                    (message.fromId == UserSession.userId && message.toId == recipientId)
+                    msgIsBusinessChat == isBusinessChat &&
+                    ((message.fromId == recipientId && message.toId == UserSession.userId) ||
+                    (message.fromId == UserSession.userId && message.toId == recipientId))
                 }
 
                 if (isRelevant) {
