@@ -51,6 +51,7 @@ class MessagesActivity : AppCompatActivity() {
     private var recipientAvatar: String = ""
     private var isGroup: Boolean = false
     private var isChannel: Boolean = false
+    private var isBusinessChat: Boolean = false
 
     // Permission request launcher
     private val audioPermissionLauncher = registerForActivityResult(
@@ -110,6 +111,7 @@ class MessagesActivity : AppCompatActivity() {
         recipientAvatar = intent.getStringExtra("recipient_avatar") ?: ""
         isGroup = intent.getBooleanExtra("is_group", false)
         isChannel = intent.getBooleanExtra("is_channel", false)
+        isBusinessChat = intent.getBooleanExtra("is_business_chat", false)
 
         // Ініціалізуємо утиліти
         fileManager = FileManager(this)
@@ -147,6 +149,7 @@ class MessagesActivity : AppCompatActivity() {
             recipientName = recipientName,
             recipientAvatar = recipientAvatar,
             isGroup = isGroup,
+            isBusinessChat = isBusinessChat,
             onBackPressed = { finish() },
             onRequestAudioPermission = { requestAudioPermission() },
             onRequestVideoPermissions = { requestVideoPermissions() }

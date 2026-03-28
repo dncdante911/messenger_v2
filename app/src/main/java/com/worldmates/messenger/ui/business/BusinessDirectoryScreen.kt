@@ -46,7 +46,7 @@ private val DirSurface = Color(0xFF1E2D40)
 @Composable
 fun BusinessDirectoryScreen(
     onBack: () -> Unit,
-    onChatClick: (Long, String) -> Unit,
+    onChatClick: (Long, String, String?) -> Unit,
     onProfileClick: (Long) -> Unit = {},
     viewModel: BusinessDirectoryViewModel = viewModel()
 ) {
@@ -232,7 +232,7 @@ private fun CategoryChip(
 @Composable
 private fun BusinessList(
     businesses: List<BusinessDirectoryItem>,
-    onChatClick: (Long, String) -> Unit,
+    onChatClick: (Long, String, String?) -> Unit,
     onProfileClick: (Long) -> Unit
 ) {
     LazyColumn(
@@ -249,7 +249,7 @@ private fun BusinessList(
 @Composable
 private fun BusinessCard(
     item: BusinessDirectoryItem,
-    onChatClick: (Long, String) -> Unit,
+    onChatClick: (Long, String, String?) -> Unit,
     onProfileClick: (Long) -> Unit
 ) {
     Surface(
@@ -368,7 +368,7 @@ private fun BusinessCard(
 
                 // "Написати" button
                 Button(
-                    onClick  = { onChatClick(item.userId, item.businessName) },
+                    onClick  = { onChatClick(item.userId, item.businessName, item.avatar) },
                     shape    = RoundedCornerShape(8.dp),
                     colors   = ButtonDefaults.buttonColors(containerColor = DirAccent),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),

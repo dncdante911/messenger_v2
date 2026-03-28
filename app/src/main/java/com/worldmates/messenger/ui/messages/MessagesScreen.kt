@@ -150,6 +150,7 @@ fun MessagesScreen(
     recipientName: String,
     recipientAvatar: String,
     isGroup: Boolean,
+    isBusinessChat: Boolean = false,
     onBackPressed: () -> Unit,
     onRequestAudioPermission: () -> Boolean = { true },  // Default для preview
     onRequestVideoPermissions: () -> Boolean = { true }  // Default для preview
@@ -633,20 +634,31 @@ fun MessagesScreen(
                 recipientAvatar = recipientAvatar,
                 presenceStatus = presenceStatus,
                 onBackPressed = onBackPressed,
+                isBusinessChat = isBusinessChat,
                 onUserProfileClick = {
-                    Log.d("MessagesScreen", "Відкриваю профіль користувача: $recipientName")
-                    // Відкриваємо профіль користувача
-                    if (!isGroup) {
-                        val intent = android.content.Intent(context, com.worldmates.messenger.ui.profile.UserProfileActivity::class.java).apply {
-                            putExtra("user_id", viewModel.getRecipientId())
+                    Log.d("MessagesScreen", "Відкриваю профіль: $recipientName (business=$isBusinessChat)")
+                    when {
+                        isBusinessChat -> {
+                            val intent = android.content.Intent(context,
+                                com.worldmates.messenger.ui.business.BusinessProfileViewActivity::class.java).apply {
+                                putExtra("user_id", viewModel.getRecipientId())
+                            }
+                            context.startActivity(intent)
                         }
-                        context.startActivity(intent)
-                    } else {
-                        // Для груп - відкриваємо деталі групи
-                        val intent = android.content.Intent(context, com.worldmates.messenger.ui.groups.GroupDetailsActivity::class.java).apply {
-                            putExtra("group_id", viewModel.getGroupId())
+                        !isGroup -> {
+                            val intent = android.content.Intent(context,
+                                com.worldmates.messenger.ui.profile.UserProfileActivity::class.java).apply {
+                                putExtra("user_id", viewModel.getRecipientId())
+                            }
+                            context.startActivity(intent)
                         }
-                        context.startActivity(intent)
+                        else -> {
+                            val intent = android.content.Intent(context,
+                                com.worldmates.messenger.ui.groups.GroupDetailsActivity::class.java).apply {
+                                putExtra("group_id", viewModel.getGroupId())
+                            }
+                            context.startActivity(intent)
+                        }
                     }
                 },
                 onCallClick = {
