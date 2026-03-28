@@ -1112,6 +1112,20 @@ interface NodeApi {
         @Field("url") url: String
     ): NodeInstantViewResponse
 
+    // ═══════════════════════ FCM TOKEN ════════════════════════════════════════
+
+    /**
+     * Register or refresh the Firebase Cloud Messaging token for this device.
+     * Server stores the token in Wo_AppsSessions and uses it to send push
+     * notifications when the Socket.IO ForegroundService is not reachable.
+     */
+    @FormUrlEncoded
+    @POST("api/node/user/register-fcm-token")
+    suspend fun registerFcmToken(
+        @Field("fcm_token") fcmToken: String,
+        @Field("platform")  platform: String = "android",
+    ): NodeSimpleResponse
+
 }
 
 // ═══════════════════════ RESPONSE MODELS ═════════════════════════════════════

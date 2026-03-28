@@ -79,6 +79,9 @@ class MessageNotificationService : Service() {
         // When background: service shows full-screen notification (works on locked screens).
         @Volatile var isAppInForeground = false
 
+        // True when Socket.IO is connected — FCM service checks this to avoid duplicate notifications
+        @Volatile var isConnected = false
+
         // Які чати зараз відкриті — для них сповіщення не показуємо
         @Volatile var activeRecipientId: Long = 0   // приватний чат
         @Volatile var activeGroupId: Long = 0        // груповий чат
@@ -226,6 +229,7 @@ class MessageNotificationService : Service() {
             socket = IO.socket(Constants.SOCKET_URL, opts)
 
             socket?.on(Socket.EVENT_CONNECT) {
+                isConnected = true
                 Log.d(TAG, "Notification socket connected")
                 socket?.emit(Constants.SOCKET_EVENT_AUTH, JSONObject().apply {
                     put("user_id", token)
@@ -241,6 +245,7 @@ class MessageNotificationService : Service() {
             }
 
             socket?.on(Socket.EVENT_DISCONNECT) {
+                isConnected = false
                 Log.d(TAG, "Notification socket disconnected")
             }
 

@@ -679,82 +679,104 @@ class MessagesViewModel(application: Application) :
             if (pending.isEmpty()) return@launch
             Log.i(TAG, "Draining ${pending.size} offline-queued messages")
             for (queued in pending) {
-                val text = queued.decryptedText ?: queued.encryptedText ?: continue
-                try {
-                    if (groupId == 0L) {
-                        // ── Private chat ──────────────────────────────────────
-                        val signalPayload = signalService.encryptForSend(recipientId, text)
-                        val resp = if (signalPayload != null) {
-                            nodeApi.sendMessage(
-                                recipientId    = recipientId,
-                                text           = signalPayload.ciphertext,
-                                iv             = signalPayload.iv,
-                                tag            = signalPayload.tag,
-                                signalHeader   = signalPayload.signalHeader,
-                                cipherVersion  = SignalEncryptionService.CIPHER_VERSION_SIGNAL,
-                                isBusinessChat = if (isBusinessChat) 1 else 0
-                            )
-                        } else {
-                            nodeApi.sendMessage(
-                                recipientId    = recipientId,
-                                text           = text,
-                                isBusinessChat = if (isBusinessChat) 1 else 0
-                            )
-                        }
-                        if (resp.apiStatus == 200) {
-                            db.messageDao().hardDeleteMessage(queued.id)
-                            _messages.value = _messages.value.filter { it.id != queued.id }
-                            val rawMsg = resp.messageData
-                            if (rawMsg != null) {
-                                val newMsg = rawMsg.copy(decryptedText = text)
-                                val curr = _messages.value
-                                if (!curr.any { it.id == newMsg.id }) {
-                                    _messages.value = (curr + newMsg).sortedBy { it.timeStamp }
-                                }
-                            }
-                            Log.d(TAG, "Offline-queued message delivered (local=${queued.id}, server=${resp.messageData?.id})")
-                        } else {
-                            Log.w(TAG, "Failed to deliver queued message ${queued.id}: ${resp.errorMessage}")
-                        }
-                    } else {
-                        // ── Group chat ────────────────────────────────────────
-                        val members = runCatching {
-                            groupApi.getGroupMembers(groupId = groupId).members.orEmpty()
-                        }.getOrDefault(emptyList())
-                        val myUserId = UserSession.userId ?: 0L
-                        val groupPayload = signalGroupService.encryptForGroup(groupId, text, members, myUserId)
-                        val resp = if (groupPayload != null) {
-                            groupApi.sendGroupMessage(
-                                groupId       = groupId,
-                                text          = groupPayload.ciphertext,
-                                iv            = groupPayload.iv,
-                                tag           = groupPayload.tag,
-                                signalHeader  = groupPayload.signalHeader,
-                                cipherVersion = SignalGroupEncryptionService.CIPHER_VERSION_SIGNAL
-                            )
-                        } else {
-                            groupApi.sendGroupMessage(groupId = groupId, text = text)
-                        }
-                        if (resp.apiStatus == 200) {
-                            db.messageDao().hardDeleteMessage(queued.id)
-                            _messages.value = _messages.value.filter { it.id != queued.id }
-                            val rawMsg = resp.messageData
-                            if (rawMsg != null) {
-                                val newMsg = rawMsg.copy(decryptedText = text)
-                                val curr = _messages.value
-                                if (!curr.any { it.id == newMsg.id }) {
-                                    _messages.value = (curr + newMsg).sortedBy { it.timeStamp }
-                                }
-                            }
-                            Log.d(TAG, "Offline-queued group message delivered (local=${queued.id}, server=${resp.messageData?.id})")
-                        } else {
-                            Log.w(TAG, "Failed to deliver queued group message ${queued.id}: ${resp.errorMessage}")
-                        }
+                sendQueuedMessageWithRetry(queued)
+            }
+        }
+    }
+
+    /** Attempts to deliver one queued message with exponential backoff (max 3 tries). */
+    private suspend fun sendQueuedMessageWithRetry(queued: CachedMessage, maxRetries: Int = 3) {
+        val text = queued.decryptedText ?: queued.encryptedText ?: return
+        var delayMs = 2_000L
+        for (attempt in 0 until maxRetries) {
+            try {
+                val delivered = trySendQueuedMessage(queued, text)
+                if (delivered) return   // Success — done
+            } catch (e: Exception) {
+                Log.w(TAG, "Attempt ${attempt + 1}/$maxRetries failed for queued msg ${queued.id}: ${e.message}")
+            }
+            if (attempt < maxRetries - 1) {
+                delay(delayMs)
+                delayMs = (delayMs * 2).coerceAtMost(30_000L)   // cap at 30 s
+            }
+        }
+        Log.w(TAG, "Queued message ${queued.id} left in queue after $maxRetries failed attempts")
+    }
+
+    /** Single send attempt; returns true on success, false on server rejection. */
+    private suspend fun trySendQueuedMessage(queued: CachedMessage, text: String): Boolean {
+        if (groupId == 0L) {
+            // ── Private chat ──────────────────────────────────────────────────
+            val signalPayload = signalService.encryptForSend(recipientId, text)
+            val resp = if (signalPayload != null) {
+                nodeApi.sendMessage(
+                    recipientId    = recipientId,
+                    text           = signalPayload.ciphertext,
+                    iv             = signalPayload.iv,
+                    tag            = signalPayload.tag,
+                    signalHeader   = signalPayload.signalHeader,
+                    cipherVersion  = SignalEncryptionService.CIPHER_VERSION_SIGNAL,
+                    isBusinessChat = if (isBusinessChat) 1 else 0
+                )
+            } else {
+                nodeApi.sendMessage(
+                    recipientId    = recipientId,
+                    text           = text,
+                    isBusinessChat = if (isBusinessChat) 1 else 0
+                )
+            }
+            if (resp.apiStatus == 200) {
+                db.messageDao().hardDeleteMessage(queued.id)
+                _messages.value = _messages.value.filter { it.id != queued.id }
+                val rawMsg = resp.messageData
+                if (rawMsg != null) {
+                    val newMsg = rawMsg.copy(decryptedText = text)
+                    val curr = _messages.value
+                    if (!curr.any { it.id == newMsg.id }) {
+                        _messages.value = (curr + newMsg).sortedBy { it.timeStamp }
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Could not deliver queued message ${queued.id}: ${e.message}")
-                    // Leave in queue for next reconnect
                 }
+                Log.d(TAG, "Offline-queued message delivered (local=${queued.id}, server=${resp.messageData?.id})")
+                return true
+            } else {
+                Log.w(TAG, "Server rejected queued message ${queued.id}: ${resp.errorMessage}")
+                return false
+            }
+        } else {
+            // ── Group chat ────────────────────────────────────────────────────
+            val members = runCatching {
+                groupApi.getGroupMembers(groupId = groupId).members.orEmpty()
+            }.getOrDefault(emptyList())
+            val myUserId = UserSession.userId ?: 0L
+            val groupPayload = signalGroupService.encryptForGroup(groupId, text, members, myUserId)
+            val resp = if (groupPayload != null) {
+                groupApi.sendGroupMessage(
+                    groupId       = groupId,
+                    text          = groupPayload.ciphertext,
+                    iv            = groupPayload.iv,
+                    tag           = groupPayload.tag,
+                    signalHeader  = groupPayload.signalHeader,
+                    cipherVersion = SignalGroupEncryptionService.CIPHER_VERSION_SIGNAL
+                )
+            } else {
+                groupApi.sendGroupMessage(groupId = groupId, text = text)
+            }
+            if (resp.apiStatus == 200) {
+                db.messageDao().hardDeleteMessage(queued.id)
+                _messages.value = _messages.value.filter { it.id != queued.id }
+                val rawMsg = resp.messageData
+                if (rawMsg != null) {
+                    val newMsg = rawMsg.copy(decryptedText = text)
+                    val curr = _messages.value
+                    if (!curr.any { it.id == newMsg.id }) {
+                        _messages.value = (curr + newMsg).sortedBy { it.timeStamp }
+                    }
+                }
+                Log.d(TAG, "Offline-queued group message delivered (local=${queued.id}, server=${resp.messageData?.id})")
+                return true
+            } else {
+                Log.w(TAG, "Server rejected queued group message ${queued.id}: ${resp.errorMessage}")
+                return false
             }
         }
     }

@@ -356,6 +356,17 @@ async function init() {
   } catch (e) {
     if (!e.message.includes('already exists')) console.warn('[Init] wm_business_chats:', e.message);
   }
+  // fcm_token column in Wo_AppsSessions — stores per-device FCM registration token
+  try {
+    await ctx.sequelize.query(
+      `ALTER TABLE Wo_AppsSessions ADD COLUMN fcm_token VARCHAR(255) NULL DEFAULT NULL`
+    );
+    console.log('[Init] Wo_AppsSessions.fcm_token column added');
+  } catch (e) {
+    if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+      console.warn('[Init] fcm_token migration warning:', e.message);
+    }
+  }
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Migrations are deferred: runMigrations(ctx) is called from server.listen()
@@ -1079,6 +1090,38 @@ async function main() {
   registerStoryRoutes(app, ctx, io);
   registerChannelRoutes(app, ctx, io);
   registerGroupRoutes(app, ctx, io);
+
+  // ── FCM token registration ────────────────────────────────────────────────
+  // POST /api/node/user/register-fcm-token
+  // Stores the Android FCM registration token in Wo_AppsSessions so the server
+  // can send push notifications when the Socket.IO service is killed.
+  app.post('/api/node/user/register-fcm-token', async (req, res) => {
+    try {
+      const { authMiddleware } = require('./routes/middleware');
+      authMiddleware(ctx, req, res, async () => {
+        const fcmToken = (req.body.fcm_token || '').trim();
+        if (!fcmToken) return res.json({ api_status: 400, error_message: 'fcm_token required' });
+        const sessionId = req.headers['session-id'] || req.headers['session_id'] || req.body.session_id;
+        if (sessionId) {
+          await ctx.wo_appssessions.update(
+            { fcm_token: fcmToken },
+            { where: { user_id: req.userId, session_id: sessionId } }
+          );
+        } else {
+          // Fallback: update all sessions for this user
+          await ctx.wo_appssessions.update(
+            { fcm_token: fcmToken },
+            { where: { user_id: req.userId } }
+          );
+        }
+        res.json({ api_status: 200 });
+      });
+    } catch (err) {
+      console.error('[FCM/register]', err.message);
+      res.status(500).json({ api_status: 500, error_message: 'Server error' });
+    }
+  });
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Register User REST API (nearby people, multi-avatars, etc.)
   registerUserRoutes(app, ctx, io);

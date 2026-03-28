@@ -24,6 +24,7 @@ const { Op }   = require('sequelize');
 const funcs    = require('../../functions/functions');
 const crypto   = require('../../helpers/crypto');
 const { cleanupExpiredMessages } = require('./secret');
+const { sendPush } = require('../../firebase-push');
 const { TEXT_DECISION, checkText } = require('../../helpers/text-moderator');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -473,6 +474,47 @@ function sendMessage(ctx, io) {
             io.to(String(recipientId)).emit('private_message', msgData);
             io.to(String(userId)).emit('new_message', { ...msgData, self: true });
 
+            // FCM fallback — send push if recipient has no active Socket.IO connection
+            const recipientSockets = ctx.userIdSocket ? ctx.userIdSocket[String(recipientId)] : null;
+            const recipientOnline  = Array.isArray(recipientSockets) && recipientSockets.length > 0;
+            if (!recipientOnline) {
+                setImmediate(async () => {
+                    try {
+                        const sessions = await ctx.wo_appssessions.findAll({
+                            attributes: ['fcm_token'],
+                            where: { user_id: recipientId, fcm_token: { [Op.ne]: null } },
+                            raw: true,
+                        });
+                        const senderName = sender ? sender.name : 'New message';
+                        // For E2EE messages we don't expose content in the push payload
+                        const isSignal = (enc && enc.cipher_version === 3);
+                        const pushBody = isSignal ? '🔒 Нове повідомлення' : (plaintext ? plaintext.slice(0, 100) : '📎 Медіа');
+                        for (const s of sessions) {
+                            if (!s.fcm_token) continue;
+                            const result = await sendPush(s.fcm_token, {
+                                title: senderName,
+                                body:  pushBody,
+                                data:  {
+                                    type:    'private_message',
+                                    from_id: String(userId),
+                                    from_name: senderName,
+                                    chat_id: String(recipientId),
+                                },
+                            });
+                            // Clean up stale token
+                            if (result === 'stale') {
+                                await ctx.wo_appssessions.update(
+                                    { fcm_token: null },
+                                    { where: { user_id: recipientId, fcm_token: s.fcm_token } }
+                                );
+                            }
+                        }
+                    } catch (pushErr) {
+                        console.warn('[FCM/send]', pushErr.message);
+                    }
+                });
+            }
+
             // Уведомление (для отображения в списке чатов)
             io.to(String(recipientId)).emit('notification', {
                 id:       String(recipientId),
@@ -711,11 +753,14 @@ function searchMessages(ctx, io) {
             if (query.length < 2)
                 return res.status(400).json({ api_status: 400, error_message: 'Query must be at least 2 characters' });
 
+            // Escape SQL LIKE wildcards so user-supplied '%' or '_' are treated literally
+            const safeQuery = query.replace(/[%_\\]/g, '\\$&');
+
             const rows = await ctx.wo_messages.findAll({
                 where: {
                     page_id: 0,
                     // Ищем по text_preview (plaintext) а не по зашифрованному text
-                    text_preview: { [Op.like]: `%${query}%` },
+                    text_preview: { [Op.like]: `%${safeQuery}%` },
                     [Op.or]: [
                         { from_id: userId,      to_id: recipientId, deleted_one: '0' },
                         { from_id: recipientId, to_id: userId,      deleted_two: '0' },
@@ -768,6 +813,10 @@ function seenMessages(ctx, io) {
 }
 
 // ─── TYPING ───────────────────────────────────────────────────────────────────
+// Per-pair timeout map: `${userId}_${recipientId}` → setTimeout handle.
+// Ensures "typing_done" is always emitted after 30 s even if the client app
+// is killed or crashes without sending an explicit stop event.
+const _typingTimeouts = new Map();
 
 function typing(ctx, io) {
     return async (req, res) => {
@@ -779,10 +828,30 @@ function typing(ctx, io) {
             if (!recipientId || isNaN(recipientId))
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
 
+            const key = `${userId}_${recipientId}`;
+
+            // Cancel any existing auto-stop timeout for this pair
+            if (_typingTimeouts.has(key)) {
+                clearTimeout(_typingTimeouts.get(key));
+                _typingTimeouts.delete(key);
+            }
+
             io.to(String(recipientId)).emit(isTyping ? 'typing' : 'typing_done', {
                 from_id: userId,
                 to_id:   recipientId,
             });
+
+            if (isTyping) {
+                // Auto-emit typing_done after 30 s if client never sends stop event
+                const handle = setTimeout(() => {
+                    io.to(String(recipientId)).emit('typing_done', {
+                        from_id: userId,
+                        to_id:   recipientId,
+                    });
+                    _typingTimeouts.delete(key);
+                }, 30_000);
+                _typingTimeouts.set(key, handle);
+            }
 
             res.json({ api_status: 200 });
         } catch (err) {
