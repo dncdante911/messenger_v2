@@ -52,11 +52,12 @@ interface NodeApi {
     @FormUrlEncoded
     @POST(Constants.NODE_CHAT_GET)
     suspend fun getMessages(
-        @Field("recipient_id")    recipientId: Long,
-        @Field("limit")           limit: Int = 30,
+        @Field("recipient_id")      recipientId: Long,
+        @Field("limit")             limit: Int = 30,
         @Field("before_message_id") beforeMessageId: Long = 0,
         @Field("after_message_id")  afterMessageId: Long  = 0,
-        @Field("message_id")      messageId: Long = 0
+        @Field("message_id")        messageId: Long = 0,
+        @Field("is_business_chat")  isBusinessChat: Int = 0
     ): NodeMessageListResponse
 
     /**
@@ -81,10 +82,12 @@ interface NodeApi {
         @Field("lng")            lng: String?      = null,
         @Field("contact")        contact: String?  = null,
         // ── Signal Protocol fields (cipher_version=3 only) ──────────────────
-        @Field("iv")             iv: String?           = null,
-        @Field("tag")            tag: String?          = null,
-        @Field("signal_header")  signalHeader: String? = null,
-        @Field("cipher_version") cipherVersion: Int?   = null
+        @Field("iv")              iv: String?           = null,
+        @Field("tag")             tag: String?          = null,
+        @Field("signal_header")   signalHeader: String? = null,
+        @Field("cipher_version")  cipherVersion: Int?   = null,
+        // ── Business chat separation ─────────────────────────────────────────
+        @Field("is_business_chat") isBusinessChat: Int = 0
     ): NodeMessageResponse
 
     /**
@@ -148,7 +151,8 @@ interface NodeApi {
     suspend fun loadMore(
         @Field("recipient_id")      recipientId: Long,
         @Field("before_message_id") beforeMessageId: Long,
-        @Field("limit")             limit: Int = 15
+        @Field("limit")             limit: Int = 15,
+        @Field("is_business_chat")  isBusinessChat: Int = 0
     ): NodeMessageListResponse
 
     /**
@@ -320,6 +324,16 @@ interface NodeApi {
     ): NodeChatListResponse
 
     /**
+     * GET business chat threads (separated from personal chats).
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_BUSINESS_CHATS_LIST)
+    suspend fun getBusinessChats(
+        @Field("limit")  limit: Int = 30,
+        @Field("offset") offset: Int = 0
+    ): NodeChatListResponse
+
+    /**
      * DELETE entire conversation.
      * delete_type: "me" | "all"
      */
@@ -390,7 +404,8 @@ interface NodeApi {
     @FormUrlEncoded
     @POST(Constants.NODE_CHAT_CLEAR_HIST)
     suspend fun clearHistory(
-        @Field("recipient_id") recipientId: Long
+        @Field("recipient_id") recipientId: Long,
+        @Field("clear_type")   clearType: String = "just_me"
     ): NodeSimpleResponse
 
     /**

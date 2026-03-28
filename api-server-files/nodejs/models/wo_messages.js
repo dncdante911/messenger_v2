@@ -173,6 +173,13 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true,
       defaultValue: null,
       comment: 'JSON DR+X3DH header for Signal-encrypted messages (cipher_version=3)'
+    },
+    // ── Business chat separation ───────────────────────────────────────────────
+    is_business_chat: {
+      type: DataTypes.TINYINT(1),
+      allowNull: false,
+      defaultValue: 0,
+      comment: '1 = business chat thread, 0 = personal chat thread'
     }
   }, {
     sequelize,

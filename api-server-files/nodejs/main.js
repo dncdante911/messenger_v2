@@ -274,6 +274,7 @@ async function init() {
   ctx.wm_business_hours         = require("./models/wm_business_hours")(sequelize, DataTypes)
   ctx.wm_business_quick_replies = require("./models/wm_business_quick_replies")(sequelize, DataTypes)
   ctx.wm_business_links         = require("./models/wm_business_links")(sequelize, DataTypes)
+  ctx.wm_business_chats         = require("./models/wm_business_chats")(sequelize, DataTypes)
 
   // ==================== User Rating Models ====================
   ctx.wm_user_ratings = require("./models/wm_user_ratings")(sequelize, DataTypes)
@@ -652,6 +653,42 @@ async function runMigrations(ctx) {
     console.log('[Migration] wm_business_stats, wm_business_api_keys, biz columns ensured');
   } catch (e) {
     console.warn('[Migration] business/creator:', e.message);
+  }
+
+  // ── Business Chat Separation ──────────────────────────────────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_business_chats (
+        id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id          INT UNSIGNED NOT NULL COMMENT 'Customer user_id',
+        business_user_id INT UNSIGNED NOT NULL COMMENT 'Business owner user_id',
+        last_message_id  INT UNSIGNED NOT NULL DEFAULT 0,
+        last_time        INT UNSIGNED NOT NULL DEFAULT 0,
+        unread_count     SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_biz_conv (user_id, business_user_id),
+        KEY idx_user_time (user_id, last_time),
+        KEY idx_biz_user_time (business_user_id, last_time)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    // Add is_business_chat column to Wo_Messages if not exists
+    try {
+      await ctx.sequelize.query(
+        `ALTER TABLE Wo_Messages ADD COLUMN is_business_chat TINYINT(1) NOT NULL DEFAULT 0 AFTER page_id`
+      );
+    } catch (e) {
+      if (!e.message.includes('Duplicate column')) console.warn('[Migration] is_business_chat col:', e.message);
+    }
+    try {
+      await ctx.sequelize.query(
+        `ALTER TABLE Wo_Messages ADD INDEX idx_biz_chat (from_id, to_id, is_business_chat)`
+      );
+    } catch (e) {
+      if (!e.message.includes('Duplicate key name')) console.warn('[Migration] idx_biz_chat:', e.message);
+    }
+    console.log('[Migration] wm_business_chats, is_business_chat ensured');
+  } catch (e) {
+    console.warn('[Migration] business-chat-separation:', e.message);
   }
 
   // ── Channel Scheduled Posts ───────────────────────────────────────────────

@@ -57,6 +57,8 @@ fun MessagesHeaderBar(
     onCreateSubgroupClick: () -> Unit = {},
     onAddMembersClick: () -> Unit = {},
     onGroupSettingsClick: () -> Unit = {},
+    // Business chat
+    isBusinessChat: Boolean = false,
     // 🔥 Параметри для режиму вибору
     isSelectionMode: Boolean = false,
     selectedCount: Int = 0,
@@ -153,13 +155,30 @@ fun MessagesHeaderBar(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    // Name and animated presence status
+                    // Name and status / business badge
                     Column {
                         Text(recipientName, color = colorScheme.onPrimary)
-                        PresenceStatusText(
-                            status = presenceStatus,
-                            textColor = colorScheme.onPrimary.copy(alpha = 0.85f)
-                        )
+                        if (isBusinessChat) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Storefront,
+                                    contentDescription = null,
+                                    tint = colorScheme.onPrimary.copy(alpha = 0.75f),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(Modifier.width(3.dp))
+                                Text(
+                                    text = "Бізнес-акаунт",
+                                    color = colorScheme.onPrimary.copy(alpha = 0.75f),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        } else {
+                            PresenceStatusText(
+                                status = presenceStatus,
+                                textColor = colorScheme.onPrimary.copy(alpha = 0.85f)
+                            )
+                        }
                     }
                 }
             }
@@ -225,13 +244,26 @@ fun MessagesHeaderBar(
                     ) {
                         // ✅ Common options for both groups and users
                         DropdownMenuItem(
-                            text = { Text(if (isGroup) stringResource(R.string.group_details) else stringResource(R.string.view_profile)) },
+                            text = {
+                                Text(when {
+                                    isGroup -> stringResource(R.string.group_details)
+                                    isBusinessChat -> "Переглянути бізнес"
+                                    else -> stringResource(R.string.view_profile)
+                                })
+                            },
                             onClick = {
                                 showUserMenu = false
                                 onUserProfileClick()
                             },
                             leadingIcon = {
-                                Icon(if (isGroup) Icons.Default.Group else Icons.Default.Person, contentDescription = null)
+                                Icon(
+                                    when {
+                                        isGroup -> Icons.Default.Group
+                                        isBusinessChat -> Icons.Default.Storefront
+                                        else -> Icons.Default.Person
+                                    },
+                                    contentDescription = null
+                                )
                             }
                         )
                         DropdownMenuItem(

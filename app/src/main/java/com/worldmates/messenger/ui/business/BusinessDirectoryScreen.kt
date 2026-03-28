@@ -46,7 +46,8 @@ private val DirSurface = Color(0xFF1E2D40)
 @Composable
 fun BusinessDirectoryScreen(
     onBack: () -> Unit,
-    onChatClick: (Long) -> Unit,
+    onChatClick: (Long, String, String?) -> Unit,
+    onProfileClick: (Long) -> Unit = {},
     viewModel: BusinessDirectoryViewModel = viewModel()
 ) {
     val businesses     by viewModel.businesses.collectAsState()
@@ -150,8 +151,9 @@ fun BusinessDirectoryScreen(
                     isLoading -> LoadingState()
                     businesses.isEmpty() -> EmptyState()
                     else -> BusinessList(
-                        businesses  = businesses,
-                        onChatClick = onChatClick
+                        businesses     = businesses,
+                        onChatClick    = onChatClick,
+                        onProfileClick = onProfileClick
                     )
                 }
             }
@@ -230,7 +232,8 @@ private fun CategoryChip(
 @Composable
 private fun BusinessList(
     businesses: List<BusinessDirectoryItem>,
-    onChatClick: (Long) -> Unit
+    onChatClick: (Long, String, String?) -> Unit,
+    onProfileClick: (Long) -> Unit
 ) {
     LazyColumn(
         modifier              = Modifier.fillMaxSize(),
@@ -238,7 +241,7 @@ private fun BusinessList(
         verticalArrangement   = Arrangement.spacedBy(10.dp)
     ) {
         items(businesses, key = { it.userId }) { item ->
-            BusinessCard(item = item, onChatClick = onChatClick)
+            BusinessCard(item = item, onChatClick = onChatClick, onProfileClick = onProfileClick)
         }
     }
 }
@@ -246,13 +249,16 @@ private fun BusinessList(
 @Composable
 private fun BusinessCard(
     item: BusinessDirectoryItem,
-    onChatClick: (Long) -> Unit
+    onChatClick: (Long, String, String?) -> Unit,
+    onProfileClick: (Long) -> Unit
 ) {
     Surface(
-        shape         = RoundedCornerShape(14.dp),
-        color         = DirCard,
+        shape          = RoundedCornerShape(14.dp),
+        color          = DirCard,
         tonalElevation = 2.dp,
-        modifier      = Modifier.fillMaxWidth()
+        modifier       = Modifier
+            .fillMaxWidth()
+            .clickable { onProfileClick(item.userId) }
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -262,7 +268,7 @@ private fun BusinessCard(
             BusinessAvatar(
                 avatarUrl    = item.avatar,
                 businessName = item.businessName,
-                modifier     = Modifier.size(52.dp)
+                modifier     = Modifier.size(56.dp)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -313,7 +319,7 @@ private fun BusinessCard(
                         text     = desc,
                         color    = Color.White.copy(alpha = 0.7f),
                         fontSize = 13.sp,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -322,12 +328,8 @@ private fun BusinessCard(
                 item.address?.takeIf { it.isNotBlank() }?.let { addr ->
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector        = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint               = Color.White.copy(alpha = 0.5f),
-                            modifier           = Modifier.size(13.dp)
-                        )
+                        Icon(Icons.Default.LocationOn, null,
+                            tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(13.dp))
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text     = if (item.distance != null) "$addr • ${item.distance} km" else addr,
@@ -339,25 +341,44 @@ private fun BusinessCard(
                     }
                 }
 
+                // Phone
+                item.phone?.takeIf { it.isNotBlank() }?.let { phone ->
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Phone, null,
+                            tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(text = phone, color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp, maxLines = 1)
+                    }
+                }
+
+                // Website
+                item.website?.takeIf { it.isNotBlank() }?.let { website ->
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Language, null,
+                            tint = DirAccent.copy(alpha = 0.7f), modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(text = website, color = DirAccent.copy(alpha = 0.7f), fontSize = 12.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // "Написати" button
                 Button(
-                    onClick  = { onChatClick(item.userId) },
+                    onClick  = { onChatClick(item.userId, item.businessName, item.avatar) },
                     shape    = RoundedCornerShape(8.dp),
                     colors   = ButtonDefaults.buttonColors(containerColor = DirAccent),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                     modifier = Modifier.height(34.dp)
                 ) {
-                    Icon(
-                        imageVector        = Icons.Default.Message,
-                        contentDescription = null,
-                        modifier           = Modifier.size(15.dp)
-                    )
+                    Icon(Icons.Default.Message, null, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text     = stringResource(R.string.business_directory_message_btn),
-                        fontSize = 13.sp,
+                        text       = stringResource(R.string.business_directory_message_btn),
+                        fontSize   = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                 }

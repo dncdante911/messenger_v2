@@ -137,6 +137,7 @@
     <string name="new_group">Нова група</string>
     <string name="no_chats">Немає чатів</string>
     <string name="no_chats_subtitle">Почніть розмову зараз!</string>
+    <string name="no_business_chats">Немає бізнес-чатів\nКлієнти з\'являться тут, коли напишуть вам</string>
     <string name="archive">Архів</string>
     <string name="archived_chats">Архівовані чати</string>
     <string name="pin_chat">Закріпити чат</string>

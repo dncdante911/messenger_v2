@@ -138,11 +138,13 @@ function getChats(ctx, io) {
                    SELECT partner_id, MAX(id) AS max_id FROM (
                      SELECT to_id   AS partner_id, id
                      FROM Wo_Messages
-                     WHERE from_id = ? AND to_id IN (${ph}) AND page_id = 0 AND deleted_one = '0'
+                     WHERE from_id = ? AND to_id IN (${ph}) AND page_id = 0
+                       AND is_business_chat = 0 AND deleted_one = '0'
                      UNION ALL
                      SELECT from_id AS partner_id, id
                      FROM Wo_Messages
-                     WHERE to_id = ? AND from_id IN (${ph}) AND page_id = 0 AND deleted_two = '0'
+                     WHERE to_id = ? AND from_id IN (${ph}) AND page_id = 0
+                       AND is_business_chat = 0 AND deleted_two = '0'
                    ) combined
                    GROUP BY partner_id
                  ) latest ON m.id = latest.max_id`,
@@ -157,12 +159,13 @@ function getChats(ctx, io) {
                 lastMsgMap.set(pid, msg);
             }
 
-            // 5 ── unread counts per partner (messages sent to me, unseen)
+            // 5 ── unread counts per partner (messages sent to me, unseen, personal only)
             const unreadRows = await ctx.sequelize.query(
                 `SELECT from_id, COUNT(*) AS cnt
                  FROM Wo_Messages
                  WHERE to_id = ? AND from_id IN (${ph})
                    AND seen = 0 AND deleted_two = '0' AND page_id = 0
+                   AND is_business_chat = 0
                  GROUP BY from_id`,
                 {
                     replacements: [userId, ...partnerIds],
@@ -451,20 +454,38 @@ function clearHistory(ctx, io) {
         try {
             const userId      = req.userId;
             const recipientId = parseInt(req.body.recipient_id || req.body.user_id);
+            // "just_me" (default) — hide from caller only; "everyone" — wipe for both parties
+            const clearType   = req.body.clear_type || 'just_me';
 
             if (!recipientId || isNaN(recipientId))
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
 
-            // Soft-delete: messages sent by caller → deleted_one='1'
-            await ctx.wo_messages.update(
-                { deleted_one: '1' },
-                { where: { from_id: userId, to_id: recipientId, page_id: 0 } }
-            );
-            // Soft-delete: messages received by caller → deleted_two='1'
-            await ctx.wo_messages.update(
-                { deleted_two: '1' },
-                { where: { from_id: recipientId, to_id: userId, page_id: 0 } }
-            );
+            if (clearType === 'everyone') {
+                // Wipe every message in the conversation for both sides
+                await ctx.wo_messages.update(
+                    { deleted_one: '1', deleted_two: '1' },
+                    { where: { from_id: userId,      to_id: recipientId, page_id: 0 } }
+                );
+                await ctx.wo_messages.update(
+                    { deleted_one: '1', deleted_two: '1' },
+                    { where: { from_id: recipientId, to_id: userId,      page_id: 0 } }
+                );
+                // Notify both parties so their UI updates in real-time
+                const payload = { from_id: userId, recipient_id: recipientId };
+                io.to(String(recipientId)).emit('private_history_cleared', payload);
+                io.to(String(userId)).emit('private_history_cleared', payload);
+            } else {
+                // Soft-delete: messages sent by caller → deleted_one='1'
+                await ctx.wo_messages.update(
+                    { deleted_one: '1' },
+                    { where: { from_id: userId, to_id: recipientId, page_id: 0 } }
+                );
+                // Soft-delete: messages received by caller → deleted_two='1'
+                await ctx.wo_messages.update(
+                    { deleted_two: '1' },
+                    { where: { from_id: recipientId, to_id: userId, page_id: 0 } }
+                );
+            }
 
             res.json({ api_status: 200, message: 'Chat history cleared' });
         } catch (err) {
@@ -517,10 +538,178 @@ function archivedCount(ctx) {
     };
 }
 
+// ─── GET BUSINESS CHATS ───────────────────────────────────────────────────────
+// Returns business-chat conversations from wm_business_chats.
+// Uses same 5-query optimised pattern as getChats().
+
+function getBusinessChats(ctx, io) {
+    return async (req, res) => {
+        try {
+            if (!ctx.wm_business_chats) {
+                return res.json({ api_status: 200, data: [] });
+            }
+
+            const userId  = req.userId;
+            const limit   = Math.min(parseInt(req.body.limit  || req.body.user_limit)  || 30, 100);
+            const offset  = parseInt(req.body.offset || req.body.user_offset) || 0;
+            const siteUrl = (ctx.globalconfig?.site_url || '').replace(/\/$/, '');
+
+            // 1 ── paginated business-chat rows (where this user is the customer)
+            const chatRows = await ctx.wm_business_chats.findAll({
+                where: { user_id: userId },
+                order: [['last_time', 'DESC']],
+                limit,
+                offset,
+                raw: true,
+            });
+
+            if (chatRows.length === 0) {
+                return res.json({ api_status: 200, data: [] });
+            }
+
+            const partnerIds = chatRows.map(c => c.business_user_id);
+            const ph         = partnerIds.map(() => '?').join(',');
+
+            // 2 ── batch user data for business owners
+            const userRows = await ctx.wo_users.findAll({
+                attributes: ['user_id', 'username', 'first_name', 'last_name',
+                             'avatar', 'lastseen', 'status', 'last_avatar_mod'],
+                where: { user_id: { [Op.in]: partnerIds } },
+                raw: true,
+            });
+            const userMap = new Map();
+            for (const u of userRows) {
+                u.name = (u.first_name && u.last_name)
+                    ? u.first_name + ' ' + u.last_name
+                    : u.username;
+                userMap.set(u.user_id, u);
+            }
+
+            // 3 ── business profile names/avatars (override user data if present)
+            let bizProfileMap = new Map();
+            if (ctx.wm_business_profile) {
+                const bizRows = await ctx.wm_business_profile.findAll({
+                    attributes: ['user_id', 'business_name', 'avatar'],
+                    where: { user_id: { [Op.in]: partnerIds } },
+                    raw: true,
+                });
+                for (const b of bizRows) bizProfileMap.set(b.user_id, b);
+            }
+
+            // 4 ── last message per business conversation (is_business_chat=1)
+            const lastMsgRows = await ctx.sequelize.query(
+                `SELECT m.* FROM Wo_Messages m
+                 INNER JOIN (
+                   SELECT partner_id, MAX(id) AS max_id FROM (
+                     SELECT to_id   AS partner_id, id
+                     FROM Wo_Messages
+                     WHERE from_id = ? AND to_id IN (${ph}) AND page_id = 0
+                       AND is_business_chat = 1 AND deleted_one = '0'
+                     UNION ALL
+                     SELECT from_id AS partner_id, id
+                     FROM Wo_Messages
+                     WHERE to_id = ? AND from_id IN (${ph}) AND page_id = 0
+                       AND is_business_chat = 1 AND deleted_two = '0'
+                   ) combined
+                   GROUP BY partner_id
+                 ) latest ON m.id = latest.max_id`,
+                {
+                    replacements: [userId, ...partnerIds, userId, ...partnerIds],
+                    type: ctx.sequelize.QueryTypes.SELECT,
+                }
+            );
+            const lastMsgMap = new Map();
+            for (const msg of lastMsgRows) {
+                const pid = msg.from_id === userId ? msg.to_id : msg.from_id;
+                lastMsgMap.set(pid, msg);
+            }
+
+            // 5 ── unread counts (business messages sent to me, unseen)
+            const unreadRows = await ctx.sequelize.query(
+                `SELECT from_id, COUNT(*) AS cnt
+                 FROM Wo_Messages
+                 WHERE to_id = ? AND from_id IN (${ph})
+                   AND is_business_chat = 1 AND seen = 0 AND deleted_two = '0' AND page_id = 0
+                 GROUP BY from_id`,
+                {
+                    replacements: [userId, ...partnerIds],
+                    type: ctx.sequelize.QueryTypes.SELECT,
+                }
+            );
+            const unreadMap = new Map();
+            for (const r of unreadRows) unreadMap.set(r.from_id, Number(r.cnt));
+
+            // 6 ── assemble response
+            const result = [];
+            for (const chat of chatRows) {
+                const partnerId  = chat.business_user_id;
+                const partner    = userMap.get(partnerId);
+                if (!partner) continue;
+
+                const bizProfile = bizProfileMap.get(partnerId);
+                const last       = lastMsgMap.get(partnerId) || null;
+                const unread     = unreadMap.get(partnerId)  || 0;
+
+                let lastMsg = null;
+                if (last) {
+                    const pos = last.from_id === userId ? 'right' : 'left';
+                    lastMsg = {
+                        id:             last.id,
+                        from_id:        last.from_id,
+                        to_id:          last.to_id,
+                        text:           last.text           || '',
+                        iv:             last.iv             || null,
+                        tag:            last.tag            || null,
+                        cipher_version: last.cipher_version ?? null,
+                        signal_header:  last.signal_header  || null,
+                        type_two:       last.type_two       || '',
+                        media:          last.media          || '',
+                        stickers:       last.stickers       || '',
+                        time:           last.time,
+                        time_text:      fmtTime(last.time),
+                        seen:           last.seen,
+                        position:       pos,
+                    };
+                }
+
+                let avatarUrl = (bizProfile?.avatar || partner.avatar || '');
+                if (avatarUrl && !avatarUrl.startsWith('http')) {
+                    avatarUrl = siteUrl + '/' + avatarUrl;
+                }
+                if (!bizProfile?.avatar && partner.last_avatar_mod) {
+                    avatarUrl += '?cache=' + partner.last_avatar_mod;
+                }
+
+                result.push({
+                    id:               chat.id,
+                    chat_id:          chat.id,
+                    chat_time:        chat.last_time,
+                    chat_type:        'business',
+                    user_id:          partnerId,
+                    username:         bizProfile?.business_name || partner.name || partner.username || '',
+                    avatar:           avatarUrl,
+                    chat_color:       '',
+                    mute:             { notify: 'yes', call_chat: 'yes', archive: 'no', fav: 'no', pin: 'no' },
+                    user_data:        partner,
+                    business_profile: bizProfile || null,
+                    last_message:     lastMsg,
+                    message_count:    unread,
+                });
+            }
+
+            res.json({ api_status: 200, data: result });
+        } catch (err) {
+            console.error('[Node/chat/business-chats]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to fetch business chats' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
     getChats,
+    getBusinessChats,
     deleteConversation,
     clearHistory,
     getMuteStatus,

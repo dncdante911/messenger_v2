@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.worldmates.messenger.ui.messages.MessagesActivity
+import com.worldmates.messenger.ui.business.BusinessProfileViewActivity
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.LanguageManager
 
@@ -29,11 +30,19 @@ class BusinessDirectoryActivity : AppCompatActivity() {
         setContent {
             WorldMatesThemedApp {
                 BusinessDirectoryScreen(
-                    viewModel   = viewModel,
-                    onBack      = { finish() },
-                    onChatClick = { userId ->
+                    viewModel       = viewModel,
+                    onBack          = { finish() },
+                    onChatClick     = { userId, name, avatarUrl ->
                         val intent = Intent(this, MessagesActivity::class.java)
-                        intent.putExtra("userId", userId)
+                        intent.putExtra("recipient_id", userId)
+                        intent.putExtra("recipient_name", name)
+                        intent.putExtra("recipient_avatar", avatarUrl ?: "")
+                        intent.putExtra("is_business_chat", true)
+                        startActivity(intent)
+                    },
+                    onProfileClick  = { userId ->
+                        val intent = Intent(this, BusinessProfileViewActivity::class.java)
+                        intent.putExtra("user_id", userId)
                         startActivity(intent)
                     }
                 )

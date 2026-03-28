@@ -21,6 +21,12 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
     private val _chatList = MutableStateFlow<List<Chat>>(emptyList())
     val chatList: StateFlow<List<Chat>> = _chatList
 
+    private val _businessChatList = MutableStateFlow<List<Chat>>(emptyList())
+    val businessChatList: StateFlow<List<Chat>> = _businessChatList
+
+    private val _isLoadingBusiness = MutableStateFlow(false)
+    val isLoadingBusiness: StateFlow<Boolean> = _isLoadingBusiness
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -274,12 +280,39 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
     }
 
     /**
+     * Завантажує бізнес-чати (вхідні від клієнтів до власника бізнес-профілю).
+     */
+    fun fetchBusinessChats() {
+        if (UserSession.accessToken == null) return
+        _isLoadingBusiness.value = true
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.api.getBusinessChats(limit = 50, offset = 0)
+                if (response.apiStatus == 200) {
+                    _businessChatList.value = response.data ?: emptyList()
+                    Log.d("ChatsViewModel", "Бізнес-чатів завантажено: ${_businessChatList.value.size}")
+                } else {
+                    Log.e("ChatsViewModel", "fetchBusinessChats error: ${response.errorMessage}")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "fetchBusinessChats exception", e)
+            } finally {
+                _isLoadingBusiness.value = false
+            }
+        }
+    }
+
+    /**
      * Callback для нових повідомлень
      */
     override fun onNewMessage(messageJson: JSONObject) {
         Log.d("ChatsViewModel", "Нове повідомлення отримано")
-        // Оновлюємо список чатів при отриманні нового повідомлення
-        fetchChats()
+        val isBusinessMsg = messageJson.optInt("is_business_chat", 0) == 1
+        if (isBusinessMsg) {
+            fetchBusinessChats()
+        } else {
+            fetchChats()
+        }
     }
 
     override fun onSocketConnected() {

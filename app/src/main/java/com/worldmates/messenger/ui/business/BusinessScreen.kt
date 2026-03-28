@@ -95,9 +95,10 @@ fun BusinessModeScreen(
                         padding   = padding
                     )
                     BusinessScreen.Profile -> BusinessProfileEditScreen(
-                        state     = state,
-                        onSave    = { viewModel.saveProfile(it) },
-                        onBack    = { currentScreen = BusinessScreen.Dashboard }
+                        state              = state,
+                        onSave             = { viewModel.saveProfile(it) },
+                        onBack             = { currentScreen = BusinessScreen.Dashboard },
+                        onAvatarSelected   = { uri -> viewModel.uploadAvatar(uri) }
                     )
                     BusinessScreen.Hours -> BusinessHoursScreen(
                         hours     = state.hours,

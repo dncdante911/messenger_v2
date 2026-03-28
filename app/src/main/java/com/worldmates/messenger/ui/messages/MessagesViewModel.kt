@@ -218,6 +218,7 @@ class MessagesViewModel(application: Application) :
     private var recipientId: Long = 0
     private var groupId: Long = 0
     private var topicId: Long = 0 // 📁 Topic/Subgroup ID for topic-based filtering
+    private var isBusinessChat: Boolean = false
     private var socketManager: SocketManager? = null
     private var mediaUploader: MediaUploader? = null
     private var fileManager: FileManager? = null
@@ -236,9 +237,10 @@ class MessagesViewModel(application: Application) :
     fun getGroupId(): Long = groupId
     fun getTopicId(): Long = topicId
 
-    fun initialize(recipientId: Long) {
-        Log.d(TAG, "🔧 initialize() for user $recipientId")
+    fun initialize(recipientId: Long, isBusinessChat: Boolean = false) {
+        Log.d(TAG, "🔧 initialize() for user $recipientId isBusinessChat=$isBusinessChat")
         this.recipientId = recipientId
+        this.isBusinessChat = isBusinessChat
         this.groupId = 0
         this.topicId = 0
         fetchMessages()
@@ -314,9 +316,10 @@ class MessagesViewModel(application: Application) :
         viewModelScope.launch {
             try {
                 val response = nodeApi.getMessages(
-                    recipientId = recipientId,
-                    limit = Constants.MESSAGES_PAGE_SIZE,
-                    beforeMessageId = beforeMessageId
+                    recipientId    = recipientId,
+                    limit          = Constants.MESSAGES_PAGE_SIZE,
+                    beforeMessageId = beforeMessageId,
+                    isBusinessChat = if (isBusinessChat) 1 else 0
                 )
 
                 if (response.apiStatus == 200 && response.messages != null) {
@@ -356,9 +359,10 @@ class MessagesViewModel(application: Application) :
         viewModelScope.launch {
             try {
                 val response = nodeApi.loadMore(
-                    recipientId     = recipientId,
+                    recipientId    = recipientId,
                     beforeMessageId = oldestId,
-                    limit           = 30
+                    limit          = 30,
+                    isBusinessChat = if (isBusinessChat) 1 else 0
                 )
                 if (response.apiStatus == 200 && response.messages != null) {
                     val older = response.messages.decryptAll()
@@ -682,15 +686,20 @@ class MessagesViewModel(application: Application) :
                         val signalPayload = signalService.encryptForSend(recipientId, text)
                         val resp = if (signalPayload != null) {
                             nodeApi.sendMessage(
-                                recipientId   = recipientId,
-                                text          = signalPayload.ciphertext,
-                                iv            = signalPayload.iv,
-                                tag           = signalPayload.tag,
-                                signalHeader  = signalPayload.signalHeader,
-                                cipherVersion = SignalEncryptionService.CIPHER_VERSION_SIGNAL
+                                recipientId    = recipientId,
+                                text           = signalPayload.ciphertext,
+                                iv             = signalPayload.iv,
+                                tag            = signalPayload.tag,
+                                signalHeader   = signalPayload.signalHeader,
+                                cipherVersion  = SignalEncryptionService.CIPHER_VERSION_SIGNAL,
+                                isBusinessChat = if (isBusinessChat) 1 else 0
                             )
                         } else {
-                            nodeApi.sendMessage(recipientId = recipientId, text = text)
+                            nodeApi.sendMessage(
+                                recipientId    = recipientId,
+                                text           = text,
+                                isBusinessChat = if (isBusinessChat) 1 else 0
+                            )
                         }
                         if (resp.apiStatus == 200) {
                             db.messageDao().hardDeleteMessage(queued.id)
@@ -955,7 +964,7 @@ class MessagesViewModel(application: Application) :
                     val r = groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = stickerUrl)
                     r.apiStatus to r.errorMessage
                 } else {
-                    val r = nodeApi.sendMessage(recipientId = recipientId, text = "", stickers = stickerUrl)
+                    val r = nodeApi.sendMessage(recipientId = recipientId, text = "", stickers = stickerUrl, isBusinessChat = if (isBusinessChat) 1 else 0)
                     r.apiStatus to r.errorMessage
                 }
 
@@ -1377,12 +1386,15 @@ class MessagesViewModel(application: Application) :
                 // Decrypt (suspend — handles Signal v3 and legacy GCM/ECB)
                 val message = decryptMessageFully(rawMessage)
 
-                // Check relevance
+                // Check relevance — must match chat type (business vs personal) to prevent
+                // cross-thread routing that would corrupt the Signal Double Ratchet chain state.
+                val msgIsBusinessChat = messageJson.optInt("is_business_chat", 0) == 1
                 val isRelevant = if (this@MessagesViewModel.groupId != 0L) {
                     message.groupId == this@MessagesViewModel.groupId
                 } else {
-                    (message.fromId == recipientId && message.toId == UserSession.userId) ||
-                    (message.fromId == UserSession.userId && message.toId == recipientId)
+                    msgIsBusinessChat == isBusinessChat &&
+                    ((message.fromId == recipientId && message.toId == UserSession.userId) ||
+                    (message.fromId == UserSession.userId && message.toId == recipientId))
                 }
 
                 if (isRelevant) {
@@ -1721,6 +1733,18 @@ class MessagesViewModel(application: Application) :
         if (this.groupId == groupId) {
             _messages.value = emptyList()
             Log.d(TAG, "Socket: group $groupId history cleared for all")
+        }
+    }
+
+    override fun onPrivateHistoryCleared(fromId: Long, recipientId: Long) {
+        val myId = UserSession.userId ?: return
+        // Applies to this conversation if we're one of the two participants
+        val isOurChat = (this.recipientId == fromId || this.recipientId == recipientId) &&
+                        (myId == fromId || myId == recipientId)
+        if (isOurChat) {
+            permanentlyDeletedIds.addAll(_messages.value.map { it.id })
+            _messages.value = emptyList()
+            Log.d(TAG, "Socket: private history cleared by $fromId (chat with $recipientId)")
         }
     }
 
@@ -2669,6 +2693,34 @@ class MessagesViewModel(application: Application) :
     }
 
     /**
+     * 🗑️ Очистити всю переписку у приватному чаті для обох сторін.
+     * Сервер позначає повідомлення deleted_one=1 + deleted_two=1 та шле
+     * socket-подію private_history_cleared другому учаснику.
+     */
+    fun clearPrivateChatHistoryForAll(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (recipientId == 0L || groupId != 0L) return
+        viewModelScope.launch {
+            try {
+                val response = nodeApi.clearHistory(recipientId = recipientId, clearType = "everyone")
+                if (response.apiStatus == 200) {
+                    permanentlyDeletedIds.addAll(_messages.value.map { it.id })
+                    _messages.value = emptyList()
+                    onSuccess()
+                    Log.d(TAG, "🗑️ Private chat history cleared for both parties")
+                } else {
+                    onError(response.errorMessage ?: "Не вдалося очистити історію")
+                }
+            } catch (e: Exception) {
+                onError("Помилка: ${e.localizedMessage}")
+                Log.e(TAG, "❌ Error clearing private chat history for all", e)
+            }
+        }
+    }
+
+    /**
      * 🗑️ Очистити історію групи для всіх (тільки адміни)
      */
     fun clearGroupHistoryForAll(
@@ -2772,9 +2824,10 @@ class MessagesViewModel(application: Application) :
                 if (recipientId != 0L && groupId == 0L) {
                     // ── Private chat → Node.js ────────────────────────────────
                     val response = nodeApi.getMessages(
-                        recipientId = recipientId,
-                        limit = 15,
-                        beforeMessageId = 0
+                        recipientId    = recipientId,
+                        limit          = 15,
+                        beforeMessageId = 0,
+                        isBusinessChat = if (isBusinessChat) 1 else 0
                     )
                     if (response.apiStatus == 200 && response.messages != null) {
                         val newMessages = response.messages.decryptAll()
@@ -2783,6 +2836,27 @@ class MessagesViewModel(application: Application) :
                         if (trulyNew.isNotEmpty()) {
                             setMessagesSafe((_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp })
                             Log.d(TAG, "🔄 Polling (Node.js): +${trulyNew.size} нових")
+                        }
+                        // Detect messages deleted "for everyone" that weren't removed via socket.
+                        // Any local message whose timestamp falls within the server's response window
+                        // but is absent from the response was deleted on the server side.
+                        if (newMessages.isNotEmpty()) {
+                            val oldestServerTs = newMessages.minOf { it.timeStamp }
+                            val serverIds = newMessages.map { it.id }.toSet()
+                            val likelyDeleted = _messages.value.filter { local ->
+                                local.timeStamp >= oldestServerTs &&
+                                local.id !in serverIds &&
+                                !local.isLocalPending &&
+                                local.id !in permanentlyDeletedIds
+                            }
+                            if (likelyDeleted.isNotEmpty()) {
+                                val deletedIds = likelyDeleted.map { it.id }.toSet()
+                                withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                                    permanentlyDeletedIds.addAll(deletedIds)
+                                    _messages.update { list -> list.filter { it.id !in deletedIds } }
+                                }
+                                Log.d(TAG, "🔄 Polling: виявлено ${likelyDeleted.size} видалених (для всіх)")
+                            }
                         }
                     }
                     return@launch
@@ -2798,6 +2872,25 @@ class MessagesViewModel(application: Application) :
                     if (trulyNew.isNotEmpty()) {
                         _messages.value = (_messages.value + trulyNew).distinctBy { it.id }.sortedBy { it.timeStamp }
                         Log.d(TAG, "🔄 Polling: додано ${trulyNew.size} нових повідомлень")
+                    }
+                    // Same deletion-detection fallback for group chats.
+                    if (newMessages.isNotEmpty()) {
+                        val oldestServerTs = newMessages.minOf { it.timeStamp }
+                        val serverIds = newMessages.map { it.id }.toSet()
+                        val likelyDeleted = _messages.value.filter { local ->
+                            local.timeStamp >= oldestServerTs &&
+                            local.id !in serverIds &&
+                            !local.isLocalPending &&
+                            local.id !in permanentlyDeletedIds
+                        }
+                        if (likelyDeleted.isNotEmpty()) {
+                            val deletedIds = likelyDeleted.map { it.id }.toSet()
+                            withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                                permanentlyDeletedIds.addAll(deletedIds)
+                                _messages.update { list -> list.filter { it.id !in deletedIds } }
+                            }
+                            Log.d(TAG, "🔄 Polling (group): виявлено ${likelyDeleted.size} видалених")
+                        }
                     }
                 }
             } catch (e: Exception) {

@@ -1,15 +1,21 @@
 package com.worldmates.messenger.ui.business
 
 import android.app.Application
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
 
 data class BusinessUiState(
     val isLoading: Boolean = false,
@@ -326,6 +332,38 @@ class BusinessViewModel(application: Application) : AndroidViewModel(application
             } catch (e: Exception) {
                 Log.e(TAG, "revokeApiKey error", e)
                 _state.update { it.copy(isApiKeyLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    // ── Avatar ────────────────────────────────────────────────────────────────
+
+    fun uploadAvatar(uri: Uri) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                val context = getApplication<Application>()
+                val inputStream = context.contentResolver.openInputStream(uri)
+                    ?: throw Exception("Cannot read image")
+                val tempFile = File(context.cacheDir, "biz_avatar_${System.currentTimeMillis()}.jpg")
+                tempFile.outputStream().use { out -> inputStream.copyTo(out) }
+                inputStream.close()
+
+                val requestBody = tempFile.asRequestBody("image/*".toMediaTypeOrNull())
+                val filePart = MultipartBody.Part.createFormData("avatar", tempFile.name, requestBody)
+
+                val response = NodeRetrofitClient.api.uploadAvatar(filePart)
+                tempFile.delete()
+
+                if (response.apiStatus == 200) {
+                    response.avatar?.url?.let { url -> UserSession.avatar = url }
+                    _state.update { it.copy(isLoading = false, successMsg = "avatar_saved") }
+                } else {
+                    _state.update { it.copy(isLoading = false, error = response.errorMessage) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "uploadAvatar error", e)
+                _state.update { it.copy(isLoading = false, error = e.message) }
             }
         }
     }

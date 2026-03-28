@@ -138,6 +138,7 @@ async function buildMessage(ctx, msg, userId) {
         id:             msg.id,
         from_id:        msg.from_id,
         to_id:          msg.to_id,
+        is_business_chat: msg.is_business_chat || 0,
         // Encrypted text — client decrypts locally for both GCM and Signal
         text:           msg.text           || '',
         iv:             msg.iv             || null,
@@ -251,9 +252,11 @@ function getMessages(ctx, io) {
             const afterMessageId  = parseInt(req.body.after_message_id)  || 0;
             const beforeMessageId = parseInt(req.body.before_message_id) || 0;
             const messageId       = parseInt(req.body.message_id)         || 0;
+            const isBusinessChat  = parseInt(req.body.is_business_chat)  === 1 ? 1 : 0;
 
             const where = {
                 page_id: 0,
+                is_business_chat: isBusinessChat,
                 [Op.or]: [
                     { from_id: recipientId, to_id: userId,      deleted_two: '0' },
                     { from_id: userId,      to_id: recipientId, deleted_one: '0' },
@@ -304,10 +307,11 @@ function sendMessage(ctx, io) {
             const storyId     = parseInt(req.body.story_id) || 0;
             const lat         = req.body.lat      || '0';
             const lng         = req.body.lng      || '0';
-            const stickers    = req.body.stickers  || '';
-            const contact     = req.body.contact   || '';
+            const stickers       = req.body.stickers  || '';
+            const contact        = req.body.contact   || '';
             // remove_at: Unix timestamp (seconds) для самознищення, 0 = без таймеру
-            const removeAt    = parseInt(req.body.remove_at) || 0;
+            const removeAt       = parseInt(req.body.remove_at) || 0;
+            const isBusinessChat = parseInt(req.body.is_business_chat) === 1 ? 1 : 0;
 
             if (!recipientId || isNaN(recipientId))
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
@@ -369,40 +373,52 @@ function sendMessage(ctx, io) {
             }
 
             const row = await ctx.wo_messages.create({
-                from_id:        userId,
-                to_id:          recipientId,
+                from_id:          userId,
+                to_id:            recipientId,
                 // Encrypted fields
-                text:           enc.text,
-                text_ecb:       enc.text_ecb,
-                text_preview:   enc.text_preview,
-                iv:             enc.iv,
-                tag:            enc.tag,
-                cipher_version: enc.cipher_version,
-                signal_header:  signalHeader,
+                text:             enc.text,
+                text_ecb:         enc.text_ecb,
+                text_preview:     enc.text_preview,
+                iv:               enc.iv,
+                tag:              enc.tag,
+                cipher_version:   enc.cipher_version,
+                signal_header:    signalHeader,
                 // Other fields
                 stickers,
-                media:         '',
-                mediaFileName: '',
-                time:          now,
-                seen:          0,
-                reply_id:      replyId,
-                story_id:      storyId,
+                media:            '',
+                mediaFileName:    '',
+                time:             now,
+                seen:             0,
+                reply_id:         replyId,
+                story_id:         storyId,
                 lat,
                 lng,
-                page_id:       0,
-                type_two:      contact ? 'contact' : '',
-                forward:       0,
-                edited:        0,
-                remove_at:     removeAt,
+                page_id:          0,
+                is_business_chat: isBusinessChat,
+                type_two:         contact ? 'contact' : '',
+                forward:          0,
+                edited:           0,
+                remove_at:        removeAt,
             });
 
-            // Обновляем метаданные переписки
-            await funcs.updateOrCreate(ctx.wo_userschat,
-                { user_id: userId,      conversation_user_id: recipientId },
-                { time: now, user_id: userId, conversation_user_id: recipientId });
-            await funcs.updateOrCreate(ctx.wo_userschat,
-                { user_id: recipientId, conversation_user_id: userId },
-                { time: now, user_id: recipientId, conversation_user_id: userId });
+            // Оновлюємо метадані переписки
+            if (isBusinessChat === 1 && ctx.wm_business_chats) {
+                // Business chat: update wm_business_chats for both sides
+                await funcs.updateOrCreate(ctx.wm_business_chats,
+                    { user_id: userId,      business_user_id: recipientId },
+                    { user_id: userId,      business_user_id: recipientId, last_message_id: row.id, last_time: now });
+                await funcs.updateOrCreate(ctx.wm_business_chats,
+                    { user_id: recipientId, business_user_id: userId },
+                    { user_id: recipientId, business_user_id: userId,      last_message_id: row.id, last_time: now });
+            } else {
+                // Personal chat: update wo_userschat (original behaviour)
+                await funcs.updateOrCreate(ctx.wo_userschat,
+                    { user_id: userId,      conversation_user_id: recipientId },
+                    { time: now, user_id: userId, conversation_user_id: recipientId });
+                await funcs.updateOrCreate(ctx.wo_userschat,
+                    { user_id: recipientId, conversation_user_id: userId },
+                    { time: now, user_id: recipientId, conversation_user_id: userId });
+            }
 
             const sender  = await getUserBasicData(ctx, userId);
             const msgData = await buildMessage(ctx, row.toJSON ? row.toJSON() : row, userId);
@@ -494,19 +510,29 @@ function sendMessage(ctx, io) {
             });
             // ── Конец бот-детекции ──────────────────────────────────────────
 
-            // ── Business auto-reply / greeting (non-blocking) ───────────────
-            if (ctx.handleBusinessAutoReply && ctx.wm_business_profile) {
+            // ── Business auto-reply / greeting (non-blocking, business chats only) ──
+            if (isBusinessChat === 1 && ctx.handleBusinessAutoReply && ctx.wm_business_profile) {
+                // Track messages_received stat (non-blocking)
+                const today = new Date().toISOString().slice(0, 10);
+                ctx.sequelize.query(
+                    `INSERT INTO wm_business_stats (user_id, date, messages_received)
+                     VALUES (?, ?, 1)
+                     ON DUPLICATE KEY UPDATE messages_received = messages_received + 1`,
+                    { replacements: [recipientId, today] }
+                ).catch(() => {});
+
                 setImmediate(async () => {
                     try {
-                        // Determine if this is the very first message in the conversation
+                        // Count only business-chat messages to determine first contact
                         const prevCount = await ctx.wo_messages.count({
-                            where: { from_id: userId, to_id: recipientId },
+                            where: { from_id: userId, to_id: recipientId, is_business_chat: 1 },
                         });
                         const isFirstMessage = prevCount <= 1; // <=1 because current msg is already saved
                         await ctx.handleBusinessAutoReply(ctx, io, {
                             senderId:      userId,
                             recipientId,
                             isFirstMessage,
+                            isBusinessChat: 1,
                         });
                     } catch (bizErr) {
                         console.error('[Business/auto-reply]', bizErr.message);
@@ -531,12 +557,14 @@ function loadMore(ctx, io) {
             const recipientId     = parseInt(req.body.recipient_id);
             const beforeMessageId = parseInt(req.body.before_message_id) || 0;
             const limit           = Math.min(parseInt(req.body.limit) || 30, 100);
+            const isBusinessChat  = parseInt(req.body.is_business_chat) === 1 ? 1 : 0;
 
             if (!recipientId || isNaN(recipientId))
                 return res.status(400).json({ api_status: 400, error_message: 'recipient_id is required' });
 
             const where = {
                 page_id: 0,
+                is_business_chat: isBusinessChat,
                 [Op.or]: [
                     { from_id: recipientId, to_id: userId,      deleted_two: '0' },
                     { from_id: userId,      to_id: recipientId, deleted_one: '0' },
