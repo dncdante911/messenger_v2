@@ -91,7 +91,7 @@ async function buildMessage(ctx, msg, userId) {
     if (msg.reply_id && msg.reply_id > 0) {
         const r = await ctx.wo_messages.findOne({
             attributes: ['id', 'from_id', 'text', 'iv', 'tag', 'cipher_version',
-                         'signal_header', 'media', 'type', 'type_two', 'time'],
+                         'signal_header', 'media', 'type_two', 'time'],
             where: { id: msg.reply_id },
             raw:   true,
         });

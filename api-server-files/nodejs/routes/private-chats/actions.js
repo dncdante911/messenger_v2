@@ -380,7 +380,7 @@ function getMediaAutoDeleteSetting(ctx) {
                 seconds = setting ? (setting.media_auto_delete_seconds || 0) : 0;
             } catch (dbErr) {
                 // Table may not exist yet (migration pending) — return default 0
-                if (!dbErr.message.includes("doesn't exist") && !dbErr.message.includes('no such table')) throw dbErr;
+                console.warn('[Node/chat/media-auto-delete-setting] DB fallback:', dbErr.message);
             }
 
             res.json({ api_status: 200, seconds, chat_id: chatId });

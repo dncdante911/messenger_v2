@@ -589,7 +589,7 @@ function getBusinessChats(ctx, io) {
             let bizProfileMap = new Map();
             if (ctx.wm_business_profile) {
                 const bizRows = await ctx.wm_business_profile.findAll({
-                    attributes: ['user_id', 'business_name', 'avatar'],
+                    attributes: ['user_id', 'business_name'],
                     where: { user_id: { [Op.in]: partnerIds } },
                     raw: true,
                 });
@@ -672,11 +672,11 @@ function getBusinessChats(ctx, io) {
                     };
                 }
 
-                let avatarUrl = (bizProfile?.avatar || partner.avatar || '');
+                let avatarUrl = (partner.avatar || '');
                 if (avatarUrl && !avatarUrl.startsWith('http')) {
                     avatarUrl = siteUrl + '/' + avatarUrl;
                 }
-                if (!bizProfile?.avatar && partner.last_avatar_mod) {
+                if (partner.last_avatar_mod) {
                     avatarUrl += '?cache=' + partner.last_avatar_mod;
                 }
 
