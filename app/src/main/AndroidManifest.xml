@@ -468,12 +468,21 @@
             </intent-filter>
         </activity>
 
-        <!-- Message Notification Service (Socket.IO push notifications, no Firebase) -->
+        <!-- Message Notification Service (Socket.IO push notifications) -->
         <service
             android:name=".services.MessageNotificationService"
             android:exported="false"
             android:foregroundServiceType="dataSync"
             android:stopWithTask="false" />
+
+        <!-- FCM Service: fallback push when Socket.IO service is killed by OS -->
+        <service
+            android:name=".services.WMFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <!-- Boot Receiver: перезапуск сервісу після ребуту та оновлення додатку -->
         <receiver

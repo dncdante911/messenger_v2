@@ -12,6 +12,7 @@ import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import timber.log.Timber
 import com.worldmates.messenger.data.AccountManager
+import com.worldmates.messenger.services.WMFirebaseMessagingService
 import com.worldmates.messenger.update.AppUpdateManager
 import com.worldmates.messenger.services.NotificationKeepAliveManager
 import com.worldmates.messenger.services.SecretChatCleanupWorker
@@ -51,9 +52,13 @@ class WMApplication : MultiDexApplication(), ImageLoaderFactory {
             Timber.plant(Timber.DebugTree())
         }
 
-        // Ініціалізація keep-alive механізмів для push-сповіщень (без Firebase)
+        // Ініціалізація keep-alive механізмів для push-сповіщень
         // Перезапускає MessageNotificationService якщо користувач залогінений
         NotificationKeepAliveManager.initialize(this)
+
+        // FCM fallback: register/refresh token so server can send push when
+        // the Socket.IO service is killed by the OS (MIUI, OxygenOS, etc.)
+        WMFirebaseMessagingService.registerToken(this)
 
         AppUpdateManager.startPeriodicChecks(intervalMinutes = 30)
 

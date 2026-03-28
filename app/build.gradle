@@ -5,6 +5,7 @@ plugins {
     id 'kotlin-android'
     id 'org.jetbrains.kotlin.plugin.compose'  // КРИТИЧНО для Kotlin 2.0+ и Compose
     id 'com.google.devtools.ksp'  // KSP для Room Database
+    id 'com.google.gms.google-services'  // FCM / Firebase
 }
 
 android {
@@ -213,6 +214,12 @@ dependencies {
 
     // ==================== HTML PARSING (для превью посилань) ====================
     implementation 'org.jsoup:jsoup:1.17.2'
+
+    // ==================== FIREBASE / FCM ====================
+    // FCM is used as a fallback wake-up channel when the Socket.IO
+    // ForegroundService is killed by the OS (aggressive battery saving, etc.)
+    implementation platform('com.google.firebase:firebase-bom:33.7.0')
+    implementation 'com.google.firebase:firebase-messaging-ktx'
 
     // ==================== TESTING ====================
     testImplementation 'junit:junit:4.13.2'

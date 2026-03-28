@@ -47,14 +47,23 @@ function log(msg) {
 function resolveFilePath(mediaValue, typeTwo) {
     if (!mediaValue || mediaValue === 'deleted') return null;
 
-    // If the stored path already starts with 'upload/', use it directly
+    let fullPath;
     if (mediaValue.startsWith('upload/')) {
-        return path.join(SITE_ROOT, mediaValue);
+        fullPath = path.join(SITE_ROOT, mediaValue);
+    } else {
+        const dir = TYPE_DIR_MAP[typeTwo] || TYPE_DIR_MAP['file'];
+        fullPath = path.join(SITE_ROOT, dir, mediaValue);
     }
 
-    // Otherwise build path from type_two → directory mapping
-    const dir = TYPE_DIR_MAP[typeTwo] || TYPE_DIR_MAP['file'];
-    return path.join(SITE_ROOT, dir, mediaValue);
+    // Security: reject path traversal attempts (e.g. media = '../../etc/passwd')
+    const resolved = path.resolve(fullPath);
+    const siteRoot = path.resolve(SITE_ROOT);
+    if (!resolved.startsWith(siteRoot + path.sep) && resolved !== siteRoot) {
+        log(`SECURITY: Blocked path traversal for media value: ${mediaValue}`);
+        return null;
+    }
+
+    return resolved;
 }
 
 async function runCleanup(sequelize, io) {
