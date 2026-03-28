@@ -138,11 +138,13 @@ function getChats(ctx, io) {
                    SELECT partner_id, MAX(id) AS max_id FROM (
                      SELECT to_id   AS partner_id, id
                      FROM Wo_Messages
-                     WHERE from_id = ? AND to_id IN (${ph}) AND page_id = 0 AND deleted_one = '0'
+                     WHERE from_id = ? AND to_id IN (${ph}) AND page_id = 0
+                       AND is_business_chat = 0 AND deleted_one = '0'
                      UNION ALL
                      SELECT from_id AS partner_id, id
                      FROM Wo_Messages
-                     WHERE to_id = ? AND from_id IN (${ph}) AND page_id = 0 AND deleted_two = '0'
+                     WHERE to_id = ? AND from_id IN (${ph}) AND page_id = 0
+                       AND is_business_chat = 0 AND deleted_two = '0'
                    ) combined
                    GROUP BY partner_id
                  ) latest ON m.id = latest.max_id`,
@@ -157,12 +159,13 @@ function getChats(ctx, io) {
                 lastMsgMap.set(pid, msg);
             }
 
-            // 5 ── unread counts per partner (messages sent to me, unseen)
+            // 5 ── unread counts per partner (messages sent to me, unseen, personal only)
             const unreadRows = await ctx.sequelize.query(
                 `SELECT from_id, COUNT(*) AS cnt
                  FROM Wo_Messages
                  WHERE to_id = ? AND from_id IN (${ph})
                    AND seen = 0 AND deleted_two = '0' AND page_id = 0
+                   AND is_business_chat = 0
                  GROUP BY from_id`,
                 {
                     replacements: [userId, ...partnerIds],
