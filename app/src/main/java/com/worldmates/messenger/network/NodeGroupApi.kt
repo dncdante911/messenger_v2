@@ -190,6 +190,8 @@ interface NodeGroupApi {
         @Field("group_id")       groupId:       Long,
         @Field("text")           text:          String,
         @Field("reply_id")       replyId:       Long    = 0,
+        @Field("reply_to_text")  replyToText:   String? = null,
+        @Field("reply_to_name")  replyToName:   String? = null,
         @Field("stickers")       stickers:      String? = null,
         // ── Signal Sender Key fields (cipher_version=3 only) ─────────────────
         @Field("iv")             iv:            String? = null,

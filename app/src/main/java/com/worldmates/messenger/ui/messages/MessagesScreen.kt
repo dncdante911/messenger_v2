@@ -1664,7 +1664,7 @@ fun MessagesScreen(
                                 showEditScopeDialog = true
                             } else {
                                 // Надсилаємо нове повідомлення
-                                viewModel.sendMessage(messageText, replyToMessage?.id)
+                                viewModel.sendMessage(messageText, replyToMessage)
                                 messageText = ""
                                 viewModel.updateDraftText("") // Явно очищаємо черновик
                                 replyToMessage = null  // Очищаємо reply після відправки

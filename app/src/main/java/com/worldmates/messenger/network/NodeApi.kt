@@ -73,6 +73,8 @@ interface NodeApi {
         @Field("recipient_id")   recipientId: Long,
         @Field("text")           text: String,
         @Field("reply_id")       replyId: Long?    = null,
+        @Field("reply_to_text")  replyToText: String? = null,
+        @Field("reply_to_name")  replyToName: String? = null,
         @Field("story_id")       storyId: Long?    = null,
         @Field("stickers")       stickers: String? = null,
         @Field("lat")            lat: String?      = null,
