@@ -218,6 +218,7 @@ class MessagesViewModel(application: Application) :
     private var recipientId: Long = 0
     private var groupId: Long = 0
     private var topicId: Long = 0 // 📁 Topic/Subgroup ID for topic-based filtering
+    private var isBusinessChat: Boolean = false
     private var socketManager: SocketManager? = null
     private var mediaUploader: MediaUploader? = null
     private var fileManager: FileManager? = null
@@ -236,9 +237,10 @@ class MessagesViewModel(application: Application) :
     fun getGroupId(): Long = groupId
     fun getTopicId(): Long = topicId
 
-    fun initialize(recipientId: Long) {
-        Log.d(TAG, "🔧 initialize() for user $recipientId")
+    fun initialize(recipientId: Long, isBusinessChat: Boolean = false) {
+        Log.d(TAG, "🔧 initialize() for user $recipientId isBusinessChat=$isBusinessChat")
         this.recipientId = recipientId
+        this.isBusinessChat = isBusinessChat
         this.groupId = 0
         this.topicId = 0
         fetchMessages()
@@ -314,9 +316,10 @@ class MessagesViewModel(application: Application) :
         viewModelScope.launch {
             try {
                 val response = nodeApi.getMessages(
-                    recipientId = recipientId,
-                    limit = Constants.MESSAGES_PAGE_SIZE,
-                    beforeMessageId = beforeMessageId
+                    recipientId    = recipientId,
+                    limit          = Constants.MESSAGES_PAGE_SIZE,
+                    beforeMessageId = beforeMessageId,
+                    isBusinessChat = if (isBusinessChat) 1 else 0
                 )
 
                 if (response.apiStatus == 200 && response.messages != null) {
@@ -356,9 +359,10 @@ class MessagesViewModel(application: Application) :
         viewModelScope.launch {
             try {
                 val response = nodeApi.loadMore(
-                    recipientId     = recipientId,
+                    recipientId    = recipientId,
                     beforeMessageId = oldestId,
-                    limit           = 30
+                    limit          = 30,
+                    isBusinessChat = if (isBusinessChat) 1 else 0
                 )
                 if (response.apiStatus == 200 && response.messages != null) {
                     val older = response.messages.decryptAll()
@@ -448,21 +452,23 @@ class MessagesViewModel(application: Application) :
                         Log.d(TAG, "📤 [Signal] Sending E2EE msg to user $recipientId " +
                             "(header=${signalPayload.signalHeader.take(40)}...)")
                         nodeApi.sendMessage(
-                            recipientId   = recipientId,
-                            text          = signalPayload.ciphertext,
-                            iv            = signalPayload.iv,
-                            tag           = signalPayload.tag,
-                            signalHeader  = signalPayload.signalHeader,
-                            cipherVersion = SignalEncryptionService.CIPHER_VERSION_SIGNAL,
-                            replyId       = replyToId
+                            recipientId    = recipientId,
+                            text           = signalPayload.ciphertext,
+                            iv             = signalPayload.iv,
+                            tag            = signalPayload.tag,
+                            signalHeader   = signalPayload.signalHeader,
+                            cipherVersion  = SignalEncryptionService.CIPHER_VERSION_SIGNAL,
+                            replyId        = replyToId,
+                            isBusinessChat = if (isBusinessChat) 1 else 0
                         )
                     } else {
                         // Fallback: server-side AES-256-GCM (cipher_version=2)
                         Log.w(TAG, "⚠️ [Signal] Encryption failed, falling back to GCM for user $recipientId")
                         nodeApi.sendMessage(
-                            recipientId = recipientId,
-                            text        = text,
-                            replyId     = replyToId
+                            recipientId    = recipientId,
+                            text           = text,
+                            replyId        = replyToId,
+                            isBusinessChat = if (isBusinessChat) 1 else 0
                         )
                     }
 
@@ -670,15 +676,20 @@ class MessagesViewModel(application: Application) :
                         val signalPayload = signalService.encryptForSend(recipientId, text)
                         val resp = if (signalPayload != null) {
                             nodeApi.sendMessage(
-                                recipientId   = recipientId,
-                                text          = signalPayload.ciphertext,
-                                iv            = signalPayload.iv,
-                                tag           = signalPayload.tag,
-                                signalHeader  = signalPayload.signalHeader,
-                                cipherVersion = SignalEncryptionService.CIPHER_VERSION_SIGNAL
+                                recipientId    = recipientId,
+                                text           = signalPayload.ciphertext,
+                                iv             = signalPayload.iv,
+                                tag            = signalPayload.tag,
+                                signalHeader   = signalPayload.signalHeader,
+                                cipherVersion  = SignalEncryptionService.CIPHER_VERSION_SIGNAL,
+                                isBusinessChat = if (isBusinessChat) 1 else 0
                             )
                         } else {
-                            nodeApi.sendMessage(recipientId = recipientId, text = text)
+                            nodeApi.sendMessage(
+                                recipientId    = recipientId,
+                                text           = text,
+                                isBusinessChat = if (isBusinessChat) 1 else 0
+                            )
                         }
                         if (resp.apiStatus == 200) {
                             db.messageDao().hardDeleteMessage(queued.id)
@@ -943,7 +954,7 @@ class MessagesViewModel(application: Application) :
                     val r = groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = stickerUrl)
                     r.apiStatus to r.errorMessage
                 } else {
-                    val r = nodeApi.sendMessage(recipientId = recipientId, text = "", stickers = stickerUrl)
+                    val r = nodeApi.sendMessage(recipientId = recipientId, text = "", stickers = stickerUrl, isBusinessChat = if (isBusinessChat) 1 else 0)
                     r.apiStatus to r.errorMessage
                 }
 
@@ -2800,9 +2811,10 @@ class MessagesViewModel(application: Application) :
                 if (recipientId != 0L && groupId == 0L) {
                     // ── Private chat → Node.js ────────────────────────────────
                     val response = nodeApi.getMessages(
-                        recipientId = recipientId,
-                        limit = 15,
-                        beforeMessageId = 0
+                        recipientId    = recipientId,
+                        limit          = 15,
+                        beforeMessageId = 0,
+                        isBusinessChat = if (isBusinessChat) 1 else 0
                     )
                     if (response.apiStatus == 200 && response.messages != null) {
                         val newMessages = response.messages.decryptAll()

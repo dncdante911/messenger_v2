@@ -124,7 +124,7 @@ class MessagesActivity : AppCompatActivity() {
         if (isGroup) {
             viewModel.initializeGroup(groupId, topicId)
         } else {
-            viewModel.initialize(recipientId)
+            viewModel.initialize(recipientId, isBusinessChat)
         }
 
         // Ініціалізуємо ThemeManager
