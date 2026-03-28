@@ -301,7 +301,9 @@ function sendMessage(ctx, io) {
             const userId      = req.userId;
             const recipientId = parseInt(req.body.recipient_id);
             const plaintext   = (req.body.text || '').trim();
-            const replyId     = parseInt(req.body.reply_id) || 0;
+            const replyId         = parseInt(req.body.reply_id) || 0;
+            const clientReplyText = (req.body.reply_to_text || '').trim();
+            const clientReplyName = (req.body.reply_to_name || '').trim();
             const storyId     = parseInt(req.body.story_id) || 0;
             const lat         = req.body.lat      || '0';
             const lng         = req.body.lng      || '0';
@@ -420,6 +422,14 @@ function sendMessage(ctx, io) {
 
             const sender  = await getUserBasicData(ctx, userId);
             const msgData = await buildMessage(ctx, row.toJSON ? row.toJSON() : row, userId);
+
+            // If the client sent reply text/name (needed for Signal E2EE where server
+            // cannot decrypt the replied message), use them as overrides so the sender
+            // immediately sees the correct preview instead of a generic media label.
+            if (replyId > 0) {
+                if (clientReplyText) msgData.reply_to_text = clientReplyText;
+                if (clientReplyName) msgData.reply_to_name = clientReplyName;
+            }
 
             // Real-time доставка через Socket.IO
             // Emit only ONE event per recipient — previously both 'new_message' and

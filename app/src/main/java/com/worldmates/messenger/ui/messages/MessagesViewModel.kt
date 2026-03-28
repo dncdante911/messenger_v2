@@ -433,11 +433,15 @@ class MessagesViewModel(application: Application) :
     /**
      * Надсилает текстовое сообщение
      */
-    fun sendMessage(text: String, replyToId: Long? = null) {
+    fun sendMessage(text: String, replyToMessage: Message? = null) {
         if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L) || text.isBlank()) {
             _error.value = "Не можна надіслати порожнє повідомлення"
             return
         }
+
+        val replyToId   = replyToMessage?.id
+        val replyToText = replyToMessage?.decryptedText?.takeIf { it.isNotBlank() }
+        val replyToName = replyToMessage?.senderName?.takeIf { it.isNotBlank() }
 
         _isLoading.value = true
 
@@ -452,23 +456,25 @@ class MessagesViewModel(application: Application) :
                         Log.d(TAG, "📤 [Signal] Sending E2EE msg to user $recipientId " +
                             "(header=${signalPayload.signalHeader.take(40)}...)")
                         nodeApi.sendMessage(
-                            recipientId    = recipientId,
-                            text           = signalPayload.ciphertext,
-                            iv             = signalPayload.iv,
-                            tag            = signalPayload.tag,
-                            signalHeader   = signalPayload.signalHeader,
-                            cipherVersion  = SignalEncryptionService.CIPHER_VERSION_SIGNAL,
-                            replyId        = replyToId,
-                            isBusinessChat = if (isBusinessChat) 1 else 0
+                            recipientId   = recipientId,
+                            text          = signalPayload.ciphertext,
+                            iv            = signalPayload.iv,
+                            tag           = signalPayload.tag,
+                            signalHeader  = signalPayload.signalHeader,
+                            cipherVersion = SignalEncryptionService.CIPHER_VERSION_SIGNAL,
+                            replyId       = replyToId,
+                            replyToText   = replyToText,
+                            replyToName   = replyToName
                         )
                     } else {
                         // Fallback: server-side AES-256-GCM (cipher_version=2)
                         Log.w(TAG, "⚠️ [Signal] Encryption failed, falling back to GCM for user $recipientId")
                         nodeApi.sendMessage(
-                            recipientId    = recipientId,
-                            text           = text,
-                            replyId        = replyToId,
-                            isBusinessChat = if (isBusinessChat) 1 else 0
+                            recipientId = recipientId,
+                            text        = text,
+                            replyId     = replyToId,
+                            replyToText = replyToText,
+                            replyToName = replyToName
                         )
                     }
 
@@ -542,6 +548,8 @@ class MessagesViewModel(application: Application) :
                         groupId       = groupId,
                         text          = groupSignalPayload.ciphertext,
                         replyId       = replyToId ?: 0L,
+                        replyToText   = replyToText,
+                        replyToName   = replyToName,
                         iv            = groupSignalPayload.iv,
                         tag           = groupSignalPayload.tag,
                         signalHeader  = groupSignalPayload.signalHeader,
@@ -551,9 +559,11 @@ class MessagesViewModel(application: Application) :
                     // Fallback: сервер шифрує AES-256-GCM (cipher_version=2)
                     Log.w(TAG, "⚠️ [Signal/Group] Шифрування не вдалося, відправляємо без Signal для групи $groupId")
                     groupApi.sendGroupMessage(
-                        groupId  = groupId,
-                        text     = text,
-                        replyId  = replyToId ?: 0L
+                        groupId     = groupId,
+                        text        = text,
+                        replyId     = replyToId ?: 0L,
+                        replyToText = replyToText,
+                        replyToName = replyToName
                     )
                 }
 

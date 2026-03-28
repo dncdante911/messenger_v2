@@ -71,14 +71,16 @@ interface NodeApi {
     @FormUrlEncoded
     @POST(Constants.NODE_CHAT_SEND)
     suspend fun sendMessage(
-        @Field("recipient_id")    recipientId: Long,
-        @Field("text")            text: String,
-        @Field("reply_id")        replyId: Long?    = null,
-        @Field("story_id")        storyId: Long?    = null,
-        @Field("stickers")        stickers: String? = null,
-        @Field("lat")             lat: String?      = null,
-        @Field("lng")             lng: String?      = null,
-        @Field("contact")         contact: String?  = null,
+        @Field("recipient_id")   recipientId: Long,
+        @Field("text")           text: String,
+        @Field("reply_id")       replyId: Long?    = null,
+        @Field("reply_to_text")  replyToText: String? = null,
+        @Field("reply_to_name")  replyToName: String? = null,
+        @Field("story_id")       storyId: Long?    = null,
+        @Field("stickers")       stickers: String? = null,
+        @Field("lat")            lat: String?      = null,
+        @Field("lng")            lng: String?      = null,
+        @Field("contact")        contact: String?  = null,
         // ── Signal Protocol fields (cipher_version=3 only) ──────────────────
         @Field("iv")              iv: String?           = null,
         @Field("tag")             tag: String?          = null,

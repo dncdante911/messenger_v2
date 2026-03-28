@@ -504,7 +504,7 @@ fun MessageBubbleComposable(
                             }
                             val replyPreview = when {
                                 !message.replyToText.isNullOrBlank() -> message.replyToText!!
-                                else -> "📎 Медіа"
+                                else -> "🔒 Повідомлення"
                             }
                             // Компактний блок цитати — TG-стиль
                             Row(
@@ -1468,7 +1468,7 @@ fun ReplyIndicator(
             replyToMessage.type == "image"  -> "📷 Фото"
             replyToMessage.type == "sticker"-> "🎭 Стікер"
             !replyToMessage.mediaUrl.isNullOrBlank() -> "📎 Медіа"
-            else -> "..."
+            else -> "🔒 Повідомлення"
         }
 
         Row(
