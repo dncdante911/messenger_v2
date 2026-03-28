@@ -32,10 +32,12 @@ class BusinessDirectoryActivity : AppCompatActivity() {
                 BusinessDirectoryScreen(
                     viewModel       = viewModel,
                     onBack          = { finish() },
-                    onChatClick     = { userId, name ->
+                    onChatClick     = { userId, name, avatarUrl ->
                         val intent = Intent(this, MessagesActivity::class.java)
                         intent.putExtra("recipient_id", userId)
                         intent.putExtra("recipient_name", name)
+                        intent.putExtra("recipient_avatar", avatarUrl ?: "")
+                        intent.putExtra("is_business_chat", true)
                         startActivity(intent)
                     },
                     onProfileClick  = { userId ->

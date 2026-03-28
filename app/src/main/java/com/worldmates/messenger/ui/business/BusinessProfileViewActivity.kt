@@ -101,10 +101,12 @@ class BusinessProfileViewActivity : AppCompatActivity() {
                 BusinessProfileViewScreen(
                     viewModel = viewModel,
                     onBack    = { finish() },
-                    onChat    = { uid, name ->
+                    onChat    = { uid, name, avatarUrl ->
                         val intent = Intent(this, MessagesActivity::class.java)
                         intent.putExtra("recipient_id", uid)
                         intent.putExtra("recipient_name", name)
+                        intent.putExtra("recipient_avatar", avatarUrl ?: "")
+                        intent.putExtra("is_business_chat", true)
                         startActivity(intent)
                     }
                 )
@@ -127,7 +129,7 @@ private val ProfCard   = Color(0xFF233044)
 fun BusinessProfileViewScreen(
     viewModel: BusinessProfileViewViewModel,
     onBack: () -> Unit,
-    onChat: (Long, String) -> Unit
+    onChat: (Long, String, String?) -> Unit
 ) {
     val profile   by viewModel.profile.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -170,7 +172,7 @@ fun BusinessProfileViewScreen(
                     )
                     profile != null -> ProfileContent(
                         item   = profile!!,
-                        onChat = onChat
+                        onChat = { uid, name, av -> onChat(uid, name, av) }
                     )
                 }
             }
@@ -181,7 +183,7 @@ fun BusinessProfileViewScreen(
 @Composable
 private fun ProfileContent(
     item: BusinessDirectoryItem,
-    onChat: (Long, String) -> Unit
+    onChat: (Long, String, String?) -> Unit
 ) {
     Column(
         modifier              = Modifier
@@ -230,7 +232,7 @@ private fun ProfileContent(
 
         // ── Chat button ───────────────────────────────────────────────────────
         Button(
-            onClick = { onChat(item.userId, item.businessName) },
+            onClick = { onChat(item.userId, item.businessName, item.avatar) },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ProfAccent)
