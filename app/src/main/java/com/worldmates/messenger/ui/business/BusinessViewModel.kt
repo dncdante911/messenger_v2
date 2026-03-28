@@ -350,7 +350,7 @@ class BusinessViewModel(application: Application) : AndroidViewModel(application
                 inputStream.close()
 
                 val requestBody = tempFile.asRequestBody("image/*".toMediaTypeOrNull())
-                val filePart = MultipartBody.Part.createFormData("file", tempFile.name, requestBody)
+                val filePart = MultipartBody.Part.createFormData("avatar", tempFile.name, requestBody)
 
                 val response = NodeRetrofitClient.api.uploadAvatar(filePart)
                 tempFile.delete()

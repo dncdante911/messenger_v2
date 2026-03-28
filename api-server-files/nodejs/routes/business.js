@@ -125,7 +125,7 @@ async function getGreetingText(ctx, recipientId) {
  * Called non-blocking after a private message is saved.
  * Fires greeting (first message) or auto-reply and delivers via Socket.IO.
  */
-async function handleBusinessAutoReply(ctx, io, { senderId, recipientId, isFirstMessage }) {
+async function handleBusinessAutoReply(ctx, io, { senderId, recipientId, isFirstMessage, isBusinessChat = 1 }) {
     try {
         let replyText = null;
 
@@ -143,41 +143,49 @@ async function handleBusinessAutoReply(ctx, io, { senderId, recipientId, isFirst
         const ts = now();
 
         const autoRow = await ctx.wo_messages.create({
-            from_id:        recipientId,
-            to_id:          senderId,
-            text:           replyText,
-            text_ecb:       '',
-            text_preview:   replyText.slice(0, 100),
-            iv:             null,
-            tag:            null,
-            cipher_version: 1,
-            signal_header:  null,
-            stickers:       '',
-            media:          '',
-            mediaFileName:  '',
-            time:           ts,
-            seen:           0,
-            reply_id:       0,
-            story_id:       0,
-            lat:            '0',
-            lng:            '0',
-            page_id:        0,
-            type_two:       'business_auto_reply',
-            forward:        0,
-            edited:         0,
-            remove_at:      0,
+            from_id:          recipientId,
+            to_id:            senderId,
+            text:             replyText,
+            text_ecb:         '',
+            text_preview:     replyText.slice(0, 100),
+            iv:               null,
+            tag:              null,
+            cipher_version:   1,
+            signal_header:    null,
+            stickers:         '',
+            media:            '',
+            mediaFileName:    '',
+            time:             ts,
+            seen:             0,
+            reply_id:         0,
+            story_id:         0,
+            lat:              '0',
+            lng:              '0',
+            page_id:          0,
+            is_business_chat: isBusinessChat,
+            type_two:         'business_auto_reply',
+            forward:          0,
+            edited:           0,
+            remove_at:        0,
         });
 
-        const msgData = autoRow.toJSON ? autoRow.toJSON() : autoRow;
+        const msgData = { ...(autoRow.toJSON ? autoRow.toJSON() : autoRow), is_business_chat: isBusinessChat };
 
-        io.to(String(senderId)).emit('new_message',     { ...msgData, self: false });
         io.to(String(senderId)).emit('private_message', msgData);
+        io.to(String(senderId)).emit('new_message',     { ...msgData, self: false });
 
-        // Update chat metadata
-        const wo_userschat = ctx.wo_userschat;
-        if (wo_userschat) {
-            await wo_userschat.upsert({ user_id: recipientId, conversation_user_id: senderId, time: ts });
-            await wo_userschat.upsert({ user_id: senderId,    conversation_user_id: recipientId, time: ts });
+        // Update conversation metadata in the correct table
+        if (isBusinessChat === 1 && ctx.wm_business_chats) {
+            const funcs = require('../functions/functions');
+            await funcs.updateOrCreate(ctx.wm_business_chats,
+                { user_id: recipientId, business_user_id: senderId },
+                { user_id: recipientId, business_user_id: senderId, last_message_id: autoRow.id, last_time: ts });
+            await funcs.updateOrCreate(ctx.wm_business_chats,
+                { user_id: senderId, business_user_id: recipientId },
+                { user_id: senderId, business_user_id: recipientId, last_message_id: autoRow.id, last_time: ts });
+        } else if (ctx.wo_userschat) {
+            await ctx.wo_userschat.upsert({ user_id: recipientId, conversation_user_id: senderId,    time: ts });
+            await ctx.wo_userschat.upsert({ user_id: senderId,    conversation_user_id: recipientId, time: ts });
         }
     } catch (e) {
         console.error('[BusinessAutoReply] error:', e.message);
