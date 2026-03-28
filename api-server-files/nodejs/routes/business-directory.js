@@ -47,13 +47,12 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 }
 
 /**
- * Determine if a user is verified (premium/pro) based on wo_users account_type.
- * account_type values: 'default', 'pro', 'premium', 'business' etc.
+ * Determine if a user is verified based on wo_users `verified` or `is_pro` flags.
  */
 function isVerified(user) {
     if (!user) return false;
-    const t = (user.account_type || '').toLowerCase();
-    return t === 'pro' || t === 'premium' || t === 'business';
+    return user.verified === '1' || user.verified === 1 ||
+           user.is_pro   === '1' || user.is_pro   === 1;
 }
 
 /**
@@ -175,9 +174,10 @@ function registerBusinessDirectoryRoutes(app, ctx) {
                     lng:           row.lng,
                 };
                 const user = {
-                    username:     row.username,
-                    avatar:       row.avatar,
-                    account_type: row.account_type,
+                    username: row.username,
+                    avatar:   row.avatar,
+                    verified: row.verified,
+                    is_pro:   row.is_pro,
                 };
                 return buildDirectoryItem(profile, user, queryLat, queryLng);
             });
@@ -217,7 +217,7 @@ function registerBusinessDirectoryRoutes(app, ctx) {
 
             const user = await ctx.wo_users.findOne({
                 where:      { user_id: targetId },
-                attributes: ['user_id', 'username', 'avatar', 'account_type'],
+                attributes: ['user_id', 'username', 'avatar', 'verified', 'is_pro'],
                 raw:        true,
             });
 
@@ -236,7 +236,7 @@ function buildListQuery({ search, category, countOnly, limit, offset }) {
         ? 'COUNT(*) AS total'
         : `bp.user_id, bp.business_name, bp.category, bp.description,
            bp.address, bp.phone, bp.email, bp.website, bp.lat, bp.lng,
-           u.username, u.avatar, u.account_type`;
+           u.username, u.avatar, u.verified, u.is_pro`;
 
     const whereClause = buildWhereClause({ search, category });
     const limitClause = (!countOnly && limit != null) ? 'LIMIT :limit OFFSET :offset' : '';
