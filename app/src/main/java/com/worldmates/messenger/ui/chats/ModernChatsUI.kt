@@ -505,6 +505,13 @@ fun ModernTabsRow(
             onClick = { onTabSelected(2) },
             modifier = Modifier.weight(1f)
         )
+        ModernTab(
+            text = "Бізнес",
+            icon = Icons.Default.Storefront,
+            isSelected = selectedTab == 3,
+            onClick = { onTabSelected(3) },
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
