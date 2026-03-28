@@ -332,6 +332,16 @@ interface NodeApi {
     ): NodeChatListResponse
 
     /**
+     * GET business inbox (owner view) — clients who messaged this business account.
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_BUSINESS_INBOX)
+    suspend fun getBusinessInbox(
+        @Field("limit")  limit: Int = 50,
+        @Field("offset") offset: Int = 0
+    ): NodeChatListResponse
+
+    /**
      * DELETE entire conversation.
      * delete_type: "me" | "all"
      */

@@ -287,10 +287,11 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
         _isLoadingBusiness.value = true
         viewModelScope.launch {
             try {
-                val response = NodeRetrofitClient.api.getBusinessChats(limit = 50, offset = 0)
+                // getBusinessInbox() = owner's view: returns clients who messaged this business
+                val response = NodeRetrofitClient.api.getBusinessInbox(limit = 50, offset = 0)
                 if (response.apiStatus == 200) {
                     _businessChatList.value = response.data ?: emptyList()
-                    Log.d("ChatsViewModel", "Бізнес-чатів завантажено: ${_businessChatList.value.size}")
+                    Log.d("ChatsViewModel", "Бізнес inbox завантажено: ${_businessChatList.value.size}")
                 } else {
                     Log.e("ChatsViewModel", "fetchBusinessChats error: ${response.errorMessage}")
                 }

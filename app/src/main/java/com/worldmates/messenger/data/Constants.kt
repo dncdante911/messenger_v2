@@ -57,7 +57,8 @@ object Constants {
 
     // Chats list & settings
     const val NODE_CHATS_LIST          = "api/node/chat/chats"          // conversations list
-    const val NODE_BUSINESS_CHATS_LIST = "api/node/chat/business-chats" // business chat threads
+    const val NODE_BUSINESS_CHATS_LIST  = "api/node/chat/business-chats" // client: businesses I contacted
+    const val NODE_BUSINESS_INBOX       = "api/node/chat/business-inbox"  // owner: clients who messaged me
     const val NODE_CHAT_DEL_CONV = "api/node/chat/delete-conversation" // delete conversation
     const val NODE_CHAT_ARCHIVE  = "api/node/chat/archive"             // archive/unarchive
     const val NODE_CHAT_MUTE     = "api/node/chat/mute"                // mute/unmute
