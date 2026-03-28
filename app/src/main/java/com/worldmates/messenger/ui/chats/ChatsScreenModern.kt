@@ -88,9 +88,12 @@ fun ChatsScreenModern(
     // Channel stories state
     val channelStories by storyViewModel.channelStories.collectAsState()
 
+    val businessChats by viewModel.businessChatList.collectAsState()
+    val isLoadingBusiness by viewModel.isLoadingBusiness.collectAsState()
+
     val uiStyle = rememberUIStyle()
     val themeState = rememberThemeState()
-    val pagerState = rememberPagerState(initialPage = 0) { 3 } // 3 вкладки: Чати, Канали, Групи
+    val pagerState = rememberPagerState(initialPage = 0) { 4 } // 4 вкладки: Чати, Канали, Групи, Бізнес
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -108,6 +111,7 @@ fun ChatsScreenModern(
                     storyViewModel.loadChannelStories()
                 }
                 2 -> groupsViewModel.fetchGroups()
+                3 -> viewModel.fetchBusinessChats()
             }
         }
     }
@@ -119,6 +123,9 @@ fun ChatsScreenModern(
         }
         if (pagerState.currentPage == 2) {
             groupsViewModel.loadAvailableUsers()
+        }
+        if (pagerState.currentPage == 3) {
+            viewModel.fetchBusinessChats()
         }
     }
 
@@ -370,6 +377,17 @@ fun ChatsScreenModern(
                             onGroupLongPress = { group ->
                                 selectedGroup = group
                                 showEditGroupDialog = true
+                            }
+                        )
+                    }
+                    3 -> {
+                        // Вкладка "Бізнес" — вхідні чати від клієнтів
+                        BusinessChatListTab(
+                            chats = businessChats,
+                            isLoading = isLoadingBusiness,
+                            onRefresh = { viewModel.fetchBusinessChats() },
+                            onChatClick = { chat ->
+                                onChatClick(chat)
                             }
                         )
                     }
@@ -1341,6 +1359,66 @@ fun ChannelListTabWithStories(
 
         PullRefreshIndicator(
             refreshing = refreshing || isLoading,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+    }
+}
+
+/**
+ * Вкладка "Бізнес" — список вхідних чатів від клієнтів до власника бізнес-профілю.
+ */
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun BusinessChatListTab(
+    chats: List<Chat>,
+    isLoading: Boolean,
+    onRefresh: () -> Unit,
+    onChatClick: (Chat) -> Unit
+) {
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isLoading,
+        onRefresh = onRefresh
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pullRefresh(pullRefreshState)
+    ) {
+        if (chats.isEmpty() && !isLoading) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Storefront,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.no_business_chats),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(chats, key = { it.userId }) { chat ->
+                    ModernChatCard(
+                        chat = chat,
+                        onClick = { onChatClick(chat) }
+                    )
+                }
+            }
+        }
+
+        PullRefreshIndicator(
+            refreshing = isLoading,
             state = pullRefreshState,
             modifier = Modifier.align(Alignment.TopCenter)
         )

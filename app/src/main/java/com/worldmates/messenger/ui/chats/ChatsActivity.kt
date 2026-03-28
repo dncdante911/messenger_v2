@@ -288,6 +288,7 @@ class ChatsActivity : AppCompatActivity() {
 
         // Оновлюємо список чатів при поверненні на екран
         viewModel.fetchChats()
+        viewModel.fetchBusinessChats()
         groupsViewModel.fetchGroups()
         channelsViewModel.fetchSubscribedChannels()
         storyViewModel.loadStories()
@@ -305,6 +306,9 @@ class ChatsActivity : AppCompatActivity() {
             putExtra("recipient_id", chat.userId)
             putExtra("recipient_name", chat.username)
             putExtra("recipient_avatar", chat.avatarUrl)
+            if (chat.chatType == "business") {
+                putExtra("is_business_chat", true)
+            }
         })
     }
 
