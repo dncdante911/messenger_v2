@@ -52,11 +52,12 @@ interface NodeApi {
     @FormUrlEncoded
     @POST(Constants.NODE_CHAT_GET)
     suspend fun getMessages(
-        @Field("recipient_id")    recipientId: Long,
-        @Field("limit")           limit: Int = 30,
+        @Field("recipient_id")      recipientId: Long,
+        @Field("limit")             limit: Int = 30,
         @Field("before_message_id") beforeMessageId: Long = 0,
         @Field("after_message_id")  afterMessageId: Long  = 0,
-        @Field("message_id")      messageId: Long = 0
+        @Field("message_id")        messageId: Long = 0,
+        @Field("is_business_chat")  isBusinessChat: Int = 0
     ): NodeMessageListResponse
 
     /**
@@ -70,19 +71,21 @@ interface NodeApi {
     @FormUrlEncoded
     @POST(Constants.NODE_CHAT_SEND)
     suspend fun sendMessage(
-        @Field("recipient_id")   recipientId: Long,
-        @Field("text")           text: String,
-        @Field("reply_id")       replyId: Long?    = null,
-        @Field("story_id")       storyId: Long?    = null,
-        @Field("stickers")       stickers: String? = null,
-        @Field("lat")            lat: String?      = null,
-        @Field("lng")            lng: String?      = null,
-        @Field("contact")        contact: String?  = null,
+        @Field("recipient_id")    recipientId: Long,
+        @Field("text")            text: String,
+        @Field("reply_id")        replyId: Long?    = null,
+        @Field("story_id")        storyId: Long?    = null,
+        @Field("stickers")        stickers: String? = null,
+        @Field("lat")             lat: String?      = null,
+        @Field("lng")             lng: String?      = null,
+        @Field("contact")         contact: String?  = null,
         // ── Signal Protocol fields (cipher_version=3 only) ──────────────────
-        @Field("iv")             iv: String?           = null,
-        @Field("tag")            tag: String?          = null,
-        @Field("signal_header")  signalHeader: String? = null,
-        @Field("cipher_version") cipherVersion: Int?   = null
+        @Field("iv")              iv: String?           = null,
+        @Field("tag")             tag: String?          = null,
+        @Field("signal_header")   signalHeader: String? = null,
+        @Field("cipher_version")  cipherVersion: Int?   = null,
+        // ── Business chat separation ─────────────────────────────────────────
+        @Field("is_business_chat") isBusinessChat: Int = 0
     ): NodeMessageResponse
 
     /**
@@ -146,7 +149,8 @@ interface NodeApi {
     suspend fun loadMore(
         @Field("recipient_id")      recipientId: Long,
         @Field("before_message_id") beforeMessageId: Long,
-        @Field("limit")             limit: Int = 15
+        @Field("limit")             limit: Int = 15,
+        @Field("is_business_chat")  isBusinessChat: Int = 0
     ): NodeMessageListResponse
 
     /**
@@ -315,6 +319,16 @@ interface NodeApi {
         @Field("limit")          limit: Int = 30,
         @Field("offset")         offset: Int = 0,
         @Field("show_archived")  showArchived: String = "false"
+    ): NodeChatListResponse
+
+    /**
+     * GET business chat threads (separated from personal chats).
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_BUSINESS_CHATS_LIST)
+    suspend fun getBusinessChats(
+        @Field("limit")  limit: Int = 30,
+        @Field("offset") offset: Int = 0
     ): NodeChatListResponse
 
     /**
