@@ -426,13 +426,12 @@ function sendMessage(ctx, io) {
 
             // Оновлюємо метадані переписки
             if (isBusinessChat === 1 && ctx.wm_business_chats) {
-                // Business chat: update wm_business_chats for both sides
+                // Business chat: store ONE canonical row — client is user_id, owner is business_user_id.
+                // The owner's inbox queries WHERE business_user_id = ownerId, so we only need
+                // the client-side row.  The reciprocal (owner → client) row was wrong.
                 await funcs.updateOrCreate(ctx.wm_business_chats,
-                    { user_id: userId,      business_user_id: recipientId },
-                    { user_id: userId,      business_user_id: recipientId, last_message_id: row.id, last_time: now });
-                await funcs.updateOrCreate(ctx.wm_business_chats,
-                    { user_id: recipientId, business_user_id: userId },
-                    { user_id: recipientId, business_user_id: userId,      last_message_id: row.id, last_time: now });
+                    { user_id: userId, business_user_id: recipientId },
+                    { user_id: userId, business_user_id: recipientId, last_message_id: row.id, last_time: now });
             } else {
                 // Personal chat: update wo_userschat (original behaviour)
                 await funcs.updateOrCreate(ctx.wo_userschat,
