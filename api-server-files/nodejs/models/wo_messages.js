@@ -174,6 +174,19 @@ module.exports = function(sequelize, DataTypes) {
       defaultValue: null,
       comment: 'JSON DR+X3DH header for Signal-encrypted messages (cipher_version=3)'
     },
+    // ── Reply preview cache (needed for Signal E2EE where server cannot decrypt) ─
+    reply_to_text: {
+      type: DataTypes.STRING(512),
+      allowNull: true,
+      defaultValue: null,
+      comment: 'Cached plaintext preview of the replied-to message (set by sender)'
+    },
+    reply_to_name: {
+      type: DataTypes.STRING(128),
+      allowNull: true,
+      defaultValue: null,
+      comment: 'Display name of the author of the replied-to message'
+    },
     // ── Business chat separation ───────────────────────────────────────────────
     is_business_chat: {
       type: DataTypes.TINYINT(1),
