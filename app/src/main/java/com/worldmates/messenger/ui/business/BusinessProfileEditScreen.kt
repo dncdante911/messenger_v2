@@ -1,8 +1,14 @@
 package com.worldmates.messenger.ui.business
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -11,14 +17,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.worldmates.messenger.R
+import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.BusinessProfile
 import com.worldmates.messenger.data.model.UpdateBusinessProfileRequest
 
@@ -32,9 +42,10 @@ private val BizCard   = Color(0xFF233044)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BusinessProfileEditScreen(
-    state:  BusinessUiState,
-    onSave: (UpdateBusinessProfileRequest) -> Unit,
-    onBack: () -> Unit
+    state:             BusinessUiState,
+    onSave:            (UpdateBusinessProfileRequest) -> Unit,
+    onBack:            () -> Unit,
+    onAvatarSelected:  (Uri) -> Unit = {}
 ) {
     val profile = state.profile
 
@@ -46,6 +57,12 @@ fun BusinessProfileEditScreen(
     var email        by remember(profile) { mutableStateOf(profile?.email ?: "") }
     var website      by remember(profile) { mutableStateOf(profile?.website ?: "") }
     var badgeEnabled by remember(profile) { mutableStateOf(profile?.badgeEnabled != 0) }
+
+    val currentAvatar by UserSession.avatarFlow.collectAsState()
+
+    val avatarLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? -> uri?.let { onAvatarSelected(it) } }
 
     Column(
         modifier = Modifier
@@ -76,6 +93,53 @@ fun BusinessProfileEditScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // ── Avatar picker ──────────────────────────────────────────────────
+            Box(modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                if (!currentAvatar.isNullOrBlank()) {
+                    AsyncImage(
+                        model              = currentAvatar,
+                        contentDescription = null,
+                        contentScale       = ContentScale.Crop,
+                        modifier           = Modifier
+                            .size(88.dp)
+                            .clip(CircleShape)
+                            .background(BizMid)
+                            .clickable {
+                                avatarLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                    )
+                } else {
+                    Box(
+                        modifier          = Modifier
+                            .size(88.dp)
+                            .clip(CircleShape)
+                            .background(BizMid)
+                            .clickable {
+                                avatarLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                        contentAlignment  = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Person, null, tint = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.size(44.dp))
+                    }
+                }
+                // Camera overlay badge
+                Box(
+                    modifier         = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(BizAccent)
+                        .align(Alignment.BottomEnd),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.CameraAlt, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
+
             BizTextField(businessName, { businessName = it }, stringResource(R.string.biz_field_name), Icons.Default.Store)
             BizTextField(category,     { category = it },     stringResource(R.string.biz_field_category), Icons.Default.Category)
             BizTextField(description,  { description = it },  stringResource(R.string.biz_field_desc), Icons.Default.Notes, singleLine = false, minLines = 3)
