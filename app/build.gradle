@@ -5,7 +5,6 @@ plugins {
     id 'kotlin-android'
     id 'org.jetbrains.kotlin.plugin.compose'  // КРИТИЧНО для Kotlin 2.0+ и Compose
     id 'com.google.devtools.ksp'  // KSP для Room Database
-    id 'com.google.gms.google-services'  // FCM / Firebase
 }
 
 android {
@@ -232,3 +231,6 @@ dependencies {
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }
+
+// Must be applied AFTER the dependencies block when using buildscript/classpath approach
+apply plugin: 'com.google.gms.google-services'
