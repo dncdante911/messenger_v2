@@ -131,6 +131,15 @@ async function buildMessage(ctx, msg, userId) {
             replyToName = replyName;
         }
     }
+    // For Signal E2EE the server computed replyToText is empty ('').
+    // Use the plaintext cached in the DB (stored by the sender at send time).
+    if (replyToId > 0) {
+        if (!replyToText && msg.reply_to_text) replyToText = msg.reply_to_text;
+        if (!replyToName && msg.reply_to_name) replyToName = msg.reply_to_name;
+        // Always prefer stored values — they contain the actual plaintext
+        if (msg.reply_to_text) replyToText = msg.reply_to_text;
+        if (msg.reply_to_name) replyToName = msg.reply_to_name;
+    }
 
     const sender = await getUserBasicData(ctx, msg.from_id);
 
@@ -401,6 +410,8 @@ function sendMessage(ctx, io) {
                 time:             now,
                 seen:             0,
                 reply_id:         replyId,
+                reply_to_text:    replyId > 0 ? (clientReplyText || null) : null,
+                reply_to_name:    replyId > 0 ? (clientReplyName || null) : null,
                 story_id:         storyId,
                 lat,
                 lng,
@@ -415,9 +426,10 @@ function sendMessage(ctx, io) {
             try {
                 row = await ctx.wo_messages.create(msgFields);
             } catch (dbErr) {
-                // Fallback: is_business_chat column may not exist yet
+                // Fallback: new columns (is_business_chat / reply_to_text / reply_to_name)
+                // may not exist if migration hasn't run yet on this instance.
                 if (dbErr.parent && (dbErr.parent.code === 'ER_BAD_FIELD_ERROR' || dbErr.parent.code === 'ER_NO_SUCH_TABLE')) {
-                    const { is_business_chat: _, ...fieldsWithout } = msgFields;
+                    const { is_business_chat: _a, reply_to_text: _b, reply_to_name: _c, ...fieldsWithout } = msgFields;
                     row = await ctx.wo_messages.create(fieldsWithout);
                 } else {
                     throw dbErr;

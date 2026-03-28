@@ -320,9 +320,22 @@ async function init() {
     );
     console.log('[Init] Wo_Messages.is_business_chat column added');
   } catch (e) {
-    // Duplicate column = already exists, that is fine
     if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
       console.warn('[Init] is_business_chat migration warning:', e.message);
+    }
+  }
+  // reply_to_text / reply_to_name — cache for Signal E2EE replies (server can't decrypt)
+  for (const [col, def] of [
+    ['reply_to_text', 'VARCHAR(512) NULL DEFAULT NULL'],
+    ['reply_to_name', 'VARCHAR(128) NULL DEFAULT NULL'],
+  ]) {
+    try {
+      await ctx.sequelize.query(`ALTER TABLE Wo_Messages ADD COLUMN ${col} ${def}`);
+      console.log(`[Init] Wo_Messages.${col} column added`);
+    } catch (e) {
+      if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+        console.warn(`[Init] ${col} migration warning:`, e.message);
+      }
     }
   }
   try {
