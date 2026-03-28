@@ -495,7 +495,7 @@ fun MessageBubbleComposable(
                                 }
                             )
                     ) {
-                        // 💬 Цитата Reply — тільки якщо повідомлення є відповіддю
+                        // 💬 Цитата Reply — TG-стиль
                         if ((message.replyToId ?: 0L) > 0L) {
                             val replyAuthor = when {
                                 !message.replyToName.isNullOrBlank() -> message.replyToName!!
@@ -506,43 +506,45 @@ fun MessageBubbleComposable(
                                 !message.replyToText.isNullOrBlank() -> message.replyToText!!
                                 else -> "🔒 Повідомлення"
                             }
-                            // Компактний блок цитати — TG-стиль
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 5.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(textColor.copy(alpha = 0.08f)),
+                                    .padding(bottom = 6.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(colorScheme.primary.copy(alpha = 0.18f)),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Кольорова ліва смужка
                                 Box(
                                     modifier = Modifier
                                         .width(3.dp)
-                                        .height(36.dp)
+                                        .height(42.dp)
                                         .background(
                                             color = colorScheme.primary,
                                             shape = RoundedCornerShape(
-                                                topStart = 6.dp, bottomStart = 6.dp
+                                                topStart = 8.dp, bottomStart = 8.dp
                                             )
                                         )
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Column(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .padding(top = 4.dp, bottom = 4.dp, end = 6.dp),
+                                        .padding(vertical = 6.dp, end = 8.dp),
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     Text(
                                         text = replyAuthor,
                                         color = colorScheme.primary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
+                                    Spacer(modifier = Modifier.height(1.dp))
                                     Text(
                                         text = replyPreview,
-                                        color = textColor.copy(alpha = 0.65f),
+                                        color = textColor.copy(alpha = 0.72f),
                                         fontSize = 12.sp,
                                         maxLines = 1,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
