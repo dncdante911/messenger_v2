@@ -32,8 +32,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Channel
 import com.worldmates.messenger.util.toFullMediaUrl
+import androidx.compose.ui.res.stringResource
 
 // ==================== IMPROVED CLASSIC CHANNEL LIST ITEM ====================
 
@@ -210,7 +212,7 @@ fun TelegramChannelItem(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "LIVE",
+                            text = stringResource(R.string.ch_live),
                             fontSize = 7.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
@@ -505,7 +507,7 @@ fun ChannelCard(
                     if (channel.isPrivate) {
                         StatChip(
                             icon = Icons.Default.Lock,
-                            value = "Private",
+                            value = stringResource(R.string.ch_private),
                             color = MaterialTheme.colorScheme.secondary
                         )
                     }
@@ -692,7 +694,7 @@ fun ModernSubscribeButton(
                 label = "subscribe_text"
             ) { subscribed ->
                 Text(
-                    text = if (subscribed) "Joined" else "Join",
+                    text = if (subscribed) stringResource(R.string.ch_joined) else stringResource(R.string.ch_join),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (subscribed)
@@ -721,12 +723,12 @@ fun ModernAdminBadge(modifier: Modifier = Modifier) {
         ) {
             Icon(
                 Icons.Default.Shield,
-                contentDescription = "Admin",
+                contentDescription = stringResource(R.string.ch_admin_badge),
                 tint = Color(0xFFFF6B6B),
                 modifier = Modifier.size(14.dp)
             )
             Text(
-                text = "Admin",
+                text = stringResource(R.string.ch_admin_badge),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFFF6B6B),
@@ -858,7 +860,7 @@ fun ChannelHeader(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     Icons.Default.CameraAlt,
-                                    contentDescription = "Change avatar",
+                                    contentDescription = stringResource(R.string.ch_change_avatar),
                                     tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.size(14.dp)
                                 )
@@ -925,7 +927,7 @@ fun ChannelHeader(
                 CompactStatChip(
                     icon = Icons.Default.People,
                     value = formatCount(channel.subscribersCount),
-                    label = "Subscribers",
+                    label = stringResource(R.string.ch_subscribers),
                     onClick = onSubscribersClick,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
@@ -933,7 +935,7 @@ fun ChannelHeader(
                 CompactStatChip(
                     icon = Icons.Default.Article,
                     value = formatCount(channel.postsCount),
-                    label = "Posts",
+                    label = stringResource(R.string.ch_posts),
                     color = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.weight(1f)
                 )
@@ -1060,7 +1062,7 @@ fun ChannelSearchBar(
             Box(modifier = Modifier.weight(1f)) {
                 if (searchQuery.isEmpty()) {
                     Text(
-                        text = "Search channels...",
+                        text = stringResource(R.string.ch_search_channels),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         fontSize = 15.sp
                     )
@@ -1114,7 +1116,7 @@ fun ChannelInfoCard(
                 .padding(20.dp)
         ) {
             Text(
-                text = "About",
+                text = stringResource(R.string.ch_about),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -1125,7 +1127,7 @@ fun ChannelInfoCard(
             if (channel.description != null) {
                 InfoItem(
                     icon = Icons.Outlined.Info,
-                    label = "Description",
+                    label = stringResource(R.string.ch_description),
                     value = channel.description!!
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1134,7 +1136,7 @@ fun ChannelInfoCard(
             if (channel.category != null) {
                 InfoItem(
                     icon = Icons.Outlined.Category,
-                    label = "Category",
+                    label = stringResource(R.string.ch_category),
                     value = channel.category!!
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1142,8 +1144,8 @@ fun ChannelInfoCard(
 
             InfoItem(
                 icon = if (channel.isPrivate) Icons.Outlined.Lock else Icons.Outlined.Public,
-                label = "Type",
-                value = if (channel.isPrivate) "Private Channel" else "Public Channel"
+                label = stringResource(R.string.ch_type),
+                value = if (channel.isPrivate) stringResource(R.string.ch_private_channel) else stringResource(R.string.ch_public_channel)
             )
         }
     }

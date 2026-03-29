@@ -2793,4 +2793,109 @@
     <string name="post_remove_media">Удалить</string>
     <string name="post_media_count">%1$d / %2$d</string>
 
+    <!-- ===== CHANNELS (общее) ===== -->
+    <string name="ch_live">LIVE</string>
+    <string name="ch_verified">Верифицирован</string>
+    <string name="ch_private">Приватный</string>
+    <string name="ch_admin_badge">Админ</string>
+    <string name="ch_join">Подписаться</string>
+    <string name="ch_joined">Подписан</string>
+    <string name="ch_subscribers">Подписчики</string>
+    <string name="ch_posts">Посты</string>
+    <string name="ch_about">О канале</string>
+    <string name="ch_description">Описание</string>
+    <string name="ch_category">Категория</string>
+    <string name="ch_type">Тип</string>
+    <string name="ch_private_channel">Приватный канал</string>
+    <string name="ch_public_channel">Публичный канал</string>
+    <string name="ch_change_avatar">Изменить аватар</string>
+    <string name="ch_search_channels">Поиск каналов…</string>
+    <string name="ch_clear">Очистить</string>
+    <string name="ch_save">Сохранить</string>
+    <string name="ch_close">Закрыть</string>
+    <string name="ch_add">Добавить</string>
+    <string name="ch_remove">Удалить</string>
+    <string name="ch_removed_toast">Удалено</string>
+    <string name="ch_no_posts">Постов пока нет</string>
+    <string name="ch_share_post">Поделиться постом</string>
+
+    <!-- Каналы – Посты и комментарии -->
+    <string name="ch_comments">Комментарии</string>
+    <string name="ch_no_comments">Комментариев пока нет</string>
+    <string name="ch_no_comments_sub">Будьте первым!</string>
+    <string name="ch_comment_placeholder">Написать комментарий…</string>
+    <string name="ch_stickers">Стикеры</string>
+    <string name="ch_emoji">Эмодзи</string>
+    <string name="ch_gif">GIF</string>
+    <string name="ch_audio">Аудио</string>
+    <string name="ch_post_text_placeholder">Текст поста…</string>
+    <string name="ch_char_count">%1$d симв.</string>
+    <string name="ch_modified">Изменено</string>
+    <string name="ch_post_options">Параметры поста</string>
+    <string name="ch_pin_post">Закрепить пост</string>
+    <string name="ch_pin_post_sub">Показать вверху</string>
+    <string name="ch_unpin_post">Открепить пост</string>
+    <string name="ch_unpin_post_sub">Убрать с верха</string>
+    <string name="ch_edit_post">Редактировать пост</string>
+    <string name="ch_edit_post_sub">Изменить текст или медиа</string>
+    <string name="ch_delete_post">Удалить пост</string>
+    <string name="ch_delete_post_sub">Это действие нельзя отменить</string>
+    <string name="ch_reaction_added">Реакция добавлена!</string>
+    <string name="ch_post_created">Пост опубликован!</string>
+    <string name="ch_error_prefix">Ошибка: %1$s</string>
+
+    <!-- Каналы – Опрос -->
+    <string name="ch_create_poll">Создать опрос</string>
+    <string name="ch_poll_question">Вопрос опроса</string>
+    <string name="ch_poll_question_label">Вопрос</string>
+    <string name="ch_poll_option_hint">Вариант %1$d</string>
+    <string name="ch_poll_add_option">Добавить вариант</string>
+    <string name="ch_poll_created">Опрос создан!</string>
+
+    <!-- Каналы – Статистика -->
+    <string name="ch_statistics_title">Статистика канала</string>
+    <string name="ch_this_week">На этой неделе</string>
+    <string name="ch_active_24h">Активных 24ч</string>
+    <string name="ch_top_posts">Топ посты</string>
+
+    <!-- Каналы – Администраторы -->
+    <string name="ch_administrators">Администраторы</string>
+    <string name="ch_role_owner">Владелец</string>
+    <string name="ch_role_admin">Администратор</string>
+    <string name="ch_role_moderator">Модератор</string>
+    <string name="ch_add_admin">Добавить администратора</string>
+    <string name="ch_add_administrator">Добавить администратора</string>
+    <string name="ch_user_label">Пользователь</string>
+    <string name="ch_user_hint">ID, @ник или имя…</string>
+    <string name="ch_role_label">Роль</string>
+
+    <!-- Каналы – Редактирование и настройки -->
+    <string name="ch_edit_channel">Редактировать канал</string>
+    <string name="ch_channel_name">Название канала</string>
+    <string name="ch_channel_about">Расскажите о канале…</string>
+    <string name="ch_username_error_chars">Только буквы, цифры и _</string>
+    <string name="ch_username_error_min">Минимум 5 символов</string>
+    <string name="ch_settings_title">Настройки канала</string>
+    <string name="ch_section_posts_header">ПОСТЫ</string>
+    <string name="ch_author_signature">Подпись автора</string>
+    <string name="ch_author_signature_sub">Показывать имя автора на постах</string>
+    <string name="ch_section_interactivity">ВЗАИМОДЕЙСТВИЕ</string>
+    <string name="ch_allow_comments">Разрешить комментарии</string>
+    <string name="ch_allow_comments_sub">Подписчики могут комментировать посты</string>
+    <string name="ch_allow_reactions">Разрешить реакции</string>
+    <string name="ch_allow_reactions_sub">Подписчики могут добавлять реакции</string>
+    <string name="ch_allow_sharing">Разрешить репосты</string>
+    <string name="ch_allow_sharing_sub">Разрешить репостить посты канала</string>
+    <string name="ch_section_moderation">МОДЕРАЦИЯ</string>
+    <string name="ch_comment_moderation">Модерация комментариев</string>
+    <string name="ch_comment_moderation_sub">Комментарии требуют одобрения</string>
+    <string name="ch_slow_mode">Медленный режим (секунды)</string>
+    <string name="ch_slow_mode_placeholder">0 = выключено</string>
+    <string name="ch_slow_mode_hint">Задержка между комментариями (0–300 сек)</string>
+    <string name="ch_section_notifications">УВЕДОМЛЕНИЯ И АНАЛИТИКА</string>
+    <string name="ch_post_notifications">Уведомления о постах</string>
+    <string name="ch_post_notifications_sub">Отправлять push-уведомления подписчикам</string>
+    <string name="ch_show_statistics">Показывать статистику</string>
+    <string name="ch_show_statistics_sub">Подписчики видят статистику канала</string>
+
 </resources>

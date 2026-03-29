@@ -1066,7 +1066,7 @@ fun CommentsBottomSheet(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Comments",
+                        text = stringResource(R.string.ch_comments),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -1174,13 +1174,13 @@ fun CommentsBottomSheet(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "No comments yet",
+                        text = stringResource(R.string.ch_no_comments),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Be the first to share your thoughts",
+                        text = stringResource(R.string.ch_no_comments_sub),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -1281,7 +1281,7 @@ fun CommentsBottomSheet(
                 ) {
                     CommentPickerChip(
                         icon = Icons.Outlined.EmojiEmotions,
-                        label = "Stickers",
+                        label = stringResource(R.string.ch_stickers),
                         isActive = activePickerTab == "strapi",
                         onClick = {
                             activePickerTab = if (activePickerTab == "strapi") null else "strapi"
@@ -1293,7 +1293,7 @@ fun CommentsBottomSheet(
                     Spacer(modifier = Modifier.width(4.dp))
                     CommentPickerChip(
                         icon = Icons.Outlined.Mood,
-                        label = "Emoji",
+                        label = stringResource(R.string.ch_emoji),
                         isActive = activePickerTab == "emoji",
                         onClick = {
                             activePickerTab = if (activePickerTab == "emoji") null else "emoji"
@@ -1305,7 +1305,7 @@ fun CommentsBottomSheet(
                     Spacer(modifier = Modifier.width(4.dp))
                     CommentPickerChip(
                         icon = Icons.Outlined.Gif,
-                        label = "GIF",
+                        label = stringResource(R.string.ch_gif),
                         isActive = activePickerTab == "gif",
                         onClick = {
                             activePickerTab = if (activePickerTab == "gif") null else "gif"
@@ -1332,7 +1332,7 @@ fun CommentsBottomSheet(
                             .heightIn(min = 48.dp, max = 120.dp),
                         placeholder = {
                             Text(
-                                "Write a comment...",
+                                stringResource(R.string.ch_comment_placeholder),
                                 fontSize = 14.sp
                             )
                         },
@@ -1832,7 +1832,7 @@ fun PostOptionsBottomSheet(
 
             // Header with post preview
             Text(
-                text = "Post Options",
+                text = stringResource(R.string.ch_post_options),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 4.dp)
@@ -1853,8 +1853,8 @@ fun PostOptionsBottomSheet(
             // Pin/Unpin
             PostOptionItem(
                 icon = Icons.Default.PushPin,
-                text = if (post.isPinned) "Unpin Post" else "Pin Post",
-                subtitle = if (post.isPinned) "Remove from top" else "Show at the top",
+                text = if (post.isPinned) stringResource(R.string.ch_unpin_post) else stringResource(R.string.ch_pin_post),
+                subtitle = if (post.isPinned) stringResource(R.string.ch_unpin_post_sub) else stringResource(R.string.ch_pin_post_sub),
                 iconTint = MaterialTheme.colorScheme.primary,
                 onClick = {
                     onPinClick()
@@ -1865,8 +1865,8 @@ fun PostOptionsBottomSheet(
             // Edit
             PostOptionItem(
                 icon = Icons.Default.Edit,
-                text = "Edit Post",
-                subtitle = "Change text or media",
+                text = stringResource(R.string.ch_edit_post),
+                subtitle = stringResource(R.string.ch_edit_post_sub),
                 iconTint = Color(0xFFFF9800),
                 onClick = {
                     onEditClick()
@@ -1881,8 +1881,8 @@ fun PostOptionsBottomSheet(
             // Delete
             PostOptionItem(
                 icon = Icons.Default.Delete,
-                text = "Delete Post",
-                subtitle = "This action cannot be undone",
+                text = stringResource(R.string.ch_delete_post),
+                subtitle = stringResource(R.string.ch_delete_post_sub),
                 iconTint = MaterialTheme.colorScheme.error,
                 textColor = MaterialTheme.colorScheme.error,
                 onClick = {
@@ -1978,7 +1978,7 @@ fun EditPostDialog(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Edit Post",
+                    text = stringResource(R.string.ch_edit_post),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -1993,7 +1993,7 @@ fun EditPostDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 150.dp, max = 300.dp),
-                    placeholder = { Text("Post text...") },
+                    placeholder = { Text(stringResource(R.string.ch_post_text_placeholder)) },
                     maxLines = 10,
                     textStyle = MaterialTheme.typography.bodyMedium,
                     shape = RoundedCornerShape(16.dp),
@@ -2008,13 +2008,13 @@ fun EditPostDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "$charCount characters",
+                        text = stringResource(R.string.ch_char_count, charCount),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     )
                     if (hasChanges) {
                         Text(
-                            text = "Modified",
+                            text = stringResource(R.string.ch_modified),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium
@@ -2036,12 +2036,12 @@ fun EditPostDialog(
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Save")
+                Text(stringResource(R.string.ch_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.post_cancel))
             }
         }
     )
@@ -2069,7 +2069,7 @@ fun StatisticsDialog(
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("Channel Statistics", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.ch_statistics_title), fontWeight = FontWeight.Bold)
             }
         },
         text = {
@@ -2086,13 +2086,13 @@ fun StatisticsDialog(
                     ) {
                         StatCard(
                             value = "${statistics.subscribersCount}",
-                            label = "Subscribers",
+                            label = stringResource(R.string.ch_subscribers),
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f)
                         )
                         StatCard(
                             value = "${statistics.postsCount}",
-                            label = "Posts",
+                            label = stringResource(R.string.ch_posts),
                             color = Color(0xFF00C853),
                             modifier = Modifier.weight(1f)
                         )
@@ -2103,13 +2103,13 @@ fun StatisticsDialog(
                     ) {
                         StatCard(
                             value = "${statistics.postsLastWeek}",
-                            label = "This week",
+                            label = stringResource(R.string.ch_this_week),
                             color = Color(0xFFFF9800),
                             modifier = Modifier.weight(1f)
                         )
                         StatCard(
                             value = "${statistics.activeSubscribers24h}",
-                            label = "Active 24h",
+                            label = stringResource(R.string.ch_active_24h),
                             color = Color(0xFF9C27B0),
                             modifier = Modifier.weight(1f)
                         )
@@ -2118,7 +2118,7 @@ fun StatisticsDialog(
                     if (!statistics.topPosts.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Top Posts",
+                            stringResource(R.string.ch_top_posts),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp
                         )
@@ -2168,7 +2168,7 @@ fun StatisticsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ch_close)) }
         }
     )
 }
@@ -2239,7 +2239,7 @@ fun ManageAdminsDialog(
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("Administrators", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.ch_administrators), fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(6.dp))
                 Surface(
                     shape = RoundedCornerShape(10.dp),
@@ -2299,9 +2299,9 @@ fun ManageAdminsDialog(
                             )
                             Text(
                                 when(admin.role) {
-                                    "owner" -> "Owner"
-                                    "admin" -> "Administrator"
-                                    "moderator" -> "Moderator"
+                                    "owner" -> stringResource(R.string.ch_role_owner)
+                                    "admin" -> stringResource(R.string.ch_role_admin)
+                                    "moderator" -> stringResource(R.string.ch_role_moderator)
                                     else -> admin.role
                                 },
                                 fontSize = 12.sp,
@@ -2310,7 +2310,7 @@ fun ManageAdminsDialog(
                         }
                         if (admin.role != "owner") {
                             IconButton(onClick = { onRemoveAdmin(admin.userId) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Close, "Remove", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Close, stringResource(R.string.ch_remove), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -2326,11 +2326,11 @@ fun ManageAdminsDialog(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Add Admin")
+                Text(stringResource(R.string.ch_add_admin))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ch_close)) }
         }
     )
 
@@ -2368,7 +2368,7 @@ fun AddAdminDialog(
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("Add Administrator", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.ch_add_administrator), fontWeight = FontWeight.Bold)
             }
         },
         text = {
@@ -2376,8 +2376,8 @@ fun AddAdminDialog(
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
-                    label = { Text("User") },
-                    placeholder = { Text("Enter ID, @username or name...") },
+                    label = { Text(stringResource(R.string.ch_user_label)) },
+                    placeholder = { Text(stringResource(R.string.ch_user_hint)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
@@ -2396,7 +2396,7 @@ fun AddAdminDialog(
                 )
 
                 Text(
-                    "Role",
+                    stringResource(R.string.ch_role_label),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -2405,7 +2405,7 @@ fun AddAdminDialog(
                     FilterChip(
                         selected = selectedRole == "admin",
                         onClick = { selectedRole = "admin" },
-                        label = { Text("Admin") },
+                        label = { Text(stringResource(R.string.ch_role_admin)) },
                         leadingIcon = if (selectedRole == "admin") {
                             { Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null,
@@ -2418,7 +2418,7 @@ fun AddAdminDialog(
                     FilterChip(
                         selected = selectedRole == "moderator",
                         onClick = { selectedRole = "moderator" },
-                        label = { Text("Moderator") },
+                        label = { Text(stringResource(R.string.ch_role_moderator)) },
                         leadingIcon = if (selectedRole == "moderator") {
                             { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null,
@@ -2442,11 +2442,11 @@ fun AddAdminDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Add")
+                Text(stringResource(R.string.ch_add))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.post_cancel)) }
         }
     )
 }
@@ -2462,6 +2462,7 @@ fun EditChannelInfoDialog(
     onDismiss: () -> Unit,
     onSave: (name: String, description: String, username: String) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var channelName by remember { mutableStateOf(channel.name) }
     var channelDescription by remember { mutableStateOf(channel.description ?: "") }
     var channelUsername by remember { mutableStateOf(channel.username ?: "") }
@@ -2483,7 +2484,7 @@ fun EditChannelInfoDialog(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Edit Channel",
+                    text = stringResource(R.string.ch_edit_channel),
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
                 )
@@ -2500,7 +2501,7 @@ fun EditChannelInfoDialog(
                 OutlinedTextField(
                     value = channelName,
                     onValueChange = { channelName = it },
-                    label = { Text("Channel Name") },
+                    label = { Text(stringResource(R.string.ch_channel_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
@@ -2521,12 +2522,12 @@ fun EditChannelInfoDialog(
                         channelUsername = cleaned
                         usernameError = when {
                             cleaned.isEmpty() -> null
-                            !cleaned.matches(Regex("^[a-z0-9_]+$")) -> "Only letters, numbers and _"
-                            cleaned.length < 5 -> "Minimum 5 characters"
+                            !cleaned.matches(Regex("^[a-z0-9_]+$")) -> context.getString(R.string.ch_username_error_chars)
+                            cleaned.length < 5 -> context.getString(R.string.ch_username_error_min)
                             else -> null
                         }
                     },
-                    label = { Text("Username") },
+                    label = { Text(stringResource(R.string.username)) },
                     placeholder = { Text("channel_name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -2550,8 +2551,8 @@ fun EditChannelInfoDialog(
                 OutlinedTextField(
                     value = channelDescription,
                     onValueChange = { channelDescription = it },
-                    label = { Text("Description") },
-                    placeholder = { Text("Tell about your channel...") },
+                    label = { Text(stringResource(R.string.ch_description)) },
+                    placeholder = { Text(stringResource(R.string.ch_channel_about)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 100.dp),
@@ -2582,11 +2583,11 @@ fun EditChannelInfoDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Save")
+                Text(stringResource(R.string.ch_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.post_cancel)) }
         }
     )
 }
@@ -2626,7 +2627,7 @@ fun ChannelSettingsDialog(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Channel Settings",
+                    text = stringResource(R.string.ch_settings_title),
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
                 )
@@ -2640,7 +2641,7 @@ fun ChannelSettingsDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "POSTS",
+                    text = stringResource(R.string.ch_section_posts_header),
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp,
@@ -2654,9 +2655,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Author Signature", fontSize = 14.sp)
+                        Text(stringResource(R.string.ch_author_signature), fontSize = 14.sp)
                         Text(
-                            "Show author name on posts",
+                            stringResource(R.string.ch_author_signature_sub),
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2670,7 +2671,7 @@ fun ChannelSettingsDialog(
                 Divider()
 
                 Text(
-                    text = "INTERACTIVITY",
+                    text = stringResource(R.string.ch_section_interactivity),
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp,
@@ -2684,9 +2685,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Allow Comments", fontSize = 14.sp)
+                        Text(stringResource(R.string.ch_allow_comments), fontSize = 14.sp)
                         Text(
-                            "Subscribers can comment on posts",
+                            stringResource(R.string.ch_allow_comments_sub),
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2704,9 +2705,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Allow Reactions", fontSize = 14.sp)
+                        Text(stringResource(R.string.ch_allow_reactions), fontSize = 14.sp)
                         Text(
-                            "Subscribers can add reactions",
+                            stringResource(R.string.ch_allow_reactions_sub),
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2724,9 +2725,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Allow Sharing", fontSize = 14.sp)
+                        Text(stringResource(R.string.ch_allow_sharing), fontSize = 14.sp)
                         Text(
-                            "Allow reposting channel posts",
+                            stringResource(R.string.ch_allow_sharing_sub),
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2740,7 +2741,7 @@ fun ChannelSettingsDialog(
                 Divider()
 
                 Text(
-                    text = "MODERATION",
+                    text = stringResource(R.string.ch_section_moderation),
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp,
@@ -2754,9 +2755,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Comment Moderation", fontSize = 14.sp)
+                        Text(stringResource(R.string.ch_comment_moderation), fontSize = 14.sp)
                         Text(
-                            "Comments require approval",
+                            stringResource(R.string.ch_comment_moderation_sub),
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2775,13 +2776,13 @@ fun ChannelSettingsDialog(
                             slowModeSeconds = it
                         }
                     },
-                    label = { Text("Slow Mode (seconds)") },
-                    placeholder = { Text("0 = disabled") },
+                    label = { Text(stringResource(R.string.ch_slow_mode)) },
+                    placeholder = { Text(stringResource(R.string.ch_slow_mode_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     supportingText = {
                         Text(
-                            "Delay between comments (0-300 sec)",
+                            stringResource(R.string.ch_slow_mode_hint),
                             fontSize = 11.sp,
                             color = Color.Gray
                         )
@@ -2791,7 +2792,7 @@ fun ChannelSettingsDialog(
                 Divider()
 
                 Text(
-                    text = "NOTIFICATIONS & ANALYTICS",
+                    text = stringResource(R.string.ch_section_notifications),
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp,
@@ -2805,9 +2806,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Post Notifications", fontSize = 14.sp)
+                        Text(stringResource(R.string.ch_post_notifications), fontSize = 14.sp)
                         Text(
-                            "Send push notifications to subscribers",
+                            stringResource(R.string.ch_post_notifications_sub),
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2825,9 +2826,9 @@ fun ChannelSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Show Statistics", fontSize = 14.sp)
+                        Text(stringResource(R.string.ch_show_statistics), fontSize = 14.sp)
                         Text(
-                            "Subscribers can see channel stats",
+                            stringResource(R.string.ch_show_statistics_sub),
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -2867,11 +2868,11 @@ fun ChannelSettingsDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Save")
+                Text(stringResource(R.string.ch_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.post_cancel)) }
         }
     )
 }
@@ -3097,7 +3098,7 @@ fun PostDetailDialog(
                                                         modifier = Modifier.size(28.dp)
                                                     )
                                                     Text(
-                                                        text = "Audio",
+                                                        text = stringResource(R.string.ch_audio),
                                                         fontSize = 14.sp,
                                                         color = MaterialTheme.colorScheme.onSurface
                                                     )

@@ -486,7 +486,7 @@ fun ChannelDetailsScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "Posts",
+                                        text = stringResource(R.string.ch_posts),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -541,7 +541,7 @@ fun ChannelDetailsScreen(
                                         )
                                         Spacer(modifier = Modifier.height(12.dp))
                                         Text(
-                                            "No posts yet",
+                                            stringResource(R.string.ch_no_posts),
                                             style = MaterialTheme.typography.bodyLarge,
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                         )
@@ -568,10 +568,10 @@ fun ChannelDetailsScreen(
                                         postId = post.id,
                                         emoji = emoji,
                                         onSuccess = {
-                                            Toast.makeText(context, "Reaction added!", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.ch_reaction_added), Toast.LENGTH_SHORT).show()
                                         },
                                         onError = { error ->
-                                            Toast.makeText(context, "Error: $error", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.ch_error_prefix, error), Toast.LENGTH_SHORT).show()
                                         }
                                     )
                                 }
@@ -592,7 +592,7 @@ fun ChannelDetailsScreen(
                                         putExtra(android.content.Intent.EXTRA_TEXT, shareText)
                                         type = "text/plain"
                                     }
-                                    val shareIntent = android.content.Intent.createChooser(sendIntent, "Share post")
+                                    val shareIntent = android.content.Intent.createChooser(sendIntent, context.getString(R.string.ch_share_post))
                                     context.startActivity(shareIntent)
                                 }
                                 val onMoreClickHandler: () -> Unit = {
@@ -703,7 +703,7 @@ fun ChannelDetailsScreen(
                         text = text,
                         media = media,
                         onSuccess = {
-                            Toast.makeText(context, "Post created!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.ch_post_created), Toast.LENGTH_SHORT).show()
                             detailsViewModel.loadChannelPosts(channelId)
                         },
                         onError = { error ->
@@ -726,7 +726,7 @@ fun ChannelDetailsScreen(
                         question = question,
                         options = options,
                         onSuccess = {
-                            Toast.makeText(context, "Poll created!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.ch_poll_created), Toast.LENGTH_SHORT).show()
                             detailsViewModel.loadChannelPosts(channelId)
                         },
                         onError = { error ->
@@ -2202,7 +2202,7 @@ fun CreateChannelPollDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create Poll", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+        title = { Text(stringResource(R.string.ch_create_poll), fontWeight = FontWeight.Bold, fontSize = 18.sp) },
         text = {
             Column(
                 modifier = Modifier
@@ -2213,11 +2213,11 @@ fun CreateChannelPollDialog(
                 OutlinedTextField(
                     value = question,
                     onValueChange = { question = it },
-                    placeholder = { Text("Poll question", fontSize = 14.sp) },
+                    placeholder = { Text(stringResource(R.string.ch_poll_question), fontSize = 14.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3,
                     shape = RoundedCornerShape(12.dp),
-                    label = { Text("Question") }
+                    label = { Text(stringResource(R.string.ch_poll_question_label)) }
                 )
 
                 options.forEachIndexed { index, option ->
@@ -2228,14 +2228,14 @@ fun CreateChannelPollDialog(
                         OutlinedTextField(
                             value = option,
                             onValueChange = { value -> options = options.toMutableList().also { it[index] = value } },
-                            placeholder = { Text("Option ${index + 1}", fontSize = 14.sp) },
+                            placeholder = { Text(stringResource(R.string.ch_poll_option_hint, index + 1), fontSize = 14.sp) },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp)
                         )
                         if (options.size > 2) {
                             IconButton(onClick = { options = options.toMutableList().also { it.removeAt(index) } }) {
-                                Icon(Icons.Default.Close, contentDescription = "Remove option", tint = MaterialTheme.colorScheme.error)
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.ch_remove), tint = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -2248,7 +2248,7 @@ fun CreateChannelPollDialog(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add option")
+                        Text(stringResource(R.string.ch_poll_add_option))
                     }
                 }
             }
@@ -2263,11 +2263,11 @@ fun CreateChannelPollDialog(
                 },
                 enabled = question.isNotBlank() && options.count { it.isNotBlank() } >= 2
             ) {
-                Text("Create Poll")
+                Text(stringResource(R.string.ch_create_poll))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.post_cancel)) }
         }
     )
 }
