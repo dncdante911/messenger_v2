@@ -54,9 +54,9 @@ class MessageNotificationService : Service() {
         const val CHANNEL_CALLS_ID   = "wm_calls"
         const val CHANNEL_CALLS_NAME = "Дзвінки"
 
-        // Канал для постійного фонового сповіщення самого сервісу (LOW, тихий)
-        private const val CHANNEL_SERVICE_ID   = "wm_service"
-        private const val CHANNEL_SERVICE_NAME = "WorldMates — фоновий сервіс"
+        // Канал для постійного фонового сповіщення самого сервісу (MIN, тихий)
+        private const val CHANNEL_SERVICE_ID = "wm_service"
+        // Channel name/desc come from strings.xml (localised)
 
         // ID постійного (foreground) сповіщення сервісу
         private const val FOREGROUND_NOTIF_ID = 9001
@@ -729,11 +729,14 @@ class MessageNotificationService : Service() {
     private fun buildServiceNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_SERVICE_ID)
             .setSmallIcon(R.drawable.ic_notification_service)
-            .setContentTitle("WorldMates")
-            .setContentText("Очікуємо нові повідомлення…")
+            .setContentTitle(getString(R.string.service_notif_title))
+            .setContentText(getString(R.string.service_notif_text))
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
             .setSilent(true)
+            .setShowWhen(false)           // no timestamp — less visual noise
+            .setLocalOnly(true)           // don't mirror to wearables/cars
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET) // hidden on lock screen
             .build()
     }
 
@@ -788,15 +791,17 @@ class MessageNotificationService : Service() {
         }
         nm.createNotificationChannel(callChannel)
 
-        // MIN — silent persistent service notification
+        // MIN — silent persistent service notification (collapsed at bottom of shade)
         val svcChannel = NotificationChannel(
             CHANNEL_SERVICE_ID,
-            CHANNEL_SERVICE_NAME,
+            getString(R.string.service_channel_name),
             NotificationManager.IMPORTANCE_MIN
         ).apply {
-            description = "Фоновий сервіс WorldMates (не відключайте)"
+            description = getString(R.string.service_channel_desc)
             setSound(null, null)
             enableVibration(false)
+            setShowBadge(false)          // no badge counter on app icon
+            lockscreenVisibility = android.app.Notification.VISIBILITY_SECRET
         }
         nm.createNotificationChannel(svcChannel)
     }

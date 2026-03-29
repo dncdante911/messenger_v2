@@ -2790,4 +2790,10 @@
     <string name="mini_app_add">Mini App</string>
     <string name="mini_app_remove">Видалити Mini App</string>
 
+    <!-- Foreground service persistent notification (IMPORTANCE_MIN — silent, collapsed) -->
+    <string name="service_channel_name">Фоновий зв\'язок</string>
+    <string name="service_channel_desc">Тихе сповіщення для підтримки зв\'язку з сервером</string>
+    <string name="service_notif_title">WorldMates</string>
+    <string name="service_notif_text">На зв\'язку</string>
+
 </resources>
