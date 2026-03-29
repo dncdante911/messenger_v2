@@ -2779,4 +2779,18 @@
     <string name="service_notif_title">WorldMates</string>
     <string name="service_notif_text">На связи</string>
 
+    <!-- ===== CREATE POST (channels) ===== -->
+    <string name="post_new_title">Новый пост</string>
+    <string name="post_placeholder">Что у вас нового?</string>
+    <string name="post_gallery">Галерея</string>
+    <string name="post_camera">Камера</string>
+    <string name="post_video_label">Видео</string>
+    <string name="post_publish">Опубликовать</string>
+    <string name="post_cancel">Отмена</string>
+    <string name="post_uploading">Загрузка %1$d из %2$d…</string>
+    <string name="post_max_files">Достигнут лимит: %1$d файлов</string>
+    <string name="post_upload_error">Ошибка: %1$s</string>
+    <string name="post_remove_media">Удалить</string>
+    <string name="post_media_count">%1$d / %2$d</string>
+
 </resources>
