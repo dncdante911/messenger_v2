@@ -1,6 +1,5 @@
 // Top-level build file
 buildscript {
-    // Для AGP 8.13+ лучше всего использовать Kotlin 2.1.0 или 2.1.10
     ext.kotlin_version = '2.1.0'
     ext.compose_version = '1.7.6'
 
@@ -10,22 +9,22 @@ buildscript {
     }
 
     dependencies {
-        // Убедитесь, что здесь версия совпадает с тем, что в plugins
         classpath 'com.android.tools.build:gradle:8.13.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath 'com.google.gms:google-services:4.4.2'  // FCM Google Services
     }
 }
 
 plugins {
     id 'com.android.application' version '8.13.0' apply false
     id 'com.android.library' version '8.13.0' apply false
-    // Версия плагина Kotlin должна строго соответствовать версии языка
+    // Kotlin version must exactly match the language version
     id 'org.jetbrains.kotlin.android' version '2.1.0' apply false
-    // В Kotlin 2.0+ плагин Compose поставляется вместе с Kotlin
+    // Compose compiler plugin (Kotlin 2.0+)
     id 'org.jetbrains.kotlin.plugin.compose' version '2.1.0' apply false
-    // KSP для Room Database (версия должна соответствовать Kotlin 2.1.0)
+    // KSP for Room Database (must match Kotlin 2.1.0)
     id 'com.google.devtools.ksp' version '2.1.0-1.0.29' apply false
+    // FCM / Firebase — apply false so only :app enables it
+    id 'com.google.gms.google-services' version '4.4.2' apply false
 }
 
 task clean(type: Delete) {
