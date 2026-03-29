@@ -722,7 +722,7 @@ private fun AdminsTab(
                                 channelId = channelId,
                                 userId = admin.userId,
                                 onSuccess = {
-                                    Toast.makeText(context, "Removed", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.ch_removed_toast), Toast.LENGTH_SHORT).show()
                                     viewModel.loadChannelDetails(channelId)
                                 },
                                 onError = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }

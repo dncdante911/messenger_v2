@@ -2810,4 +2810,109 @@
     <string name="post_remove_media">Видалити</string>
     <string name="post_media_count">%1$d / %2$d</string>
 
+    <!-- ===== CHANNELS (загальне) ===== -->
+    <string name="ch_live">LIVE</string>
+    <string name="ch_verified">Верифікований</string>
+    <string name="ch_private">Приватний</string>
+    <string name="ch_admin_badge">Адмін</string>
+    <string name="ch_join">Підписатися</string>
+    <string name="ch_joined">Підписаний</string>
+    <string name="ch_subscribers">Підписники</string>
+    <string name="ch_posts">Пости</string>
+    <string name="ch_about">Про канал</string>
+    <string name="ch_description">Опис</string>
+    <string name="ch_category">Категорія</string>
+    <string name="ch_type">Тип</string>
+    <string name="ch_private_channel">Приватний канал</string>
+    <string name="ch_public_channel">Публічний канал</string>
+    <string name="ch_change_avatar">Змінити аватар</string>
+    <string name="ch_search_channels">Пошук каналів…</string>
+    <string name="ch_clear">Очистити</string>
+    <string name="ch_save">Зберегти</string>
+    <string name="ch_close">Закрити</string>
+    <string name="ch_add">Додати</string>
+    <string name="ch_remove">Видалити</string>
+    <string name="ch_removed_toast">Видалено</string>
+    <string name="ch_no_posts">Постів ще немає</string>
+    <string name="ch_share_post">Поділитися постом</string>
+
+    <!-- Канали – Пости та коментарі -->
+    <string name="ch_comments">Коментарі</string>
+    <string name="ch_no_comments">Коментарів ще немає</string>
+    <string name="ch_no_comments_sub">Будьте першим!</string>
+    <string name="ch_comment_placeholder">Написати коментар…</string>
+    <string name="ch_stickers">Стікери</string>
+    <string name="ch_emoji">Емодзі</string>
+    <string name="ch_gif">GIF</string>
+    <string name="ch_audio">Аудіо</string>
+    <string name="ch_post_text_placeholder">Текст поста…</string>
+    <string name="ch_char_count">%1$d симв.</string>
+    <string name="ch_modified">Змінено</string>
+    <string name="ch_post_options">Опції поста</string>
+    <string name="ch_pin_post">Закріпити пост</string>
+    <string name="ch_pin_post_sub">Показати вгорі</string>
+    <string name="ch_unpin_post">Відкріпити пост</string>
+    <string name="ch_unpin_post_sub">Прибрати з верху</string>
+    <string name="ch_edit_post">Редагувати пост</string>
+    <string name="ch_edit_post_sub">Змінити текст або медіа</string>
+    <string name="ch_delete_post">Видалити пост</string>
+    <string name="ch_delete_post_sub">Цю дію не можна скасувати</string>
+    <string name="ch_reaction_added">Реакцію додано!</string>
+    <string name="ch_post_created">Пост опубліковано!</string>
+    <string name="ch_error_prefix">Помилка: %1$s</string>
+
+    <!-- Канали – Опитування -->
+    <string name="ch_create_poll">Створити опитування</string>
+    <string name="ch_poll_question">Питання опитування</string>
+    <string name="ch_poll_question_label">Питання</string>
+    <string name="ch_poll_option_hint">Варіант %1$d</string>
+    <string name="ch_poll_add_option">Додати варіант</string>
+    <string name="ch_poll_created">Опитування створено!</string>
+
+    <!-- Канали – Статистика -->
+    <string name="ch_statistics_title">Статистика каналу</string>
+    <string name="ch_this_week">Цей тиждень</string>
+    <string name="ch_active_24h">Активних 24г</string>
+    <string name="ch_top_posts">Топ пости</string>
+
+    <!-- Канали – Адміни -->
+    <string name="ch_administrators">Адміністратори</string>
+    <string name="ch_role_owner">Власник</string>
+    <string name="ch_role_admin">Адміністратор</string>
+    <string name="ch_role_moderator">Модератор</string>
+    <string name="ch_add_admin">Додати адміна</string>
+    <string name="ch_add_administrator">Додати адміністратора</string>
+    <string name="ch_user_label">Користувач</string>
+    <string name="ch_user_hint">ID, @нікнейм або ім\'я…</string>
+    <string name="ch_role_label">Роль</string>
+
+    <!-- Канали – Редагування та налаштування -->
+    <string name="ch_edit_channel">Редагувати канал</string>
+    <string name="ch_channel_name">Назва каналу</string>
+    <string name="ch_channel_about">Розкажіть про канал…</string>
+    <string name="ch_username_error_chars">Тільки літери, цифри та _</string>
+    <string name="ch_username_error_min">Мінімум 5 символів</string>
+    <string name="ch_settings_title">Налаштування каналу</string>
+    <string name="ch_section_posts_header">ПОСТИ</string>
+    <string name="ch_author_signature">Підпис автора</string>
+    <string name="ch_author_signature_sub">Показувати ім\'я автора на постах</string>
+    <string name="ch_section_interactivity">ВЗАЄМОДІЯ</string>
+    <string name="ch_allow_comments">Дозволити коментарі</string>
+    <string name="ch_allow_comments_sub">Підписники можуть коментувати пости</string>
+    <string name="ch_allow_reactions">Дозволити реакції</string>
+    <string name="ch_allow_reactions_sub">Підписники можуть додавати реакції</string>
+    <string name="ch_allow_sharing">Дозволити поширення</string>
+    <string name="ch_allow_sharing_sub">Дозволити репост постів каналу</string>
+    <string name="ch_section_moderation">МОДЕРАЦІЯ</string>
+    <string name="ch_comment_moderation">Модерація коментарів</string>
+    <string name="ch_comment_moderation_sub">Коментарі потребують підтвердження</string>
+    <string name="ch_slow_mode">Повільний режим (секунди)</string>
+    <string name="ch_slow_mode_placeholder">0 = вимкнено</string>
+    <string name="ch_slow_mode_hint">Затримка між коментарями (0–300 сек)</string>
+    <string name="ch_section_notifications">СПОВІЩЕННЯ ТА АНАЛІТИКА</string>
+    <string name="ch_post_notifications">Сповіщення про пости</string>
+    <string name="ch_post_notifications_sub">Надсилати push підписникам</string>
+    <string name="ch_show_statistics">Показувати статистику</string>
+    <string name="ch_show_statistics_sub">Підписники бачать статистику каналу</string>
+
 </resources>
