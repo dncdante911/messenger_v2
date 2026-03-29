@@ -60,8 +60,7 @@ class WMFirebaseMessagingService : FirebaseMessagingService() {
             if (UserSession.accessToken == null) return
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    val api = NodeRetrofitClient.getApi(context)
-                    api.registerFcmToken(fcmToken = token)
+                    NodeRetrofitClient.api.registerFcmToken(fcmToken = token)
                     Log.d(TAG, "FCM token registered with server")
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to register FCM token: ${e.message}")
@@ -98,7 +97,7 @@ class WMFirebaseMessagingService : FirebaseMessagingService() {
         val data        = message.data
         val type        = data["type"] ?: "message"
         val fromName    = data["from_name"]  ?: data["title"]  ?: getString(R.string.app_name)
-        val body        = data["body"]       ?: message.notification?.body ?: getString(R.string.new_message_notification)
+        val body        = data["body"]       ?: message.notification?.body ?: getString(R.string.notifications_on)
         val fromId      = data["from_id"]?.toLongOrNull() ?: 0L
         val recipientId = data["chat_id"]?.toLongOrNull() ?: 0L
 
@@ -134,7 +133,7 @@ class WMFirebaseMessagingService : FirebaseMessagingService() {
         )
 
         val notification = NotificationCompat.Builder(this, MessageNotificationService.CHANNEL_MESSAGES_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notification_message)
             .setContentTitle(senderName)
             .setContentText(body)
             .setAutoCancel(true)
