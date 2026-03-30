@@ -2897,5 +2897,7 @@
     <string name="ch_post_notifications_sub">Отправлять push-уведомления подписчикам</string>
     <string name="ch_show_statistics">Показывать статистику</string>
     <string name="ch_show_statistics_sub">Подписчики видят статистику канала</string>
+    <string name="ch_views_label">просмотров</string>
+    <string name="ch_share">Поделиться</string>
 
 </resources>

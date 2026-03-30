@@ -360,7 +360,7 @@ fun ChannelPostCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "переглядів",
+                        text = stringResource(R.string.ch_views_label),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                         fontWeight = FontWeight.Medium
@@ -514,7 +514,7 @@ fun ChannelPostCard(
                         } else {
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Коментарі",
+                                text = stringResource(R.string.ch_comments),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -543,7 +543,7 @@ fun ChannelPostCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Поділитись",
+                            text = stringResource(R.string.ch_share),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
