@@ -2914,5 +2914,7 @@
     <string name="ch_post_notifications_sub">Надсилати push підписникам</string>
     <string name="ch_show_statistics">Показувати статистику</string>
     <string name="ch_show_statistics_sub">Підписники бачать статистику каналу</string>
+    <string name="ch_views_label">переглядів</string>
+    <string name="ch_share">Поділитись</string>
 
 </resources>
