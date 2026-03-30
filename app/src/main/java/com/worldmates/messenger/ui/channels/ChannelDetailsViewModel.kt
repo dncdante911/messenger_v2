@@ -1182,6 +1182,18 @@ class ChannelDetailsViewModel : ViewModel() {
         // Check if the channel is already live (set by a previous socket event)
         if (LiveChannelTracker.isLive(channelId)) {
             _activeStreamRoomName.value = ""  // live but roomName not yet known from this session
+            // Verify with the server — the tracker may be stale if the stream ended while the
+            // socket was disconnected (e.g. user was in ChannelLivestreamActivity)
+            viewModelScope.launch {
+                try {
+                    val lsApi = NodeRetrofitClient.retrofit.create(ChannelLivestreamApi::class.java)
+                    val resp  = lsApi.getActiveStream(channelId)
+                    if (resp.stream == null) {
+                        LiveChannelTracker.markEnded(channelId)
+                        _activeStreamRoomName.value = null
+                    }
+                } catch (_: Exception) { /* stale state is acceptable; socket events will correct it */ }
+            }
         }
         socketHandler?.connect(channelId)
         Log.d("ChannelDetailsVM", "Socket.IO connected for channel $channelId")

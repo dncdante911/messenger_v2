@@ -256,6 +256,7 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         // Viewer: stream has ended
         socketManager.on("stream:ended") { _ ->
             Log.d(TAG, "Stream ended by host")
+            LiveChannelTracker.markEnded(currentChannelId)
             cleanup()
             _uiState.value = LivestreamUiState.Ended
         }
@@ -379,7 +380,18 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                         )
                     )
                 } else {
-                    _uiState.value = LivestreamUiState.Error(resp.error_message ?: "No active stream")
+                    // No active stream — clear any stale live indicator and show waiting screen
+                    LiveChannelTracker.markEnded(channelId)
+                    _uiState.value = LivestreamUiState.Idle
+                }
+            } catch (e: HttpException) {
+                if (e.code() == 404) {
+                    // 404 = "No active stream" — not an error, just no stream yet
+                    LiveChannelTracker.markEnded(channelId)
+                    _uiState.value = LivestreamUiState.Idle
+                } else {
+                    Log.e(TAG, "joinStream error", e)
+                    _uiState.value = LivestreamUiState.Error(e.message ?: "Network error")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "joinStream error", e)
