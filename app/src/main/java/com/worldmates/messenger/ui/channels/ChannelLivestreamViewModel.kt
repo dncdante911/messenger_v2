@@ -345,6 +345,8 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                     val payload = JSONObject().apply { put("roomName", room) }
                     socketManager.emit("stream:end", payload)
                 }
+                // Remove from live tracker so the channel no longer shows LIVE banner
+                LiveChannelTracker.markEnded(currentChannelId)
                 cleanup()
                 _uiState.value = LivestreamUiState.Ended
             }
@@ -438,6 +440,9 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         // Start local camera
         lsManager.setupLocalCamera()
         _localStream.value = lsManager.localStream
+
+        // Mark channel as live so ChannelDetailsActivity shows the LIVE banner
+        LiveChannelTracker.markLive(currentChannelId)
 
         // Tell socket server we're the host and ready
         val payload = JSONObject().apply {
