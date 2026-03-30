@@ -123,8 +123,31 @@ module.exports = function registerLivestreamRoutes(app, ctx, io) {
                     where: { channel_id: channelId, status: 'live' },
                     raw: true,
                 });
-                if (existing)
-                    return res.status(409).json({ api_status: 409, error_message: 'Stream already active', stream: existing });
+                if (existing) {
+                    // Re-emit channel:stream_started so any subscribers who missed the
+                    // original event (e.g. joined the channel after the stream began) see
+                    // the live banner immediately.
+                    const existingHost = await getHostInfo(ctx, existing.host_user_id);
+                    io.to(`channel_${channelId}`).emit('channel:stream_started', {
+                        channelId,
+                        streamId:     existing.id,
+                        roomName:     existing.room_name,
+                        quality:      existing.quality,
+                        title:        existing.title,
+                        isPremium:    existing.is_premium === 1,
+                        hostUserId:   existing.host_user_id,
+                        hostName:     existingHost.name,
+                        hostAvatar:   existingHost.avatar,
+                        startedAt:    Math.floor(new Date(existing.started_at).getTime() / 1000),
+                        targetBitrate: QUALITY_BITRATE[existing.quality] || 2500,
+                    });
+                    return res.status(409).json({
+                        api_status:    409,
+                        error_message: 'Stream already active',
+                        stream:        existing,
+                        ice_servers:   turnHelper.getIceServers(userId),
+                    });
+                }
 
                 const roomName  = generateRoomName(channelId);
                 const iceServers = turnHelper.getIceServers(userId);
