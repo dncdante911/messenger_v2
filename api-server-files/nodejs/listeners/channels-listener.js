@@ -464,25 +464,23 @@ async function registerChannelsListeners(socket, io, ctx) {
      * Data: { roomName, toUserId, candidate }
      */
     socket.on('stream:ice', (data) => {
-        const { roomName, toUserId, candidate } = data;
+        const { roomName, toUserId, candidate, sdpMid, sdpMLineIndex } = data;
         if (!candidate) return;
 
         const fromUserId = ctx.socketIdUserHash
             ? ctx.userHashUserId?.[ctx.socketIdUserHash[socket.id]]
             : null;
 
+        const payload = { roomName, fromUserId, candidate, sdpMid, sdpMLineIndex };
+
         if (toUserId) {
             const recipientSockets = ctx.userIdSocket[toUserId];
             if (recipientSockets && recipientSockets.length > 0) {
-                recipientSockets.forEach(s => s.emit('stream:ice', {
-                    roomName,
-                    fromUserId,
-                    candidate,
-                }));
+                recipientSockets.forEach(s => s.emit('stream:ice', payload));
             }
         } else {
             // Broadcast to entire room (fallback)
-            socket.to(roomName).emit('stream:ice', { fromUserId, candidate });
+            socket.to(roomName).emit('stream:ice', payload);
         }
     });
 

@@ -150,6 +150,8 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     private var currentRoomName: String? = null
     private var isHost = false
     private var myUserId: Long = UserSession.userId.toLong()
+    /** ICE servers received from the server when the host starts a stream. */
+    private var hostIceServers: List<PeerConnection.IceServer> = emptyList()
 
     // ── WebRTC + Socket ────────────────────────────────────────────────────────
     private val lsManager = LivestreamWebRTCManager(app)
@@ -215,13 +217,13 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
 
     private fun setupLivestreamSocketListeners() {
         // Host: a viewer joined → create offer for them
+        // Server sends key "userId" (not "viewerUserId"); ICE servers come from the
+        // host's own startStream response, not from this event.
         socketManager.on("stream:viewer_joined") { args ->
             val data = args.getOrNull(0) as? JSONObject ?: return@on
-            val viewerUserId = data.optLong("viewerUserId")
-            val rawIceServers = data.optJSONArray("iceServers")
-            val iceServers = parseIceServers(rawIceServers)
+            val viewerUserId = data.optLong("userId")
             Log.d(TAG, "👁 Viewer $viewerUserId joined, creating offer")
-            lsManager.createOfferForViewer(viewerUserId, iceServers)
+            lsManager.createOfferForViewer(viewerUserId, hostIceServers)
         }
 
         // Viewer: received SDP offer from host → handle and create answer
@@ -262,9 +264,10 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         }
 
         // Host: a viewer left (tear down their peer connection)
+        // Server emits key "userId" (not "viewerUserId")
         socketManager.on("stream:viewer_left") { args ->
             val data = args.getOrNull(0) as? JSONObject ?: return@on
-            val viewerUserId = data.optLong("viewerUserId")
+            val viewerUserId = data.optLong("userId")
             lsManager.removePeer(viewerUserId)
         }
 
@@ -288,6 +291,7 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                 val resp = api.startStream(channelId, quality, title)
                 if (resp.api_status == 200 && resp.room_name != null) {
                     currentRoomName = resp.room_name
+                    hostIceServers = iceServersFromList(resp.ice_servers)
                     onHostStreamReady(
                         LivestreamInfo(
                             stream_id         = resp.stream_id,
@@ -305,11 +309,14 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                 if (e.code() == 409) {
                     // Stream already active — resume as host
                     try {
-                        val body   = e.response()?.errorBody()?.string()
-                        val stream = JSONObject(body ?: "{}").optJSONObject("stream")
+                        val bodyStr = e.response()?.errorBody()?.string()
+                        val bodyJson = JSONObject(bodyStr ?: "{}")
+                        val stream   = bodyJson.optJSONObject("stream")
                         val roomName = stream?.optString("room_name", "") ?: ""
                         if (roomName.isNotEmpty()) {
                             currentRoomName = roomName
+                            // Parse ICE servers if server included them in 409 body
+                            hostIceServers = parseIceServers(bodyJson.optJSONArray("ice_servers"))
                             onHostStreamReady(
                                 LivestreamInfo(
                                     stream_id  = stream?.optInt("id"),
@@ -389,9 +396,10 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                 currentRoomName?.let { room ->
                     val payload = JSONObject().apply {
                         put("roomName", room)
-                        put("viewerUserId", myUserId)
+                        put("userId", myUserId)
+                        put("channelId", currentChannelId)
                     }
-                    socketManager.emit("stream:leave", payload)
+                    socketManager.emit("stream:viewer_leave", payload)
                 }
             } catch (e: Exception) { Log.w(TAG, "leaveStream error", e) }
             finally {
@@ -456,12 +464,14 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     }
 
     private fun onViewerJoined(info: LivestreamInfo) {
-        // Join the socket room so the host can create an offer for us
+        // Tell server we are ready for WebRTC — server will notify the host to create an offer.
+        // Event name and keys must match what channels-listener.js expects.
         val payload = JSONObject().apply {
             put("roomName", info.room_name)
-            put("viewerUserId", myUserId)
+            put("userId", myUserId)
+            put("channelId", currentChannelId)
         }
-        socketManager.emit("stream:join", payload)
+        socketManager.emit("stream:viewer_join", payload)
 
         _uiState.value = LivestreamUiState.Viewing(info)
         Log.d(TAG, "Viewer joined: room=${info.room_name}")
@@ -472,6 +482,22 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         _localStream.value  = null
         _remoteStream.value = null
         currentRoomName     = null
+        hostIceServers      = emptyList()
+    }
+
+    /**
+     * Converts the Gson-parsed ice_servers list (List<Any>) from Retrofit responses
+     * into WebRTC IceServer objects.
+     */
+    private fun iceServersFromList(list: List<Any>?): List<PeerConnection.IceServer> {
+        if (list.isNullOrEmpty()) return emptyList()
+        return try {
+            val jsonArr = org.json.JSONArray(com.google.gson.Gson().toJson(list))
+            parseIceServers(jsonArr)
+        } catch (e: Exception) {
+            Log.w(TAG, "iceServersFromList parse error", e)
+            emptyList()
+        }
     }
 
     private fun parseIceServers(arr: org.json.JSONArray?): List<PeerConnection.IceServer> {

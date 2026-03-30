@@ -234,13 +234,8 @@ class LivestreamWebRTCManager(private val context: Context) {
 
     private fun ensureFactory() {
         if (factory != null) return
-        // Reuse the already-initialized PeerConnectionFactory from WebRTCManager if available
-        val existing = WebRTCManager.getPeerConnectionFactory(context)
-        if (existing != null) {
-            factory = existing
-            return
-        }
-        // Create a new one (fallback — usually WebRTCManager already initialized it)
+        // Always create a fresh factory — never reuse the call factory from WebRTCManager,
+        // which may have been disposed when a P2P call ended.
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions.builder(context)
                 .setEnableInternalTracer(false)
