@@ -58,7 +58,7 @@ data class StartStreamResponse(
     val stream_id: Int?,
     val room_name: String?,
     val quality: String?,
-    val is_premium: Boolean?,
+    val is_premium: Int?,
     val ice_servers: List<Any>?,
     val allowed_qualities: List<String>?,
     val error_message: String?
@@ -69,7 +69,7 @@ data class JoinStreamResponse(
     val stream_id: Int?,
     val room_name: String?,
     val quality: String?,
-    val is_premium: Boolean?,
+    val is_premium: Int?,
     val ice_servers: List<Any>?,
     val error_message: String?
 )
@@ -295,7 +295,7 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                             stream_id         = resp.stream_id,
                             room_name         = resp.room_name,
                             quality           = resp.quality ?: quality,
-                            is_premium        = resp.is_premium == true,
+                            is_premium        = (resp.is_premium ?: 0) == 1,
                             ice_servers       = null,
                             allowed_qualities = resp.allowed_qualities
                         )
@@ -374,7 +374,7 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                             stream_id   = resp.stream_id,
                             room_name   = resp.room_name,
                             quality     = resp.quality ?: "720p",
-                            is_premium  = resp.is_premium == true,
+                            is_premium  = (resp.is_premium ?: 0) == 1,
                             ice_servers = null,
                             allowed_qualities = null
                         )
