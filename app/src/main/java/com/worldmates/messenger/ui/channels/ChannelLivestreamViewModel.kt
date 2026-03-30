@@ -149,6 +149,14 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     private var myUserId: Long = UserSession.userId.toLong()
     /** ICE servers received from the server when the host starts a stream. */
     private var hostIceServers: List<PeerConnection.IceServer> = emptyList()
+    /**
+     * Payloads that need to be (re-)emitted once the socket connects.
+     * The socket handshake is async — the HTTP response often arrives before
+     * the WebSocket connection is established, so the first emit() is silently
+     * dropped. Storing the payloads here lets onSocketConnected() retry them.
+     */
+    private var pendingViewerJoinPayload: JSONObject? = null
+    private var pendingHostReadyPayload: JSONObject? = null
 
     // ── WebRTC + Socket ────────────────────────────────────────────────────────
     private val lsManager = LivestreamWebRTCManager(app)
@@ -463,12 +471,14 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         // Mark channel as live so ChannelDetailsActivity shows the LIVE banner
         LiveChannelTracker.markLive(currentChannelId)
 
-        // Tell socket server we're the host and ready
+        // Tell socket server we're the host and ready.
+        // Store the payload so onSocketConnected() can re-emit if socket isn't ready yet.
         val payload = JSONObject().apply {
             put("roomName", info.room_name)
             put("hostUserId", myUserId)
         }
-        socketManager.emit("stream:host_ready", payload)
+        pendingHostReadyPayload = payload
+        socketManager.emit("stream:host_ready", payload)  // no-op if socket not yet connected
 
         _uiState.value = LivestreamUiState.Hosting(info)
         Log.d(TAG, "Host ready: room=${info.room_name}")
@@ -476,13 +486,14 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
 
     private fun onViewerJoined(info: LivestreamInfo) {
         // Tell server we are ready for WebRTC — server will notify the host to create an offer.
-        // Event name and keys must match what channels-listener.js expects.
+        // Store the payload so onSocketConnected() can re-emit it if the socket isn't ready yet.
         val payload = JSONObject().apply {
             put("roomName", info.room_name)
             put("userId", myUserId)
             put("channelId", currentChannelId)
         }
-        socketManager.emit("stream:viewer_join", payload)
+        pendingViewerJoinPayload = payload
+        socketManager.emit("stream:viewer_join", payload)  // no-op if socket not yet connected
 
         _uiState.value = LivestreamUiState.Viewing(info)
         Log.d(TAG, "Viewer joined: room=${info.room_name}")
@@ -490,10 +501,12 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
 
     private fun cleanup() {
         lsManager.close()
-        _localStream.value  = null
-        _remoteStream.value = null
-        currentRoomName     = null
-        hostIceServers      = emptyList()
+        _localStream.value       = null
+        _remoteStream.value      = null
+        currentRoomName          = null
+        hostIceServers           = emptyList()
+        pendingViewerJoinPayload = null
+        pendingHostReadyPayload  = null
     }
 
     /**
@@ -537,7 +550,20 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
 
     // ── SocketManager.SocketListener ──────────────────────────────────────────
     override fun onNewMessage(messageJson: org.json.JSONObject) {}
-    override fun onSocketConnected() { Log.d(TAG, "Livestream socket connected") }
+    override fun onSocketConnected() {
+        Log.d(TAG, "Livestream socket connected")
+        // Flush any events that were attempted before the socket handshake completed
+        pendingViewerJoinPayload?.let { payload ->
+            pendingViewerJoinPayload = null
+            socketManager.emit("stream:viewer_join", payload)
+            Log.d(TAG, "Re-emitted pending stream:viewer_join after socket connected")
+        }
+        pendingHostReadyPayload?.let { payload ->
+            pendingHostReadyPayload = null
+            socketManager.emit("stream:host_ready", payload)
+            Log.d(TAG, "Re-emitted pending stream:host_ready after socket connected")
+        }
+    }
     override fun onSocketDisconnected() { Log.d(TAG, "Livestream socket disconnected") }
     override fun onSocketError(error: String) { Log.w(TAG, "Livestream socket error: $error") }
 
