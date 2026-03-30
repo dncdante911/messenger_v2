@@ -1,12 +1,16 @@
 package com.worldmates.messenger.ui.channels
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
@@ -57,6 +61,15 @@ class ChannelLivestreamActivity : AppCompatActivity() {
     private var channelIsPremium: Boolean = false
     private var channelName: String = ""
 
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        if (results.values.any { !it }) {
+            Toast.makeText(this, getString(R.string.livestream_permission_denied), Toast.LENGTH_LONG).show()
+            finish()
+        }
+    }
+
     companion object {
         const val EXTRA_CHANNEL_ID  = "channel_id"
         const val EXTRA_IS_HOST     = "is_host"
@@ -91,6 +104,17 @@ class ChannelLivestreamActivity : AppCompatActivity() {
         channelName     = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: ""
 
         if (channelId == 0L) { finish(); return }
+
+        // Request camera + audio permissions if needed (required for host camera capture)
+        if (isHost) {
+            val hostPerms = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+            val missing = hostPerms.filter {
+                ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+            }
+            if (missing.isNotEmpty()) {
+                permissionLauncher.launch(missing.toTypedArray())
+            }
+        }
 
         // Enable edge-to-edge layout so we can draw behind system bars
         WindowCompat.setDecorFitsSystemWindows(window, false)
