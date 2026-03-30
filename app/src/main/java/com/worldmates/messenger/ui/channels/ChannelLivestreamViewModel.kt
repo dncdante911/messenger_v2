@@ -83,7 +83,6 @@ interface ChannelLivestreamApi {
         @Field("title") title: String?
     ): StartStreamResponse
 
-    @FormUrlEncoded
     @POST("api/node/channels/{channel_id}/livestream/end")
     suspend fun endStream(
         @Path("channel_id") channelId: Long
@@ -94,13 +93,11 @@ interface ChannelLivestreamApi {
         @Path("channel_id") channelId: Long
     ): ActiveStreamResponse
 
-    @FormUrlEncoded
     @POST("api/node/channels/{channel_id}/livestream/join")
     suspend fun joinStream(
         @Path("channel_id") channelId: Long
     ): JoinStreamResponse
 
-    @FormUrlEncoded
     @POST("api/node/channels/{channel_id}/livestream/leave")
     suspend fun leaveStream(
         @Path("channel_id") channelId: Long
@@ -344,6 +341,10 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     }
 
     fun endStream() {
+        // Mark ended synchronously — onClose() fires immediately after this call
+        // and finishes the Activity, which may cancel viewModelScope before the
+        // coroutine below reaches its finally block.
+        LiveChannelTracker.markEnded(currentChannelId)
         viewModelScope.launch {
             try { api.endStream(currentChannelId) }
             catch (e: Exception) { Log.w(TAG, "endStream error (ignoring)", e) }
@@ -352,8 +353,6 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                     val payload = JSONObject().apply { put("roomName", room) }
                     socketManager.emit("stream:end", payload)
                 }
-                // Remove from live tracker so the channel no longer shows LIVE banner
-                LiveChannelTracker.markEnded(currentChannelId)
                 cleanup()
                 _uiState.value = LivestreamUiState.Ended
             }
@@ -533,6 +532,8 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     // ─────────────────────────────────────────────────────────────────────────
     override fun onCleared() {
         super.onCleared()
+        // Safety net: ensure LIVE banner is removed even if endStream() didn't complete
+        if (isHost && currentChannelId != 0L) LiveChannelTracker.markEnded(currentChannelId)
         cleanup()
         socketManager.disconnect()
     }
