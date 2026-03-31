@@ -467,7 +467,8 @@ fun ChannelDetailsScreen(
                                 ChannelLiveBanner(
                                     isAdmin = channel.isAdmin,
                                     channelId = channelId,
-                                    channelName = channel.name
+                                    channelName = channel.name,
+                                    isPremium = channel.isPrivate
                                 )
                             }
                         }
@@ -1311,7 +1312,8 @@ fun ChannelDetailsScreen(
 private fun ChannelLiveBanner(
     isAdmin: Boolean,
     channelId: Long,
-    channelName: String
+    channelName: String,
+    isPremium: Boolean = false
 ) {
     val context = LocalContext.current
     val infiniteTransition = rememberInfiniteTransition(label = "live_banner_pulse")
@@ -1367,11 +1369,13 @@ private fun ChannelLiveBanner(
 
             Button(
                 onClick = {
-                    val intent = Intent(context, ChannelLivestreamActivity::class.java).apply {
-                        putExtra(ChannelLivestreamActivity.EXTRA_CHANNEL_ID, channelId)
-                        putExtra(ChannelLivestreamActivity.EXTRA_IS_HOST, isAdmin)
-                        putExtra(ChannelLivestreamActivity.EXTRA_CHANNEL_NAME, channelName)
-                    }
+                    val intent = ChannelLivestreamActivity.createIntent(
+                        context     = context,
+                        channelId   = channelId,
+                        isHost      = isAdmin,
+                        isPremium   = isPremium,
+                        channelName = channelName
+                    )
                     context.startActivity(intent)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
