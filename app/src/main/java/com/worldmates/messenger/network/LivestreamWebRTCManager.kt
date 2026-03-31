@@ -55,7 +55,7 @@ class LivestreamWebRTCManager(private val context: Context) {
     // Host: setup local camera + mic
     // ─────────────────────────────────────────────────────────────────────────
 
-    fun setupLocalCamera() {
+    fun setupLocalCamera(quality: String = "720p") {
         try {
             ensureFactory()
             val f = factory ?: return
@@ -69,7 +69,16 @@ class LivestreamWebRTCManager(private val context: Context) {
             localAudioTrack = f.createAudioTrack("ls_audio", audioSource)
             localAudioTrack?.setEnabled(true)
 
-            // Video
+            // Video — resolution and fps based on selected quality
+            val (captureWidth, captureHeight, captureFps) = when (quality) {
+                "240p"    -> Triple(426,  240,  24)
+                "360p"    -> Triple(640,  360,  24)
+                "480p"    -> Triple(854,  480,  30)
+                "720p"    -> Triple(1280, 720,  30)
+                "1080p"   -> Triple(1920, 1080, 30)
+                "1080p60" -> Triple(1920, 1080, 60)
+                else      -> Triple(1280, 720,  30)
+            }
             val capturer = createCameraVideoCapturer()
             if (capturer != null) {
                 videoCapturer = capturer
@@ -77,7 +86,7 @@ class LivestreamWebRTCManager(private val context: Context) {
                 surfaceTextureHelper = SurfaceTextureHelper.create("LsCapture", eglContext)
                 videoSource = f.createVideoSource(capturer.isScreencast)
                 capturer.initialize(surfaceTextureHelper, context, videoSource!!.capturerObserver)
-                capturer.startCapture(1280, 720, 30)
+                capturer.startCapture(captureWidth, captureHeight, captureFps)
                 localVideoTrack = f.createVideoTrack("ls_video", videoSource)
                 localVideoTrack?.setEnabled(true)
             }

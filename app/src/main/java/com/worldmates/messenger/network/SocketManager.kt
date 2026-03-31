@@ -56,7 +56,8 @@ class SocketManager(
         }
 
         if (socket?.connected() == true) {
-            Log.d(TAG, "⚠️ Socket вже підключений, пропускаємо")
+            Log.d(TAG, "⚠️ Socket вже підключений, повідомляємо listener")
+            listener.onSocketConnected()
             return
         }
 
