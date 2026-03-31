@@ -58,7 +58,7 @@ data class StartStreamResponse(
     val stream_id: Int?,
     val room_name: String?,
     val quality: String?,
-    val is_premium: Int?,
+    val is_premium: Any?,   // server sends Boolean or Int(0/1) inconsistently
     val ice_servers: List<Any>?,
     val allowed_qualities: List<String>?,
     val error_message: String?
@@ -69,10 +69,17 @@ data class JoinStreamResponse(
     val stream_id: Int?,
     val room_name: String?,
     val quality: String?,
-    val is_premium: Int?,
+    val is_premium: Any?,   // server sends Boolean or Int(0/1) inconsistently
     val ice_servers: List<Any>?,
     val error_message: String?
 )
+
+/** Normalises the server's inconsistent is_premium field (Boolean or Int 0/1). */
+private fun Any?.asPremiumBoolean(): Boolean = when (this) {
+    is Boolean -> this
+    is Number  -> this.toInt() == 1
+    else       -> false
+}
 
 interface ChannelLivestreamApi {
     @FormUrlEncoded
@@ -303,7 +310,7 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                             stream_id         = resp.stream_id,
                             room_name         = resp.room_name,
                             quality           = resp.quality ?: quality,
-                            is_premium        = (resp.is_premium ?: 0) == 1,
+                            is_premium        = resp.is_premium.asPremiumBoolean(),
                             ice_servers       = null,
                             allowed_qualities = resp.allowed_qualities
                         )
@@ -382,7 +389,7 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                             stream_id   = resp.stream_id,
                             room_name   = resp.room_name,
                             quality     = resp.quality ?: "720p",
-                            is_premium  = (resp.is_premium ?: 0) == 1,
+                            is_premium  = resp.is_premium.asPremiumBoolean(),
                             ice_servers = null,
                             allowed_qualities = null
                         )
