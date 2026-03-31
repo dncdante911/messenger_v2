@@ -557,8 +557,8 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun onHostStreamReady(info: LivestreamInfo) {
-        // Start local camera
-        lsManager.setupLocalCamera()
+        // Start local camera at the quality the host selected
+        lsManager.setupLocalCamera(info.quality)
         _localStream.value = lsManager.localStream
 
         // Mark channel as live so ChannelDetailsActivity shows the LIVE banner
