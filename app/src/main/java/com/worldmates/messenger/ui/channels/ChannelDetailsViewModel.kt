@@ -48,6 +48,10 @@ class ChannelDetailsViewModel : ViewModel() {
     private val _activeStreamRoomName = MutableStateFlow<String?>(null)
     val activeStreamRoomName: StateFlow<String?> = _activeStreamRoomName
 
+    /** Past stream recordings for the channel archive. */
+    private val _recordings = MutableStateFlow<List<RecordingItem>>(emptyList())
+    val recordings: StateFlow<List<RecordingItem>> = _recordings
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -1305,8 +1309,48 @@ class ChannelDetailsViewModel : ViewModel() {
      */
     fun getSocketHandler(): ChannelSocketHandler? = socketHandler
 
+    fun loadRecordings(channelId: Long) {
+        viewModelScope.launch {
+            try {
+                val api = NodeRetrofitClient.retrofit.create(RecordingsApi::class.java)
+                val resp = api.getChannelRecordings(channelId)
+                if (resp.api_status == 200) {
+                    _recordings.value = resp.recordings ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Log.w("ChannelDetailsVM", "loadRecordings error", e)
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         disconnectSocket()
     }
+}
+
+// ── Recordings API + model ─────────────────────────────────────────────────────
+
+data class RecordingItem(
+    val id: Int,
+    val room_name: String,
+    val type: String,
+    val uploader_id: Int,
+    val filename: String,
+    val file_size: Long,
+    val duration: Int,
+    val mime_type: String,
+    val created_at: String
+)
+
+data class RecordingsResponse(
+    val api_status: Int,
+    val recordings: List<RecordingItem>?
+)
+
+interface RecordingsApi {
+    @GET("api/node/recordings/channel/{channel_id}")
+    suspend fun getChannelRecordings(
+        @retrofit2.http.Path("channel_id") channelId: Long
+    ): RecordingsResponse
 }

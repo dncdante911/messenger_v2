@@ -8,15 +8,22 @@ import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.LivestreamWebRTCManager
 import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.SocketManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import org.webrtc.IceCandidate
 import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import retrofit2.HttpException
 import retrofit2.http.*
+import java.io.File
 
 // ─── API models ───────────────────────────────────────────────────────────────
 
@@ -81,6 +88,27 @@ private fun Any?.asPremiumBoolean(): Boolean = when (this) {
     else       -> false
 }
 
+interface RecordingUploadApi {
+    @Multipart
+    @POST("api/node/recordings/upload")
+    suspend fun uploadRecording(
+        @Part file: MultipartBody.Part,
+        @Part("room_name") roomName: okhttp3.RequestBody,
+        @Part("type")      type: okhttp3.RequestBody,
+        @Part("channel_id") channelId: okhttp3.RequestBody,
+        @Part("duration")   duration: okhttp3.RequestBody
+    ): retrofit2.Response<Map<String, Any>>
+}
+
+sealed class RecordingState {
+    object Idle     : RecordingState()
+    object Recording : RecordingState()
+    /** Upload progress 0.0–1.0 */
+    data class Uploading(val progress: Float = 0f) : RecordingState()
+    object Done     : RecordingState()
+    data class Error(val message: String) : RecordingState()
+}
+
 interface ChannelLivestreamApi {
     @FormUrlEncoded
     @POST("api/node/channels/{channel_id}/livestream/start")
@@ -135,6 +163,9 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     private val api: ChannelLivestreamApi by lazy {
         NodeRetrofitClient.retrofit.create(ChannelLivestreamApi::class.java)
     }
+    private val recordingApi: RecordingUploadApi by lazy {
+        NodeRetrofitClient.retrofit.create(RecordingUploadApi::class.java)
+    }
 
     // ── UI state ───────────────────────────────────────────────────────────────
     private val _uiState = MutableStateFlow<LivestreamUiState>(LivestreamUiState.Idle)
@@ -149,6 +180,12 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     private val _remoteStream = MutableStateFlow<MediaStream?>(null)
     val remoteStream: StateFlow<MediaStream?> = _remoteStream
 
+    // ── Recording state ────────────────────────────────────────────────────────
+    private val _recordingState = MutableStateFlow<RecordingState>(RecordingState.Idle)
+    val recordingState: StateFlow<RecordingState> = _recordingState
+    /** Output file for the current recording (host only). */
+    private var recordingFile: File? = null
+
     // ── Internal state ─────────────────────────────────────────────────────────
     private var currentChannelId: Long = 0
     private var currentRoomName: String? = null
@@ -156,6 +193,8 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     private var myUserId: Long = UserSession.userId.toLong()
     /** ICE servers received from the server when the host starts a stream. */
     private var hostIceServers: List<PeerConnection.IceServer> = emptyList()
+    /** ICE servers received from the server when the viewer joins a stream. */
+    private var viewerIceServers: List<PeerConnection.IceServer> = emptyList()
     /**
      * Payloads that need to be (re-)emitted once the socket connects.
      * The socket handshake is async — the HTTP response often arrives before
@@ -239,14 +278,14 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         }
 
         // Viewer: received SDP offer from host → handle and create answer
+        // ICE servers come from the joinStream HTTP response (viewerIceServers),
+        // not from the socket event payload (which never contains them).
         socketManager.on("stream:offer") { args ->
             val data = args.getOrNull(0) as? JSONObject ?: return@on
             val hostUserId = data.optLong("fromUserId")
             val sdpOffer   = data.optString("sdpOffer")
-            val rawIce     = data.optJSONArray("iceServers")
-            val iceServers = parseIceServers(rawIce)
-            Log.d(TAG, "📥 Received stream:offer from host $hostUserId")
-            lsManager.handleOfferFromHost(hostUserId, sdpOffer, iceServers)
+            Log.d(TAG, "📥 Received stream:offer from host $hostUserId (iceServers=${viewerIceServers.size})")
+            lsManager.handleOfferFromHost(hostUserId, sdpOffer, viewerIceServers)
         }
 
         // Host: received SDP answer from a viewer
@@ -361,16 +400,62 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         // and finishes the Activity, which may cancel viewModelScope before the
         // coroutine below reaches its finally block.
         LiveChannelTracker.markEnded(currentChannelId)
+
+        // Stop recording BEFORE cleanup() disposes the WebRTC manager
+        val roomNameSnapshot    = currentRoomName
+        val channelIdSnapshot   = currentChannelId
+        val recFile             = recordingFile
+        val recordingDurationSec: Long = if (recFile != null && _recordingState.value == RecordingState.Recording) {
+            try { lsManager.stopRecording() } catch (e: Exception) { Log.w(TAG, "stopRecording", e); 0L }
+        } else 0L
+
         viewModelScope.launch {
             try { api.endStream(currentChannelId) }
             catch (e: Exception) { Log.w(TAG, "endStream error (ignoring)", e) }
             finally {
-                currentRoomName?.let { room ->
+                roomNameSnapshot?.let { room ->
                     val payload = JSONObject().apply { put("roomName", room) }
                     socketManager.emit("stream:end", payload)
                 }
                 cleanup()
                 _uiState.value = LivestreamUiState.Ended
+            }
+
+            // Upload the recording in the background (don't block Activity close)
+            if (recFile != null && recFile.exists() && recFile.length() > 0) {
+                uploadRecording(recFile, roomNameSnapshot ?: "", channelIdSnapshot, recordingDurationSec)
+            }
+        }
+    }
+
+    private fun uploadRecording(file: File, roomName: String, channelId: Long, durationSec: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _recordingState.value = RecordingState.Uploading(0f)
+            try {
+                val filePart = MultipartBody.Part.createFormData(
+                    "file", file.name,
+                    file.asRequestBody("video/mp4".toMediaTypeOrNull())
+                )
+                val resp = recordingApi.uploadRecording(
+                    file      = filePart,
+                    roomName  = roomName.toRequestBody("text/plain".toMediaTypeOrNull()),
+                    type      = "channel_stream".toRequestBody("text/plain".toMediaTypeOrNull()),
+                    channelId = channelId.toString().toRequestBody("text/plain".toMediaTypeOrNull()),
+                    duration  = durationSec.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+                )
+                if (resp.isSuccessful) {
+                    _recordingState.value = RecordingState.Done
+                    Log.d(TAG, "Recording uploaded successfully")
+                } else {
+                    _recordingState.value = RecordingState.Error("Upload failed: ${resp.code()}")
+                    Log.w(TAG, "Recording upload HTTP ${resp.code()}")
+                }
+            } catch (e: Exception) {
+                _recordingState.value = RecordingState.Error(e.message ?: "Upload error")
+                Log.e(TAG, "Recording upload error", e)
+            } finally {
+                // Clean up the local temp file
+                try { file.delete() } catch (_: Exception) {}
             }
         }
     }
@@ -384,6 +469,7 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                 val resp = api.joinStream(channelId)
                 if (resp.api_status == 200 && resp.room_name != null) {
                     currentRoomName = resp.room_name
+                    viewerIceServers = iceServersFromList(resp.ice_servers)
                     onViewerJoined(
                         LivestreamInfo(
                             stream_id   = resp.stream_id,
@@ -478,6 +564,18 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         // Mark channel as live so ChannelDetailsActivity shows the LIVE banner
         LiveChannelTracker.markLive(currentChannelId)
 
+        // Start recording to a temp file in the app's cache directory
+        try {
+            val cacheDir = getApplication<Application>().cacheDir
+            val outFile  = File(cacheDir, "stream_${info.room_name}_${System.currentTimeMillis()}.mp4")
+            recordingFile = outFile
+            lsManager.startRecording(outFile)
+            _recordingState.value = RecordingState.Recording
+            Log.d(TAG, "Recording started → ${outFile.name}")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to start recording", e)
+        }
+
         // Tell socket server we're the host and ready.
         // Store the payload so onSocketConnected() can re-emit if socket isn't ready yet.
         val payload = JSONObject().apply {
@@ -512,8 +610,13 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         _remoteStream.value      = null
         currentRoomName          = null
         hostIceServers           = emptyList()
+        viewerIceServers         = emptyList()
         pendingViewerJoinPayload = null
         pendingHostReadyPayload  = null
+        recordingFile            = null
+        if (_recordingState.value == RecordingState.Recording) {
+            _recordingState.value = RecordingState.Idle
+        }
     }
 
     /**

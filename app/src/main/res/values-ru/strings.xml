@@ -2265,6 +2265,10 @@
     <string name="channel_live_now">🔴 В ЭФИРЕ</string>
     <string name="channel_live_watch">Смотреть</string>
     <string name="channel_live_hosting">Вы ведёте эфир</string>
+    <string name="channel_recordings">Записи эфиров</string>
+    <string name="recording_upload_progress">Загрузка записи…</string>
+    <string name="recording_upload_done">Запись сохранена в архиве</string>
+    <string name="recording_upload_error">Ошибка сохранения записи</string>
 
     <!-- ── Scheduled Messages ────────────────────────────────────────────── -->
     <string name="scheduled_messages">Запланированные сообщения</string>

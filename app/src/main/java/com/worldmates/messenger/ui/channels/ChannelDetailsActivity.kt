@@ -123,6 +123,7 @@ class ChannelDetailsActivity : AppCompatActivity() {
         channelsViewModel.refreshChannel(channelId)
         detailsViewModel.loadChannelDetails(channelId)
         detailsViewModel.loadChannelPosts(channelId)
+        detailsViewModel.loadRecordings(channelId)
         // Connect Socket.IO for real-time updates
         detailsViewModel.connectSocket(this, channelId)
     }
@@ -201,6 +202,7 @@ fun ChannelDetailsScreen(
     val isLoadingComments by detailsViewModel.isLoadingComments.collectAsState()
     val statistics by detailsViewModel.statistics.collectAsState()
     val admins by detailsViewModel.admins.collectAsState()
+    val recordings by detailsViewModel.recordings.collectAsState()
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = refreshing,
@@ -466,6 +468,20 @@ fun ChannelDetailsScreen(
                                     isAdmin = channel.isAdmin,
                                     channelId = channelId,
                                     channelName = channel.name
+                                )
+                            }
+                        }
+
+                        // Recordings archive — shown when there are past streams
+                        if (recordings.isNotEmpty()) {
+                            item(key = "recordings_header") {
+                                ChannelRecordingsSection(
+                                    recordings = recordings,
+                                    channelId = channelId,
+                                    onPlayRecording = { url ->
+                                        videoPlayerUrl = url
+                                        showVideoPlayer = true
+                                    }
                                 )
                             }
                         }
@@ -1368,6 +1384,154 @@ private fun ChannelLiveBanner(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Horizontally-scrollable recordings archive section for the channel feed.
+ */
+@Composable
+private fun ChannelRecordingsSection(
+    recordings: List<RecordingItem>,
+    channelId: Long,
+    onPlayRecording: (url: String) -> Unit
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.CameraAlt,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = stringResource(R.string.channel_recordings),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Text(
+                text = "${recordings.size}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(recordings) { rec ->
+                RecordingCard(recording = rec, onPlay = { onPlayRecording(it) })
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun RecordingCard(
+    recording: RecordingItem,
+    onPlay: (url: String) -> Unit
+) {
+    val context = LocalContext.current
+    val baseUrl = com.worldmates.messenger.data.Constants.NODE_BASE_URL
+        .trimEnd('/')
+    val token   = com.worldmates.messenger.data.UserSession.accessToken ?: ""
+    val videoUrl = "$baseUrl/api/node/recordings/file/${recording.id}?access_token=$token"
+
+    val durationStr = remember(recording.duration) {
+        val m = recording.duration / 60
+        val s = recording.duration % 60
+        "%d:%02d".format(m, s)
+    }
+    val dateStr = remember(recording.created_at) {
+        try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+            val d = sdf.parse(recording.created_at)
+            if (d != null) java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(d)
+            else recording.created_at.take(10)
+        } catch (_: Exception) { recording.created_at.take(10) }
+    }
+
+    Card(
+        modifier = Modifier
+            .width(160.dp)
+            .clickable { onPlay(videoUrl) },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column {
+            // Thumbnail placeholder
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(90.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                   MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Outlined.PlayCircleOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                )
+                if (recording.duration > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(6.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = durationStr,
+                            fontSize = 11.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                Text(
+                    text = dateStr,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                val sizeMb = recording.file_size / 1_048_576f
+                Text(
+                    text = "%.1f MB".format(sizeMb),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
