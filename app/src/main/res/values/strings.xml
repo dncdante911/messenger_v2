@@ -2158,6 +2158,10 @@
     <string name="channel_live_now">🔴 НАЖИВО</string>
     <string name="channel_live_watch">Дивитися</string>
     <string name="channel_live_hosting">Ви ведете ефір</string>
+    <string name="channel_recordings">Записи ефірів</string>
+    <string name="recording_upload_progress">Завантаження запису…</string>
+    <string name="recording_upload_done">Запис збережено в архіві</string>
+    <string name="recording_upload_error">Помилка збереження запису</string>
 
     <!-- ── Channel Admin Panel additions ─────────────────────────────────── -->
     <string name="channel_livestream_section">Пряма трансляція</string>

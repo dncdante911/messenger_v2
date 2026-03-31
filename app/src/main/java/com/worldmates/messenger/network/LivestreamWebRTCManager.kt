@@ -36,6 +36,9 @@ class LivestreamWebRTCManager(private val context: Context) {
     private val peerConnections = mutableMapOf<Long, PeerConnection>()  // key = userId
     private var factory: PeerConnectionFactory? = null
 
+    // ── Recording ──────────────────────────────────────────────────────────────
+    private val recorder = WebRTCStreamRecorder()
+
     // ── Callbacks ──────────────────────────────────────────────────────────────
     /** Host: ICE candidate for [toUserId] ready to send. */
     var onIceCandidateReady: ((toUserId: Long, candidate: IceCandidate) -> Unit)? = null
@@ -197,6 +200,36 @@ class LivestreamWebRTCManager(private val context: Context) {
     fun setVideoEnabled(enabled: Boolean) { localVideoTrack?.setEnabled(enabled) }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Recording (host only)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Starts recording the local video+audio to [outputFile].
+     * Must be called after [setupLocalCamera] so that [localVideoTrack] exists.
+     */
+    fun startRecording(outputFile: java.io.File) {
+        val track = localVideoTrack
+        if (track == null) {
+            Log.w(TAG, "startRecording called before local camera is set up")
+            return
+        }
+        recorder.startRecording(outputFile, width = 1280, height = 720)
+        track.addSink(recorder)
+        Log.d(TAG, "Recording started → ${outputFile.absolutePath}")
+    }
+
+    /**
+     * Stops recording and returns duration in seconds.
+     * Call this before [close] so the output file is properly finalized.
+     */
+    fun stopRecording(): Long {
+        localVideoTrack?.removeSink(recorder)
+        val duration = recorder.stopRecording()
+        Log.d(TAG, "Recording stopped, duration=${duration}s")
+        return duration
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Release all resources
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -204,6 +237,9 @@ class LivestreamWebRTCManager(private val context: Context) {
         try {
             peerConnections.values.forEach { runCatching { it.close() } }
             peerConnections.clear()
+
+            // Ensure recorder is stopped before releasing the video track
+            localVideoTrack?.removeSink(recorder)
 
             videoCapturer?.stopCapture()
             videoCapturer?.dispose()

@@ -60,8 +60,32 @@ async function authMiddleware(ctx, req, res, next) {
     }
 }
 
+// ── Auto-cleanup: delete recordings older than 1 year ────────────────────────
+async function purgeOldRecordings(ctx) {
+    try {
+        const ONE_YEAR_AGO = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+        const old = await ctx.wm_call_recordings.findAll({
+            where: { created_at: { [require('sequelize').Op.lt]: ONE_YEAR_AGO } },
+            attributes: ['id', 'file_path'],
+            raw: true,
+        });
+        if (!old.length) return;
+        for (const rec of old) {
+            try { if (fs.existsSync(rec.file_path)) fs.unlinkSync(rec.file_path); } catch (_) {}
+        }
+        const ids = old.map(r => r.id);
+        await ctx.wm_call_recordings.destroy({ where: { id: ids } });
+        console.log(`[Recordings] Purged ${ids.length} recordings older than 1 year`);
+    } catch (e) {
+        console.error('[Recordings] purge error:', e.message);
+    }
+}
+
 // ── Routes ───────────────────────────────────────────────────────────────────
 module.exports = function registerRecordingRoutes(app, ctx) {
+    // Run cleanup on startup and then once a day
+    purgeOldRecordings(ctx);
+    setInterval(() => purgeOldRecordings(ctx), 24 * 60 * 60 * 1000);
 
     /**
      * POST /api/node/recordings/upload
@@ -115,6 +139,33 @@ module.exports = function registerRecordingRoutes(app, ctx) {
                 // Clean up partial upload
                 if (req.file) fs.unlink(req.file.path, () => {});
                 console.error('[Recording] upload error:', e);
+                return res.status(500).json({ api_status: 500, error_message: e.message });
+            }
+        }
+    );
+
+    /**
+     * GET /api/node/recordings/channel/:channel_id
+     * List all recordings for a channel (for the archive tab).
+     * Returns recordings ordered newest-first, up to 100 items.
+     */
+    app.get('/api/node/recordings/channel/:channel_id',
+        (req, res, next) => authMiddleware(ctx, req, res, next),
+        async (req, res) => {
+            try {
+                const channelId = parseInt(req.params.channel_id);
+                if (!channelId) return res.status(400).json({ api_status: 400, error_message: 'Invalid channel_id' });
+
+                const recordings = await ctx.wm_call_recordings.findAll({
+                    where: { channel_id: channelId, status: 'ready' },
+                    attributes: ['id', 'room_name', 'type', 'uploader_id', 'filename',
+                                 'file_size', 'duration', 'mime_type', 'created_at'],
+                    order: [['created_at', 'DESC']],
+                    limit: 100,
+                    raw: true,
+                });
+                return res.json({ api_status: 200, recordings });
+            } catch (e) {
                 return res.status(500).json({ api_status: 500, error_message: e.message });
             }
         }
