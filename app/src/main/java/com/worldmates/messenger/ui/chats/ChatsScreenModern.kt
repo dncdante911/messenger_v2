@@ -1240,22 +1240,45 @@ fun ChannelListTabWithStories(
 ) {
     val refreshing by remember { mutableStateOf(false) }
     val channelViewStyle = rememberChannelViewStyle()
+
+    // Search state
+    var localQuery by remember { mutableStateOf("") }
+    val searchResults by channelsViewModel.channelList.collectAsState()
+    // When searching, show search results; otherwise show subscribed channels
+    val displayedChannels = if (localQuery.isNotEmpty()) searchResults else channels
+
+    LaunchedEffect(localQuery) {
+        kotlinx.coroutines.delay(400)
+        if (localQuery.isEmpty()) {
+            channelsViewModel.fetchSubscribedChannels()
+        } else if (localQuery.length >= 2) {
+            channelsViewModel.searchChannels(localQuery)
+        }
+    }
+
     val pullRefreshState = rememberPullRefreshState(
         refreshing = refreshing || isLoading,
         onRefresh = onRefresh
     )
 
     // Канали, де поточний користувач — адмін
-    val adminChannelIds = channels.filter { it.isAdmin }.map { it.id }
+    val adminChannelIds = displayedChannels.filter { it.isAdmin }.map { it.id }
 
-    // No local filtering — channels are shown directly
+    Column(modifier = Modifier.fillMaxSize()) {
+        // ── Search bar ─────────────────────────────────────────────────────────
+        com.worldmates.messenger.ui.channels.ChannelSearchBar(
+            searchQuery = localQuery,
+            onQueryChange = { localQuery = it },
+            onSearch = { if (localQuery.isNotEmpty()) channelsViewModel.searchChannels(localQuery) },
+            onClear = { localQuery = ""; channelsViewModel.fetchSubscribedChannels() }
+        )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .pullRefresh(pullRefreshState)
     ) {
-        if (channels.isEmpty() && !isLoading) {
+        if (displayedChannels.isEmpty() && !isLoading) {
             // Premium empty state
             Column(
                 modifier = Modifier
@@ -1309,7 +1332,7 @@ fun ChannelListTabWithStories(
                 }
 
                 // Channel list
-                items(channels, key = { it.id }) { channel ->
+                items(displayedChannels, key = { it.id }) { channel ->
                     when (channelViewStyle) {
                         com.worldmates.messenger.ui.preferences.ChannelViewStyle.PREMIUM -> {
                             val context = androidx.compose.ui.platform.LocalContext.current
@@ -1363,6 +1386,7 @@ fun ChannelListTabWithStories(
             modifier = Modifier.align(Alignment.TopCenter)
         )
     }
+    } // closes outer Column
 }
 
 /**
