@@ -209,9 +209,12 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     val socketManager = SocketManager(this, app)
 
     init {
+        // connect() MUST be first: it calls IO.socket() which creates the socket object.
+        // setupLivestreamSocketListeners() calls socketManager.on(...) which does
+        // socket?.on(event, listener) — if socket is null the listeners are silently dropped.
+        socketManager.connect()
         setupLivestreamWebRTCCallbacks()
         setupLivestreamSocketListeners()
-        socketManager.connect()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
