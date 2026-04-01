@@ -210,8 +210,11 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
 
     init {
         setupLivestreamWebRTCCallbacks()
-        setupLivestreamSocketListeners()
+        // connect() must be called BEFORE setupLivestreamSocketListeners():
+        // socketManager.on() does socket?.on(...) — if socket is null (pre-connect)
+        // the listener is silently dropped and stream events are never received.
         socketManager.connect()
+        setupLivestreamSocketListeners()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
