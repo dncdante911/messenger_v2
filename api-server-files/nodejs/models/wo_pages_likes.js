@@ -30,6 +30,7 @@ module.exports = function(sequelize, DataTypes) {
     }
   }, {
     sequelize,
+    timestamps: false,
     tableName: 'Wo_Pages_Likes'
   });
 };

@@ -135,6 +135,7 @@ class LivestreamWebRTCManager(private val context: Context) {
 
     fun handleOfferFromHost(hostUserId: Long, sdpOffer: String, iceServers: List<PeerConnection.IceServer>) {
         try {
+            ensureFactory()  // Viewer never calls setupLocalCamera(), so factory must be initialised here
             val pc = createPeerConnection(hostUserId, iceServers) ?: return
             val offer = SessionDescription(SessionDescription.Type.OFFER, sdpOffer)
             pc.setRemoteDescription(LogSdpObserver("setRemote/$hostUserId"), offer)
@@ -305,8 +306,11 @@ class LivestreamWebRTCManager(private val context: Context) {
                 onIceCandidateReady?.invoke(userId, candidate)
             }
             override fun onAddStream(stream: MediaStream) {
+                // Called in PLAN_B; still called in some UNIFIED_PLAN implementations for compat.
                 Log.d(TAG, "onAddStream from user $userId tracks=${stream.videoTracks.size}v ${stream.audioTracks.size}a")
-                onRemoteStreamAdded?.invoke(userId, stream)
+                if (stream.videoTracks.isNotEmpty() || stream.audioTracks.isNotEmpty()) {
+                    onRemoteStreamAdded?.invoke(userId, stream)
+                }
             }
             override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
                 onViewerConnectionStateChanged?.invoke(userId, newState.name)
@@ -320,7 +324,23 @@ class LivestreamWebRTCManager(private val context: Context) {
             override fun onRemoveStream(p0: MediaStream?) {}
             override fun onDataChannel(p0: DataChannel?) {}
             override fun onRenegotiationNeeded() {}
-            override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {}
+            // UNIFIED_PLAN: onAddTrack fires when the remote peer adds a track.
+            // Build a synthetic MediaStream and deliver it to the UI.
+            override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
+                Log.d(TAG, "onAddTrack from user $userId streams=${streams?.size}")
+                // Use an existing stream if the peer sent one; otherwise build a synthetic one.
+                val stream = streams?.firstOrNull { it.videoTracks.isNotEmpty() || it.audioTracks.isNotEmpty() }
+                if (stream != null) {
+                    onRemoteStreamAdded?.invoke(userId, stream)
+                } else {
+                    val track = receiver?.track() ?: return
+                    val f = factory ?: return
+                    val synth = f.createLocalMediaStream("remote_$userId") ?: return
+                    if (track is VideoTrack) synth.addTrack(track)
+                    else if (track is AudioTrack) synth.addTrack(track as AudioTrack)
+                    onRemoteStreamAdded?.invoke(userId, synth)
+                }
+            }
         }) ?: run { Log.e(TAG, "createPeerConnection returned null"); return null }
 
         peerConnections[userId] = pc
