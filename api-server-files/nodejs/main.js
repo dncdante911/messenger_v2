@@ -853,6 +853,35 @@ async function runMigrations(ctx) {
   }
 
   console.log('[Migration] All background migrations complete');
+
+  // ── wm_call_recordings — stream & call recording archive ─────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wm_call_recordings (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        room_name   VARCHAR(120) NOT NULL,
+        type        ENUM('group_call','channel_stream','private_call') NOT NULL DEFAULT 'group_call',
+        uploader_id INT          NOT NULL,
+        channel_id  INT          NULL DEFAULT NULL,
+        group_id    INT          NULL DEFAULT NULL,
+        filename    VARCHAR(255) NOT NULL,
+        file_path   VARCHAR(512) NOT NULL,
+        file_size   BIGINT       NOT NULL DEFAULT 0,
+        duration    INT          NOT NULL DEFAULT 0,
+        mime_type   VARCHAR(64)  NOT NULL DEFAULT 'video/webm',
+        status      ENUM('processing','ready','failed') NOT NULL DEFAULT 'processing',
+        created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_room   (room_name),
+        KEY idx_uid    (uploader_id),
+        KEY idx_ch     (channel_id),
+        KEY idx_type   (type, status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[Migration] wm_call_recordings table ensured');
+  } catch (e) {
+    console.warn('[Migration] wm_call_recordings:', e.message);
+  }
 }
 
 

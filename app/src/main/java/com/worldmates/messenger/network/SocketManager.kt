@@ -115,7 +115,9 @@ class SocketManager(
 
             // 1. Обработка подключения
             socket?.on(Socket.EVENT_CONNECT) {
-                Log.d("SocketManager", "Socket Connected! ID: ${socket?.id()}")
+                val socketId = socket?.id()
+                Log.d("SocketManager", "Socket Connected! ID: $socketId")
+                if (socketId == null) return@on  // spurious connect before ID is assigned (transport upgrade)
                 // Отправляем событие аутентификации для привязки сокета к пользователю
                 authenticateSocket()
                 listener.onSocketConnected()
