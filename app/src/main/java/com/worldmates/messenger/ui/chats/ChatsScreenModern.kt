@@ -49,6 +49,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 /**
  * Сучасний екран чатів з:
@@ -478,9 +486,9 @@ fun ChatsScreenModern(
         )
     }
 
-    // User Search Dialog
+    // Unified Search Dialog (users + channels)
     if (showSearchDialog) {
-        UserSearchDialogForChats(
+        UnifiedSearchDialog(
             onDismiss = { showSearchDialog = false },
             onUserClick = { user ->
                 showSearchDialog = false
@@ -494,6 +502,10 @@ fun ChatsScreenModern(
                         unreadCount = 0
                     )
                 )
+            },
+            onChannelClick = { channel ->
+                showSearchDialog = false
+                onChannelClick(channel)
             }
         )
     }
@@ -780,103 +792,211 @@ fun GroupListTab(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserSearchDialogForChats(
+fun UnifiedSearchDialog(
     onDismiss: () -> Unit,
-    onUserClick: (com.worldmates.messenger.network.SearchUser) -> Unit
+    onUserClick: (com.worldmates.messenger.network.SearchUser) -> Unit,
+    onChannelClick: (com.worldmates.messenger.data.model.Channel) -> Unit
 ) {
-    val coroutineScope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<com.worldmates.messenger.network.SearchUser>>(emptyList()) }
+    var selectedTab by remember { mutableIntStateOf(0) }
+    var userResults by remember { mutableStateOf<List<com.worldmates.messenger.network.SearchUser>>(emptyList()) }
+    var channelResults by remember { mutableStateOf<List<com.worldmates.messenger.data.model.Channel>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val coroutineScope = rememberCoroutineScope()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.search_users_title)) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp)
-            ) {
-                // Search field
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { 
-                        searchQuery = it
-                        if (it.length >= 2) {
-                            coroutineScope.launch {
-                                isSearching = true
-                                errorMessage = null
-                                try {
-                                    val response = com.worldmates.messenger.network.NodeRetrofitClient.profileApi.searchUsers(
-                                        query = it,
-                                        limit = 20
-                                    )
-                                    searchResults = response.users ?: emptyList()
-                                } catch (e: Exception) {
-                                    errorMessage = "Помилка пошуку: ${e.message}"
-                                } finally {
-                                    isSearching = false
-                                }
-                            }
-                        } else {
-                            searchResults = emptyList()
-                        }
-                    },
-                    placeholder = { Text(stringResource(R.string.enter_name_or_username)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Loading indicator
-                if (isSearching) {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+    LaunchedEffect(searchQuery) {
+        delay(400)
+        if (searchQuery.length >= 2) {
+            isSearching = true
+            coroutineScope.launch {
+                try {
+                    val resp = com.worldmates.messenger.network.NodeRetrofitClient.profileApi.searchUsers(query = searchQuery, limit = 20)
+                    userResults = resp.users ?: emptyList()
+                } catch (_: Exception) {}
+            }
+            coroutineScope.launch {
+                try {
+                    val resp = com.worldmates.messenger.network.NodeRetrofitClient.channelApi.getChannels(type = "search", query = searchQuery, limit = 30)
+                    if (resp.apiStatus == 200 && resp.channels != null) {
+                        channelResults = resp.channels!!
                     }
-                }
+                } catch (_: Exception) {}
+            }
+            isSearching = false
+        } else {
+            userResults = emptyList()
+            channelResults = emptyList()
+        }
+    }
 
-                // Error message
-                errorMessage?.let { error ->
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                // Search results
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(searchResults, key = { it.userId }) { user ->
-                        ListItem(
-                            headlineContent = { Text(user.name ?: user.username) },
-                            supportingContent = { Text("@${user.username}") },
-                            leadingContent = {
-                                AsyncImage(
-                                    model = user.avatarUrl,
-                                    contentDescription = user.username,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                Column {
+                    TopAppBar(
+                        title = {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = { Text(stringResource(R.string.search_placeholder)) },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequester),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                                trailingIcon = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(Icons.Default.Clear, contentDescription = null)
+                                        }
+                                    }
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedBorderColor = Color.Transparent,
                                 )
-                            },
-                            modifier = Modifier.clickable { onUserClick(user) }
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                            }
+                        }
+                    )
+                    TabRow(selectedTabIndex = selectedTab) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = { Text(stringResource(R.string.search_tab_users)) }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = { Text(stringResource(R.string.channels)) }
                         )
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
+        ) { padding ->
+            Box(modifier = Modifier.padding(padding)) {
+                when {
+                    isSearching -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    searchQuery.length < 2 -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.outlineVariant
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    text = stringResource(R.string.search_hint),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    selectedTab == 0 -> {
+                        if (userResults.isEmpty()) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = stringResource(R.string.search_no_users),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            LazyColumn(Modifier.fillMaxSize()) {
+                                items(userResults, key = { it.userId }) { user ->
+                                    ListItem(
+                                        headlineContent = { Text(user.name ?: user.username) },
+                                        supportingContent = { Text("@${user.username}") },
+                                        leadingContent = {
+                                            AsyncImage(
+                                                model = user.avatarUrl,
+                                                contentDescription = user.username,
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        },
+                                        modifier = Modifier.clickable { onUserClick(user) }
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                }
+                            }
+                        }
+                    }
+                    else -> {
+                        if (channelResults.isEmpty()) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = stringResource(R.string.search_no_results, searchQuery),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            LazyColumn(Modifier.fillMaxSize()) {
+                                items(channelResults, key = { it.id }) { channel ->
+                                    ListItem(
+                                        headlineContent = { Text(channel.name) },
+                                        supportingContent = {
+                                            if (!channel.username.isNullOrBlank()) {
+                                                Text("@${channel.username}")
+                                            }
+                                        },
+                                        leadingContent = {
+                                            if (channel.avatarUrl.isNotBlank()) {
+                                                AsyncImage(
+                                                    model = channel.avatarUrl,
+                                                    contentDescription = channel.name,
+                                                    modifier = Modifier
+                                                        .size(44.dp)
+                                                        .clip(CircleShape),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Surface(
+                                                    modifier = Modifier.size(44.dp),
+                                                    shape = CircleShape,
+                                                    color = MaterialTheme.colorScheme.primaryContainer
+                                                ) {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Icon(
+                                                            Icons.Outlined.Campaign,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.clickable { onChannelClick(channel) }
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
-    )
+    }
 }
 
 /**
@@ -895,7 +1015,6 @@ fun ChannelListTab(
 ) {
     val context = LocalContext.current
     val refreshing by remember { mutableStateOf(false) }
-    val searchQuery by channelsViewModel.searchQuery.collectAsState()
     val channelViewStyle = rememberChannelViewStyle()
     val pullRefreshState = rememberPullRefreshState(
         refreshing = refreshing,
@@ -903,46 +1022,6 @@ fun ChannelListTab(
     )
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Пошукова панель
-        var localQuery by remember { mutableStateOf(searchQuery) }
-
-        // Автоматичний пошук з затримкою після введення
-        LaunchedEffect(localQuery) {
-            kotlinx.coroutines.delay(500) // Затримка 500мс після введення
-            if (localQuery.isEmpty()) {
-                channelsViewModel.fetchChannels()
-            } else if (localQuery.length >= 2) {
-                channelsViewModel.searchChannels(localQuery)
-            }
-        }
-
-        // Автоматичне оновлення списку каналів кожні 20 секунд (тільки якщо не в режимі пошуку)
-        LaunchedEffect(Unit) {
-            while (true) {
-                kotlinx.coroutines.delay(20000) // 20 секунд
-                if (localQuery.isEmpty()) {
-                    // Тихе оновлення без показу індикатора
-                    channelsViewModel.fetchChannels()
-                }
-            }
-        }
-
-        com.worldmates.messenger.ui.channels.ChannelSearchBar(
-            searchQuery = localQuery,
-            onQueryChange = { query ->
-                localQuery = query
-            },
-            onSearch = {
-                if (localQuery.isNotEmpty()) {
-                    channelsViewModel.searchChannels(localQuery)
-                }
-            },
-            onClear = {
-                localQuery = ""
-                channelsViewModel.fetchChannels()
-            }
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1241,44 +1320,22 @@ fun ChannelListTabWithStories(
     val refreshing by remember { mutableStateOf(false) }
     val channelViewStyle = rememberChannelViewStyle()
 
-    // Search state
-    var localQuery by remember { mutableStateOf("") }
-    val searchResults by channelsViewModel.channelList.collectAsState()
-    // When searching, show search results; otherwise show subscribed channels
-    val displayedChannels = if (localQuery.isNotEmpty()) searchResults else channels
-
-    LaunchedEffect(localQuery) {
-        kotlinx.coroutines.delay(400)
-        if (localQuery.isEmpty()) {
-            channelsViewModel.fetchSubscribedChannels()
-        } else if (localQuery.length >= 2) {
-            channelsViewModel.searchChannels(localQuery)
-        }
-    }
-
     val pullRefreshState = rememberPullRefreshState(
         refreshing = refreshing || isLoading,
         onRefresh = onRefresh
     )
 
     // Канали, де поточний користувач — адмін
-    val adminChannelIds = displayedChannels.filter { it.isAdmin }.map { it.id }
+    val adminChannelIds = channels.filter { it.isAdmin }.map { it.id }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // ── Search bar ─────────────────────────────────────────────────────────
-        com.worldmates.messenger.ui.channels.ChannelSearchBar(
-            searchQuery = localQuery,
-            onQueryChange = { localQuery = it },
-            onSearch = { if (localQuery.isNotEmpty()) channelsViewModel.searchChannels(localQuery) },
-            onClear = { localQuery = ""; channelsViewModel.fetchSubscribedChannels() }
-        )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .pullRefresh(pullRefreshState)
     ) {
-        if (displayedChannels.isEmpty() && !isLoading) {
+        if (channels.isEmpty() && !isLoading) {
             // Premium empty state
             Column(
                 modifier = Modifier
@@ -1332,7 +1389,7 @@ fun ChannelListTabWithStories(
                 }
 
                 // Channel list
-                items(displayedChannels, key = { it.id }) { channel ->
+                items(channels, key = { it.id }) { channel ->
                     when (channelViewStyle) {
                         com.worldmates.messenger.ui.preferences.ChannelViewStyle.PREMIUM -> {
                             val context = androidx.compose.ui.platform.LocalContext.current
