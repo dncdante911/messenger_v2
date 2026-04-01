@@ -314,7 +314,8 @@ private fun InfoTab(
                         context     = context,
                         channelId   = channelId,
                         isHost      = true,
-                        isPremium   = UserSession.isProActive,
+                        // Use channel's own private/premium flag — server will cap if needed
+                        isPremium   = channel?.isPrivate == true,
                         channelName = channel?.name ?: ""
                     )
                     context.startActivity(intent)

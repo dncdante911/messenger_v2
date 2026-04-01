@@ -2,6 +2,7 @@ package com.worldmates.messenger.ui.channels
 
 import android.app.Application
 import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
@@ -9,6 +10,8 @@ import com.worldmates.messenger.network.LivestreamWebRTCManager
 import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.SocketManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -196,19 +199,28 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     /** ICE servers received from the server when the viewer joins a stream. */
     private var viewerIceServers: List<PeerConnection.IceServer> = emptyList()
     /**
-     * Payloads that need to be (re-)emitted once the socket connects.
-     * The socket handshake is async — the HTTP response often arrives before
-     * the WebSocket connection is established, so the first emit() is silently
-     * dropped. Storing the payloads here lets onSocketConnected() retry them.
+     * Persistent signaling payloads — kept alive for the duration of the stream
+     * so they can be re-emitted on every socket reconnect.
+     *
+     * - hostReadyPayload  : re-emitted whenever the host's socket reconnects so the
+     *   server always knows which socket belongs to this stream room.
+     * - viewerJoinPayload : re-emitted periodically until a stream:offer arrives,
+     *   handling the race where the viewer joined before the host registered.
      */
-    private var pendingViewerJoinPayload: JSONObject? = null
-    private var pendingHostReadyPayload: JSONObject? = null
+    private var hostReadyPayload: JSONObject? = null
+    private var viewerJoinPayload: JSONObject? = null
+    /** Retry job: re-emits stream:viewer_join until stream:offer/remote-stream arrives. */
+    private var viewerJoinRetryJob: Job? = null
 
     // ── WebRTC + Socket ────────────────────────────────────────────────────────
     private val lsManager = LivestreamWebRTCManager(app)
     val socketManager = SocketManager(this, app)
 
     init {
+        // connect() MUST be first: it calls IO.socket() which creates the socket object.
+        // setupLivestreamSocketListeners() calls socketManager.on(...) which does
+        // socket?.on(event, listener) — if socket is null the listeners are silently dropped.
+        socketManager.connect()
         setupLivestreamWebRTCCallbacks()
         // connect() must be called BEFORE setupLivestreamSocketListeners():
         // socketManager.on() does socket?.on(...) — if socket is null (pre-connect)
@@ -262,6 +274,9 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         lsManager.onRemoteStreamAdded = { _, stream ->
             Log.d(TAG, "📥 Remote stream received from host")
             _remoteStream.value = stream
+            // Stop retrying stream:viewer_join — we have the stream
+            viewerJoinRetryJob?.cancel()
+            viewerJoinRetryJob = null
         }
     }
 
@@ -347,11 +362,23 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                 if (resp.api_status == 200 && resp.room_name != null) {
                     currentRoomName = resp.room_name
                     hostIceServers = iceServersFromList(resp.ice_servers)
+                    val actualQuality = resp.quality ?: quality
+                    // Notify host if the server capped their selected quality
+                    if (actualQuality != quality) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                getApplication(),
+                                "Качество ограничено до $actualQuality (канал не поддерживает $quality)",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        Log.w(TAG, "Quality capped by server: $quality → $actualQuality")
+                    }
                     onHostStreamReady(
                         LivestreamInfo(
                             stream_id         = resp.stream_id,
                             room_name         = resp.room_name,
-                            quality           = resp.quality ?: quality,
+                            quality           = actualQuality,
                             is_premium        = resp.is_premium.asPremiumBoolean(),
                             ice_servers       = null,
                             allowed_qualities = resp.allowed_qualities
@@ -560,8 +587,8 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun onHostStreamReady(info: LivestreamInfo) {
-        // Start local camera
-        lsManager.setupLocalCamera()
+        // Start local camera at the quality the host selected
+        lsManager.setupLocalCamera(info.quality)
         _localStream.value = lsManager.localStream
 
         // Mark channel as live so ChannelDetailsActivity shows the LIVE banner
@@ -580,12 +607,13 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         }
 
         // Tell socket server we're the host and ready.
-        // Store the payload so onSocketConnected() can re-emit if socket isn't ready yet.
+        // Keep payload permanently — it will be re-emitted on every socket reconnect so
+        // the server always knows the current socket ID for this stream room.
         val payload = JSONObject().apply {
             put("roomName", info.room_name)
             put("hostUserId", myUserId)
         }
-        pendingHostReadyPayload = payload
+        hostReadyPayload = payload
         socketManager.emit("stream:host_ready", payload)  // no-op if socket not yet connected
 
         _uiState.value = LivestreamUiState.Hosting(info)
@@ -594,29 +622,47 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
 
     private fun onViewerJoined(info: LivestreamInfo) {
         // Tell server we are ready for WebRTC — server will notify the host to create an offer.
-        // Store the payload so onSocketConnected() can re-emit it if the socket isn't ready yet.
         val payload = JSONObject().apply {
             put("roomName", info.room_name)
             put("userId", myUserId)
             put("channelId", currentChannelId)
         }
-        pendingViewerJoinPayload = payload
+        viewerJoinPayload = payload
         socketManager.emit("stream:viewer_join", payload)  // no-op if socket not yet connected
 
         _uiState.value = LivestreamUiState.Viewing(info)
         Log.d(TAG, "Viewer joined: room=${info.room_name}")
+
+        // Retry every 5 s until stream:offer arrives (handles the race condition where
+        // the viewer joined before the host registered stream:host_ready with the server).
+        startViewerJoinRetry(payload)
+    }
+
+    private fun startViewerJoinRetry(payload: JSONObject) {
+        viewerJoinRetryJob?.cancel()
+        viewerJoinRetryJob = viewModelScope.launch {
+            repeat(12) { attempt ->          // max 12 × 5 s = 1 minute
+                delay(5_000)
+                if (_remoteStream.value != null) return@launch   // got stream
+                if (currentRoomName == null) return@launch       // left stream
+                socketManager.emit("stream:viewer_join", payload)
+                Log.d(TAG, "🔄 Retry stream:viewer_join attempt ${attempt + 1}")
+            }
+        }
     }
 
     private fun cleanup() {
+        viewerJoinRetryJob?.cancel()
+        viewerJoinRetryJob  = null
         lsManager.close()
-        _localStream.value       = null
-        _remoteStream.value      = null
-        currentRoomName          = null
-        hostIceServers           = emptyList()
-        viewerIceServers         = emptyList()
-        pendingViewerJoinPayload = null
-        pendingHostReadyPayload  = null
-        recordingFile            = null
+        _localStream.value  = null
+        _remoteStream.value = null
+        currentRoomName     = null
+        hostIceServers      = emptyList()
+        viewerIceServers    = emptyList()
+        hostReadyPayload    = null
+        viewerJoinPayload   = null
+        recordingFile       = null
         if (_recordingState.value == RecordingState.Recording) {
             _recordingState.value = RecordingState.Idle
         }
@@ -665,16 +711,15 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     override fun onNewMessage(messageJson: org.json.JSONObject) {}
     override fun onSocketConnected() {
         Log.d(TAG, "Livestream socket connected")
-        // Flush any events that were attempted before the socket handshake completed
-        pendingViewerJoinPayload?.let { payload ->
-            pendingViewerJoinPayload = null
-            socketManager.emit("stream:viewer_join", payload)
-            Log.d(TAG, "Re-emitted pending stream:viewer_join after socket connected")
-        }
-        pendingHostReadyPayload?.let { payload ->
-            pendingHostReadyPayload = null
+        // Re-register with the server on every (re)connect so the current socket ID
+        // is always known for this stream room.
+        hostReadyPayload?.let { payload ->
             socketManager.emit("stream:host_ready", payload)
-            Log.d(TAG, "Re-emitted pending stream:host_ready after socket connected")
+            Log.d(TAG, "Re-emitted stream:host_ready after socket connected")
+        }
+        viewerJoinPayload?.let { payload ->
+            socketManager.emit("stream:viewer_join", payload)
+            Log.d(TAG, "Re-emitted stream:viewer_join after socket connected")
         }
     }
     override fun onSocketDisconnected() { Log.d(TAG, "Livestream socket disconnected") }

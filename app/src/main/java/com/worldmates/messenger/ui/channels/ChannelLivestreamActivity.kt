@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -122,13 +123,20 @@ class ChannelLivestreamActivity : AppCompatActivity() {
         viewModel = ViewModelProvider(this)[ChannelLivestreamViewModel::class.java]
 
         // Lock portrait for setup; unlock rotation once streaming/viewing starts
+        // Also keep screen on during active Hosting/Viewing states
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         lifecycleScope.launch {
             viewModel.uiState.collect { state ->
-                requestedOrientation = when (state) {
+                when (state) {
                     is LivestreamUiState.Hosting,
-                    is LivestreamUiState.Viewing -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
-                    else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    is LivestreamUiState.Viewing -> {
+                        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                    else -> {
+                        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
                 }
             }
         }
