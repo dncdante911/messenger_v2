@@ -787,11 +787,268 @@ function uploadAvatar(ctx, io) {
     };
 }
 
+// ─── getActiveMembers ────────────────────────────────────────────────────────
+
+function getActiveMembers(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId    = req.userId;
+            const channelId = parseInt(req.body.channel_id);
+            const limit      = Math.min(parseInt(req.body.limit)       || 20, 50);
+            const periodDays = Math.min(parseInt(req.body.period_days) || 30, 90);
+
+            if (!channelId) return res.json({ api_status: 400, error_code: 400, error_message: 'channel_id required' });
+            if (!await isChannelAdmin(ctx, channelId, userId)) return res.json({ api_status: 403, error_code: 403, error_message: 'Not an admin' });
+
+            const now   = Math.floor(Date.now() / 1000);
+            const since = now - periodDays * 86400;
+
+            const posts = await ctx.wo_posts.findAll({
+                where: { page_id: channelId, active: 1 },
+                attributes: ['id'], raw: true
+            });
+            if (!posts.length) return res.json({ api_status: 200, members: [], total: 0, period_days: periodDays });
+            const postIds = posts.map(p => p.id);
+
+            const commentRows = await ctx.wo_comments.findAll({
+                where: { post_id: { [Op.in]: postIds }, time: { [Op.gte]: since } },
+                attributes: ['user_id', [Sequelize.fn('COUNT', Sequelize.col('id')), 'comment_count']],
+                group: ['user_id'], raw: true
+            });
+
+            const reactionRows = await ctx.wo_reactions.findAll({
+                where: { post_id: { [Op.in]: postIds }, comment_id: 0 },
+                attributes: ['user_id', [Sequelize.fn('COUNT', Sequelize.col('id')), 'reaction_count']],
+                group: ['user_id'], raw: true
+            });
+
+            const scoreMap = {};
+            for (const r of commentRows) {
+                scoreMap[r.user_id] = scoreMap[r.user_id] || { comment_count: 0, reaction_count: 0 };
+                scoreMap[r.user_id].comment_count = parseInt(r.comment_count);
+            }
+            for (const r of reactionRows) {
+                scoreMap[r.user_id] = scoreMap[r.user_id] || { comment_count: 0, reaction_count: 0 };
+                scoreMap[r.user_id].reaction_count = parseInt(r.reaction_count);
+            }
+
+            const sorted = Object.entries(scoreMap)
+                .map(([uid, d]) => ({ user_id: parseInt(uid), ...d, score: d.comment_count * 2 + d.reaction_count }))
+                .sort((a, b) => b.score - a.score)
+                .slice(0, limit);
+
+            if (!sorted.length) return res.json({ api_status: 200, members: [], total: 0, period_days: periodDays });
+
+            const userIds = sorted.map(s => s.user_id);
+            const users   = await ctx.wo_users.findAll({
+                where: { user_id: { [Op.in]: userIds } },
+                attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar'], raw: true
+            });
+            const userMap = {};
+            for (const u of users) userMap[u.user_id] = u;
+
+            const members = await Promise.all(sorted.map(async s => {
+                const u = userMap[s.user_id] || {};
+                const avatarUrl = u.avatar ? await funcs.Wo_GetMedia(ctx, u.avatar) : null;
+                return {
+                    user_id: s.user_id,
+                    username: u.username || null,
+                    name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || null,
+                    avatar_url: avatarUrl,
+                    comment_count: s.comment_count,
+                    reaction_count: s.reaction_count,
+                    score: s.score
+                };
+            }));
+
+            return res.json({ api_status: 200, members, total: members.length, period_days: periodDays });
+        } catch (err) {
+            console.error('[Channels/getActiveMembers]', err.message);
+            return res.json({ api_status: 500, error_code: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── getTopComments ──────────────────────────────────────────────────────────
+
+function getTopComments(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId    = req.userId;
+            const channelId = parseInt(req.body.channel_id);
+            const limit      = Math.min(parseInt(req.body.limit)       || 10, 30);
+            const periodDays = Math.min(parseInt(req.body.period_days) || 30, 90);
+
+            if (!channelId) return res.json({ api_status: 400, error_code: 400, error_message: 'channel_id required' });
+            if (!await isChannelAdmin(ctx, channelId, userId)) return res.json({ api_status: 403, error_code: 403, error_message: 'Not an admin' });
+
+            const now   = Math.floor(Date.now() / 1000);
+            const since = now - periodDays * 86400;
+
+            const posts = await ctx.wo_posts.findAll({
+                where: { page_id: channelId, active: 1 },
+                attributes: ['id'], raw: true
+            });
+            if (!posts.length) return res.json({ api_status: 200, comments: [], period_days: periodDays });
+            const postIds = posts.map(p => p.id);
+
+            const commentRows = await ctx.wo_comments.findAll({
+                where: { post_id: { [Op.in]: postIds }, time: { [Op.gte]: since } },
+                attributes: ['id', 'user_id', 'post_id', 'text', 'time'], raw: true
+            });
+            if (!commentRows.length) return res.json({ api_status: 200, comments: [], period_days: periodDays });
+
+            const commentIds = commentRows.map(c => c.id);
+            const reactionRows = await ctx.wo_reactions.findAll({
+                where: { comment_id: { [Op.in]: commentIds } },
+                attributes: ['comment_id', [Sequelize.fn('COUNT', Sequelize.col('id')), 'cnt']],
+                group: ['comment_id'], raw: true
+            });
+            const reactMap = {};
+            for (const r of reactionRows) reactMap[r.comment_id] = parseInt(r.cnt);
+
+            const sorted = commentRows
+                .map(c => ({ ...c, reaction_count: reactMap[c.id] || 0 }))
+                .sort((a, b) => b.reaction_count - a.reaction_count)
+                .slice(0, limit);
+
+            const userIds = [...new Set(sorted.map(c => c.user_id))];
+            const users   = await ctx.wo_users.findAll({
+                where: { user_id: { [Op.in]: userIds } },
+                attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar'], raw: true
+            });
+            const userMap = {};
+            for (const u of users) userMap[u.user_id] = u;
+
+            const comments = await Promise.all(sorted.map(async c => {
+                const u = userMap[c.user_id] || {};
+                const avatarUrl = u.avatar ? await funcs.Wo_GetMedia(ctx, u.avatar) : null;
+                return {
+                    id: c.id, post_id: c.post_id,
+                    user_id: c.user_id,
+                    username: u.username || null,
+                    name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || null,
+                    avatar_url: avatarUrl,
+                    text: c.text,
+                    reaction_count: c.reaction_count,
+                    time: c.time
+                };
+            }));
+
+            return res.json({ api_status: 200, comments, period_days: periodDays });
+        } catch (err) {
+            console.error('[Channels/getTopComments]', err.message);
+            return res.json({ api_status: 500, error_code: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── runGiveaway ─────────────────────────────────────────────────────────────
+
+function runGiveaway(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId       = req.userId;
+            const channelId    = parseInt(req.body.channel_id);
+            const winnersCount = Math.min(parseInt(req.body.winners_count) || 1, 20);
+            const minComments  = parseInt(req.body.min_comments)  || 0;
+            const minReactions = parseInt(req.body.min_reactions) || 0;
+            const periodDays   = Math.min(parseInt(req.body.period_days) || 30, 365);
+
+            if (!channelId) return res.json({ api_status: 400, error_code: 400, error_message: 'channel_id required' });
+            if (!await isChannelAdmin(ctx, channelId, userId)) return res.json({ api_status: 403, error_code: 403, error_message: 'Not an admin' });
+
+            const now   = Math.floor(Date.now() / 1000);
+            const since = now - periodDays * 86400;
+
+            // All active subscribers
+            const subs = await ctx.wo_pages_likes.findAll({
+                where: { page_id: channelId, active: '1' },
+                attributes: ['user_id'], raw: true
+            });
+            if (!subs.length) return res.json({ api_status: 200, winners: [], total_participants: 0, period_days: periodDays });
+            const subUserIds = subs.map(s => s.user_id);
+
+            let eligibleUserIds = subUserIds;
+
+            if (minComments > 0 || minReactions > 0) {
+                const posts = await ctx.wo_posts.findAll({
+                    where: { page_id: channelId, active: 1, time: { [Op.gte]: since } },
+                    attributes: ['id'], raw: true
+                });
+                const postIds = posts.map(p => p.id);
+
+                const commentMap  = {};
+                const reactionMap = {};
+
+                if (postIds.length) {
+                    const cRows = await ctx.wo_comments.findAll({
+                        where: { post_id: { [Op.in]: postIds }, user_id: { [Op.in]: subUserIds }, time: { [Op.gte]: since } },
+                        attributes: ['user_id', [Sequelize.fn('COUNT', Sequelize.col('id')), 'cnt']],
+                        group: ['user_id'], raw: true
+                    });
+                    for (const r of cRows) commentMap[r.user_id] = parseInt(r.cnt);
+
+                    const rRows = await ctx.wo_reactions.findAll({
+                        where: { post_id: { [Op.in]: postIds }, user_id: { [Op.in]: subUserIds }, comment_id: 0 },
+                        attributes: ['user_id', [Sequelize.fn('COUNT', Sequelize.col('id')), 'cnt']],
+                        group: ['user_id'], raw: true
+                    });
+                    for (const r of rRows) reactionMap[r.user_id] = parseInt(r.cnt);
+                }
+
+                eligibleUserIds = subUserIds.filter(uid =>
+                    (commentMap[uid] || 0) >= minComments && (reactionMap[uid] || 0) >= minReactions
+                );
+            }
+
+            if (!eligibleUserIds.length) {
+                return res.json({ api_status: 200, winners: [], total_participants: 0, period_days: periodDays });
+            }
+
+            // Fisher-Yates shuffle
+            const shuffled = [...eligibleUserIds];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            const winnerIds = shuffled.slice(0, Math.min(winnersCount, shuffled.length));
+
+            const users = await ctx.wo_users.findAll({
+                where: { user_id: { [Op.in]: winnerIds } },
+                attributes: ['user_id', 'username', 'first_name', 'last_name', 'avatar'], raw: true
+            });
+            const userMap = {};
+            for (const u of users) userMap[u.user_id] = u;
+
+            const winners = await Promise.all(winnerIds.map(async (uid, idx) => {
+                const u = userMap[uid] || {};
+                const avatarUrl = u.avatar ? await funcs.Wo_GetMedia(ctx, u.avatar) : null;
+                return {
+                    place: idx + 1,
+                    user_id: uid,
+                    username: u.username || null,
+                    name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || null,
+                    avatar_url: avatarUrl
+                };
+            }));
+
+            return res.json({ api_status: 200, winners, total_participants: eligibleUserIds.length, period_days: periodDays });
+        } catch (err) {
+            console.error('[Channels/runGiveaway]', err.message);
+            return res.json({ api_status: 500, error_code: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 module.exports = {
     addAdmin,
     removeAdmin,
     updateSettings,
     getStatistics,
+    getActiveMembers,
+    getTopComments,
+    runGiveaway,
     generateQr,
     subscribeByQr,
     muteChannel,

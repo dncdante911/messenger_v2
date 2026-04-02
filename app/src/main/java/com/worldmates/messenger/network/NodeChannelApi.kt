@@ -217,6 +217,32 @@ interface NodeChannelApi {
     ): ChannelStatisticsResponse
 
     @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_ACTIVE_MEMBERS)
+    suspend fun getActiveMembers(
+        @Field("channel_id") channelId: Long,
+        @Field("limit") limit: Int = 20,
+        @Field("period_days") periodDays: Int = 30
+    ): ActiveMembersResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_TOP_COMMENTS)
+    suspend fun getTopComments(
+        @Field("channel_id") channelId: Long,
+        @Field("limit") limit: Int = 10,
+        @Field("period_days") periodDays: Int = 30
+    ): TopCommentsResponse
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_GIVEAWAY)
+    suspend fun runGiveaway(
+        @Field("channel_id") channelId: Long,
+        @Field("winners_count") winnersCount: Int = 1,
+        @Field("min_comments") minComments: Int = 0,
+        @Field("min_reactions") minReactions: Int = 0,
+        @Field("period_days") periodDays: Int = 30
+    ): GiveawayResponse
+
+    @FormUrlEncoded
     @POST(Constants.NODE_CHANNEL_SUBSCRIBERS)
     suspend fun getChannelSubscribers(
         @Field("channel_id") channelId: Long,

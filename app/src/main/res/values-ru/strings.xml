@@ -2971,5 +2971,23 @@
     <!-- Опросы -->
     <string name="poll_anonymous_toggle">Анонимное голосование</string>
     <string name="poll_multiple_toggle">Несколько ответов</string>
+    <!-- Активные участники / Топ комментарии -->
+    <string name="stat_active_members_title">Самые активные участники</string>
+    <string name="stat_top_comments_title">Самые лайкнутые комментарии</string>
+    <!-- Розыгрыш -->
+    <string name="giveaway_title">Розыгрыш среди подписчиков</string>
+    <string name="giveaway_subtitle">Выберите условия участия и количество победителей</string>
+    <string name="giveaway_period_label">Период активности</string>
+    <string name="period_7d">7 дней</string>
+    <string name="period_30d">30 дней</string>
+    <string name="period_90d">90 дней</string>
+    <string name="giveaway_winners_count">Победителей: %d</string>
+    <string name="giveaway_min_comments">Мин. комментариев: %d</string>
+    <string name="giveaway_min_reactions">Мин. реакций: %d</string>
+    <string name="giveaway_min_hint">0 = без ограничений</string>
+    <string name="giveaway_run_btn">Провести розыгрыш</string>
+    <string name="giveaway_running">Выбираем победителей…</string>
+    <string name="giveaway_results_title">Победители (%d участников)</string>
+    <string name="giveaway_no_eligible">Нет участников, соответствующих условиям</string>
 
 </resources>

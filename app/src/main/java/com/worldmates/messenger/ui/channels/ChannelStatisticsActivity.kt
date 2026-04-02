@@ -1,6 +1,7 @@
 package com.worldmates.messenger.ui.channels
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.collectAsState
@@ -23,7 +24,7 @@ class ChannelStatisticsActivity : AppCompatActivity() {
         super.attachBaseContext(LanguageManager.applyLanguage(newBase))
     }
 
-        override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         channelId = intent.getLongExtra("channel_id", 0)
@@ -39,15 +40,42 @@ class ChannelStatisticsActivity : AppCompatActivity() {
 
         setContent {
             WorldMatesThemedApp {
-                val statistics by detailsViewModel.statistics.collectAsState()
-                val isLoading  by detailsViewModel.isLoading.collectAsState()
+                val statistics      by detailsViewModel.statistics.collectAsState()
+                val isLoading       by detailsViewModel.isLoading.collectAsState()
+                val activeMembers   by detailsViewModel.activeMembers.collectAsState()
+                val topComments     by detailsViewModel.topComments.collectAsState()
+                val giveawayResult  by detailsViewModel.giveawayResult.collectAsState()
+                val isGiveawayRunning by detailsViewModel.isGiveawayRunning.collectAsState()
 
                 ChannelStatisticsScreen(
-                    statistics  = statistics,
-                    channelName = channelName,
-                    isLoading   = isLoading,
-                    onBackClick = { finish() },
-                    onRefresh   = { detailsViewModel.loadStatistics(channelId) }
+                    statistics        = statistics,
+                    channelName       = channelName,
+                    isLoading         = isLoading,
+                    onBackClick       = { finish() },
+                    onRefresh         = { detailsViewModel.loadStatistics(channelId) },
+                    activeMembers     = activeMembers,
+                    topComments       = topComments,
+                    giveawayResult    = giveawayResult,
+                    isGiveawayRunning = isGiveawayRunning,
+                    onLoadActiveMembers = { periodDays ->
+                        detailsViewModel.loadActiveMembers(channelId, periodDays)
+                    },
+                    onLoadTopComments = { periodDays ->
+                        detailsViewModel.loadTopComments(channelId, periodDays)
+                    },
+                    onRunGiveaway = { winnersCount, minComments, minReactions, periodDays ->
+                        detailsViewModel.runGiveaway(
+                            channelId    = channelId,
+                            winnersCount = winnersCount,
+                            minComments  = minComments,
+                            minReactions = minReactions,
+                            periodDays   = periodDays,
+                            onSuccess    = { /* result shown via state */ },
+                            onError      = { msg ->
+                                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
                 )
             }
         }

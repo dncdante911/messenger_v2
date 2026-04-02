@@ -216,6 +216,68 @@ data class TopPostStatistic(
 )
 
 /**
+ * Активний учасник каналу з метриками активності
+ */
+data class ActiveMember(
+    @SerializedName("user_id") val userId: Long,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("avatar_url") val avatarUrl: String? = null,
+    @SerializedName("comment_count") val commentCount: Int = 0,
+    @SerializedName("reaction_count") val reactionCount: Int = 0,
+    @SerializedName("score") val score: Int = 0
+)
+
+data class ActiveMembersResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("members") val members: List<ActiveMember>? = null,
+    @SerializedName("total") val total: Int = 0,
+    @SerializedName("period_days") val periodDays: Int = 30,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/**
+ * Топ-коментар каналу (найбільше реакцій)
+ */
+data class TopComment(
+    @SerializedName("id") val id: Long,
+    @SerializedName("post_id") val postId: Long,
+    @SerializedName("user_id") val userId: Long,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("avatar_url") val avatarUrl: String? = null,
+    @SerializedName("text") val text: String,
+    @SerializedName("reaction_count") val reactionCount: Int = 0,
+    @SerializedName("time") val time: Long = 0L
+)
+
+data class TopCommentsResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("comments") val comments: List<TopComment>? = null,
+    @SerializedName("period_days") val periodDays: Int = 30,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/**
+ * Переможець розіграшу
+ */
+data class GiveawayWinner(
+    @SerializedName("place") val place: Int,
+    @SerializedName("user_id") val userId: Long,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("avatar_url") val avatarUrl: String? = null
+)
+
+data class GiveawayResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("winners") val winners: List<GiveawayWinner>? = null,
+    @SerializedName("total_participants") val totalParticipants: Int = 0,
+    @SerializedName("period_days") val periodDays: Int = 30,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/**
  * Підписник каналу
  */
 data class ChannelSubscriber(
