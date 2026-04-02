@@ -47,7 +47,14 @@ fun ChannelStatisticsScreen(
     channelName: String,
     isLoading: Boolean,
     onBackClick: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    activeMembers: List<com.worldmates.messenger.data.model.ActiveMember> = emptyList(),
+    topComments: List<com.worldmates.messenger.data.model.TopComment> = emptyList(),
+    giveawayResult: com.worldmates.messenger.data.model.GiveawayResponse? = null,
+    isGiveawayRunning: Boolean = false,
+    onLoadActiveMembers: (periodDays: Int) -> Unit = {},
+    onLoadTopComments: (periodDays: Int) -> Unit = {},
+    onRunGiveaway: (winnersCount: Int, minComments: Int, minReactions: Int, periodDays: Int) -> Unit = { _, _, _, _ -> }
 ) {
     Scaffold(
         topBar = {
@@ -111,6 +118,19 @@ fun ChannelStatisticsScreen(
                 EngagementCard(statistics)
                 TopPostsCard(statistics.topPosts ?: emptyList())
                 PeakHoursHeatmapCard(statistics)
+                ActiveMembersCard(
+                    members = activeMembers,
+                    onLoadPeriod = onLoadActiveMembers
+                )
+                TopCommentsCard(
+                    comments = topComments,
+                    onLoadPeriod = onLoadTopComments
+                )
+                GiveawayCard(
+                    result = giveawayResult,
+                    isRunning = isGiveawayRunning,
+                    onRunGiveaway = onRunGiveaway
+                )
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -890,6 +910,513 @@ private fun WeekBarChart(data: List<Int>, barColor: Color) {
                 Spacer(Modifier.height(3.dp))
                 Text(labels.getOrElse(idx) { "" }, style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ACTIVE MEMBERS
+// ══════════════════════════════════════════════════════════════════════════════
+
+@Composable
+fun ActiveMembersCard(
+    members: List<com.worldmates.messenger.data.model.ActiveMember>,
+    onLoadPeriod: (periodDays: Int) -> Unit
+) {
+    var selectedPeriod by remember { mutableStateOf(30) }
+    val periods = listOf(7, 30, 90)
+
+    LaunchedEffect(selectedPeriod) { onLoadPeriod(selectedPeriod) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.EmojiEvents, contentDescription = null,
+                    tint = Color(0xFFFFD700), modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.stat_active_members_title),
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f))
+            }
+
+            // Period selector chips
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                periods.forEach { days ->
+                    val label = when (days) {
+                        7    -> stringResource(R.string.period_7d)
+                        30   -> stringResource(R.string.period_30d)
+                        else -> stringResource(R.string.period_90d)
+                    }
+                    FilterChip(
+                        selected = selectedPeriod == days,
+                        onClick  = { selectedPeriod = days },
+                        label    = { Text(label, fontSize = 12.sp) }
+                    )
+                }
+            }
+
+            if (members.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.stat_no_activity_data),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                members.take(10).forEachIndexed { idx, member ->
+                    ActiveMemberRow(rank = idx + 1, member = member)
+                    if (idx < members.size - 1)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveMemberRow(rank: Int, member: com.worldmates.messenger.data.model.ActiveMember) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Rank medal
+        Box(modifier = Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+            Surface(
+                color = when (rank) {
+                    1 -> Color(0xFFFFD700); 2 -> Color(0xFFC0C0C0); 3 -> Color(0xFFCD7F32)
+                    else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                },
+                shape = CircleShape, modifier = Modifier.size(26.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(rank.toString(), style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (rank <= 3) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        // Avatar
+        if (!member.avatarUrl.isNullOrBlank()) {
+            coil.compose.AsyncImage(
+                model = member.avatarUrl,
+                contentDescription = null,
+                modifier = Modifier.size(36.dp).clip(CircleShape),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else {
+            Box(modifier = Modifier.size(36.dp).clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center) {
+                Text(
+                    text = (member.name?.firstOrNull() ?: member.username?.firstOrNull() ?: 'U')
+                        .uppercaseChar().toString(),
+                    fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+
+        // Name & stats
+        Column(modifier = Modifier.weight(1f)) {
+            Text(member.name ?: member.username ?: "User #${member.userId}",
+                fontWeight = FontWeight.Medium, fontSize = 14.sp, maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (member.commentCount > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Icon(Icons.Default.ChatBubbleOutline, contentDescription = null,
+                            modifier = Modifier.size(11.dp), tint = Color(0xFF2196F3))
+                        Text(member.commentCount.toString(), fontSize = 11.sp, color = Color(0xFF2196F3))
+                    }
+                }
+                if (member.reactionCount > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Icon(Icons.Default.FavoriteBorder, contentDescription = null,
+                            modifier = Modifier.size(11.dp), tint = Color(0xFFF44336))
+                        Text(member.reactionCount.toString(), fontSize = 11.sp, color = Color(0xFFF44336))
+                    }
+                }
+            }
+        }
+
+        // Score badge
+        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(8.dp)) {
+            Text("${member.score}",
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  TOP COMMENTS
+// ══════════════════════════════════════════════════════════════════════════════
+
+@Composable
+fun TopCommentsCard(
+    comments: List<com.worldmates.messenger.data.model.TopComment>,
+    onLoadPeriod: (periodDays: Int) -> Unit
+) {
+    var selectedPeriod by remember { mutableStateOf(30) }
+    val periods = listOf(7, 30, 90)
+
+    LaunchedEffect(selectedPeriod) { onLoadPeriod(selectedPeriod) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.ChatBubble, contentDescription = null,
+                    tint = Color(0xFF2196F3), modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.stat_top_comments_title),
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f))
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                periods.forEach { days ->
+                    val label = when (days) {
+                        7    -> stringResource(R.string.period_7d)
+                        30   -> stringResource(R.string.period_30d)
+                        else -> stringResource(R.string.period_90d)
+                    }
+                    FilterChip(
+                        selected = selectedPeriod == days,
+                        onClick  = { selectedPeriod = days },
+                        label    = { Text(label, fontSize = 12.sp) }
+                    )
+                }
+            }
+
+            if (comments.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.stat_no_data),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                comments.take(10).forEachIndexed { idx, comment ->
+                    TopCommentRow(rank = idx + 1, comment = comment)
+                    if (idx < comments.size - 1)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopCommentRow(rank: Int, comment: com.worldmates.messenger.data.model.TopComment) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Avatar
+        if (!comment.avatarUrl.isNullOrBlank()) {
+            coil.compose.AsyncImage(
+                model = comment.avatarUrl, contentDescription = null,
+                modifier = Modifier.size(34.dp).clip(CircleShape),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else {
+            Box(modifier = Modifier.size(34.dp).clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center) {
+                Text(
+                    text = (comment.name?.firstOrNull() ?: comment.username?.firstOrNull() ?: 'U')
+                        .uppercaseChar().toString(),
+                    fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()) {
+                Text(comment.name ?: comment.username ?: "User #${comment.userId}",
+                    fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurface)
+                // Reactions count
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Icon(Icons.Default.FavoriteBorder, contentDescription = null,
+                        modifier = Modifier.size(13.dp), tint = Color(0xFFF44336))
+                    Text(comment.reactionCount.toString(), fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold, color = Color(0xFFF44336))
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(comment.text, modifier = Modifier.padding(8.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface)
+            }
+            if (comment.time > 0) {
+                Text(formatDate(comment.time), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 3.dp))
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  GIVEAWAY
+// ══════════════════════════════════════════════════════════════════════════════
+
+@Composable
+fun GiveawayCard(
+    result: com.worldmates.messenger.data.model.GiveawayResponse?,
+    isRunning: Boolean,
+    onRunGiveaway: (winnersCount: Int, minComments: Int, minReactions: Int, periodDays: Int) -> Unit
+) {
+    var winnersCount  by remember { mutableStateOf(1) }
+    var minComments   by remember { mutableStateOf(0) }
+    var minReactions  by remember { mutableStateOf(0) }
+    var selectedPeriod by remember { mutableStateOf(30) }
+    val periods = listOf(7, 30, 90)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+
+            // Header
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(36.dp)
+                    .background(Color(0xFFFF6B35).copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center) {
+                    Text("🎁", fontSize = 18.sp)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(stringResource(R.string.giveaway_title),
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.giveaway_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            // Period
+            Text(stringResource(R.string.giveaway_period_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                periods.forEach { days ->
+                    val label = when (days) {
+                        7    -> stringResource(R.string.period_7d)
+                        30   -> stringResource(R.string.period_30d)
+                        else -> stringResource(R.string.period_90d)
+                    }
+                    FilterChip(
+                        selected = selectedPeriod == days,
+                        onClick  = { selectedPeriod = days },
+                        label    = { Text(label, fontSize = 12.sp) }
+                    )
+                }
+            }
+
+            // Winners count stepper
+            Row(verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.giveaway_winners_count),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium)
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilledIconButton(
+                        onClick = { if (winnersCount > 1) winnersCount-- },
+                        modifier = Modifier.size(30.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) { Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    Text(winnersCount.toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                        modifier = Modifier.widthIn(min = 28.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    FilledIconButton(
+                        onClick = { if (winnersCount < 20) winnersCount++ },
+                        modifier = Modifier.size(30.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                }
+            }
+
+            // Min comments filter
+            Row(verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.giveaway_min_comments),
+                        style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.giveaway_min_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilledIconButton(
+                        onClick = { if (minComments > 0) minComments-- },
+                        modifier = Modifier.size(30.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) { Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    Text(minComments.toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                        modifier = Modifier.widthIn(min = 28.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    FilledIconButton(
+                        onClick = { minComments++ },
+                        modifier = Modifier.size(30.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                }
+            }
+
+            // Min reactions filter
+            Row(verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.giveaway_min_reactions),
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilledIconButton(
+                        onClick = { if (minReactions > 0) minReactions-- },
+                        modifier = Modifier.size(30.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) { Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    Text(minReactions.toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                        modifier = Modifier.widthIn(min = 28.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    FilledIconButton(
+                        onClick = { minReactions++ },
+                        modifier = Modifier.size(30.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                }
+            }
+
+            // Run button
+            Button(
+                onClick = { onRunGiveaway(winnersCount, minComments, minReactions, selectedPeriod) },
+                enabled = !isRunning,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B35))
+            ) {
+                if (isRunning) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp),
+                        color = Color.White, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.giveaway_running))
+                } else {
+                    Text("🎲 ${stringResource(R.string.giveaway_run_btn)}",
+                        fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // Results
+            if (result != null) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Text(
+                    text = stringResource(R.string.giveaway_results_title, result.totalParticipants),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (result.winners.isNullOrEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center) {
+                        Text(stringResource(R.string.giveaway_no_eligible),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    result.winners.forEach { winner ->
+                        GiveawayWinnerRow(winner = winner)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GiveawayWinnerRow(winner: com.worldmates.messenger.data.model.GiveawayWinner) {
+    Surface(
+        color = when (winner.place) {
+            1 -> Color(0xFFFFD700).copy(alpha = 0.12f)
+            2 -> Color(0xFFC0C0C0).copy(alpha = 0.12f)
+            3 -> Color(0xFFCD7F32).copy(alpha = 0.12f)
+            else -> MaterialTheme.colorScheme.surface
+        },
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = when (winner.place) { 1 -> "🥇"; 2 -> "🥈"; 3 -> "🥉"; else -> "#${winner.place}" },
+                fontSize = 20.sp
+            )
+            if (!winner.avatarUrl.isNullOrBlank()) {
+                coil.compose.AsyncImage(
+                    model = winner.avatarUrl, contentDescription = null,
+                    modifier = Modifier.size(36.dp).clip(CircleShape),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Box(modifier = Modifier.size(36.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center) {
+                    Text(
+                        text = (winner.name?.firstOrNull() ?: winner.username?.firstOrNull() ?: 'U')
+                            .uppercaseChar().toString(),
+                        fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(winner.name ?: winner.username ?: "User #${winner.userId}",
+                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                if (!winner.username.isNullOrBlank()) {
+                    Text("@${winner.username}", fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary)
+                }
             }
         }
     }

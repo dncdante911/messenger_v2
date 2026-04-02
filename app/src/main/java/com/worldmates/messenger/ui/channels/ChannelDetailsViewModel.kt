@@ -45,6 +45,18 @@ class ChannelDetailsViewModel : ViewModel() {
     private val _statistics = MutableStateFlow<ChannelStatistics?>(null)
     val statistics: StateFlow<ChannelStatistics?> = _statistics
 
+    private val _activeMembers = MutableStateFlow<List<com.worldmates.messenger.data.model.ActiveMember>>(emptyList())
+    val activeMembers: StateFlow<List<com.worldmates.messenger.data.model.ActiveMember>> = _activeMembers
+
+    private val _topComments = MutableStateFlow<List<com.worldmates.messenger.data.model.TopComment>>(emptyList())
+    val topComments: StateFlow<List<com.worldmates.messenger.data.model.TopComment>> = _topComments
+
+    private val _giveawayResult = MutableStateFlow<com.worldmates.messenger.data.model.GiveawayResponse?>(null)
+    val giveawayResult: StateFlow<com.worldmates.messenger.data.model.GiveawayResponse?> = _giveawayResult
+
+    private val _isGiveawayRunning = MutableStateFlow(false)
+    val isGiveawayRunning: StateFlow<Boolean> = _isGiveawayRunning
+
     /** Room name of the currently active livestream for this channel, or null if none. */
     private val _activeStreamRoomName = MutableStateFlow<String?>(null)
     val activeStreamRoomName: StateFlow<String?> = _activeStreamRoomName
@@ -610,6 +622,61 @@ class ChannelDetailsViewModel : ViewModel() {
             } catch (e: Exception) {
                 _error.value = "Помилка: ${e.localizedMessage}"
                 Log.e("ChannelDetailsVM", "Помилка завантаження статистики", e)
+            }
+        }
+    }
+
+    fun loadActiveMembers(channelId: Long, periodDays: Int = 30) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.channelApi.getActiveMembers(channelId = channelId, periodDays = periodDays)
+                if (response.apiStatus == 200) _activeMembers.value = response.members ?: emptyList()
+            } catch (e: Exception) {
+                Log.e("ChannelDetailsVM", "loadActiveMembers error", e)
+            }
+        }
+    }
+
+    fun loadTopComments(channelId: Long, periodDays: Int = 30) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.channelApi.getTopComments(channelId = channelId, periodDays = periodDays)
+                if (response.apiStatus == 200) _topComments.value = response.comments ?: emptyList()
+            } catch (e: Exception) {
+                Log.e("ChannelDetailsVM", "loadTopComments error", e)
+            }
+        }
+    }
+
+    fun runGiveaway(
+        channelId: Long,
+        winnersCount: Int = 1,
+        minComments: Int = 0,
+        minReactions: Int = 0,
+        periodDays: Int = 30,
+        onSuccess: (com.worldmates.messenger.data.model.GiveawayResponse) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        _isGiveawayRunning.value = true
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.channelApi.runGiveaway(
+                    channelId = channelId,
+                    winnersCount = winnersCount,
+                    minComments = minComments,
+                    minReactions = minReactions,
+                    periodDays = periodDays
+                )
+                _isGiveawayRunning.value = false
+                if (response.apiStatus == 200) {
+                    _giveawayResult.value = response
+                    onSuccess(response)
+                } else {
+                    onError(response.errorMessage ?: "Giveaway failed")
+                }
+            } catch (e: Exception) {
+                _isGiveawayRunning.value = false
+                onError("Error: ${e.localizedMessage}")
             }
         }
     }

@@ -259,6 +259,9 @@ function registerChannelRoutes(app, ctx, io) {
     app.post('/api/node/channel/remove-admin',    auth, admin.removeAdmin(ctx, io));
     app.post('/api/node/channel/settings',        auth, admin.updateSettings(ctx, io));
     app.post('/api/node/channel/statistics',      auth, admin.getStatistics(ctx, io));
+    app.post('/api/node/channel/active-members', auth, admin.getActiveMembers(ctx, io));
+    app.post('/api/node/channel/top-comments',   auth, admin.getTopComments(ctx, io));
+    app.post('/api/node/channel/giveaway',        auth, admin.runGiveaway(ctx, io));
     app.post('/api/node/channel/subscribers',     auth, subscriptions.getSubscribers(ctx, io));
     app.post('/api/node/channel/ban-member',      auth, subscriptions.banMember(ctx, io));
     app.post('/api/node/channel/unban-member',    auth, subscriptions.unbanMember(ctx, io));
