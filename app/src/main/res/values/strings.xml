@@ -2922,4 +2922,71 @@
     <string name="ch_views_label">переглядів</string>
     <string name="ch_share">Поділитись</string>
 
+    <!-- Статистика каналу – labels -->
+    <string name="ch_back">Назад</string>
+    <string name="ch_refresh">Оновити</string>
+    <string name="stat_unavailable">Статистика недоступна</string>
+    <string name="stat_try_again">Спробувати знову</string>
+    <string name="stat_detail_btn">Детально</string>
+    <string name="stat_views_label">Перегляди</string>
+    <string name="stat_avg_per_post">Сер./пост</string>
+    <string name="stat_subscriber_dynamics">Динаміка підписників</string>
+    <string name="stat_today">Сьогодні</string>
+    <string name="stat_this_week">За тиждень</string>
+    <string name="stat_unsubscribed">Відписок</string>
+    <string name="stat_new_subs_7days">Нові підписники за 7 днів</string>
+    <string name="stat_weekly_growth">Ріст за тиждень: %s</string>
+    <string name="stat_views_trend">Тренд переглядів</string>
+    <string name="stat_per_week_fmt">%s за тиждень</string>
+    <string name="stat_avg_fmt">Середнє: %s/пост</string>
+    <string name="stat_no_weekly_data">Немає даних за тиждень</string>
+    <string name="stat_post_activity">Активність публікацій</string>
+    <string name="stat_this_month">За місяць</string>
+    <string name="stat_total">Всього</string>
+    <string name="stat_content_type">Тип контенту</string>
+    <string name="stat_media_fmt">Медіа: %d</string>
+    <string name="stat_text_fmt">Текст: %d</string>
+    <string name="stat_engagement">Залученість</string>
+    <string name="stat_reactions">Реакції</string>
+    <string name="stat_comments_label">Коментарі</string>
+    <string name="er_excellent">Відмінна залученість! Канал активно взаємодіє з аудиторією.</string>
+    <string name="er_normal">Середня залученість. Нормально для великих каналів.</string>
+    <string name="er_low">Низька залученість. Спробуйте інтерактивний контент.</string>
+    <string name="er_no_data">Даних про взаємодію поки немає.</string>
+    <string name="stat_top_posts">Топ публікації</string>
+    <string name="stat_by_views">За кількістю переглядів</string>
+    <string name="stat_no_data">Немає даних</string>
+    <string name="stat_peak_hours">Пікові години публікацій</string>
+    <string name="stat_best_time_hint">Найкращий час для публікацій</string>
+    <string name="stat_no_activity_data">Немає даних про активність</string>
+    <string name="stat_best_time_label">Найкращий час: </string>
+    <string name="stat_views_total">Перегляди всього</string>
+    <string name="stat_avg_views">Сер. переглядів</string>
+    <string name="stat_per_post">на пост</string>
+    <string name="stat_er_label">Залученість (ER)</string>
+    <string name="stat_posts_label">Постів</string>
+    <string name="stat_posts_per_week_fmt">+%d за тижд.</string>
+    <string name="stat_active_24h">Активні (24г)</string>
+    <string name="stat_compact_title">Статистика</string>
+    <!-- Підписники / Учасники -->
+    <string name="ch_subscribers_count_fmt">Підписники • %d</string>
+    <string name="muted_notifications">Вимкнено сповіщення</string>
+    <string name="users_not_found">Користувачів не знайдено</string>
+    <string name="user_added_to_channel">Користувача %s додано до каналу</string>
+    <string name="btn_add">Додати</string>
+    <string name="stat_members_count_fmt">Учасники (%d)</string>
+    <string name="stat_media_post_preview">[Медіа]</string>
+    <string name="stat_empty_post_preview">[Пост]</string>
+    <!-- Дні тижня (скорочено) -->
+    <string name="day_mon">Пн</string>
+    <string name="day_tue">Вт</string>
+    <string name="day_wed">Ср</string>
+    <string name="day_thu">Чт</string>
+    <string name="day_fri">Пт</string>
+    <string name="day_sat">Сб</string>
+    <string name="day_sun">Нд</string>
+    <!-- Опитування -->
+    <string name="poll_anonymous_toggle">Анонімне голосування</string>
+    <string name="poll_multiple_toggle">Кілька відповідей</string>
+
 </resources>

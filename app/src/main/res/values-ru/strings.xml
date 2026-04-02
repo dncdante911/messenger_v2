@@ -2905,4 +2905,71 @@
     <string name="ch_views_label">просмотров</string>
     <string name="ch_share">Поделиться</string>
 
+    <!-- Статистика канала – labels -->
+    <string name="ch_back">Назад</string>
+    <string name="ch_refresh">Обновить</string>
+    <string name="stat_unavailable">Статистика недоступна</string>
+    <string name="stat_try_again">Попробовать снова</string>
+    <string name="stat_detail_btn">Подробно</string>
+    <string name="stat_views_label">Просмотры</string>
+    <string name="stat_avg_per_post">Ср./пост</string>
+    <string name="stat_subscriber_dynamics">Динамика подписчиков</string>
+    <string name="stat_today">Сегодня</string>
+    <string name="stat_this_week">За неделю</string>
+    <string name="stat_unsubscribed">Отписок</string>
+    <string name="stat_new_subs_7days">Новые подписчики за 7 дней</string>
+    <string name="stat_weekly_growth">Рост за неделю: %s</string>
+    <string name="stat_views_trend">Тренд просмотров</string>
+    <string name="stat_per_week_fmt">%s за неделю</string>
+    <string name="stat_avg_fmt">Среднее: %s/пост</string>
+    <string name="stat_no_weekly_data">Нет данных за неделю</string>
+    <string name="stat_post_activity">Активность публикаций</string>
+    <string name="stat_this_month">За месяц</string>
+    <string name="stat_total">Всего</string>
+    <string name="stat_content_type">Тип контента</string>
+    <string name="stat_media_fmt">Медиа: %d</string>
+    <string name="stat_text_fmt">Текст: %d</string>
+    <string name="stat_engagement">Вовлечённость</string>
+    <string name="stat_reactions">Реакции</string>
+    <string name="stat_comments_label">Комментарии</string>
+    <string name="er_excellent">Отличная вовлечённость! Канал активно взаимодействует с аудиторией.</string>
+    <string name="er_normal">Средняя вовлечённость. Нормально для крупных каналов.</string>
+    <string name="er_low">Низкая вовлечённость. Попробуйте интерактивный контент.</string>
+    <string name="er_no_data">Данных о взаимодействии пока нет.</string>
+    <string name="stat_top_posts">Топ публикации</string>
+    <string name="stat_by_views">По количеству просмотров</string>
+    <string name="stat_no_data">Нет данных</string>
+    <string name="stat_peak_hours">Пиковые часы публикаций</string>
+    <string name="stat_best_time_hint">Лучшее время для публикаций</string>
+    <string name="stat_no_activity_data">Нет данных об активности</string>
+    <string name="stat_best_time_label">Лучшее время: </string>
+    <string name="stat_views_total">Просмотры всего</string>
+    <string name="stat_avg_views">Ср. просмотров</string>
+    <string name="stat_per_post">на пост</string>
+    <string name="stat_er_label">Вовлечённость (ER)</string>
+    <string name="stat_posts_label">Постов</string>
+    <string name="stat_posts_per_week_fmt">+%d за нед.</string>
+    <string name="stat_active_24h">Активные (24ч)</string>
+    <string name="stat_compact_title">Статистика</string>
+    <!-- Подписчики / Участники -->
+    <string name="ch_subscribers_count_fmt">Подписчики • %d</string>
+    <string name="muted_notifications">Уведомления отключены</string>
+    <string name="users_not_found">Пользователи не найдены</string>
+    <string name="user_added_to_channel">Пользователь %s добавлен в канал</string>
+    <string name="btn_add">Добавить</string>
+    <string name="stat_members_count_fmt">Участники (%d)</string>
+    <string name="stat_media_post_preview">[Медиа]</string>
+    <string name="stat_empty_post_preview">[Пост]</string>
+    <!-- Дни недели (сокращённо) -->
+    <string name="day_mon">Пн</string>
+    <string name="day_tue">Вт</string>
+    <string name="day_wed">Ср</string>
+    <string name="day_thu">Чт</string>
+    <string name="day_fri">Пт</string>
+    <string name="day_sat">Сб</string>
+    <string name="day_sun">Вс</string>
+    <!-- Опросы -->
+    <string name="poll_anonymous_toggle">Анонимное голосование</string>
+    <string name="poll_multiple_toggle">Несколько ответов</string>
+
 </resources>

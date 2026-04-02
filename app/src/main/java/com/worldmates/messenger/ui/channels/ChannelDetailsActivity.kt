@@ -40,12 +40,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Brush
 import com.worldmates.messenger.ui.preferences.ChannelViewStyle
 import com.worldmates.messenger.ui.preferences.rememberChannelViewStyle
@@ -737,11 +740,13 @@ fun ChannelDetailsScreen(
             CreateChannelPollDialog(
                 channelId = channelId,
                 onDismiss = { showCreatePollDialog = false },
-                onCreate = { question, options ->
+                onCreate = { question, options, isAnonymous, allowsMultiple ->
                     detailsViewModel.createChannelPoll(
                         channelId = channelId,
                         question = question,
                         options = options,
+                        isAnonymous = isAnonymous,
+                        allowsMultiple = allowsMultiple,
                         onSuccess = {
                             Toast.makeText(context, context.getString(R.string.ch_poll_created), Toast.LENGTH_SHORT).show()
                             detailsViewModel.loadChannelPosts(channelId)
@@ -2015,14 +2020,14 @@ fun SubscribersDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Підписники • ${subscribers.size}",
+                text = stringResource(R.string.ch_subscribers_count_fmt, subscribers.size),
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
             if (subscribers.isEmpty()) {
                 Text(
-                    text = "Немає підписників",
+                    text = stringResource(R.string.channel_no_subscribers),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             } else {
@@ -2097,8 +2102,8 @@ fun SubscribersDialog(
                                     if (subscriber.role != null) {
                                         Text(
                                             text = when(subscriber.role) {
-                                                "owner" -> "Власник"
-                                                "admin" -> "Адміністратор"
+                                                "owner" -> stringResource(R.string.ch_role_owner)
+                                                "admin" -> stringResource(R.string.ch_role_admin)
                                                 else -> subscriber.role!!
                                             },
                                             fontSize = 12.sp,
@@ -2115,7 +2120,7 @@ fun SubscribersDialog(
                                             )
                                         }
                                         Text(
-                                            text = "Вимкнено сповіщення",
+                                            text = stringResource(R.string.muted_notifications),
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                         )
@@ -2136,7 +2141,7 @@ fun SubscribersDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Закрити")
+                Text(stringResource(R.string.ch_close))
             }
         }
     )
@@ -2189,7 +2194,7 @@ fun AddMembersDialog(
         },
         title = {
             Text(
-                "Додати учасників",
+                stringResource(R.string.add_members),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -2207,7 +2212,7 @@ fun AddMembersDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
-                    placeholder = { Text("Пошук користувачів...") },
+                    placeholder = { Text(stringResource(R.string.search_users_hint)) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -2230,7 +2235,7 @@ fun AddMembersDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "Користувачів не знайдено",
+                            stringResource(R.string.users_not_found),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
@@ -2320,7 +2325,7 @@ fun AddMembersDialog(
                                                 onSuccess = {
                                                     Toast.makeText(
                                                         context,
-                                                        "Користувача ${user.username} додано до каналу",
+                                                        context.getString(R.string.user_added_to_channel, user.username),
                                                         Toast.LENGTH_SHORT
                                                     ).show()
                                                     // Видаляємо користувача зі списку результатів пошуку
@@ -2339,7 +2344,7 @@ fun AddMembersDialog(
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Додати")
+                                        Text(stringResource(R.string.btn_add))
                                     }
                                 }
                             }
@@ -2350,7 +2355,7 @@ fun AddMembersDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Закрити")
+                Text(stringResource(R.string.ch_close))
             }
         }
     )
@@ -2363,60 +2368,201 @@ fun AddMembersDialog(
 fun CreateChannelPollDialog(
     channelId: Long,
     onDismiss: () -> Unit,
-    onCreate: (question: String, options: List<String>) -> Unit
+    onCreate: (question: String, options: List<String>, isAnonymous: Boolean, allowsMultiple: Boolean) -> Unit
 ) {
     var question by remember { mutableStateOf("") }
     var options by remember { mutableStateOf(listOf("", "")) }
+    var isAnonymous by remember { mutableStateOf(true) }
+    var allowsMultiple by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.ch_create_poll), fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.HowToVote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        },
+        title = {
+            Text(
+                stringResource(R.string.ch_create_poll),
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Питання
                 OutlinedTextField(
                     value = question,
-                    onValueChange = { question = it },
+                    onValueChange = { if (it.length <= 255) question = it },
                     placeholder = { Text(stringResource(R.string.ch_poll_question), fontSize = 14.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3,
-                    shape = RoundedCornerShape(12.dp),
-                    label = { Text(stringResource(R.string.ch_poll_question_label)) }
+                    shape = RoundedCornerShape(14.dp),
+                    label = { Text(stringResource(R.string.ch_poll_question_label)) },
+                    supportingText = { Text("${question.length}/255", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+
+                // Варіанти відповідей
+                Text(
+                    text = stringResource(R.string.poll_options_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.5.sp
                 )
 
                 options.forEachIndexed { index, option ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        // Номер варіанту
+                        Surface(
+                            color = if (option.isNotBlank()) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "${index + 1}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (option.isNotBlank()) MaterialTheme.colorScheme.onPrimaryContainer
+                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                         OutlinedTextField(
                             value = option,
-                            onValueChange = { value -> options = options.toMutableList().also { it[index] = value } },
+                            onValueChange = { value ->
+                                if (value.length <= 100)
+                                    options = options.toMutableList().also { it[index] = value }
+                            },
                             placeholder = { Text(stringResource(R.string.ch_poll_option_hint, index + 1), fontSize = 14.sp) },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                cursorColor = MaterialTheme.colorScheme.primary
+                            )
                         )
                         if (options.size > 2) {
-                            IconButton(onClick = { options = options.toMutableList().also { it.removeAt(index) } }) {
-                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.ch_remove), tint = MaterialTheme.colorScheme.error)
+                            IconButton(
+                                onClick = { options = options.toMutableList().also { it.removeAt(index) } },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.ch_remove), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
                 }
 
                 if (options.size < 10) {
-                    TextButton(
+                    OutlinedButton(
                         onClick = { options = options + "" },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.ch_poll_add_option))
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.ch_poll_add_option), fontSize = 14.sp)
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                // Налаштування опитування
+                Text(
+                    text = stringResource(R.string.ch_settings_title).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp
+                )
+
+                // Анонімне голосування
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isAnonymous = !isAnonymous }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.VisibilityOff,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.poll_anonymous_toggle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Switch(checked = isAnonymous, onCheckedChange = { isAnonymous = it })
+                    }
+                }
+
+                // Кілька відповідей
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { allowsMultiple = !allowsMultiple }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.CheckBox,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.poll_multiple_toggle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Switch(checked = allowsMultiple, onCheckedChange = { allowsMultiple = it })
                     }
                 }
             }
@@ -2426,11 +2572,14 @@ fun CreateChannelPollDialog(
                 onClick = {
                     val validOptions = options.map { it.trim() }.filter { it.isNotEmpty() }
                     if (question.isBlank() || validOptions.size < 2) return@Button
-                    onCreate(question.trim(), validOptions)
+                    onCreate(question.trim(), validOptions, isAnonymous, allowsMultiple)
                     onDismiss()
                 },
-                enabled = question.isNotBlank() && options.count { it.isNotBlank() } >= 2
+                enabled = question.isNotBlank() && options.count { it.isNotBlank() } >= 2,
+                shape = RoundedCornerShape(12.dp)
             ) {
+                Icon(Icons.Default.HowToVote, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.ch_create_poll))
             }
         },

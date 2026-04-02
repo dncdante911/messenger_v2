@@ -559,15 +559,15 @@ private fun StatsTab(statistics: ChannelStatistics?, channel: Channel?) {
         item {
             // Quick 4-cell overview
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuickStatCell("Підписники", "${statistics.subscribersCount}",
+                QuickStatCell(stringResource(R.string.ch_subscribers), "${statistics.subscribersCount}",
                     trend = if (statistics.growthRate != 0f) "${if (statistics.growthRate > 0) "+" else ""}${statistics.growthRate}%" else null,
                     trendPositive = statistics.growthRate >= 0, modifier = Modifier.weight(1f))
-                QuickStatCell("Перегляди", formatLargeNumber(statistics.viewsTotal.toInt()), modifier = Modifier.weight(1f))
+                QuickStatCell(stringResource(R.string.stat_views_label), formatLargeNumber(statistics.viewsTotal.toInt()), modifier = Modifier.weight(1f))
             }
         }
         item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuickStatCell("Сер./пост", "${statistics.avgViewsPerPost}", modifier = Modifier.weight(1f))
+                QuickStatCell(stringResource(R.string.stat_avg_per_post), "${statistics.avgViewsPerPost}", modifier = Modifier.weight(1f))
                 QuickStatCell("ER", "${statistics.engagementRate}%",
                     trendPositive = statistics.engagementRate >= 1f, modifier = Modifier.weight(1f))
             }
@@ -587,20 +587,22 @@ private fun StatsTab(statistics: ChannelStatistics?, channel: Channel?) {
             ) {
                 Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Детальна статистика")
+                Text(stringResource(R.string.detailed_statistics))
             }
         }
         // Top posts preview (top 3)
         if (!statistics.topPosts.isNullOrEmpty()) {
             item {
                 Spacer(Modifier.height(4.dp))
-                Text("Топ публікації", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(stringResource(R.string.stat_top_posts), fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
             items(statistics.topPosts!!.take(3)) { post ->
                 Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            val preview = post.text.trim().ifEmpty { if (post.hasMedia) "[Медіа]" else "[Пост]" }
+                            val mediaPreview = stringResource(R.string.stat_media_post_preview)
+                            val emptyPreview = stringResource(R.string.stat_empty_post_preview)
+                            val preview = post.text.trim().ifEmpty { if (post.hasMedia) mediaPreview else emptyPreview }
                             Text(preview, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                         Spacer(Modifier.width(8.dp))
@@ -776,7 +778,7 @@ private fun MembersTab(
     ) {
         item {
             Text(
-                "Members (${subscribers.size})",
+                stringResource(R.string.stat_members_count_fmt, subscribers.size),
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
                 modifier = Modifier.padding(bottom = 8.dp)

@@ -2472,17 +2472,27 @@ fun EditChannelInfoDialog(
         channelDescription != (channel.description ?: "") ||
         channelUsername != (channel.username ?: "")
 
+    val nameMaxLen = 100
+    val descMaxLen = 500
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = stringResource(R.string.ch_edit_channel),
                     fontWeight = FontWeight.Bold,
@@ -2495,18 +2505,65 @@ fun EditChannelInfoDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Channel name
+                // Preview рядок
+                if (channelName.isNotBlank() || channelUsername.isNotBlank()) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Sensors,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = channelName.ifBlank { channel.name },
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (channelUsername.isNotBlank()) {
+                                    Text(
+                                        text = "@$channelUsername",
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Назва каналу
                 OutlinedTextField(
                     value = channelName,
-                    onValueChange = { channelName = it },
+                    onValueChange = { if (it.length <= nameMaxLen) channelName = it },
                     label = { Text(stringResource(R.string.ch_channel_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     leadingIcon = {
                         Icon(Icons.Default.Title, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    },
+                    supportingText = {
+                        Text(
+                            "${channelName.length}/$nameMaxLen",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                            color = if (channelName.length > nameMaxLen * 0.9) MaterialTheme.colorScheme.error
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -2536,6 +2593,12 @@ fun EditChannelInfoDialog(
                     supportingText = {
                         if (usernameError != null) {
                             Text(usernameError!!, color = MaterialTheme.colorScheme.error)
+                        } else if (channelUsername.length >= 5) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null,
+                                    modifier = Modifier.size(14.dp), tint = Color(0xFF4CAF50))
+                                Text("t.me/$channelUsername", color = Color(0xFF4CAF50), fontSize = 12.sp)
+                            }
                         }
                     },
                     leadingIcon = {
@@ -2547,19 +2610,28 @@ fun EditChannelInfoDialog(
                     )
                 )
 
-                // Description
+                // Опис
                 OutlinedTextField(
                     value = channelDescription,
-                    onValueChange = { channelDescription = it },
+                    onValueChange = { if (it.length <= descMaxLen) channelDescription = it },
                     label = { Text(stringResource(R.string.ch_description)) },
                     placeholder = { Text(stringResource(R.string.ch_channel_about)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 100.dp),
-                    maxLines = 4,
+                    maxLines = 5,
                     shape = RoundedCornerShape(14.dp),
                     leadingIcon = {
                         Icon(Icons.Default.Description, contentDescription = null, tint = Color(0xFF00C853))
+                    },
+                    supportingText = {
+                        Text(
+                            "${channelDescription.length}/$descMaxLen",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                            color = if (channelDescription.length > descMaxLen * 0.9) MaterialTheme.colorScheme.error
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -2583,6 +2655,8 @@ fun EditChannelInfoDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
+                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.ch_save))
             }
         },
