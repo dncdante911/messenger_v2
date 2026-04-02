@@ -54,7 +54,7 @@ fun ChannelStatisticsScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Статистика каналу", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.ch_statistics_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (channelName.isNotEmpty()) {
                             Text(channelName, style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -63,12 +63,12 @@ fun ChannelStatisticsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.ch_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Оновити")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.ch_refresh))
                     }
                 }
             )
@@ -89,10 +89,10 @@ fun ChannelStatisticsScreen(
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
                     Spacer(Modifier.height(16.dp))
-                    Text("Статистика недоступна", style = MaterialTheme.typography.bodyLarge,
+                    Text(stringResource(R.string.stat_unavailable), style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
-                    TextButton(onClick = onRefresh) { Text("Спробувати знову") }
+                    TextButton(onClick = onRefresh) { Text(stringResource(R.string.stat_try_again)) }
                 }
             }
 
@@ -135,20 +135,20 @@ fun ChannelStatisticsCompactCard(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                Text("Статистика", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.stat_compact_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 TextButton(onClick = onOpenFullClick) {
-                    Text("Детально")
+                    Text(stringResource(R.string.stat_detail_btn))
                     Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
             }
 
             if (statistics != null) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    MiniStatItem(value = formatNumber(statistics.subscribersCount), label = "Підписники",
+                    MiniStatItem(value = formatNumber(statistics.subscribersCount), label = stringResource(R.string.ch_subscribers),
                         trend = if (statistics.growthRate != 0f) "${if (statistics.growthRate > 0) "+" else ""}${statistics.growthRate}%" else null,
                         trendPositive = statistics.growthRate >= 0)
-                    MiniStatItem(value = formatNumber(statistics.viewsTotal.toInt()), label = "Перегляди")
-                    MiniStatItem(value = formatNumber(statistics.avgViewsPerPost), label = "Сер./пост")
+                    MiniStatItem(value = formatNumber(statistics.viewsTotal.toInt()), label = stringResource(R.string.stat_views_label))
+                    MiniStatItem(value = formatNumber(statistics.avgViewsPerPost), label = stringResource(R.string.stat_avg_per_post))
                     MiniStatItem(value = "${statistics.engagementRate}%", label = "ER")
                 }
             }
@@ -166,7 +166,7 @@ fun ChannelOverviewSection(statistics: ChannelStatistics) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ChStatCard(
                 icon = Icons.Default.People,
-                title = "Підписники",
+                title = stringResource(R.string.ch_subscribers),
                 value = formatNumber(statistics.subscribersCount),
                 trend = if (statistics.growthRate != 0f) "${if (statistics.growthRate > 0) "+" else ""}${statistics.growthRate}%" else null,
                 trendPositive = statistics.growthRate >= 0,
@@ -174,23 +174,23 @@ fun ChannelOverviewSection(statistics: ChannelStatistics) {
             )
             ChStatCard(
                 icon = Icons.Default.Visibility,
-                title = "Перегляди всього",
+                title = stringResource(R.string.stat_views_total),
                 value = formatNumber(statistics.viewsTotal.toInt()),
-                subtitle = "${formatNumber(statistics.viewsLastWeek.toInt())} за тижд.",
+                subtitle = stringResource(R.string.stat_per_week_fmt, formatNumber(statistics.viewsLastWeek.toInt())),
                 modifier = Modifier.weight(1f)
             )
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ChStatCard(
                 icon = Icons.Default.RemoveRedEye,
-                title = "Сер. переглядів",
+                title = stringResource(R.string.stat_avg_views),
                 value = formatNumber(statistics.avgViewsPerPost),
-                subtitle = "на пост",
+                subtitle = stringResource(R.string.stat_per_post),
                 modifier = Modifier.weight(1f)
             )
             ChStatCard(
                 icon = Icons.Default.Percent,
-                title = "Залученість (ER)",
+                title = stringResource(R.string.stat_er_label),
                 value = "${statistics.engagementRate}%",
                 subtitle = engagementLabel(statistics.engagementRate),
                 trendPositive = statistics.engagementRate >= 1f,
@@ -200,16 +200,16 @@ fun ChannelOverviewSection(statistics: ChannelStatistics) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ChStatCard(
                 icon = Icons.Default.Article,
-                title = "Постів",
+                title = stringResource(R.string.stat_posts_label),
                 value = formatNumber(statistics.postsCount),
-                subtitle = "+${statistics.postsLastWeek} за тижд.",
+                subtitle = stringResource(R.string.stat_posts_per_week_fmt, statistics.postsLastWeek),
                 modifier = Modifier.weight(1f)
             )
             ChStatCard(
                 icon = Icons.Default.OnlinePrediction,
-                title = "Активні (24г)",
+                title = stringResource(R.string.stat_active_24h),
                 value = formatNumber(statistics.activeSubscribers24h),
-                subtitle = "підписників",
+                subtitle = stringResource(R.string.ch_subscribers),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -228,7 +228,7 @@ fun SubscriberDynamicsCard(statistics: ChannelStatistics) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            SectionHeader(icon = Icons.Default.PeopleAlt, title = "Динаміка підписників")
+            SectionHeader(icon = Icons.Default.PeopleAlt, title = stringResource(R.string.stat_subscriber_dynamics))
             Spacer(Modifier.height(16.dp))
 
             // KPI row
@@ -236,19 +236,19 @@ fun SubscriberDynamicsCard(statistics: ChannelStatistics) {
                 DeltaCell(
                     icon = Icons.Default.PersonAdd,
                     value = "+${statistics.newSubscribersToday}",
-                    label = "Сьогодні",
+                    label = stringResource(R.string.stat_today),
                     color = Color(0xFF4CAF50)
                 )
                 DeltaCell(
                     icon = Icons.Default.GroupAdd,
                     value = "+${statistics.newSubscribersWeek}",
-                    label = "За тиждень",
+                    label = stringResource(R.string.stat_this_week),
                     color = MaterialTheme.colorScheme.primary
                 )
                 DeltaCell(
                     icon = Icons.Default.PersonRemove,
                     value = "-${statistics.leftSubscribersWeek}",
-                    label = "Відписок",
+                    label = stringResource(R.string.stat_unsubscribed),
                     color = MaterialTheme.colorScheme.error
                 )
             }
@@ -259,7 +259,7 @@ fun SubscriberDynamicsCard(statistics: ChannelStatistics) {
                 Spacer(Modifier.height(20.dp))
                 Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
                 Spacer(Modifier.height(16.dp))
-                Text("Нові підписники за 7 днів",
+                Text(stringResource(R.string.stat_new_subs_7days),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(10.dp))
@@ -281,7 +281,7 @@ fun SubscriberDynamicsCard(statistics: ChannelStatistics) {
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "Ріст за тиждень: ${if (statistics.growthRate >= 0) "+" else ""}${statistics.growthRate}%",
+                    text = stringResource(R.string.stat_weekly_growth, "${if (statistics.growthRate >= 0) "+" else ""}${statistics.growthRate}%"),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = if (statistics.growthRate >= 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
@@ -306,13 +306,13 @@ fun ViewsTrendCard(statistics: ChannelStatistics) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            SectionHeader(icon = Icons.Default.ShowChart, title = "Тренд переглядів")
+            SectionHeader(icon = Icons.Default.ShowChart, title = stringResource(R.string.stat_views_trend))
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("${formatNumber(statistics.viewsLastWeek.toInt())} за тиждень",
+                Text(stringResource(R.string.stat_per_week_fmt, formatNumber(statistics.viewsLastWeek.toInt())),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Середнє: ${formatNumber(if (statistics.postsLastWeek > 0) (statistics.viewsLastWeek / statistics.postsLastWeek).toInt() else 0)}/пост",
+                Text(stringResource(R.string.stat_avg_fmt, formatNumber(if (statistics.postsLastWeek > 0) (statistics.viewsLastWeek / statistics.postsLastWeek).toInt() else 0)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -352,7 +352,12 @@ fun ViewsTrendCard(statistics: ChannelStatistics) {
                 }
                 Spacer(Modifier.height(8.dp))
                 // Day labels
-                val days = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд")
+                val days = listOf(
+                stringResource(R.string.day_mon), stringResource(R.string.day_tue),
+                stringResource(R.string.day_wed), stringResource(R.string.day_thu),
+                stringResource(R.string.day_fri), stringResource(R.string.day_sat),
+                stringResource(R.string.day_sun)
+            )
                 val today = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
                 val labels = (0..6).map { i ->
                     val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, i - 6) }
@@ -367,7 +372,7 @@ fun ViewsTrendCard(statistics: ChannelStatistics) {
                 }
             } else {
                 Box(modifier = Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
-                    Text("Немає даних за тиждень", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.stat_no_weekly_data), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -387,14 +392,14 @@ fun PostActivityCard(statistics: ChannelStatistics) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            SectionHeader(icon = Icons.Default.Article, title = "Активність публікацій")
+            SectionHeader(icon = Icons.Default.Article, title = stringResource(R.string.stat_post_activity))
             Spacer(Modifier.height(16.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                PostPeriodItem(value = statistics.postsToday.toString(), label = "Сьогодні")
-                PostPeriodItem(value = statistics.postsLastWeek.toString(), label = "За тиждень")
-                PostPeriodItem(value = statistics.postsThisMonth.toString(), label = "За місяць")
-                PostPeriodItem(value = statistics.postsCount.toString(), label = "Всього")
+                PostPeriodItem(value = statistics.postsToday.toString(), label = stringResource(R.string.stat_today))
+                PostPeriodItem(value = statistics.postsLastWeek.toString(), label = stringResource(R.string.stat_this_week))
+                PostPeriodItem(value = statistics.postsThisMonth.toString(), label = stringResource(R.string.stat_this_month))
+                PostPeriodItem(value = statistics.postsCount.toString(), label = stringResource(R.string.stat_total))
             }
 
             Spacer(Modifier.height(16.dp))
@@ -404,7 +409,7 @@ fun PostActivityCard(statistics: ChannelStatistics) {
             // Media vs text breakdown
             val total = statistics.postsCount.coerceAtLeast(1)
             val mediaFraction = statistics.mediaPostsCount.toFloat() / total
-            Text("Тип контенту", style = MaterialTheme.typography.labelMedium,
+            Text(stringResource(R.string.stat_content_type), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             // Stacked bar
@@ -423,14 +428,14 @@ fun PostActivityCard(statistics: ChannelStatistics) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(10.dp).clip(CircleShape).background(primary))
                     Spacer(Modifier.width(4.dp))
-                    Text("Медіа: ${statistics.mediaPostsCount}",
+                    Text(stringResource(R.string.stat_media_fmt, statistics.mediaPostsCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(10.dp).clip(CircleShape).background(secondary.copy(alpha = 0.5f)))
                     Spacer(Modifier.width(4.dp))
-                    Text("Текст: ${statistics.textPostsCount}",
+                    Text(stringResource(R.string.stat_text_fmt, statistics.textPostsCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -451,7 +456,7 @@ fun EngagementCard(statistics: ChannelStatistics) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            SectionHeader(icon = Icons.Default.Favorite, title = "Залученість")
+            SectionHeader(icon = Icons.Default.Favorite, title = stringResource(R.string.stat_engagement))
             Spacer(Modifier.height(16.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -467,7 +472,7 @@ fun EngagementCard(statistics: ChannelStatistics) {
                         Spacer(Modifier.height(6.dp))
                         Text(formatNumber(statistics.reactionsTotal),
                             fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Color(0xFFF44336))
-                        Text("Реакції", style = MaterialTheme.typography.labelSmall,
+                        Text(stringResource(R.string.stat_reactions), style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -483,7 +488,7 @@ fun EngagementCard(statistics: ChannelStatistics) {
                         Spacer(Modifier.height(6.dp))
                         Text(formatNumber(statistics.commentsTotal),
                             fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Color(0xFF2196F3))
-                        Text("Коментарі", style = MaterialTheme.typography.labelSmall,
+                        Text(stringResource(R.string.stat_comments_label), style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -524,10 +529,10 @@ fun EngagementCard(statistics: ChannelStatistics) {
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = when {
-                            statistics.engagementRate >= 5f  -> "Відмінна залученість! Канал активно взаємодіє з аудиторією."
-                            statistics.engagementRate >= 1f  -> "Середня залученість. Нормально для великих каналів."
-                            statistics.engagementRate > 0f   -> "Низька залученість. Спробуйте інтерактивний контент."
-                            else                              -> "Даних про взаємодію поки немає."
+                            statistics.engagementRate >= 5f  -> stringResource(R.string.er_excellent)
+                            statistics.engagementRate >= 1f  -> stringResource(R.string.er_normal)
+                            statistics.engagementRate > 0f   -> stringResource(R.string.er_low)
+                            else                              -> stringResource(R.string.er_no_data)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -550,14 +555,14 @@ fun TopPostsCard(topPosts: List<TopPostStatistic>) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            SectionHeader(icon = Icons.Default.EmojiEvents, title = "Топ публікації")
+            SectionHeader(icon = Icons.Default.EmojiEvents, title = stringResource(R.string.stat_top_posts))
             Spacer(Modifier.height(4.dp))
-            Text("За кількістю переглядів", style = MaterialTheme.typography.bodySmall,
+            Text(stringResource(R.string.stat_by_views), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(14.dp))
 
             if (topPosts.isEmpty()) {
-                Text("Немає даних", style = MaterialTheme.typography.bodyMedium,
+                Text(stringResource(R.string.stat_no_data), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             } else {
@@ -677,9 +682,9 @@ fun PeakHoursHeatmapCard(statistics: ChannelStatistics) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            SectionHeader(icon = Icons.Default.Schedule, title = "Пікові години публікацій")
+            SectionHeader(icon = Icons.Default.Schedule, title = stringResource(R.string.stat_peak_hours))
             Spacer(Modifier.height(4.dp))
-            Text("Найкращий час для публікацій", style = MaterialTheme.typography.bodySmall,
+            Text(stringResource(R.string.stat_best_time_hint), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
 
@@ -736,7 +741,7 @@ fun PeakHoursHeatmapCard(statistics: ChannelStatistics) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Bolt, contentDescription = null,
                             tint = Color(0xFFFFD700), modifier = Modifier.size(18.dp))
-                        Text("Найкращий час: ", style = MaterialTheme.typography.bodySmall,
+                        Text(stringResource(R.string.stat_best_time_label), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         peakHours.take(5).forEach { h ->
                             Surface(
@@ -752,7 +757,7 @@ fun PeakHoursHeatmapCard(statistics: ChannelStatistics) {
                 }
             } else {
                 Box(modifier = Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
-                    Text("Немає даних про активність", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.stat_no_activity_data), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

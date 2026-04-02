@@ -1209,6 +1209,8 @@ class ChannelDetailsViewModel : ViewModel() {
         channelId: Long,
         question: String,
         options: List<String>,
+        isAnonymous: Boolean = true,
+        allowsMultiple: Boolean = false,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
@@ -1218,7 +1220,9 @@ class ChannelDetailsViewModel : ViewModel() {
                 val response = NodeRetrofitClient.channelApi.createChannelPoll(
                     channelId = channelId,
                     question = question,
-                    options = optionsJson
+                    options = optionsJson,
+                    isAnonymous = if (isAnonymous) 1 else 0,
+                    allowsMultiple = if (allowsMultiple) 1 else 0
                 )
                 if (response.apiStatus == 200) onSuccess()
                 else onError(response.errorMessage ?: "Failed to create poll")
