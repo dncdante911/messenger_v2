@@ -155,8 +155,6 @@ class StoryRepository(private val context: Context) {
             _isLoading.value = false
 
             if (response.apiStatus == 200) {
-                // Оновлюємо список stories
-                fetchStories()
                 Log.d(TAG, "Story створена: ${response.storyId}")
                 Result.success(response)
             } else {

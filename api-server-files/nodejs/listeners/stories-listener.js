@@ -168,6 +168,7 @@ async function registerStoriesListeners(socket, io, ctx) {
             // Track active viewers
             if (!activeViewers.has(storyId)) {
                 activeViewers.set(storyId, new Set());
+                storyViewerTimestamps.set(storyId, Date.now());
             }
             activeViewers.get(storyId).add(userId);
 
@@ -355,13 +356,22 @@ async function registerStoriesListeners(socket, io, ctx) {
     });
 }
 
-// Periodic cleanup of expired story viewers (run every 5 minutes)
+// Story viewer TTL: track insertion time alongside viewer set
+// storyViewerTimestamps: storyId -> timestamp of first view (ms)
+const storyViewerTimestamps = new Map();
+
+// Periodic cleanup of expired story viewer entries (every 5 minutes)
+// Stories expire after 48 h max; we purge viewer sets older than 49 h to prevent memory leaks
+const VIEWER_TTL_MS = 49 * 60 * 60 * 1000; // 49 hours
 setInterval(() => {
     const now = Date.now();
-    for (const [storyId, viewers] of activeViewers.entries()) {
-        // Stories expire after 24/48 hours, so we can safely clear old data
-        // This is just to prevent memory leaks
+    for (const [storyId, ts] of storyViewerTimestamps.entries()) {
+        if (now - ts > VIEWER_TTL_MS) {
+            activeViewers.delete(storyId);
+            storyViewerTimestamps.delete(storyId);
+        }
     }
+    console.log(`🧹 activeViewers cleanup: ${activeViewers.size} entries remain`);
 }, 5 * 60 * 1000);
 
 module.exports = registerStoriesListeners;
