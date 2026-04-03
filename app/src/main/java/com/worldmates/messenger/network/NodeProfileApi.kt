@@ -158,6 +158,18 @@ interface NodeProfileApi {
     @DELETE("api/node/users/{id}/block")
     suspend fun unblockUser(@Path("id") userId: Long): UpdateUserDataResponse
 
+    /**
+     * Pre-emptive block/unblock by phone number or user_id.
+     * Send exactly one of [phone] or [userId]; [action] defaults to "block".
+     */
+    @FormUrlEncoded
+    @POST("api/node/users/block-by-identifier")
+    suspend fun blockByIdentifier(
+        @Field("phone")   phone:   String? = null,
+        @Field("user_id") userId:  Long?   = null,
+        @Field("action")  action:  String  = "block",
+    ): BlockByIdentifierResponse
+
     // ─── Media gallery ────────────────────────────────────────────────────────
 
     /** Fetch all media (photos/videos) from own private conversations, newest first. */
@@ -249,5 +261,12 @@ data class GetUserMediaResponse(
     @SerializedName("api_status")    val apiStatus:    Int,
     @SerializedName("media")         val media:        List<UserMediaItem>? = null,
     @SerializedName("count")         val count:        Int? = null,
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+data class BlockByIdentifierResponse(
+    @SerializedName("api_status")    val apiStatus:    Int,
+    @SerializedName("block_status")  val blockStatus:  String? = null,   // "blocked" | "unblocked" | "already_blocked" | "not_blocked"
+    @SerializedName("message")       val message:      String? = null,
     @SerializedName("error_message") val errorMessage: String? = null,
 )

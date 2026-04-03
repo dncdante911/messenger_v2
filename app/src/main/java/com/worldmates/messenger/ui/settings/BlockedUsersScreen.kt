@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.BlockedUser
+import com.worldmates.messenger.ui.settings.BlockByIdentifierDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,16 +33,39 @@ fun BlockedUsersScreen(
     viewModel: BlockedUsersViewModel = viewModel(),
     onBackClick: () -> Unit
 ) {
-    val blockedUsers by viewModel.blockedUsers.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val successMessage by viewModel.successMessage.collectAsState()
+    val blockedUsers     by viewModel.blockedUsers.collectAsState()
+    val isLoading        by viewModel.isLoading.collectAsState()
+    val errorMessage     by viewModel.errorMessage.collectAsState()
+    val successMessage   by viewModel.successMessage.collectAsState()
+    val blockByIdState   by viewModel.blockByIdState.collectAsState()
+
+    var showBlockDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadBlockedUsers()
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    if (showBlockDialog) {
+        BlockByIdentifierDialog(
+            state     = blockByIdState,
+            onBlock   = { phone, userId -> viewModel.blockByIdentifier(phone, userId) },
+            onDismiss = { showBlockDialog = false; viewModel.resetBlockByIdState() },
+            onReset   = { viewModel.resetBlockByIdState() },
+        )
+    }
+
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick           = { showBlockDialog = true },
+                containerColor    = MaterialTheme.colorScheme.error,
+                contentColor      = Color.White,
+            ) {
+                Icon(Icons.Default.Block, contentDescription = stringResource(R.string.block_by_identifier_title))
+            }
+        }
+    ) { innerPadding ->
+    Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
         TopAppBar(
             title = {
                 Column {
@@ -172,6 +196,7 @@ fun BlockedUsersScreen(
             }
         }
     }
+    } // end Scaffold
 }
 
 @Composable

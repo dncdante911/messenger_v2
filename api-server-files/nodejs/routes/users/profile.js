@@ -23,9 +23,10 @@
  *   DELETE /api/node/users/:id/follow          Unfollow a user
  *
  * ─── Blocking ────────────────────────────────────────────────────────────────
- *   GET  /api/node/users/me/blocked            List of blocked users
- *   POST /api/node/users/:id/block             Block a user
- *   DELETE /api/node/users/:id/block           Unblock a user
+ *   GET    /api/node/users/me/blocked                   List of blocked users
+ *   POST   /api/node/users/:id/block                    Block a user by ID (URL param)
+ *   DELETE /api/node/users/:id/block                    Unblock a user by ID
+ *   POST   /api/node/users/block-by-identifier          Block/unblock by phone or user_id (pre-emptive)
  */
 
 const bcrypt    = require('bcryptjs');
@@ -882,6 +883,122 @@ function unblockUser(ctx) {
     }];
 }
 
+// ─── POST /api/node/users/block-by-identifier ────────────────────────────────
+// Allows pre-emptive blocking by phone number or user_id — before any message exchange.
+// Rate-limited to 10 requests per minute per user to prevent phone enumeration.
+
+const blockByIdentifierLimiter = (() => {
+    // Simple in-memory sliding window: userId -> [timestamp, ...]
+    const windows = new Map();
+    const WINDOW_MS  = 60_000;
+    const MAX_CALLS  = 10;
+    return function check(userId) {
+        const now  = Date.now();
+        const hits = (windows.get(userId) || []).filter(t => now - t < WINDOW_MS);
+        if (hits.length >= MAX_CALLS) return false;
+        hits.push(now);
+        windows.set(userId, hits);
+        return true;
+    };
+})();
+
+function blockByIdentifier(ctx) {
+    return [requireAuth(ctx), async (req, res) => {
+        // Rate-limit check
+        if (!blockByIdentifierLimiter(req.userId)) {
+            return res.status(429).json({ api_status: 429, error_message: 'Too many requests. Try again later.' });
+        }
+
+        const { phone, user_id, action = 'block' } = req.body;
+
+        if (!['block', 'unblock'].includes(action)) {
+            return res.json({ api_status: 400, error_message: 'Invalid action. Use "block" or "unblock".' });
+        }
+
+        if (!phone && !user_id) {
+            return res.json({ api_status: 400, error_message: 'Provide phone or user_id.' });
+        }
+
+        try {
+            let targetId;
+
+            if (user_id) {
+                targetId = parseInt(user_id, 10);
+                if (!targetId || targetId < 1) {
+                    return res.json({ api_status: 400, error_message: 'Invalid user_id.' });
+                }
+                // Verify user exists
+                const exists = await ctx.wo_users.findOne({
+                    where: { user_id: targetId },
+                    attributes: ['user_id'],
+                    raw: true,
+                });
+                if (!exists) {
+                    // Generic message — do not reveal whether ID exists
+                    return res.json({ api_status: 404, error_message: 'User not found.' });
+                }
+            } else {
+                // Normalise phone: strip spaces, dashes, parentheses
+                const normalised = String(phone).replace(/[\s\-().]/g, '');
+                if (!/^\+?\d{7,15}$/.test(normalised)) {
+                    return res.json({ api_status: 400, error_message: 'Invalid phone number format.' });
+                }
+                const userRow = await ctx.wo_users.findOne({
+                    where: { phone_number: normalised },
+                    attributes: ['user_id'],
+                    raw: true,
+                });
+                if (!userRow) {
+                    // Generic message — do not reveal whether the number is registered
+                    return res.json({ api_status: 404, error_message: 'User not found.' });
+                }
+                targetId = userRow.user_id;
+            }
+
+            if (targetId === req.userId) {
+                return res.json({ api_status: 400, error_message: 'Cannot block yourself.' });
+            }
+
+            if (action === 'block') {
+                const [, created] = await ctx.wo_blocks.findOrCreate({
+                    where: { blocker: req.userId, blocked: targetId },
+                    defaults: { blocker: req.userId, blocked: targetId, time: Math.floor(Date.now() / 1000) },
+                });
+
+                if (!created) {
+                    return res.json({ api_status: 200, block_status: 'already_blocked', message: 'Already blocked.' });
+                }
+
+                // Auto-unfollow in both directions
+                const [fw1, fw2] = await Promise.all([
+                    ctx.wo_followers.findOne({ where: { follower_id: req.userId,  following_id: targetId } }),
+                    ctx.wo_followers.findOne({ where: { follower_id: targetId,    following_id: req.userId } }),
+                ]);
+                const tasks = [];
+                if (fw1) { const wasActive = fw1.active === 1; tasks.push(fw1.destroy().then(() => wasActive && updateFollowStats(ctx, targetId, req.userId, -1))); }
+                if (fw2) { const wasActive = fw2.active === 1; tasks.push(fw2.destroy().then(() => wasActive && updateFollowStats(ctx, req.userId, targetId, -1))); }
+                await Promise.allSettled(tasks);
+
+                return res.json({ api_status: 200, block_status: 'blocked', message: 'User blocked.' });
+
+            } else {
+                const deleted = await ctx.wo_blocks.destroy({
+                    where: { blocker: req.userId, blocked: targetId },
+                });
+                return res.json({
+                    api_status: 200,
+                    block_status: deleted > 0 ? 'unblocked' : 'not_blocked',
+                    message: deleted > 0 ? 'User unblocked.' : 'User was not blocked.',
+                });
+            }
+
+        } catch (err) {
+            console.error('[Profile/blockByIdentifier]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error.' });
+        }
+    }];
+}
+
 // ─── PUT /api/node/users/me/appearance ────────────────────────────────────────
 
 function updateAppearance(ctx) {
@@ -1025,6 +1142,8 @@ function registerProfileRoutes(app, ctx) {
     app.get   ('/api/node/users/:id/following',       getFollowing(ctx));
     app.post  ('/api/node/users/:id/follow',          followUser(ctx));
     app.delete('/api/node/users/:id/follow',          unfollowUser(ctx));
+    // block-by-identifier MUST be before /:id/block to prevent "block-by-identifier" matching as an id
+    app.post  ('/api/node/users/block-by-identifier', blockByIdentifier(ctx));
     app.post  ('/api/node/users/:id/block',           blockUser(ctx));
     app.delete('/api/node/users/:id/block',           unblockUser(ctx));
 
@@ -1042,6 +1161,7 @@ function registerProfileRoutes(app, ctx) {
     console.log('  GET    /api/node/users/:id/following');
     console.log('  POST   /api/node/users/:id/follow');
     console.log('  DELETE /api/node/users/:id/follow');
+    console.log('  POST   /api/node/users/block-by-identifier');
     console.log('  POST   /api/node/users/:id/block');
     console.log('  DELETE /api/node/users/:id/block');
 }
