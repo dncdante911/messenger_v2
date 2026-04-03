@@ -7,6 +7,7 @@
     <string name="language_selection_subtitle">Выберите язык интерфейса. Вы сможете изменить его позже в настройках.</string>
     <string name="language_ukrainian">Українська</string>
     <string name="language_russian">Русский</string>
+    <string name="language_english">English</string>
     <string name="language_continue">Продолжить</string>
     <string name="language_current">Текущий язык</string>
     <string name="language_select">Выбрать</string>

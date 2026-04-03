@@ -3,102 +3,102 @@
     <string name="app_name">WorldMates NEW v2.0</string>
 
     <!-- ===== LANGUAGE SELECTION ===== -->
-    <string name="language_selection_title">Select Language</string>
-    <string name="language_selection_subtitle">Choose interface language. You can change it later in settings.</string>
-    <string name="language_ukrainian">Ukrainian</string>
-    <string name="language_russian">Russian</string>
-    <string name="language_english">English</string>
-    <string name="language_continue">Continue</string>
-    <string name="language_current">Current Language</string>
-    <string name="language_select">Select</string>
-    <string name="language_changed_restart">Language changed. Restart the app.</string>
-    <string name="language_settings_title">Interface Language</string>
-    <string name="language_settings_subtitle">Select app language</string>
+    <string name="language_selection_title">Виберіть мову</string>
+    <string name="language_selection_subtitle">Оберіть мову інтерфейсу. Ви зможете змінити її пізніше у налаштуваннях.</string>
+    <string name="language_ukrainian">Українська</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_english">Англійська</string>
+    <string name="language_continue">Продовжити</string>
+    <string name="language_current">Поточна мова</string>
+    <string name="language_select">Вибрати</string>
+    <string name="language_changed_restart">Мову змінено. Перезапустіть додаток.</string>
+    <string name="language_settings_title">Мова інтерфейсу</string>
+    <string name="language_settings_subtitle">Виберіть мову додатку</string>
 
     <!-- ===== LOGIN &amp; REGISTER ===== -->
-    <string name="login">Login</string>
-    <string name="register">Registration</string>
+    <string name="login">Вхід</string>
+    <string name="register">Реєстрація</string>
     <string name="username">Ім\'я користувача</string>
     <string name="email">Email</string>
-    <string name="password">Password</string>
-    <string name="confirm_password">Confirm Password</string>
-    <string name="forgot_password">Forgot password?</string>
-    <string name="no_account">Don't have an account?</string>
-    <string name="already_have_account">Already have an account?</string>
-    <string name="sign_in">Sign In</string>
-    <string name="sign_up">Sign Up</string>
-    <string name="login_title">Welcome</string>
-    <string name="login_subtitle">Sign in to your WorldMates account</string>
-    <string name="login_success">Successfully signed in!</string>
-    <string name="login_failed">Login Error</string>
-    <string name="register_success">Registration completed successfully!</string>
+    <string name="password">Пароль</string>
+    <string name="confirm_password">Підтвердіть пароль</string>
+    <string name="forgot_password">Забули пароль?</string>
+    <string name="no_account">Немає облікового запису?</string>
+    <string name="already_have_account">Вже маєте акаунт?</string>
+    <string name="sign_in">Увійти</string>
+    <string name="sign_up">Зареєструватися</string>
+    <string name="login_title">Ласкаво просимо</string>
+    <string name="login_subtitle">Увійдіть до свого акаунту WorldMates</string>
+    <string name="login_success">Успішно увійшли!</string>
+    <string name="login_failed">Помилка входу</string>
+    <string name="register_success">Реєстрацію успішно завершено!</string>
     <string name="username_or_email">Ім\'я користувача або email</string>
-    <string name="enter_password_hint">Enter password</string>
-    <string name="phone_number">Phone Number</string>
-    <string name="quick_register">Quick Registration</string>
-    <string name="standard_register">Standard Registration</string>
+    <string name="enter_password_hint">Введіть пароль</string>
+    <string name="phone_number">Номер телефону</string>
+    <string name="quick_register">Швидка реєстрація</string>
+    <string name="standard_register">Стандартна реєстрація</string>
     <string name="full_name">Повне ім\'я</string>
     <string name="first_name">Ім\'я</string>
-    <string name="last_name">Last Name</string>
-    <string name="phone">Phone</string>
-    <string name="logout">Sign Out</string>
-    <string name="logout_confirm_title">Sign out from account?</string>
-    <string name="logout_confirm_message">Are you sure you want to sign out?</string>
-    <string name="verification_code">Verification Code</string>
-    <string name="enter_verification_code">6-digit code</string>
-    <string name="resend_code">Resend</string>
-    <string name="get_code">Get Code</string>
-    <string name="verify">Verify</string>
-    <string name="recovery_email">Recovery Email</string>
-    <string name="reset_password">Reset Password</string>
-    <string name="restore_access">Restore Access</string>
-    <string name="go_to_login">Go to Login</string>
-    <string name="new_password">New Password (min. 8 characters)</string>
-    <string name="change_password">Change Password</string>
-    <string name="forgot_email">Forgot Email</string>
-    <string name="restore_via_email">Restore access via email or phone</string>
-    <string name="restore_via_phone">Restore access via phone number</string>
-    <string name="send_code">Send Code</string>
+    <string name="last_name">Прізвище</string>
+    <string name="phone">Телефон</string>
+    <string name="logout">Вийти</string>
+    <string name="logout_confirm_title">Вийти з акаунту?</string>
+    <string name="logout_confirm_message">Ви впевнені, що хочете вийти?</string>
+    <string name="verification_code">Код підтвердження</string>
+    <string name="enter_verification_code">6-значний код</string>
+    <string name="resend_code">Надіслати повторно</string>
+    <string name="get_code">Отримати код</string>
+    <string name="verify">Підтвердити</string>
+    <string name="recovery_email">Email для відновлення</string>
+    <string name="reset_password">Скинути пароль</string>
+    <string name="restore_access">Відновити доступ</string>
+    <string name="go_to_login">Перейти до входу</string>
+    <string name="new_password">Новий пароль (мін. 8 символів)</string>
+    <string name="change_password">Змінити пароль</string>
+    <string name="forgot_email">Забув email</string>
+    <string name="restore_via_email">Відновити доступ через email або телефон</string>
+    <string name="restore_via_phone">Відновити доступ через номер телефону</string>
+    <string name="send_code">Надіслати код</string>
 
     <!-- ===== AUTH SCREENS (login / register / recovery / verification) ===== -->
-    <string name="login_world_subtitle">Connect with friends around the world</string>
-    <string name="login_email_tab">Login/Email</string>
-    <string name="recovery_access_btn">Access Recovery</string>
-    <string name="no_account_question">Don't have an account?</string>
-    <string name="reg_type_title">Choose registration type</string>
-    <string name="reg_account_setup_hint">You can set up your account after login</string>
+    <string name="login_world_subtitle">Спілкуйтесь з друзями по всьому світу</string>
+    <string name="login_email_tab">Логін/Email</string>
+    <string name="recovery_access_btn">Відновлення доступу</string>
+    <string name="no_account_question">Немаєте облікового запису?</string>
+    <string name="reg_type_title">Оберіть тип реєстрації</string>
+    <string name="reg_account_setup_hint">Ви зможете налаштувати акаунт після входу</string>
     <string name="std_reg_desc">Ім\'я, email або телефон, пароль — повний контроль над акаунтом</string>
-    <string name="quick_reg_desc">Email or phone only — sign in with verification code, no password</string>
-    <string name="hide_password">Hide Password</string>
-    <string name="show_password">Show Password</string>
-    <string name="change_language">Change Language</string>
-    <string name="create_account_title">Create Account</string>
-    <string name="join_worldmates">Join WorldMates</string>
-    <string name="passwords_mismatch">Passwords do not match</string>
+    <string name="quick_reg_desc">Лише email або телефон — вхід через код підтвердження, без паролю</string>
+    <string name="hide_password">Сховати пароль</string>
+    <string name="show_password">Показати пароль</string>
+    <string name="change_language">Змінити мову</string>
+    <string name="create_account_title">Створити акаунт</string>
+    <string name="join_worldmates">Приєднуйтесь до WorldMates</string>
+    <string name="passwords_mismatch">Паролі не співпадають</string>
     <string name="quick_reg_info">Введіть email або телефон — ми надішлемо код підтвердження.\nНіяких логінів та паролів!</string>
-    <string name="reg_method_title">Registration Method</string>
-    <string name="error_registration">Registration Error</string>
-    <string name="error_send_code">Error sending code</string>
-    <string name="error_send_sticker">Failed to send sticker</string>
-    <string name="enter_code_title">Enter Code</string>
-    <string name="code_sent_default">Code sent</string>
-    <string name="code_resent">Code resent</string>
-    <string name="resend_code_btn">Resend Code</string>
-    <string name="go_back_btn">Go Back</string>
-    <string name="invalid_code_error">Invalid code</string>
-    <string name="recovery_screen_title">Access Recovery</string>
-    <string name="what_restore_title">What do you want to recover?</string>
-    <string name="choose_recovery_desc">Choose an option to restore access to your account.</string>
-    <string name="forgot_password_option">Forgot Password</string>
-    <string name="enter_email_or_phone_title">Enter email or phone</string>
-    <string name="will_send_6digit">We'll send a 6-digit verification code</string>
-    <string name="enter_confirm_code_title">Enter verification code</string>
-    <string name="code_sent_to_format">Code sent to %s</string>
-    <string name="code_sent_to_number_format">Code sent to number %s</string>
-    <string name="continue_btn">Continue</string>
-    <string name="code_must_be_6_digits">Code must contain 6 digits</string>
-    <string name="new_password_screen_title">New Password</string>
-    <string name="enter_new_password_desc">Enter new password for your account</string>
+    <string name="reg_method_title">Спосіб реєстрації</string>
+    <string name="error_registration">Помилка реєстрації</string>
+    <string name="error_send_code">Помилка відправки коду</string>
+    <string name="error_send_sticker">Не вдалося надіслати стікер</string>
+    <string name="enter_code_title">Введіть код</string>
+    <string name="code_sent_default">Код надіслано</string>
+    <string name="code_resent">Код надіслано повторно</string>
+    <string name="resend_code_btn">Надіслати код повторно</string>
+    <string name="go_back_btn">Повернутись назад</string>
+    <string name="invalid_code_error">Невірний код</string>
+    <string name="recovery_screen_title">Відновлення доступу</string>
+    <string name="what_restore_title">Що саме ви хочете відновити?</string>
+    <string name="choose_recovery_desc">Оберіть варіант відновлення доступу до вашого акаунту.</string>
+    <string name="forgot_password_option">Забув пароль</string>
+    <string name="enter_email_or_phone_title">Введіть email або телефон</string>
+    <string name="will_send_6digit">Ми надішлемо 6-значний код підтвердження</string>
+    <string name="enter_confirm_code_title">Введіть код підтвердження</string>
+    <string name="code_sent_to_format">Код надіслано на %s</string>
+    <string name="code_sent_to_number_format">Код надіслано на номер %s</string>
+    <string name="continue_btn">Продовжити</string>
+    <string name="code_must_be_6_digits">Код має містити 6 цифр</string>
+    <string name="new_password_screen_title">Новий пароль</string>
+    <string name="enter_new_password_desc">Введіть новий пароль для вашого акаунту</string>
     <string name="password_min_8_chars">Пароль має бути не менше 8 символів</string>
     <string name="passwords_not_match">Паролі не збігаються</string>
     <string name="invalid_expired_code">Невірний або прострочений код. Спробуйте ще раз.</string>
@@ -117,7 +117,7 @@
     <string name="code_sent_email_format">Ми надіслали код на %s</string>
     <string name="code_sent_sms_format">Ми надіслали SMS з кодом на %s</string>
     <string name="resend_code_timer_format">Надіслати код повторно через %d сек</string>
-    <string name="resend_code_full">Resend Code</string>
+    <string name="resend_code_full">Надіслати код повторно</string>
     <string name="gender_select_label">Оберіть стать:</string>
 
     <!-- ===== NAVIGATION / BOTTOM BAR ===== -->
@@ -248,7 +248,7 @@
     <string name="forward_message">Переслати повідомлення</string>
     <string name="copy">Копіювати</string>
     <string name="copy_text">Копіювати текст</string>
-    <string name="select">Select</string>
+    <string name="select">Вибрати</string>
     <string name="select_messages">Вибрати повідомлення</string>
     <string name="pin_message">Закріпити повідомлення</string>
     <string name="unpin_message">Відкріпити повідомлення</string>
@@ -1057,7 +1057,7 @@
     <string name="error">Помилка</string>
     <string name="retry">Спробувати ще раз</string>
     <string name="done">Готово</string>
-    <string name="confirm">Verify</string>
+    <string name="confirm">Підтвердити</string>
     <string name="close">Закрити</string>
     <string name="apply">Застосувати</string>
     <string name="clear">Очистити</string>
@@ -1068,7 +1068,7 @@
     <string name="change">Змінити</string>
     <string name="update">Оновити</string>
     <string name="create">Створити</string>
-    <string name="proceed">Continue</string>
+    <string name="proceed">Продовжити</string>
     <string name="go_back">Повернутися</string>
     <string name="next">Далі</string>
     <string name="hide">Сховати</string>
@@ -1082,7 +1082,7 @@
     <string name="unknown_error">Невідома помилка</string>
     <string name="refresh">Оновити</string>
     <string name="menu">Меню</string>
-    <string name="choose">Select</string>
+    <string name="choose">Вибрати</string>
     <string name="select_date">Вибрати дату</string>
     <string name="restore">Відновити</string>
     <string name="fullscreen">На весь екран</string>
@@ -1207,7 +1207,7 @@
     <string name="restore_action">Відновити</string>
     <string name="delete_action">Видалити</string>
     <string name="save_action">Зберегти</string>
-    <string name="select_action">Select</string>
+    <string name="select_action">Вибрати</string>
     <string name="create_action">Створити</string>
 
     <!-- ===== MY PROFILE SCREEN ===== -->
@@ -1220,7 +1220,7 @@
     <string name="profile_action_edit">Змінити</string>
     <string name="profile_action_settings">Налаштування</string>
     <string name="profile_action_themes">Теми</string>
-    <string name="phone_label">Phone</string>
+    <string name="phone_label">Телефон</string>
     <string name="about_label">Про себе</string>
     <string name="username_label">Ім\'я користувача</string>
     <string name="birthday_profile_label">День народження</string>
@@ -1276,8 +1276,8 @@
 
     <!-- ===== ERRORS ===== -->
     <string name="error_network">Помилка мережі</string>
-    <string name="error_login">Login Error</string>
-    <string name="error_register">Registration Error</string>
+    <string name="error_login">Помилка входу</string>
+    <string name="error_register">Помилка реєстрації</string>
     <string name="error_no_internet">Немає з\'єднання з інтернетом</string>
     <string name="error_server">Помилка сервера. Спробуйте пізніше</string>
     <string name="error_something_wrong">Щось пішло не так</string>
@@ -1386,7 +1386,7 @@
     <string name="emoji">Емодзі</string>
     <string name="leave_group_action">Покинути групу</string>    <string name="chat_search">Пошук у чаті</string>
     <string name="message_input_hint">Написати повідомлення…</string>
-    <string name="edit_message_short">Редагувати</string>    <string name="select_message">Select</string>
+    <string name="edit_message_short">Редагувати</string>    <string name="select_message">Вибрати</string>
     <string name="message_edited_label">Відредаговано</string>    <string name="tap_for_info">Натисніть для отримання інформації</string>
 
     <!-- ===== MESSAGES HEADER COMPONENTS ===== -->
@@ -1792,7 +1792,7 @@
     <string name="pinned_cd">Закріплено</string>
     <string name="leave_group_confirm_title">Вийти з групи?</string>
     <string name="leave_group_confirm_message">Ви впевнені, що хочете вийти з групи \"%s\"?</string>
-    <string name="leave_action">Sign Out</string>
+    <string name="leave_action">Вийти</string>
     <string name="add_member_title">Додати учасника</string>
     <string name="all_users_in_group">Всі користувачі вже в групі</string>
 
@@ -2133,7 +2133,7 @@
     <string name="group_call_speaker_on">Динамік</string>
     <string name="group_call_speaker_off">Навушники</string>
     <string name="group_call_end">Завершити</string>
-    <string name="group_call_leave">Sign Out</string>
+    <string name="group_call_leave">Вийти</string>
     <string name="group_call_add_participant">Додати</string>
     <string name="group_call_participant_fallback">Учасник</string>
     <string name="group_default_name">Група</string>
@@ -2420,7 +2420,7 @@
     <string name="key_backup_restore">Відновити з резервної копії</string>
     <string name="key_backup_delete">Видалити резервну копію</string>
     <string name="key_backup_password_hint">Пароль резервної копії</string>
-    <string name="key_backup_password_confirm_hint">Confirm Password</string>
+    <string name="key_backup_password_confirm_hint">Підтвердіть пароль</string>
     <string name="key_backup_password_min">Мінімум 8 символів</string>
     <string name="key_backup_password_mismatch">Паролі не збігаються</string>
     <string name="key_backup_success_create">Резервна копія успішно створена</string>
@@ -2442,7 +2442,7 @@
     <string name="delete_account_btn">Видалити мій акаунт</string>
     <string name="delete_account_confirm_title">Ви впевнені?</string>
     <string name="delete_account_confirm_message">Акаунт буде видалено назавжди. Цю дію неможливо скасувати.</string>
-    <string name="password_hint">Password</string>
+    <string name="password_hint">Пароль</string>
 
     <!-- Reports -->
     <string name="report_sent">Скаргу надіслано</string>
@@ -2514,7 +2514,7 @@
     <string name="biz_field_category">Категорія (Кав\'ярня, Послуги…)</string>
     <string name="biz_field_desc">Опис</string>
     <string name="biz_field_address">Адреса</string>
-    <string name="biz_field_phone">Phone</string>
+    <string name="biz_field_phone">Телефон</string>
     <string name="biz_field_email">Email</string>
     <string name="biz_field_website">Вебсайт</string>
     <string name="biz_badge_title">Бейдж бізнесу у профілі</string>

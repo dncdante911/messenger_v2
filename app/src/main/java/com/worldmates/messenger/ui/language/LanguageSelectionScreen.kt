@@ -180,6 +180,17 @@ fun LanguageSelectionScreen(
                         isSelected = selectedLanguage == LanguageManager.LANG_RU,
                         onClick = { selectedLanguage = LanguageManager.LANG_RU }
                     )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 56.dp),
+                        thickness = 0.5.dp,
+                        color = colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    LanguageOption(
+                        flag = "\uD83C\uDDEC\uD83C\uDDE7",
+                        name = stringResource(R.string.language_english),
+                        isSelected = selectedLanguage == LanguageManager.LANG_EN,
+                        onClick = { selectedLanguage = LanguageManager.LANG_EN }
+                    )
                 }
             }
 
