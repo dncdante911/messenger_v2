@@ -1130,6 +1130,29 @@
     <string name="unblock_confirm_title">Розблокувати користувача?</string>
     <string name="blocked_users_info">Заблоковані користувачі не можуть надсилати вам повідомлення або дзвонити</string>
 
+    <!-- ===== BLOCK BY IDENTIFIER ===== -->
+    <string name="block_by_identifier_title">Заблокувати користувача</string>
+    <string name="block_by_identifier_subtitle">Введіть номер телефону або ID користувача</string>
+    <string name="block_by_phone_label">Номер телефону</string>
+    <string name="block_by_phone_hint">+380XXXXXXXXX</string>
+    <string name="block_by_id_label">ID користувача</string>
+    <string name="block_by_id_hint">Наприклад: 12345</string>
+    <string name="block_by_identifier_or">або</string>
+    <string name="block_by_identifier_action">Заблокувати</string>
+    <string name="block_by_identifier_success">Користувача заблоковано</string>
+    <string name="block_by_identifier_already">Вже заблоковано</string>
+    <string name="block_by_identifier_not_found">Користувача не знайдено</string>
+    <string name="block_by_identifier_error">Помилка. Спробуйте ще раз</string>
+    <string name="block_by_identifier_invalid_phone">Невірний формат номера телефону</string>
+    <string name="block_by_identifier_invalid_id">Невірний ID користувача</string>
+    <string name="block_by_identifier_empty">Введіть номер телефону або ID</string>
+    <string name="block_by_identifier_tab_phone">Телефон</string>
+    <string name="block_by_identifier_tab_id">ID</string>
+    <string name="block_by_identifier_confirm_title">Підтвердіть блокування</string>
+    <string name="block_by_identifier_confirm_msg">Заблокувати цього користувача? Він не зможе написати вам або зателефонувати.</string>
+    <string name="block_by_identifier_confirm_btn">Заблокувати</string>
+    <string name="block_by_identifier_rate_limit">Забагато спроб. Зачекайте хвилину.</string>
+
     <!-- ===== BACKUP SETTINGS ===== -->
     <string name="storage_stats_section">Статистика сховища</string>
     <string name="backup_settings_section">Налаштування бекапу</string>

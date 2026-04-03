@@ -1104,6 +1104,29 @@
     <string name="unblock_confirm_title">Разблокировать пользователя?</string>
     <string name="blocked_users_info">Заблокированные пользователи не могут отправлять вам сообщения или звонить</string>
 
+    <!-- ===== BLOCK BY IDENTIFIER ===== -->
+    <string name="block_by_identifier_title">Заблокировать пользователя</string>
+    <string name="block_by_identifier_subtitle">Введите номер телефона или ID пользователя</string>
+    <string name="block_by_phone_label">Номер телефона</string>
+    <string name="block_by_phone_hint">+7XXXXXXXXXX</string>
+    <string name="block_by_id_label">ID пользователя</string>
+    <string name="block_by_id_hint">Например: 12345</string>
+    <string name="block_by_identifier_or">или</string>
+    <string name="block_by_identifier_action">Заблокировать</string>
+    <string name="block_by_identifier_success">Пользователь заблокирован</string>
+    <string name="block_by_identifier_already">Уже заблокирован</string>
+    <string name="block_by_identifier_not_found">Пользователь не найден</string>
+    <string name="block_by_identifier_error">Ошибка. Попробуйте ещё раз</string>
+    <string name="block_by_identifier_invalid_phone">Неверный формат номера телефона</string>
+    <string name="block_by_identifier_invalid_id">Неверный ID пользователя</string>
+    <string name="block_by_identifier_empty">Введите номер телефона или ID</string>
+    <string name="block_by_identifier_tab_phone">Телефон</string>
+    <string name="block_by_identifier_tab_id">ID</string>
+    <string name="block_by_identifier_confirm_title">Подтвердите блокировку</string>
+    <string name="block_by_identifier_confirm_msg">Заблокировать этого пользователя? Он не сможет написать вам или позвонить.</string>
+    <string name="block_by_identifier_confirm_btn">Заблокировать</string>
+    <string name="block_by_identifier_rate_limit">Слишком много попыток. Подождите минуту.</string>
+
     <!-- ===== BACKUP SETTINGS ===== -->
     <string name="storage_stats_section">Статистика хранилища</string>
     <string name="backup_settings_section">Настройки резервного копирования</string>
