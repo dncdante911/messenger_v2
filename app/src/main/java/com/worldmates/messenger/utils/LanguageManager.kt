@@ -13,7 +13,6 @@ object LanguageManager {
 
     const val LANG_UK = "uk"
     const val LANG_RU = "ru"
-    const val LANG_EN = "en"
 
     private const val PREFS_NAME = "wm_language_prefs"
     private const val KEY_LANGUAGE = "selected_language"
@@ -74,7 +73,6 @@ object LanguageManager {
     fun getDisplayName(lang: String): String = when (lang) {
         LANG_UK -> "Українська"
         LANG_RU -> "Русский"
-        LANG_EN -> "English"
         else -> "Українська"
     }
 }
