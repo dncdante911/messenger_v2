@@ -153,7 +153,20 @@ object NodeRetrofitClient {
     val stickerProApi: NodeStickerProApi = retrofit.create(NodeStickerProApi::class.java)
 
     /** Voice message transcription — PRO only, uses OpenAI Whisper server-side. */
-    val voiceApi: NodeVoiceApi = retrofit.create(NodeVoiceApi::class.java)
+    // Whisper needs extra time: audio download + OpenAI inference can take 30-60 s.
+    // Standard 30 s read timeout is too short — use a dedicated client with 90 s.
+    private val voiceTranscribeClient = client.newBuilder()
+        .readTimeout(90L, TimeUnit.SECONDS)
+        .writeTimeout(90L, TimeUnit.SECONDS)
+        .build()
+
+    private val voiceTranscribeRetrofit: Retrofit = Retrofit.Builder()
+        .baseUrl(Constants.NODE_BASE_URL)
+        .client(voiceTranscribeClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    val voiceApi: NodeVoiceApi = voiceTranscribeRetrofit.create(NodeVoiceApi::class.java)
 
     /** Creates any Retrofit service backed by the Node.js base URL + auth interceptor. */
     fun <T> createService(cls: Class<T>): T = retrofit.create(cls)

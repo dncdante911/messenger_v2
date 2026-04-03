@@ -21,8 +21,9 @@ const url    = require('url');
 const crypto = require('crypto');
 const { requireAuth } = require('../helpers/validate-token');
 
-const WHISPER_ENDPOINT = 'https://api.openai.com/v1/audio/transcriptions';
-const OPENAI_API_KEY   = process.env.OPENAI_API_KEY || '';
+const WHISPER_ENDPOINT   = 'https://api.openai.com/v1/audio/transcriptions';
+const OPENAI_API_KEY     = process.env.OPENAI_API_KEY || '';
+const WHISPER_TIMEOUT_MS = 75_000; // 75 s — well under the Android client's 90 s read timeout
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -151,10 +152,16 @@ function transcribeVoice(ctx) {
             // Derive filename from URL
             const filename = audioUrl.split('/').pop().split('?')[0] || 'voice.ogg';
 
-            // Call OpenAI Whisper
+            // Call OpenAI Whisper with an explicit timeout
             let whisperResult;
             try {
-                whisperResult = await whisperTranscribe(audioBuffer, filename);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Whisper API timeout')), WHISPER_TIMEOUT_MS)
+                );
+                whisperResult = await Promise.race([
+                    whisperTranscribe(audioBuffer, filename),
+                    timeoutPromise,
+                ]);
             } catch (e) {
                 console.error('[Voice/transcribe] Whisper error:', e.message);
                 return res.status(502).json({ api_status: 502, error_message: `Transcription failed: ${e.message}` });
