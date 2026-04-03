@@ -384,9 +384,14 @@ function createStory(ctx, io) {
 
             // 6. Broadcast via Socket.IO
             if (io) {
+                // Notify subscribers (friends who follow this user's stories)
                 const roomName = `stories_${userId}`;
                 io.to(roomName).emit('story:created', {
                     userId,
+                    story: storyData,
+                });
+                // Also notify the creator's own socket so their feed refreshes immediately
+                io.to(`user_${userId}`).emit('story:self_created', {
                     story: storyData,
                 });
             }

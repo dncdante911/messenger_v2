@@ -106,14 +106,16 @@ class StoryViewerActivity : AppCompatActivity() {
 
         if (storyId > 0) {
             viewModel.loadStoryById(storyId)
-        } else if (userId > 0) {
-            viewModel.loadUserStories(userId)
         }
+        // loadUserStories() intentionally removed: it overwrites _stories with a filtered subset,
+        // causing a race with the ViewModel's init loadStories(). We now pass targetUserId and
+        // filter client-side inside StoryViewerScreen.
 
         setContent {
             WorldMatesThemedApp {
                 StoryViewerScreen(
                     viewModel = viewModel,
+                    targetUserId = userId,
                     isChannelStory = isChannelStory,
                     onClose = { finish() }
                 )
@@ -130,6 +132,7 @@ class StoryViewerActivity : AppCompatActivity() {
 @Composable
 fun StoryViewerScreen(
     viewModel: StoryViewModel,
+    targetUserId: Long = 0L,
     isChannelStory: Boolean,
     onClose: () -> Unit
 ) {
@@ -158,14 +161,17 @@ fun StoryViewerScreen(
         }
     }
 
-    // User stories filtered by userId
-    val userStories = remember(allStories, currentStory) {
-        currentStory?.let { story ->
-            allStories.filter { it.userId == story.userId }
-        } ?: emptyList()
+    // User stories filtered by targetUserId — key is stable (doesn't change on swipe)
+    val userStories = remember(allStories, targetUserId) {
+        when {
+            targetUserId > 0 -> allStories.filter { it.userId == targetUserId }
+            else -> currentStory?.let { story ->
+                allStories.filter { it.userId == story.userId }
+            } ?: emptyList()
+        }
     }
 
-    val initialPage = remember(userStories, currentStory) {
+    val initialPage = remember(userStories) {
         currentStory?.let { story ->
             userStories.indexOfFirst { it.id == story.id }.coerceAtLeast(0)
         } ?: 0
