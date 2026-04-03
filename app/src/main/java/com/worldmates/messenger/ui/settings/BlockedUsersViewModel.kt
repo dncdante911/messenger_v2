@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+enum class BlockByIdState { IDLE, LOADING, SUCCESS, ALREADY_BLOCKED, NOT_FOUND, ERROR, RATE_LIMITED }
+
 /**
  * ViewModel для управления списком заблокированных пользователей
  */
@@ -29,6 +31,9 @@ class BlockedUsersViewModel : ViewModel() {
 
     // Множество ID пользователей, которых сейчас разблокируем
     private val _unblockingUsers = MutableStateFlow<Set<Long>>(emptySet())
+
+    private val _blockByIdState = MutableStateFlow(BlockByIdState.IDLE)
+    val blockByIdState: StateFlow<BlockByIdState> = _blockByIdState.asStateFlow()
 
     /**
      * Загрузить список заблокированных пользователей
@@ -115,6 +120,43 @@ class BlockedUsersViewModel : ViewModel() {
                 _unblockingUsers.value = _unblockingUsers.value - userId
             }
         }
+    }
+
+    /**
+     * Заблокировать по номеру телефона или user_id (превентивная блокировка).
+     * Передай ровно один из параметров: phone или userId.
+     */
+    fun blockByIdentifier(phone: String? = null, userId: Long? = null) {
+        viewModelScope.launch {
+            try {
+                _blockByIdState.value = BlockByIdState.LOADING
+
+                val response = NodeRetrofitClient.profileApi.blockByIdentifier(
+                    phone  = phone?.takeIf { it.isNotBlank() },
+                    userId = userId,
+                )
+
+                _blockByIdState.value = when {
+                    response.apiStatus == 429                            -> BlockByIdState.RATE_LIMITED
+                    response.apiStatus == 404                            -> BlockByIdState.NOT_FOUND
+                    response.blockStatus == "already_blocked"            -> BlockByIdState.ALREADY_BLOCKED
+                    response.apiStatus == 200 && response.blockStatus == "blocked" -> {
+                        loadBlockedUsers()
+                        BlockByIdState.SUCCESS
+                    }
+                    else -> BlockByIdState.ERROR
+                }
+
+                Log.d(TAG, "blockByIdentifier status=${response.blockStatus} api=${response.apiStatus}")
+            } catch (e: Exception) {
+                _blockByIdState.value = BlockByIdState.ERROR
+                Log.e(TAG, "blockByIdentifier error", e)
+            }
+        }
+    }
+
+    fun resetBlockByIdState() {
+        _blockByIdState.value = BlockByIdState.IDLE
     }
 
     /**
