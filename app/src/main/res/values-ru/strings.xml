@@ -137,6 +137,7 @@
     <string name="new_group">Новая группа</string>
     <string name="no_chats">Нет чатов</string>
     <string name="no_chats_subtitle">Начните разговор прямо сейчас!</string>
+    <string name="no_business_chats">Нет бизнес-чатов\nКлиенты появятся здесь, когда напишут вам</string>
     <string name="archive">Архив</string>
     <string name="archived_chats">Архивированные чаты</string>
     <string name="pin_chat">Закрепить чат</string>
@@ -999,6 +1000,8 @@
     <!-- ===== MUSIC PLAYER ===== -->
     <string name="player">Плеер</string>
     <string name="music_background_note">Музыка продолжит играть при сворачивании и выключении экрана</string>
+    <string name="add_music">Добавить музыку</string>
+    <string name="music_selected">Музыка выбрана</string>
     <string name="stop">Остановить</string>
     <string name="playback_speed">Скорость воспроизведения</string>
     <string name="player_repeat">Повтор</string>
@@ -1929,6 +1932,7 @@
     <string name="pro_badge">PRO</string>
 
     <!-- ===== SECRET CHAT / SELF-DESTRUCT ===== -->
+    <string name="secret_timer_menu_item">🔒 Таймер самоуничтожения</string>
     <string name="secret_timer_title">Самоуничтожение</string>
     <string name="secret_timer_active_desc">Сообщения удалятся через %s</string>
     <string name="secret_timer_inactive_desc">Сообщения не удаляются автоматически</string>
@@ -2720,6 +2724,16 @@
     <string name="media_auto_delete_hint_1week">~1 нед.</string>
     <string name="media_auto_delete_hint_2weeks">~2 нед.</string>
     <string name="media_auto_delete_hint_1month">~1 мес.</string>
+    <string name="media_auto_delete_title">Автоудаление медиа</string>
+    <string name="media_auto_delete_menu_item">Автоудаление медиа</string>
+    <string name="media_auto_delete_description">Медиафайлы автоматически удаляются с сервера. Текст сообщения сохраняется.</string>
+    <string name="media_auto_delete_never">Никогда</string>
+    <string name="media_auto_delete_1day">1 день</string>
+    <string name="media_auto_delete_3days">3 дня</string>
+    <string name="media_auto_delete_1week">1 неделя</string>
+    <string name="media_auto_delete_2weeks">2 недели</string>
+    <string name="media_auto_delete_1month">1 месяц</string>
+    <string name="media_deleted_placeholder">Медиафайл удалён</string>
 
     <!-- ===== ADMIN LOGS ===== -->
     <string name="admin_log_add_member">добавил участника</string>
@@ -2736,6 +2750,13 @@
     <string name="admin_log_change_settings">изменил настройки группы</string>
     <string name="admin_log_enable_slow_mode">включил медленный режим</string>
     <string name="admin_log_disable_slow_mode">отключил медленный режим</string>
+    <string name="admin_logs_title">Журнал действий</string>
+    <string name="admin_logs_empty">Действий не найдено</string>
+    <string name="admin_logs_added_member">добавил участника</string>
+    <string name="admin_logs_removed_member">удалил участника</string>
+    <string name="admin_logs_deleted_message">удалил сообщение</string>
+    <string name="admin_logs_pinned_message">закрепил сообщение</string>
+    <string name="admin_logs_changed_settings">изменил настройки</string>
 
     <!-- ===== TIME FORMATTING ===== -->
     <string name="time_just_now">только что</string>
