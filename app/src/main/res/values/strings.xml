@@ -3029,4 +3029,7 @@
     <string name="block_by_identifier_rate_limit">Забагато запитів. Спробуйте пізніше</string>
     <string name="block_by_identifier_error">Сталася помилка. Спробуйте ще раз</string>
 
+    <!-- Location bubble -->
+    <string name="location_open_maps">Відкрити карту</string>
+
 </resources>

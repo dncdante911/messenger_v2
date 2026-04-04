@@ -3012,5 +3012,7 @@
     <string name="giveaway_results_title">Победители (%d участников)</string>
     <string name="giveaway_no_eligible">Нет участников, соответствующих условиям</string>
 
+    <!-- Location bubble -->
+    <string name="location_open_maps">Открыть карту</string>
 
 </resources>

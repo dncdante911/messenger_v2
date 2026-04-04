@@ -86,6 +86,9 @@ data class Message(
     @SerializedName("stickers") val stickers: String? = null,
     // Album grouping: non-null means this message is part of a media album
     @SerializedName("album_id") val albumId: Long? = null,
+    // Location / map message
+    @SerializedName("lat") val lat: String? = null,
+    @SerializedName("lng") val lng: String? = null,
     // Локальные поля (не приходят с сервера)
     val decryptedText: String? = null,
     val decryptedMediaUrl: String? = null, // Розшифрований URL медіа (для веб-версії)

@@ -267,6 +267,23 @@ fun MessageBubbleComposable(
                 }
             }
 
+            // ── 📍 LOCATION / MAP MESSAGE ────────────────────────────────────
+            val isLocationMessage = message.type == "map" &&
+                !message.lat.isNullOrBlank() && !message.lng.isNullOrBlank()
+            if (isLocationMessage) {
+                val lat = message.lat!!.toDoubleOrNull()
+                val lng = message.lng!!.toDoubleOrNull()
+                if (lat != null && lng != null) {
+                    com.worldmates.messenger.ui.components.LocationMessageBubble(
+                        lat     = lat,
+                        lng     = lng,
+                        address = message.decryptedText?.takeIf { it.isNotBlank() },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                    return@Row
+                }
+            }
+
             // ── 📊 POLL MESSAGE ──────────────────────────────────────────────
             val isPollMessage = (message.type?.contains("poll") == true || message.typeTwo == "poll") && !message.stickers.isNullOrEmpty()
             if (isPollMessage) {
