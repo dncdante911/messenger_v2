@@ -476,7 +476,36 @@ interface NodeGroupApi {
         @Field("group_id") groupId: Long,
         @Field("poll_id")  pollId: Long
     ): GroupPollResponse
+
+    // ═══════════════════════ GIVEAWAY ═════════════════════════════════════════
+
+    @FormUrlEncoded
+    @POST(Constants.NODE_GROUP_GIVEAWAY_RUN)
+    suspend fun runGiveaway(
+        @Field("group_id")      groupId: Long,
+        @Field("winners_count") winnersCount: Int = 1,
+        @Field("min_messages")  minMessages: Int = 0,
+        @Field("period_days")   periodDays: Int = 30
+    ): GroupGiveawayResponse
 }
+
+// ─── Giveaway response data classes ──────────────────────────────────────────
+
+data class GroupGiveawayWinner(
+    @SerializedName("place")      val place: Int = 0,
+    @SerializedName("user_id")    val userId: Long = 0,
+    @SerializedName("username")   val username: String? = null,
+    @SerializedName("name")       val name: String? = null,
+    @SerializedName("avatar_url") val avatarUrl: String? = null
+)
+
+data class GroupGiveawayResponse(
+    @SerializedName("api_status")         val apiStatus: Int = 0,
+    @SerializedName("winners")            val winners: List<GroupGiveawayWinner>? = null,
+    @SerializedName("total_participants") val totalParticipants: Int = 0,
+    @SerializedName("period_days")        val periodDays: Int = 0,
+    @SerializedName("error_message")      val errorMessage: String? = null
+)
 
 // ─── Topics response data classes ────────────────────────────────────────────
 

@@ -202,6 +202,9 @@ object Constants {
     const val NODE_GROUP_POLL_VOTE     = "api/node/group/poll/vote"
     const val NODE_GROUP_POLL_CLOSE    = "api/node/group/poll/close"
 
+    // ── Group Giveaway ────────────────────────────────────────────────────────
+    const val NODE_GROUP_GIVEAWAY_RUN  = "api/node/group/giveaway/run"
+
     // ── Channel Polls ─────────────────────────────────────────────────────────
     const val NODE_CHANNEL_POLL_CREATE = "api/node/channel/poll/create"
     const val NODE_CHANNEL_POLL_GET    = "api/node/channel/poll/get"

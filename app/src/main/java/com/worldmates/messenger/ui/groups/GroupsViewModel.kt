@@ -864,6 +864,35 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
+    // ==================== 🎲 GROUP GIVEAWAY ====================
+
+    private val _giveawayResult   = MutableStateFlow<com.worldmates.messenger.network.GroupGiveawayResponse?>(null)
+    val giveawayResult: StateFlow<com.worldmates.messenger.network.GroupGiveawayResponse?> = _giveawayResult
+
+    private val _isGiveawayRunning = MutableStateFlow(false)
+    val isGiveawayRunning: StateFlow<Boolean> = _isGiveawayRunning
+
+    fun runGroupGiveaway(groupId: Long, winnersCount: Int, minMessages: Int, periodDays: Int) {
+        if (UserSession.accessToken == null) return
+        viewModelScope.launch {
+            _isGiveawayRunning.value = true
+            try {
+                val response = NodeRetrofitClient.groupApi.runGiveaway(
+                    groupId      = groupId,
+                    winnersCount = winnersCount,
+                    minMessages  = minMessages,
+                    periodDays   = periodDays
+                )
+                _giveawayResult.value = response
+                Log.d("GroupsViewModel", "🎲 Giveaway done: ${response.winners?.size} winners from ${response.totalParticipants}")
+            } catch (e: Exception) {
+                Log.e("GroupsViewModel", "❌ Giveaway error: ${e.message}")
+            } finally {
+                _isGiveawayRunning.value = false
+            }
+        }
+    }
+
     // ==================== 📝 JOIN REQUESTS (for private groups) ====================
 
     private val _joinRequests = MutableStateFlow<List<com.worldmates.messenger.data.model.GroupJoinRequest>>(emptyList())

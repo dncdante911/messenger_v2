@@ -53,6 +53,8 @@ class GroupAdminPanelActivity : AppCompatActivity() {
                 val isLoading by viewModel.isLoading.collectAsState()
                 val isAnonymousAdmin by viewModel.isAnonymousAdmin.collectAsState()
                 val isAnonymousAdminLoading by viewModel.isAnonymousAdminLoading.collectAsState()
+                val giveawayResult by viewModel.giveawayResult.collectAsState()
+                val isGiveawayRunning by viewModel.isGiveawayRunning.collectAsState()
 
                 val group = groups.find { it.id == groupId }
 
@@ -120,7 +122,12 @@ class GroupAdminPanelActivity : AppCompatActivity() {
                         },
                         isAnonymousAdmin = isAnonymousAdmin,
                         isAnonymousAdminLoading = isAnonymousAdminLoading,
-                        onToggleAnonymousAdmin = { viewModel.setAnonymousAdmin(groupId, it) }
+                        onToggleAnonymousAdmin = { viewModel.setAnonymousAdmin(groupId, it) },
+                        giveawayResult = giveawayResult,
+                        isGiveawayRunning = isGiveawayRunning,
+                        onRunGiveaway = { winners, minMsgs, period ->
+                            viewModel.runGroupGiveaway(groupId, winners, minMsgs, period)
+                        }
                     )
                 }
             }

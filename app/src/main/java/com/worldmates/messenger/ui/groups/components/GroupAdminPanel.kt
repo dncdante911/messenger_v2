@@ -54,7 +54,10 @@ fun GroupAdminPanelScreen(
     isAnonymousAdmin: Boolean = false,
     isAnonymousAdminLoading: Boolean = false,
     onToggleAnonymousAdmin: (Boolean) -> Unit = {},
-    onOpenAdminLogs: () -> Unit = {}
+    onOpenAdminLogs: () -> Unit = {},
+    giveawayResult: com.worldmates.messenger.network.GroupGiveawayResponse? = null,
+    isGiveawayRunning: Boolean = false,
+    onRunGiveaway: (winnersCount: Int, minMessages: Int, periodDays: Int) -> Unit = { _, _, _ -> }
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf(
@@ -159,7 +162,10 @@ fun GroupAdminPanelScreen(
                     4 -> StatisticsTab(
                         statistics = statistics,
                         isLoading = isLoading,
-                        onOpenFull = onOpenStatistics
+                        onOpenFull = onOpenStatistics,
+                        giveawayResult = giveawayResult,
+                        isGiveawayRunning = isGiveawayRunning,
+                        onRunGiveaway = onRunGiveaway
                     )
                 }
             }
@@ -369,7 +375,10 @@ private fun ScheduledPostsTab(
 private fun StatisticsTab(
     statistics: GroupStatistics?,
     isLoading: Boolean,
-    onOpenFull: () -> Unit
+    onOpenFull: () -> Unit,
+    giveawayResult: com.worldmates.messenger.network.GroupGiveawayResponse? = null,
+    isGiveawayRunning: Boolean = false,
+    onRunGiveaway: (winnersCount: Int, minMessages: Int, periodDays: Int) -> Unit = { _, _, _ -> }
 ) {
     if (isLoading) {
         Box(
@@ -419,6 +428,15 @@ private fun StatisticsTab(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.detailed_statistics))
             }
+
+            HorizontalDivider()
+
+            // 🎲 Giveaway section
+            GroupGiveawaySection(
+                result = giveawayResult,
+                isRunning = isGiveawayRunning,
+                onRunGiveaway = onRunGiveaway
+            )
         }
     }
 }
