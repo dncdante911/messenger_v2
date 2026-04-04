@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil.compose.AsyncImage
 import com.worldmates.messenger.services.MusicPlaybackService
 
 /**
@@ -708,23 +706,12 @@ fun NotificationExpandedMusicPlayer(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                if (trackInfo.coverUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = trackInfo.coverUrl,
-                        contentDescription = trackInfo.title,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
             }
 
             // Назва та виконавець
@@ -914,7 +901,7 @@ fun NotificationExpandedMusicPlayer(
     }
 }
 
-private fun formatTime(millis: Long): String {
+internal fun formatTime(millis: Long): String {
     if (millis <= 0) return "0:00"
     val totalSeconds = millis / 1000
     val minutes = totalSeconds / 60
