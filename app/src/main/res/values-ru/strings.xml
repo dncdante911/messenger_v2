@@ -1107,8 +1107,26 @@
     <string name="no_blocked_users_desc">Когда вы заблокируете кого-то, они появятся здесь</string>
     <string name="unblock_confirm_title">Разблокировать пользователя?</string>
     <string name="blocked_users_info">Заблокированные пользователи не могут отправлять вам сообщения или звонить</string>
+    <string name="unblock_user">Разблокировать</string>
+    <string name="block_by_identifier_title">Заблокировать пользователя</string>
+    <string name="block_by_identifier_subtitle">Введите номер телефона или ID, чтобы заблокировать пользователя предварительно.</string>
+    <string name="block_by_identifier_tab_phone">Телефон</string>
+    <string name="block_by_identifier_tab_id">ID</string>
+    <string name="block_by_phone_label">Номер телефона</string>
+    <string name="block_by_phone_hint">+1234567890</string>
+    <string name="block_by_identifier_invalid_phone">Неверный формат номера телефона</string>
+    <string name="block_by_id_label">ID пользователя</string>
+    <string name="block_by_id_hint">12345678</string>
+    <string name="block_by_identifier_invalid_id">Введите действительный ID</string>
+    <string name="block_by_identifier_confirm_title">Подтвердить блокировку</string>
+    <string name="block_by_identifier_confirm_msg">Вы уверены, что хотите заблокировать этого пользователя?</string>
+    <string name="block_by_identifier_confirm_btn">Заблокировать</string>
+    <string name="block_by_identifier_success">Пользователь успешно заблокирован</string>
+    <string name="block_by_identifier_already">Этот пользователь уже в вашем списке блокировки</string>
+    <string name="block_by_identifier_not_found">Пользователь не найден</string>
+    <string name="block_by_identifier_rate_limit">Слишком много запросов. Попробуйте позже.</string>
+    <string name="block_by_identifier_error">Ошибка при блокировке пользователя</string>
 
-    
     <string name="storage_stats_section">Статистика хранилища</string>
     <string name="backup_settings_section">Настройки резервного копирования</string>
     <string name="enable_backup_desc">Автоматическое сохранение в облако</string>
