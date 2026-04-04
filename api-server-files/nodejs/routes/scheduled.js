@@ -223,26 +223,29 @@ async function fireScheduledMessage(ctx, io, row) {
 
     try {
         if (row.chat_type === 'group') {
-            // Insert as group message
-            await ctx.wo_groupchat.create({
-                group_id:  row.chat_id,
+            // Insert as group message (same table as regular group messages)
+            const newMsg = await ctx.wo_messages.create({
                 from_id:   row.user_id,
+                to_id:     0,
+                group_id:  row.chat_id,
+                page_id:   0,
                 text:      row.text || '',
                 media:     row.media_url || '',
-                type:      row.media_type || 'text',
+                type_two:  row.media_type || '',
                 time:      now,
-                seen:      0,
+                seen:      now,
             });
 
-            // Emit via Socket.IO
+            // Emit via Socket.IO so online members see it immediately
             if (io) {
                 io.to(`group_${row.chat_id}`).emit('group_message', {
-                    group_id:  row.chat_id,
-                    from_id:   row.user_id,
-                    text:      row.text,
-                    type:      row.media_type || 'text',
-                    time:      now,
-                    scheduled: true,
+                    message_id: newMsg.id,
+                    group_id:   row.chat_id,
+                    from_id:    row.user_id,
+                    text:       row.text,
+                    type_two:   row.media_type || '',
+                    time:       now,
+                    scheduled:  true,
                 });
             }
         } else if (row.chat_type === 'channel') {
