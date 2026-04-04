@@ -39,7 +39,8 @@ object Constants {
     const val NODE_CHAT_SEND_MEDIA   = "api/node/chat/send-media"   // send media message (replaces PHP send_message for media)
 
     // User presence
-    const val NODE_USER_STATUS = "api/node/user/status" // online status + last_seen for any user
+    const val NODE_USER_STATUS        = "api/node/user/status"      // online status + last_seen for any user
+    const val NODE_USER_STATUS_CUSTOM = "api/node/users/me/status"  // GET/PUT custom emoji status (PRO)
 
     // Multi-avatar
     const val NODE_AVATAR_LIST     = "api/node/user/avatars/{userId}" // GET

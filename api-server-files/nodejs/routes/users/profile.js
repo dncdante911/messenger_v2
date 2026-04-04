@@ -147,6 +147,9 @@ function serializeUser(ctx, u, { isSelf = false, extra = {} } = {}) {
         profile_accent:       u.profile_accent       || '#667EEA',
         profile_badge:        u.profile_badge        || '',
         profile_header_style: u.profile_header_style || 'gradient',
+        // Custom emoji status (PRO feature)
+        status_emoji: u.status_emoji || null,
+        status_text:  u.status_text  || null,
     };
 
     if (isSelf) {
@@ -1119,6 +1122,69 @@ function getMyMedia(ctx) {
     };
 }
 
+// ─── Handler: GET /api/node/users/me/status ───────────────────────────────────
+
+function getMyStatus(ctx) {
+    return async (req, res) => {
+        try {
+            const u = await ctx.wo_users.findOne({
+                attributes: ['status_emoji', 'status_text'],
+                where: { user_id: req.userId },
+                raw: true,
+            });
+            if (!u) return res.json({ api_status: 404, error_message: 'User not found' });
+
+            res.json({
+                api_status:   200,
+                status_emoji: u.status_emoji || null,
+                status_text:  u.status_text  || null,
+            });
+        } catch (err) {
+            console.error('[Profile/getMyStatus]', err.message);
+            res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
+// ─── Handler: PUT /api/node/users/me/status ───────────────────────────────────
+
+function updateStatus(ctx) {
+    return async (req, res) => {
+        try {
+            const u = await ctx.wo_users.findOne({
+                attributes: ['is_pro'],
+                where: { user_id: req.userId },
+                raw: true,
+            });
+            if (!u) return res.json({ api_status: 404, error_message: 'User not found' });
+
+            if (!parseInt(u.is_pro)) {
+                return res.json({ api_status: 403, error_message: 'PRO subscription required' });
+            }
+
+            const rawEmoji = typeof req.body.status_emoji === 'string' ? req.body.status_emoji.trim() : null;
+            const rawText  = typeof req.body.status_text  === 'string' ? req.body.status_text.trim()  : null;
+
+            // Validate: emoji can be null/empty (clear) or up to 8 chars (multi-byte emoji safety)
+            const emoji = rawEmoji && rawEmoji.length > 0 ? rawEmoji.slice(0, 8) : null;
+            // Validate: text up to 60 chars
+            const text  = rawText  && rawText.length  > 0 ? rawText.slice(0, 60)  : null;
+
+            await ctx.wo_users.update(
+                { status_emoji: emoji, status_text: text },
+                { where: { user_id: req.userId } }
+            );
+
+            console.log(`[Profile/updateStatus] userId=${req.userId} emoji=${emoji} text=${text}`);
+
+            res.json({ api_status: 200, status_emoji: emoji, status_text: text });
+        } catch (err) {
+            console.error('[Profile/updateStatus]', err.message);
+            res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 function registerProfileRoutes(app, ctx) {
@@ -1129,6 +1195,8 @@ function registerProfileRoutes(app, ctx) {
     app.put   ('/api/node/users/me/password',          changePassword(ctx));
     app.put   ('/api/node/users/me/notifications',     updateNotifications(ctx));
     app.put   ('/api/node/users/me/appearance',        updateAppearance(ctx));
+    app.get   ('/api/node/users/me/status',            getMyStatus(ctx));
+    app.put   ('/api/node/users/me/status',            updateStatus(ctx));
     app.get   ('/api/node/users/me/blocked',           getBlocked(ctx));
     app.get   ('/api/node/users/me/media',             getMyMedia(ctx));
 
@@ -1154,6 +1222,8 @@ function registerProfileRoutes(app, ctx) {
     console.log('  PUT    /api/node/users/me/password');
     console.log('  PUT    /api/node/users/me/notifications');
     console.log('  PUT    /api/node/users/me/appearance');
+    console.log('  GET    /api/node/users/me/status');
+    console.log('  PUT    /api/node/users/me/status');
     console.log('  GET    /api/node/users/me/blocked');
     console.log('  GET    /api/node/users/search');
     console.log('  GET    /api/node/users/:id');
