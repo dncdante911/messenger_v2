@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.services.MusicPlaybackService
 
 /**
@@ -550,7 +552,7 @@ fun MusicMiniBar(
                 ) {
                     Icon(
                         imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (playbackState.isPlaying) "Пауза" else "Грати",
+                        contentDescription = if (playbackState.isPlaying) stringResource(R.string.music_player_pause) else stringResource(R.string.music_player_play),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
@@ -562,7 +564,7 @@ fun MusicMiniBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowUp,
-                        contentDescription = "Відкрити плеєр",
+                        contentDescription = stringResource(R.string.music_player_close),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
@@ -575,7 +577,7 @@ fun MusicMiniBar(
                 }) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Зупинити",
+                        contentDescription = stringResource(R.string.music_player_stop),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
@@ -678,7 +680,7 @@ fun NotificationExpandedMusicPlayer(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Музичний плеєр",
+                text = stringResource(R.string.music_player_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -686,7 +688,7 @@ fun NotificationExpandedMusicPlayer(
             IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Закрити",
+                    contentDescription = stringResource(R.string.music_player_close),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -785,7 +787,7 @@ fun NotificationExpandedMusicPlayer(
             ) {
                 Icon(
                     imageVector = Icons.Default.Repeat,
-                    contentDescription = "Повтор",
+                    contentDescription = stringResource(R.string.music_player_repeat),
                     tint = if (repeatMode > 0)
                         MaterialTheme.colorScheme.primary
                     else
@@ -803,7 +805,7 @@ fun NotificationExpandedMusicPlayer(
             ) {
                 Icon(
                     imageVector = Icons.Default.Replay10,
-                    contentDescription = "-15с",
+                    contentDescription = stringResource(R.string.music_player_rewind),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(24.dp)
                 )
@@ -825,7 +827,7 @@ fun NotificationExpandedMusicPlayer(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (playbackState.isPlaying) "Пауза" else "Грати",
+                        contentDescription = if (playbackState.isPlaying) stringResource(R.string.music_player_pause) else stringResource(R.string.music_player_play),
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(24.dp)
                     )
@@ -841,7 +843,7 @@ fun NotificationExpandedMusicPlayer(
             ) {
                 Icon(
                     imageVector = Icons.Default.Forward10,
-                    contentDescription = "+15с",
+                    contentDescription = stringResource(R.string.music_player_forward),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(24.dp)
                 )
@@ -853,7 +855,7 @@ fun NotificationExpandedMusicPlayer(
             ) {
                 Icon(
                     imageVector = Icons.Default.Equalizer,
-                    contentDescription = "Еквалайзер",
+                    contentDescription = stringResource(R.string.music_player_equalizer),
                     tint = if (showEqualizer)
                         MaterialTheme.colorScheme.primary
                     else
@@ -881,7 +883,7 @@ fun NotificationExpandedMusicPlayer(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Зупинити")
+                Text(stringResource(R.string.music_player_stop))
             }
 
             Button(
@@ -895,7 +897,7 @@ fun NotificationExpandedMusicPlayer(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Поділитися")
+                Text(stringResource(R.string.music_player_share))
             }
         }
     }

@@ -3029,5 +3029,19 @@
     <string name="giveaway_results_title">Победители (%d участников)</string>
     <string name="giveaway_no_eligible">Нет участников, соответствующих условиям</string>
 
+    <!-- ===== MUSIC PLAYER ===== -->
+    <string name="music_player_title">Музыкальный плеер</string>
+    <string name="music_player_lock_screen">Экран блокировки</string>
+    <string name="music_player_close">Закрыть</string>
+    <string name="music_player_repeat">Повтор</string>
+    <string name="music_player_rewind">-15с</string>
+    <string name="music_player_forward">+15с</string>
+    <string name="music_player_equalizer">Эквалайзер</string>
+    <string name="music_player_stop">Остановить</string>
+    <string name="music_player_share">Поделиться</string>
+    <string name="music_player_play">Играть</string>
+    <string name="music_player_pause">Пауза</string>
+    <string name="music_player_loading">Загрузка…</string>
+    <string name="music_player_unlock_hint">Потяните для разблокировки</string>
 
-</resources>
+<string name="media_deleted_placeholder">Медіафайл видалено</string><string name="admin_logs_pinned_message">закріпив повідомлення</string><string name="admin_logs_deleted_message">видалив повідомлення</string><string name="media_auto_delete_1month">1 місяць</string><string name="admin_logs_added_member">додав учасника</string><string name="media_auto_delete_title">Автовидалення медіа</string><string name="media_auto_delete_never">Ніколи</string><string name="media_auto_delete_1week">1 тиждень</string><string name="media_auto_delete_description">Медіафайли автоматично видаляються з сервера. Текст повідомлення зберігається.</string><string name="media_auto_delete_1day">1 день</string><string name="music_selected">Музику вибрано</string><string name="admin_logs_empty">Дій не знайдено</string><string name="media_auto_delete_3days">3 дні</string><string name="admin_logs_title">Журнал дій</string><string name="admin_logs_changed_settings">змінив налаштування</string><string name="media_auto_delete_2weeks">2 тижні</string><string name="add_music">Додати музику</string><string name="secret_timer_menu_item">🔒 Self-destruct timer</string><string name="media_auto_delete_menu_item">Автовидалення медіа</string><string name="no_business_chats">Немає бізнес-чатів\nКлієнти з\'являться тут, коли напишуть вам</string><string name="admin_logs_removed_member">видалив учасника</string></resources>

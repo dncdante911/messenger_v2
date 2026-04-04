@@ -26,6 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.services.MusicPlaybackService
 import kotlin.math.absoluteValue
 
@@ -106,7 +108,7 @@ fun LockScreenMusicPlayer(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Экран блокирования",
+                    text = stringResource(R.string.music_player_lock_screen),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -343,7 +345,7 @@ fun LockScreenMusicPlayer(
                     modifier = Modifier.size(24.dp)
                 )
                 Text(
-                    text = "Потягніть для розблокування",
+                    text = stringResource(R.string.music_player_unlock_hint),
                     color = Color.White.copy(alpha = 0.3f),
                     fontSize = 11.sp
                 )
