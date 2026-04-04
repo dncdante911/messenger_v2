@@ -3012,5 +3012,40 @@
     <string name="giveaway_results_title">Победители (%d участников)</string>
     <string name="giveaway_no_eligible">Нет участников, соответствующих условиям</string>
 
+    <!-- Block by identifier dialog -->
+    <string name="block_by_identifier_title">Заблокировать пользователя</string>
+    <string name="block_by_identifier_subtitle">Введите номер телефона или ID, чтобы заблокировать пользователя превентивно.</string>
+    <string name="block_by_identifier_tab_phone">Телефон</string>
+    <string name="block_by_identifier_tab_id">ID</string>
+    <string name="block_by_phone_label">Номер телефона</string>
+    <string name="block_by_phone_hint">+7XXXXXXXXXX</string>
+    <string name="block_by_id_label">ID пользователя</string>
+    <string name="block_by_id_hint">123456789</string>
+    <string name="block_by_identifier_invalid_phone">Введите корректный номер телефона</string>
+    <string name="block_by_identifier_invalid_id">Введите корректный ID пользователя</string>
+    <string name="block_by_identifier_action">Заблокировать</string>
+    <string name="block_by_identifier_confirm_title">Подтвердите блокировку</string>
+    <string name="block_by_identifier_confirm_msg">Вы уверены, что хотите заблокировать этого пользователя?</string>
+    <string name="block_by_identifier_confirm_btn">Заблокировать</string>
+    <string name="block_by_identifier_success">Пользователь успешно заблокирован</string>
+    <string name="block_by_identifier_already">Этот пользователь уже заблокирован</string>
+    <string name="block_by_identifier_not_found">Пользователь не найден</string>
+    <string name="block_by_identifier_rate_limit">Слишком много запросов. Попробуйте позже</string>
+    <string name="block_by_identifier_error">Произошла ошибка. Попробуйте ещё раз</string>
+
+    <!-- Music Player -->
+    <string name="music_player_title">Музыкальный плеер</string>
+    <string name="music_player_play">Воспроизвести</string>
+    <string name="music_player_pause">Пауза</string>
+    <string name="music_player_stop">Стоп</string>
+    <string name="music_player_close">Закрыть</string>
+    <string name="music_player_repeat">Повторить</string>
+    <string name="music_player_rewind">Назад</string>
+    <string name="music_player_forward">Вперёд</string>
+    <string name="music_player_equalizer">Эквалайзер</string>
+    <string name="music_player_share">Поделиться</string>
+    <string name="music_player_loading">Загрузка…</string>
+    <string name="music_player_lock_screen">Экран блокировки</string>
+    <string name="music_player_unlock_hint">Потяните для разблокировки</string>
 
 </resources>
