@@ -1104,7 +1104,6 @@
     <string name="no_blocked_users_desc">Когда вы заблокируете кого-то, они появятся здесь</string>
     <string name="unblock_confirm_title">Разблокировать пользователя?</string>
     <string name="blocked_users_info">Заблокированные пользователи не могут отправлять вам сообщения или звонить</string>
-    <string name="unblock_user">Разблокировать</string>
     <string name="block_by_identifier_title">Заблокировать пользователя</string>
     <string name="block_by_identifier_subtitle">Введите номер телефона или ID, чтобы заблокировать пользователя предварительно.</string>
     <string name="block_by_identifier_tab_phone">Телефон</string>

@@ -2,12 +2,12 @@ package com.worldmates.messenger.ui.chats
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.animateItemPlacement
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -1228,7 +1228,7 @@ fun ChatListTabWithStories(
                 val nickname by nicknameRepository.getNickname(chat.userId).collectAsState(initial = null)
 
                 Column(
-                    modifier = Modifier.animateItemPlacement(
+                    modifier = Modifier.animateContentSize(
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
                             stiffness = Spring.StiffnessLow
