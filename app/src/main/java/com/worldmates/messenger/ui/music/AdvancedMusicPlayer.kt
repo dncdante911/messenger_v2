@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.services.MusicPlaybackService
 
 /**
@@ -550,7 +552,7 @@ fun MusicMiniBar(
                 ) {
                     Icon(
                         imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (playbackState.isPlaying) "Пауза" else "Грати",
+                        contentDescription = if (playbackState.isPlaying) stringResource(R.string.music_player_pause) else stringResource(R.string.music_player_play),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
@@ -562,7 +564,7 @@ fun MusicMiniBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowUp,
-                        contentDescription = "Відкрити плеєр",
+                        contentDescription = stringResource(R.string.music_player_close),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
@@ -575,7 +577,7 @@ fun MusicMiniBar(
                 }) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Зупинити",
+                        contentDescription = stringResource(R.string.music_player_stop),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
@@ -638,7 +640,270 @@ private fun SpeedSelectionDialog(
     )
 }
 
-private fun formatTime(millis: Long): String {
+/**
+ * Розширений плеєр для шторки повідомлень (expanded notification).
+ * Показується при розширенні повідомлення про музику.
+ */
+@Composable
+fun NotificationExpandedMusicPlayer(
+    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val playbackState by MusicPlaybackService.playbackState.collectAsState()
+    val trackInfo by MusicPlaybackService.currentTrackInfo.collectAsState()
+
+    if (trackInfo.url.isEmpty()) return
+
+    var repeatMode by remember { mutableStateOf(0) } // 0=off, 1=all, 2=one
+    var showEqualizer by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                        MaterialTheme.colorScheme.surfaceContainerLowest
+                    )
+                )
+            )
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Заголовок
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.music_player_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.music_player_close),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Обкладинка + інформація
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Мініатюра обкладинки
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+
+            // Назва та виконавець
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = trackInfo.title,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (trackInfo.artist.isNotEmpty()) {
+                    Text(
+                        text = trackInfo.artist,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        // Прогрес бар
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Slider(
+                value = playbackState.currentPosition.toFloat(),
+                onValueChange = { newPosition ->
+                    MusicPlaybackService.seekTo(context, newPosition.toLong())
+                },
+                valueRange = 0f..playbackState.duration.toFloat().coerceAtLeast(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatTime(playbackState.currentPosition),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = formatTime(playbackState.duration),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Кнопки управління
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Повтор
+            IconButton(
+                onClick = {
+                    repeatMode = (repeatMode + 1) % 3
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Repeat,
+                    contentDescription = stringResource(R.string.music_player_repeat),
+                    tint = if (repeatMode > 0)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Назад -15с
+            IconButton(
+                onClick = {
+                    val newPos = (playbackState.currentPosition - 15000).coerceAtLeast(0)
+                    MusicPlaybackService.seekTo(context, newPos)
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Replay10,
+                    contentDescription = stringResource(R.string.music_player_rewind),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Play/Pause
+            Surface(
+                onClick = {
+                    if (playbackState.isPlaying) {
+                        MusicPlaybackService.pausePlayback(context)
+                    } else {
+                        MusicPlaybackService.resumePlayback(context)
+                    }
+                },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (playbackState.isPlaying) stringResource(R.string.music_player_pause) else stringResource(R.string.music_player_play),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            // Вперед +15с
+            IconButton(
+                onClick = {
+                    val newPos = (playbackState.currentPosition + 15000).coerceAtMost(playbackState.duration)
+                    MusicPlaybackService.seekTo(context, newPos)
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Forward10,
+                    contentDescription = stringResource(R.string.music_player_forward),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Еквалайзер
+            IconButton(
+                onClick = { showEqualizer = !showEqualizer }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Equalizer,
+                    contentDescription = stringResource(R.string.music_player_equalizer),
+                    tint = if (showEqualizer)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        // Додаткові опції
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = { MusicPlaybackService.stopPlayback(context) },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.textButtonColors()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Stop,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(R.string.music_player_stop))
+            }
+
+            Button(
+                onClick = { /* Share music */ },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.textButtonColors()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(R.string.music_player_share))
+            }
+        }
+    }
+}
+
+internal fun formatTime(millis: Long): String {
     if (millis <= 0) return "0:00"
     val totalSeconds = millis / 1000
     val minutes = totalSeconds / 60

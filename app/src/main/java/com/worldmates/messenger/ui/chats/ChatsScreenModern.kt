@@ -1,5 +1,8 @@
 package com.worldmates.messenger.ui.chats
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -1224,7 +1227,14 @@ fun ChatListTabWithStories(
             items(chats, key = { it.userId }) { chat ->
                 val nickname by nicknameRepository.getNickname(chat.userId).collectAsState(initial = null)
 
-                Column {
+                Column(
+                    modifier = Modifier.animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                ) {
                     when (uiStyle) {
                         UIStyle.WORLDMATES -> {
                             ModernChatCard(
