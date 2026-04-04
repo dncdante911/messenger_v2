@@ -1,17 +1,1 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">WorldMates NEW v2.0</string>
-
-    
-    <string name="language_selection_title">Выберите язык</string>
-    <string name="language_selection_subtitle">Выберите язык интерфейса. Вы сможете изменить его позже в настройках.</string>
-    <string name="language_ukrainian">Українська</string>
-    <string name="language_russian">Русский</string>
-    <string name="language_english">English</string>
-    <string name="language_continue">Продолжить</string>
-    <string name="language_current">Текущий язык</string>
-    <string name="language_select">Выбрать</string>
-    <string name="language_changed_restart">Язык изменён. Перезапустите приложение.</string>
-    <string name="language_settings_title">Язык интерфейса</string>
-    <string name="language_settings_subtitle">Выберите язык приложения</string>
-</resources>
+PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0ndXRmLTgnPz4KPHJlc291cmNlcz4KICAgIDxzdHJpbmcgbmFtZT0iYXBwX25hbWUiPldvcmxkTWF0ZXMgTkVXIHYyLjA8L3N0cmluZz4KCiAgICAKICAgIDxzdHJpbmcgbmFtZT0ibGFuZ3VhZ2Vfc2VsZWN0aW9uX3RpdGxlIj7QktGL0LHQtdGA0LjRgtC1INGP0LfRi9C6PC9zdHJpbmc+CiAgICA8c3RyaW5nIG5hbWU9Imxhbmd1YWdlX3NlbGVjdGlvbl9zdWJ0aXRsZSI+0JLRi9Cx0LXRgNC40YLQtSDRj9C30YvQuiDQuNC90YLQtdGA0YTQtdC50YHQsC4g0JLRiyDRgdC80L7QttC10YLQtSDQuNC30LzQtdC90LjRgtGMINC10LPQviDQv9C+0LfQttC1INCyINC90LDRgdGC0YDQvtC50LrQsNGFLjwvc3RyaW5nPgogICAgPHN0cmluZyBuYW1lPSJsYW5ndWFnZV91a3JhaW5pYW4iPtCj0LrRgNCw0ZfQvdGB0YzQutCwPC9zdHJpbmc+CiAgICA8c3RyaW5nIG5hbWU9Imxhbmd1YWdlX3J1c3NpYW4iPtCg0YPRgdGB0LrQuNC5PC9zdHJpbmc+CiAgICA8c3RyaW5nIG5hbWU9Imxhbmd1YWdlX2VuZ2xpc2giPkVuZ2xpc2g8L3N0cmluZz4KICAgIDxzdHJpbmcgbmFtZT0ibGFuZ3VhZ2VfY29udGludWUiPtCf0YDQvtC00L7Qu9C20LjRgtGMPC9zdHJpbmc+CiAgICA8c3RyaW5nIG5hbWU9Imxhbmd1YWdlX2N1cnJlbnQiPtCi0LXQutGD0YnQuNC5INGP0LfRi9C6PC9zdHJpbmc+CiAgICA8c3RyaW5nIG5hbWU9Imxhbmd1YWdlX3NlbGVjdCI+0JLRi9Cx0YDQsNGC0Yw8L3N0cmluZz4KICAgIDxzdHJpbmcgbmFtZT0ibGFuZ3VhZ2VfY2hhbmdlZF9yZXN0YXJ0Ij7QryDQt9GL0Log0LjQt9C80LXQvdGR0L0uINCf0LXRgNC10LfQsNC/0YPRgdGC0LjRgtC1INC/0YDQuNC70L7QttC10L3QuNC1Ljwvc3RyaW5nPgogICAgPHN0cmluZyBuYW1lPSJsYW5ndWFnZV9zZXR0aW5nc190aXRsZSI+0K/Qt9GL0Log0LjQvdGC0LXRgNGE0LXQudGB0LA8L3N0cmluZz4KICAgIDxzdHJpbmcgbmFtZT0ibGFuZ3VhZ2Vfc2V0dGluZ3Nfc3VidGl0bGUiPtCS0YvQsdC10YDQuNGC0LUg0Y/Qt9GL0LogQXBwbGljYXRpb24gc3RyaW5nPC9zdHJpbmc+PC9yZXNvdXJjZXM+
