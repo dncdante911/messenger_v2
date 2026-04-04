@@ -27,6 +27,7 @@ const polls          = require('./polls');
 const anonAdmin      = require('./anonymous_admin');
 const onlineStatus   = require('./online');
 const customization  = require('./customization');
+const giveaway       = require('./giveaway');
 
 // ─── Upload directory for group avatars ─────────────────────────────────────
 const configFile       = require('../../config.json');
@@ -150,6 +151,9 @@ function registerGroupRoutes(app, ctx, io) {
     app.post('/api/node/group/customization/get',    auth, customization.getCustomization(ctx));
     app.post('/api/node/group/customization/update', auth, customization.updateCustomization(ctx));
     app.post('/api/node/group/customization/reset',  auth, customization.resetCustomization(ctx));
+
+    // ── Giveaway ─────────────────────────────────────────────────────────────
+    app.post('/api/node/group/giveaway/run', auth, giveaway.runGiveaway(ctx));
 
     // ── Export ───────────────────────────────────────────────────────────────
     app.post('/api/node/group/export',      auth, exportGroup.exportGroupChat(ctx, io));

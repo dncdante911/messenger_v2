@@ -3008,6 +3008,12 @@
     <string name="giveaway_results_title">Переможці (%d учасників)</string>
     <string name="giveaway_no_eligible">Немає учасників, що відповідають умовам</string>
 
+    <!-- Group giveaway (members, not subscribers) -->
+    <string name="group_giveaway_title">Розіграш серед учасників</string>
+    <string name="group_giveaway_subtitle">Оберіть умови участі та кількість переможців</string>
+    <string name="group_giveaway_min_messages">Мін. повідомлень: %d</string>
+    <string name="group_giveaway_min_messages_label">Мін. повідомлень</string>
+
     <!-- Block by identifier dialog -->
     <string name="block_by_identifier_title">Заблокувати користувача</string>
     <string name="block_by_identifier_subtitle">Введіть номер телефону або ID, щоб заблокувати користувача превентивно.</string>

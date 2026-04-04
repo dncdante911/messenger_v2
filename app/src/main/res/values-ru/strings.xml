@@ -3012,6 +3012,12 @@
     <string name="giveaway_results_title">Победители (%d участников)</string>
     <string name="giveaway_no_eligible">Нет участников, соответствующих условиям</string>
 
+    <!-- Group giveaway (members, not subscribers) -->
+    <string name="group_giveaway_title">Розыгрыш среди участников</string>
+    <string name="group_giveaway_subtitle">Выберите условия участия и количество победителей</string>
+    <string name="group_giveaway_min_messages">Мин. сообщений: %d</string>
+    <string name="group_giveaway_min_messages_label">Мин. сообщений</string>
+
     <!-- Location bubble -->
     <string name="location_open_maps">Открыть карту</string>
 
