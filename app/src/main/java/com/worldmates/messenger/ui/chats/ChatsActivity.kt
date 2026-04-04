@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider.Factory
+import androidx.lifecycle.lifecycleScope
 import coil.compose.AsyncImage
 import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.data.ContactNicknameRepository
@@ -160,6 +161,19 @@ class ChatsActivity : AppCompatActivity() {
         // ✅ Ініціалізуємо CallsViewModel для обробки вхідних дзвінків
         callsViewModel = ViewModelProvider(this).get(com.worldmates.messenger.ui.calls.CallsViewModel::class.java)
         android.util.Log.d("ChatsActivity", "📞 CallsViewModel initialized for incoming calls")
+
+        // Sync custom emoji status from server on startup (PRO feature)
+        if (com.worldmates.messenger.data.UserSession.isLoggedIn) {
+            lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val resp = com.worldmates.messenger.network.NodeRetrofitClient.api.getMyCustomStatus()
+                    if (resp.apiStatus == 200) {
+                        com.worldmates.messenger.data.UserSession.statusEmoji = resp.statusEmoji
+                        com.worldmates.messenger.data.UserSession.statusText  = resp.statusText
+                    }
+                } catch (_: Exception) { /* silent — local cache remains */ }
+            }
+        }
 
         setContent {
             WorldMatesThemedApp {

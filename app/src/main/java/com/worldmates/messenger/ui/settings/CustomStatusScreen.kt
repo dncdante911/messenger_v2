@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.network.NodeRetrofitClient
+import kotlinx.coroutines.launch
 
 /**
  * Custom Emoji Status screen (Premium only).
@@ -44,6 +46,10 @@ fun CustomStatusScreen(onBackClick: () -> Unit) {
     var selectedEmoji by remember { mutableStateOf(UserSession.statusEmoji ?: "") }
     var statusText by remember { mutableStateOf(UserSession.statusText ?: "") }
     var selectedCategory by remember { mutableStateOf(EmojiCategory.SMILEYS) }
+    var isSaving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -56,14 +62,46 @@ fun CustomStatusScreen(onBackClick: () -> Unit) {
                 },
                 actions = {
                     if (isPro) {
-                        TextButton(
-                            onClick = {
-                                UserSession.statusEmoji = selectedEmoji.ifBlank { null }
-                                UserSession.statusText = statusText.trim().ifBlank { null }
-                                onBackClick()
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .padding(end = 16.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            TextButton(
+                                onClick = {
+                                    val emoji = selectedEmoji.ifBlank { null }
+                                    val text  = statusText.trim().ifBlank { null }
+                                    // Optimistic local save
+                                    UserSession.statusEmoji = emoji
+                                    UserSession.statusText  = text
+                                    // Sync to server
+                                    scope.launch {
+                                        isSaving  = true
+                                        saveError = null
+                                        try {
+                                            val resp = NodeRetrofitClient.api.updateCustomStatus(emoji, text)
+                                            if (resp.apiStatus == 200) {
+                                                // Server may sanitize values — keep in sync
+                                                UserSession.statusEmoji = resp.statusEmoji
+                                                UserSession.statusText  = resp.statusText
+                                                onBackClick()
+                                            } else {
+                                                saveError = resp.errorMessage ?: "Error saving status"
+                                            }
+                                        } catch (e: Exception) {
+                                            // Network error — local save already done, just close
+                                            onBackClick()
+                                        } finally {
+                                            isSaving = false
+                                        }
+                                    }
+                                }
+                            ) {
+                                Text(stringResource(R.string.save))
                             }
-                        ) {
-                            Text(stringResource(R.string.save))
                         }
                     }
                 }
@@ -75,6 +113,17 @@ fun CustomStatusScreen(onBackClick: () -> Unit) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            if (saveError != null) {
+                Text(
+                    text     = saveError!!,
+                    color    = MaterialTheme.colorScheme.error,
+                    style    = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
+
             if (!isPro) {
                 // Premium gate — show upgrade prompt
                 PremiumGateBanner(onBackClick = onBackClick)

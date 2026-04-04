@@ -219,6 +219,18 @@ interface NodeApi {
         @Field("user_id") userId: Long
     ): NodeUserStatusResponse
 
+    /** Fetch own custom emoji status from server (for cross-device sync on startup). */
+    @GET(Constants.NODE_USER_STATUS_CUSTOM)
+    suspend fun getMyCustomStatus(): NodeCustomStatusResponse
+
+    /** Save custom emoji status to server (PRO only). Pass null to clear. */
+    @FormUrlEncoded
+    @PUT(Constants.NODE_USER_STATUS_CUSTOM)
+    suspend fun updateCustomStatus(
+        @Field("status_emoji") statusEmoji: String?,
+        @Field("status_text")  statusText:  String?
+    ): NodeCustomStatusResponse
+
     // ═══════════════════════ MULTI-AVATAR ════════════════════════════════════
 
     /** Get all avatars for a user (gallery). */
@@ -1181,6 +1193,14 @@ data class NodeUserStatusResponse(
     @SerializedName("api_status") val apiStatus: Int,
     @SerializedName("online")     val online: Boolean  = false,
     @SerializedName("last_seen")  val lastSeen: Long   = 0L,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/** Response for GET|PUT /api/node/users/me/status */
+data class NodeCustomStatusResponse(
+    @SerializedName("api_status")   val apiStatus: Int,
+    @SerializedName("status_emoji") val statusEmoji: String? = null,
+    @SerializedName("status_text")  val statusText: String?  = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 
