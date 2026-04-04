@@ -138,6 +138,7 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
                 ).onSuccess {
                     _success.value = "Story створена успішно!"
                     Log.d(TAG, "Story created: ${it.storyId}")
+                    loadStories()
                 }.onFailure { e ->
                     _error.value = e.message
                     Log.e(TAG, "Error creating story", e)
