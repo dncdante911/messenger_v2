@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.worldmates.messenger.services.MusicPlaybackService
 import kotlin.math.absoluteValue
 
@@ -138,66 +137,53 @@ fun LockScreenMusicPlayer(
                     .shadow(elevation = 16.dp, shape = RoundedCornerShape(32.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                if (trackInfo.coverUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = trackInfo.coverUrl,
-                        contentDescription = trackInfo.title,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(32.dp)),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                    )
-                } else {
-                    // Відсутній стиль обкладинки - показуємо анімований музичний символ
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth(0.8f)
-                            .height(120.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        waves.forEach { wave ->
-                            val height = if (playbackState.isPlaying) wave.value else 0.25f
-                            Box(
-                                modifier = Modifier
-                                    .width(8.dp)
-                                    .height((120 * height).dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(
-                                        brush = Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color(0xFF00C6FF),
-                                                Color(0xFF0084FF)
-                                            )
+                // Анімований музичний символ
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .height(120.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    waves.forEach { wave ->
+                        val height = if (playbackState.isPlaying) wave.value else 0.25f
+                        Box(
+                            modifier = Modifier
+                                .width(8.dp)
+                                .height((120 * height).dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color(0xFF00C6FF),
+                                            Color(0xFF0084FF)
                                         )
                                     )
-                            )
-                        }
+                                )
+                        )
                     }
                 }
 
                 // Кнопка Play/Pause в центрі
-                if (trackInfo.coverUrl.isNotEmpty()) {
-                    Surface(
-                        onClick = {
-                            if (playbackState.isPlaying) {
-                                MusicPlaybackService.pausePlayback(context)
-                            } else {
-                                MusicPlaybackService.resumePlayback(context)
-                            }
-                        },
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.5f),
-                        modifier = Modifier.size(56.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (playbackState.isPlaying) "Пауза" else "Грати",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
+                Surface(
+                    onClick = {
+                        if (playbackState.isPlaying) {
+                            MusicPlaybackService.pausePlayback(context)
+                        } else {
+                            MusicPlaybackService.resumePlayback(context)
                         }
+                    },
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.5f),
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (playbackState.isPlaying) "Пауза" else "Грати",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 }
             }
@@ -465,14 +451,4 @@ fun LockScreenMusicPlayerCompact(
             }
         }
     }
-}
-
-/**
- * Форматує мілісекунди в формат ММ:СС
- */
-fun formatTime(millis: Long): String {
-    val totalSeconds = millis / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
 }
