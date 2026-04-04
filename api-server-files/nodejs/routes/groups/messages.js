@@ -225,9 +225,61 @@ async function buildMessage(ctx, msg, userId) {
         product_id:     msg.product_id     || 0,
         forward:        msg.forward        || 0,
         edited:         msg.edited         || 0,
+        album_id:       msg.album_id       || null,
+        contact:        msg.contact        || null,
         user_data:      sender,
         messageUser:    sender,
     };
+}
+
+// ─── Album grouping ───────────────────────────────────────────────────────────
+
+/**
+ * Groups consecutive media messages (image/video) from the same sender within
+ * 60 seconds into albums.  Mutates the `messages` array in place by setting
+ * `album_id` to the id of the first message in each group.
+ */
+function assignAlbumIds(messages) {
+    const ALBUM_WINDOW_SECONDS = 60;
+    const ALBUM_MEDIA_TYPES    = new Set(['image', 'video']);
+
+    function isAlbumMedia(msg) {
+        if (ALBUM_MEDIA_TYPES.has(msg.type_two)) return true;
+        if (msg.type_two === 'image')             return true;
+        if (msg.type && msg.type.endsWith('_video')) return true;
+        if (msg.type && (msg.type.endsWith('_image') || msg.type.includes('image'))) return true;
+        return false;
+    }
+
+    let albumStart  = null;
+    let albumSender = null;
+    let albumTime   = null;
+
+    for (let i = 0; i < messages.length; i++) {
+        const msg      = messages[i];
+        const eligible = isAlbumMedia(msg);
+
+        if (
+            eligible &&
+            albumSender === msg.from_id &&
+            albumTime   !== null &&
+            (msg.time - albumTime) <= ALBUM_WINDOW_SECONDS
+        ) {
+            const albumId = messages[albumStart].id;
+            msg.album_id  = albumId;
+            messages[albumStart].album_id = albumId;
+            albumTime = msg.time;
+        } else if (eligible) {
+            albumStart  = i;
+            albumSender = msg.from_id;
+            albumTime   = msg.time;
+            msg.album_id = null;
+        } else {
+            albumStart  = null;
+            albumSender = null;
+            albumTime   = null;
+        }
+    }
 }
 
 // ─── GET messages ─────────────────────────────────────────────────────────────
@@ -272,6 +324,9 @@ function getMessages(ctx, io) {
             for (const m of rows.reverse()) {
                 messages.push(await buildMessage(ctx, m, userId));
             }
+
+            // Group consecutive image/video messages into albums
+            assignAlbumIds(messages);
 
             // Fetch pinned messages — supports multi-pin array
             const pinnedMessages = [];
