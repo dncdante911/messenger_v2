@@ -1125,7 +1125,7 @@ function getMyMedia(ctx) {
 // ─── Handler: GET /api/node/users/me/status ───────────────────────────────────
 
 function getMyStatus(ctx) {
-    return async (req, res) => {
+    return [requireAuth(ctx), async (req, res) => {
         try {
             const u = await ctx.wo_users.findOne({
                 attributes: ['status_emoji', 'status_text'],
@@ -1143,13 +1143,13 @@ function getMyStatus(ctx) {
             console.error('[Profile/getMyStatus]', err.message);
             res.json({ api_status: 500, error_message: 'Server error' });
         }
-    };
+    }];
 }
 
 // ─── Handler: PUT /api/node/users/me/status ───────────────────────────────────
 
 function updateStatus(ctx) {
-    return async (req, res) => {
+    return [requireAuth(ctx), async (req, res) => {
         try {
             const u = await ctx.wo_users.findOne({
                 attributes: ['is_pro'],
@@ -1182,7 +1182,7 @@ function updateStatus(ctx) {
             console.error('[Profile/updateStatus]', err.message);
             res.json({ api_status: 500, error_message: 'Server error' });
         }
-    };
+    }];
 }
 
 // ─── Register ─────────────────────────────────────────────────────────────────
