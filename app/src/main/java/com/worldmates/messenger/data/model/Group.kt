@@ -89,6 +89,8 @@ data class Message(
     // Location / map message
     @SerializedName("lat") val lat: String? = null,
     @SerializedName("lng") val lng: String? = null,
+    // Contact card (Node.js private chat: raw vCard string)
+    @SerializedName("contact") val contact: String? = null,
     // Локальные поля (не приходят с сервера)
     val decryptedText: String? = null,
     val decryptedMediaUrl: String? = null, // Розшифрований URL медіа (для веб-версії)

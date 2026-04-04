@@ -267,6 +267,18 @@ fun MessageBubbleComposable(
                 }
             }
 
+            // ── 📇 CONTACT MESSAGE (Node.js private chat — raw vCard in contact field) ──
+            if (message.typeTwo == "contact" && !message.contact.isNullOrBlank()) {
+                val contact = com.worldmates.messenger.data.model.Contact.fromVCard(message.contact!!)
+                if (contact != null) {
+                    com.worldmates.messenger.ui.components.ContactMessageBubble(
+                        contact  = contact,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                    return@Row
+                }
+            }
+
             // ── 📍 LOCATION / MAP MESSAGE ────────────────────────────────────
             val isLocationMessage = message.type == "map" &&
                 !message.lat.isNullOrBlank() && !message.lng.isNullOrBlank()

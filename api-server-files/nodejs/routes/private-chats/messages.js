@@ -184,6 +184,7 @@ async function buildMessage(ctx, msg, userId) {
         remove_at:      msg.remove_at      || 0,
         album_id:       msg.album_id       || null,
         media_deleted:  msg.media_deleted  || 0,
+        contact:        msg.contact        || null,
         user_data:      sender,
     };
 }
@@ -419,6 +420,7 @@ function sendMessage(ctx, io) {
                 page_id:          0,
                 is_business_chat: isBusinessChat,
                 type_two:         contact ? 'contact' : '',
+                contact:          contact || null,
                 forward:          0,
                 edited:           0,
                 remove_at:        removeAt,
