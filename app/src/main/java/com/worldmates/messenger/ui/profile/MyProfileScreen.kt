@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Language
@@ -139,6 +140,7 @@ fun MyProfileScreen(
     var showQrDialog          by remember { mutableStateOf(false) }
     var showAvatarSheet       by remember { mutableStateOf(false) }
     var showAppearanceDialog  by remember { mutableStateOf(false) }
+    var showEmojiStatusSheet  by remember { mutableStateOf(false) }
 
     val avatars by avatarGalleryViewModel.avatars.collectAsState()
 
@@ -241,7 +243,8 @@ fun MyProfileScreen(
                     onEditClick        = onEditClick,
                     onSettingsClick    = onSettingsClick,
                     onThemesClick      = onThemesClick,
-                    onAppearanceClick  = { showAppearanceDialog = true }
+                    onAppearanceClick  = { showAppearanceDialog = true },
+                    onEmojiStatusClick = { showEmojiStatusSheet = true }
                 )
             }
         }
@@ -299,6 +302,20 @@ fun MyProfileScreen(
                 )
                 showAppearanceDialog = false
             }
+        )
+    }
+
+    // ── Emoji Status Sheet ──────────────────────────────────────────────────
+    if (showEmojiStatusSheet) {
+        EmojiStatusSheet(
+            currentEmoji = user.statusEmoji,
+            currentText  = user.statusText,
+            isPro        = user.isPro > 0,
+            onDismiss    = { showEmojiStatusSheet = false },
+            onSave       = { emoji, text ->
+                profileViewModel.setEmojiStatus(emoji, text)
+                showEmojiStatusSheet = false
+            },
         )
     }
 }
@@ -443,14 +460,9 @@ private fun ProfileNameSection(user: User) {
                 fontWeight = FontWeight.Bold,
                 textAlign  = TextAlign.Center
             )
-            if (user.verified == 1) {
+            if (user.verificationLevel > 0) {
                 Spacer(Modifier.width(6.dp))
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = "Верифицирован",
-                    tint     = Color(0xFF0084FF),
-                    modifier = Modifier.size(22.dp)
-                )
+                VerificationBadge(level = user.verificationLevel, size = 22.dp)
             }
             if (isPro) {
                 Spacer(Modifier.width(6.dp))
@@ -514,6 +526,32 @@ private fun ProfileNameSection(user: User) {
                 )
             }
         }
+
+        // Emoji status chip (PRO)
+        if (!user.statusEmoji.isNullOrBlank() || !user.statusText.isNullOrBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(20.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    if (!user.statusEmoji.isNullOrBlank()) {
+                        Text(text = user.statusEmoji, fontSize = 14.sp)
+                    }
+                    if (!user.statusText.isNullOrBlank()) {
+                        Text(
+                            text  = user.statusText,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -523,11 +561,12 @@ private fun ProfileNameSection(user: User) {
 
 @Composable
 private fun ProfileActionButtons(
-    onPhotoClick:      () -> Unit,
-    onEditClick:       () -> Unit,
-    onSettingsClick:   () -> Unit,
-    onThemesClick:     () -> Unit,
-    onAppearanceClick: () -> Unit
+    onPhotoClick:       () -> Unit,
+    onEditClick:        () -> Unit,
+    onSettingsClick:    () -> Unit,
+    onThemesClick:      () -> Unit,
+    onAppearanceClick:  () -> Unit,
+    onEmojiStatusClick: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier
@@ -535,10 +574,10 @@ private fun ProfileActionButtons(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        ProfileActionButton(Icons.Default.Edit,         stringResource(R.string.profile_action_edit),      onEditClick,       Modifier.weight(1f))
-        ProfileActionButton(Icons.Default.CameraAlt,    stringResource(R.string.profile_action_photo),     onPhotoClick,      Modifier.weight(1f))
-        ProfileActionButton(Icons.Default.ColorLens,    stringResource(R.string.profile_action_customize), onAppearanceClick, Modifier.weight(1f))
-        ProfileActionButton(Icons.Default.Settings,     stringResource(R.string.profile_action_settings),  onSettingsClick,   Modifier.weight(1f))
+        ProfileActionButton(Icons.Default.Edit,           stringResource(R.string.profile_action_edit),        onEditClick,        Modifier.weight(1f))
+        ProfileActionButton(Icons.Default.CameraAlt,      stringResource(R.string.profile_action_photo),       onPhotoClick,       Modifier.weight(1f))
+        ProfileActionButton(Icons.Default.ColorLens,      stringResource(R.string.profile_action_customize),   onAppearanceClick,  Modifier.weight(1f))
+        ProfileActionButton(Icons.Default.EmojiEmotions,  stringResource(R.string.profile_action_status),      onEmojiStatusClick, Modifier.weight(1f))
     }
 }
 
@@ -667,7 +706,28 @@ private fun ProfileInfoCard(user: User) {
                         InfoDivider()
                     }
                     if (!user.about.isNullOrBlank()) {
-                        ProfileInfoRow(user.about, stringResource(R.string.about), Icons.Default.Info)
+                        Row(
+                            modifier          = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 9.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp).padding(top = 2.dp),
+                                tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.width(11.dp))
+                            Column {
+                                FormattedBioText(text = user.about)
+                                Text(
+                                    stringResource(R.string.about),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                         InfoDivider()
                     }
                     ProfileInfoRow("@${user.username}", stringResource(R.string.username_label), Icons.Default.Person)

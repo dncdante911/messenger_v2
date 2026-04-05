@@ -70,6 +70,7 @@ const { registerStickerRoutes }      = require('./routes/stickers')
 const { registerBusinessRoutes, handleBusinessAutoReply } = require('./routes/business')
 const { registerBusinessDirectoryRoutes } = require('./routes/business-directory')
 const { registerSearchRoutes }       = require('./routes/search/index')
+const { registerLinkPreviewRoutes }  = require('./routes/link-preview')
 const { registerStarsRoutes }                = require('./routes/stars')
 const { registerChannelScheduledPostRoutes } = require('./routes/channels/scheduled-posts')
 const { registerVoiceTranscriptionRoutes }   = require('./routes/voice-transcription')
@@ -365,6 +366,23 @@ async function init() {
   } catch (e) {
     if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
       console.warn('[Init] fcm_token migration warning:', e.message);
+    }
+  }
+  // profile customization + emoji status + verification_level — user profile features
+  for (const sql of [
+    `ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS profile_accent       VARCHAR(7)   NOT NULL DEFAULT '#667EEA'`,
+    `ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS profile_badge        VARCHAR(8)   NOT NULL DEFAULT ''`,
+    `ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS profile_header_style VARCHAR(20)  NOT NULL DEFAULT 'gradient'`,
+    `ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS status_emoji         VARCHAR(8)   NULL     DEFAULT NULL`,
+    `ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS status_text          VARCHAR(100) NULL     DEFAULT NULL`,
+    `ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS verification_level   TINYINT      NOT NULL DEFAULT 0`,
+  ]) {
+    try {
+      await ctx.sequelize.query(sql);
+    } catch (e) {
+      if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+        console.warn('[Init] Wo_Users column migration warning:', e.message);
+      }
     }
   }
   // poll + comment_count — story polls and cached comment counter (migration 004)
@@ -1271,6 +1289,7 @@ async function main() {
 
   // Register Global Search route
   registerSearchRoutes(app, ctx);
+  registerLinkPreviewRoutes(app);
   ctx.handleBusinessAutoReply = handleBusinessAutoReply;
 
   // ── Background cron jobs (premium expiry, story cleanup, notification purge)

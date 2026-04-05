@@ -581,6 +581,46 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(100),
       allowNull: false,
       defaultValue: ""
+    },
+    // ── Profile customization ───────────────────────────────────────────────
+    // Accent colour displayed in gradients and highlights (hex #RRGGBB)
+    profile_accent: {
+      type: DataTypes.STRING(7),
+      allowNull: false,
+      defaultValue: '#667EEA'
+    },
+    // Optional decorative emoji badge shown next to the display name
+    profile_badge: {
+      type: DataTypes.STRING(8),
+      allowNull: false,
+      defaultValue: ''
+    },
+    // Header background style: 'gradient' | 'minimal' | 'pattern'
+    profile_header_style: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'gradient'
+    },
+    // ── Custom emoji status (PRO feature) ───────────────────────────────────
+    // Single emoji character chosen by the user as their current status
+    status_emoji: {
+      type: DataTypes.STRING(8),
+      allowNull: true,
+      defaultValue: null
+    },
+    // Optional short text accompanying the emoji status (max 100 chars)
+    status_text: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      defaultValue: null
+    },
+    // ── Verification level ──────────────────────────────────────────────────
+    // 0 = none, 1 = verified (blue ✓), 2 = notable (gold ★),
+    // 3 = official/org (green ✓), 4 = top-creator (purple ♦)
+    verification_level: {
+      type: DataTypes.TINYINT,
+      allowNull: false,
+      defaultValue: 0
     }
   }, {
     sequelize,

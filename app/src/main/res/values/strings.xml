@@ -3140,86 +3140,25 @@
     <!-- Location bubble -->
     <string name="location_open_maps">Відкрити карту</string>
 
-    <!-- ===== VIDEO FILTERS (real-time camera filters during calls, like FaceTime effects) ===== -->
-    <!-- Panel title and controls -->
-    <string name="video_filters_title">Video Filters</string>
-    <string name="video_filters_none">None</string>
-    <string name="video_filters_beauty">Beauty</string>
-    <string name="video_filters_warm">Warm</string>
-    <string name="video_filters_cool">Cool</string>
-    <string name="video_filters_bw">B&amp;W</string>
-    <string name="video_filters_vintage">Vintage</string>
-    <string name="video_filters_vivid">Vivid</string>
-    <string name="video_filters_sepia">Sepia</string>
-    <!-- Accessibility / buttons -->
-    <string name="video_filters_btn_label">Filters</string>
-    <string name="video_filters_applied">Filter applied: %s</string>
-    <string name="video_filters_error">Failed to apply filter</string>
-    <!-- Filter intensity slider -->
-    <string name="video_filters_intensity">Intensity</string>
+    <!-- ── Profile action buttons ─────────────────────────────────────────── -->
+    <!-- Button label in own-profile action row to open emoji status sheet -->
+    <string name="profile_action_status">Статус</string>
 
-    <!-- ===== VIRTUAL BACKGROUNDS (background blur and replacement during video calls) ===== -->
-    <!-- Panel title -->
-    <string name="virtual_bg_title">Background</string>
-    <!-- Modes -->
-    <string name="virtual_bg_none">None</string>
-    <string name="virtual_bg_blur">Blur</string>
-    <string name="virtual_bg_blur_light">Light Blur</string>
-    <string name="virtual_bg_blur_strong">Strong Blur</string>
-    <string name="virtual_bg_color">Color</string>
-    <string name="virtual_bg_image">Image</string>
-    <!-- Button label and states -->
-    <string name="virtual_bg_btn_label">Background</string>
-    <string name="virtual_bg_select_image">Choose from gallery</string>
-    <string name="virtual_bg_processing">Applying background…</string>
-    <string name="virtual_bg_applied">Background applied</string>
-    <string name="virtual_bg_error">Failed to apply background</string>
-    <!-- Segmentation info -->
-    <string name="virtual_bg_segmentation_hint">Works best in good lighting</string>
-    <!-- Color presets shown as swatches -->
-    <string name="virtual_bg_color_office">Office</string>
-    <string name="virtual_bg_color_nature">Nature</string>
-    <string name="virtual_bg_color_gradient">Gradient</string>
+    <!-- ── Verification level badge content descriptions ─────────────────── -->
+    <!-- Shown next to name: 0=no badge, 1=blue checkmark, 2=gold star,
+         3=green checkmark (official/org), 4=purple diamond (top creator)    -->
+    <string name="verification_level_0">Без верифікації</string>
+    <string name="verification_level_1">Верифікований акаунт</string>
+    <string name="verification_level_2">Відомий акаунт</string>
+    <string name="verification_level_3">Офіційний акаунт</string>
+    <string name="verification_level_4">Топ-творець</string>
 
-    <!-- ===== CALL TRANSFER (transfer an active call to another user) ===== -->
-    <!-- UI controls -->
-    <string name="call_transfer_btn_label">Transfer</string>
-    <string name="call_transfer_title">Transfer Call</string>
-    <string name="call_transfer_subtitle">Select a contact to transfer the call to</string>
-    <string name="call_transfer_search_hint">Search contacts…</string>
-    <string name="call_transfer_confirm_title">Transfer to %s?</string>
-    <string name="call_transfer_confirm_message">The call will be transferred. You will be disconnected.</string>
-    <string name="call_transfer_confirm_btn">Transfer</string>
-    <string name="call_transfer_cancel">Cancel</string>
-    <!-- States and feedback -->
-    <string name="call_transfer_initiating">Transferring call…</string>
-    <string name="call_transfer_success">Call transferred to %s</string>
-    <string name="call_transfer_failed">Transfer failed. Please try again.</string>
-    <string name="call_transfer_rejected">%s declined the transfer</string>
-    <string name="call_transfer_no_answer">%s did not answer</string>
-    <!-- Incoming transfer notification -->
-    <string name="call_transfer_incoming_title">Transferred call</string>
-    <string name="call_transfer_incoming_from">Transferred by %s</string>
-
-    <!-- ===== CONFERENCE MODE OPTIMIZATION (group/multi-party call quality settings) ===== -->
-    <!-- Quality indicator labels shown in group call UI -->
-    <string name="conf_quality_label">Connection</string>
-    <string name="conf_quality_excellent">Excellent</string>
-    <string name="conf_quality_good">Good</string>
-    <string name="conf_quality_fair">Fair</string>
-    <string name="conf_quality_poor">Poor</string>
-    <!-- Bandwidth and layout mode controls -->
-    <string name="conf_bandwidth_mode_title">Bandwidth mode</string>
-    <string name="conf_bandwidth_auto">Auto</string>
-    <string name="conf_bandwidth_save">Data saver</string>
-    <string name="conf_bandwidth_high">High quality</string>
-    <!-- Speaker detection / stage layout -->
-    <string name="conf_dominant_speaker">Speaking</string>
-    <string name="conf_muted_video_hint">Video paused to save bandwidth</string>
-    <string name="conf_participants_off_screen">%d more</string>
-    <!-- Optimization toasts -->
-    <string name="conf_bandwidth_reduced">Bandwidth reduced for %d participants</string>
-    <string name="conf_quality_degraded">Quality reduced due to network conditions</string>
-    <string name="conf_quality_restored">Quality restored</string>
+    <!-- ── Link preview card ──────────────────────────────────────────────── -->
+    <!-- Accessible label for "open in browser" icon in link preview card     -->
+    <string name="link_preview_open">Відкрити посилання</string>
+    <!-- Placeholder shown while OG metadata is loading                       -->
+    <string name="link_preview_loading">Завантаження прев\'ю…</string>
+    <!-- Shown when link preview fetch failed                                  -->
+    <string name="link_preview_error">Не вдалося завантажити прев\'ю</string>
 
 </resources>

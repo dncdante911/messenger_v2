@@ -49,6 +49,8 @@ import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.User
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.LanguageManager
+import com.worldmates.messenger.network.NodeRetrofitClient
+import kotlinx.coroutines.launch
 
 class UserProfileActivity : AppCompatActivity() {
 
@@ -542,14 +544,9 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
                 Spacer(Modifier.width(6.dp))
                 Text(text = user.profileBadge, fontSize = 20.sp)
             }
-            if (user.verified == 1) {
+            if (user.verificationLevel > 0) {
                 Spacer(Modifier.width(6.dp))
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint     = accentColor,
-                    modifier = Modifier.size(22.dp)
-                )
+                VerificationBadge(level = user.verificationLevel, size = 22.dp)
             }
             if (user.isPro > 0) {
                 Spacer(Modifier.width(6.dp))
@@ -598,14 +595,36 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
             }
         }
 
+        // Emoji status chip
+        if (!user.statusEmoji.isNullOrBlank() || !user.statusText.isNullOrBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(20.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    if (!user.statusEmoji.isNullOrBlank()) {
+                        Text(text = user.statusEmoji, fontSize = 14.sp)
+                    }
+                    if (!user.statusText.isNullOrBlank()) {
+                        Text(
+                            text  = user.statusText,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
         // Bio
         if (!user.about.isNullOrBlank()) {
             Spacer(Modifier.height(10.dp))
-            Text(
-                text  = user.about,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            FormattedBioText(text = user.about)
         }
 
         Spacer(Modifier.height(14.dp))

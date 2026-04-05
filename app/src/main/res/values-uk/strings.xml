@@ -3049,86 +3049,25 @@
     <string name="giveaway_results_title">Переможці (%d учасників)</string>
     <string name="giveaway_no_eligible">Немає учасників, що відповідають умовам</string>
 
-    <!-- ===== VIDEO FILTERS (фільтри камери в реальному часі під час дзвінків, як у FaceTime) ===== -->
-    <!-- Назва панелі та керування -->
-    <string name="video_filters_title">Відеофільтри</string>
-    <string name="video_filters_none">Без фільтру</string>
-    <string name="video_filters_beauty">Краса</string>
-    <string name="video_filters_warm">Тепло</string>
-    <string name="video_filters_cool">Холодний</string>
-    <string name="video_filters_bw">Ч/Б</string>
-    <string name="video_filters_vintage">Вінтаж</string>
-    <string name="video_filters_vivid">Яскравий</string>
-    <string name="video_filters_sepia">Сепія</string>
-    <!-- Доступність / кнопки -->
-    <string name="video_filters_btn_label">Фільтри</string>
-    <string name="video_filters_applied">Фільтр застосовано: %s</string>
-    <string name="video_filters_error">Не вдалося застосувати фільтр</string>
-    <!-- Повзунок інтенсивності фільтру -->
-    <string name="video_filters_intensity">Інтенсивність</string>
+    <!-- ── Profile action buttons ─────────────────────────────────────────── -->
+    <!-- Кнопка в рядку дій власного профілю — відкрити шторку статусу -->
+    <string name="profile_action_status">Статус</string>
 
-    <!-- ===== VIRTUAL BACKGROUNDS (розмиття та заміна фону під час відеодзвінків) ===== -->
-    <!-- Назва панелі -->
-    <string name="virtual_bg_title">Фон</string>
-    <!-- Режими -->
-    <string name="virtual_bg_none">Без фону</string>
-    <string name="virtual_bg_blur">Розмиття</string>
-    <string name="virtual_bg_blur_light">Легке розмиття</string>
-    <string name="virtual_bg_blur_strong">Сильне розмиття</string>
-    <string name="virtual_bg_color">Колір</string>
-    <string name="virtual_bg_image">Зображення</string>
-    <!-- Кнопки та стани -->
-    <string name="virtual_bg_btn_label">Фон</string>
-    <string name="virtual_bg_select_image">Вибрати з галереї</string>
-    <string name="virtual_bg_processing">Застосовуємо фон…</string>
-    <string name="virtual_bg_applied">Фон застосовано</string>
-    <string name="virtual_bg_error">Не вдалося застосувати фон</string>
-    <!-- Підказка сегментації -->
-    <string name="virtual_bg_segmentation_hint">Найкраще працює при гарному освітленні</string>
-    <!-- Кольорові пресети -->
-    <string name="virtual_bg_color_office">Офіс</string>
-    <string name="virtual_bg_color_nature">Природа</string>
-    <string name="virtual_bg_color_gradient">Градієнт</string>
+    <!-- ── Verification level badge content descriptions ─────────────────── -->
+    <!-- Показується поруч з ім'ям: 0=немає, 1=синя галочка, 2=золота зірка,
+         3=зелена галочка (офіційний/організація), 4=фіолетовий ромб (топ-творець) -->
+    <string name="verification_level_0">Без верифікації</string>
+    <string name="verification_level_1">Верифікований акаунт</string>
+    <string name="verification_level_2">Відомий акаунт</string>
+    <string name="verification_level_3">Офіційний акаунт</string>
+    <string name="verification_level_4">Топ-творець</string>
 
-    <!-- ===== CALL TRANSFER (передача активного дзвінка іншому користувачу) ===== -->
-    <!-- Елементи керування -->
-    <string name="call_transfer_btn_label">Передати</string>
-    <string name="call_transfer_title">Передати дзвінок</string>
-    <string name="call_transfer_subtitle">Оберіть контакт для передачі дзвінка</string>
-    <string name="call_transfer_search_hint">Пошук контактів…</string>
-    <string name="call_transfer_confirm_title">Передати %s?</string>
-    <string name="call_transfer_confirm_message">Дзвінок буде передано. Ви від\'єднаєтесь.</string>
-    <string name="call_transfer_confirm_btn">Передати</string>
-    <string name="call_transfer_cancel">Скасувати</string>
-    <!-- Стани та зворотний зв\'язок -->
-    <string name="call_transfer_initiating">Передача дзвінка…</string>
-    <string name="call_transfer_success">Дзвінок передано %s</string>
-    <string name="call_transfer_failed">Не вдалося передати. Спробуйте ще раз.</string>
-    <string name="call_transfer_rejected">%s відхилив передачу</string>
-    <string name="call_transfer_no_answer">%s не відповів</string>
-    <!-- Сповіщення про вхідну передачу -->
-    <string name="call_transfer_incoming_title">Переданий дзвінок</string>
-    <string name="call_transfer_incoming_from">Передав %s</string>
-
-    <!-- ===== CONFERENCE MODE OPTIMIZATION (налаштування якості групових дзвінків) ===== -->
-    <!-- Індикатори якості у груповому дзвінку -->
-    <string name="conf_quality_label">Зв\'язок</string>
-    <string name="conf_quality_excellent">Відмінний</string>
-    <string name="conf_quality_good">Хороший</string>
-    <string name="conf_quality_fair">Задовільний</string>
-    <string name="conf_quality_poor">Поганий</string>
-    <!-- Режими пропускної здатності та розкладка -->
-    <string name="conf_bandwidth_mode_title">Режим трафіку</string>
-    <string name="conf_bandwidth_auto">Авто</string>
-    <string name="conf_bandwidth_save">Економія трафіку</string>
-    <string name="conf_bandwidth_high">Висока якість</string>
-    <!-- Виявлення спікера / сценічна розкладка -->
-    <string name="conf_dominant_speaker">Говорить</string>
-    <string name="conf_muted_video_hint">Відео призупинено для економії трафіку</string>
-    <string name="conf_participants_off_screen">+%d</string>
-    <!-- Сповіщення оптимізації -->
-    <string name="conf_bandwidth_reduced">Знижено якість для %d учасників</string>
-    <string name="conf_quality_degraded">Якість знижено через стан мережі</string>
-    <string name="conf_quality_restored">Якість відновлено</string>
+    <!-- ── Link preview card ──────────────────────────────────────────────── -->
+    <!-- Мітка доступності для іконки «відкрити в браузері» у картці прев'ю   -->
+    <string name="link_preview_open">Відкрити посилання</string>
+    <!-- Показується поки завантажуються OG-метадані                          -->
+    <string name="link_preview_loading">Завантаження прев\'ю…</string>
+    <!-- Показується якщо завантаження прев'ю не вдалося                      -->
+    <string name="link_preview_error">Не вдалося завантажити прев\'ю</string>
 
 </resources>

@@ -216,6 +216,30 @@ class UserProfileViewModel : ViewModel() {
     }
 
     /**
+     * Встановити або очистити кастомний емодзі-статус (PRO).
+     * emoji=null, text=null — очистити статус.
+     */
+    fun setEmojiStatus(emoji: String?, text: String?) {
+        _updateState.value = UpdateState.Loading
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.profileApi.setEmojiStatus(
+                    emoji = emoji,
+                    text  = text,
+                )
+                if (response.apiStatus == 200) {
+                    _updateState.value = UpdateState.Success
+                    loadUserProfile()
+                } else {
+                    _updateState.value = UpdateState.Error(response.errorMessage ?: "Failed to update status")
+                }
+            } catch (e: Exception) {
+                _updateState.value = UpdateState.Error("Network error: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    /**
      * Завантажити рейтинг користувача
      */
     fun loadUserRating(userId: Long) {
