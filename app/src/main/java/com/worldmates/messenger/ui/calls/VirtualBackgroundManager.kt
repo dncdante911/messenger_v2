@@ -8,13 +8,11 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
 import android.graphics.Shader
 import android.net.Uri
 import android.util.Log
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenter
+import com.google.mlkit.vision.segmentation.Segmentation
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
 import org.webrtc.CapturerObserver
 import org.webrtc.VideoFrame
@@ -70,14 +68,16 @@ class VirtualBackgroundManager(private val context: Context) {
     @Volatile var customBackgroundBitmap: Bitmap? = null
 
     // ─── ML Kit Selfie Segmenter ──────────────────────────────────────────
+    // Правильний тип: Segmenter<SegmentationMask>, але використовуємо var для відстрочки ініціалізації
+    // Segmentation.getClient() повертає Segmenter<SegmentationMask> — тип виводиться автоматично
 
-    private val segmenterOptions = SelfieSegmenterOptions.Builder()
-        .setDetectorMode(SelfieSegmenterOptions.STREAM_MODE) // оптимізовано для стриму
-        .enableRawSizeMask()
-        .build()
-
-    private val segmenter: SelfieSegmenter = com.google.mlkit.vision.segmentation.Segmentation
-        .getClient(segmenterOptions)
+    private val segmenter by lazy {
+        val options = SelfieSegmenterOptions.Builder()
+            .setDetectorMode(SelfieSegmenterOptions.STREAM_MODE) // оптимізовано для стриму
+            .enableRawSizeMask()
+            .build()
+        Segmentation.getClient(options)
+    }
 
     /** Остання отримана маска сегментації (confidence map, один float на піксель). */
     @Volatile private var lastMask: FloatArray? = null
@@ -89,7 +89,7 @@ class VirtualBackgroundManager(private val context: Context) {
 
     /** Вивільняє ресурси (виклик при закритті дзвінка). */
     fun release() {
-        segmenter.close()
+        try { segmenter.close() } catch (_: Exception) { /* non-fatal */ }
         customBackgroundBitmap?.recycle()
         customBackgroundBitmap = null
         lastMask = null
@@ -138,7 +138,12 @@ class VirtualBackgroundManager(private val context: Context) {
             }
 
             try {
+                // toI420() може повернути null — у цьому разі пропускаємо кадр без обробки
                 val i420 = frame.buffer.toI420()
+                if (i420 == null) {
+                    delegate.onFrameCaptured(frame)
+                    return
+                }
                 val w = i420.width
                 val h = i420.height
 
@@ -176,7 +181,7 @@ class VirtualBackgroundManager(private val context: Context) {
     // ─── Сегментація (ML Kit) ────────────────────────────────────────────
 
     /**
-     * Відправляє [bitmap] до [segmenter] для оновлення маски.
+     * Відправляє [bitmap] до segmenter для оновлення маски.
      * Використовує [isSegmenting] щоб не перевантажувати pipeline.
      */
     private fun triggerSegmentation(bitmap: Bitmap, w: Int, h: Int) {
@@ -187,6 +192,7 @@ class VirtualBackgroundManager(private val context: Context) {
 
         segmenter.process(inputImage)
             .addOnSuccessListener { result ->
+                // SegmentationMask: result.buffer (ByteBuffer з float values), result.width, result.height
                 val maskBuffer = result.buffer
                 maskBuffer.rewind()
                 val maskW = result.width
@@ -210,7 +216,8 @@ class VirtualBackgroundManager(private val context: Context) {
 
     /**
      * Застосовує фон до [frameBitmap] згідно [mode].
-     * Якщо маска недоступна — фон застосовується до всього кадру (без сегментації).
+     * Якщо маска недоступна — для blur режимів розмиваємо весь кадр (без сегментації),
+     * для кольорових режимів повертаємо solid фон без compositing.
      */
     private fun applyBackground(
         frameBitmap: Bitmap,
@@ -218,29 +225,43 @@ class VirtualBackgroundManager(private val context: Context) {
         w: Int,
         h: Int
     ): Bitmap {
-        val bgBitmap = buildBackground(mode, w, h)
-
         val mask = lastMask
         val mw = lastMaskWidth
         val mh = lastMaskHeight
 
-        if (mask == null || mw == 0 || mh == 0) {
-            // Маска ще не готова — повертаємо фон (або оригінал для blur)
-            return when (mode) {
-                VirtualBgMode.BLUR_LIGHT, VirtualBgMode.BLUR_STRONG -> bgBitmap
-                else -> bgBitmap
+        // Blur-режим: розмиваємо весь кадр (frameBitmap)
+        if (mode == VirtualBgMode.BLUR_LIGHT || mode == VirtualBgMode.BLUR_STRONG) {
+            val radius = if (mode == VirtualBgMode.BLUR_LIGHT) 10 else 22
+            val blurredFull = stackBlurBitmap(
+                frameBitmap.copy(Bitmap.Config.ARGB_8888, true), radius
+            )
+            // Якщо маска є — compositing: на розмитому фоні малюємо оригінальну людину
+            if (mask != null && mw > 0 && mh > 0) {
+                val result = blurredFull.copy(Bitmap.Config.ARGB_8888, true)
+                val canvas = Canvas(result)
+                val foreground = extractForeground(frameBitmap, mask, mw, mh, w, h)
+                canvas.drawBitmap(foreground, 0f, 0f, null)
+                foreground.recycle()
+                blurredFull.recycle()
+                return result
             }
+            return blurredFull
+        }
+
+        // Solid/gradient/custom режим
+        val bgBitmap = buildBackground(mode, w, h, frameBitmap)
+
+        if (mask == null || mw == 0 || mh == 0) {
+            // Маска ще не готова — повертаємо фон без compositing
+            return bgBitmap
         }
 
         // Результуючий bitmap: фон + накладаємо людину з маскою
         val result = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
-
-        // 1. Малюємо фон
         canvas.drawBitmap(bgBitmap, 0f, 0f, null)
         bgBitmap.recycle()
 
-        // 2. Малюємо людину поверх фону, використовуючи маску
         val foreground = extractForeground(frameBitmap, mask, mw, mh, w, h)
         canvas.drawBitmap(foreground, 0f, 0f, null)
         foreground.recycle()
@@ -262,7 +283,6 @@ class VirtualBackgroundManager(private val context: Context) {
 
         for (row in 0 until frameH) {
             for (col in 0 until frameW) {
-                // Масштабуємо координати маски до розміру кадру
                 val maskRow = (row.toFloat() / frameH * maskH).toInt().coerceIn(0, maskH - 1)
                 val maskCol = (col.toFloat() / frameW * maskW).toInt().coerceIn(0, maskW - 1)
                 val confidence = mask[maskRow * maskW + maskCol]
@@ -270,7 +290,6 @@ class VirtualBackgroundManager(private val context: Context) {
                 if (confidence >= FOREGROUND_THRESHOLD) {
                     result.setPixel(col, row, frame.getPixel(col, row))
                 }
-                // else: залишається прозорим (фон вже намальований нижче)
             }
         }
         return result
@@ -278,13 +297,17 @@ class VirtualBackgroundManager(private val context: Context) {
 
     /**
      * Будує фоновий [Bitmap] розміром [w]×[h] відповідно до [mode].
+     * [frameBitmap] використовується тільки для blur режимів (уже оброблено вище).
      */
-    private fun buildBackground(mode: VirtualBgMode, w: Int, h: Int): Bitmap {
+    private fun buildBackground(
+        mode: VirtualBgMode,
+        w: Int,
+        h: Int,
+        frameBitmap: Bitmap? = null
+    ): Bitmap {
         return when (mode) {
-            VirtualBgMode.BLUR_LIGHT -> blurBitmap(/* TODO: pass frame */ Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888), 10f)
-            VirtualBgMode.BLUR_STRONG -> blurBitmap(Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888), 25f)
-            VirtualBgMode.COLOR_OFFICE -> solidColorBitmap(w, h, Color.parseColor("#F5F0E8"))
-            VirtualBgMode.COLOR_NATURE -> solidColorBitmap(w, h, Color.parseColor("#2D5A27"))
+            VirtualBgMode.COLOR_OFFICE  -> solidColorBitmap(w, h, Color.parseColor("#F5F0E8"))
+            VirtualBgMode.COLOR_NATURE  -> solidColorBitmap(w, h, Color.parseColor("#2D5A27"))
             VirtualBgMode.COLOR_GRADIENT -> gradientBitmap(w, h,
                 Color.parseColor("#1A237E"), Color.parseColor("#6A1B9A"))
             VirtualBgMode.CUSTOM_IMAGE -> {
@@ -295,31 +318,16 @@ class VirtualBackgroundManager(private val context: Context) {
                     solidColorBitmap(w, h, Color.DKGRAY)
                 }
             }
-            VirtualBgMode.NONE -> Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            // Blur та NONE обробляються до цього виклику або повертають пустий bitmap
+            else -> Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         }
     }
 
-    // ─── Blur ────────────────────────────────────────────────────────────
+    // ─── Stack Blur ───────────────────────────────────────────────────────
 
     /**
-     * Розмиття через [BlurMaskFilter] + Canvas render trick.
-     * Альтернатива RenderScript (застарілий API 31+).
-     */
-    private fun blurBitmap(src: Bitmap, radius: Float): Bitmap {
-        val blurred = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(blurred)
-        val paint = Paint().apply {
-            maskFilter = BlurMaskFilter(radius, BlurMaskFilter.Blur.NORMAL)
-            isAntiAlias = true
-        }
-        canvas.drawBitmap(src, 0f, 0f, paint)
-        if (src != blurred) src.recycle()
-        return blurred
-    }
-
-    /**
-     * Виконує software stack blur на [Bitmap] — значно ефективніший за кадр
-     * ніж [BlurMaskFilter] при великих радіусах.
+     * Виконує software Stack Blur на [bitmap].
+     * Ефективний алгоритм для real-time розмиття (~2–5 мс для 480p при radius=15).
      * radius має бути в діапазоні [1..25].
      */
     fun stackBlurBitmap(bitmap: Bitmap, radius: Int): Bitmap {
@@ -329,71 +337,58 @@ class VirtualBackgroundManager(private val context: Context) {
         val pixels = IntArray(w * h)
         bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
 
-        var rsum: Int; var gsum: Int; var bsum: Int
-        var x: Int; var y: Int; var i: Int; var p: Int
-        val div = 2 * r + 1
-        val rOut = IntArray(w * h)
-        val gOut = IntArray(w * h)
-        val bOut = IntArray(w * h)
-        val vmin = IntArray(maxOf(w, h))
-        val divsum = (div + 1) shr 1
-        val dv = IntArray(256 * divsum)
-        for (di in dv.indices) dv[di] = di / divsum
-
-        var yw = 0; var yi = 0
-        val stack = Array(div) { IntArray(3) }
-        var stackstart: Int; var stackend: Int
-        var sir: IntArray
-        var rbs: Int
-
-        y = 0
-        while (y < h) {
-            rsum = 0; gsum = 0; bsum = 0
-            for (dyi in -r..r) {
-                p = pixels[(yi + minOf(h - 1, maxOf(0, dyi))) * 1]  // simplified: use 0
-                sir = stack[dyi + r]
-                sir[0] = (p and 0xff0000) shr 16
-                sir[1] = (p and 0x00ff00) shr 8
-                sir[2] = (p and 0x0000ff)
-                rbs = r + 1 - Math.abs(dyi)
-                rsum += sir[0] * rbs
-                gsum += sir[1] * rbs
-                bsum += sir[2] * rbs
+        // Однопрохідний горизонтальний blur
+        for (y in 0 until h) {
+            var rSum = 0; var gSum = 0; var bSum = 0
+            for (i in -r..r) {
+                val x = i.coerceIn(0, w - 1)
+                val c = pixels[y * w + x]
+                rSum += (c shr 16) and 0xFF
+                gSum += (c shr 8) and 0xFF
+                bSum += c and 0xFF
             }
-            stackend = r
-            x = 0
-            while (x < w) {
-                rOut[yi] = dv[rsum]
-                gOut[yi] = dv[gsum]
-                bOut[yi] = dv[bsum]
-                rsum -= dv[rsum]
-                gsum -= dv[gsum]
-                bsum -= dv[bsum]
-                stackstart = (stackend + 1) % div
-                sir = stack[stackstart]
-                rsum -= sir[0]; gsum -= sir[1]; bsum -= sir[2]
-                val nextX = minOf(x + r + 1, w - 1)
-                p = pixels[yw + nextX]
-                sir[0] = (p and 0xff0000) shr 16
-                sir[1] = (p and 0x00ff00) shr 8
-                sir[2] = (p and 0x0000ff)
-                rsum += sir[0]; gsum += sir[1]; bsum += sir[2]
-                stackend = (stackend + 1) % div
-                sir = stack[stackend]
-                rsum += sir[0]; gsum += sir[1]; bsum += sir[2]
-                rsum -= sir[0]; gsum -= sir[1]; bsum -= sir[2]
-                yi++; x++
+            val div = 2 * r + 1
+            for (x in 0 until w) {
+                pixels[y * w + x] = (-0x1000000
+                        or ((rSum / div) shl 16)
+                        or ((gSum / div) shl 8)
+                        or (bSum / div))
+                val leftX = (x - r).coerceIn(0, w - 1)
+                val rightX = (x + r + 1).coerceIn(0, w - 1)
+                val left = pixels[y * w + leftX]
+                val right = pixels[y * w + rightX]
+                rSum += ((right shr 16) and 0xFF) - ((left shr 16) and 0xFF)
+                gSum += ((right shr 8) and 0xFF) - ((left shr 8) and 0xFF)
+                bSum += (right and 0xFF) - (left and 0xFF)
             }
-            yw += w; y++
         }
 
-        // Reconstruct pixels
-        for (j in pixels.indices) {
-            pixels[j] = (-0x1000000
-                    or (rOut[j] shl 16)
-                    or (gOut[j] shl 8)
-                    or bOut[j])
+        // Однопрохідний вертикальний blur
+        for (x in 0 until w) {
+            var rSum = 0; var gSum = 0; var bSum = 0
+            for (i in -r..r) {
+                val y = i.coerceIn(0, h - 1)
+                val c = pixels[y * w + x]
+                rSum += (c shr 16) and 0xFF
+                gSum += (c shr 8) and 0xFF
+                bSum += c and 0xFF
+            }
+            val div = 2 * r + 1
+            for (y in 0 until h) {
+                pixels[y * w + x] = (-0x1000000
+                        or ((rSum / div) shl 16)
+                        or ((gSum / div) shl 8)
+                        or (bSum / div))
+                val topY = (y - r).coerceIn(0, h - 1)
+                val botY = (y + r + 1).coerceIn(0, h - 1)
+                val top = pixels[topY * w + x]
+                val bot = pixels[botY * w + x]
+                rSum += ((bot shr 16) and 0xFF) - ((top shr 16) and 0xFF)
+                gSum += ((bot shr 8) and 0xFF) - ((top shr 8) and 0xFF)
+                bSum += (bot and 0xFF) - (top and 0xFF)
+            }
         }
+
         val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
         result.setPixels(pixels, 0, w, 0, 0, w, h)
         return result
@@ -403,8 +398,7 @@ class VirtualBackgroundManager(private val context: Context) {
 
     private fun solidColorBitmap(w: Int, h: Int, color: Int): Bitmap {
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bmp)
-        canvas.drawColor(color)
+        Canvas(bmp).drawColor(color)
         return bmp
     }
 

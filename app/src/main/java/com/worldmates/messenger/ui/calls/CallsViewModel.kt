@@ -1915,20 +1915,11 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
      */
     fun initiateCallTransfer(target: TransferTarget) {
         val roomName = currentCallData?.roomName ?: return
-        val callType = if (currentCallData?.isVideo == true) "video" else "audio"
-        val fromUserId = getUserId()
+        // callType зберігається як рядок "video"/"audio" у CallData
+        val callType = currentCallData?.callType ?: "video"
+        // getUserId() вже існує в класі (повертає Int); конвертуємо у Long для CallTransferManager
+        val fromUserId = getUserId().toLong()
         _callTransferManager?.initiateTransfer(target, roomName, callType, fromUserId)
-    }
-
-    /**
-     * Повертає ID поточного користувача (з SharedPreferences або дефолтне значення).
-     */
-    private fun getUserId(): Long {
-        return try {
-            val prefs = getApplication<Application>()
-                .getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-            prefs.getLong("user_id", 0L)
-        } catch (e: Exception) { 0L }
     }
 
     // ─── Conference Optimization API ──────────────────────────────────────────
