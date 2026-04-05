@@ -2192,6 +2192,10 @@
     <string name="livestream_close">Закрити</string>
     <string name="livestream_end_stream_desc">Закрити трансляцію</string>
     <string name="livestream_permission_denied">Для трансляції потрібен доступ до камери та мікрофону</string>
+    <!-- Повідомлення коли сервер знизив якість нижче вибраної (%1$s — нова якість, %2$s — запитана) -->
+    <string name="livestream_quality_capped">Якість знижена до %1$s (канал не підтримує %2$s)</string>
+    <!-- Значок запису який відображається поверх камери хоста під час трансляції -->
+    <string name="livestream_recording_badge">● REC</string>
     <string name="quality_240p">240p — Низька (360×240)</string>
     <string name="quality_360p">360p — Стандартна (640×360)</string>
     <string name="quality_480p">480p — Хороша (854×480)</string>
@@ -2711,6 +2715,10 @@
     <string name="media_album_photo_count">%d фото</string>
     <string name="media_album_video">Відео</string>
     <string name="audio_album_title">Аудіо</string>
+
+    <!-- ===== POST COLLECTIONS ===== -->
+    <!-- Кількість медіафайлів у колекції поста (аргумент: ціле число) -->
+    <string name="post_collection_count">%d файлів</string>
 
     <!-- ===== AUTO-DELETE MEDIA ===== -->
     <string name="media_auto_delete_hint_1day">~1 день</string>

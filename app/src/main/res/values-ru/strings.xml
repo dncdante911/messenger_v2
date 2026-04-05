@@ -2108,6 +2108,10 @@
     <string name="livestream_close">Закрыть</string>
     <string name="livestream_end_stream_desc">Закрыть трансляцию</string>
     <string name="livestream_permission_denied">Для трансляции необходим доступ к камере и микрофону</string>
+    <!-- Сообщение когда сервер понизил качество (%1$s — новое качество, %2$s — запрошенное) -->
+    <string name="livestream_quality_capped">Качество снижено до %1$s (канал не поддерживает %2$s)</string>
+    <!-- Значок записи на экране хоста во время трансляции -->
+    <string name="livestream_recording_badge">● REC</string>
     <string name="quality_240p">240p — Низкое (360×240)</string>
     <string name="quality_360p">360p — Стандартное (640×360)</string>
     <string name="quality_480p">480p — Хорошее (854×480)</string>
@@ -2695,6 +2699,10 @@
     <string name="media_album_photo_count">%d фото</string>
     <string name="media_album_video">Видео</string>
     <string name="audio_album_title">Аудио</string>
+
+    <!-- ===== КОЛЛЕКЦИИ ПОСТОВ ===== -->
+    <!-- Количество медиафайлов в коллекции поста (аргумент: целое число) -->
+    <string name="post_collection_count">%d файлов</string>
 
     
     <string name="media_auto_delete_hint_1day">~1 день</string>

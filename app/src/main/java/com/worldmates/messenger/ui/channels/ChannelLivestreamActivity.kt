@@ -172,9 +172,11 @@ private fun LivestreamScreen(
     channelIsPremium: Boolean,
     onClose: () -> Unit
 ) {
-    val uiState     by viewModel.uiState.collectAsStateWithLifecycle()
-    val localStream by viewModel.localStream.collectAsStateWithLifecycle()
+    val uiState      by viewModel.uiState.collectAsStateWithLifecycle()
+    val localStream  by viewModel.localStream.collectAsStateWithLifecycle()
     val remoteStream by viewModel.remoteStream.collectAsStateWithLifecycle()
+    val viewerCount  by viewModel.viewerCount.collectAsStateWithLifecycle()
+    val recordingState by viewModel.recordingState.collectAsStateWithLifecycle()
 
     Box(
         modifier = Modifier
@@ -208,13 +210,15 @@ private fun LivestreamScreen(
 
             is LivestreamUiState.Hosting -> {
                 HostingScreen(
-                    info        = state.info,
-                    localStream = localStream,
-                    onEnd       = { viewModel.endStream(); onClose() },
-                    onClose     = onClose,
-                    onToggleCamera  = { viewModel.switchCamera() },
-                    onToggleAudio   = { enabled -> viewModel.toggleAudio(enabled) },
-                    onToggleVideo   = { enabled -> viewModel.toggleVideo(enabled) }
+                    info           = state.info,
+                    localStream    = localStream,
+                    recordingState = recordingState,
+                    viewerCount    = viewerCount,
+                    onEnd          = { viewModel.endStream(); onClose() },
+                    onClose        = onClose,
+                    onToggleCamera = { viewModel.switchCamera() },
+                    onToggleAudio  = { enabled -> viewModel.toggleAudio(enabled) },
+                    onToggleVideo  = { enabled -> viewModel.toggleVideo(enabled) }
                 )
             }
 
@@ -222,6 +226,7 @@ private fun LivestreamScreen(
                 ViewingScreen(
                     info         = state.info,
                     remoteStream = remoteStream,
+                    viewerCount  = viewerCount,
                     onLeave      = { viewModel.leaveStream(); onClose() }
                 )
             }
@@ -390,6 +395,8 @@ private fun QualityOption(quality: String, selected: Boolean, isPremium: Boolean
 private fun HostingScreen(
     info: LivestreamInfo,
     localStream: MediaStream?,
+    recordingState: RecordingState,
+    viewerCount: Int,
     onEnd: () -> Unit,
     onClose: () -> Unit,
     onToggleCamera: () -> Unit,
@@ -458,6 +465,32 @@ private fun HostingScreen(
                     .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             )
+            Spacer(Modifier.width(8.dp))
+            // Viewer count badge
+            if (viewerCount > 0) {
+                Text(
+                    text     = stringResource(R.string.livestream_viewer_count, viewerCount),
+                    color    = Color.White,
+                    fontSize = 13.sp,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            // REC badge — shown only while recording is active
+            if (recordingState is RecordingState.Recording) {
+                Text(
+                    text       = stringResource(R.string.livestream_recording_badge),
+                    color      = Color.White,
+                    fontSize   = 11.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    modifier   = Modifier
+                        .background(Color(0xFFCC0000), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { showEndConfirm = true }) {
                 Icon(Icons.Default.Close, stringResource(R.string.livestream_end_stream_desc), tint = Color.White)
@@ -577,8 +610,11 @@ private fun HostingScreen(
 private fun ViewingScreen(
     info: LivestreamInfo,
     remoteStream: MediaStream?,
+    viewerCount: Int,
     onLeave: () -> Unit
 ) {
+    // Use live-updated viewerCount from VM; fall back to snapshot in info
+    val displayCount = if (viewerCount > 0) viewerCount else info.viewer_count
     Box(modifier = Modifier.fillMaxSize()) {
         if (remoteStream != null) {
             // Remote stream renders full-screen
@@ -642,7 +678,7 @@ private fun ViewingScreen(
             LiveBadge()
             Spacer(Modifier.width(8.dp))
             Text(
-                text  = stringResource(R.string.livestream_viewer_count, info.viewer_count),
+                text  = stringResource(R.string.livestream_viewer_count, displayCount),
                 color = Color.White,
                 fontSize = 13.sp
             )

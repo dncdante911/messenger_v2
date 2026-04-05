@@ -5,6 +5,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.LivestreamWebRTCManager
 import com.worldmates.messenger.network.NodeRetrofitClient
@@ -183,6 +184,10 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
     private val _remoteStream = MutableStateFlow<MediaStream?>(null)
     val remoteStream: StateFlow<MediaStream?> = _remoteStream
 
+    /** Live viewer count — updated via socket stream:viewer_count event */
+    private val _viewerCount = MutableStateFlow(0)
+    val viewerCount: StateFlow<Int> = _viewerCount
+
     // ── Recording state ────────────────────────────────────────────────────────
     private val _recordingState = MutableStateFlow<RecordingState>(RecordingState.Idle)
     val recordingState: StateFlow<RecordingState> = _recordingState
@@ -346,6 +351,13 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
             val data = args.getOrNull(0) as? JSONObject ?: return@on
             Log.d(TAG, "stream:join_ack received, room=${data.optString("roomName")}")
         }
+
+        // Both host and viewer: updated viewer count broadcast
+        socketManager.on("stream:viewer_count") { args ->
+            val data = args.getOrNull(0) as? JSONObject ?: return@on
+            val count = data.optInt("viewer_count", -1)
+            if (count >= 0) _viewerCount.value = count
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -366,11 +378,9 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
                     // Notify host if the server capped their selected quality
                     if (actualQuality != quality) {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                getApplication(),
-                                "Качество ограничено до $actualQuality (канал не поддерживает $quality)",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            val msg = getApplication<android.app.Application>()
+                                .getString(R.string.livestream_quality_capped, actualQuality, quality)
+                            Toast.makeText(getApplication(), msg, Toast.LENGTH_LONG).show()
                         }
                         Log.w(TAG, "Quality capped by server: $quality → $actualQuality")
                     }
