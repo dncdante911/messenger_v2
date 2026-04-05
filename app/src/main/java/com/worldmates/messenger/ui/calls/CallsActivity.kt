@@ -620,16 +620,15 @@ fun ActiveCallScreen(
     connectionState: String,
     calleeName: String = "",
     calleeAvatar: String = "",
-    callType: String = "audio",  // ✅ Додано параметр callType
-    calleeId: Long = 0L          // ID співрозмовника (для call transfer)
+    callType: String = "audio",
+    calleeId: Long = 0L  // kept for API compat, transfer feature removed
 ) {
     val context = LocalContext.current
     var audioEnabled by remember { mutableStateOf(true) }
-    var videoEnabled by remember { mutableStateOf(callType == "video") }  // ✅ Ініціалізувати з callType
+    var videoEnabled by remember { mutableStateOf(callType == "video") }
     var speakerEnabled by remember { mutableStateOf(false) }
     var showReactions by remember { mutableStateOf(false) }
     var showChatOverlay by remember { mutableStateOf(false) }
-    var showQualitySelector by remember { mutableStateOf(false) }  // 📹 Селектор якості
     var callDuration by remember { mutableStateOf(0) }
     var isScreenSharing by remember { mutableStateOf(false) }
     var isRecording by remember { mutableStateOf(false) }
@@ -643,24 +642,6 @@ fun ActiveCallScreen(
     // ─── Віртуальний фон ─────────────────────────────────────────────────────
     var showBgPanel by remember { mutableStateOf(false) }
     val activeVirtualBg by viewModel.activeVirtualBg.collectAsState()
-
-    // ─── Передача дзвінка ─────────────────────────────────────────────────────
-    var showTransferPicker by remember { mutableStateOf(false) }
-    var showTransferConfirm by remember { mutableStateOf(false) }
-    var transferTarget by remember { mutableStateOf<TransferTarget?>(null) }
-    val transferState by viewModel.callTransferState.collectAsState()
-    val transferTargetState by viewModel.callTransferTarget.collectAsState()
-    // Поточний співрозмовник (для 1-на-1: prepopulate в picker-і)
-    val calleeAsTarget = remember(calleeId, calleeName, calleeAvatar) {
-        if (calleeId > 0L) TransferTarget(calleeId, calleeName, calleeAvatar.ifBlank { null })
-        else null
-    }
-    val groupParticipants by viewModel.groupCallParticipants.observeAsState(emptyList())
-
-    // Ініціалізація CallTransferManager при першому відображенні екрану
-    LaunchedEffect(Unit) {
-        viewModel.initCallTransferManager()
-    }
 
     // 📹 Поточна якість відео
     var currentVideoQuality by remember {
@@ -819,169 +800,185 @@ fun ActiveCallScreen(
         }
         } // end AnimatedVisibility (top UI)
 
-        // ─── Банер статусу передачі дзвінка (always visible while transferring) ─
-        if (transferState != CallTransferState.IDLE) {
-            CallTransferStatusBanner(
-                state = transferState,
-                targetName = transferTargetState?.userName,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 72.dp)
-            )
-        }
-
-        // ─── Панелі + control bar (auto-hide) ──────────────────────────────
+        // ─── Gradient scrim + panels + control bar (auto-hide) ────────────────
         AnimatedVisibility(
             visible = uiVisible || showFiltersPanel || showBgPanel,
             enter = fadeIn(animationSpec = tween(300)),
             exit = fadeOut(animationSpec = tween(600)),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Панель відеофільтрів
-            AnimatedVisibility(
-                visible = showFiltersPanel,
-                enter = expandVertically(expandFrom = Alignment.Bottom),
-                exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
-            ) {
-                VideoFiltersPanel(
-                    activeFilter = activeFilter,
-                    intensity = filterIntensity,
-                    onFilterSelected = { filter ->
-                        viewModel.applyVideoFilter(filter)
-                    },
-                    onIntensityChanged = { intensity ->
-                        filterIntensity = intensity
-                        viewModel.setFilterIntensity(intensity)
-                    },
-                    onDismiss = { showFiltersPanel = false }
-                )
-            }
-
-            // Панель віртуального фону
-            AnimatedVisibility(
-                visible = showBgPanel,
-                enter = expandVertically(expandFrom = Alignment.Bottom),
-                exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
-            ) {
-                VirtualBackgroundPanel(
-                    activeMode = activeVirtualBg,
-                    onModeSelected = { mode ->
-                        viewModel.applyVirtualBackground(mode)
-                    },
-                    onCustomImageSelected = { uri ->
-                        viewModel.loadCustomBackground(uri)
-                    },
-                    onDismiss = { showBgPanel = false }
-                )
-            }
-
-            // Рядок кнопок ефектів та передачі (над основним control bar)
-            // Фільтри та фон — тільки для відеодзвінків; Transfer — для обох типів
-            if (!showFiltersPanel && !showBgPanel) {
-                Row(
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // Gradient scrim — dark at bottom, fully transparent at top
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.28f))
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(28.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Кнопка фільтрів (тільки відео)
-                    if (callType == "video") {
-                        VideoFiltersButton(
-                            isActive = activeFilter != VideoFilterType.NONE,
-                            onClick = {
-                                showFiltersPanel = true
-                                showBgPanel = false
-                            }
+                        .height(240.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.85f)
+                                )
+                            )
                         )
-                        // Кнопка фону (тільки відео)
-                        VirtualBackgroundButton(
-                            isActive = activeVirtualBg != VirtualBgMode.NONE,
-                            onClick = {
-                                showBgPanel = true
-                                showFiltersPanel = false
-                            }
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // ── Expanded panels ──────────────────────────────────────
+                    AnimatedVisibility(
+                        visible = showFiltersPanel,
+                        enter = expandVertically(expandFrom = Alignment.Bottom),
+                        exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
+                    ) {
+                        VideoFiltersPanel(
+                            activeFilter = activeFilter,
+                            intensity = filterIntensity,
+                            onFilterSelected = { viewModel.applyVideoFilter(it) },
+                            onIntensityChanged = { intensity ->
+                                filterIntensity = intensity
+                                viewModel.setFilterIntensity(intensity)
+                            },
+                            onDismiss = { showFiltersPanel = false }
                         )
                     }
-                    // Кнопка передачі дзвінка (для будь-якого типу дзвінка)
-                    CallTransferButton(
-                        isTransferring = transferState != CallTransferState.IDLE,
-                        onClick = { showTransferPicker = true }
+                    AnimatedVisibility(
+                        visible = showBgPanel,
+                        enter = expandVertically(expandFrom = Alignment.Bottom),
+                        exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
+                    ) {
+                        VirtualBackgroundPanel(
+                            activeMode = activeVirtualBg,
+                            onModeSelected = { viewModel.applyVirtualBackground(it) },
+                            onCustomImageSelected = { viewModel.loadCustomBackground(it) },
+                            onDismiss = { showBgPanel = false }
+                        )
+                    }
+
+                    // ── Effect pill buttons (only when camera is ON) ─────────
+                    if (videoEnabled && !showFiltersPanel && !showBgPanel) {
+                        Row(
+                            modifier = Modifier.padding(bottom = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Filters pill
+                            val filterActive = activeFilter != VideoFilterType.NONE
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (filterActive)
+                                    Color(0xFF7C4DFF).copy(alpha = 0.85f)
+                                else
+                                    Color.White.copy(alpha = 0.15f),
+                                modifier = Modifier.clickable {
+                                    showFiltersPanel = true
+                                    showBgPanel = false
+                                    uiVisible = true
+                                    lastInteractionTime = System.currentTimeMillis()
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoFixHigh,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.call_filters_title),
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            // Background pill
+                            val bgActive = activeVirtualBg != VirtualBgMode.NONE
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (bgActive)
+                                    Color(0xFF00BCD4).copy(alpha = 0.85f)
+                                else
+                                    Color.White.copy(alpha = 0.15f),
+                                modifier = Modifier.clickable {
+                                    showBgPanel = true
+                                    showFiltersPanel = false
+                                    uiVisible = true
+                                    lastInteractionTime = System.currentTimeMillis()
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.BlurOn,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.call_virtual_bg_title),
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Main control bar ─────────────────────────────────────
+                    EnhancedCallControlBar(
+                        audioEnabled = audioEnabled,
+                        videoEnabled = videoEnabled,
+                        speakerEnabled = speakerEnabled,
+                        isScreenSharing = isScreenSharing,
+                        isRecording = isRecording,
+                        noiseCancellation = noiseCancellation,
+                        onToggleAudio = {
+                            audioEnabled = !audioEnabled
+                            viewModel.toggleAudio(audioEnabled)
+                        },
+                        onToggleVideo = {
+                            videoEnabled = !videoEnabled
+                            viewModel.toggleVideo(videoEnabled)
+                        },
+                        onToggleSpeaker = {
+                            speakerEnabled = !speakerEnabled
+                            viewModel.toggleSpeaker(speakerEnabled)
+                        },
+                        onSwitchCamera = { viewModel.switchCamera() },
+                        onToggleScreenShare = {
+                            val act = context as? CallsActivity
+                            if (act != null) {
+                                act.screenSharingIntegration.toggle()
+                                isScreenSharing = act.screenSharingIntegration.isSharing
+                            } else {
+                                isScreenSharing = !isScreenSharing
+                            }
+                        },
+                        onToggleRecording = { isRecording = !isRecording },
+                        onToggleNoiseCancellation = { noiseCancellation = !noiseCancellation },
+                        onEndCall = { viewModel.endCall() },
+                        onPiP = { enterPiPMode(context) },
+                        onShowReactions = { showReactions = !showReactions },
+                        modifier = Modifier
                     )
                 }
             }
-
-            // Основний control bar
-            EnhancedCallControlBar(
-                audioEnabled = audioEnabled,
-                videoEnabled = videoEnabled,
-                speakerEnabled = speakerEnabled,
-                isScreenSharing = isScreenSharing,
-                isRecording = isRecording,
-                noiseCancellation = noiseCancellation,
-                onToggleAudio = {
-                    audioEnabled = !audioEnabled
-                    viewModel.toggleAudio(audioEnabled)
-                },
-                onToggleVideo = {
-                    videoEnabled = !videoEnabled
-                    viewModel.toggleVideo(videoEnabled)
-                },
-                onToggleSpeaker = {
-                    speakerEnabled = !speakerEnabled
-                    viewModel.toggleSpeaker(speakerEnabled)
-                },
-                onSwitchCamera = { viewModel.switchCamera() },
-                onToggleScreenShare = {
-                    val act = context as? CallsActivity
-                    if (act != null) {
-                        act.screenSharingIntegration.toggle()
-                        isScreenSharing = act.screenSharingIntegration.isSharing
-                    } else {
-                        isScreenSharing = !isScreenSharing
-                    }
-                },
-                onToggleRecording = { isRecording = !isRecording },
-                onToggleNoiseCancellation = { noiseCancellation = !noiseCancellation },
-                onEndCall = { viewModel.endCall() },
-                onPiP = { enterPiPMode(context) },
-                onShowReactions = { showReactions = !showReactions },
-                modifier = Modifier
-            )
-        }
-        } // end AnimatedVisibility (bottom UI)
-
-        // Діалог вибору контакту для передачі
-        if (showTransferPicker) {
-            CallTransferPickerDialog(
-                callee = calleeAsTarget,
-                groupParticipants = groupParticipants,
-                onContactSelected = { target ->
-                    transferTarget = target
-                    showTransferPicker = false
-                    showTransferConfirm = true
-                },
-                onDismiss = { showTransferPicker = false }
-            )
-        }
-
-        // Діалог підтвердження передачі дзвінка
-        if (showTransferConfirm && transferTarget != null) {
-            CallTransferConfirmDialog(
-                target = transferTarget!!,
-                onConfirm = {
-                    viewModel.initiateCallTransfer(transferTarget!!)
-                    showTransferConfirm = false
-                    transferTarget = null
-                },
-                onDismiss = {
-                    showTransferConfirm = false
-                    transferTarget = null
-                }
-            )
-        }
+        } // end AnimatedVisibility (bottom)
 
         // Floating reaction animation
         val floatingReaction by viewModel.incomingReaction.observeAsState()
