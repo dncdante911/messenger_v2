@@ -3203,4 +3203,19 @@
     <!-- Показывается если загрузка превью не удалась                         -->
     <string name="link_preview_error">Не удалось загрузить превью</string>
 
+    <!-- ===== ЦЕПОЧКИ УВЕДОМЛЕНИЙ И НАСТРОЙКИ ПРИОРИТЕТА ===== -->
+    <!-- Сводное уведомление когда 2+ чатов имеют непрочитанные сообщения -->
+    <string name="notif_chain_summary_title">Новые сообщения</string>
+    <!-- %1$d = количество сообщений, %2$d = количество чатов -->
+    <string name="notif_chain_summary_text">%1$d сообщений из %2$d чатов</string>
+    <!-- Канал приоритетных уведомлений (отображается в системных настройках) -->
+    <string name="notif_priority_channel_name">Приоритетные уведомления</string>
+    <string name="notif_priority_channel_desc">Максимальный приоритет для VIP-контактов</string>
+    <!-- Уровни приоритета (отображаются в настройках контакта/группы) -->
+    <string name="notif_priority_label">Приоритет уведомлений</string>
+    <string name="notif_priority_silent">Без звука</string>
+    <string name="notif_priority_normal">Обычный</string>
+    <string name="notif_priority_high">Приоритетный (VIP)</string>
+    <!-- Подтверждение сохранения -->
+    <string name="notif_priority_saved">Настройки сохранены</string>
 </resources>

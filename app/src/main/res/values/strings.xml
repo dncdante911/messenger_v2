@@ -3202,4 +3202,19 @@
     <!-- Shown when link preview fetch failed                                  -->
     <string name="link_preview_error">Не вдалося завантажити прев\'ю</string>
 
+    <!-- ===== NOTIFICATION CHAINS & PRIORITY SETTINGS ===== -->
+    <!-- Summary notification shown when 2+ chats have unread messages -->
+    <string name="notif_chain_summary_title">Нові повідомлення</string>
+    <!-- %1$d = total messages, %2$d = number of chats -->
+    <string name="notif_chain_summary_text">%1$d повідомлень з %2$d чатів</string>
+    <!-- Priority notification channel (shown in system notification settings) -->
+    <string name="notif_priority_channel_name">Пріоритетні сповіщення</string>
+    <string name="notif_priority_channel_desc">Максимальний пріоритет для VIP-контактів</string>
+    <!-- Priority level labels (shown in contact/group info settings) -->
+    <string name="notif_priority_label">Пріоритет сповіщень</string>
+    <string name="notif_priority_silent">Без звуку</string>
+    <string name="notif_priority_normal">Звичайний</string>
+    <string name="notif_priority_high">Пріоритетний (VIP)</string>
+    <!-- Toast/snackbar confirmation -->
+    <string name="notif_priority_saved">Налаштування збережено</string>
 </resources>
