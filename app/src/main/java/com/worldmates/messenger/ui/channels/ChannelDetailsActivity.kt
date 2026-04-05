@@ -181,6 +181,7 @@ fun ChannelDetailsScreen(
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showPostOptions by remember { mutableStateOf(false) }
     var showEditPostDialog by remember { mutableStateOf(false) }
+    var showPostAnalyticsSheet by remember { mutableStateOf(false) }
     var showStatisticsDialog by remember { mutableStateOf(false) }
     var showAdminsDialog by remember { mutableStateOf(false) }
     var showEditChannelDialog by remember { mutableStateOf(false) }
@@ -205,6 +206,8 @@ fun ChannelDetailsScreen(
     val isLoadingComments by detailsViewModel.isLoadingComments.collectAsState()
     val statistics by detailsViewModel.statistics.collectAsState()
     val admins by detailsViewModel.admins.collectAsState()
+    val postAnalytics by detailsViewModel.postAnalytics.collectAsState()
+    val isLoadingPostAnalytics by detailsViewModel.isLoadingPostAnalytics.collectAsState()
     val recordings by detailsViewModel.recordings.collectAsState()
 
     val pullRefreshState = rememberPullRefreshState(
@@ -1016,6 +1019,24 @@ fun ChannelDetailsScreen(
                             )
                         }
                     }
+                },
+                onAnalyticsClick = if (channel?.isAdmin == true) ({
+                    selectedPostForOptions?.let { post ->
+                        detailsViewModel.loadPostAnalytics(channelId, post.id)
+                        showPostAnalyticsSheet = true
+                    }
+                }) else null
+            )
+        }
+
+        // Per-post analytics sheet
+        if (showPostAnalyticsSheet) {
+            PostAnalyticsSheet(
+                analytics = postAnalytics,
+                isLoading = isLoadingPostAnalytics,
+                onDismiss = {
+                    showPostAnalyticsSheet = false
+                    detailsViewModel.clearPostAnalytics()
                 }
             )
         }

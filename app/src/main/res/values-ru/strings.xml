@@ -2927,6 +2927,15 @@
     <string name="ch_views_label">просмотров</string>
     <string name="ch_share">Поделиться</string>
 
+    <!-- Per-post analytics -->
+    <string name="post_analytics_title">Аналитика поста</string>
+    <string name="post_analytics_hint">Просмотры, реакции, охват</string>
+    <string name="post_views_label">Просмотры</string>
+    <string name="post_reactions_label">Реакции</string>
+    <string name="post_comments_label">Комментарии</string>
+    <string name="post_reach_label">Охват</string>
+    <string name="post_engagement_label">Вовлечённость</string>
+
     <!-- Saved posts / bookmarks -->
     <string name="save_post">Сохранить</string>
     <string name="unsave_post">Убрать из сохранённых</string>

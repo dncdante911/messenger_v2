@@ -1041,6 +1041,89 @@ function runGiveaway(ctx, io) {
     };
 }
 
+// ─── getPostAnalytics ─────────────────────────────────────────────────────────
+
+/**
+ * Returns per-post analytics: views, reactions count, comments count, reach estimate.
+ * Admin/owner only.
+ *
+ * POST /api/node/channel/post/analytics
+ *   Body: { channel_id, post_id }
+ */
+function getPostAnalytics(ctx) {
+    return async (req, res) => {
+        try {
+            const userId    = req.userId;
+            const channelId = parseInt(req.body.channel_id);
+            const postId    = parseInt(req.body.post_id);
+
+            if (!channelId || !postId)
+                return res.json({ api_status: 400, error_message: 'channel_id and post_id required' });
+
+            if (!await isChannelAdmin(ctx, channelId, userId))
+                return res.json({ api_status: 403, error_message: 'Not an admin' });
+
+            const post = await ctx.wo_posts.findOne({
+                where: { id: postId, page_id: channelId, active: 1 },
+                attributes: ['id', 'postText', 'videoViews', 'time', 'postFile'],
+                raw: true,
+            });
+            if (!post) return res.json({ api_status: 404, error_message: 'Post not found' });
+
+            // Reactions count
+            let reactionsCount = 0;
+            try {
+                const rRow = await ctx.wo_post_reactions?.findOne?.({
+                    where: { post_id: postId },
+                    attributes: [[Sequelize.fn('COUNT', Sequelize.col('id')), 'cnt']],
+                    raw: true,
+                });
+                reactionsCount = parseInt(rRow?.cnt || 0);
+            } catch (_) { /* wo_post_reactions may not exist */ }
+
+            // Comments count
+            let commentsCount = 0;
+            try {
+                const cRow = await ctx.wo_comments.findOne({
+                    where: { post_id: postId },
+                    attributes: [[Sequelize.fn('COUNT', Sequelize.col('id')), 'cnt']],
+                    raw: true,
+                });
+                commentsCount = parseInt(cRow?.cnt || 0);
+            } catch (_) { /* ignore */ }
+
+            // Subscribers count (reach denominator)
+            let subscribersCount = 0;
+            try {
+                subscribersCount = await ctx.wo_pages_likes.count({ where: { page_id: channelId, active: '1' } });
+            } catch (_) { /* ignore */ }
+
+            const views = post.videoViews || 0;
+            const engagementRate = views > 0
+                ? Math.round(((reactionsCount + commentsCount) / views) * 1000) / 10
+                : 0;
+            const reachPct = subscribersCount > 0
+                ? Math.round((views / subscribersCount) * 1000) / 10
+                : 0;
+
+            return res.json({
+                api_status:        200,
+                post_id:           postId,
+                views:             views,
+                reactions_count:   reactionsCount,
+                comments_count:    commentsCount,
+                subscribers_count: subscribersCount,
+                engagement_rate:   engagementRate,
+                reach_pct:         reachPct,
+                published_at:      post.time,
+            });
+        } catch (err) {
+            console.error('[Channels/getPostAnalytics]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    };
+}
+
 module.exports = {
     addAdmin,
     removeAdmin,
@@ -1049,6 +1132,7 @@ module.exports = {
     getActiveMembers,
     getTopComments,
     runGiveaway,
+    getPostAnalytics,
     generateQr,
     subscribeByQr,
     muteChannel,

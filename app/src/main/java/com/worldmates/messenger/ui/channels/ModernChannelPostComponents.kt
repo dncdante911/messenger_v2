@@ -1848,6 +1848,7 @@ fun PostOptionsBottomSheet(
     onDeleteClick: () -> Unit,
     onSaveClick: () -> Unit = {},
     isSaved: Boolean = false,
+    onAnalyticsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     ModalBottomSheet(
@@ -1895,6 +1896,20 @@ fun PostOptionsBottomSheet(
                     onDismiss()
                 }
             )
+
+            // Analytics (admin only — caller passes null to hide)
+            if (onAnalyticsClick != null) {
+                PostOptionItem(
+                    icon = Icons.Default.BarChart,
+                    text = stringResource(R.string.post_analytics_title),
+                    subtitle = stringResource(R.string.post_analytics_hint),
+                    iconTint = Color(0xFF2196F3),
+                    onClick = {
+                        onAnalyticsClick()
+                        onDismiss()
+                    }
+                )
+            }
 
             // Edit
             PostOptionItem(
