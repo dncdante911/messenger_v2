@@ -3141,4 +3141,86 @@
     <!-- Location bubble -->
     <string name="location_open_maps">Открыть карту</string>
 
+    <!-- ===== VIDEO FILTERS (фильтры камеры в реальном времени во время звонков, как в FaceTime) ===== -->
+    <!-- Заголовок панели и управление -->
+    <string name="video_filters_title">Видеофильтры</string>
+    <string name="video_filters_none">Без фильтра</string>
+    <string name="video_filters_beauty">Красота</string>
+    <string name="video_filters_warm">Тёплый</string>
+    <string name="video_filters_cool">Холодный</string>
+    <string name="video_filters_bw">Ч/Б</string>
+    <string name="video_filters_vintage">Винтаж</string>
+    <string name="video_filters_vivid">Яркий</string>
+    <string name="video_filters_sepia">Сепия</string>
+    <!-- Доступность / кнопки -->
+    <string name="video_filters_btn_label">Фильтры</string>
+    <string name="video_filters_applied">Фильтр применён: %s</string>
+    <string name="video_filters_error">Не удалось применить фильтр</string>
+    <!-- Ползунок интенсивности -->
+    <string name="video_filters_intensity">Интенсивность</string>
+
+    <!-- ===== VIRTUAL BACKGROUNDS (размытие и замена фона во время видеозвонков) ===== -->
+    <!-- Заголовок панели -->
+    <string name="virtual_bg_title">Фон</string>
+    <!-- Режимы -->
+    <string name="virtual_bg_none">Без фона</string>
+    <string name="virtual_bg_blur">Размытие</string>
+    <string name="virtual_bg_blur_light">Лёгкое размытие</string>
+    <string name="virtual_bg_blur_strong">Сильное размытие</string>
+    <string name="virtual_bg_color">Цвет</string>
+    <string name="virtual_bg_image">Изображение</string>
+    <!-- Кнопки и состояния -->
+    <string name="virtual_bg_btn_label">Фон</string>
+    <string name="virtual_bg_select_image">Выбрать из галереи</string>
+    <string name="virtual_bg_processing">Применяем фон…</string>
+    <string name="virtual_bg_applied">Фон применён</string>
+    <string name="virtual_bg_error">Не удалось применить фон</string>
+    <!-- Подсказка сегментации -->
+    <string name="virtual_bg_segmentation_hint">Лучше работает при хорошем освещении</string>
+    <!-- Цветовые пресеты -->
+    <string name="virtual_bg_color_office">Офис</string>
+    <string name="virtual_bg_color_nature">Природа</string>
+    <string name="virtual_bg_color_gradient">Градиент</string>
+
+    <!-- ===== CALL TRANSFER (передача активного звонка другому пользователю) ===== -->
+    <!-- Элементы управления -->
+    <string name="call_transfer_btn_label">Передать</string>
+    <string name="call_transfer_title">Передать звонок</string>
+    <string name="call_transfer_subtitle">Выберите контакт для передачи звонка</string>
+    <string name="call_transfer_search_hint">Поиск контактов…</string>
+    <string name="call_transfer_confirm_title">Передать %s?</string>
+    <string name="call_transfer_confirm_message">Звонок будет передан. Вы отключитесь.</string>
+    <string name="call_transfer_confirm_btn">Передать</string>
+    <string name="call_transfer_cancel">Отмена</string>
+    <!-- Состояния и обратная связь -->
+    <string name="call_transfer_initiating">Передача звонка…</string>
+    <string name="call_transfer_success">Звонок передан %s</string>
+    <string name="call_transfer_failed">Не удалось передать. Попробуйте ещё раз.</string>
+    <string name="call_transfer_rejected">%s отклонил передачу</string>
+    <string name="call_transfer_no_answer">%s не ответил</string>
+    <!-- Уведомление о входящей передаче -->
+    <string name="call_transfer_incoming_title">Переданный звонок</string>
+    <string name="call_transfer_incoming_from">Передал %s</string>
+
+    <!-- ===== CONFERENCE MODE OPTIMIZATION (настройки качества групповых звонков) ===== -->
+    <!-- Индикаторы качества в интерфейсе группового звонка -->
+    <string name="conf_quality_label">Связь</string>
+    <string name="conf_quality_excellent">Отличная</string>
+    <string name="conf_quality_good">Хорошая</string>
+    <string name="conf_quality_fair">Удовлетворительная</string>
+    <string name="conf_quality_poor">Плохая</string>
+    <!-- Режимы пропускной способности и компоновки -->
+    <string name="conf_bandwidth_mode_title">Режим трафика</string>
+    <string name="conf_bandwidth_auto">Авто</string>
+    <string name="conf_bandwidth_save">Экономия трафика</string>
+    <string name="conf_bandwidth_high">Высокое качество</string>
+    <!-- Определение спикера / сценическая компоновка -->
+    <string name="conf_dominant_speaker">Говорит</string>
+    <string name="conf_muted_video_hint">Видео приостановлено для экономии трафика</string>
+    <string name="conf_participants_off_screen">+%d</string>
+    <!-- Уведомления оптимизации -->
+    <string name="conf_bandwidth_reduced">Качество снижено для %d участников</string>
+    <string name="conf_quality_degraded">Качество снижено из-за состояния сети</string>
+    <string name="conf_quality_restored">Качество восстановлено</string>
+
 </resources>

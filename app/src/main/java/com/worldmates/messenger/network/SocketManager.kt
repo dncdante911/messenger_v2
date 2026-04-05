@@ -734,6 +734,12 @@ class SocketManager(
     }
 
     /**
+     * Повертає поточний Socket.IO об'єкт.
+     * Використовується [CallTransferManager] для підписки на події передачі дзвінка.
+     */
+    fun getSocket(): io.socket.client.Socket? = socket
+
+    /**
      * 🔌 Підписатись на Socket.IO подію
      * Використовується для WebRTC call events
      */

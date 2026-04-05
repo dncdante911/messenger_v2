@@ -215,6 +215,11 @@ dependencies {
     // ==================== HTML PARSING (для превью посилань) ====================
     implementation 'org.jsoup:jsoup:1.17.2'
 
+    // ==================== ML KIT (для Virtual Backgrounds — Selfie Segmentation) ====================
+    // On-device сегментація людини (без мережі) для заміни/розмиття фону під час відеодзвінків.
+    // STREAM_MODE оптимізований для обробки відеопотоку кадр за кадром.
+    implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta6'
+
     // ==================== FIREBASE / FCM ====================
     // FCM is used as a fallback wake-up channel when the Socket.IO
     // ForegroundService is killed by the OS (aggressive battery saving, etc.)

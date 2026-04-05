@@ -5,6 +5,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.util.Base64
 import android.util.Log
@@ -18,6 +19,9 @@ import com.worldmates.messenger.network.GroupWebRTCManager
 import com.worldmates.messenger.network.SocketManager
 import com.worldmates.messenger.network.WebRTCManager
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.webrtc.*
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -113,6 +117,36 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     val groupCallStarted = MutableLiveData<Boolean>()
     /** Групповой звонок завершён */
     val groupCallEnded = MutableLiveData<Boolean>()
+
+    // ───── Video Filters State ────────────────────────────────────────────────
+    // Поточний активний фільтр (для UI — підсвічення вибраного фільтру в панелі)
+    private val _activeVideoFilter = MutableStateFlow(VideoFilterType.NONE)
+    val activeVideoFilter: StateFlow<VideoFilterType> = _activeVideoFilter.asStateFlow()
+
+    // ───── Virtual Background State ───────────────────────────────────────────
+    // Поточний режим фону (для UI — відображення вибраного режиму)
+    private val _activeVirtualBg = MutableStateFlow(VirtualBgMode.NONE)
+    val activeVirtualBg: StateFlow<VirtualBgMode> = _activeVirtualBg.asStateFlow()
+
+    // ───── Call Transfer ──────────────────────────────────────────────────────
+    // Менеджер передачі дзвінка (lazy: ініціалізується після підключення сокету)
+    private var _callTransferManager: CallTransferManager? = null
+    val callTransferManager: CallTransferManager? get() = _callTransferManager
+
+    // Стан передачі (прокидаємо зі StateFlow менеджера)
+    val callTransferState: StateFlow<CallTransferState>
+        get() = _callTransferManager?.state
+            ?: MutableStateFlow(CallTransferState.IDLE).asStateFlow()
+
+    val callTransferTarget: StateFlow<TransferTarget?>
+        get() = _callTransferManager?.pendingTarget
+            ?: MutableStateFlow<TransferTarget?>(null).asStateFlow()
+
+    // ───── Conference Optimization State ─────────────────────────────────────
+    private val _conferenceBandwidthMode =
+        MutableStateFlow(GroupWebRTCManager.ConferenceBandwidthMode.AUTO)
+    val conferenceBandwidthMode: StateFlow<GroupWebRTCManager.ConferenceBandwidthMode> =
+        _conferenceBandwidthMode.asStateFlow()
 
     private var currentCallData: CallData? = null
     private var currentCallId: Int = 0
@@ -1810,8 +1844,126 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         return webRTCManager.getLocalMediaStream()
     }
 
+    // ─── Video Filter API ─────────────────────────────────────────────────────
+
+    /**
+     * Застосовує відеофільтр [filter] до поточного відеопотоку.
+     * Зміна відбувається миттєво — наступний кадр вже буде з фільтром.
+     */
+    fun applyVideoFilter(filter: VideoFilterType) {
+        webRTCManager.setVideoFilter(filter)
+        _activeVideoFilter.value = filter
+        Log.d("CallsViewModel", "🎨 Video filter: $filter")
+    }
+
+    /**
+     * Встановлює інтенсивність поточного фільтру (0.0 – 1.0).
+     */
+    fun setFilterIntensity(intensity: Float) {
+        webRTCManager.videoFilterManager.intensity = intensity.coerceIn(0f, 1f)
+    }
+
+    // ─── Virtual Background API ───────────────────────────────────────────────
+
+    /**
+     * Застосовує режим віртуального фону [mode].
+     * Для [VirtualBgMode.CUSTOM_IMAGE] спочатку завантажте зображення через [loadCustomBackground].
+     */
+    fun applyVirtualBackground(mode: VirtualBgMode) {
+        webRTCManager.setVirtualBackground(mode)
+        _activeVirtualBg.value = mode
+        Log.d("CallsViewModel", "🖼️ Virtual background: $mode")
+    }
+
+    /**
+     * Завантажує кастомне фонове зображення з [uri] і переключає режим на CUSTOM_IMAGE.
+     */
+    fun loadCustomBackground(uri: Uri) {
+        webRTCManager.virtualBgManager.loadCustomBackground(uri)
+        applyVirtualBackground(VirtualBgMode.CUSTOM_IMAGE)
+    }
+
+    // ─── Call Transfer API ────────────────────────────────────────────────────
+
+    /**
+     * Ініціалізує [CallTransferManager] після підключення Socket.IO.
+     * Викликати один раз при встановленні сокету.
+     */
+    fun initCallTransferManager() {
+        val socket = socketManager.getSocket() ?: return
+        if (_callTransferManager != null) return
+
+        val manager = CallTransferManager(socket)
+        manager.onTransferCompleted = {
+            // Ініціатор завершує свій дзвінок після успішної передачі
+            viewModelScope.launch(Dispatchers.Main) {
+                endCall()
+            }
+        }
+        manager.onTransferFailed = { reason ->
+            viewModelScope.launch(Dispatchers.Main) {
+                callError.value = "transfer_failed:$reason"
+            }
+        }
+        manager.registerListeners()
+        _callTransferManager = manager
+        Log.d("CallsViewModel", "✅ CallTransferManager initialized")
+    }
+
+    /**
+     * Ініціює передачу поточного дзвінка [target]-у.
+     */
+    fun initiateCallTransfer(target: TransferTarget) {
+        val roomName = currentCallData?.roomName ?: return
+        val callType = if (currentCallData?.isVideo == true) "video" else "audio"
+        val fromUserId = getUserId()
+        _callTransferManager?.initiateTransfer(target, roomName, callType, fromUserId)
+    }
+
+    /**
+     * Повертає ID поточного користувача (з SharedPreferences або дефолтне значення).
+     */
+    private fun getUserId(): Long {
+        return try {
+            val prefs = getApplication<Application>()
+                .getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+            prefs.getLong("user_id", 0L)
+        } catch (e: Exception) { 0L }
+    }
+
+    // ─── Conference Optimization API ──────────────────────────────────────────
+
+    /**
+     * Змінює режим пропускної здатності для групового дзвінка.
+     * Відразу застосовує нові bitrate до всіх PeerConnections.
+     */
+    fun setConferenceBandwidthMode(mode: GroupWebRTCManager.ConferenceBandwidthMode) {
+        groupWebRTCManager.bandwidthMode = mode
+        _conferenceBandwidthMode.value = mode
+        groupWebRTCManager.optimizeBitrateForParticipantCount()
+        Log.d("CallsViewModel", "📊 Conference bandwidth mode: $mode")
+    }
+
+    /**
+     * Повідомляє менеджер про зміну видимих учасників (прокрутка grid-у).
+     * [visibleUserIds] — множина userId, які зараз відображаються на екрані.
+     */
+    fun updateVisibleConferenceParticipants(visibleUserIds: Set<Long>) {
+        groupWebRTCManager.updateVisibleParticipants(visibleUserIds)
+    }
+
+    /**
+     * Встановлює домінуючого спікера (отримується від сервера або локально).
+     */
+    fun setDominantSpeaker(userId: Long?) {
+        groupWebRTCManager.setDominantSpeaker(userId)
+    }
+
     override fun onCleared() {
         super.onCleared()
+        _callTransferManager?.unregisterListeners()
+        _callTransferManager?.reset()
+        _callTransferManager = null
         webRTCManager.close()
         groupWebRTCManager.close()
         socketManager.disconnect()
