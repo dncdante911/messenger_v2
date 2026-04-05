@@ -215,6 +215,12 @@ async function buildStoryResponse(ctx, story, loggedUserId) {
     const postedTs = story.posted ? parseInt(story.posted) : Math.floor(Date.now() / 1000);
     const expireTs = story.expire ? parseInt(story.expire) : (postedTs + STORY_TTL);
 
+    // Парсим poll JSON; если невалидный — null
+    let pollData = null;
+    if (story.poll) {
+        try { pollData = JSON.parse(story.poll); } catch (e) {}
+    }
+
     return {
         id:            storyId,
         user_id:       storyUserId,
@@ -234,6 +240,7 @@ async function buildStoryResponse(ctx, story, loggedUserId) {
         comment_count: story.comment_count || 0,
         reaction:      reactionResult,
         music_url:     musicUrl,
+        poll:          pollData,
     };
 }
 
@@ -912,8 +919,8 @@ function updateStory(ctx) {
     return async (req, res) => {
         const loggedUserId = req.userId;
         const storyId     = parseInt(req.body.story_id);
-        const title       = (req.body.title       || '').trim().slice(0, 200) || null;
-        const description = (req.body.description || '').trim().slice(0, 500) || null;
+        const title       = (req.body.title       || '').trim().slice(0, 100) || null;
+        const description = (req.body.description || '').trim().slice(0, 300) || null;
 
         if (!storyId) {
             return res.json({ api_status: 400, error_message: 'story_id is required' });
