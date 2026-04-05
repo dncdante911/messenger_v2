@@ -2,6 +2,10 @@ package com.worldmates.messenger.network
 
 import android.content.Context
 import android.util.Log
+import com.worldmates.messenger.ui.calls.VideoFilterManager
+import com.worldmates.messenger.ui.calls.VideoFilterType
+import com.worldmates.messenger.ui.calls.VirtualBackgroundManager
+import com.worldmates.messenger.ui.calls.VirtualBgMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -55,6 +59,31 @@ class WebRTCManager(private val context: Context) {
 
     // 📹 Поточна якість відео (за замовчуванням HIGH - 720p)
     private var currentVideoQuality: VideoQuality = VideoQuality.HIGH
+
+    // ─── Відеофільтри та віртуальний фон ─────────────────────────────────────
+    /** Менеджер відеофільтрів (warm/cool/bw/beauty тощо). Публічний для доступу з ViewModel. */
+    val videoFilterManager = VideoFilterManager()
+
+    /** Менеджер віртуального фону (blur/color/image + ML Kit segmentation). */
+    val virtualBgManager = VirtualBackgroundManager(context)
+
+    /**
+     * Зміна активного відеофільтру під час дзвінка.
+     * Thread-safe: [VideoFilterManager.activeFilter] — @Volatile поле.
+     */
+    fun setVideoFilter(filter: VideoFilterType) {
+        videoFilterManager.activeFilter = filter
+        Log.d(TAG, "🎨 Video filter changed: $filter")
+    }
+
+    /**
+     * Зміна режиму віртуального фону під час дзвінка.
+     * Thread-safe: [VirtualBackgroundManager.activeMode] — @Volatile поле.
+     */
+    fun setVirtualBackground(mode: VirtualBgMode) {
+        virtualBgManager.activeMode = mode
+        Log.d(TAG, "🖼️ Virtual background changed: $mode")
+    }
 
     private var iceServers: List<PeerConnection.IceServer> = emptyList()
 
@@ -525,11 +554,19 @@ class WebRTCManager(private val context: Context) {
                 // ✅ Зберігаємо SurfaceTextureHelper для правильного cleanup
                 surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", EglBaseProvider.context)
 
+                // ─── Фільтри + Віртуальний фон: обгортаємо capturerObserver ─────────
+                // Pipeline: Camera → VirtualBgObserver → FilterObserver → VideoSource
+                // Обидва менеджери застосовуються лише якщо активний відповідний режим,
+                // тому при NONE overhead дорівнює нулю.
+                val baseObserver = videoSource?.capturerObserver!!
+                val withFilter = videoFilterManager.wrapObserver(baseObserver)
+                val withBgAndFilter = virtualBgManager.wrapObserver(withFilter)
+
                 // Запустити камеру
                 videoCapturer?.initialize(
                     surfaceTextureHelper,
                     context,
-                    videoSource?.capturerObserver
+                    withBgAndFilter
                 )
                 videoCapturer?.startCapture(currentVideoQuality.width, currentVideoQuality.height, currentVideoQuality.fps)
 
@@ -855,6 +892,11 @@ class WebRTCManager(private val context: Context) {
 
         stopBitrateAdaptation()
         adaptiveScope.cancel()
+
+        // ─── Очищення фільтрів та фону ──────────────────────────────────────
+        virtualBgManager.release()
+        videoFilterManager.activeFilter = VideoFilterType.NONE
+        virtualBgManager.activeMode = VirtualBgMode.NONE
     }
 
     /**
@@ -957,10 +999,14 @@ class WebRTCManager(private val context: Context) {
             surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", EglBaseProvider.context)
 
             // 4. Инициализировать и запустить камеру
+            // ─── Фільтри + Віртуальний фон: той самий pipeline що і в createLocalMediaStream ───
+            val baseObserver4 = videoSource?.capturerObserver!!
+            val withFilter4   = videoFilterManager.wrapObserver(baseObserver4)
+            val withBgAndFilter4 = virtualBgManager.wrapObserver(withFilter4)
             videoCapturer?.initialize(
                 surfaceTextureHelper,
                 context,
-                videoSource?.capturerObserver
+                withBgAndFilter4
             )
             videoCapturer?.startCapture(currentVideoQuality.width, currentVideoQuality.height, currentVideoQuality.fps)
 

@@ -1226,6 +1226,164 @@ async function registerCallsListeners(socket, io, ctx) {
         }
     });
 
+    // ── CALL TRANSFER ────────────────────────────────────────────────────────
+    //
+    // Протокол передачі дзвінка (Call Transfer):
+    //
+    //   1. Ініціатор (той, хто хоче передати):
+    //      → call:transfer_initiate { toUserId, fromUserId, roomName, callType }
+    //
+    //   2. Сервер доставляє цільовому:
+    //      ← call:transfer_incoming { fromUserId, fromUserName, fromUserAvatar, roomName, callType }
+    //
+    //   3a. Цільовий приймає:
+    //      → call:transfer_accept { roomName, fromUserId }
+    //      ← ініціатору: call:transfer_accepted { toUserId, toUserName }
+    //      ← ініціатор має завершити свій дзвінок і залишити кімнату
+    //
+    //   3b. Цільовий відхиляє:
+    //      → call:transfer_reject { roomName, fromUserId }
+    //      ← ініціатору: call:transfer_rejected { toUserId, reason: 'rejected' }
+    //
+    //   4. Таймаут (30 сек без відповіді):
+    //      Сервер: ← call:transfer_timeout { toUserId, toUserName }
+    //
+    // Після успішного transfer:
+    //   • Ініціатор залишає кімнату — це зафіксується як call:leave/call:end
+    //   • Цільовий приєднується до кімнати як новий учасник
+
+    const TRANSFER_TIMEOUT_MS = 30_000;
+
+    socket.on('call:transfer_initiate', async (data) => {
+        try {
+            const { toUserId, fromUserId, roomName, callType } = data;
+            if (!toUserId || !fromUserId || !roomName) {
+                console.warn('[TRANSFER] call:transfer_initiate: missing fields');
+                return;
+            }
+
+            console.log(`[TRANSFER] 📤 Transfer initiated: ${fromUserId} → ${toUserId} (room: ${roomName})`);
+
+            // Шукаємо ім'я та аватар ініціатора в підключених сокетах
+            // (опціонально — fallback до порожніх значень)
+            let fromUserName = '';
+            let fromUserAvatar = null;
+            try {
+                const fromSocket = [...(await io.in(String(fromUserId)).fetchSockets())][0];
+                if (fromSocket) {
+                    fromUserName = fromSocket.data?.userName || '';
+                    fromUserAvatar = fromSocket.data?.userAvatar || null;
+                }
+            } catch { /* non-fatal */ }
+
+            // Надсилаємо цільовому користувачу
+            io.to(String(toUserId)).emit('call:transfer_incoming', {
+                fromUserId,
+                fromUserName,
+                fromUserAvatar,
+                roomName,
+                callType: callType || 'video',
+            });
+
+            // Таймаут — якщо цільовий не відповів протягом TRANSFER_TIMEOUT_MS
+            const timeoutId = setTimeout(() => {
+                // Сповіщаємо ініціатора про таймаут
+                io.to(String(fromUserId)).emit('call:transfer_timeout', {
+                    toUserId,
+                    toUserName: '',
+                });
+                console.log(`[TRANSFER] ⏱️ Transfer timeout: ${fromUserId} → ${toUserId}`);
+            }, TRANSFER_TIMEOUT_MS);
+
+            // Зберігаємо timeoutId щоб скасувати при прийнятті/відхиленні
+            socket._transferTimeouts = socket._transferTimeouts || {};
+            socket._transferTimeouts[`${fromUserId}->${toUserId}`] = timeoutId;
+
+        } catch (e) {
+            console.error('[TRANSFER] call:transfer_initiate error:', e);
+        }
+    });
+
+    socket.on('call:transfer_accept', async (data) => {
+        try {
+            const { roomName, fromUserId } = data;
+            const toUserId = socket.data?.userId || socket.userId;
+            if (!roomName || !fromUserId) {
+                console.warn('[TRANSFER] call:transfer_accept: missing fields');
+                return;
+            }
+
+            console.log(`[TRANSFER] ✅ Transfer accepted: ${toUserId} accepted from ${fromUserId} (room: ${roomName})`);
+
+            // Отримуємо ім'я цільового (хто прийняв)
+            let toUserName = '';
+            try {
+                toUserName = socket.data?.userName || '';
+            } catch { /* non-fatal */ }
+
+            // Скасовуємо таймаут (якщо є на сокеті ініціатора)
+            // Таймаут зберігається на сокеті ініціатора — шукаємо його і скасовуємо
+            try {
+                const fromSockets = await io.in(String(fromUserId)).fetchSockets();
+                fromSockets.forEach(s => {
+                    const key = `${fromUserId}->${toUserId}`;
+                    if (s._transferTimeouts?.[key]) {
+                        clearTimeout(s._transferTimeouts[key]);
+                        delete s._transferTimeouts[key];
+                    }
+                });
+            } catch { /* non-fatal */ }
+
+            // Повідомляємо ініціатора що передача прийнята → він має завершити дзвінок
+            io.to(String(fromUserId)).emit('call:transfer_accepted', {
+                toUserId,
+                toUserName,
+                roomName,
+            });
+
+            // Цільовий сам підключиться до кімнати через group_call:join або call:join_room
+            // (логіка на стороні Android — після отримання accepted вона ініціює join)
+
+        } catch (e) {
+            console.error('[TRANSFER] call:transfer_accept error:', e);
+        }
+    });
+
+    socket.on('call:transfer_reject', async (data) => {
+        try {
+            const { roomName, fromUserId } = data;
+            const toUserId = socket.data?.userId || socket.userId;
+            if (!fromUserId) {
+                console.warn('[TRANSFER] call:transfer_reject: missing fromUserId');
+                return;
+            }
+
+            console.log(`[TRANSFER] ❌ Transfer rejected by ${toUserId} (from ${fromUserId})`);
+
+            // Скасовуємо таймаут ініціатора
+            try {
+                const fromSockets = await io.in(String(fromUserId)).fetchSockets();
+                fromSockets.forEach(s => {
+                    const key = `${fromUserId}->${toUserId}`;
+                    if (s._transferTimeouts?.[key]) {
+                        clearTimeout(s._transferTimeouts[key]);
+                        delete s._transferTimeouts[key];
+                    }
+                });
+            } catch { /* non-fatal */ }
+
+            // Повідомляємо ініціатора про відхилення
+            io.to(String(fromUserId)).emit('call:transfer_rejected', {
+                toUserId,
+                reason: 'rejected',
+                roomName,
+            });
+
+        } catch (e) {
+            console.error('[TRANSFER] call:transfer_reject error:', e);
+        }
+    });
+
     // ── stream:end ───────────────────────────────────────────────────────────
     // Host ends the stream; notify all viewers.
     socket.on('stream:end', (data) => {

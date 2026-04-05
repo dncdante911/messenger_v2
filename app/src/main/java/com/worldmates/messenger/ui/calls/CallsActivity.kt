@@ -7,14 +7,21 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +54,7 @@ import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.ui.settings.getSavedCallFrameStyle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import org.json.JSONObject
 import org.webrtc.EglBase
 import org.webrtc.MediaStream
@@ -621,6 +629,26 @@ fun ActiveCallScreen(
     var isRecording by remember { mutableStateOf(false) }
     var noiseCancellation by remember { mutableStateOf(true) }
 
+    // ─── Відеофільтри ────────────────────────────────────────────────────────
+    var showFiltersPanel by remember { mutableStateOf(false) }
+    val activeFilter by viewModel.activeVideoFilter.collectAsState()
+    var filterIntensity by remember { mutableStateOf(1.0f) }
+
+    // ─── Віртуальний фон ─────────────────────────────────────────────────────
+    var showBgPanel by remember { mutableStateOf(false) }
+    val activeVirtualBg by viewModel.activeVirtualBg.collectAsState()
+
+    // ─── Передача дзвінка ─────────────────────────────────────────────────────
+    var showTransferConfirm by remember { mutableStateOf(false) }
+    var transferTarget by remember { mutableStateOf<TransferTarget?>(null) }
+    val transferState by viewModel.callTransferState.collectAsState()
+    val transferTargetState by viewModel.callTransferTarget.collectAsState()
+
+    // Ініціалізація CallTransferManager при першому відображенні екрану
+    LaunchedEffect(Unit) {
+        viewModel.initCallTransferManager()
+    }
+
     // 📹 Поточна якість відео
     var currentVideoQuality by remember {
         mutableStateOf(viewModel.getVideoQuality())
@@ -758,43 +786,149 @@ fun ActiveCallScreen(
             }
         }
 
-        // Enhanced control bar with glassmorphism
-        EnhancedCallControlBar(
-            audioEnabled = audioEnabled,
-            videoEnabled = videoEnabled,
-            speakerEnabled = speakerEnabled,
-            isScreenSharing = isScreenSharing,
-            isRecording = isRecording,
-            noiseCancellation = noiseCancellation,
-            onToggleAudio = {
-                audioEnabled = !audioEnabled
-                viewModel.toggleAudio(audioEnabled)
-            },
-            onToggleVideo = {
-                videoEnabled = !videoEnabled
-                viewModel.toggleVideo(videoEnabled)
-            },
-            onToggleSpeaker = {
-                speakerEnabled = !speakerEnabled
-                viewModel.toggleSpeaker(speakerEnabled)
-            },
-            onSwitchCamera = { viewModel.switchCamera() },
-            onToggleScreenShare = {
-                val act = context as? CallsActivity
-                if (act != null) {
-                    act.screenSharingIntegration.toggle()
-                    isScreenSharing = act.screenSharingIntegration.isSharing
-                } else {
-                    isScreenSharing = !isScreenSharing
+        // ─── Банер статусу передачі дзвінка ────────────────────────────────
+        if (transferState != CallTransferState.IDLE) {
+            CallTransferStatusBanner(
+                state = transferState,
+                targetName = transferTargetState?.userName,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 72.dp)
+            )
+        }
+
+        // ─── Панелі (виїжджають знизу над control bar) ─────────────────────
+        Column(modifier = Modifier.align(Alignment.BottomCenter)) {
+            // Панель відеофільтрів
+            AnimatedVisibility(
+                visible = showFiltersPanel,
+                enter = expandVertically(expandFrom = Alignment.Bottom),
+                exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
+            ) {
+                VideoFiltersPanel(
+                    activeFilter = activeFilter,
+                    intensity = filterIntensity,
+                    onFilterSelected = { filter ->
+                        viewModel.applyVideoFilter(filter)
+                    },
+                    onIntensityChanged = { intensity ->
+                        filterIntensity = intensity
+                        viewModel.setFilterIntensity(intensity)
+                    },
+                    onDismiss = { showFiltersPanel = false }
+                )
+            }
+
+            // Панель віртуального фону
+            AnimatedVisibility(
+                visible = showBgPanel,
+                enter = expandVertically(expandFrom = Alignment.Bottom),
+                exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
+            ) {
+                VirtualBackgroundPanel(
+                    activeMode = activeVirtualBg,
+                    onModeSelected = { mode ->
+                        viewModel.applyVirtualBackground(mode)
+                    },
+                    onCustomImageSelected = { uri ->
+                        viewModel.loadCustomBackground(uri)
+                    },
+                    onDismiss = { showBgPanel = false }
+                )
+            }
+
+            // Рядок кнопок фільтрів/фону/передачі (над основним control bar)
+            if (callType == "video" && !showFiltersPanel && !showBgPanel) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.3f))
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Кнопка фільтрів
+                    VideoFiltersButton(
+                        isActive = activeFilter != VideoFilterType.NONE,
+                        onClick = {
+                            showFiltersPanel = !showFiltersPanel
+                            showBgPanel = false
+                        }
+                    )
+                    // Кнопка фону
+                    VirtualBackgroundButton(
+                        isActive = activeVirtualBg != VirtualBgMode.NONE,
+                        onClick = {
+                            showBgPanel = !showBgPanel
+                            showFiltersPanel = false
+                        }
+                    )
+                    // Кнопка передачі дзвінка
+                    CallTransferButton(
+                        isTransferring = transferState != CallTransferState.IDLE,
+                        onClick = {
+                            // TODO: відкрити діалог вибору контакту для передачі
+                            // Для MVP показуємо підтвердження передачі першому контакту
+                            // У повній реалізації — показати пошук контактів
+                        }
+                    )
                 }
-            },
-            onToggleRecording = { isRecording = !isRecording },
-            onToggleNoiseCancellation = { noiseCancellation = !noiseCancellation },
-            onEndCall = { viewModel.endCall() },
-            onPiP = { enterPiPMode(context) },
-            onShowReactions = { showReactions = !showReactions },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+            }
+
+            // Основний control bar
+            EnhancedCallControlBar(
+                audioEnabled = audioEnabled,
+                videoEnabled = videoEnabled,
+                speakerEnabled = speakerEnabled,
+                isScreenSharing = isScreenSharing,
+                isRecording = isRecording,
+                noiseCancellation = noiseCancellation,
+                onToggleAudio = {
+                    audioEnabled = !audioEnabled
+                    viewModel.toggleAudio(audioEnabled)
+                },
+                onToggleVideo = {
+                    videoEnabled = !videoEnabled
+                    viewModel.toggleVideo(videoEnabled)
+                },
+                onToggleSpeaker = {
+                    speakerEnabled = !speakerEnabled
+                    viewModel.toggleSpeaker(speakerEnabled)
+                },
+                onSwitchCamera = { viewModel.switchCamera() },
+                onToggleScreenShare = {
+                    val act = context as? CallsActivity
+                    if (act != null) {
+                        act.screenSharingIntegration.toggle()
+                        isScreenSharing = act.screenSharingIntegration.isSharing
+                    } else {
+                        isScreenSharing = !isScreenSharing
+                    }
+                },
+                onToggleRecording = { isRecording = !isRecording },
+                onToggleNoiseCancellation = { noiseCancellation = !noiseCancellation },
+                onEndCall = { viewModel.endCall() },
+                onPiP = { enterPiPMode(context) },
+                onShowReactions = { showReactions = !showReactions },
+                modifier = Modifier
+            )
+        }
+
+        // Діалог підтвердження передачі дзвінка
+        if (showTransferConfirm && transferTarget != null) {
+            CallTransferConfirmDialog(
+                target = transferTarget!!,
+                onConfirm = {
+                    viewModel.initiateCallTransfer(transferTarget!!)
+                    showTransferConfirm = false
+                    transferTarget = null
+                },
+                onDismiss = {
+                    showTransferConfirm = false
+                    transferTarget = null
+                }
+            )
+        }
 
         // Floating reaction animation
         val floatingReaction by viewModel.incomingReaction.observeAsState()
@@ -2225,4 +2359,585 @@ private fun GroupCallInviteSheet(
             }
         }
     )
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── VIDEO FILTERS PANEL ──────────────────────────────────────────────────
+// Панель відеофільтрів для відеодзвінків (фільтри типу FaceTime)
+// Відображається знизу над панеллю керування при натисканні кнопки "Filters"
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Кнопка-іконка для відкриття/закриття панелі відеофільтрів.
+ * Розміщується серед інших кнопок управління дзвінком.
+ */
+@Composable
+fun VideoFiltersButton(
+    isActive: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isActive) Color(0xFF7C4DFF).copy(alpha = 0.9f)
+                    else Color.White.copy(alpha = 0.15f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoFixHigh,
+                contentDescription = stringResource(R.string.video_filters_btn_label),
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Text(
+            text = stringResource(R.string.video_filters_btn_label),
+            color = Color.White,
+            fontSize = 11.sp
+        )
+    }
+}
+
+/**
+ * Панель вибору відеофільтрів.
+ * Виїжджає знизу (AnimatedVisibility) і відображає горизонтальний список фільтрів.
+ *
+ * @param activeFilter Поточний активний фільтр (підсвічується)
+ * @param intensity    Поточна інтенсивність (0.0–1.0)
+ * @param onFilterSelected Callback при виборі фільтру
+ * @param onIntensityChanged Callback при зміні інтенсивності
+ * @param onDismiss    Callback закриття панелі
+ */
+@Composable
+fun VideoFiltersPanel(
+    activeFilter: VideoFilterType,
+    intensity: Float,
+    onFilterSelected: (VideoFilterType) -> Unit,
+    onIntensityChanged: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // Локалізовані назви фільтрів
+    val filterLabels = mapOf(
+        VideoFilterType.NONE    to stringResource(R.string.video_filters_none),
+        VideoFilterType.BEAUTY  to stringResource(R.string.video_filters_beauty),
+        VideoFilterType.WARM    to stringResource(R.string.video_filters_warm),
+        VideoFilterType.COOL    to stringResource(R.string.video_filters_cool),
+        VideoFilterType.BW      to stringResource(R.string.video_filters_bw),
+        VideoFilterType.VINTAGE to stringResource(R.string.video_filters_vintage),
+        VideoFilterType.VIVID   to stringResource(R.string.video_filters_vivid),
+        VideoFilterType.SEPIA   to stringResource(R.string.video_filters_sepia),
+    )
+
+    // Кольорові превью для кожного фільтру (для UX)
+    val filterColors = mapOf(
+        VideoFilterType.NONE    to listOf(Color(0xFF424242), Color(0xFF616161)),
+        VideoFilterType.BEAUTY  to listOf(Color(0xFFE91E63), Color(0xFFF48FB1)),
+        VideoFilterType.WARM    to listOf(Color(0xFFFF6F00), Color(0xFFFFCA28)),
+        VideoFilterType.COOL    to listOf(Color(0xFF1565C0), Color(0xFF42A5F5)),
+        VideoFilterType.BW      to listOf(Color(0xFF212121), Color(0xFF9E9E9E)),
+        VideoFilterType.VINTAGE to listOf(Color(0xFF795548), Color(0xFFBCAAA4)),
+        VideoFilterType.VIVID   to listOf(Color(0xFF6A1B9A), Color(0xFFAB47BC)),
+        VideoFilterType.SEPIA   to listOf(Color(0xFF4E342E), Color(0xFFA1887F)),
+    )
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF1A1A2E).copy(alpha = 0.95f),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Заголовок + кнопка закриття
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.video_filters_title),
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Горизонтальна смуга фільтрів
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp)
+            ) {
+                items(VideoFilterType.values().toList()) { filter ->
+                    val isSelected = filter == activeFilter
+                    val colors = filterColors[filter] ?: listOf(Color.Gray, Color.DarkGray)
+
+                    Column(
+                        modifier = Modifier
+                            .clickable { onFilterSelected(filter) }
+                            .padding(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Brush.linearGradient(colors))
+                                .then(
+                                    if (isSelected) Modifier.border(
+                                        2.dp, Color.White, RoundedCornerShape(12.dp)
+                                    ) else Modifier
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = filterLabels[filter] ?: filter.name,
+                            color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+
+            // Повзунок інтенсивності (показується тільки коли фільтр активний)
+            if (activeFilter != VideoFilterType.NONE) {
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.video_filters_intensity),
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 13.sp,
+                        modifier = Modifier.width(90.dp)
+                    )
+                    Slider(
+                        value = intensity,
+                        onValueChange = onIntensityChanged,
+                        valueRange = 0.1f..1f,
+                        modifier = Modifier.weight(1f),
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF7C4DFF),
+                            activeTrackColor = Color(0xFF7C4DFF)
+                        )
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── VIRTUAL BACKGROUND PANEL ─────────────────────────────────────────────
+// Панель вибору віртуального фону (розмиття + кольори + кастомне зображення)
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Кнопка-іконка для відкриття/закриття панелі фону.
+ */
+@Composable
+fun VirtualBackgroundButton(
+    isActive: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isActive) Color(0xFF00BCD4).copy(alpha = 0.9f)
+                    else Color.White.copy(alpha = 0.15f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Wallpaper,
+                contentDescription = stringResource(R.string.virtual_bg_btn_label),
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Text(
+            text = stringResource(R.string.virtual_bg_btn_label),
+            color = Color.White,
+            fontSize = 11.sp
+        )
+    }
+}
+
+/**
+ * Панель вибору віртуального фону.
+ *
+ * Відображає режими: None, Blur Light, Blur Strong, Office, Nature, Gradient, Custom Image.
+ * Кастомне зображення вибирається через system photo picker.
+ */
+@Composable
+fun VirtualBackgroundPanel(
+    activeMode: VirtualBgMode,
+    onModeSelected: (VirtualBgMode) -> Unit,
+    onCustomImageSelected: (android.net.Uri) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    // Локалізовані назви режимів
+    val modeLabels = mapOf(
+        VirtualBgMode.NONE          to stringResource(R.string.virtual_bg_none),
+        VirtualBgMode.BLUR_LIGHT    to stringResource(R.string.virtual_bg_blur_light),
+        VirtualBgMode.BLUR_STRONG   to stringResource(R.string.virtual_bg_blur_strong),
+        VirtualBgMode.COLOR_OFFICE  to stringResource(R.string.virtual_bg_color_office),
+        VirtualBgMode.COLOR_NATURE  to stringResource(R.string.virtual_bg_color_nature),
+        VirtualBgMode.COLOR_GRADIENT to stringResource(R.string.virtual_bg_color_gradient),
+        VirtualBgMode.CUSTOM_IMAGE  to stringResource(R.string.virtual_bg_image),
+    )
+
+    // Кольорові превью для кожного режиму
+    val modeColors = mapOf(
+        VirtualBgMode.NONE          to listOf(Color(0xFF424242), Color(0xFF616161)),
+        VirtualBgMode.BLUR_LIGHT    to listOf(Color(0xFF1565C0).copy(alpha = 0.5f), Color(0xFF42A5F5).copy(alpha = 0.5f)),
+        VirtualBgMode.BLUR_STRONG   to listOf(Color(0xFF0D47A1).copy(alpha = 0.3f), Color(0xFF1976D2).copy(alpha = 0.3f)),
+        VirtualBgMode.COLOR_OFFICE  to listOf(Color(0xFFF5F0E8), Color(0xFFDDD5C4)),
+        VirtualBgMode.COLOR_NATURE  to listOf(Color(0xFF2D5A27), Color(0xFF4CAF50)),
+        VirtualBgMode.COLOR_GRADIENT to listOf(Color(0xFF1A237E), Color(0xFF6A1B9A)),
+        VirtualBgMode.CUSTOM_IMAGE  to listOf(Color(0xFF263238), Color(0xFF546E7A)),
+    )
+
+    // Launcher для вибору зображення з галереї
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { onCustomImageSelected(it) }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF1A1A2E).copy(alpha = 0.95f),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Заголовок + закрити
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.virtual_bg_title),
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
+                }
+            }
+
+            // Підказка про освітлення
+            Text(
+                text = stringResource(R.string.virtual_bg_segmentation_hint),
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 12.sp
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Горизонтальна смуга режимів
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp)
+            ) {
+                items(VirtualBgMode.values().toList()) { mode ->
+                    val isSelected = mode == activeMode
+                    val colors = modeColors[mode] ?: listOf(Color.Gray, Color.DarkGray)
+
+                    Column(
+                        modifier = Modifier
+                            .clickable {
+                                if (mode == VirtualBgMode.CUSTOM_IMAGE) {
+                                    // Відкрити галерею
+                                    imagePicker.launch("image/*")
+                                    onModeSelected(mode)
+                                } else {
+                                    onModeSelected(mode)
+                                }
+                            }
+                            .padding(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Brush.linearGradient(colors))
+                                .then(
+                                    if (isSelected) Modifier.border(
+                                        2.dp, Color(0xFF00BCD4), RoundedCornerShape(12.dp)
+                                    ) else Modifier
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            when (mode) {
+                                VirtualBgMode.NONE -> Icon(
+                                    Icons.Default.Block,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                VirtualBgMode.BLUR_LIGHT, VirtualBgMode.BLUR_STRONG -> Icon(
+                                    Icons.Default.BlurOn,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                VirtualBgMode.CUSTOM_IMAGE -> Icon(
+                                    Icons.Default.AddPhotoAlternate,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                else -> {
+                                    if (isSelected) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Text(
+                            text = modeLabels[mode] ?: mode.name,
+                            color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.width(72.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── CALL TRANSFER PANEL ──────────────────────────────────────────────────
+// Панель передачі активного дзвінка іншому користувачу
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Кнопка-іконка для відкриття панелі передачі дзвінка.
+ */
+@Composable
+fun CallTransferButton(
+    isTransferring: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isTransferring) Color(0xFFFF9800).copy(alpha = 0.9f)
+                    else Color.White.copy(alpha = 0.15f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.PhoneForwarded,
+                contentDescription = stringResource(R.string.call_transfer_btn_label),
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Text(
+            text = stringResource(R.string.call_transfer_btn_label),
+            color = Color.White,
+            fontSize = 11.sp
+        )
+    }
+}
+
+/**
+ * Діалог підтвердження передачі дзвінка.
+ * Відображається після вибору контакту перед реальною відправкою запиту.
+ *
+ * @param target  Ціль передачі (ім'я та аватар)
+ * @param onConfirm  Callback при підтвердженні
+ * @param onDismiss  Callback при скасуванні
+ */
+@Composable
+fun CallTransferConfirmDialog(
+    target: TransferTarget,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.call_transfer_confirm_title, target.userName),
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column {
+                Text(stringResource(R.string.call_transfer_confirm_message))
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+            ) {
+                Icon(Icons.Default.PhoneForwarded, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.call_transfer_confirm_btn), color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.call_transfer_cancel))
+            }
+        },
+        containerColor = Color(0xFF1A1A2E)
+    )
+}
+
+/**
+ * Індикатор статусу передачі дзвінка (відображається поверх активного дзвінку).
+ * Показує поточний стан: INITIATING, PENDING, COMPLETED, FAILED.
+ */
+@Composable
+fun CallTransferStatusBanner(
+    state: CallTransferState,
+    targetName: String?,
+    modifier: Modifier = Modifier
+) {
+    val (text, color) = when (state) {
+        CallTransferState.INITIATING, CallTransferState.PENDING ->
+            (stringResource(R.string.call_transfer_initiating)) to Color(0xFFFF9800)
+        CallTransferState.COMPLETED ->
+            (stringResource(R.string.call_transfer_success, targetName ?: "")) to Color(0xFF4CAF50)
+        CallTransferState.FAILED ->
+            (stringResource(R.string.call_transfer_failed)) to Color(0xFFF44336)
+        CallTransferState.IDLE -> return // нічого не показуємо
+    }
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = color.copy(alpha = 0.15f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (state == CallTransferState.INITIATING || state == CallTransferState.PENDING) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = color,
+                    strokeWidth = 2.dp
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(text = text, color = color, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── CONFERENCE BANDWIDTH MODE SELECTOR ──────────────────────────────────
+// Компонент вибору режиму пропускної здатності для групових дзвінків
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Рядок чіпів для вибору режиму пропускної здатності конференції.
+ * Розміщується у шторці налаштувань групового дзвінка.
+ *
+ * @param currentMode    Поточний вибраний режим
+ * @param onModeSelected Callback при виборі режиму
+ */
+@Composable
+fun ConferenceBandwidthModeSelector(
+    currentMode: com.worldmates.messenger.network.GroupWebRTCManager.ConferenceBandwidthMode,
+    onModeSelected: (com.worldmates.messenger.network.GroupWebRTCManager.ConferenceBandwidthMode) -> Unit
+) {
+    val modes = listOf(
+        com.worldmates.messenger.network.GroupWebRTCManager.ConferenceBandwidthMode.SAVE to stringResource(R.string.conf_bandwidth_save),
+        com.worldmates.messenger.network.GroupWebRTCManager.ConferenceBandwidthMode.AUTO to stringResource(R.string.conf_bandwidth_auto),
+        com.worldmates.messenger.network.GroupWebRTCManager.ConferenceBandwidthMode.HIGH to stringResource(R.string.conf_bandwidth_high),
+    )
+
+    Column {
+        Text(
+            text = stringResource(R.string.conf_bandwidth_mode_title),
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 13.sp
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            modes.forEach { (mode, label) ->
+                val isSelected = mode == currentMode
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onModeSelected(mode) },
+                    label = { Text(label, fontSize = 12.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF7C4DFF),
+                        selectedLabelColor = Color.White,
+                        containerColor = Color.White.copy(alpha = 0.1f),
+                        labelColor = Color.White.copy(alpha = 0.7f)
+                    )
+                )
+            }
+        }
+    }
 }

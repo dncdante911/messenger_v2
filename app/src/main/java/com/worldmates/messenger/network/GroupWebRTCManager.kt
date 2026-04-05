@@ -2,6 +2,14 @@ package com.worldmates.messenger.network
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.webrtc.*
 import org.webrtc.audio.JavaAudioDeviceModule
 
@@ -536,9 +544,190 @@ class GroupWebRTCManager(private val context: Context) {
 
     fun getConnectedPeerIds(): List<Long> = peerConnections.keys.toList()
 
+    // ─── Conference Mode Optimization ────────────────────────────────────────
+    //
+    // Стратегія оптимізації для групових дзвінків:
+    // • При збільшенні кількості учасників → знижуємо bitrate кожного відео,
+    //   щоб загальна пропускна здатність залишалась прийнятною.
+    // • Домінуючий спікер → його відео отримує пріоритет (вищий bitrate),
+    //   всі інші знижуються.
+    // • Учасники за межами видимого вікна (off-screen) → їх відеотреки
+    //   тимчасово вимикаються (setEnabled(false)) для економії CPU/bandwidth.
+    // • Режими: AUTO (за замовчуванням), SAVE (явна економія), HIGH (преміум).
+
+    /** Режими пропускної здатності конференції (керується з UI). */
+    enum class ConferenceBandwidthMode {
+        AUTO,   // Автоматична адаптація за кількістю учасників
+        SAVE,   // Примусово нижча якість (мобільний інтернет / слабкий пристрій)
+        HIGH,   // Примусово висока якість (Wi-Fi / Premium)
+    }
+
+    @Volatile var bandwidthMode: ConferenceBandwidthMode = ConferenceBandwidthMode.AUTO
+
+    /** ID домінуючого спікера (найактивніший за аудіо). Null = немає пріоритету. */
+    @Volatile var dominantSpeakerId: Long? = null
+
+    private val optimizationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var optimizationJob: Job? = null
+
+    /** Множина userId, відео яких зараз вимкнено через off-screen оптимізацію. */
+    private val pausedVideoUsers = mutableSetOf<Long>()
+
+    /**
+     * Запускає фоновий моніторинг та оптимізацію якості для конференції.
+     * Викликати після входу до кімнати.
+     */
+    fun startConferenceOptimization() {
+        optimizationJob?.cancel()
+        optimizationJob = optimizationScope.launch {
+            while (isActive) {
+                delay(8_000L) // перевіряємо кожні 8 секунд
+                optimizeBitrateForParticipantCount()
+            }
+        }
+        Log.d(TAG, "🚀 Conference optimization started")
+    }
+
+    /** Зупиняє фоновий моніторинг. Викликати при виході з конференції. */
+    fun stopConferenceOptimization() {
+        optimizationJob?.cancel()
+        optimizationJob = null
+        Log.d(TAG, "⏹️ Conference optimization stopped")
+    }
+
+    /**
+     * Адаптує bitrate локального відео залежно від:
+     * • [bandwidthMode] — ручний режим
+     * • кількості поточних PeerConnections
+     * • наявності [dominantSpeakerId]
+     *
+     * Таблиця bitrate (kbps, для LOCAL відео що ми надсилаємо):
+     *   1 peer  → 800 kbps
+     *   2 peers → 600 kbps
+     *   3–4     → 400 kbps
+     *   5–8     → 250 kbps
+     *   9–14    → 150 kbps
+     *   15+     → 100 kbps  (SAVE mode навіть менше)
+     */
+    fun optimizeBitrateForParticipantCount() {
+        val peerCount = peerConnections.size
+        val targetKbps = when (bandwidthMode) {
+            ConferenceBandwidthMode.HIGH -> when {
+                peerCount <= 1  -> 1200
+                peerCount <= 4  -> 800
+                peerCount <= 8  -> 500
+                else            -> 300
+            }
+            ConferenceBandwidthMode.SAVE -> when {
+                peerCount <= 4  -> 200
+                peerCount <= 8  -> 100
+                else            -> 80
+            }
+            ConferenceBandwidthMode.AUTO -> when {
+                peerCount <= 1  -> 800
+                peerCount <= 2  -> 600
+                peerCount <= 4  -> 400
+                peerCount <= 8  -> 250
+                peerCount <= 14 -> 150
+                else            -> 100
+            }
+        }
+
+        // Застосовуємо bitrate до кожного RtpSender локального відеотреку
+        applyBitrateToAllSenders(targetKbps)
+
+        Log.d(TAG, "📊 Conference bitrate adapted: ${peerCount} peers → ${targetKbps} kbps (mode: $bandwidthMode)")
+    }
+
+    /**
+     * Встановлює домінуючого спікера.
+     * Його відео отримує повний bitrate; всі інші знижуються на 30%.
+     */
+    fun setDominantSpeaker(userId: Long?) {
+        dominantSpeakerId = userId
+        if (userId == null) return
+
+        // Пріоритизуємо відео домінуючого спікера через SetParameters
+        peerConnections.forEach { (peerId, pc) ->
+            val boost = (peerId == userId)
+            pc.senders.forEach { sender ->
+                if (sender.track()?.kind() == MediaStreamTrack.VIDEO_TRACK_KIND) {
+                    applyBitrateToSender(sender, if (boost) 800 else 200)
+                }
+            }
+        }
+        Log.d(TAG, "🎤 Dominant speaker set: $userId")
+    }
+
+    /**
+     * Вимикає відеотрек учасника [userId] (off-screen оптимізація).
+     * Зберігає userId у [pausedVideoUsers] для подальшого відновлення.
+     */
+    fun pauseVideoForPeer(userId: Long) {
+        val stream = remoteStreams[userId] ?: return
+        stream.videoTracks.firstOrNull()?.setEnabled(false)
+        pausedVideoUsers.add(userId)
+        Log.d(TAG, "⏸️ Video paused for off-screen peer $userId")
+    }
+
+    /**
+     * Вмикає відеотрек учасника [userId] (коли він з'являється на екрані).
+     */
+    fun resumeVideoForPeer(userId: Long) {
+        val stream = remoteStreams[userId] ?: return
+        stream.videoTracks.firstOrNull()?.setEnabled(true)
+        pausedVideoUsers.remove(userId)
+        Log.d(TAG, "▶️ Video resumed for peer $userId")
+    }
+
+    /**
+     * Оновлює список видимих учасників.
+     * Учасники, що не входять до [visibleUserIds], отримують off-screen оптимізацію.
+     * Обмеження: вимикаємо відео лише коли є 5+ учасників (менше — нема сенсу).
+     */
+    fun updateVisibleParticipants(visibleUserIds: Set<Long>) {
+        if (peerConnections.size < 5) return // off-screen оптимізація тільки для великих кімнат
+
+        val allPeers = peerConnections.keys.toSet()
+        val shouldPause = allPeers - visibleUserIds
+        val shouldResume = visibleUserIds.intersect(pausedVideoUsers)
+
+        shouldPause.forEach { pauseVideoForPeer(it) }
+        shouldResume.forEach { resumeVideoForPeer(it) }
+    }
+
+    // ─── Bitrate helpers ─────────────────────────────────────────────────────
+
+    private fun applyBitrateToAllSenders(targetKbps: Int) {
+        peerConnections.values.forEach { pc ->
+            pc.senders.forEach { sender ->
+                if (sender.track()?.kind() == MediaStreamTrack.VIDEO_TRACK_KIND) {
+                    applyBitrateToSender(sender, targetKbps)
+                }
+            }
+        }
+    }
+
+    private fun applyBitrateToSender(sender: RtpSender, targetKbps: Int) {
+        try {
+            val params = sender.parameters
+            if (params.encodings.isEmpty()) return
+            params.encodings.forEach { encoding ->
+                encoding.maxBitrateBps = targetKbps * 1000
+                encoding.minBitrateBps = (targetKbps * 0.3 * 1000).toInt()
+            }
+            sender.parameters = params
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to apply bitrate to sender: ${e.message}")
+        }
+    }
+
     // ─── Очистка ──────────────────────────────────────────────────────────────
 
     fun close() {
+        stopConferenceOptimization()
+        optimizationScope.cancel()
+        pausedVideoUsers.clear()
         Log.d(TAG, "🧹 Closing GroupWebRTCManager, peers: ${peerConnections.size}")
 
         // Закрыть все PeerConnections
