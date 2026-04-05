@@ -217,6 +217,9 @@ fun ChannelDetailsScreen(
         }
     )
 
+    // Saved messages state
+    val savedMessages by com.worldmates.messenger.data.SavedMessagesManager.savedMessages.collectAsState()
+
     // URI для вибраного зображення аватара
     var selectedAvatarUri by remember { mutableStateOf<android.net.Uri?>(null) }
 
@@ -619,6 +622,28 @@ fun ChannelDetailsScreen(
                                     selectedPostForOptions = post
                                     showPostOptions = true
                                 }
+                                val isPostSaved = savedMessages.any {
+                                    it.messageId == post.id && it.chatType == "channel"
+                                }
+                                val onSaveClickHandler: () -> Unit = {
+                                    if (isPostSaved) {
+                                        com.worldmates.messenger.data.SavedMessagesManager.removeSaved(post.id, "channel")
+                                    } else {
+                                        com.worldmates.messenger.data.SavedMessagesManager.saveMessage(
+                                            com.worldmates.messenger.data.SavedMessageItem(
+                                                messageId   = post.id,
+                                                chatType    = "channel",
+                                                chatId      = channelId,
+                                                chatName    = channel?.name ?: "",
+                                                senderName  = channel?.name ?: "",
+                                                text        = post.text,
+                                                mediaUrl    = post.media?.firstOrNull()?.url,
+                                                mediaType   = post.media?.firstOrNull()?.type,
+                                                originalTime = post.time
+                                            )
+                                        )
+                                    }
+                                }
                                 val onMediaClickHandler: (Int) -> Unit = { index ->
                                     val allMedia = post.media ?: emptyList()
                                     val clicked = allMedia.getOrNull(index)
@@ -667,6 +692,8 @@ fun ChannelDetailsScreen(
                                             onReactionClick = onReactionClickHandler,
                                             onCommentsClick = onCommentsClickHandler,
                                             onShareClick = onShareClickHandler,
+                                            onSaveClick = onSaveClickHandler,
+                                            isSaved = isPostSaved,
                                             onMoreClick = onMoreClickHandler,
                                             onMediaClick = onMediaClickHandler,
                                             onPollVote = onPollVoteHandler,
@@ -963,6 +990,31 @@ fun ChannelDetailsScreen(
                                 Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
                             }
                         )
+                    }
+                },
+                isSaved = selectedPostForOptions?.let { p ->
+                    savedMessages.any { it.messageId == p.id && it.chatType == "channel" }
+                } ?: false,
+                onSaveClick = {
+                    selectedPostForOptions?.let { post ->
+                        val alreadySaved = savedMessages.any { it.messageId == post.id && it.chatType == "channel" }
+                        if (alreadySaved) {
+                            com.worldmates.messenger.data.SavedMessagesManager.removeSaved(post.id, "channel")
+                        } else {
+                            com.worldmates.messenger.data.SavedMessagesManager.saveMessage(
+                                com.worldmates.messenger.data.SavedMessageItem(
+                                    messageId    = post.id,
+                                    chatType     = "channel",
+                                    chatId       = channelId,
+                                    chatName     = channel?.name ?: "",
+                                    senderName   = channel?.name ?: "",
+                                    text         = post.text,
+                                    mediaUrl     = post.media?.firstOrNull()?.url,
+                                    mediaType    = post.media?.firstOrNull()?.type,
+                                    originalTime = post.time
+                                )
+                            )
+                        }
                     }
                 }
             )

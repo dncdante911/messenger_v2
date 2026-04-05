@@ -2923,6 +2923,12 @@
     <string name="ch_views_label">переглядів</string>
     <string name="ch_share">Поділитись</string>
 
+    <!-- Saved posts / bookmarks -->
+    <string name="save_post">Зберегти</string>
+    <string name="unsave_post">Видалити зі збережених</string>
+    <string name="post_saved_hint">Додати до збережених повідомлень</string>
+    <string name="post_unsaved_hint">Прибрати зі збережених повідомлень</string>
+
     <!-- Статистика каналу – labels -->
     <string name="ch_back">Назад</string>
     <string name="ch_refresh">Оновити</string>

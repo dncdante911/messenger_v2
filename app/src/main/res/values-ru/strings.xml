@@ -2927,7 +2927,12 @@
     <string name="ch_views_label">просмотров</string>
     <string name="ch_share">Поделиться</string>
 
-    
+    <!-- Saved posts / bookmarks -->
+    <string name="save_post">Сохранить</string>
+    <string name="unsave_post">Убрать из сохранённых</string>
+    <string name="post_saved_hint">Добавить в сохранённые сообщения</string>
+    <string name="post_unsaved_hint">Убрать из сохранённых сообщений</string>
+
     <string name="ch_back">Назад</string>
     <string name="ch_refresh">Обновить</string>
     <string name="stat_unavailable">Статистика недоступна</string>
