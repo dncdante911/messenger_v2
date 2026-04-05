@@ -37,6 +37,18 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(100),
       allowNull: false,
       defaultValue: ""
+    },
+    // Опрос сторис: хранится как JSON-строка (вопрос + варианты + голоса)
+    poll: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null
+    },
+    // Кэш количества комментариев для быстрого чтения
+    comment_count: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     }
   }, {
     sequelize,
