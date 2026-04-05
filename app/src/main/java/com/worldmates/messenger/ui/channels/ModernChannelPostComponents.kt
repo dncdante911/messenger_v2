@@ -57,6 +57,8 @@ fun ChannelPostCard(
     onReactionClick: (String) -> Unit = {},
     onCommentsClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
+    onSaveClick: () -> Unit = {},
+    isSaved: Boolean = false,
     onMoreClick: () -> Unit = {},
     onMediaClick: ((Int) -> Unit)? = null,
     onPollVote: (pollId: Long, optionId: Long) -> Unit = { _, _ -> },
@@ -547,6 +549,36 @@ fun ChannelPostCard(
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+
+                // Save / Bookmark button
+                Surface(
+                    onClick = onSaveClick,
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSaved)
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    else
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            contentDescription = if (isSaved)
+                                stringResource(R.string.unsave_post)
+                            else
+                                stringResource(R.string.save_post),
+                            tint = if (isSaved)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -1814,6 +1846,9 @@ fun PostOptionsBottomSheet(
     onPinClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onSaveClick: () -> Unit = {},
+    isSaved: Boolean = false,
+    onAnalyticsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     ModalBottomSheet(
@@ -1862,6 +1897,20 @@ fun PostOptionsBottomSheet(
                 }
             )
 
+            // Analytics (admin only — caller passes null to hide)
+            if (onAnalyticsClick != null) {
+                PostOptionItem(
+                    icon = Icons.Default.BarChart,
+                    text = stringResource(R.string.post_analytics_title),
+                    subtitle = stringResource(R.string.post_analytics_hint),
+                    iconTint = Color(0xFF2196F3),
+                    onClick = {
+                        onAnalyticsClick()
+                        onDismiss()
+                    }
+                )
+            }
+
             // Edit
             PostOptionItem(
                 icon = Icons.Default.Edit,
@@ -1870,6 +1919,18 @@ fun PostOptionsBottomSheet(
                 iconTint = Color(0xFFFF9800),
                 onClick = {
                     onEditClick()
+                    onDismiss()
+                }
+            )
+
+            // Save / Unsave
+            PostOptionItem(
+                icon = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                text = if (isSaved) stringResource(R.string.unsave_post) else stringResource(R.string.save_post),
+                subtitle = if (isSaved) stringResource(R.string.post_unsaved_hint) else stringResource(R.string.post_saved_hint),
+                iconTint = MaterialTheme.colorScheme.primary,
+                onClick = {
+                    onSaveClick()
                     onDismiss()
                 }
             )

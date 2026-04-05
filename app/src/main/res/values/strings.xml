@@ -2923,6 +2923,28 @@
     <string name="ch_views_label">переглядів</string>
     <string name="ch_share">Поділитись</string>
 
+    <!-- Channel backup / export -->
+    <string name="channel_backup_title">Резервна копія каналу</string>
+    <string name="channel_backup_subtitle">Експортувати всі пости в JSON-файл</string>
+    <string name="channel_backup_export">Експортувати</string>
+    <string name="channel_backup_exporting">Експортуємо…</string>
+    <string name="channel_backup_success">Готово! %d постів збережено в Downloads</string>
+
+    <!-- Per-post analytics -->
+    <string name="post_analytics_title">Аналітика поста</string>
+    <string name="post_analytics_hint">Перегляди, реакції, охоплення</string>
+    <string name="post_views_label">Перегляди</string>
+    <string name="post_reactions_label">Реакції</string>
+    <string name="post_comments_label">Коментарі</string>
+    <string name="post_reach_label">Охоплення</string>
+    <string name="post_engagement_label">Залученість</string>
+
+    <!-- Saved posts / bookmarks -->
+    <string name="save_post">Зберегти</string>
+    <string name="unsave_post">Видалити зі збережених</string>
+    <string name="post_saved_hint">Додати до збережених повідомлень</string>
+    <string name="post_unsaved_hint">Прибрати зі збережених повідомлень</string>
+
     <!-- Статистика каналу – labels -->
     <string name="ch_back">Назад</string>
     <string name="ch_refresh">Оновити</string>

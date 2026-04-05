@@ -181,11 +181,13 @@ fun ChannelDetailsScreen(
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showPostOptions by remember { mutableStateOf(false) }
     var showEditPostDialog by remember { mutableStateOf(false) }
+    var showPostAnalyticsSheet by remember { mutableStateOf(false) }
     var showStatisticsDialog by remember { mutableStateOf(false) }
     var showAdminsDialog by remember { mutableStateOf(false) }
     var showEditChannelDialog by remember { mutableStateOf(false) }
     var showChannelMenuDialog by remember { mutableStateOf(false) }
     var showChannelSettingsDialog by remember { mutableStateOf(false) }
+    var showBackupSheet by remember { mutableStateOf(false) }
     var showSubGroupsDialog by remember { mutableStateOf(false) }
     var showPostDetailDialog by remember { mutableStateOf(false) }
     var selectedPostForOptions by remember { mutableStateOf<ChannelPost?>(null) }
@@ -205,6 +207,8 @@ fun ChannelDetailsScreen(
     val isLoadingComments by detailsViewModel.isLoadingComments.collectAsState()
     val statistics by detailsViewModel.statistics.collectAsState()
     val admins by detailsViewModel.admins.collectAsState()
+    val postAnalytics by detailsViewModel.postAnalytics.collectAsState()
+    val isLoadingPostAnalytics by detailsViewModel.isLoadingPostAnalytics.collectAsState()
     val recordings by detailsViewModel.recordings.collectAsState()
 
     val pullRefreshState = rememberPullRefreshState(
@@ -216,6 +220,9 @@ fun ChannelDetailsScreen(
             refreshing = false
         }
     )
+
+    // Saved messages state
+    val savedMessages by com.worldmates.messenger.data.SavedMessagesManager.savedMessages.collectAsState()
 
     // URI для вибраного зображення аватара
     var selectedAvatarUri by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -619,6 +626,28 @@ fun ChannelDetailsScreen(
                                     selectedPostForOptions = post
                                     showPostOptions = true
                                 }
+                                val isPostSaved = savedMessages.any {
+                                    it.messageId == post.id && it.chatType == "channel"
+                                }
+                                val onSaveClickHandler: () -> Unit = {
+                                    if (isPostSaved) {
+                                        com.worldmates.messenger.data.SavedMessagesManager.removeSaved(post.id, "channel")
+                                    } else {
+                                        com.worldmates.messenger.data.SavedMessagesManager.saveMessage(
+                                            com.worldmates.messenger.data.SavedMessageItem(
+                                                messageId   = post.id,
+                                                chatType    = "channel",
+                                                chatId      = channelId,
+                                                chatName    = channel?.name ?: "",
+                                                senderName  = channel?.name ?: "",
+                                                text        = post.text,
+                                                mediaUrl    = post.media?.firstOrNull()?.url,
+                                                mediaType   = post.media?.firstOrNull()?.type,
+                                                originalTime = post.time
+                                            )
+                                        )
+                                    }
+                                }
                                 val onMediaClickHandler: (Int) -> Unit = { index ->
                                     val allMedia = post.media ?: emptyList()
                                     val clicked = allMedia.getOrNull(index)
@@ -667,6 +696,8 @@ fun ChannelDetailsScreen(
                                             onReactionClick = onReactionClickHandler,
                                             onCommentsClick = onCommentsClickHandler,
                                             onShareClick = onShareClickHandler,
+                                            onSaveClick = onSaveClickHandler,
+                                            isSaved = isPostSaved,
                                             onMoreClick = onMoreClickHandler,
                                             onMediaClick = onMediaClickHandler,
                                             onPollVote = onPollVoteHandler,
@@ -964,6 +995,49 @@ fun ChannelDetailsScreen(
                             }
                         )
                     }
+                },
+                isSaved = selectedPostForOptions?.let { p ->
+                    savedMessages.any { it.messageId == p.id && it.chatType == "channel" }
+                } ?: false,
+                onSaveClick = {
+                    selectedPostForOptions?.let { post ->
+                        val alreadySaved = savedMessages.any { it.messageId == post.id && it.chatType == "channel" }
+                        if (alreadySaved) {
+                            com.worldmates.messenger.data.SavedMessagesManager.removeSaved(post.id, "channel")
+                        } else {
+                            com.worldmates.messenger.data.SavedMessagesManager.saveMessage(
+                                com.worldmates.messenger.data.SavedMessageItem(
+                                    messageId    = post.id,
+                                    chatType     = "channel",
+                                    chatId       = channelId,
+                                    chatName     = channel?.name ?: "",
+                                    senderName   = channel?.name ?: "",
+                                    text         = post.text,
+                                    mediaUrl     = post.media?.firstOrNull()?.url,
+                                    mediaType    = post.media?.firstOrNull()?.type,
+                                    originalTime = post.time
+                                )
+                            )
+                        }
+                    }
+                },
+                onAnalyticsClick = if (channel?.isAdmin == true) ({
+                    selectedPostForOptions?.let { post ->
+                        detailsViewModel.loadPostAnalytics(channelId, post.id)
+                        showPostAnalyticsSheet = true
+                    }
+                }) else null
+            )
+        }
+
+        // Per-post analytics sheet
+        if (showPostAnalyticsSheet) {
+            PostAnalyticsSheet(
+                analytics = postAnalytics,
+                isLoading = isLoadingPostAnalytics,
+                onDismiss = {
+                    showPostAnalyticsSheet = false
+                    detailsViewModel.clearPostAnalytics()
                 }
             )
         }
@@ -1165,11 +1239,33 @@ fun ChannelDetailsScreen(
                 },
                 confirmButton = {},
                 dismissButton = {
-                    TextButton(onClick = { showChannelMenuDialog = false }) {
-                        Text(stringResource(R.string.close))
+                    Row {
+                        TextButton(onClick = {
+                            showChannelMenuDialog = false
+                            showBackupSheet = true
+                        }) { Text(stringResource(R.string.channel_backup_export)) }
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = { showChannelMenuDialog = false }) {
+                            Text(stringResource(R.string.close))
+                        }
                     }
                 }
             )
+        }
+
+        // Backup export sheet
+        if (showBackupSheet && channel?.isAdmin == true) {
+            androidx.compose.material3.ModalBottomSheet(
+                onDismissRequest = { showBackupSheet = false },
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp).padding(bottom = 32.dp)) {
+                    ChannelBackupCard(
+                        channelId   = channelId,
+                        channelName = channel.name
+                    )
+                }
+            }
         }
 
         // Діалог редагування інформації про канал

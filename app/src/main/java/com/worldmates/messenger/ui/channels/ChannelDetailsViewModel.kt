@@ -681,6 +681,31 @@ class ChannelDetailsViewModel : ViewModel() {
         }
     }
 
+    // ── Per-post analytics ────────────────────────────────────────────────────
+
+    private val _postAnalytics = MutableStateFlow<com.worldmates.messenger.network.PostAnalyticsResponse?>(null)
+    val postAnalytics: StateFlow<com.worldmates.messenger.network.PostAnalyticsResponse?> = _postAnalytics
+
+    private val _isLoadingPostAnalytics = MutableStateFlow(false)
+    val isLoadingPostAnalytics: StateFlow<Boolean> = _isLoadingPostAnalytics
+
+    fun loadPostAnalytics(channelId: Long, postId: Long) {
+        viewModelScope.launch {
+            _isLoadingPostAnalytics.value = true
+            _postAnalytics.value = null
+            try {
+                val resp = NodeRetrofitClient.channelApi.getPostAnalytics(channelId = channelId, postId = postId)
+                if (resp.apiStatus == 200) _postAnalytics.value = resp
+            } catch (e: Exception) {
+                Log.e("ChannelDetailsVM", "loadPostAnalytics error: ${e.message}")
+            } finally {
+                _isLoadingPostAnalytics.value = false
+            }
+        }
+    }
+
+    fun clearPostAnalytics() { _postAnalytics.value = null }
+
     /**
      * Завантажує список підписників (тільки для адмінів)
      */
