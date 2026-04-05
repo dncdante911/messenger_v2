@@ -1167,25 +1167,28 @@ async function main() {
   // can send push notifications when the Socket.IO service is killed.
   app.post('/api/node/user/register-fcm-token', async (req, res) => {
     try {
-      const { authMiddleware } = require('./routes/middleware');
-      authMiddleware(ctx, req, res, async () => {
-        const fcmToken = (req.body.fcm_token || '').trim();
-        if (!fcmToken) return res.json({ api_status: 400, error_message: 'fcm_token required' });
-        const sessionId = req.headers['session-id'] || req.headers['session_id'] || req.body.session_id;
-        if (sessionId) {
-          await ctx.wo_appssessions.update(
-            { fcm_token: fcmToken },
-            { where: { user_id: req.userId, session_id: sessionId } }
-          );
-        } else {
-          // Fallback: update all sessions for this user
-          await ctx.wo_appssessions.update(
-            { fcm_token: fcmToken },
-            { where: { user_id: req.userId } }
-          );
-        }
-        res.json({ api_status: 200 });
-      });
+      // Inline auth: validate access-token from header/query/body
+      const token = req.headers['access-token'] || req.query.access_token || req.body?.access_token;
+      if (!token) return res.status(401).json({ api_status: 401, error_message: 'access_token is required' });
+      const session = await ctx.wo_appssessions.findOne({ where: { session_id: token } });
+      if (!session) return res.status(401).json({ api_status: 401, error_message: 'Invalid or expired access_token' });
+      req.userId = session.user_id;
+      const fcmToken = (req.body.fcm_token || '').trim();
+      if (!fcmToken) return res.json({ api_status: 400, error_message: 'fcm_token required' });
+      const sessionId = req.headers['session-id'] || req.headers['session_id'] || req.body.session_id;
+      if (sessionId) {
+        await ctx.wo_appssessions.update(
+          { fcm_token: fcmToken },
+          { where: { user_id: req.userId, session_id: sessionId } }
+        );
+      } else {
+        // Fallback: update all sessions for this user
+        await ctx.wo_appssessions.update(
+          { fcm_token: fcmToken },
+          { where: { user_id: req.userId } }
+        );
+      }
+      res.json({ api_status: 200 });
     } catch (err) {
       console.error('[FCM/register]', err.message);
       res.status(500).json({ api_status: 500, error_message: 'Server error' });
