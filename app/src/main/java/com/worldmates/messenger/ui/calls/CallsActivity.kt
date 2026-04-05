@@ -13,6 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -678,10 +680,24 @@ fun ActiveCallScreen(
         }
     }
 
+    // ─── Auto-hide UI after 5 s of inactivity ────────────────────────────────
+    var uiVisible by remember { mutableStateOf(true) }
+    var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(lastInteractionTime) {
+        delay(5_000L)
+        uiVisible = false
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF000000))
+            .pointerInput(Unit) {
+                detectTapGestures {
+                    uiVisible = true
+                    lastInteractionTime = System.currentTimeMillis()
+                }
+            }
     ) {
         // Віддалена відео/аудіо потік
         if (remoteStream?.videoTracks?.isNotEmpty() == true) {
@@ -745,12 +761,17 @@ fun ActiveCallScreen(
             }
         }
 
-        // Топ: інформація про дзвінок + перемикач стилів
+        // Топ: інформація про дзвінок + перемикач стилів (auto-hide)
+        AnimatedVisibility(
+            visible = uiVisible,
+            enter = fadeIn(animationSpec = tween(300)),
+            exit = fadeOut(animationSpec = tween(600)),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .align(Alignment.TopCenter),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Enhanced status bar
@@ -796,8 +817,9 @@ fun ActiveCallScreen(
                 )
             }
         }
+        } // end AnimatedVisibility (top UI)
 
-        // ─── Банер статусу передачі дзвінка ────────────────────────────────
+        // ─── Банер статусу передачі дзвінка (always visible while transferring) ─
         if (transferState != CallTransferState.IDLE) {
             CallTransferStatusBanner(
                 state = transferState,
@@ -808,8 +830,14 @@ fun ActiveCallScreen(
             )
         }
 
-        // ─── Панелі (виїжджають знизу над control bar) ─────────────────────
-        Column(modifier = Modifier.align(Alignment.BottomCenter)) {
+        // ─── Панелі + control bar (auto-hide) ──────────────────────────────
+        AnimatedVisibility(
+            visible = uiVisible || showFiltersPanel || showBgPanel,
+            enter = fadeIn(animationSpec = tween(300)),
+            exit = fadeOut(animationSpec = tween(600)),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             // Панель відеофільтрів
             AnimatedVisibility(
                 visible = showFiltersPanel,
@@ -854,8 +882,8 @@ fun ActiveCallScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .padding(horizontal = 24.dp, vertical = 10.dp),
+                        .background(Color.Black.copy(alpha = 0.28f))
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(28.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -923,6 +951,7 @@ fun ActiveCallScreen(
                 modifier = Modifier
             )
         }
+        } // end AnimatedVisibility (bottom UI)
 
         // Діалог вибору контакту для передачі
         if (showTransferPicker) {
