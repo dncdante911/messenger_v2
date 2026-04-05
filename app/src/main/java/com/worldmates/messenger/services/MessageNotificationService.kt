@@ -748,14 +748,16 @@ class MessageNotificationService : Service() {
         }
 
         // ── 4. Build MessagingStyle from accumulated chain ────────────────────
-        // 'Me' person represents the local user in the conversation bubble
-        val mePerson = Person.Builder().setName(getString(R.string.user_label)).build()
-        val style = NotificationCompat.MessagingStyle(mePerson).apply {
-            conversationTitle = if (type != ChatType.PRIVATE) title else null
-            synchronized(messageHistory) {
-                messageHistory[notifId]?.forEach { addMessage(it) }
-            }
+        // Snapshot the chain under the lock, then build style outside it to
+        // avoid 'this' scope confusion inside synchronized {} + apply {}.
+        val chainSnapshot: List<NotificationCompat.MessagingStyle.Message>
+        synchronized(messageHistory) {
+            chainSnapshot = messageHistory[notifId]?.toList() ?: emptyList()
         }
+        val mePerson = Person.Builder().setName(getString(R.string.user_label)).build()
+        val style = NotificationCompat.MessagingStyle(mePerson)
+        if (type != ChatType.PRIVATE) style.setConversationTitle(title)
+        chainSnapshot.forEach { style.addMessage(it) }
 
         // ── 5. Build notification ─────────────────────────────────────────────
         val builder = NotificationCompat.Builder(this, channelToUse)
