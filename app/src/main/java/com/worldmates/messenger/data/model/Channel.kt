@@ -48,7 +48,9 @@ data class ChannelPost(
     @SerializedName("comments_count") val commentsCount: Int = 0,
     @SerializedName("reactions") val reactions: List<PostReaction>? = null,
     // Inline keyboard buttons (TG-style), rows × columns
-    @SerializedName("inline_buttons") val inlineButtons: List<List<InlinePostButton>>? = null
+    @SerializedName("inline_buttons") val inlineButtons: List<List<InlinePostButton>>? = null,
+    // Named collection/album title — non-null when this post is an album post
+    @SerializedName("collection_title") val collectionTitle: String? = null
 )
 
 /**

@@ -239,7 +239,7 @@ fun ChannelPostCard(
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                                 )
                                 Text(
-                                    text = "edited",
+                                    text = stringResource(R.string.post_edited),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
@@ -297,7 +297,7 @@ fun ChannelPostCard(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Закріплений пост",
+                            text = stringResource(R.string.pinned_post),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onTertiaryContainer,
                             fontWeight = FontWeight.SemiBold,
@@ -327,9 +327,46 @@ fun ChannelPostCard(
                 )
             }
 
-            // Media Gallery
+            // Media Gallery / Collection
             if (!post.media.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
+
+                // Collection header badge — shown when the post is a named album
+                if (!post.collectionTitle.isNullOrBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.PhotoLibrary,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = post.collectionTitle!!,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                text = stringResource(R.string.post_collection_count, post.media!!.size),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+
                 PostMediaGallery(
                     media = post.media!!,
                     onMediaClick = onMediaClick
@@ -589,122 +626,28 @@ fun ChannelPostCard(
 
 // ==================== POST MEDIA GALLERY ====================
 
+/**
+ * Renders a post's media as a mosaic album using [MediaAlbumComponent].
+ * Handles 1–9+ items gracefully (1 full-width, 2 side-by-side, 3/4 smart grid,
+ * 5+ three-column grid with "+N more" overlay on the last visible cell).
+ */
 @Composable
 fun PostMediaGallery(
     media: List<PostMedia>,
     onMediaClick: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    when (media.size) {
-        1 -> {
-            // Single media
-            PostMediaItem(
-                media = media[0],
-                onClick = { onMediaClick?.invoke(0) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .clip(RoundedCornerShape(12.dp))
-            )
-        }
-        2 -> {
-            // Two media side by side
-            Row(
-                modifier = modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                PostMediaItem(
-                    media = media[0],
-                    onClick = { onMediaClick?.invoke(0) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-                PostMediaItem(
-                    media = media[1],
-                    onClick = { onMediaClick?.invoke(1) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-            }
-        }
-        else -> {
-            // Grid for 3+ media
-            Column(
-                modifier = modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    PostMediaItem(
-                        media = media[0],
-                        onClick = { onMediaClick?.invoke(0) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(150.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                    )
-                    PostMediaItem(
-                        media = media[1],
-                        onClick = { onMediaClick?.invoke(1) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(150.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                    )
-                }
-                if (media.size > 2) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        PostMediaItem(
-                            media = media[2],
-                            onClick = { onMediaClick?.invoke(2) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(150.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                        )
-                        if (media.size > 3) {
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(150.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                            ) {
-                                PostMediaItem(
-                                    media = media[3],
-                                    onClick = { onMediaClick?.invoke(3) },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                if (media.size > 4) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.6f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "+${media.size - 4}",
-                                            fontSize = 24.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    if (media.isEmpty()) return
+
+    val urls  = media.map { it.url.toFullMediaUrl() }
+    val types = media.map { it.type }          // "image" | "video" | "audio" | "file"
+
+    com.worldmates.messenger.ui.components.media.MediaAlbumComponent(
+        mediaUrls   = urls,
+        mediaTypes  = types,
+        onMediaClick = { index -> onMediaClick?.invoke(index) },
+        modifier    = modifier.fillMaxWidth()
+    )
 }
 
 @Composable
