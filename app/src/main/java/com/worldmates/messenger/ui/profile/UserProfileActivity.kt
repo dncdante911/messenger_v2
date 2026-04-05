@@ -49,8 +49,6 @@ import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.User
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.LanguageManager
-import com.worldmates.messenger.network.NodeRetrofitClient
-import kotlinx.coroutines.launch
 
 class UserProfileActivity : AppCompatActivity() {
 

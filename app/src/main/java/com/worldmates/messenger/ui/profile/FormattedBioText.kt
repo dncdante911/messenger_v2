@@ -12,12 +12,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -26,9 +24,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.LinkPreviewData
-import com.worldmates.messenger.data.model.LinkPreviewResponse
 import com.worldmates.messenger.network.NodeRetrofitClient
-import kotlinx.coroutines.launch
 
 // ─── URL regex ────────────────────────────────────────────────────────────────
 
@@ -152,21 +148,17 @@ fun FormattedBioText(
     var previewData    by remember { mutableStateOf<LinkPreviewData?>(null) }
     var previewLoading by remember { mutableStateOf(false) }
 
-    // Fetch OG metadata once per URL
-    if (showPreview && firstUrl != null) {
-        val scope = rememberCoroutineScope()
-        LaunchedEffect(firstUrl) {
-            previewLoading = true
-            previewData    = null
-            scope.launch {
-                runCatching {
-                    NodeRetrofitClient.profileApi.getLinkPreview(firstUrl)
-                }.onSuccess { resp ->
-                    previewData = resp.toData()
-                }
-                previewLoading = false
-            }
+    // Fetch OG metadata once per URL — LaunchedEffect must NOT be inside an if()
+    LaunchedEffect(firstUrl, showPreview) {
+        if (!showPreview || firstUrl == null) return@LaunchedEffect
+        previewLoading = true
+        previewData    = null
+        runCatching {
+            NodeRetrofitClient.profileApi.getLinkPreview(firstUrl)
+        }.onSuccess { resp ->
+            previewData = resp.toData()
         }
+        previewLoading = false
     }
 
     Column(modifier = modifier) {
