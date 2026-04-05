@@ -187,6 +187,7 @@ fun ChannelDetailsScreen(
     var showEditChannelDialog by remember { mutableStateOf(false) }
     var showChannelMenuDialog by remember { mutableStateOf(false) }
     var showChannelSettingsDialog by remember { mutableStateOf(false) }
+    var showBackupSheet by remember { mutableStateOf(false) }
     var showSubGroupsDialog by remember { mutableStateOf(false) }
     var showPostDetailDialog by remember { mutableStateOf(false) }
     var selectedPostForOptions by remember { mutableStateOf<ChannelPost?>(null) }
@@ -1238,11 +1239,33 @@ fun ChannelDetailsScreen(
                 },
                 confirmButton = {},
                 dismissButton = {
-                    TextButton(onClick = { showChannelMenuDialog = false }) {
-                        Text(stringResource(R.string.close))
+                    Row {
+                        TextButton(onClick = {
+                            showChannelMenuDialog = false
+                            showBackupSheet = true
+                        }) { Text(stringResource(R.string.channel_backup_export)) }
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = { showChannelMenuDialog = false }) {
+                            Text(stringResource(R.string.close))
+                        }
                     }
                 }
             )
+        }
+
+        // Backup export sheet
+        if (showBackupSheet && channel?.isAdmin == true) {
+            androidx.compose.material3.ModalBottomSheet(
+                onDismissRequest = { showBackupSheet = false },
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp).padding(bottom = 32.dp)) {
+                    ChannelBackupCard(
+                        channelId   = channelId,
+                        channelName = channel.name
+                    )
+                }
+            }
         }
 
         // Діалог редагування інформації про канал

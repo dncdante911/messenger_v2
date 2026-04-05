@@ -2923,6 +2923,13 @@
     <string name="ch_views_label">переглядів</string>
     <string name="ch_share">Поділитись</string>
 
+    <!-- Channel backup / export -->
+    <string name="channel_backup_title">Резервна копія каналу</string>
+    <string name="channel_backup_subtitle">Експортувати всі пости в JSON-файл</string>
+    <string name="channel_backup_export">Експортувати</string>
+    <string name="channel_backup_exporting">Експортуємо…</string>
+    <string name="channel_backup_success">Готово! %d постів збережено в Downloads</string>
+
     <!-- Per-post analytics -->
     <string name="post_analytics_title">Аналітика поста</string>
     <string name="post_analytics_hint">Перегляди, реакції, охоплення</string>

@@ -2927,6 +2927,13 @@
     <string name="ch_views_label">просмотров</string>
     <string name="ch_share">Поделиться</string>
 
+    <!-- Channel backup / export -->
+    <string name="channel_backup_title">Резервная копия канала</string>
+    <string name="channel_backup_subtitle">Экспортировать все посты в JSON-файл</string>
+    <string name="channel_backup_export">Экспортировать</string>
+    <string name="channel_backup_exporting">Экспортируем…</string>
+    <string name="channel_backup_success">Готово! %d постов сохранено в Downloads</string>
+
     <!-- Per-post analytics -->
     <string name="post_analytics_title">Аналитика поста</string>
     <string name="post_analytics_hint">Просмотры, реакции, охват</string>

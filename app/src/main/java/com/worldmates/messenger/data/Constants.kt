@@ -111,6 +111,7 @@ object Constants {
     const val NODE_CHANNEL_TOP_COMMENTS    = "api/node/channel/top-comments"
     const val NODE_CHANNEL_GIVEAWAY        = "api/node/channel/giveaway"
     const val NODE_CHANNEL_POST_ANALYTICS  = "api/node/channel/post/analytics"
+    const val NODE_CHANNEL_BACKUP_EXPORT   = "api/node/channel/backup/export"
     const val NODE_CHANNEL_SUBSCRIBERS     = "api/node/channel/subscribers"
     const val NODE_CHANNEL_MUTE         = "api/node/channel/mute"
     const val NODE_CHANNEL_UNMUTE       = "api/node/channel/unmute"

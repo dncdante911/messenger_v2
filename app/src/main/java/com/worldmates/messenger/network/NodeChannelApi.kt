@@ -250,6 +250,12 @@ interface NodeChannelApi {
     ): PostAnalyticsResponse
 
     @FormUrlEncoded
+    @POST(Constants.NODE_CHANNEL_BACKUP_EXPORT)
+    suspend fun exportChannel(
+        @Field("channel_id") channelId: Long
+    ): ChannelBackupResponse
+
+    @FormUrlEncoded
     @POST(Constants.NODE_CHANNEL_SUBSCRIBERS)
     suspend fun getChannelSubscribers(
         @Field("channel_id") channelId: Long,
@@ -398,6 +404,29 @@ data class QrCodeResponse(
     @com.google.gson.annotations.SerializedName("api_status") val apiStatus: Int,
     @com.google.gson.annotations.SerializedName("qr_code") val qrCode: String? = null,
     @com.google.gson.annotations.SerializedName("join_url") val joinUrl: String? = null,
+    @com.google.gson.annotations.SerializedName("error_message") val errorMessage: String? = null
+)
+
+/** Channel backup export response. */
+data class ChannelBackupPostItem(
+    @com.google.gson.annotations.SerializedName("id")               val id: Long = 0,
+    @com.google.gson.annotations.SerializedName("text")             val text: String = "",
+    @com.google.gson.annotations.SerializedName("media_url")        val mediaUrl: String? = null,
+    @com.google.gson.annotations.SerializedName("media_type")       val mediaType: String? = null,
+    @com.google.gson.annotations.SerializedName("time")             val time: Long = 0,
+    @com.google.gson.annotations.SerializedName("views")            val views: Int = 0,
+    @com.google.gson.annotations.SerializedName("reactions_count")  val reactionsCount: Int = 0,
+    @com.google.gson.annotations.SerializedName("comments_count")   val commentsCount: Int = 0,
+    @com.google.gson.annotations.SerializedName("is_pinned")        val isPinned: Boolean = false
+)
+
+data class ChannelBackupResponse(
+    @com.google.gson.annotations.SerializedName("api_status")    val apiStatus: Int = 0,
+    @com.google.gson.annotations.SerializedName("channel_id")    val channelId: Long = 0,
+    @com.google.gson.annotations.SerializedName("channel_name")  val channelName: String = "",
+    @com.google.gson.annotations.SerializedName("exported_at")   val exportedAt: Long = 0,
+    @com.google.gson.annotations.SerializedName("posts_count")   val postsCount: Int = 0,
+    @com.google.gson.annotations.SerializedName("posts")         val posts: List<ChannelBackupPostItem>? = null,
     @com.google.gson.annotations.SerializedName("error_message") val errorMessage: String? = null
 )
 
