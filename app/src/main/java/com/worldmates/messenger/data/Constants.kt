@@ -266,8 +266,16 @@ object Constants {
     const val NODE_UPDATE_CHECK = "api/node/update/check"
 
     // ── Global Search ─────────────────────────────────────────────────────────
-    const val NODE_SEARCH_GLOBAL = "api/node/search/global"
-    const val NODE_SEARCH_USERS  = "api/node/search/users"
+    const val NODE_SEARCH_GLOBAL       = "api/node/search/global"
+    const val NODE_SEARCH_USERS        = "api/node/search/users"
+    // Autocomplete suggestions (recent + saved + user hints)
+    const val NODE_SEARCH_SUGGESTIONS  = "api/node/search/suggestions"
+    // Saved search CRUD
+    const val NODE_SEARCH_SAVED        = "api/node/search/saved"          // GET + POST
+    const val NODE_SEARCH_SAVED_DELETE = "api/node/search/saved/{id}"     // DELETE
+    // Recent search history
+    const val NODE_SEARCH_RECENT_SAVE  = "api/node/search/recent"         // POST
+    const val NODE_SEARCH_RECENT_CLEAR = "api/node/search/recent"         // DELETE
 
     // ── Notes (Telegram-style personal storage) ───────────────────────────────
     const val NODE_NOTES_LIST    = "api/node/notes"

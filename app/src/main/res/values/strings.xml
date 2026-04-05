@@ -2710,12 +2710,53 @@
 
     <!-- ── Global Search ──────────────────────────────────────────────────── -->
     <string name="global_search_title">Пошук</string>
+    <!-- ── Global Search ────────────────────────────────────────────────────── -->
+    <!-- Основні елементи інтерфейсу пошуку -->
     <string name="search_placeholder">Повідомлення, люди…</string>
     <string name="search_hint">Введіть мінімум 2 символи</string>
     <string name="search_tab_messages">Повідомлення</string>
     <string name="search_tab_users">Люди</string>
     <string name="search_no_results">Нічого не знайдено за «%1$s»</string>
     <string name="search_no_users">Користувачів не знайдено</string>
+    <!-- Bookmark (save) query button tooltip -->
+    <string name="search_save">Зберегти пошук</string>
+    <!-- Badge on message results when filters are active: "X з Y результатів" -->
+    <string name="search_filtered_count">%1$d з %2$d результатів</string>
+
+    <!-- Suggestions panel — назви секцій -->
+    <!-- Header for the "Saved searches" section in suggestions panel -->
+    <string name="search_saved_title">Збережені пошуки</string>
+    <!-- Header for the "Recent" section in suggestions panel -->
+    <string name="search_recent_title">Недавні</string>
+    <!-- "Clear all" button next to Recent section header -->
+    <string name="search_recent_clear">Очистити</string>
+
+    <!-- Filter sheet — заголовки та кнопки шторки фільтрів -->
+    <!-- Bottom sheet title -->
+    <string name="search_filter_title">Фільтри пошуку</string>
+    <!-- Section label above type filter chips -->
+    <string name="search_filter_type_label">Тип повідомлення</string>
+    <!-- Filter chip values for message type -->
+    <string name="search_filter_type_all">Усі</string>
+    <string name="search_filter_type_text">Текст</string>
+    <string name="search_filter_type_media">Медіа</string>
+    <string name="search_filter_type_sticker">Стікери</string>
+    <!-- Section label above date range pickers -->
+    <string name="search_filter_date_label">Дата повідомлення</string>
+    <!-- Filter chip label when no date set (collapsed state) -->
+    <string name="search_filter_date">Дата</string>
+    <!-- Placeholder inside date-from button -->
+    <string name="search_filter_date_from">Від дати</string>
+    <!-- Placeholder inside date-to button -->
+    <string name="search_filter_date_to">До дати</string>
+    <!-- Link to clear both date fields -->
+    <string name="search_filter_date_clear">Очистити дати</string>
+    <!-- "Clear all filters" icon button tooltip -->
+    <string name="search_filter_clear">Скинути фільтри</string>
+    <!-- Reset button in filter sheet (resets to defaults without closing) -->
+    <string name="search_filter_reset">Скинути</string>
+    <!-- Apply button in filter sheet -->
+    <string name="search_filter_apply">Застосувати</string>
 
     <!-- ── Notes ──────────────────────────────────────────────────────────── -->
     <string name="notes_title">Нотатки</string>

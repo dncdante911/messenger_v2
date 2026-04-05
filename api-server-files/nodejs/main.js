@@ -285,6 +285,10 @@ async function init() {
   // Signal Sender Key Distribution для групових E2EE чатів
   ctx.signal_group_sender_keys = require("./models/signal_group_sender_keys")(sequelize, DataTypes)
 
+  // ==================== Search History Models ====================
+  // Stores recent + saved search queries per user
+  ctx.wo_search_queries = require("./models/wo_searchqueries")(sequelize, DataTypes)
+
   // ==================== Content Moderation Models ====================
   ctx.wm_content_hash_blacklist = require("./models/wm_content_hash_blacklist")(sequelize, DataTypes)
   ctx.wm_moderation_queue       = require("./models/wm_moderation_queue")(sequelize, DataTypes)
@@ -588,6 +592,26 @@ async function runMigrations(ctx) {
   } catch (e) {
     if (!e.message.includes('Duplicate key name')) {
       console.warn('[Migration] FULLTEXT index:', e.message);
+    }
+  }
+
+  // ── Wo_SearchQueries — history + saved searches ──────────────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS Wo_SearchQueries (
+        id         INT UNSIGNED  NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        user_id    INT UNSIGNED  NOT NULL,
+        query      VARCHAR(255)  NOT NULL DEFAULT '',
+        is_saved   TINYINT       NOT NULL DEFAULT 0,
+        created_at INT UNSIGNED  NOT NULL DEFAULT 0,
+        INDEX idx_sq_user_saved   (user_id, is_saved),
+        INDEX idx_sq_user_created (user_id, created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('[Migration] Wo_SearchQueries table ensured');
+  } catch (e) {
+    if (!e.message.includes('already exists')) {
+      console.warn('[Migration] Wo_SearchQueries:', e.message);
     }
   }
 

@@ -2687,12 +2687,53 @@
 
     <!-- ── Global Search ──────────────────────────────────────────────────── -->
     <string name="global_search_title">Пошук</string>
+    <!-- ── Global Search ────────────────────────────────────────────────────── -->
+    <!-- Основні елементи інтерфейсу пошуку -->
     <string name="search_placeholder">Повідомлення, люди…</string>
     <string name="search_hint">Введіть мінімум 2 символи</string>
     <string name="search_tab_messages">Повідомлення</string>
     <string name="search_tab_users">Люди</string>
     <string name="search_no_results">Нічого не знайдено за «%1$s»</string>
     <string name="search_no_users">Користувачів не знайдено</string>
+    <!-- Кнопка закладки (зберегти запит) -->
+    <string name="search_save">Зберегти пошук</string>
+    <!-- Напис на результатах при активних фільтрах: "X з Y результатів" -->
+    <string name="search_filtered_count">%1$d з %2$d результатів</string>
+
+    <!-- Панель підказок — назви секцій -->
+    <!-- Заголовок секції «Збережені пошуки» на панелі підказок -->
+    <string name="search_saved_title">Збережені пошуки</string>
+    <!-- Заголовок секції «Недавні» на панелі підказок -->
+    <string name="search_recent_title">Недавні</string>
+    <!-- Кнопка «Очистити все» поруч із заголовком «Недавні» -->
+    <string name="search_recent_clear">Очистити</string>
+
+    <!-- Шторка фільтрів — заголовки та кнопки -->
+    <!-- Заголовок нижньої шторки фільтрів -->
+    <string name="search_filter_title">Фільтри пошуку</string>
+    <!-- Мітка секції над чіпами типу повідомлення -->
+    <string name="search_filter_type_label">Тип повідомлення</string>
+    <!-- Значення фільтра типу повідомлення -->
+    <string name="search_filter_type_all">Усі</string>
+    <string name="search_filter_type_text">Текст</string>
+    <string name="search_filter_type_media">Медіа</string>
+    <string name="search_filter_type_sticker">Стікери</string>
+    <!-- Мітка секції над вибором діапазону дат -->
+    <string name="search_filter_date_label">Дата повідомлення</string>
+    <!-- Мітка чіпа фільтра дати (коли дата не обрана) -->
+    <string name="search_filter_date">Дата</string>
+    <!-- Плейсхолдер кнопки «від» дати -->
+    <string name="search_filter_date_from">Від дати</string>
+    <!-- Плейсхолдер кнопки «до» дати -->
+    <string name="search_filter_date_to">До дати</string>
+    <!-- Посилання для очищення обох дат -->
+    <string name="search_filter_date_clear">Очистити дати</string>
+    <!-- Підказка кнопки «Скинути всі фільтри» -->
+    <string name="search_filter_clear">Скинути фільтри</string>
+    <!-- Кнопка «Скинути» у шторці (повертає до стандартних без закриття) -->
+    <string name="search_filter_reset">Скинути</string>
+    <!-- Кнопка «Застосувати» у шторці -->
+    <string name="search_filter_apply">Застосувати</string>
 
     <!-- ── Notes ──────────────────────────────────────────────────────────── -->
     <string name="notes_title">Нотатки</string>
