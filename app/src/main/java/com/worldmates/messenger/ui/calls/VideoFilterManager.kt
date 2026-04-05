@@ -224,7 +224,9 @@ class VideoFilterManager {
      * 3. Конвертує Bitmap → I420 → обгортає у новий VideoFrame
      */
     private fun applyColorMatrix(frame: VideoFrame, colorMatrix: ColorMatrix): VideoFrame {
+        // toI420() може повернути null (stream-webrtc-android API) — у цьому разі пропускаємо кадр
         val i420 = frame.buffer.toI420()
+            ?: return frame   // повертаємо оригінальний кадр без змін
         val w = i420.width
         val h = i420.height
 
