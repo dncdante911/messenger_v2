@@ -3008,12 +3008,6 @@
     <string name="giveaway_results_title">Переможці (%d учасників)</string>
     <string name="giveaway_no_eligible">Немає учасників, що відповідають умовам</string>
 
-    <!-- Group giveaway (members, not subscribers) -->
-    <string name="group_giveaway_title">Розіграш серед учасників</string>
-    <string name="group_giveaway_subtitle">Оберіть умови участі та кількість переможців</string>
-    <string name="group_giveaway_min_messages">Мін. повідомлень: %d</string>
-    <string name="group_giveaway_min_messages_label">Мін. повідомлень</string>
-
     <!-- Block by identifier dialog -->
     <string name="block_by_identifier_title">Заблокувати користувача</string>
     <string name="block_by_identifier_subtitle">Введіть номер телефону або ID, щоб заблокувати користувача превентивно.</string>
@@ -3034,6 +3028,28 @@
     <string name="block_by_identifier_not_found">Користувача не знайдено</string>
     <string name="block_by_identifier_rate_limit">Забагато запитів. Спробуйте пізніше</string>
     <string name="block_by_identifier_error">Сталася помилка. Спробуйте ще раз</string>
+
+    <!-- Music Player -->
+    <string name="music_player_title">Музичний плеєр</string>
+    <string name="music_player_play">Відтворити</string>
+    <string name="music_player_pause">Пауза</string>
+    <string name="music_player_stop">Стоп</string>
+    <string name="music_player_close">Закрити</string>
+    <string name="music_player_repeat">Повторити</string>
+    <string name="music_player_rewind">Назад</string>
+    <string name="music_player_forward">Вперед</string>
+    <string name="music_player_equalizer">Еквалайзер</string>
+    <string name="music_player_share">Поділитися</string>
+    <string name="music_player_loading">Завантаження…</string>
+    <string name="music_player_lock_screen">Екран блокування</string>
+    <string name="music_player_unlock_hint">Потягніть для розблокування</string>
+
+    <!-- Group giveaway (members, not subscribers) -->
+    <string name="group_giveaway_title">Розіграш серед учасників</string>
+    <string name="group_giveaway_subtitle">Оберіть умови участі та кількість переможців</string>
+    <string name="group_giveaway_min_messages">Мін. повідомлень: %d</string>
+    <string name="group_giveaway_min_messages_label">Мін. повідомлень</string>
+
 
     <!-- Location bubble -->
     <string name="location_open_maps">Відкрити карту</string>
