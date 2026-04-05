@@ -525,13 +525,20 @@ interface NodeApi {
 
     // ═══════════════════════ GLOBAL SEARCH ═══════════════════════════════════
 
-    /** Search across all messages (private + group). */
+    /**
+     * Search across all messages (private + group).
+     * Optional filters: dateFrom/dateTo (unix seconds), fromId, msgType (all|text|media|sticker).
+     */
     @FormUrlEncoded
     @POST(Constants.NODE_SEARCH_GLOBAL)
     suspend fun globalSearch(
-        @Field("query")  query:  String,
-        @Field("limit")  limit:  Int = 50,
-        @Field("offset") offset: Int = 0
+        @Field("query")      query:    String,
+        @Field("limit")      limit:    Int    = 50,
+        @Field("offset")     offset:   Int    = 0,
+        @Field("date_from")  dateFrom: Long?  = null,
+        @Field("date_to")    dateTo:   Long?  = null,
+        @Field("from_id")    fromId:   Long?  = null,
+        @Field("msg_type")   msgType:  String? = null,
     ): NodeGlobalSearchResponse
 
     /** Search users by username / name. */
@@ -541,6 +548,41 @@ interface NodeApi {
         @Field("query") query: String,
         @Field("limit") limit: Int = 30
     ): NodeUserSearchResponse
+
+    /** Autocomplete suggestions: recent + saved searches + user name hints. */
+    @FormUrlEncoded
+    @POST(Constants.NODE_SEARCH_SUGGESTIONS)
+    suspend fun getSearchSuggestions(
+        @Field("query") query: String,
+    ): SearchSuggestionsResponse
+
+    /** List all saved (bookmarked) search queries for the current user. */
+    @GET(Constants.NODE_SEARCH_SAVED)
+    suspend fun listSavedSearches(): SavedSearchesResponse
+
+    /** Bookmark a search query. */
+    @FormUrlEncoded
+    @POST(Constants.NODE_SEARCH_SAVED)
+    suspend fun saveSearch(
+        @Field("query") query: String,
+    ): SavedSearchResponse
+
+    /** Delete a saved search by ID. */
+    @DELETE(Constants.NODE_SEARCH_SAVED_DELETE)
+    suspend fun deleteSavedSearch(
+        @Path("id") id: Long,
+    ): SavedSearchResponse
+
+    /** Record a query in recent search history. Fire-and-forget. */
+    @FormUrlEncoded
+    @POST(Constants.NODE_SEARCH_RECENT_SAVE)
+    suspend fun saveRecentSearch(
+        @Field("query") query: String,
+    ): SavedSearchResponse
+
+    /** Clear all recent search history for the current user. */
+    @DELETE(Constants.NODE_SEARCH_RECENT_CLEAR)
+    suspend fun clearRecentSearches(): SavedSearchResponse
 
     // ═══════════════════════ NOTES ════════════════════════════════════════════
 
@@ -1461,6 +1503,47 @@ data class UserSearchResult(
 data class NodeUserSearchResponse(
     @SerializedName("api_status") val apiStatus: Int = 0,
     @SerializedName("users")      val users:     List<UserSearchResult> = emptyList(),
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+// ─── Search Suggestions ───────────────────────────────────────────────────────
+
+/** One autocomplete suggestion item. type = "recent" | "saved" | "user" */
+data class SearchSuggestion(
+    @SerializedName("type")  val type:  String,
+    // For recent/saved: the search query string; nullable for user suggestions
+    @SerializedName("id")    val id:    Long?             = null,
+    @SerializedName("query") val query: String?           = null,
+    // For user suggestions
+    @SerializedName("user")  val user:  UserSearchResult? = null,
+)
+
+data class SearchSuggestionsResponse(
+    @SerializedName("api_status")   val apiStatus:   Int                   = 0,
+    @SerializedName("suggestions")  val suggestions: List<SearchSuggestion> = emptyList(),
+    @SerializedName("error_message") val errorMessage: String?             = null,
+)
+
+// ─── Saved Searches ───────────────────────────────────────────────────────────
+
+data class SavedSearch(
+    @SerializedName("id")         val id:        Long   = 0,
+    @SerializedName("query")      val query:     String = "",
+    // Unix timestamp (seconds)
+    @SerializedName("created_at") val createdAt: Long   = 0L,
+)
+
+data class SavedSearchesResponse(
+    @SerializedName("api_status") val apiStatus: Int              = 0,
+    @SerializedName("saved")      val saved:     List<SavedSearch> = emptyList(),
+    @SerializedName("error_message") val errorMessage: String?    = null,
+)
+
+/** Generic response for save / delete / clear operations. */
+data class SavedSearchResponse(
+    @SerializedName("api_status")    val apiStatus:    Int     = 0,
+    @SerializedName("id")            val id:           Long?   = null,
+    @SerializedName("query")         val query:        String? = null,
     @SerializedName("error_message") val errorMessage: String? = null,
 )
 

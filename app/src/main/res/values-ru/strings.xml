@@ -2674,12 +2674,53 @@
 
     
     <string name="global_search_title">Поиск</string>
+    <!-- ── Global Search ────────────────────────────────────────────────────── -->
+    <!-- Основные элементы интерфейса поиска -->
     <string name="search_placeholder">Сообщения, люди…</string>
     <string name="search_hint">Введите минимум 2 символа</string>
     <string name="search_tab_messages">Сообщения</string>
     <string name="search_tab_users">Люди</string>
     <string name="search_no_results">Ничего не найдено по «%1$s»</string>
     <string name="search_no_users">Пользователи не найдены</string>
+    <!-- Кнопка закладки (сохранить запрос) -->
+    <string name="search_save">Сохранить поиск</string>
+    <!-- Надпись на результатах при активных фильтрах: "X из Y результатов" -->
+    <string name="search_filtered_count">%1$d из %2$d результатов</string>
+
+    <!-- Панель подсказок — названия секций -->
+    <!-- Заголовок секции «Сохранённые поиски» в панели подсказок -->
+    <string name="search_saved_title">Сохранённые поиски</string>
+    <!-- Заголовок секции «Недавние» в панели подсказок -->
+    <string name="search_recent_title">Недавние</string>
+    <!-- Кнопка «Очистить всё» рядом с заголовком «Недавние» -->
+    <string name="search_recent_clear">Очистить</string>
+
+    <!-- Шторка фильтров — заголовки и кнопки -->
+    <!-- Заголовок нижней шторки фильтров -->
+    <string name="search_filter_title">Фильтры поиска</string>
+    <!-- Метка секции над чипами типа сообщения -->
+    <string name="search_filter_type_label">Тип сообщения</string>
+    <!-- Значения фильтра типа сообщения -->
+    <string name="search_filter_type_all">Все</string>
+    <string name="search_filter_type_text">Текст</string>
+    <string name="search_filter_type_media">Медиа</string>
+    <string name="search_filter_type_sticker">Стикеры</string>
+    <!-- Метка секции над выбором диапазона дат -->
+    <string name="search_filter_date_label">Дата сообщения</string>
+    <!-- Метка чипа фильтра даты (когда дата не выбрана) -->
+    <string name="search_filter_date">Дата</string>
+    <!-- Плейсхолдер кнопки «от» даты -->
+    <string name="search_filter_date_from">С даты</string>
+    <!-- Плейсхолдер кнопки «до» даты -->
+    <string name="search_filter_date_to">По дату</string>
+    <!-- Ссылка для очистки обеих дат -->
+    <string name="search_filter_date_clear">Очистить даты</string>
+    <!-- Подсказка кнопки «Сбросить все фильтры» -->
+    <string name="search_filter_clear">Сбросить фильтры</string>
+    <!-- Кнопка «Сбросить» в шторке (возвращает к умолчаниям без закрытия) -->
+    <string name="search_filter_reset">Сбросить</string>
+    <!-- Кнопка «Применить» в шторке -->
+    <string name="search_filter_apply">Применить</string>
 
     
     <string name="backup_provider_local_server">Личный сервер</string>
