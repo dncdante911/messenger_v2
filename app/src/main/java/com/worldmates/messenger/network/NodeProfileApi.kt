@@ -4,7 +4,9 @@ import com.google.gson.annotations.SerializedName
 import com.worldmates.messenger.data.model.BlockedUser
 import com.worldmates.messenger.data.model.GetUserDataResponse
 import com.worldmates.messenger.data.model.GetUserRatingResponse
+import com.worldmates.messenger.data.model.LinkPreviewResponse
 import com.worldmates.messenger.data.model.RateUserResponse
+import com.worldmates.messenger.data.model.SetEmojiStatusResponse
 import com.worldmates.messenger.data.model.UpdateUserDataResponse
 import com.worldmates.messenger.data.model.User
 import retrofit2.http.*
@@ -93,6 +95,26 @@ interface NodeProfileApi {
         @Field("profile_badge")        profileBadge:       String? = null,
         @Field("profile_header_style") profileHeaderStyle: String? = null,
     ): UpdateUserDataResponse
+
+    /**
+     * Встановити або очистити кастомний емодзі-статус (PRO).
+     * Передавати null в обох полях — очистити статус.
+     */
+    @FormUrlEncoded
+    @PUT("api/node/users/me/status")
+    suspend fun setEmojiStatus(
+        @Field("status_emoji") emoji: String?,
+        @Field("status_text")  text:  String?,
+    ): SetEmojiStatusResponse
+
+    // ─── Link Preview ──────────────────────────────────────────────────────────
+
+    /** Отримати OpenGraph / meta-preview для URL (немає авторизації). */
+    @FormUrlEncoded
+    @POST("api/node/link-preview")
+    suspend fun getLinkPreview(
+        @Field("url") url: String,
+    ): LinkPreviewResponse
 
     /** Оновити налаштування приватності. */
     @FormUrlEncoded

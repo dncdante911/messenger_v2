@@ -3141,4 +3141,25 @@
     <!-- Location bubble -->
     <string name="location_open_maps">Открыть карту</string>
 
+    <!-- ── Profile action buttons ─────────────────────────────────────────── -->
+    <!-- Кнопка в строке действий собственного профиля — открыть шторку статуса -->
+    <string name="profile_action_status">Статус</string>
+
+    <!-- ── Verification level badge content descriptions ─────────────────── -->
+    <!-- Отображается рядом с именем: 0=нет, 1=синяя галочка, 2=золотая звезда,
+         3=зелёная галочка (официальный/организация), 4=фиолетовый ромб (топ-творец) -->
+    <string name="verification_level_0">Без верификации</string>
+    <string name="verification_level_1">Верифицированный аккаунт</string>
+    <string name="verification_level_2">Известный аккаунт</string>
+    <string name="verification_level_3">Официальный аккаунт</string>
+    <string name="verification_level_4">Топ-создатель</string>
+
+    <!-- ── Link preview card ──────────────────────────────────────────────── -->
+    <!-- Метка доступности для иконки «открыть в браузере» в карточке превью  -->
+    <string name="link_preview_open">Открыть ссылку</string>
+    <!-- Показывается пока загружаются OG-метаданные                          -->
+    <string name="link_preview_loading">Загрузка превью…</string>
+    <!-- Показывается если загрузка превью не удалась                         -->
+    <string name="link_preview_error">Не удалось загрузить превью</string>
+
 </resources>

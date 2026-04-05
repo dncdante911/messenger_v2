@@ -71,10 +71,16 @@ data class User(
     @SerializedName("groups_count") val groupsCount: String?,
     @SerializedName("details")      val details:      UserDetails?        = null,
     @SerializedName("relationship") val relationship: UserRelationship?   = null,
-    // Profile customization
+    // Profile customization — accent colour, decorative badge emoji, header background style
     @SerializedName("profile_accent")       val profileAccent:      String? = "#667EEA",
     @SerializedName("profile_badge")        val profileBadge:       String? = "",
     @SerializedName("profile_header_style") val profileHeaderStyle: String? = "gradient",
+    // Custom emoji status (PRO feature) — single emoji character + optional short caption
+    @SerializedName("status_emoji") val statusEmoji: String? = null,
+    @SerializedName("status_text")  val statusText:  String? = null,
+    // Verification level badge: 0=none, 1=verified (blue ✓), 2=notable (gold ★),
+    //                           3=official/org (green ✓), 4=top-creator (purple ♦)
+    @SerializedName("verification_level") val verificationLevel: Int = 0,
 )
 
 /**
@@ -151,6 +157,43 @@ data class UpdateUserDataResponse(
     @SerializedName("error_code") val errorCode: Int?,
     @SerializedName("error_message") val errorMessage: String?
 )
+
+// ─── Emoji Status models ──────────────────────────────────────────────────────
+
+/** Response from PUT /api/node/users/me/status */
+data class SetEmojiStatusResponse(
+    @SerializedName("api_status")   val apiStatus:   Int,
+    @SerializedName("status_emoji") val statusEmoji: String?,
+    @SerializedName("status_text")  val statusText:  String?,
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+// ─── Link Preview models ──────────────────────────────────────────────────────
+
+/** OpenGraph / meta-tag preview data returned by POST /api/node/link-preview */
+data class LinkPreviewData(
+    @SerializedName("url")         val url:         String,
+    @SerializedName("title")       val title:       String,
+    @SerializedName("description") val description: String,
+    @SerializedName("image")       val image:       String,
+    // Hostname without www. prefix (e.g. "github.com")
+    @SerializedName("hostname")    val hostname:    String,
+)
+
+data class LinkPreviewResponse(
+    @SerializedName("api_status")   val apiStatus:    Int,
+    @SerializedName("url")         val url:          String?       = null,
+    @SerializedName("title")       val title:        String?       = null,
+    @SerializedName("description") val description:  String?       = null,
+    @SerializedName("image")       val image:        String?       = null,
+    @SerializedName("hostname")    val hostname:     String?       = null,
+    @SerializedName("error_message") val errorMessage: String?     = null,
+) {
+    fun toData(): LinkPreviewData? {
+        if (apiStatus != 200 || url == null) return null
+        return LinkPreviewData(url, title ?: "", description ?: "", image ?: "", hostname ?: "")
+    }
+}
 
 // ─── Multi-avatar models ──────────────────────────────────────────────────────
 

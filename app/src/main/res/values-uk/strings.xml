@@ -3049,4 +3049,25 @@
     <string name="giveaway_results_title">Переможці (%d учасників)</string>
     <string name="giveaway_no_eligible">Немає учасників, що відповідають умовам</string>
 
+    <!-- ── Profile action buttons ─────────────────────────────────────────── -->
+    <!-- Кнопка в рядку дій власного профілю — відкрити шторку статусу -->
+    <string name="profile_action_status">Статус</string>
+
+    <!-- ── Verification level badge content descriptions ─────────────────── -->
+    <!-- Показується поруч з ім'ям: 0=немає, 1=синя галочка, 2=золота зірка,
+         3=зелена галочка (офіційний/організація), 4=фіолетовий ромб (топ-творець) -->
+    <string name="verification_level_0">Без верифікації</string>
+    <string name="verification_level_1">Верифікований акаунт</string>
+    <string name="verification_level_2">Відомий акаунт</string>
+    <string name="verification_level_3">Офіційний акаунт</string>
+    <string name="verification_level_4">Топ-творець</string>
+
+    <!-- ── Link preview card ──────────────────────────────────────────────── -->
+    <!-- Мітка доступності для іконки «відкрити в браузері» у картці прев'ю   -->
+    <string name="link_preview_open">Відкрити посилання</string>
+    <!-- Показується поки завантажуються OG-метадані                          -->
+    <string name="link_preview_loading">Завантаження прев\'ю…</string>
+    <!-- Показується якщо завантаження прев'ю не вдалося                      -->
+    <string name="link_preview_error">Не вдалося завантажити прев\'ю</string>
+
 </resources>

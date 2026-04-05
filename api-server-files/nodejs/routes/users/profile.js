@@ -150,6 +150,8 @@ function serializeUser(ctx, u, { isSelf = false, extra = {} } = {}) {
         // Custom emoji status (PRO feature)
         status_emoji: u.status_emoji || null,
         status_text:  u.status_text  || null,
+        // Verification level: 0=none, 1=verified, 2=notable, 3=official, 4=top-creator
+        verification_level: parseInt(u.verification_level || '0') || 0,
     };
 
     if (isSelf) {
@@ -1185,6 +1187,40 @@ function updateStatus(ctx) {
     }];
 }
 
+// ─── POST /api/node/admin/users/set-verification ──────────────────────────────
+// Admin-only endpoint to set a user's verification level.
+// level: 0=none, 1=verified (blue ✓), 2=notable (gold ★),
+//        3=official (green ✓), 4=top-creator (purple ♦)
+
+function setVerificationLevel(ctx) {
+    return [requireAuth(ctx), async (req, res) => {
+        try {
+            const adminUser = await ctx.wo_users.unscoped().findOne({
+                where: { user_id: req.userId }, attributes: ['admin'], raw: true,
+            });
+            if (!adminUser || adminUser.admin === '0') {
+                return res.json({ api_status: 403, error_message: 'Admin access required' });
+            }
+
+            const targetId = parseInt(req.body.user_id);
+            const level    = parseInt(req.body.level);
+            if (!targetId || isNaN(level) || level < 0 || level > 4) {
+                return res.json({ api_status: 400, error_message: 'user_id and level (0-4) required' });
+            }
+
+            await ctx.wo_users.update(
+                { verification_level: level },
+                { where: { user_id: targetId } }
+            );
+            console.log(`[Profile/setVerification] Admin ${req.userId} set level=${level} for user ${targetId}`);
+            res.json({ api_status: 200, user_id: targetId, verification_level: level });
+        } catch (err) {
+            console.error('[Profile/setVerification]', err.message);
+            res.json({ api_status: 500, error_message: 'Server error' });
+        }
+    }];
+}
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 function registerProfileRoutes(app, ctx) {
@@ -1214,6 +1250,9 @@ function registerProfileRoutes(app, ctx) {
     app.post  ('/api/node/users/block-by-identifier', blockByIdentifier(ctx));
     app.post  ('/api/node/users/:id/block',           blockUser(ctx));
     app.delete('/api/node/users/:id/block',           unblockUser(ctx));
+
+    // Admin: set verification level for any user
+    app.post  ('/api/node/admin/users/set-verification', setVerificationLevel(ctx));
 
     console.log('[Profile] Routes registered:');
     console.log('  GET    /api/node/users/me');
