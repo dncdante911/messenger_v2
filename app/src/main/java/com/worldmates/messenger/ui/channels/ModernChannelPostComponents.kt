@@ -639,7 +639,7 @@ fun PostMediaGallery(
 ) {
     if (media.isEmpty()) return
 
-    val urls  = media.map { it.url.toFullMediaUrl() }
+    val urls  = media.map { it.url.toFullMediaUrl() ?: it.url }
     val types = media.map { it.type }          // "image" | "video" | "audio" | "file"
 
     com.worldmates.messenger.ui.components.media.MediaAlbumComponent(

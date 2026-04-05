@@ -643,7 +643,7 @@ fun ChannelDetailsScreen(
                                                 text        = post.text,
                                                 mediaUrl    = post.media?.firstOrNull()?.url,
                                                 mediaType   = post.media?.firstOrNull()?.type,
-                                                originalTime = post.time
+                                                originalTime = post.createdTime
                                             )
                                         )
                                     }
@@ -1015,7 +1015,7 @@ fun ChannelDetailsScreen(
                                     text         = post.text,
                                     mediaUrl     = post.media?.firstOrNull()?.url,
                                     mediaType    = post.media?.firstOrNull()?.type,
-                                    originalTime = post.time
+                                    originalTime = post.createdTime
                                 )
                             )
                         }
