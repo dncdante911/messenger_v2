@@ -150,4 +150,34 @@ interface NodeStoriesApi {
         @Field("limit")  limit:  Int = 50,
         @Field("offset") offset: Int = 0
     ): GetStoriesResponse
+
+    // ── Editing ──────────────────────────────────────────────────────────────
+
+    /** Обновить title и description сторис после публикации (только владелец) */
+    @FormUrlEncoded
+    @POST("api/node/stories/update")
+    suspend fun updateStory(
+        @Field("story_id")    storyId:     Long,
+        @Field("title")       title:       String? = null,
+        @Field("description") description: String? = null
+    ): UpdateStoryResponse
+
+    // ── Polls ─────────────────────────────────────────────────────────────────
+
+    /** Проголосовать в опросе сторис (повторный голос за тот же вариант — снимает голос) */
+    @FormUrlEncoded
+    @POST("api/node/stories/vote-poll")
+    suspend fun voteStoryPoll(
+        @Field("story_id")       storyId:      Long,
+        @Field("poll_option_id") pollOptionId: Int
+    ): VoteStoryPollResponse
+
+    // ── Analytics ─────────────────────────────────────────────────────────────
+
+    /** Получить аналитику сторис (только владелец) */
+    @FormUrlEncoded
+    @POST("api/node/stories/get-analytics")
+    suspend fun getStoryAnalytics(
+        @Field("story_id") storyId: Long
+    ): GetStoryAnalyticsResponse
 }

@@ -2057,7 +2057,62 @@
     <string name="story_anonymous_view">Анонимный просмотр</string>
     <string name="story_anonymous_view_hint">Просматривать сторис анонимно</string>
 
-    
+    <!-- ===== STORY EDITING — редактирование title/description после публикации ===== -->
+    <!-- Кнопка "редактировать" в нижней панели владельца -->
+    <string name="story_edit_btn">Редактировать</string>
+    <!-- Заголовок нижнего листа редактирования -->
+    <string name="story_edit_title">Редактировать сторис</string>
+    <!-- Подсказка поля "название" -->
+    <string name="story_edit_name_hint">Название (до 200 символов)</string>
+    <!-- Подсказка поля "описание" -->
+    <string name="story_edit_desc_hint">Описание (до 500 символов)</string>
+    <!-- Кнопка сохранения изменений -->
+    <string name="story_edit_save_btn">Сохранить</string>
+    <!-- Toast после успешного сохранения -->
+    <string name="story_edit_saved">Изменения сохранены</string>
+
+    <!-- ===== STORY POLLS — интерактивные опросы ===== -->
+    <!-- Кнопка добавить опрос при создании сторис -->
+    <string name="story_poll_add_btn">Добавить опрос</string>
+    <!-- Подсказка поля вопроса -->
+    <string name="story_poll_question_hint">Вопрос опроса…</string>
+    <!-- Подсказка варианта ответа (аргумент: номер) -->
+    <string name="story_poll_option_hint">Вариант %d</string>
+    <!-- Кнопка добавить вариант ответа -->
+    <string name="story_poll_add_option">+ Добавить вариант</string>
+    <!-- Общее количество голосов (аргумент: целое число) -->
+    <string name="story_poll_total_votes">%d голосов</string>
+
+    <!-- ===== STORY MENTIONS — @упоминания в комментариях ===== -->
+    <!-- Подсказка поля ввода комментария (с поддержкой @mentions) -->
+    <string name="story_comment_hint">Написать отзыв…</string>
+
+    <!-- ===== STORY ANALYTICS — аналитика для владельца ===== -->
+    <!-- Кнопка "аналитика" в нижней панели владельца -->
+    <string name="story_analytics_btn">Аналитика</string>
+    <!-- Заголовок нижнего листа аналитики -->
+    <string name="story_analytics_title">Аналитика сторис</string>
+    <!-- Метка: количество просмотров -->
+    <string name="story_analytics_views">Просмотры</string>
+    <!-- Метка: количество реакций -->
+    <string name="story_analytics_reactions">Реакции</string>
+    <!-- Метка: количество комментариев -->
+    <string name="story_analytics_comments">Комментарии</string>
+    <!-- Метка: показатель вовлечённости (%) -->
+    <string name="story_analytics_engagement">Вовлечённость</string>
+    <!-- Подзаголовок разбивки реакций по типам -->
+    <string name="story_analytics_reactions_breakdown">Реакции по типам</string>
+    <!-- Строка с датой публикации (аргумент: отформатированная дата) -->
+    <string name="story_analytics_posted">Опубликовано: %s</string>
+    <!-- Строка с датой истечения (аргумент: отформатированная дата) -->
+    <string name="story_analytics_expires">Истекает: %s</string>
+
+    <!-- ===== STORY COMMENTS SHEET — заголовки и пустые состояния ===== -->
+    <!-- Заголовок листа комментариев -->
+    <string name="story_comments_title">Отзывы</string>
+    <!-- Текст пустого состояния (нет комментариев) -->
+    <string name="story_comments_empty">Пока нет отзывов</string>
+
     <string name="inline_bot_placeholder">Введите запрос для бота…</string>
     <string name="inline_bot_searching">Поиск результатов…</string>
     <string name="inline_bot_no_results">Результатов не найдено</string>

@@ -144,9 +144,12 @@ fun StoryViewerScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
-    var showComments by remember { mutableStateOf(false) }
-    var showViewers by remember { mutableStateOf(false) }
-    var isPaused by remember { mutableStateOf(false) }
+    var showComments   by remember { mutableStateOf(false) }
+    var showViewers    by remember { mutableStateOf(false) }
+    var showEditSheet  by remember { mutableStateOf(false) }
+    var showAnalytics  by remember { mutableStateOf(false) }
+    var isPaused       by remember { mutableStateOf(false) }
+    val analytics      by viewModel.analytics.collectAsState()
 
     // Floating reaction animation state
     var floatingEmoji by remember { mutableStateOf<String?>(null) }
@@ -394,6 +397,18 @@ fun StoryViewerScreen(
                             viewModel.loadStoryViews(story.id)
                             showViewers = true
                         },
+                        onEditClick = {
+                            showEditSheet = true
+                            isPaused = true
+                        },
+                        onAnalyticsClick = {
+                            viewModel.loadStoryAnalytics(story.id)
+                            showAnalytics = true
+                            isPaused = true
+                        },
+                        onPollVote = { optionId ->
+                            viewModel.votePoll(story.id, optionId)
+                        },
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }
@@ -459,6 +474,37 @@ fun StoryViewerScreen(
         ViewersSheet(
             viewers = viewers,
             onDismiss = { showViewers = false }
+        )
+    }
+
+    // Edit sheet — только для владельца
+    if (showEditSheet) {
+        currentStory?.let { story ->
+            StoryEditSheet(
+                story     = story,
+                onSave    = { newTitle, newDesc ->
+                    viewModel.updateStory(story.id, newTitle, newDesc)
+                    showEditSheet = false
+                    isPaused = false
+                },
+                onDismiss = {
+                    showEditSheet = false
+                    isPaused = false
+                }
+            )
+        }
+    }
+
+    // Analytics sheet — только для владельца
+    if (showAnalytics) {
+        StoryAnalyticsSheet(
+            analytics = analytics,
+            isLoading = isLoading && analytics == null,
+            onDismiss = {
+                showAnalytics = false
+                isPaused = false
+                viewModel.clearAnalytics()
+            }
         )
     }
 }
@@ -591,6 +637,9 @@ fun StoryBottomBar(
     onCommentClick: () -> Unit,
     onShareClick: () -> Unit,
     onViewsClick: () -> Unit,
+    onEditClick: () -> Unit = {},
+    onAnalyticsClick: () -> Unit = {},
+    onPollVote: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val navBarInsets = WindowInsets.navigationBars
@@ -638,6 +687,58 @@ fun StoryBottomBar(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 3.dp)
                     )
+                }
+            }
+        }
+
+        // ── Poll widget (если к сторис прикреплён опрос) ─────────────────────
+        story.poll?.let { poll ->
+            StoryPollWidget(
+                poll        = poll,
+                isOwnStory  = isOwnStory,
+                onVote      = onPollVote,
+                modifier    = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+        }
+
+        // ── Кнопки владельца: редактирование + аналитика ──────────────────────
+        if (isOwnStory) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Edit
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White.copy(alpha = 0.13f))
+                        .clickable { onEditClick() }
+                        .padding(horizontal = 12.dp, vertical = 7.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        Text(stringResource(R.string.story_edit_btn), color = Color.White, fontSize = 12.sp)
+                    }
+                }
+                // Analytics
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White.copy(alpha = 0.13f))
+                        .clickable { onAnalyticsClick() }
+                        .padding(horizontal = 12.dp, vertical = 7.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(Icons.Default.Analytics, null, tint = Color(0xFF00BCD4), modifier = Modifier.size(14.dp))
+                        Text(stringResource(R.string.story_analytics_btn), color = Color.White, fontSize = 12.sp)
+                    }
                 }
             }
         }
@@ -736,7 +837,7 @@ fun StoryBottomBar(
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Написати відгук...",
+                        text = stringResource(R.string.story_comment_hint),
                         color = Color.White.copy(alpha = 0.45f),
                         fontSize = 14.sp
                     )
@@ -949,7 +1050,7 @@ fun StoryCommentsSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Відгуки",
+                    text = stringResource(R.string.story_comments_title),
                     color = Color.White,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -983,7 +1084,7 @@ fun StoryCommentsSheet(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Поки немає відгуків",
+                            text = stringResource(R.string.story_comments_empty),
                             color = Color.White.copy(alpha = 0.4f),
                             fontSize = 15.sp
                         )
@@ -1143,7 +1244,7 @@ fun StoryCommentsSheet(
                         decorationBox = { innerTextField ->
                             if (commentText.isEmpty()) {
                                 Text(
-                                    text = "Написати відгук...",
+                                    text = stringResource(R.string.story_comment_hint),
                                     color = Color.White.copy(alpha = 0.4f),
                                     fontSize = 15.sp
                                 )
@@ -1288,10 +1389,13 @@ fun CommentItem(
                     modifier = Modifier.padding(top = 3.dp, bottom = 2.dp)
                 )
             }
-            Text(
-                text = comment.text,
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 14.sp,
+            // MentionText подсвечивает @упоминания синим цветом
+            MentionText(
+                text     = comment.text,
+                style    = androidx.compose.ui.text.TextStyle(
+                    color    = Color.White.copy(alpha = 0.85f),
+                    fontSize = 14.sp
+                ),
                 modifier = Modifier.padding(top = 3.dp)
             )
         }
@@ -1560,4 +1664,219 @@ private fun formatStoryTime(timestamp: Long): String {
         diff < 86400 -> "${diff / 3600} год тому"
         else -> SimpleDateFormat("dd MMM", Locale("uk")).format(Date(timestamp * 1000))
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story Edit Sheet — редактирование title/description после публикации
+// ═══════════════════════════════════════════════════════════════════════════════
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StoryEditSheet(
+    story: com.worldmates.messenger.data.model.Story,
+    onSave: (title: String?, description: String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var title       by remember { mutableStateOf(story.title ?: "") }
+    var description by remember { mutableStateOf(story.description ?: "") }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color(0xFF1C1C1E),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Заголовок листа
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.story_edit_title),
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
+                }
+            }
+
+            // Поле: Название
+            OutlinedTextField(
+                value = title,
+                onValueChange = { if (it.length <= 200) title = it },
+                label = { Text(stringResource(R.string.story_edit_name_hint), color = Color.Gray) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor   = Color(0xFFE91E8C),
+                    unfocusedBorderColor = Color.DarkGray,
+                    focusedTextColor     = Color.White,
+                    unfocusedTextColor   = Color.White
+                )
+            )
+
+            // Поле: Описание
+            OutlinedTextField(
+                value = description,
+                onValueChange = { if (it.length <= 500) description = it },
+                label = { Text(stringResource(R.string.story_edit_desc_hint), color = Color.Gray) },
+                minLines = 3,
+                maxLines = 5,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor   = Color(0xFFE91E8C),
+                    unfocusedBorderColor = Color.DarkGray,
+                    focusedTextColor     = Color.White,
+                    unfocusedTextColor   = Color.White
+                )
+            )
+
+            // Кнопка сохранить
+            Button(
+                onClick   = { onSave(title.takeIf { it.isNotBlank() }, description.takeIf { it.isNotBlank() }) },
+                modifier  = Modifier.fillMaxWidth().height(50.dp),
+                colors    = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E8C)),
+                shape     = RoundedCornerShape(14.dp)
+            ) {
+                Text(stringResource(R.string.story_edit_save_btn), fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Story Poll Widget — отображение опроса поверх сторис
+// ═══════════════════════════════════════════════════════════════════════════════
+
+@Composable
+fun StoryPollWidget(
+    poll:       com.worldmates.messenger.data.model.StoryPoll,
+    isOwnStory: Boolean,
+    onVote:     (Int) -> Unit,
+    modifier:   Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.Black.copy(alpha = 0.55f))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Вопрос
+        Text(
+            text       = poll.question,
+            color      = Color.White,
+            fontSize   = 15.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        // Варианты ответов
+        poll.options.forEach { option ->
+            val isVoted  = poll.votedOptionId == option.id
+            val fraction = if (poll.isVoted()) poll.votePercent(option) else 0f
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.White.copy(alpha = if (isVoted) 0.25f else 0.10f))
+                    .then(
+                        if (!isOwnStory) Modifier.clickable { onVote(option.id) } else Modifier
+                    )
+            ) {
+                // Прогресс-фон при голосовании
+                if (poll.isVoted() && fraction > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction)
+                            .height(44.dp)
+                            .background(
+                                if (isVoted) Color(0xFFE91E8C).copy(alpha = 0.4f)
+                                else Color.White.copy(alpha = 0.12f)
+                            )
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (isVoted) {
+                            Icon(Icons.Default.Check, null, tint = Color(0xFFE91E8C), modifier = Modifier.size(16.dp))
+                        }
+                        Text(option.text, color = Color.White, fontSize = 14.sp)
+                    }
+                    if (poll.isVoted()) {
+                        Text(
+                            text  = "${(fraction * 100).toInt()}%",
+                            color = if (isVoted) Color(0xFFE91E8C) else Color.White.copy(alpha = 0.6f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+
+        // Итого голосов
+        if (poll.isVoted() || isOwnStory) {
+            Text(
+                text  = stringResource(R.string.story_poll_total_votes, poll.totalVotes),
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MentionText — текст с подсвеченными @упоминаниями
+// ═══════════════════════════════════════════════════════════════════════════════
+
+@Composable
+fun MentionText(
+    text:     String,
+    style:    androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default,
+    modifier: Modifier = Modifier
+) {
+    val mentionColor = Color(0xFF2196F3)
+    // Строим AnnotatedString: @word окрашиваем в синий
+    val annotated = remember(text) {
+        val builder = androidx.compose.ui.text.AnnotatedString.Builder()
+        val regex   = Regex("""@[\w\u0400-\u04FF]+""")  // кириллица + латиница
+        var last    = 0
+        for (match in regex.findAll(text)) {
+            if (match.range.first > last) builder.append(text.substring(last, match.range.first))
+            builder.pushStyle(
+                androidx.compose.ui.text.SpanStyle(
+                    color      = mentionColor,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                )
+            )
+            builder.append(match.value)
+            builder.pop()
+            last = match.range.last + 1
+        }
+        if (last < text.length) builder.append(text.substring(last))
+        builder.toAnnotatedString()
+    }
+    androidx.compose.material3.Text(text = annotated, style = style, modifier = modifier)
 }

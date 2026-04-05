@@ -34,6 +34,9 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
     // Перегляди
     val viewers: StateFlow<List<StoryViewer>> = repository.viewers
 
+    // Аналитика сторис
+    val analytics: StateFlow<com.worldmates.messenger.data.model.StoryAnalytics?> = repository.analytics
+
     // Стан завантаження
     val isLoading: StateFlow<Boolean> = repository.isLoading
 
@@ -464,6 +467,64 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
                 _error.value = e.message
             }
         }
+    }
+
+    // ==================== EDITING ====================
+
+    /**
+     * Обновляет title и description сторис после публикации.
+     * Только владелец может редактировать.
+     */
+    fun updateStory(storyId: Long, title: String?, description: String?) {
+        viewModelScope.launch {
+            try {
+                repository.updateStory(storyId, title?.takeIf { it.isNotBlank() }, description?.takeIf { it.isNotBlank() })
+                    .onSuccess {
+                        _success.value = getApplication<android.app.Application>()
+                            .getString(com.worldmates.messenger.R.string.story_edit_saved)
+                    }
+                    .onFailure { e -> _error.value = e.message }
+            } catch (e: Exception) {
+                _error.value = e.message
+            }
+        }
+    }
+
+    // ==================== POLLS ====================
+
+    /**
+     * Голосование в опросе сторис.
+     * Повторный голос за тот же вариант — снимает голос.
+     */
+    fun votePoll(storyId: Long, pollOptionId: Int) {
+        viewModelScope.launch {
+            try {
+                repository.voteStoryPoll(storyId, pollOptionId)
+                    .onFailure { e -> _error.value = e.message }
+            } catch (e: Exception) {
+                _error.value = e.message
+            }
+        }
+    }
+
+    // ==================== ANALYTICS ====================
+
+    /**
+     * Загружает аналитику сторис (только для владельца).
+     */
+    fun loadStoryAnalytics(storyId: Long) {
+        viewModelScope.launch {
+            try {
+                repository.getStoryAnalytics(storyId)
+                    .onFailure { e -> _error.value = e.message }
+            } catch (e: Exception) {
+                _error.value = e.message
+            }
+        }
+    }
+
+    fun clearAnalytics() {
+        repository.clearAnalytics()
     }
 
     override fun onCleared() {

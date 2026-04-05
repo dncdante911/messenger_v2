@@ -2091,6 +2091,39 @@
     <string name="story_anonymous_view">Анонімний перегляд</string>
     <string name="story_anonymous_view_hint">Переглядати сторіс анонімно</string>
 
+    <!-- ===== STORY EDITING — редагування title/description після публікації ===== -->
+    <string name="story_edit_btn">Редагувати</string>
+    <string name="story_edit_title">Редагувати сторіс</string>
+    <string name="story_edit_name_hint">Назва (до 200 символів)</string>
+    <string name="story_edit_desc_hint">Опис (до 500 символів)</string>
+    <string name="story_edit_save_btn">Зберегти</string>
+    <string name="story_edit_saved">Зміни збережено</string>
+
+    <!-- ===== STORY POLLS — інтерактивні опитування ===== -->
+    <string name="story_poll_add_btn">Додати опитування</string>
+    <string name="story_poll_question_hint">Питання опитування…</string>
+    <string name="story_poll_option_hint">Варіант %d</string>
+    <string name="story_poll_add_option">+ Додати варіант</string>
+    <string name="story_poll_total_votes">%d голосів</string>
+
+    <!-- ===== STORY MENTIONS — @згадки у коментарях ===== -->
+    <string name="story_comment_hint">Написати відгук…</string>
+
+    <!-- ===== STORY ANALYTICS — аналітика для власника ===== -->
+    <string name="story_analytics_btn">Аналітика</string>
+    <string name="story_analytics_title">Аналітика сторіс</string>
+    <string name="story_analytics_views">Перегляди</string>
+    <string name="story_analytics_reactions">Реакції</string>
+    <string name="story_analytics_comments">Коментарі</string>
+    <string name="story_analytics_engagement">Залученість</string>
+    <string name="story_analytics_reactions_breakdown">Реакції по типах</string>
+    <string name="story_analytics_posted">Опубліковано: %s</string>
+    <string name="story_analytics_expires">Закінчується: %s</string>
+
+    <!-- ===== STORY COMMENTS SHEET — заголовки і пусті стани ===== -->
+    <string name="story_comments_title">Відгуки</string>
+    <string name="story_comments_empty">Поки немає відгуків</string>
+
     <!-- ===== INLINE BOTS ===== -->
     <string name="inline_bot_placeholder">Введіть запит для бота…</string>
     <string name="inline_bot_searching">Пошук результатів…</string>

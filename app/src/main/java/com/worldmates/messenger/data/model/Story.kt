@@ -21,13 +21,15 @@ data class Story(
     @SerializedName("thumb") val thumb: StoryMedia? = null,
     @SerializedName("images") val images: List<StoryMedia>? = null,
     @SerializedName("videos") val videos: List<StoryMedia>? = null,
-    @SerializedName("mediaItems") val apiMediaItems: List<StoryMedia>? = null, // NEW: Support for mediaItems from API
+    @SerializedName("mediaItems") val apiMediaItems: List<StoryMedia>? = null,
     @SerializedName("is_owner") val isOwner: Boolean = false,
     @SerializedName("is_viewed") val isViewed: Int = 0,
     @SerializedName("view_count") val viewCount: Int = 0,
     @SerializedName("comment_count") val commentCount: Int = 0,
     @SerializedName("reaction") val reaction: StoryReactions? = null,
     @SerializedName("music_url") val musicUrl: String? = null,
+    // Опрос, прикреплённый к сторис (null = нет опроса)
+    @SerializedName("poll") val poll: StoryPoll? = null,
 ) {
     /**
      * Чи активна ще story (не протермінована)
@@ -153,6 +155,18 @@ data class StoryUser(
 }
 
 /**
+ * Упоминание пользователя внутри текста комментария/описания сторис.
+ * Сохраняется embedded в тексте как @username, здесь — для отображения в UI.
+ */
+data class StoryMention(
+    @SerializedName("user_id")  val userId:   Long,
+    @SerializedName("username") val username: String,
+    // Позиции вхождения @username в тексте (для подсветки)
+    @SerializedName("start")    val start:    Int = 0,
+    @SerializedName("end")      val end:      Int = 0
+)
+
+/**
  * Коментар до story
  */
 data class StoryComment(
@@ -163,7 +177,9 @@ data class StoryComment(
     @SerializedName("time") val time: Long, // Unix timestamp
     @SerializedName("user_data") val userData: StoryUser? = null,
     @SerializedName("offset_id") val offsetId: Long? = null,
-    @SerializedName("reply_to_comment_id") val replyToCommentId: Long? = null
+    @SerializedName("reply_to_comment_id") val replyToCommentId: Long? = null,
+    // Упоминания пользователей внутри этого комментария
+    @SerializedName("mentions") val mentions: List<StoryMention>? = null
 ) {
     /**
      * Форматований час коментаря
@@ -256,6 +272,49 @@ data class StoryLimits(
         }
     }
 }
+
+// ==================== STORY POLLS ====================
+
+/**
+ * Вариант ответа в опросе сторис.
+ */
+data class StoryPollOption(
+    @SerializedName("id")    val id:    Int,
+    @SerializedName("text")  val text:  String,
+    @SerializedName("votes") val votes: Int = 0
+)
+
+/**
+ * Опрос, прикреплённый к сторис.
+ * [votedOptionId] — ID варианта, за который проголосовал текущий пользователь
+ * (null = не голосовал).
+ */
+data class StoryPoll(
+    @SerializedName("question")       val question:      String,
+    @SerializedName("options")        val options:       List<StoryPollOption>,
+    @SerializedName("voted_option_id") val votedOptionId: Int? = null
+) {
+    val totalVotes: Int get() = options.sumOf { it.votes }
+    fun isVoted(): Boolean = votedOptionId != null
+    fun votePercent(option: StoryPollOption): Float =
+        if (totalVotes == 0) 0f else option.votes.toFloat() / totalVotes.toFloat()
+}
+
+// ==================== STORY ANALYTICS ====================
+
+/**
+ * Аналитика сторис — доступна только владельцу.
+ */
+data class StoryAnalytics(
+    @SerializedName("story_id")        val storyId:        Long,
+    @SerializedName("unique_views")    val uniqueViews:    Int,
+    @SerializedName("total_reactions") val totalReactions: Int,
+    @SerializedName("reactions")       val reactions:      StoryReactions = StoryReactions(),
+    @SerializedName("total_comments")  val totalComments:  Int,
+    @SerializedName("engagement_rate") val engagementRate: Int,   // в процентах
+    @SerializedName("posted_at")       val postedAt:       Long,
+    @SerializedName("expires_at")      val expiresAt:      Long
+)
 
 // ==================== API RESPONSE MODELS ====================
 
@@ -359,3 +418,56 @@ data class DeleteStoryCommentResponse(
     @SerializedName("error_code") val errorCode: Int? = null,
     @SerializedName("error_message") val errorMessage: String? = null
 )
+
+/**
+ * Ответ на редактирование сторис (обновление title/description)
+ */
+data class UpdateStoryResponse(
+    @SerializedName("api_status")    val apiStatus:    Int,
+    @SerializedName("message")       val message:      String? = null,
+    @SerializedName("error_code")    val errorCode:    Int? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/**
+ * Ответ на голосование в опросе сторис
+ */
+data class VoteStoryPollResponse(
+    @SerializedName("api_status")      val apiStatus:     Int,
+    @SerializedName("poll")            val poll:          StoryPoll? = null,
+    @SerializedName("voted_option_id") val votedOptionId: Int? = null,
+    @SerializedName("message")         val message:       String? = null,
+    @SerializedName("error_code")      val errorCode:     Int? = null,
+    @SerializedName("error_message")   val errorMessage:  String? = null
+)
+
+/**
+ * Ответ на запрос аналитики сторис
+ */
+data class GetStoryAnalyticsResponse(
+    @SerializedName("api_status")      val apiStatus:      Int,
+    @SerializedName("story_id")        val storyId:        Long? = null,
+    @SerializedName("unique_views")    val uniqueViews:    Int = 0,
+    @SerializedName("total_reactions") val totalReactions: Int = 0,
+    @SerializedName("reactions")       val reactions:      StoryReactions? = null,
+    @SerializedName("total_comments")  val totalComments:  Int = 0,
+    @SerializedName("engagement_rate") val engagementRate: Int = 0,
+    @SerializedName("posted_at")       val postedAt:       Long = 0,
+    @SerializedName("expires_at")      val expiresAt:      Long = 0,
+    @SerializedName("error_code")      val errorCode:      Int? = null,
+    @SerializedName("error_message")   val errorMessage:   String? = null
+) {
+    fun toAnalytics(): StoryAnalytics? {
+        if (apiStatus != 200 || storyId == null) return null
+        return StoryAnalytics(
+            storyId        = storyId,
+            uniqueViews    = uniqueViews,
+            totalReactions = totalReactions,
+            reactions      = reactions ?: StoryReactions(),
+            totalComments  = totalComments,
+            engagementRate = engagementRate,
+            postedAt       = postedAt,
+            expiresAt      = expiresAt
+        )
+    }
+}
