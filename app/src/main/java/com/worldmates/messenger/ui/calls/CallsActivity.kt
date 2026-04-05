@@ -629,6 +629,7 @@ fun ActiveCallScreen(
     var speakerEnabled by remember { mutableStateOf(false) }
     var showReactions by remember { mutableStateOf(false) }
     var showChatOverlay by remember { mutableStateOf(false) }
+    var showQualitySelector by remember { mutableStateOf(false) }
     var callDuration by remember { mutableStateOf(0) }
     var isScreenSharing by remember { mutableStateOf(false) }
     var isRecording by remember { mutableStateOf(false) }
@@ -894,7 +895,7 @@ fun ActiveCallScreen(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = stringResource(R.string.call_filters_title),
+                                        text = stringResource(R.string.video_filters_title),
                                         color = Color.White,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium
@@ -929,7 +930,7 @@ fun ActiveCallScreen(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = stringResource(R.string.call_virtual_bg_title),
+                                        text = stringResource(R.string.virtual_bg_title),
                                         color = Color.White,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium
