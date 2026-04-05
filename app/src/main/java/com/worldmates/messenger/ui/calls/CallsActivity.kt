@@ -232,7 +232,8 @@ class CallsActivity : ComponentActivity() {
                         isIncoming = isIncomingCall,
                         calleeName = recipientName,
                         calleeAvatar = recipientAvatar,
-                        callType = callType
+                        callType = callType,
+                        calleeId = recipientId  // ← передаємо ID для call transfer
                     )
                 }
             }
@@ -375,7 +376,8 @@ fun CallsScreen(
     isIncoming: Boolean = false,  // ✅ Додано параметр для вхідних дзвінків
     calleeName: String = "",
     calleeAvatar: String = "",
-    callType: String = "audio"
+    callType: String = "audio",
+    calleeId: Long = 0L           // ID співрозмовника — потрібен для call transfer
 ) {
     val incomingCall by viewModel.incomingCall.observeAsState()
     val callConnected by viewModel.callConnected.observeAsState(false)
@@ -402,7 +404,8 @@ fun CallsScreen(
                     connectionState = connectionState ?: if (isIncoming) "ACCEPTING" else "CONNECTING",
                     calleeName = calleeName,
                     calleeAvatar = calleeAvatar,
-                    callType = callType  // ✅ Передаємо callType
+                    callType = callType,
+                    calleeId = calleeId
                 )
             }
             callError != null -> {
@@ -615,7 +618,8 @@ fun ActiveCallScreen(
     connectionState: String,
     calleeName: String = "",
     calleeAvatar: String = "",
-    callType: String = "audio"  // ✅ Додано параметр callType
+    callType: String = "audio",  // ✅ Додано параметр callType
+    calleeId: Long = 0L          // ID співрозмовника (для call transfer)
 ) {
     val context = LocalContext.current
     var audioEnabled by remember { mutableStateOf(true) }
@@ -639,10 +643,17 @@ fun ActiveCallScreen(
     val activeVirtualBg by viewModel.activeVirtualBg.collectAsState()
 
     // ─── Передача дзвінка ─────────────────────────────────────────────────────
+    var showTransferPicker by remember { mutableStateOf(false) }
     var showTransferConfirm by remember { mutableStateOf(false) }
     var transferTarget by remember { mutableStateOf<TransferTarget?>(null) }
     val transferState by viewModel.callTransferState.collectAsState()
     val transferTargetState by viewModel.callTransferTarget.collectAsState()
+    // Поточний співрозмовник (для 1-на-1: prepopulate в picker-і)
+    val calleeAsTarget = remember(calleeId, calleeName, calleeAvatar) {
+        if (calleeId > 0L) TransferTarget(calleeId, calleeName, calleeAvatar.ifBlank { null })
+        else null
+    }
+    val groupParticipants by viewModel.groupCallParticipants.observeAsState(emptyList())
 
     // Ініціалізація CallTransferManager при першому відображенні екрану
     LaunchedEffect(Unit) {
@@ -837,40 +848,39 @@ fun ActiveCallScreen(
                 )
             }
 
-            // Рядок кнопок фільтрів/фону/передачі (над основним control bar)
-            if (callType == "video" && !showFiltersPanel && !showBgPanel) {
+            // Рядок кнопок ефектів та передачі (над основним control bar)
+            // Фільтри та фон — тільки для відеодзвінків; Transfer — для обох типів
+            if (!showFiltersPanel && !showBgPanel) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.3f))
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .padding(horizontal = 24.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(28.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Кнопка фільтрів
-                    VideoFiltersButton(
-                        isActive = activeFilter != VideoFilterType.NONE,
-                        onClick = {
-                            showFiltersPanel = !showFiltersPanel
-                            showBgPanel = false
-                        }
-                    )
-                    // Кнопка фону
-                    VirtualBackgroundButton(
-                        isActive = activeVirtualBg != VirtualBgMode.NONE,
-                        onClick = {
-                            showBgPanel = !showBgPanel
-                            showFiltersPanel = false
-                        }
-                    )
-                    // Кнопка передачі дзвінка
+                    // Кнопка фільтрів (тільки відео)
+                    if (callType == "video") {
+                        VideoFiltersButton(
+                            isActive = activeFilter != VideoFilterType.NONE,
+                            onClick = {
+                                showFiltersPanel = true
+                                showBgPanel = false
+                            }
+                        )
+                        // Кнопка фону (тільки відео)
+                        VirtualBackgroundButton(
+                            isActive = activeVirtualBg != VirtualBgMode.NONE,
+                            onClick = {
+                                showBgPanel = true
+                                showFiltersPanel = false
+                            }
+                        )
+                    }
+                    // Кнопка передачі дзвінка (для будь-якого типу дзвінка)
                     CallTransferButton(
                         isTransferring = transferState != CallTransferState.IDLE,
-                        onClick = {
-                            // TODO: відкрити діалог вибору контакту для передачі
-                            // Для MVP показуємо підтвердження передачі першому контакту
-                            // У повній реалізації — показати пошук контактів
-                        }
+                        onClick = { showTransferPicker = true }
                     )
                 }
             }
@@ -911,6 +921,20 @@ fun ActiveCallScreen(
                 onPiP = { enterPiPMode(context) },
                 onShowReactions = { showReactions = !showReactions },
                 modifier = Modifier
+            )
+        }
+
+        // Діалог вибору контакту для передачі
+        if (showTransferPicker) {
+            CallTransferPickerDialog(
+                callee = calleeAsTarget,
+                groupParticipants = groupParticipants,
+                onContactSelected = { target ->
+                    transferTarget = target
+                    showTransferPicker = false
+                    showTransferConfirm = true
+                },
+                onDismiss = { showTransferPicker = false }
             )
         }
 
@@ -2940,4 +2964,173 @@ fun ConferenceBandwidthModeSelector(
             }
         }
     }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── CALL TRANSFER CONTACT PICKER ─────────────────────────────────────────
+// Діалог вибору контакту для передачі дзвінка.
+//
+// Показує:
+//   • Поточний співрозмовник (для 1-на-1 дзвінка) як перший пункт
+//   • Учасники групового дзвінка (якщо є)
+//   • Поле вводу ID для ручного введення
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Діалог вибору контакту перед передачею дзвінка.
+ *
+ * @param callee             Поточний співрозмовник (1-на-1 дзвінок). Null для групового.
+ * @param groupParticipants  Список учасників (для групового дзвінка).
+ * @param onContactSelected  Callback: обраний контакт → відкрити підтвердження.
+ * @param onDismiss          Callback закриття без вибору.
+ */
+@Composable
+fun CallTransferPickerDialog(
+    callee: TransferTarget?,
+    groupParticipants: List<com.worldmates.messenger.ui.calls.GroupCallParticipant>,
+    onContactSelected: (TransferTarget) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // Ручне введення ID (для 1-на-1 без підготовлених контактів)
+    var manualInput by remember { mutableStateOf("") }
+
+    // Список кандидатів для передачі
+    // Для 1-на-1: поточний співрозмовник + ручне введення
+    // Для групового: учасники (не включаємо себе — getUserId() == participant.userId)
+    val candidates: List<TransferTarget> = remember(callee, groupParticipants) {
+        val result = mutableListOf<TransferTarget>()
+        callee?.let { result.add(it) }
+        groupParticipants.forEach { p ->
+            // Не додаємо якщо вже є в списку (збігається userId)
+            if (result.none { it.userId == p.userId }) {
+                result.add(TransferTarget(p.userId, p.name, p.avatar))
+            }
+        }
+        result
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1A2E),
+        title = {
+            Text(
+                text = stringResource(R.string.call_transfer_title),
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.call_transfer_subtitle),
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 13.sp
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                // Список кандидатів
+                if (candidates.isNotEmpty()) {
+                    candidates.forEach { target ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color.White.copy(alpha = 0.08f))
+                                .clickable { onContactSelected(target) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Аватар
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF7C4DFF).copy(alpha = 0.4f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (!target.userAvatar.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = target.userAvatar,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Text(
+                                        text = target.userName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                }
+                            }
+                            // Ім'я
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = target.userName,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp
+                                )
+                            }
+                            // Стрілка
+                            Icon(
+                                Icons.Default.PhoneForwarded,
+                                contentDescription = null,
+                                tint = Color(0xFFFF9800),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Поле ручного введення (якщо немає готових кандидатів або як додаткова опція)
+                if (candidates.isEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = manualInput,
+                        onValueChange = { manualInput = it },
+                        label = {
+                            Text(
+                                stringResource(R.string.call_transfer_search_hint),
+                                color = Color.White.copy(alpha = 0.5f)
+                            )
+                        },
+                        placeholder = {
+                            Text("User ID or username", color = Color.White.copy(alpha = 0.3f))
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFFF9800),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            // Кнопка підтвердження ручного введення (тільки коли немає кандидатів)
+            if (candidates.isEmpty() && manualInput.isNotBlank()) {
+                Button(
+                    onClick = {
+                        val userId = manualInput.toLongOrNull() ?: 0L
+                        onContactSelected(TransferTarget(userId, manualInput, null))
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+                ) {
+                    Text(stringResource(R.string.call_transfer_confirm_btn), color = Color.White)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.call_transfer_cancel), color = Color.White.copy(alpha = 0.7f))
+            }
+        }
+    )
 }
