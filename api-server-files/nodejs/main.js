@@ -367,6 +367,20 @@ async function init() {
       console.warn('[Init] fcm_token migration warning:', e.message);
     }
   }
+  // poll + comment_count — story polls and cached comment counter (migration 004)
+  for (const sql of [
+    `ALTER TABLE Wo_UserStory ADD COLUMN IF NOT EXISTS poll TEXT NULL DEFAULT NULL`,
+    `ALTER TABLE Wo_UserStory ADD COLUMN IF NOT EXISTS comment_count INT NOT NULL DEFAULT 0`,
+  ]) {
+    try {
+      await ctx.sequelize.query(sql);
+      console.log('[Init] Wo_UserStory column ensured:', sql.match(/COLUMN \w+ (\w+)/)?.[1]);
+    } catch (e) {
+      if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+        console.warn('[Init] Wo_UserStory migration warning:', e.message);
+      }
+    }
+  }
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Migrations are deferred: runMigrations(ctx) is called from server.listen()
@@ -1393,7 +1407,11 @@ process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 // Log the error so it can be diagnosed; for truly unrecoverable errors,
 // PM2 will restart the worker automatically.
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Process] Unhandled Promise Rejection:', reason);
+  // JSON.stringify(Error) returns '{}' — always extract message/stack explicitly
+  const msg = reason instanceof Error
+    ? (reason.stack || reason.message)
+    : (typeof reason === 'object' ? JSON.stringify(reason) : String(reason));
+  console.error('[Process] Unhandled Promise Rejection:', msg);
   // Do NOT exit — let PM2 handle restarts only for truly fatal states.
   // Most promise rejections in Socket.IO event handlers are recoverable.
 });
@@ -1406,4 +1424,9 @@ process.on('uncaughtException', (err, origin) => {
 });
 // ─────────────────────────────────────────────────────────────────────────────
 
-main()
+main().catch(err => {
+  // main() is async — catch top-level failures so they don't silently swallow
+  // the real error as '{}' (JSON.stringify of Error is always empty object).
+  console.error('[Fatal] main() crashed before server.listen():', err instanceof Error ? err.stack : err);
+  process.exit(1);
+});
