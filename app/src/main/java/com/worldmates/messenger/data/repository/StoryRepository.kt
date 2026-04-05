@@ -653,4 +653,94 @@ class StoryRepository(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    // ==================== EDITING ====================
+
+    /**
+     * Обновить title и description сторис после публикации (только владелец).
+     * После успеха обновляет [_currentStory] и список [_stories] локально.
+     */
+    suspend fun updateStory(
+        storyId:     Long,
+        title:       String?,
+        description: String?
+    ): Result<UpdateStoryResponse> {
+        return try {
+            if (UserSession.accessToken == null) return Result.failure(Exception("Не авторизовано"))
+            val response = nodeStoriesApi.updateStory(storyId, title, description)
+            if (response.apiStatus == 200) {
+                // Локальное обновление — заменяем story в памяти новыми полями
+                _stories.value = _stories.value.map { s ->
+                    if (s.id == storyId) s.copy(title = title, description = description) else s
+                }
+                if (_currentStory.value?.id == storyId) {
+                    _currentStory.value = _currentStory.value?.copy(title = title, description = description)
+                }
+                Result.success(response)
+            } else {
+                Result.failure(Exception(response.errorMessage ?: "Ошибка обновления сторис"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "updateStory error", e)
+            Result.failure(e)
+        }
+    }
+
+    // ==================== POLLS ====================
+
+    /**
+     * Голосование в опросе сторис.
+     * Возвращает обновлённый объект [StoryPoll] с актуальными счётчиками.
+     */
+    suspend fun voteStoryPoll(storyId: Long, pollOptionId: Int): Result<VoteStoryPollResponse> {
+        return try {
+            if (UserSession.accessToken == null) return Result.failure(Exception("Не авторизовано"))
+            val response = nodeStoriesApi.voteStoryPoll(storyId, pollOptionId)
+            if (response.apiStatus == 200) {
+                // Обновляем poll внутри _currentStory и _stories
+                val updatedPoll = response.poll
+                if (updatedPoll != null) {
+                    _stories.value = _stories.value.map { s ->
+                        if (s.id == storyId) s.copy(poll = updatedPoll) else s
+                    }
+                    if (_currentStory.value?.id == storyId) {
+                        _currentStory.value = _currentStory.value?.copy(poll = updatedPoll)
+                    }
+                }
+                Result.success(response)
+            } else {
+                Result.failure(Exception(response.errorMessage ?: "Ошибка голосования"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "voteStoryPoll error", e)
+            Result.failure(e)
+        }
+    }
+
+    // ==================== ANALYTICS ====================
+
+    private val _analytics = MutableStateFlow<StoryAnalytics?>(null)
+    val analytics: StateFlow<StoryAnalytics?> = _analytics
+
+    /**
+     * Загружает аналитику сторис (только для владельца).
+     */
+    suspend fun getStoryAnalytics(storyId: Long): Result<StoryAnalytics> {
+        return try {
+            if (UserSession.accessToken == null) return Result.failure(Exception("Не авторизовано"))
+            val response = nodeStoriesApi.getStoryAnalytics(storyId)
+            val analytics = response.toAnalytics()
+            if (analytics != null) {
+                _analytics.value = analytics
+                Result.success(analytics)
+            } else {
+                Result.failure(Exception(response.errorMessage ?: "Ошибка загрузки аналитики"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getStoryAnalytics error", e)
+            Result.failure(e)
+        }
+    }
+
+    fun clearAnalytics() { _analytics.value = null }
 }

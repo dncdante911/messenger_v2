@@ -905,6 +905,165 @@ function deleteStory(ctx) {
     };
 }
 
+// ─── POST /api/node/stories/update ──────────────────────────────────────────
+// Дозволяє власнику оновити title та description після публікації.
+
+function updateStory(ctx) {
+    return async (req, res) => {
+        const loggedUserId = req.userId;
+        const storyId     = parseInt(req.body.story_id);
+        const title       = (req.body.title       || '').trim().slice(0, 200) || null;
+        const description = (req.body.description || '').trim().slice(0, 500) || null;
+
+        if (!storyId) {
+            return res.json({ api_status: 400, error_message: 'story_id is required' });
+        }
+        try {
+            const story = await ctx.wo_userstory.findOne({ where: { id: storyId }, raw: true });
+            if (!story)                       return res.json({ api_status: 404, error_message: 'Story not found' });
+            if (story.user_id !== loggedUserId) return res.json({ api_status: 403, error_message: 'Not your story' });
+
+            await ctx.wo_userstory.update(
+                { title, description },
+                { where: { id: storyId } }
+            );
+            console.log(`[Stories/update] User ${loggedUserId} updated story ${storyId}`);
+            res.json({ api_status: 200, message: 'Story updated successfully' });
+        } catch (err) {
+            console.error('[Stories/update]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/vote-poll ───────────────────────────────────────
+// Голосование в опросе сторис. poll_option_id — идентификатор варианта ответа.
+// Один пользователь — один голос (повторный голос за тот же вариант снимает его).
+
+function voteStoryPoll(ctx) {
+    return async (req, res) => {
+        const loggedUserId  = req.userId;
+        const storyId       = parseInt(req.body.story_id);
+        const pollOptionId  = parseInt(req.body.poll_option_id);
+
+        if (!storyId || !pollOptionId) {
+            return res.json({ api_status: 400, error_message: 'story_id and poll_option_id are required' });
+        }
+        try {
+            // Загрузить story и достать поле poll из JSON
+            const story = await ctx.wo_userstory.findOne({
+                where: { id: storyId },
+                attributes: ['id', 'poll'],
+                raw: true,
+            });
+            if (!story) return res.json({ api_status: 404, error_message: 'Story not found' });
+
+            let poll = null;
+            try { poll = story.poll ? JSON.parse(story.poll) : null; } catch (e) {}
+            if (!poll || !Array.isArray(poll.options)) {
+                return res.json({ api_status: 400, error_message: 'Story has no poll' });
+            }
+
+            const optionIdx = poll.options.findIndex(o => o.id === pollOptionId);
+            if (optionIdx === -1) return res.json({ api_status: 404, error_message: 'Poll option not found' });
+
+            // Инициализируем хранилище проголосовавших
+            if (!Array.isArray(poll.options[optionIdx].voters)) poll.options[optionIdx].voters = [];
+
+            const alreadyVotedIdx = poll.options.findIndex(o => Array.isArray(o.voters) && o.voters.includes(loggedUserId));
+            if (alreadyVotedIdx !== -1) {
+                // Убираем предыдущий голос
+                poll.options[alreadyVotedIdx].voters = poll.options[alreadyVotedIdx].voters.filter(id => id !== loggedUserId);
+                poll.options[alreadyVotedIdx].votes  = Math.max(0, (poll.options[alreadyVotedIdx].votes || 0) - 1);
+            }
+
+            // Если голосует за тот же вариант — это снятие голоса
+            if (alreadyVotedIdx === optionIdx) {
+                await ctx.wo_userstory.update({ poll: JSON.stringify(poll) }, { where: { id: storyId } });
+                return res.json({ api_status: 200, poll, voted_option_id: null, message: 'Vote removed' });
+            }
+
+            // Добавляем новый голос
+            poll.options[optionIdx].voters.push(loggedUserId);
+            poll.options[optionIdx].votes = (poll.options[optionIdx].votes || 0) + 1;
+
+            await ctx.wo_userstory.update({ poll: JSON.stringify(poll) }, { where: { id: storyId } });
+            console.log(`[Stories/vote-poll] User ${loggedUserId} voted option ${pollOptionId} in story ${storyId}`);
+            res.json({ api_status: 200, poll, voted_option_id: pollOptionId });
+        } catch (err) {
+            console.error('[Stories/vote-poll]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
+// ─── POST /api/node/stories/get-analytics ───────────────────────────────────
+// Аналитика сторис для владельца: охват, реакции, вовлечённость.
+
+function getStoryAnalytics(ctx) {
+    return async (req, res) => {
+        const loggedUserId = req.userId;
+        const storyId      = parseInt(req.body.story_id);
+        if (!storyId) return res.json({ api_status: 400, error_message: 'story_id is required' });
+
+        try {
+            const story = await ctx.wo_userstory.findOne({
+                where: { id: storyId },
+                attributes: ['id', 'user_id', 'title', 'posted', 'expire'],
+                raw: true,
+            });
+            if (!story)                       return res.json({ api_status: 404, error_message: 'Story not found' });
+            if (story.user_id !== loggedUserId) return res.json({ api_status: 403, error_message: 'Only story owner can view analytics' });
+
+            // Уникальные просмотры (только авторизованные, user_id > 0)
+            const uniqueViews = await ctx.wo_story_seen.count({
+                where: { story_id: storyId, user_id: { [Op.gt]: 0 } },
+            });
+
+            // Реакции по типам
+            let reactionsBreakdown = { like: 0, love: 0, haha: 0, wow: 0, sad: 0, angry: 0 };
+            try {
+                const reactions = await ctx.wo_storyreactions.findAll({
+                    where: { story_id: storyId },
+                    attributes: ['reaction'],
+                    raw: true,
+                });
+                for (const r of reactions) {
+                    if (reactionsBreakdown.hasOwnProperty(r.reaction)) reactionsBreakdown[r.reaction]++;
+                }
+            } catch (e) {}
+
+            const totalReactions = Object.values(reactionsBreakdown).reduce((a, b) => a + b, 0);
+
+            // Комментарии
+            let totalComments = 0;
+            try {
+                totalComments = await ctx.wo_storycomments.count({ where: { story_id: storyId } });
+            } catch (e) {}
+
+            // Вовлечённость = (reactions + comments) / max(uniqueViews, 1) * 100
+            const engagementRate = uniqueViews > 0
+                ? Math.round((totalReactions + totalComments) / uniqueViews * 100)
+                : 0;
+
+            res.json({
+                api_status:      200,
+                story_id:        storyId,
+                unique_views:    uniqueViews,
+                total_reactions: totalReactions,
+                reactions:       reactionsBreakdown,
+                total_comments:  totalComments,
+                engagement_rate: engagementRate,   // в процентах
+                posted_at:       story.posted,
+                expires_at:      story.expire,
+            });
+        } catch (err) {
+            console.error('[Stories/get-analytics]', err.message);
+            res.json({ api_status: 500, error_message: err.message });
+        }
+    };
+}
+
 // ─── POST /api/node/stories/get-views ───────────────────────────────────────
 
 function getStoryViews(ctx) {
@@ -1244,10 +1403,16 @@ function registerStoryRoutes(app, ctx, io) {
     app.post('/api/node/stories/get-channel-subscribed',  auth, getSubscribedChannelStories(ctx));
     app.post('/api/node/stories/delete-channel',          auth, deleteChannelStory(ctx));
 
+    // ── New endpoints: edit, poll vote, analytics ─────────────────────────────
+    app.post('/api/node/stories/update',          auth, updateStory(ctx));
+    app.post('/api/node/stories/vote-poll',        auth, voteStoryPoll(ctx));
+    app.post('/api/node/stories/get-analytics',   auth, getStoryAnalytics(ctx));
+
     console.log('[Stories API] Endpoints registered under /api/node/stories/*');
     console.log('  Stories: create, get, get-user-stories, mark-viewed, react, get-comments, create-comment,');
     console.log('           get-by-id, delete, get-views, mute, delete-comment,');
-    console.log('           create-channel, get-channel-subscribed, delete-channel');
+    console.log('           create-channel, get-channel-subscribed, delete-channel,');
+    console.log('           update, vote-poll, get-analytics');
 }
 
 module.exports = { registerStoryRoutes };
