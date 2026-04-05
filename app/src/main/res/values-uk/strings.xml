@@ -3131,4 +3131,19 @@
     <string name="conf_quality_degraded">Якість знижено через стан мережі</string>
     <string name="conf_quality_restored">Якість відновлено</string>
 
+    <!-- ===== ЛАНЦЮГИ СПОВІЩЕНЬ ТА НАЛАШТУВАННЯ ПРІОРИТЕТУ ===== -->
+    <!-- Зведене сповіщення коли 2+ чатів мають непрочитані повідомлення -->
+    <string name="notif_chain_summary_title">Нові повідомлення</string>
+    <!-- %1$d = кількість повідомлень, %2$d = кількість чатів -->
+    <string name="notif_chain_summary_text">%1$d повідомлень з %2$d чатів</string>
+    <!-- Канал пріоритетних сповіщень (відображається у системних налаштуваннях) -->
+    <string name="notif_priority_channel_name">Пріоритетні сповіщення</string>
+    <string name="notif_priority_channel_desc">Максимальний пріоритет для VIP-контактів</string>
+    <!-- Рівні пріоритету (відображаються у налаштуваннях контакту/групи) -->
+    <string name="notif_priority_label">Пріоритет сповіщень</string>
+    <string name="notif_priority_silent">Без звуку</string>
+    <string name="notif_priority_normal">Звичайний</string>
+    <string name="notif_priority_high">Пріоритетний (VIP)</string>
+    <!-- Підтвердження збереження -->
+    <string name="notif_priority_saved">Налаштування збережено</string>
 </resources>

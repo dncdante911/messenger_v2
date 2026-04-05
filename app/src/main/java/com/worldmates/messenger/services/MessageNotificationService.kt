@@ -68,6 +68,18 @@ class MessageNotificationService : Service() {
         private const val CALL_NOTIF_ID       = 9003
         private const val GROUP_CALL_NOTIF_ID = 9004
 
+        // Notification ID for the group-summary notification (messages)
+        private const val SUMMARY_NOTIF_ID    = 9005
+
+        // Android notification group key — all message notifications share this group
+        private const val GROUP_KEY_MESSAGES  = "wm_msg_group"
+
+        // Maximum messages kept per chat notification chain (MessagingStyle history)
+        private const val MAX_CHAIN_MESSAGES  = 5
+
+        // Priority notification channel (VIP contacts — MAX importance)
+        const val CHANNEL_PRIORITY_ID   = "wm_priority"
+
         // Інтервал страховочного AlarmManager (5 хвилин)
         private const val RESTART_ALARM_INTERVAL_MS = 5 * 60 * 1000L
 
@@ -117,6 +129,15 @@ class MessageNotificationService : Service() {
 
     // Cached notification preferences (updated reactively via DataStore Flow)
     @Volatile private var notifPrefs = UserPreferences()
+
+    // ── Notification chain state ───────────────────────────────────────────────
+    // History of messages per notifId (up to MAX_CHAIN_MESSAGES entries).
+    // Used to build a stacked MessagingStyle conversation view.
+    private val messageHistory  = HashMap<Int, ArrayDeque<NotificationCompat.MessagingStyle.Message>>()
+    // Number of messages accumulated since last dismissal per notifId
+    private val messageCount    = HashMap<Int, Int>()
+    // Currently active (not-yet-dismissed) notification IDs
+    private val activeNotifIds  = HashSet<Int>()
 
     // ------------------------------------------------------------------
     // Lifecycle
@@ -353,9 +374,11 @@ class MessageNotificationService : Service() {
                 Log.d(TAG, "📞 App in foreground — launching activity without notification")
                 startActivity(intent)
             } else {
-                // App in background / screen locked — show full-screen notification
+                // App in background / screen locked — full-screen notification handles the launch.
+                // DO NOT also call startActivity() here: the fullScreenIntent inside the
+                // notification already triggers the IncomingCallActivity; a second startActivity()
+                // would open it twice causing the visible duplicate.
                 showIncomingCallNotification(intent, fromName, callType, CALL_NOTIF_ID)
-                startActivity(intent)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling incoming call", e)
@@ -401,8 +424,8 @@ class MessageNotificationService : Service() {
                 Log.d(TAG, "📞 App in foreground — launching group call activity without notification")
                 startActivity(intent)
             } else {
+                // Same as 1-on-1: full-screen intent launches the activity; no extra startActivity().
                 showIncomingCallNotification(intent, "$initiatorName → $groupName", callType, GROUP_CALL_NOTIF_ID)
-                startActivity(intent)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling incoming group call", e)
@@ -659,6 +682,12 @@ class MessageNotificationService : Service() {
     // Notification builders
     // ------------------------------------------------------------------
 
+    /**
+     * Build and post a message notification with:
+     *   • Per-contact/group priority override (SILENT / NORMAL / PRIORITY)
+     *   • MessagingStyle conversation chain (stacked history, up to MAX_CHAIN_MESSAGES)
+     *   • Android notification grouping + smart summary when 2+ chats are active
+     */
     private fun showMessageNotification(
         notifId: Int,
         title: String,
@@ -669,7 +698,21 @@ class MessageNotificationService : Service() {
         channelId: Long,
         type: ChatType
     ) {
-        val intent = Intent(this, MessagesActivity::class.java).apply {
+        // ── 1. Priority check ─────────────────────────────────────────────────
+        val priorityLevel = when (type) {
+            ChatType.PRIVATE -> NotificationPriorityManager.getContactLevel(this, senderId)
+            ChatType.GROUP   -> NotificationPriorityManager.getGroupLevel(this, groupId)
+            ChatType.CHANNEL -> NotificationPriorityManager.getGroupLevel(this, channelId)
+        }
+        if (priorityLevel == NotificationPriorityManager.Level.SILENT) return
+
+        val channelToUse   = if (priorityLevel == NotificationPriorityManager.Level.PRIORITY)
+            CHANNEL_PRIORITY_ID else CHANNEL_MESSAGES_ID
+        val notifPriority  = if (priorityLevel == NotificationPriorityManager.Level.PRIORITY)
+            NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_HIGH
+
+        // ── 2. Tap intent ─────────────────────────────────────────────────────
+        val tapIntent = Intent(this, MessagesActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             when (type) {
                 ChatType.PRIVATE -> {
@@ -686,44 +729,101 @@ class MessageNotificationService : Service() {
                 }
             }
         }
-
         val pendingIntent = PendingIntent.getActivity(
-            this, notifId, intent,
+            this, notifId, tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // MessagingStyle makes the notification look like a chat bubble on Android 7+
-        val sender = Person.Builder().setName(title).build()
-        val style  = NotificationCompat.MessagingStyle(sender)
-            .addMessage(text, System.currentTimeMillis(), sender)
+        // ── 3. Accumulate message chain ───────────────────────────────────────
+        val senderPerson = Person.Builder().setName(senderName).build()
+        val newMsg = NotificationCompat.MessagingStyle.Message(
+            text, System.currentTimeMillis(), senderPerson
+        )
+        synchronized(messageHistory) {
+            val chain = messageHistory.getOrPut(notifId) { ArrayDeque(MAX_CHAIN_MESSAGES + 1) }
+            chain.addLast(newMsg)
+            if (chain.size > MAX_CHAIN_MESSAGES) chain.removeFirst()
+            messageCount[notifId] = (messageCount[notifId] ?: 0) + 1
+            activeNotifIds.add(notifId)
+        }
 
-        val builder = NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
+        // ── 4. Build MessagingStyle from accumulated chain ────────────────────
+        // 'Me' person represents the local user in the conversation bubble
+        val mePerson = Person.Builder().setName(getString(R.string.user_label)).build()
+        val style = NotificationCompat.MessagingStyle(mePerson).apply {
+            conversationTitle = if (type != ChatType.PRIVATE) title else null
+            synchronized(messageHistory) {
+                messageHistory[notifId]?.forEach { addMessage(it) }
+            }
+        }
+
+        // ── 5. Build notification ─────────────────────────────────────────────
+        val builder = NotificationCompat.Builder(this, channelToUse)
             .setSmallIcon(R.drawable.ic_notification_message)
             .setStyle(style)
             .setContentTitle(title)
             .setContentText(text)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(notifPriority)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setLights(0xFF0084FF.toInt(), 300, 1000)
+            // Grouping — all message notifications share one Android notification group
+            .setGroup(GROUP_KEY_MESSAGES)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
 
-        // Звук — тільки якщо увімкнено у налаштуваннях
         if (notifPrefs.soundEnabled) {
             builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
         } else {
             builder.setSilent(true)
         }
-
-        // Вібрація — тільки якщо увімкнено у налаштуваннях
         if (notifPrefs.vibrationEnabled) {
             builder.setVibrate(longArrayOf(0, 200, 80, 200))
         }
 
-        val notification = builder.build()
-
         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-            .notify(notifId, notification)
+            .notify(notifId, builder.build())
+
+        // ── 6. Update group summary ───────────────────────────────────────────
+        updateMessageSummary()
+    }
+
+    /**
+     * Post or update the group-summary notification.
+     * Android requires a summary when using setGroup(); it is collapsed and shows
+     * the aggregated count in the notification shade.
+     * The summary is removed when fewer than 2 individual notifications are active.
+     */
+    private fun updateMessageSummary() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val idCount: Int
+        val msgCount: Int
+        synchronized(messageHistory) {
+            idCount  = activeNotifIds.size
+            msgCount = messageCount.values.sum()
+        }
+
+        if (idCount < 2) {
+            nm.cancel(SUMMARY_NOTIF_ID)
+            return
+        }
+
+        val summaryText = String.format(
+            getString(R.string.notif_chain_summary_text), msgCount, idCount
+        )
+        val summary = NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
+            .setSmallIcon(R.drawable.ic_notification_message)
+            .setContentTitle(getString(R.string.notif_chain_summary_title))
+            .setContentText(summaryText)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setGroup(GROUP_KEY_MESSAGES)
+            .setGroupSummary(true)
+            .setAutoCancel(true)
+            .setSilent(true)
+            .build()
+
+        nm.notify(SUMMARY_NOTIF_ID, summary)
     }
 
     private fun buildServiceNotification(): Notification {
@@ -790,6 +890,28 @@ class MessageNotificationService : Service() {
             lightColor = 0xFF00C853.toInt()
         }
         nm.createNotificationChannel(callChannel)
+
+        // MAX — priority/VIP channel (heads-up every time, louder ringtone)
+        val priorityChannel = NotificationChannel(
+            CHANNEL_PRIORITY_ID,
+            getString(R.string.notif_priority_channel_name),
+            NotificationManager.IMPORTANCE_MAX
+        ).apply {
+            description = getString(R.string.notif_priority_channel_desc)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setSound(
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 100, 50, 100, 50, 300)
+            enableLights(true)
+            lightColor = 0xFFFF6F00.toInt() // amber — visually distinct from normal (blue)
+        }
+        nm.createNotificationChannel(priorityChannel)
 
         // MIN — silent persistent service notification (collapsed at bottom of shade)
         val svcChannel = NotificationChannel(
