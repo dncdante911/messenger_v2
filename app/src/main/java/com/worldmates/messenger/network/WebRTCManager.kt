@@ -963,19 +963,13 @@ class WebRTCManager(private val context: Context) {
         }
 
         return try {
-            // ✅ ВИПРАВЛЕНО: Якщо відеотрек і камера існують - перезапустити камеру
+            // Capturer is still running (disableVideo only mutes the track),
+            // so we only need to re-enable the existing track.
             if (localVideoTrack != null && videoCapturer != null) {
-                Log.d("WebRTCManager", "📹 Restarting existing camera...")
-                try {
-                    videoCapturer?.startCapture(currentVideoQuality.width, currentVideoQuality.height, currentVideoQuality.fps)
-                    localVideoTrack?.setEnabled(true)
-                    Log.d("WebRTCManager", "✅ Camera restarted successfully")
-                    return true
-                } catch (e: Exception) {
-                    Log.w("WebRTCManager", "Failed to restart camera, will recreate: ${e.message}")
-                    // Якщо не вдалося перезапустити - очистити і створити заново
-                    cleanupVideoResources()
-                }
+                Log.d("WebRTCManager", "📹 Re-enabling existing video track (capturer still active)")
+                localVideoTrack?.setEnabled(true)
+                Log.d("WebRTCManager", "✅ Video track re-enabled")
+                return true
             }
 
             // ✅ Якщо тільки відеотрек існує (камера була disposed) - очистити і створити заново
@@ -1062,22 +1056,14 @@ class WebRTCManager(private val context: Context) {
     }
 
     /**
-     * 📹 Выключить видео (остановить камеру, НЕ удалять ресурсы для возможности перезапуска)
+     * 📹 Вимкнути відео — тільки вимикаємо трек, не зупиняємо capturer.
+     * Зупинка capturer призводить до зависання камери при повторному увімкненні
+     * (Android CameraX/Camera2 не гарантує стабільний re-start після stopCapture).
      */
     fun disableVideo() {
         try {
-            // Выключить трек (но не удалять)
             localVideoTrack?.setEnabled(false)
-
-            // ✅ Остановить камеру для экономии батареи
-            // НЕ вызываем dispose() чтобы можно было перезапустить
-            try {
-                videoCapturer?.stopCapture()
-            } catch (e: InterruptedException) {
-                Log.w("WebRTCManager", "Interrupted while stopping capture: ${e.message}")
-            }
-
-            Log.d("WebRTCManager", "📹 Video disabled, camera paused (can be restarted)")
+            Log.d("WebRTCManager", "📹 Video track muted (capturer still running)")
         } catch (e: Exception) {
             Log.e("WebRTCManager", "Error disabling video", e)
         }
