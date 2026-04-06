@@ -3,6 +3,9 @@ package com.worldmates.messenger.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -20,9 +23,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Sticker
 import com.worldmates.messenger.data.model.StickerPack
 import com.worldmates.messenger.data.repository.StickerRepository
+import com.worldmates.messenger.data.repository.StrapiStickerRepository
 import com.worldmates.messenger.data.stickers.EmbeddedStickerPacks
 import kotlinx.coroutines.launch
 
@@ -92,6 +99,12 @@ fun StickerPicker(
         }
     }
 
+    var showManageSheet by remember { mutableStateOf(false) }
+
+    if (showManageSheet) {
+        StickerPackManagementSheet(onDismiss = { showManageSheet = false })
+    }
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -113,8 +126,13 @@ fun StickerPicker(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Закрити")
+                Row {
+                    IconButton(onClick = { showManageSheet = true }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Управління паками")
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Закрити")
+                    }
                 }
             }
 
@@ -284,6 +302,147 @@ private fun StickerPackTab(
                     }
                 )
             }
+        }
+    }
+}
+
+/**
+ * ⚙️ StickerPackManagementSheet — Управління паками стікерів
+ *
+ * Показує всі паки з Strapi CDN + вбудовані, з можливістю
+ * активувати / деактивувати кожен пак через StickerRepository.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StickerPackManagementSheet(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val strapiRepo = remember { StrapiStickerRepository.getInstance(context) }
+    val stickerRepo = remember { StickerRepository.getInstance(context) }
+
+    val allStrapiPacks by strapiRepo.stickerPacks.collectAsState()
+    val isLoading by strapiRepo.isLoading.collectAsState()
+    // Track toggled packs locally (mirrors server state; true = enabled)
+    val enabledPackIds = remember { mutableStateMapOf<Int, Boolean>() }
+
+    // Fetch from CDN on open
+    LaunchedEffect(Unit) { strapiRepo.fetchAllPacks() }
+    // Pre-populate all packs as enabled by default on first load
+    LaunchedEffect(allStrapiPacks) {
+        allStrapiPacks.forEach { pack ->
+            if (!enabledPackIds.containsKey(pack.id)) enabledPackIds[pack.id] = true
+        }
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .navigationBarsPadding()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Управління паками стікерів",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = null)
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            if (isLoading && allStrapiPacks.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(Modifier.height(8.dp))
+                        Text("Завантаження паків…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            } else if (allStrapiPacks.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Немає доступних паків", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(modifier = Modifier.heightIn(max = 480.dp)) {
+                    items(allStrapiPacks) { pack ->
+                        val isEnabled = enabledPackIds[pack.id] ?: true
+                        val firstItemUrl = pack.items.firstOrNull()?.url
+                        val isAnimated = firstItemUrl?.let {
+                            it.endsWith(".gif") || it.endsWith(".json") || it.endsWith(".tgs")
+                        } == true
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Pack thumbnail (first item's URL)
+                            if (!firstItemUrl.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = firstItemUrl,
+                                    contentDescription = pack.name,
+                                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(pack.name.take(2), fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // Pack info
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(pack.name, fontWeight = FontWeight.Medium)
+                                Text(
+                                    text = buildString {
+                                        append("${pack.items.size} стікерів")
+                                        if (isAnimated) append(" • Анімований")
+                                        if (pack.isPro) append(" • PRO")
+                                    },
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            // Toggle switch — also calls server API
+                            Switch(
+                                checked = isEnabled,
+                                onCheckedChange = { enable ->
+                                    enabledPackIds[pack.id] = enable
+                                    scope.launch {
+                                        if (enable) stickerRepo.activateStickerPack(pack.id.toLong())
+                                        else stickerRepo.deactivateStickerPack(pack.id.toLong())
+                                    }
+                                }
+                            )
+                        }
+                        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

@@ -468,6 +468,10 @@ fun MessagesScreen(
         }
     }
 
+    // Pending image waiting for "Send / Edit" choice
+    var pendingImageFile by remember { mutableStateOf<java.io.File?>(null) }
+    var showImagePreviewDialog by remember { mutableStateOf(false) }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -475,7 +479,9 @@ fun MessagesScreen(
             Log.d("MessagesScreen", "Вибрано зображення: $it")
             val file = fileManager.copyUriToCache(it)
             if (file != null) {
-                viewModel.uploadAndSendMedia(file, "image")
+                // Show "Send / Edit" preview instead of uploading immediately
+                pendingImageFile = file
+                showImagePreviewDialog = true
             } else {
                 Log.e("MessagesScreen", "Не вдалося скопіювати зображення")
             }
@@ -525,7 +531,7 @@ fun MessagesScreen(
         }
     }
 
-    // Для выбора нескольких файлов (до 15 штук)
+    // Для вибору кількох фото/файлів (до 15 штук) — пакетне завантаження
     val multipleFilesPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
@@ -538,15 +544,10 @@ fun MessagesScreen(
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
             } else {
-                // Обробляємо множинні файли через viewModel
-                Log.d("MessagesScreen", "Вибрано ${uris.size} файлів для завантаження")
-                uris.forEach { uri ->
-                    val file = fileManager.copyUriToCache(uri)
-                    if (file != null) {
-                        viewModel.uploadAndSendMedia(file, "file")
-                    } else {
-                        Log.e("MessagesScreen", "Не вдалося скопіювати файл: $uri")
-                    }
+                Log.d("MessagesScreen", "Пакетне завантаження: ${uris.size} файлів")
+                val files = uris.mapNotNull { uri -> fileManager.copyUriToCache(uri) }
+                if (files.isNotEmpty()) {
+                    viewModel.uploadMultipleAndSendMedia(files)
                 }
             }
         }
@@ -1290,6 +1291,48 @@ fun MessagesScreen(
             var showPhotoEditor by remember { mutableStateOf(false) }
             var editImageUrl by remember { mutableStateOf<String?>(null) }
 
+            // 🖼️ "Send / Edit" preview dialog after image picker
+            if (showImagePreviewDialog && pendingImageFile != null) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showImagePreviewDialog = false
+                        pendingImageFile?.delete()
+                        pendingImageFile = null
+                    },
+                    title = { Text(stringResource(R.string.preview_before_send)) },
+                    text = {
+                        coil.compose.AsyncImage(
+                            model = pendingImageFile,
+                            contentDescription = null,
+                            modifier = androidx.compose.ui.Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showImagePreviewDialog = false
+                            pendingImageFile?.let { viewModel.uploadAndSendMedia(it, "image") }
+                            pendingImageFile = null
+                        }) {
+                            Text(stringResource(R.string.send_original))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showImagePreviewDialog = false
+                            editImageUrl = pendingImageFile?.absolutePath
+                            showPhotoEditor = true
+                            pendingImageFile = null
+                        }) {
+                            Text(stringResource(R.string.edit_before_send))
+                        }
+                    }
+                )
+            }
+
             if (showImageGallery && !showPhotoEditor) {
                 // Build gallery: always include the tapped URL (imageUrls may miss it)
                 val galleryUrls = remember(imageUrls, clickedImageUrl) {
@@ -1733,10 +1776,11 @@ fun MessagesScreen(
                     },
                     onShowMediaOptions = { showMediaOptions = !showMediaOptions },
                     onPickImage = { imagePickerLauncher.launch("image/*") },
-                    onPickVideo = { videoPickerLauncher.launch("video/*") },  // Галерея відео
+                    onPickVideo = { videoPickerLauncher.launch("video/*") },
                     onPickAudio = { audioPickerLauncher.launch("audio/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
-                    onCameraClick = { imagePickerLauncher.launch("image/*") },  // Поки що також галерея
+                    onCameraClick = { imagePickerLauncher.launch("image/*") },
+                    onBatchClick = { multipleFilesPickerLauncher.launch("image/*") },
                     onVideoCameraClick = { if (onRequestVideoPermissions()) showVideoMessageRecorder = true },
                     showMediaOptions = showMediaOptions,
                     showEmojiPicker = showEmojiPicker,

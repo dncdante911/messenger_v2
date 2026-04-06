@@ -3237,4 +3237,58 @@
     <string name="notif_priority_high">Пріоритетний (VIP)</string>
     <!-- Toast/snackbar confirmation -->
     <string name="notif_priority_saved">Налаштування збережено</string>
+
+    <!-- ===== BATCH UPLOAD / MULTIPLE FILES ===== -->
+    <!-- Кнопка в меню прикріплення файлів для вибору кількох фото одночасно -->
+    <string name="attach_multiple">Кілька фото</string>
+    <!-- Прогрес пакетного завантаження: %1$d = поточний файл, %2$d = загальна кількість -->
+    <string name="batch_upload_progress">Завантаження %1$d з %2$d…</string>
+    <!-- Кнопка підтвердження відправки вибраних файлів: %1$d = кількість файлів -->
+    <string name="batch_send_files">Надіслати %1$d файлів</string>
+
+    <!-- ===== EDIT BEFORE SEND (редактор фото перед відправкою) ===== -->
+    <!-- Заголовок діалогу попереднього перегляду після вибору фото -->
+    <string name="preview_before_send">Надіслати фото?</string>
+    <!-- Кнопка: відправити фото без редагування -->
+    <string name="send_original">Надіслати</string>
+    <!-- Кнопка: відкрити редактор перед відправкою -->
+    <string name="edit_before_send">Редагувати</string>
+    <!-- Кнопка скасування дії (undo) у редакторі -->
+    <string name="editor_undo">Скасувати</string>
+    <!-- Кнопка повторення дії (redo) у редакторі -->
+    <string name="editor_redo">Повторити</string>
+    <!-- Кнопка скидання всіх змін до оригіналу -->
+    <string name="editor_reset">Скинути всі зміни</string>
+
+    <!-- ===== STICKER PACK MANAGEMENT (управління паками стікерів) ===== -->
+    <!-- Заголовок екрана керування паками стікерів -->
+    <string name="sticker_manage_title">Управління паками</string>
+    <!-- Кнопка додавання / активації паку стікерів -->
+    <string name="sticker_pack_add">Додати</string>
+    <!-- Кнопка видалення / деактивації паку стікерів -->
+    <string name="sticker_pack_remove">Видалити</string>
+    <!-- Стан завантаження списку паків -->
+    <string name="sticker_packs_loading">Завантаження паків…</string>
+    <!-- Порожній стан: жодного паку не знайдено у CDN -->
+    <string name="sticker_packs_empty">Немає доступних паків</string>
+    <!-- Кількість стікерів у паку; %1$d = кількість -->
+    <string name="sticker_pack_count">%1$d стікерів</string>
+    <!-- Позначка анімованого паку (Lottie / GIF) -->
+    <string name="sticker_pack_animated">Анімований</string>
+
+    <!-- ===== GIF SUPPORT (підтримка GIF-зображень) ===== -->
+    <!-- Вкладка трендових GIF у GifPicker -->
+    <string name="gif_trending_tab">Тренди</string>
+    <!-- Вкладка пошуку GIF у GifPicker -->
+    <string name="gif_search_tab">Пошук</string>
+    <!-- Підказка поля пошуку GIF -->
+    <string name="gif_search_hint">Пошук GIF…</string>
+    <!-- Порожній стан: нічого не знайдено за запитом -->
+    <string name="gif_no_results">Нічого не знайдено</string>
+
+    <!-- ===== WEBP / IMAGE OPTIMIZATION ===== -->
+    <!-- Позначка оптимізованого WebP-зображення (галерея / відправка) -->
+    <string name="webp_optimized">Оптимізовано (WebP)</string>
+    <!-- Мітка анімованого медіафайлу (WebP animated / GIF) у галереї -->
+    <string name="media_animated_label">Анімоване</string>
 </resources>

@@ -68,6 +68,7 @@ fun MessageInputBar(
     onToggleContactPicker: () -> Unit,
     showStrapiPicker: Boolean,  // Додано
     onToggleStrapiPicker: () -> Unit,  // Додано
+    onBatchClick: () -> Unit = {},
     onPollClick: (() -> Unit)? = null,
     onRequestAudioPermission: () -> Boolean = { true },
     viewModel: MessagesViewModel? = null,
@@ -172,6 +173,7 @@ fun MessageInputBar(
             onGifClick = { onToggleGifPicker() },
             onEmojiClick = { onToggleEmojiPicker() },
             onStrapiClick = { onToggleStrapiPicker() },
+            onBatchClick = { onBatchClick() },
             onPollClick = onPollClick
         )
         }

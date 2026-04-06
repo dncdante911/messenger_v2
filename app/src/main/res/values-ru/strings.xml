@@ -3238,4 +3238,58 @@
     <string name="notif_priority_high">Приоритетный (VIP)</string>
     <!-- Подтверждение сохранения -->
     <string name="notif_priority_saved">Настройки сохранены</string>
+
+    <!-- ===== ПАКЕТНАЯ ЗАГРУЗКА / НЕСКОЛЬКО ФАЙЛОВ ===== -->
+    <!-- Кнопка в меню прикрепления для выбора нескольких фото сразу -->
+    <string name="attach_multiple">Несколько фото</string>
+    <!-- Прогресс пакетной загрузки: %1$d = текущий файл, %2$d = всего файлов -->
+    <string name="batch_upload_progress">Загрузка %1$d из %2$d…</string>
+    <!-- Кнопка подтверждения отправки выбранных файлов: %1$d = количество файлов -->
+    <string name="batch_send_files">Отправить %1$d файлов</string>
+
+    <!-- ===== РЕДАКТОР ФОТО ПЕРЕД ОТПРАВКОЙ ===== -->
+    <!-- Заголовок диалога предварительного просмотра после выбора фото -->
+    <string name="preview_before_send">Отправить фото?</string>
+    <!-- Кнопка: отправить фото без редактирования -->
+    <string name="send_original">Отправить</string>
+    <!-- Кнопка: открыть редактор перед отправкой -->
+    <string name="edit_before_send">Редактировать</string>
+    <!-- Кнопка отмены действия (undo) в редакторе -->
+    <string name="editor_undo">Отменить</string>
+    <!-- Кнопка повтора действия (redo) в редакторе -->
+    <string name="editor_redo">Повторить</string>
+    <!-- Кнопка сброса всех изменений до оригинала -->
+    <string name="editor_reset">Сбросить изменения</string>
+
+    <!-- ===== УПРАВЛЕНИЕ ПАКАМИ СТИКЕРОВ ===== -->
+    <!-- Заголовок экрана управления паками стикеров -->
+    <string name="sticker_manage_title">Управление паками</string>
+    <!-- Кнопка добавления / активации пака стикеров -->
+    <string name="sticker_pack_add">Добавить</string>
+    <!-- Кнопка удаления / деактивации пака стикеров -->
+    <string name="sticker_pack_remove">Удалить</string>
+    <!-- Состояние загрузки списка паков -->
+    <string name="sticker_packs_loading">Загрузка паков…</string>
+    <!-- Пустое состояние: нет доступных паков в CDN -->
+    <string name="sticker_packs_empty">Нет доступных паков</string>
+    <!-- Количество стикеров в паке; %1$d = количество -->
+    <string name="sticker_pack_count">%1$d стикеров</string>
+    <!-- Отметка анимированного пака (Lottie / GIF) -->
+    <string name="sticker_pack_animated">Анимированный</string>
+
+    <!-- ===== ПОДДЕРЖКА GIF ===== -->
+    <!-- Вкладка трендовых GIF в GifPicker -->
+    <string name="gif_trending_tab">Тренды</string>
+    <!-- Вкладка поиска GIF в GifPicker -->
+    <string name="gif_search_tab">Поиск</string>
+    <!-- Подсказка поля поиска GIF -->
+    <string name="gif_search_hint">Поиск GIF…</string>
+    <!-- Пустое состояние: ничего не найдено по запросу -->
+    <string name="gif_no_results">Ничего не найдено</string>
+
+    <!-- ===== WEBP / ОПТИМИЗАЦИЯ ИЗОБРАЖЕНИЙ ===== -->
+    <!-- Отметка оптимизированного WebP-изображения (галерея / отправка) -->
+    <string name="webp_optimized">Оптимизировано (WebP)</string>
+    <!-- Метка анимированного медиафайла (WebP animated / GIF) в галерее -->
+    <string name="media_animated_label">Анимированное</string>
 </resources>
