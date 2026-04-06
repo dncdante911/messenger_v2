@@ -19,8 +19,10 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -670,12 +672,21 @@ fun ActiveCallScreen(
         uiVisible = false
     }
 
+    // ─── Sync adaptive quality changes back to UI state ──────────────────────
+    val adaptiveQuality by viewModel.adaptiveVideoQuality.collectAsState()
+    LaunchedEffect(adaptiveQuality) {
+        currentVideoQuality = adaptiveQuality
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF000000))
             .pointerInput(Unit) {
-                detectTapGestures {
+                // awaitFirstDown(requireUnconsumed=false) fires even when inner views
+                // (RemoteVideoView, PiP) already consumed the touch event
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
                     uiVisible = true
                     lastInteractionTime = System.currentTimeMillis()
                 }
@@ -896,6 +907,42 @@ fun ActiveCallScreen(
                                     )
                                     Text(
                                         text = stringResource(R.string.video_filters_title),
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            // Quality pill
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = Color.White.copy(alpha = 0.15f),
+                                modifier = Modifier.clickable {
+                                    showQualitySelector = true
+                                    uiVisible = true
+                                    lastInteractionTime = System.currentTimeMillis()
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Hd,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = when (currentVideoQuality) {
+                                            com.worldmates.messenger.network.VideoQuality.QHD     -> "1440p"
+                                            com.worldmates.messenger.network.VideoQuality.FULL_HD -> "1080p"
+                                            com.worldmates.messenger.network.VideoQuality.HIGH    -> "720p"
+                                            com.worldmates.messenger.network.VideoQuality.MEDIUM  -> "480p"
+                                            com.worldmates.messenger.network.VideoQuality.LOW     -> "240p"
+                                        },
                                         color = Color.White,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium
@@ -1651,7 +1698,7 @@ fun VideoQualitySelector(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "💡 Виберіть нижчу якість для повільного інтернету",
+                    text = "💡 Якість автоматично адаптується до швидкості мережі. При слабкому інтернеті знижується до 480p/240p.",
                     fontSize = 12.sp,
                     color = Color(0xFF888888),
                     textAlign = TextAlign.Center

@@ -34,7 +34,8 @@ enum class VideoQuality(
     LOW(320, 240, 15, 100, 200, "Низька (240p)"),
     MEDIUM(640, 480, 24, 300, 600, "Середня (480p)"),
     HIGH(1280, 720, 30, 800, 1500, "Висока (720p)"),
-    FULL_HD(1920, 1080, 30, 1500, 2500, "Full HD (1080p)")
+    FULL_HD(1920, 1080, 30, 1500, 2500, "Full HD (1080p)"),
+    QHD(2560, 1440, 30, 3000, 5000, "QHD (1440p)")
 }
 
 /** Напрямок зміни якості під час адаптивного управління бітрейтом */
@@ -57,8 +58,8 @@ class WebRTCManager(private val context: Context) {
     private var videoSource: VideoSource? = null
     private var surfaceTextureHelper: SurfaceTextureHelper? = null  // ✅ Зберігаємо для правильного cleanup
 
-    // 📹 Поточна якість відео (за замовчуванням HIGH - 720p)
-    private var currentVideoQuality: VideoQuality = VideoQuality.HIGH
+    // 📹 Поточна якість відео (за замовчуванням FULL_HD - адаптивно знизиться при слабкому зв'язку)
+    private var currentVideoQuality: VideoQuality = VideoQuality.FULL_HD
 
     // ─── Відеофільтри та віртуальний фон ─────────────────────────────────────
     /** Менеджер відеофільтрів (warm/cool/bw/beauty тощо). Публічний для доступу з ViewModel. */
@@ -88,7 +89,7 @@ class WebRTCManager(private val context: Context) {
     private var iceServers: List<PeerConnection.IceServer> = emptyList()
 
     // ─── Адаптивний бітрейт ───────────────────────────────────────────────────
-    private val _adaptiveBitrateQuality = MutableStateFlow(VideoQuality.HIGH)
+    private val _adaptiveBitrateQuality = MutableStateFlow(VideoQuality.FULL_HD)
     /** Поточна якість після адаптації (для відображення в UI). */
     val adaptiveBitrateQuality: StateFlow<VideoQuality> = _adaptiveBitrateQuality
 
@@ -828,6 +829,7 @@ class WebRTCManager(private val context: Context) {
     }
 
     private fun lowerQuality(q: VideoQuality): VideoQuality = when (q) {
+        VideoQuality.QHD     -> VideoQuality.FULL_HD
         VideoQuality.FULL_HD -> VideoQuality.HIGH
         VideoQuality.HIGH    -> VideoQuality.MEDIUM
         VideoQuality.MEDIUM  -> VideoQuality.LOW
@@ -838,7 +840,8 @@ class WebRTCManager(private val context: Context) {
         VideoQuality.LOW     -> VideoQuality.MEDIUM
         VideoQuality.MEDIUM  -> VideoQuality.HIGH
         VideoQuality.HIGH    -> VideoQuality.FULL_HD
-        VideoQuality.FULL_HD -> VideoQuality.FULL_HD
+        VideoQuality.FULL_HD -> VideoQuality.QHD
+        VideoQuality.QHD     -> VideoQuality.QHD
     }
 
     /**
@@ -1090,6 +1093,7 @@ class WebRTCManager(private val context: Context) {
         }
 
         currentVideoQuality = quality
+        _adaptiveBitrateQuality.value = quality  // sync UI state
         Log.d(TAG, "📹 Changing video quality to ${quality.label} (${quality.width}x${quality.height}@${quality.fps}fps, ${quality.minBitrate}-${quality.maxBitrate} kbps)")
 
         // Если камера уже запущена - перезапустить с новым качеством
