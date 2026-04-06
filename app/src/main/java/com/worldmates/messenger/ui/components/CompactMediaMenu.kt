@@ -45,6 +45,7 @@ fun CompactMediaMenu(
     onGifClick: () -> Unit,
     onEmojiClick: () -> Unit,
     onStrapiClick: () -> Unit,
+    onBatchClick: () -> Unit,
     onPollClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -81,6 +82,7 @@ fun CompactMediaMenu(
                 val labelEmoji = stringResource(R.string.emoji)
                 val labelStickers = stringResource(R.string.stickers_label)
                 val labelGif = stringResource(R.string.gif)
+                val labelMultiple = stringResource(R.string.attach_multiple)
                 val labelPoll = stringResource(R.string.poll_label)
 
                 // Сітка опцій 3x4
@@ -97,6 +99,7 @@ fun CompactMediaMenu(
                     add(MediaOption(Icons.Default.StickyNote2, labelStickers, Color(0xFF795548)) { onStickerClick(); onDismiss() })
                     add(MediaOption(Icons.Default.Gif, labelGif, Color(0xFF3F51B5)) { onGifClick(); onDismiss() })
                     add(MediaOption(Icons.Default.Store, "Strapi CDN", Color(0xFF009688)) { onStrapiClick(); onDismiss() })
+                    add(MediaOption(Icons.Default.PhotoLibrary, labelMultiple, Color(0xFF1E88E5)) { onBatchClick(); onDismiss() })
                     if (onPollClick != null) {
                         add(MediaOption(Icons.Default.HowToVote, labelPoll, Color(0xFF673AB7)) { onPollClick(); onDismiss() })
                     }

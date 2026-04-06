@@ -1290,6 +1290,53 @@ class MessagesViewModel(application: Application) :
 
 
     /**
+     * Пакетне завантаження і відправка кількох медіафайлів одночасно (до 15).
+     * Тип медіа визначається за розширенням файлу автоматично.
+     */
+    fun uploadMultipleAndSendMedia(files: List<File>) {
+        if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+        if (files.isEmpty()) return
+        _isLoading.value = true
+        viewModelScope.launch {
+            try {
+                if (mediaUploader == null) mediaUploader = MediaUploader(context)
+                val mediaTypes = files.map { file ->
+                    when {
+                        file.name.matches(Regex(".*\\.(jpg|jpeg|png|gif|webp|bmp)$", RegexOption.IGNORE_CASE)) -> "image"
+                        file.name.matches(Regex(".*\\.(mp4|mov|avi|mkv|webm)$", RegexOption.IGNORE_CASE)) -> "video"
+                        file.name.matches(Regex(".*\\.(mp3|wav|ogg|aac|flac)$", RegexOption.IGNORE_CASE)) -> "audio"
+                        else -> "file"
+                    }
+                }
+                val results = mediaUploader!!.uploadMultipleFiles(
+                    accessToken = UserSession.accessToken!!,
+                    files = files,
+                    mediaTypes = mediaTypes,
+                    recipientId = recipientId.takeIf { it != 0L },
+                    groupId = groupId.takeIf { it != 0L },
+                    onProgress = { fileIndex, progress ->
+                        _uploadProgress.value = (fileIndex * 100 / files.size) + (progress / files.size)
+                    }
+                )
+                val ok = results.count { it is MediaUploader.UploadResult.Success }
+                val err = results.count { it is MediaUploader.UploadResult.Error }
+                Log.d("MessagesViewModel", "Batch upload done: $ok success, $err errors")
+                _uploadProgress.value = 0
+                if (err > 0) _error.value = "Не вдалося завантажити $err файл(ів)"
+                if (groupId != 0L) fetchGroupMessages() else fetchMessages()
+                files.forEach { if (it.exists()) it.delete() }
+            } catch (e: Exception) {
+                _error.value = "Пакетна помилка: ${e.localizedMessage}"
+                _uploadProgress.value = 0
+            }
+            _isLoading.value = false
+        }
+    }
+
+    /**
      * Налаштовує Socket.IO для получения сообщений в реальном времени
      * + Адаптивний моніторинг якості з'єднання
      */

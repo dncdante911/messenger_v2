@@ -10,6 +10,8 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import timber.log.Timber
 import com.worldmates.messenger.data.AccountManager
 import com.worldmates.messenger.services.WMFirebaseMessagingService
@@ -89,15 +91,33 @@ class WMApplication : MultiDexApplication(), ImageLoaderFactory {
     }
 
     /**
-     * Налаштування Coil ImageLoader з підтримкою GIF
+     * Coil ImageLoader: GIF + animated WebP + disk/memory caching
+     *
+     * - API 28+: ImageDecoderDecoder handles GIF AND animated WebP natively
+     * - API < 28: GifDecoder for GIFs; static WebP via BitmapFactory (built-in)
+     * - 30% RAM for memory cache, 150 MB disk cache → smooth WebP/sticker scrolling
+     * - crossfade for polished image loads
      */
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.30)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("coil_image_cache"))
+                    .maxSizeBytes(150L * 1024 * 1024) // 150 MB
+                    .build()
+            }
+            .crossfade(true)
             .components {
-                // Підтримка GIF для анімованих стікерів
                 if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    // Handles GIF + animated WebP on API 28+
                     add(ImageDecoderDecoder.Factory())
                 } else {
+                    // Legacy GIF support; static WebP is native via BitmapFactory
                     add(GifDecoder.Factory())
                 }
             }
