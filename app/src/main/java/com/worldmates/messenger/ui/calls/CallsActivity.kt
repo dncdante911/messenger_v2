@@ -22,7 +22,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -683,10 +682,10 @@ fun ActiveCallScreen(
             .fillMaxSize()
             .background(Color(0xFF000000))
             .pointerInput(Unit) {
-                // awaitFirstDown(requireUnconsumed=false) fires even when inner views
-                // (RemoteVideoView, PiP) already consumed the touch event
+                // awaitPointerEvent() fires on any pointer event including those
+                // already consumed by inner views (RemoteVideoView, PiP)
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
+                    awaitPointerEvent()
                     uiVisible = true
                     lastInteractionTime = System.currentTimeMillis()
                 }
