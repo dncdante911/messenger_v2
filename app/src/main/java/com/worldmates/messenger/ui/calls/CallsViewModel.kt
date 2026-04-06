@@ -1465,6 +1465,9 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         return webRTCManager.getVideoQuality()
     }
 
+    /** StateFlow: адаптивно змінюється при зміні якості мережі */
+    val adaptiveVideoQuality = webRTCManager.adaptiveBitrateQuality
+
     /**
      * 📹 Змінити якість відео
      */
