@@ -1075,12 +1075,18 @@ function legacyBotApi(ctx, io) {
             stop_poll:           () => stopPoll(ctx, io)(req, res),
             set_commands:        () => setCommands(ctx)(req, res),
             get_commands:        () => getCommands(ctx)(req, res),
+            delete_commands:     () => deleteMyCommands(ctx)(req, res),
             set_webhook:         () => setWebhook(ctx)(req, res),
             delete_webhook:      () => deleteWebhook(ctx)(req, res),
             get_webhook_info:    () => getWebhookInfo(ctx)(req, res),
             set_user_state:      () => setUserState(ctx)(req, res),
             get_user_state:      () => getUserState(ctx)(req, res),
             get_me:              () => getMe(ctx)(req, res),
+            send_voice:          () => sendVoice(ctx, io)(req, res),
+            send_animation:      () => sendAnimation(ctx, io)(req, res),
+            copy_message:        () => copyMessage(ctx, io)(req, res),
+            get_file:            () => getFile(ctx)(req, res),
+            get_chat_member_count: () => getChatMemberCount(ctx)(req, res),
             // Mini Apps
             set_web_app:         () => setWebApp(ctx)(req, res),
             delete_web_app:      () => deleteWebApp(ctx)(req, res),
@@ -1455,6 +1461,10 @@ const sendDocument = sendMedia('document');
 const sendAudio = sendMedia('audio');
 // POST /api/node/bot/sendVideo
 const sendVideo = sendMedia('video');
+// POST /api/node/bot/sendVoice
+const sendVoice = sendMedia('voice');
+// POST /api/node/bot/sendAnimation
+const sendAnimation = sendMedia('animation');
 
 // POST /api/node/bot/sendLocation
 function sendLocation(ctx, io) {
@@ -1594,6 +1604,178 @@ function getChatMember(ctx) {
             }});
         } catch (e) {
             return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// POST /api/node/bot/copyMessage — copy a message to another chat
+function copyMessage(ctx, io) {
+    return async (req, res) => {
+        const { chat_id, from_chat_id, message_id, caption } = req.body;
+        if (!chat_id || !from_chat_id || !message_id)
+            return res.json({ ok: false, error_code: 400, description: 'chat_id, from_chat_id, message_id required' });
+        try {
+            const orig = await ctx.wo_bot_messages.findOne({ where: { id: message_id, bot_id: req.botId }, raw: true });
+            if (!orig) return res.json({ ok: false, error_code: 404, description: 'message not found' });
+
+            const copy = await ctx.wo_bot_messages.create({
+                bot_id:    req.botId,
+                chat_id:   String(chat_id),
+                chat_type: orig.chat_type || 'private',
+                direction: 'outgoing',
+                text:      caption !== undefined ? caption : orig.text,
+                media_type: orig.media_type,
+                media_url:  orig.media_url,
+                reply_markup: orig.reply_markup,
+                processed: 1, processed_at: new Date(),
+            });
+            await ctx.wo_bots.increment('messages_sent', { where: { bot_id: req.botId } });
+            if (io) {
+                io.to(String(chat_id)).emit('bot_message', {
+                    event: 'bot_message', bot_id: req.botId, message_id: copy.id,
+                    text: copy.text, media: copy.media_url ? { type: copy.media_type, url: copy.media_url } : null,
+                    timestamp: Date.now()
+                });
+            }
+            return res.json({ ok: true, result: { message_id: copy.id } });
+        } catch (e) {
+            console.error('[Bots/copyMessage]', e.message);
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// DELETE /api/node/bot/deleteMyCommands — remove all commands for this bot
+function deleteMyCommands(ctx) {
+    return async (req, res) => {
+        try {
+            const count = await ctx.wo_bot_commands.destroy({ where: { bot_id: req.botId } });
+            return res.json({ ok: true, result: true, deleted: count });
+        } catch (e) {
+            console.error('[Bots/deleteMyCommands]', e.message);
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// GET /api/node/bot/getFile — get file info for a media message
+function getFile(ctx) {
+    return async (req, res) => {
+        const fileId = req.query.file_id || req.body.file_id;
+        if (!fileId) return res.json({ ok: false, error_code: 400, description: 'file_id required' });
+        try {
+            const msg = await ctx.wo_bot_messages.findOne({
+                where: { id: fileId, bot_id: req.botId },
+                attributes: ['id', 'media_type', 'media_url'],
+                raw: true
+            });
+            if (!msg || !msg.media_url)
+                return res.json({ ok: false, error_code: 404, description: 'file not found' });
+
+            // Extract path from URL for file_path
+            let filePath = msg.media_url;
+            try { filePath = new URL(msg.media_url).pathname; } catch {}
+
+            return res.json({ ok: true, result: {
+                file_id:   String(msg.id),
+                file_type: msg.media_type,
+                file_path: filePath,
+                file_url:  msg.media_url
+            }});
+        } catch (e) {
+            console.error('[Bots/getFile]', e.message);
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// GET /api/node/bot/getChatMemberCount — number of unique users who've interacted
+function getChatMemberCount(ctx) {
+    return async (req, res) => {
+        const chatId = req.query.chat_id || req.body.chat_id;
+        try {
+            let count;
+            if (chatId) {
+                // Count for specific chat (private — always 1 if they exist)
+                const user = await ctx.wo_users.count({ where: { user_id: parseInt(chatId) } });
+                count = user;
+            } else {
+                // Total unique users who interacted with this bot
+                count = await ctx.wo_bot_users.count({ where: { bot_id: req.botId } });
+            }
+            return res.json({ ok: true, result: count });
+        } catch (e) {
+            console.error('[Bots/getChatMemberCount]', e.message);
+            return res.json({ ok: false, error_code: 500, description: e.message });
+        }
+    };
+}
+
+// GET /api/node/bots/:bot_id/stats — per-bot detailed statistics (owner only)
+function getBotStats(ctx) {
+    return async (req, res) => {
+        const { bot_id } = req.params;
+        try {
+            const bot = await ctx.wo_bots.findOne({ where: { bot_id }, raw: true });
+            if (!bot) return res.json({ api_status: 404, error_message: 'Bot not found' });
+            if (bot.owner_id !== req.userId) return res.json({ api_status: 403, error_message: 'Forbidden' });
+
+            const now = new Date();
+            const oneDayAgo  = new Date(now - 86400  * 1000);
+            const sevenDaysAgo = new Date(now - 7 * 86400 * 1000);
+            const thirtyDaysAgo = new Date(now - 30 * 86400 * 1000);
+
+            const [
+                totalUsers,
+                activeUsersDay,
+                activeUsersWeek,
+                totalIncoming,
+                totalOutgoing,
+                commandsCount,
+                callbacksCount,
+                recentMessages,
+            ] = await Promise.all([
+                ctx.wo_bot_users.count({ where: { bot_id } }),
+                ctx.wo_bot_users.count({ where: { bot_id, last_interaction_at: { [Op.gte]: oneDayAgo } } }),
+                ctx.wo_bot_users.count({ where: { bot_id, last_interaction_at: { [Op.gte]: sevenDaysAgo } } }),
+                ctx.wo_bot_messages.count({ where: { bot_id, direction: 'incoming' } }),
+                ctx.wo_bot_messages.count({ where: { bot_id, direction: 'outgoing' } }),
+                ctx.wo_bot_messages.count({ where: { bot_id, direction: 'incoming', is_command: 1 } }),
+                ctx.wo_bot_messages.count({ where: { bot_id, direction: 'incoming', callback_data: { [Op.not]: null } } }),
+                // Daily message counts for last 7 days
+                ctx.wo_bot_messages.findAll({
+                    where: { bot_id, created_at: { [Op.gte]: sevenDaysAgo } },
+                    attributes: [
+                        [ctx.sequelize.fn('DATE', ctx.sequelize.col('created_at')), 'day'],
+                        [ctx.sequelize.fn('COUNT', ctx.sequelize.col('id')), 'count']
+                    ],
+                    group: [ctx.sequelize.fn('DATE', ctx.sequelize.col('created_at'))],
+                    order: [[ctx.sequelize.fn('DATE', ctx.sequelize.col('created_at')), 'ASC']],
+                    raw: true
+                })
+            ]);
+
+            return res.json({
+                api_status: 200,
+                bot_id,
+                username:   bot.username,
+                total_users:        totalUsers,
+                active_users_24h:   activeUsersDay,
+                active_users_7d:    activeUsersWeek,
+                messages_sent:      bot.messages_sent     || 0,
+                messages_received:  bot.messages_received || 0,
+                total_incoming:     totalIncoming,
+                total_outgoing:     totalOutgoing,
+                commands_used:      commandsCount,
+                callbacks_fired:    callbacksCount,
+                daily_messages:     recentMessages,
+                webhook_enabled:    bot.webhook_enabled === 1,
+                status:             bot.status,
+                created_at:         bot.created_at
+            });
+        } catch (err) {
+            console.error('[Bots/getBotStats]', err.message);
+            return res.json({ api_status: 500, error_message: 'Server error' });
         }
     };
 }
@@ -1942,14 +2124,25 @@ function registerBotRoutes(app, ctx, io) {
     app.post(   '/api/node/bot/sendDocument',         bAuth, sendDocument(ctx, io));
     app.post(   '/api/node/bot/sendAudio',            bAuth, sendAudio(ctx, io));
     app.post(   '/api/node/bot/sendVideo',            bAuth, sendVideo(ctx, io));
+    app.post(   '/api/node/bot/sendVoice',            bAuth, sendVoice(ctx, io));
+    app.post(   '/api/node/bot/sendAnimation',        bAuth, sendAnimation(ctx, io));
     app.post(   '/api/node/bot/sendLocation',         bAuth, sendLocation(ctx, io));
     app.post(   '/api/node/bot/sendContact',          bAuth, sendContact(ctx, io));
     app.post(   '/api/node/bot/forwardMessage',       bAuth, forwardMessage(ctx, io));
+    app.post(   '/api/node/bot/copyMessage',          bAuth, copyMessage(ctx, io));
     app.post(   '/api/node/bot/sendChatAction',       bAuth, sendChatAction(ctx, io));
     app.get(    '/api/node/bot/getChat',              bAuth, getChat(ctx));
     app.post(   '/api/node/bot/getChat',              bAuth, getChat(ctx));
     app.get(    '/api/node/bot/getChatMember',        bAuth, getChatMember(ctx));
     app.post(   '/api/node/bot/getChatMember',        bAuth, getChatMember(ctx));
+    app.get(    '/api/node/bot/getChatMemberCount',   bAuth, getChatMemberCount(ctx));
+    app.post(   '/api/node/bot/getChatMemberCount',   bAuth, getChatMemberCount(ctx));
+    app.delete( '/api/node/bot/deleteMyCommands',     bAuth, deleteMyCommands(ctx));
+    app.get(    '/api/node/bot/getFile',              bAuth, getFile(ctx));
+    app.post(   '/api/node/bot/getFile',              bAuth, getFile(ctx));
+
+    // ── Per-bot statistics (user token, owner only) ──────────────────────────
+    app.get(    '/api/node/bots/:bot_id/stats',           uAuth, getBotStats(ctx));
 
     // ── RSS feeds (user token) ───────────────────────────────────────────────
     app.get(    '/api/node/bots/:bot_id/rss',             uAuth, getRssFeeds(ctx));

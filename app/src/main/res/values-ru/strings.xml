@@ -2753,7 +2753,25 @@
     <string name="bot_status_inactive">Неактивный</string>
     <string name="create_bot_cd">Создать бота</string>
 
-    
+    <!-- ── Bot Store: Featured section, type badges, feature pills ─────────── -->
+    <string name="bot_featured_title">Популярные и рекомендованные</string>
+    <string name="bot_type_official">Официальный</string>
+    <string name="bot_type_system">Системный</string>
+    <string name="bot_type_verified">Проверенный</string>
+    <string name="bot_pill_mini_app">Mini App</string>
+    <string name="bot_pill_inline">Inline</string>
+    <string name="bot_pill_groups">Группы</string>
+    <string name="bot_search_results_label">Результаты (%d)</string>
+    <string name="bot_all_bots_label">Все боты</string>
+    <string name="bot_stat_active_24h">Активных 24h</string>
+
+    <!-- ── Bot Management: stats dashboard ──────────────────────────────────── -->
+    <string name="bot_stats_dashboard_title">Активность</string>
+    <string name="bot_stats_active_24h">Активных 24h: %1$d / %2$d</string>
+    <string name="bot_stats_response_ratio">Отправлено: %1$d / %2$d</string>
+    <string name="bot_stats_webhook_on">Webhook активен</string>
+    <string name="bot_stats_webhook_off">Webhook отключён</string>
+
     <string name="crop_reset">Сбросить</string>
     <string name="crop_reset_cd">Сбросить кадр</string>
     <string name="crop_apply">Применить обрезку</string>

@@ -99,7 +99,12 @@ const STATES = {
     SETDESC_INPUT:      'setdesc_input',
     LEARN_KEYWORD:      'learn_keyword',
     LEARN_RESPONSE:     'learn_response',
-    FORGET_SELECT:      'forget_select'
+    FORGET_SELECT:      'forget_select',
+    SETINLINE_SELECT:   'setinline_select',
+    SETGROUPS_SELECT:   'setgroups_select',
+    REVOKE_SELECT:      'revoke_select',
+    BROADCAST_SELECT:   'broadcast_select',
+    BROADCAST_INPUT:    'broadcast_input',
 };
 
 // ─── Хранение состояний в памяти (для быстрого доступа) ──────────────────────
@@ -668,6 +673,133 @@ async function handleThanks(ctx, io, userId) {
     await sendToUser(ctx, io, userId, replies[Math.floor(Math.random() * replies.length)]);
 }
 
+// ─── /setinline — перемикання inline-режиму бота ──────────────────────────────
+
+async function handleSetInline(ctx, io, userId) {
+    clearState(userId);
+    const bots = await ctx.wo_bots.findAll({ where: { owner_id: userId, status: 'active' }, raw: true });
+    if (!bots.length) {
+        return sendToUser(ctx, io, userId,
+            'У тебе ще немає активних ботів.\nСтвори бота: /newbot',
+            inlineKeyboard([btn('Створити бота', 'cmd_newbot')])
+        );
+    }
+    setState(userId, STATES.SETINLINE_SELECT);
+    const buttons = bots.map(b => btn(
+        `@${b.username} [${b.supports_inline ? '✅ inline ON' : '❌ inline OFF'}]`,
+        `setinline_${b.bot_id}`
+    ));
+    return sendToUser(ctx, io, userId,
+        '🔀 *Inline-режим*\n\nОбери бота, щоб перемкнути inline:',
+        inlineKeyboard(buttons, 1)
+    );
+}
+
+// ─── /setgroups — дозвіл/заборона входу в групи ────────────────────────────
+
+async function handleSetGroups(ctx, io, userId) {
+    clearState(userId);
+    const bots = await ctx.wo_bots.findAll({ where: { owner_id: userId, status: 'active' }, raw: true });
+    if (!bots.length) {
+        return sendToUser(ctx, io, userId,
+            'У тебе ще немає активних ботів.\nСтвори бота: /newbot',
+            inlineKeyboard([btn('Створити бота', 'cmd_newbot')])
+        );
+    }
+    setState(userId, STATES.SETGROUPS_SELECT);
+    const buttons = bots.map(b => btn(
+        `@${b.username} [${b.can_join_groups ? '✅ групи ON' : '❌ групи OFF'}]`,
+        `setgroups_${b.bot_id}`
+    ));
+    return sendToUser(ctx, io, userId,
+        '👥 *Доступ до груп*\n\nОбери бота, щоб перемкнути режим:',
+        inlineKeyboard(buttons, 1)
+    );
+}
+
+// ─── /revoke — відкликати токен бота ──────────────────────────────────────
+
+async function handleRevoke(ctx, io, userId) {
+    clearState(userId);
+    const bots = await ctx.wo_bots.findAll({ where: { owner_id: userId }, raw: true });
+    if (!bots.length) {
+        return sendToUser(ctx, io, userId, 'У тебе немає ботів.');
+    }
+    setState(userId, STATES.REVOKE_SELECT);
+    const buttons = bots.map(b => btn(`@${b.username}`, `revokeconfirm_${b.bot_id}`));
+    return sendToUser(ctx, io, userId,
+        '🔑 *Відкликати токен*\n\n⚠️ Старий токен стане недійсним одразу!\nОбери бота:',
+        inlineKeyboard(buttons, 1)
+    );
+}
+
+// ─── /broadcast — розсилка всім користувачам бота ─────────────────────────
+
+async function handleBroadcast(ctx, io, userId) {
+    clearState(userId);
+    const bots = await ctx.wo_bots.findAll({ where: { owner_id: userId, status: 'active' }, raw: true });
+    if (!bots.length) {
+        return sendToUser(ctx, io, userId, 'У тебе немає активних ботів.');
+    }
+    setState(userId, STATES.BROADCAST_SELECT);
+    const buttons = bots.map(b => {
+        const userCount = b.total_users || 0;
+        return btn(`@${b.username} (${userCount} кор.)`, `broadcast_${b.bot_id}`);
+    });
+    return sendToUser(ctx, io, userId,
+        '📢 *Розсилка*\n\nОбери бота для розсилки:',
+        inlineKeyboard(buttons, 1)
+    );
+}
+
+// ─── /stats із підтримкою @botname ────────────────────────────────────────
+
+async function handleBotStats(ctx, io, userId, botUsername) {
+    // Per-bot stats
+    const bot = await ctx.wo_bots.findOne({ where: { username: botUsername, owner_id: userId }, raw: true });
+    if (!bot) {
+        return sendToUser(ctx, io, userId,
+            `Бот @${botUsername} не знайдений або не є твоїм.`,
+            inlineKeyboard([btn('Мої боти', 'cmd_mybots')])
+        );
+    }
+
+    const now = new Date();
+    const oneDayAgo   = new Date(now - 86400 * 1000);
+    const sevenDaysAgo = new Date(now - 7 * 86400 * 1000);
+
+    const [totalUsers, activeDay, activeWeek, totalIn, totalOut] = await Promise.all([
+        ctx.wo_bot_users.count({ where: { bot_id: bot.bot_id } }),
+        ctx.wo_bot_users.count({ where: { bot_id: bot.bot_id, last_interaction_at: { [Op.gte]: oneDayAgo } } }),
+        ctx.wo_bot_users.count({ where: { bot_id: bot.bot_id, last_interaction_at: { [Op.gte]: sevenDaysAgo } } }),
+        ctx.wo_bot_messages.count({ where: { bot_id: bot.bot_id, direction: 'incoming' } }),
+        ctx.wo_bot_messages.count({ where: { bot_id: bot.bot_id, direction: 'outgoing' } }),
+    ]);
+
+    const activePercent = totalUsers > 0 ? Math.round((activeDay / totalUsers) * 100) : 0;
+    const bar = (pct) => {
+        const filled = Math.round(pct / 10);
+        return '█'.repeat(filled) + '░'.repeat(10 - filled) + ` ${pct}%`;
+    };
+
+    const text =
+        `📊 *Статистика @${bot.username}*\n\n` +
+        `👥 Користувачів: *${totalUsers}*\n` +
+        `🟢 Активні (24h): *${activeDay}* ${bar(activePercent)}\n` +
+        `📅 Активні (7d): *${activeWeek}*\n\n` +
+        `📥 Отримано повідомлень: *${totalIn}*\n` +
+        `📤 Надіслано повідомлень: *${totalOut}*\n\n` +
+        `🔗 Webhook: ${bot.webhook_enabled ? '✅ активний' : '❌ вимкнений'}\n` +
+        `📌 Статус: *${bot.status}*`;
+
+    return sendToUser(ctx, io, userId, text,
+        inlineKeyboard([
+            btn('Мої боти',     'cmd_mybots'),
+            btn('Головне меню', 'cmd_start')
+        ])
+    );
+}
+
 // ─── ОБРАБОТКА СОСТОЯНИЙ ─────────────────────────────────────────────────────
 
 async function processState(ctx, io, userId, text, currentState) {
@@ -858,6 +990,34 @@ async function processState(ctx, io, userId, text, currentState) {
         );
     }
 
+    // BROADCAST: підтвердження тексту розсилки
+    if (state === STATES.BROADCAST_INPUT) {
+        const { bot_id: targetBotId, username: botUsername, user_count } = data;
+        const msgText = text.trim();
+        if (!msgText) {
+            return sendToUser(ctx, io, userId, 'Повідомлення не може бути порожнім. Введи текст:');
+        }
+
+        // Encode message as base64 to embed in callback_data safely
+        const encoded = Buffer.from(msgText).toString('base64');
+        const cbData  = `broadcastdo_${targetBotId}:${encoded}`;
+
+        // callback_data limit ~64 bytes — if too large, truncate with warning
+        if (cbData.length > 200) {
+            return sendToUser(ctx, io, userId,
+                '⚠️ Повідомлення занадто довге для підтвердження. Скороти текст до ~100 символів і введи знову:'
+            );
+        }
+
+        return sendToUser(ctx, io, userId,
+            `📋 Попередній перегляд розсилки:\n\n${msgText}\n\n—\n📢 Буде надіслано *${user_count}* користувачам @${botUsername}. Підтвердити?`,
+            inlineKeyboard([
+                btn('✅ Надіслати',  cbData),
+                btn('❌ Скасувати', 'cmd_cancel')
+            ], 1)
+        );
+    }
+
     return null; // состояние не обработано
 }
 
@@ -884,6 +1044,10 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
     if (callbackData === 'cmd_messenger_guide') return handleMessengerGuide(ctx, io, userId);
     if (callbackData === 'cmd_start')     return handleStart(ctx, io, userId, 'ти');
     if (callbackData === 'cmd_stats')     return handleStats(ctx, io, userId);
+    if (callbackData === 'cmd_setinline') return handleSetInline(ctx, io, userId);
+    if (callbackData === 'cmd_setgroups') return handleSetGroups(ctx, io, userId);
+    if (callbackData === 'cmd_revoke')    return handleRevoke(ctx, io, userId);
+    if (callbackData === 'cmd_broadcast') return handleBroadcast(ctx, io, userId);
 
     // ── Просмотр базы знаний ─────────────────────────────────────────────────
     if (callbackData === 'cmd_knowledge') {
@@ -1064,6 +1228,132 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
         clearState(userId);
         return sendToUser(ctx, io, userId, `Забыл всё о *"${keyword}"*.`);
     }
+
+    // ── Перемикання inline-режиму ────────────────────────────────────────────
+    if (callbackData.startsWith('setinline_')) {
+        const botId = callbackData.replace('setinline_', '');
+        const bot   = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId } });
+        if (!bot) return sendToUser(ctx, io, userId, 'Бот не знайдений.');
+
+        const newVal = bot.supports_inline ? 0 : 1;
+        await ctx.wo_bots.update({ supports_inline: newVal, updated_at: new Date() }, { where: { bot_id: botId } });
+        clearState(userId);
+
+        return sendToUser(ctx, io, userId,
+            newVal
+                ? `✅ Inline-режим *увімкнено* для @${bot.username}.\n\nТепер користувачі можуть використовувати бота через \`@${bot.username} запит\` у будь-якому чаті.`
+                : `❌ Inline-режим *вимкнено* для @${bot.username}.`,
+            inlineKeyboard([btn('Мої боти', 'cmd_mybots'), btn('Налаштувати ще', 'cmd_setinline')])
+        );
+    }
+
+    // ── Перемикання доступу до груп ──────────────────────────────────────────
+    if (callbackData.startsWith('setgroups_')) {
+        const botId = callbackData.replace('setgroups_', '');
+        const bot   = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId } });
+        if (!bot) return sendToUser(ctx, io, userId, 'Бот не знайдений.');
+
+        const newVal = bot.can_join_groups ? 0 : 1;
+        await ctx.wo_bots.update({ can_join_groups: newVal, updated_at: new Date() }, { where: { bot_id: botId } });
+        clearState(userId);
+
+        return sendToUser(ctx, io, userId,
+            newVal
+                ? `✅ Доступ до груп *увімкнено* для @${bot.username}.`
+                : `❌ Доступ до груп *вимкнено* для @${bot.username}.`,
+            inlineKeyboard([btn('Мої боти', 'cmd_mybots'), btn('Налаштувати ще', 'cmd_setgroups')])
+        );
+    }
+
+    // ── Підтвердження відкликання токена ────────────────────────────────────
+    if (callbackData.startsWith('revokeconfirm_')) {
+        const botId = callbackData.replace('revokeconfirm_', '');
+        const bot   = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId }, raw: true });
+        if (!bot) return sendToUser(ctx, io, userId, 'Бот не знайдений.');
+
+        return sendToUser(ctx, io, userId,
+            `⚠️ Ти впевнений, що хочеш відкликати токен *@${bot.username}*?\n\nСтарий токен стане *недійсним негайно*. Усі інтеграції зупиняться.`,
+            inlineKeyboard([
+                btn(`✅ Так, відкликати`, `revokedo_${botId}`),
+                btn('❌ Скасувати',       'cmd_cancel')
+            ], 1)
+        );
+    }
+
+    // ── Виконання відкликання токена ─────────────────────────────────────────
+    if (callbackData.startsWith('revokedo_')) {
+        const botId = callbackData.replace('revokedo_', '');
+        const bot   = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId } });
+        if (!bot) return sendToUser(ctx, io, userId, 'Бот не знайдений.');
+
+        const newToken = generateBotToken(botId);
+        await ctx.wo_bots.update({ bot_token: newToken, updated_at: new Date() }, { where: { bot_id: botId } });
+        clearState(userId);
+
+        return sendToUser(ctx, io, userId,
+            `🔑 Токен *@${bot.username}* відкликано і замінено!\n\nНовий токен:\n\`${newToken}\`\n\n⚠️ Збережи його — показую тільки один раз!`,
+            inlineKeyboard([btn('Мої боти', 'cmd_mybots')])
+        );
+    }
+
+    // ── Вибір бота для розсилки ───────────────────────────────────────────────
+    if (callbackData.startsWith('broadcast_') && !callbackData.startsWith('broadcastdo_')) {
+        const botId = callbackData.replace('broadcast_', '');
+        const bot   = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId }, raw: true });
+        if (!bot) return sendToUser(ctx, io, userId, 'Бот не знайдений.');
+
+        const userCount = await ctx.wo_bot_users.count({ where: { bot_id: botId } });
+        if (userCount === 0) {
+            return sendToUser(ctx, io, userId,
+                `У бота @${bot.username} ще немає користувачів. Розсилати нема кому.`,
+                inlineKeyboard([btn('Мої боти', 'cmd_mybots')])
+            );
+        }
+
+        setState(userId, STATES.BROADCAST_INPUT, { bot_id: botId, username: bot.username, user_count: userCount });
+        return sendToUser(ctx, io, userId,
+            `📢 Розсилка для *@${bot.username}*\nОтримувачів: *${userCount}*\n\nВведи текст повідомлення для розсилки:`,
+            inlineKeyboard([btn('Скасувати', 'cmd_cancel')])
+        );
+    }
+
+    // ── Підтвердження розсилки ────────────────────────────────────────────────
+    if (callbackData.startsWith('broadcastdo_')) {
+        const [,botId, ...msgParts] = callbackData.split(':');
+        // broadcastdo_ encodes bot_id:base64msg
+        const encodedMsg = msgParts.join(':');
+        let broadcastText;
+        try { broadcastText = Buffer.from(encodedMsg, 'base64').toString('utf8'); } catch { broadcastText = ''; }
+
+        const bot = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId }, raw: true });
+        if (!bot || !broadcastText) return sendToUser(ctx, io, userId, 'Помилка. Спробуй ще раз.');
+
+        const recipients = await ctx.wo_bot_users.findAll({ where: { bot_id: botId }, attributes: ['user_id'], raw: true });
+
+        let sent = 0;
+        for (const r of recipients) {
+            try {
+                await ctx.wo_bot_messages.create({
+                    bot_id: botId, chat_id: String(r.user_id), chat_type: 'private',
+                    direction: 'outgoing', text: broadcastText, processed: 1, processed_at: new Date()
+                });
+                if (io) {
+                    io.to(String(r.user_id)).emit('bot_message', {
+                        event: 'bot_message', bot_id: botId, text: broadcastText, timestamp: Date.now()
+                    });
+                }
+                sent++;
+            } catch {}
+        }
+
+        await ctx.wo_bots.increment('messages_sent', { by: sent, where: { bot_id: botId } });
+        clearState(userId);
+
+        return sendToUser(ctx, io, userId,
+            `✅ Розсилка завершена!\n\nНадіслано: *${sent}* / ${recipients.length} повідомлень`,
+            inlineKeyboard([btn('Мої боти', 'cmd_mybots'), btn('Ще розсилка', 'cmd_broadcast')])
+        );
+    }
 }
 
 // ─── ГЛАВНЫЙ ДИСПЕТЧЕР СООБЩЕНИЙ ─────────────────────────────────────────────
@@ -1104,12 +1394,22 @@ async function handleMessage(ctx, io, data) {
             setcommands: () => handleSetCommands(ctx, io, userId),
             setcmd:      () => handleSetCommands(ctx, io, userId),
             setdesc:     () => handleSetDesc(ctx, io, userId),
+            setinline:   () => handleSetInline(ctx, io, userId),
+            setgroups:   () => handleSetGroups(ctx, io, userId),
+            revoke:      () => handleRevoke(ctx, io, userId),
+            broadcast:   () => handleBroadcast(ctx, io, userId),
             learn:       () => handleLearn(ctx, io, userId),
             forget:      () => handleForget(ctx, io, userId),
             ask:         () => handleAsk(ctx, io, userId),
             messenger:   () => handleMessengerGuide(ctx, io, userId),
             cancel:      () => handleCancel(ctx, io, userId),
-            stats:       () => handleStats(ctx, io, userId),
+            stats:       () => {
+                // /stats @botname — per-bot stats; /stats — global
+                const rawArg = (command_args || text.split(' ').slice(1).join(' ')).trim();
+                const botUsername = rawArg.replace(/^@/, '');
+                if (botUsername) return handleBotStats(ctx, io, userId, botUsername);
+                return handleStats(ctx, io, userId);
+            },
             who:         () => handleWho(ctx, io, userId),
         };
 
@@ -1252,17 +1552,22 @@ async function initializeWallyBot(ctx, io) {
         await ensureMessengerKnowledgeBase(ctx);
 
         const extraCommands = [
-            { command: 'newbot',      description: 'Создать нового бота',             sort_order: 3 },
-            { command: 'mybots',      description: 'Список моих ботов',               sort_order: 4 },
-            { command: 'editbot',     description: 'Редактировать бота',              sort_order: 5 },
-            { command: 'deletebot',   description: 'Удалить бота',                    sort_order: 6 },
-            { command: 'token',       description: 'Получить токен бота',             sort_order: 7 },
-            { command: 'setcommands', description: 'Установить команды бота',         sort_order: 8 },
-            { command: 'setdesc',     description: 'Изменить описание бота',          sort_order: 9 },
-            { command: 'learn',       description: 'Научить WallyBot новому ответу',  sort_order: 10 },
-            { command: 'forget',      description: 'Удалить ответ из базы знаний',    sort_order: 11 },
-            { command: 'ask',         description: 'Задать вопрос WallyBot',          sort_order: 12 },
-            { command: 'messenger',   description: 'Справка по функциям мессенджера', sort_order: 13 }
+            { command: 'newbot',      description: 'Створити нового бота',                     sort_order: 3 },
+            { command: 'mybots',      description: 'Список моїх ботів',                         sort_order: 4 },
+            { command: 'editbot',     description: 'Редагувати бота',                           sort_order: 5 },
+            { command: 'deletebot',   description: 'Видалити бота',                             sort_order: 6 },
+            { command: 'token',       description: 'Отримати токен бота',                       sort_order: 7 },
+            { command: 'setcommands', description: 'Встановити команди бота',                   sort_order: 8 },
+            { command: 'setdesc',     description: 'Змінити опис бота',                         sort_order: 9 },
+            { command: 'setinline',   description: 'Увімк/вимкн inline-режим бота',             sort_order: 10 },
+            { command: 'setgroups',   description: 'Дозволити/заборонити бота в групах',         sort_order: 11 },
+            { command: 'revoke',      description: 'Відкликати та замінити токен бота',          sort_order: 12 },
+            { command: 'broadcast',   description: 'Надіслати повідомлення всім користувачам',   sort_order: 13 },
+            { command: 'stats',       description: 'Статистика (@botname для конкретного бота)', sort_order: 14 },
+            { command: 'learn',       description: 'Навчити WallyBot новій відповіді',           sort_order: 15 },
+            { command: 'forget',      description: 'Видалити відповідь з бази знань',            sort_order: 16 },
+            { command: 'ask',         description: 'Задати питання WallyBot',                    sort_order: 17 },
+            { command: 'messenger',   description: 'Довідка по функціям месенджера',             sort_order: 18 }
         ];
 
         for (const cmd of extraCommands) {
