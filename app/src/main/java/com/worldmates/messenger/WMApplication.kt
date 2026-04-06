@@ -4,7 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.util.Log
-import androidx.multidex.MultiDexApplication
+
 import com.worldmates.messenger.services.MessageNotificationService
 import coil.ImageLoader
 import coil.ImageLoaderFactory
@@ -24,7 +24,7 @@ import com.worldmates.messenger.utils.LanguageManager
 /**
  * Главный Application класс WorldMates Messenger
  */
-class WMApplication : MultiDexApplication(), ImageLoaderFactory {
+class WMApplication : android.app.Application(), ImageLoaderFactory {
 
     companion object {
         private const val TAG = "WMApplication"
