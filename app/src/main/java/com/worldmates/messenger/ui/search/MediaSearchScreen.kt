@@ -413,6 +413,7 @@ private fun MediaResultsGrid(
 /**
  * 📸 Media Grid Item (Photo/Video) with Selection Support
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MediaGridItem(
     message: Message,
@@ -529,6 +530,7 @@ private fun MediaGridItem(
 /**
  * 📄 Media List Item (Audio/File) with Selection Support
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MediaListItem(
     message: Message,

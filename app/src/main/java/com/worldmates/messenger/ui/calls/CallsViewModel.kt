@@ -11,7 +11,6 @@ import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.application
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.*
@@ -713,7 +712,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         } else {
             groupParticipantInfoMap[userId] = GroupCallParticipant(
                 userId = userId,
-                name = application.getString(R.string.group_call_participant_fallback),
+                name = getApplication<Application>().getString(R.string.group_call_participant_fallback),
                 mediaStream = stream,
                 videoEnabled = stream.videoTracks.isNotEmpty(),
                 connectionState = "connected"
