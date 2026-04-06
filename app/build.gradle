@@ -19,20 +19,35 @@ android {
         versionCode 2
         versionName "2.0-EDIT-FIX"
 
-        // Multi-dex support для больших приложений
-        multiDexEnabled true
+        // minSdk 30 = native multidex built-in, MultiDex library not needed
+        multiDexEnabled false
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         vectorDrawables {
             useSupportLibrary true
         }
+
+        // ── ABI filter: strip x86/x86_64 (emulator-only) native libs ──────────
+        // WebRTC .so files alone are ~30 MB for all 4 ABIs.
+        // arm64-v8a covers all modern phones; armeabi-v7a covers old 32-bit devices.
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a"
+        }
     }
 
     buildTypes {
         release {
-            minifyEnabled false
+            // R8 full mode: removes ~40-60 MB of unused library code
+            minifyEnabled true
+            // Strips unused XML resources, drawables, layouts
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            // Keep debug fast; minify only for release
+            minifyEnabled false
+            shrinkResources false
         }
     }
 
@@ -72,11 +87,11 @@ android {
 
 dependencies {
     // ==================== CORE ====================
-    implementation 'androidx.core:core-ktx:1.15.0'  // Последняя версия
+    implementation 'androidx.core:core-ktx:1.15.0'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7'
-    implementation 'androidx.multidex:multidex:2.0.1'
+    // multidex removed — minSdk 30 has native multidex, library not needed
 
     // ==================== MATERIAL DESIGN ====================
     implementation 'com.google.android.material:material:1.12.0'
@@ -103,7 +118,9 @@ dependencies {
     implementation 'com.squareup.okhttp3:logging-interceptor:4.11.0'
 
     // ==================== SOCKET.IO ====================
-    implementation 'io.socket:socket.io-client:2.1.1'
+    implementation ('io.socket:socket.io-client:2.1.1') {
+        exclude group: 'org.json', module: 'json'
+    }
 
     // ==================== IMAGE LOADING ====================
     implementation 'io.coil-kt:coil-compose:2.7.0'  // Последняя версия
@@ -139,9 +156,7 @@ dependencies {
     // Room Database (для черновиков)
     implementation 'androidx.room:room-runtime:2.6.1'
     implementation 'androidx.room:room-ktx:2.6.1'
-    implementation 'androidx.compose.foundation:foundation:1.10.0'
-    implementation 'androidx.compose.ui:ui-graphics:1.10.0'
-    implementation 'androidx.compose.ui:ui-geometry:1.10.0'
+    // foundation / ui-graphics / ui-geometry already provided by Compose BOM — removed duplicates
     ksp 'androidx.room:room-compiler:2.6.1'
 
     // ==================== ENCRYPTION ====================
@@ -171,10 +186,7 @@ dependencies {
        // implementation 'org.webrtc:google-webrtc:1.0.32006'
     // Скачать: https://github.com/shiguredo/sora-android-sdk/releases
 
-    // Socket.IO
-    implementation ('io.socket:socket.io-client:2.1.0') {
-        exclude group: 'org.json', module: 'json'
-    }
+    // socket.io-client 2.1.0 duplicate removed — 2.1.1 above already has the json exclusion applied
 
     // CameraX для работы с камерой и записью видео
     def camerax_version = "1.3.0"
@@ -187,9 +199,8 @@ dependencies {
     // Permissions
     implementation "com.google.accompanist:accompanist-permissions:0.32.0"
 
-    // ==================== GIPHY SDK (для GIF) ====================
-    implementation 'com.giphy.sdk:ui:2.3.15'  // GIPHY UI SDK
-    implementation 'com.github.bumptech.glide:glide:4.16.0'  // Для загрузки GIF (зависимость GIPHY)
+    // GIPHY SDK removed — GiphyRepository uses GIPHY REST API directly (Retrofit).
+    // Glide removed — Coil handles all image loading. Glide was only a transitive dep of Giphy SDK.
 
     // ==================== GOOGLE MAPS (для геолокации) ====================
     implementation 'com.google.android.gms:play-services-maps:18.2.0'  // Google Maps SDK
