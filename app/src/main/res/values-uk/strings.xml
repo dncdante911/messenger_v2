@@ -2747,6 +2747,25 @@
     <string name="bot_status_inactive">Неактивний</string>
     <string name="create_bot_cd">Створити бота</string>
 
+    <!-- ── Bot Store: Featured section, type badges, feature pills ─────────── -->
+    <string name="bot_featured_title">Популярні та рекомендовані</string>
+    <string name="bot_type_official">Офіційний</string>
+    <string name="bot_type_system">Системний</string>
+    <string name="bot_type_verified">Перевірений</string>
+    <string name="bot_pill_mini_app">Mini App</string>
+    <string name="bot_pill_inline">Inline</string>
+    <string name="bot_pill_groups">Групи</string>
+    <string name="bot_search_results_label">Результати (%d)</string>
+    <string name="bot_all_bots_label">Всі боти</string>
+    <string name="bot_stat_active_24h">Активних 24h</string>
+
+    <!-- ── Bot Management: stats dashboard ──────────────────────────────────── -->
+    <string name="bot_stats_dashboard_title">Активність</string>
+    <string name="bot_stats_active_24h">Активні 24h: %1$d / %2$d</string>
+    <string name="bot_stats_response_ratio">Надіслано: %1$d / %2$d</string>
+    <string name="bot_stats_webhook_on">Webhook активний</string>
+    <string name="bot_stats_webhook_off">Webhook вимкнений</string>
+
     <!-- ── Photo Editor (new strings) ────────────────────────────────────── -->
     <string name="crop_reset">Скинути</string>
     <string name="crop_reset_cd">Скинути кадр</string>

@@ -1,5 +1,6 @@
 package com.worldmates.messenger.ui.bots
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -12,6 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -275,7 +281,7 @@ fun MyBotCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Stats
+            // Stats chips
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -283,6 +289,12 @@ fun MyBotCard(
                 BotStatChip(stringResource(R.string.bot_stat_users_count, bot.totalUsers))
                 BotStatChip(stringResource(R.string.bot_stat_messages_count, bot.messagesSent))
                 BotStatChip(stringResource(R.string.bot_stat_commands_count, bot.commandsCount))
+            }
+
+            // Activity stats dashboard
+            if (bot.totalUsers > 0 || bot.messagesSent > 0) {
+                Spacer(modifier = Modifier.height(10.dp))
+                BotStatsDashboard(bot = bot)
             }
 
             // Mini App URL status
@@ -399,6 +411,110 @@ fun BotStatChip(text: String) {
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall
         )
+    }
+}
+
+/**
+ * Compact stats dashboard — percentage bars, no external libs.
+ */
+@Composable
+fun BotStatsDashboard(bot: Bot) {
+    val activeUsers   = bot.activeUsers24h
+    val totalUsers    = bot.totalUsers
+    val msgSent       = bot.messagesSent
+    val msgReceived   = bot.messagesReceived
+
+    val activeRatio   = if (totalUsers > 0) (activeUsers.toFloat() / totalUsers).coerceIn(0f, 1f) else 0f
+    val responseRatio = if (msgReceived > 0) (msgSent.toFloat() / (msgSent + msgReceived)).coerceIn(0f, 1f) else
+                        if (msgSent > 0) 1f else 0f
+
+    Surface(
+        shape  = RoundedCornerShape(10.dp),
+        color  = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text  = stringResource(R.string.bot_stats_dashboard_title),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            BotProgressBar(
+                label    = stringResource(R.string.bot_stats_active_24h, activeUsers, totalUsers),
+                fraction = activeRatio,
+                color    = MaterialTheme.colorScheme.primary
+            )
+
+            if (msgSent > 0 || msgReceived > 0) {
+                BotProgressBar(
+                    label    = stringResource(R.string.bot_stats_response_ratio, msgSent, msgSent + msgReceived),
+                    fraction = responseRatio,
+                    color    = MaterialTheme.colorScheme.tertiary
+                )
+            }
+
+            // Webhook indicator
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (bot.webhookEnabled == 1) Icons.Default.Link else Icons.Default.LinkOff,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = if (bot.webhookEnabled == 1) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text  = if (bot.webhookEnabled == 1) stringResource(R.string.bot_stats_webhook_on)
+                            else stringResource(R.string.bot_stats_webhook_off),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (bot.webhookEnabled == 1) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BotProgressBar(label: String, fraction: Float, color: Color) {
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text  = "${(fraction * 100).toInt()}%",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = color
+            )
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+        ) {
+            val trackWidth = size.width
+            val barHeight  = size.height
+            // Track
+            drawRoundRect(
+                color       = trackColor,
+                size        = Size(trackWidth, barHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(barHeight / 2)
+            )
+            // Fill
+            if (fraction > 0f) {
+                drawRoundRect(
+                    color        = color,
+                    size         = Size(trackWidth * fraction, barHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barHeight / 2)
+                )
+            }
+        }
     }
 }
 

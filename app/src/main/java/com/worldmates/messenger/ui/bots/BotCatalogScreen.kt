@@ -15,12 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Bot
@@ -28,8 +30,8 @@ import com.worldmates.messenger.data.model.BotCategory
 import com.worldmates.messenger.data.model.BotCommand
 
 /**
- * Екран каталогу ботів - Bot Store
- * Пошук, категорії, список ботів
+ * Екран каталогу ботів — Bot Store
+ * Пошук, категорії, Featured/Trending секція, список ботів
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,9 +76,7 @@ fun BotCatalogScreen(
                 value = searchText,
                 onValueChange = {
                     searchText = it
-                    if (it.length >= 2 || it.isEmpty()) {
-                        onSearch(it)
-                    }
+                    if (it.length >= 2 || it.isEmpty()) onSearch(it)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -85,10 +85,7 @@ fun BotCatalogScreen(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (searchText.isNotEmpty()) {
-                        IconButton(onClick = {
-                            searchText = ""
-                            onSearch("")
-                        }) {
+                        IconButton(onClick = { searchText = ""; onSearch("") }) {
                             Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.close))
                         }
                     }
@@ -100,11 +97,10 @@ fun BotCatalogScreen(
             // Categories horizontal scroll
             if (catalogState.categories.isNotEmpty()) {
                 LazyRow(
-                    modifier = Modifier.padding(vertical = 8.dp),
+                    modifier = Modifier.padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
-                    // "All" chip
                     item {
                         FilterChip(
                             selected = catalogState.selectedCategory == null,
@@ -113,11 +109,10 @@ fun BotCatalogScreen(
                         )
                     }
                     items(catalogState.categories) { category ->
-                        val categoryName = getCategoryName(category.category)
                         FilterChip(
                             selected = catalogState.selectedCategory == category.category,
                             onClick = { onCategorySelected(category.category) },
-                            label = { Text("$categoryName (${category.count})") }
+                            label = { Text("${getCategoryName(category.category)} (${category.count})") }
                         )
                     }
                 }
@@ -145,8 +140,7 @@ fun BotCatalogScreen(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
+                                Icons.Default.Search, contentDescription = null,
                                 modifier = Modifier.size(64.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
@@ -161,17 +155,188 @@ fun BotCatalogScreen(
                     }
                 }
                 else -> {
+                    // Featured bots = system/verified + highest user count
+                    val featuredBots = catalogState.bots
+                        .filter { it.isVerified || it.isSystem || it.totalUsers >= 10 }
+                        .sortedByDescending { it.totalUsers }
+                        .take(8)
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
+                        // ── Featured / Trending section ────────────────────────
+                        if (featuredBots.isNotEmpty() && searchText.isBlank()) {
+                            item {
+                                FeaturedBotsSection(
+                                    bots = featuredBots,
+                                    onBotClick = onBotClick
+                                )
+                            }
+                        }
+
+                        // ── Section header for full list ───────────────────────
+                        item {
+                            Text(
+                                text = if (searchText.isNotBlank())
+                                    stringResource(R.string.bot_search_results_label, catalogState.bots.size)
+                                else
+                                    stringResource(R.string.bot_all_bots_label),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            )
+                        }
+
+                        // ── Bot list ────────────────────────────────────────────
                         items(catalogState.bots, key = { it.botId }) { bot ->
-                            BotListItem(bot = bot, onClick = { onBotClick(bot) })
+                            BotListItem(
+                                bot = bot,
+                                onClick = { onBotClick(bot) },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                            )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+// ─── Featured / Trending section ──────────────────────────────────────────────
+
+@Composable
+fun FeaturedBotsSection(bots: List<Bot>, onBotClick: (Bot) -> Unit) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Whatshot,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.bot_featured_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+        ) {
+            items(bots, key = { "featured_${it.botId}" }) { bot ->
+                FeaturedBotCard(bot = bot, onClick = { onBotClick(bot) })
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+    }
+}
+
+@Composable
+fun FeaturedBotCard(bot: Bot, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .width(140.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box {
+                BotAvatar(
+                    avatarUrl = bot.avatar,
+                    displayName = bot.displayName,
+                    size = 52
+                )
+                // Type badge overlay
+                val badge = getBotTypeBadge(bot)
+                if (badge != null) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(18.dp),
+                        shape = CircleShape,
+                        color = badge.color
+                    ) {
+                        Text(
+                            text = badge.icon,
+                            fontSize = 10.sp,
+                            modifier = Modifier.wrapContentSize(Alignment.Center)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = bot.displayName,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (bot.totalUsers > 0) {
+                Text(
+                    text = formatUserCount(bot.totalUsers),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// ─── Bot type badge ────────────────────────────────────────────────────────────
+
+data class BotTypeBadge(val icon: String, val color: Color, val labelRes: Int)
+
+@Composable
+fun getBotTypeBadge(bot: Bot): BotTypeBadge? = when {
+    bot.botType == "official" -> BotTypeBadge(
+        icon = "★",
+        color = Color(0xFFFFAB00),
+        labelRes = R.string.bot_type_official
+    )
+    bot.isSystem -> BotTypeBadge(
+        icon = "●",
+        color = MaterialTheme.colorScheme.primary,
+        labelRes = R.string.bot_type_system
+    )
+    bot.isVerified -> BotTypeBadge(
+        icon = "✓",
+        color = Color(0xFF4CAF50),
+        labelRes = R.string.bot_type_verified
+    )
+    else -> null
+}
+
+// Bot type badge as inline row element (for list items)
+@Composable
+fun BotTypeBadgeChip(bot: Bot) {
+    val badge = getBotTypeBadge(bot) ?: return
+    val label = stringResource(badge.labelRes)
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = badge.color.copy(alpha = 0.15f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(badge.icon, fontSize = 10.sp, color = badge.color, fontWeight = FontWeight.Bold)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = badge.color)
         }
     }
 }
@@ -185,7 +350,6 @@ fun BotListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val verifiedLabel = stringResource(R.string.bot_verified_label)
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -210,23 +374,19 @@ fun BotListItem(
 
             // Info
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(
                         text = bot.displayName,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
-                    if (bot.isVerified) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            Icons.Default.Verified,
-                            contentDescription = verifiedLabel,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    BotTypeBadgeChip(bot)
                 }
                 Text(
                     text = "@${bot.username}",
@@ -242,25 +402,44 @@ fun BotListItem(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 }
+                // Feature pills row
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    if (bot.hasMiniApp) MiniPill(stringResource(R.string.bot_pill_mini_app))
+                    if (bot.isInline == 1) MiniPill(stringResource(R.string.bot_pill_inline))
+                    if (bot.canJoinGroups == 1) MiniPill(stringResource(R.string.bot_pill_groups))
+                }
             }
 
-            // Stats
-            Column(horizontalAlignment = Alignment.End) {
+            // Stats column
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 if (bot.totalUsers > 0) {
-                    Text(
-                        text = formatUserCount(bot.totalUsers),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.People, contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = formatUserCount(bot.totalUsers),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 bot.category?.let {
-                    val catName = getCategoryName(it)
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer
                     ) {
                         Text(
-                            text = catName,
+                            text = getCategoryName(it),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -269,6 +448,22 @@ fun BotListItem(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MiniPill(label: String) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+        )
     }
 }
 
@@ -293,18 +488,24 @@ fun BotAvatar(
                 contentScale = ContentScale.Crop
             )
         } else {
-            // Default bot avatar with first letter
             Box(
                 modifier = Modifier
                     .size(size.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.tertiary
+                            )
+                        )
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = displayName.firstOrNull()?.uppercase() ?: "B",
                     style = if (size >= 48) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -322,13 +523,6 @@ fun BotDetailScreen(
     onStartChat: (Bot) -> Unit,
     onBack: () -> Unit
 ) {
-    val verifiedLabel = stringResource(R.string.bot_verified_label)
-    val verifiedBotLabel = stringResource(R.string.bot_verified_bot_label)
-    val botStatUsers = stringResource(R.string.bot_stat_users)
-    val botStatCategory = stringResource(R.string.bot_stat_category)
-    val botStartChat = stringResource(R.string.bot_start_chat)
-    val botDescriptionLabel = stringResource(R.string.bot_description_label)
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -345,9 +539,7 @@ fun BotDetailScreen(
             Box(
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                 contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            ) { CircularProgressIndicator() }
         } else if (state.bot != null) {
             val bot = state.bot
             LazyColumn(
@@ -380,19 +572,9 @@ fun BotDetailScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (bot.isVerified) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.Verified,
-                                    contentDescription = verifiedLabel,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(verifiedBotLabel, style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Type badge chip, centered
+                        BotTypeBadgeChip(bot)
                     }
                 }
 
@@ -402,8 +584,34 @@ fun BotDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        StatItem(botStatUsers, formatUserCount(bot.totalUsers))
-                        StatItem(botStatCategory, getCategoryName(bot.category ?: "general"))
+                        StatItem(stringResource(R.string.bot_stat_users), formatUserCount(bot.totalUsers))
+                        StatItem(stringResource(R.string.bot_stat_category), getCategoryName(bot.category ?: "general"))
+                        if (bot.activeUsers24h > 0) {
+                            StatItem(stringResource(R.string.bot_stat_active_24h), formatUserCount(bot.activeUsers24h))
+                        }
+                    }
+                }
+
+                // Feature badges row
+                if (bot.hasMiniApp || bot.isInline == 1 || bot.canJoinGroups == 1) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (bot.hasMiniApp) {
+                                FeatureTag(Icons.Default.Language, stringResource(R.string.bot_pill_mini_app))
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            if (bot.isInline == 1) {
+                                FeatureTag(Icons.Default.Code, stringResource(R.string.bot_pill_inline))
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            if (bot.canJoinGroups == 1) {
+                                FeatureTag(Icons.Default.Group, stringResource(R.string.bot_pill_groups))
+                            }
+                        }
                     }
                 }
 
@@ -416,19 +624,20 @@ fun BotDetailScreen(
                     ) {
                         Icon(Icons.Default.Chat, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(botStartChat)
+                        Text(stringResource(R.string.bot_start_chat))
                     }
                 }
 
                 // Description
                 if (!bot.description.isNullOrBlank()) {
                     item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
+                        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(botDescriptionLabel, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    stringResource(R.string.bot_description_label),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(bot.description, style = MaterialTheme.typography.bodyMedium)
                             }
@@ -439,26 +648,37 @@ fun BotDetailScreen(
                 // Commands
                 if (state.commands.isNotEmpty()) {
                     item {
-                        val commandsTitle = stringResource(R.string.bot_commands_count, state.commands.size)
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
+                        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    commandsTitle,
+                                    stringResource(R.string.bot_commands_count, state.commands.size),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                state.commands.forEach { cmd ->
-                                    BotCommandItem(command = cmd)
-                                }
+                                state.commands.forEach { cmd -> BotCommandItem(command = cmd) }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FeatureTag(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.secondary)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
         }
     }
 }
@@ -488,16 +708,8 @@ fun BotCommandItem(command: BotCommand) {
 @Composable
 fun StatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -520,6 +732,6 @@ fun getCategoryName(key: String): String = when (key) {
 
 fun formatUserCount(count: Int): String = when {
     count >= 1_000_000 -> "${count / 1_000_000}M"
-    count >= 1_000 -> "${count / 1_000}K"
-    else -> count.toString()
+    count >= 1_000     -> "${count / 1_000}K"
+    else               -> count.toString()
 }
