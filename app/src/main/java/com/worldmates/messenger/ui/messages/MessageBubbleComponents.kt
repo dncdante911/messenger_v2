@@ -1111,21 +1111,36 @@ fun VoiceMessagePlayer(
         }
     }
 
-    // Voice transcript (PRO only) — shown below the waveform for voice messages
+    // Voice transcript — доступно всім, але з різним лімітом символів:
+    // звичайний = 200, PRO = 500
+    val transcriptCharLimit = if (isPro) 500 else 200
     if (isVoiceMessage) {
         Spacer(modifier = Modifier.height(4.dp))
         if (transcript != null) {
-            // Show transcript text
-            Text(
-                text = transcript!!,
-                color = textColor.copy(alpha = 0.85f),
-                fontSize = 12.sp,
+            val isTruncated = transcript!!.length > transcriptCharLimit
+            val displayText = if (isTruncated) transcript!!.take(transcriptCharLimit) else transcript!!
+            // Show transcript text (truncated to limit)
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 2.dp)
-            )
-        } else if (isPro) {
-            // Show "Transcribe" button for PRO users
+            ) {
+                Text(
+                    text = displayText,
+                    color = textColor.copy(alpha = 0.85f),
+                    fontSize = 12.sp
+                )
+                // Підказка "показати повністю (PRO)" для обрізаного тексту у звичайних користувачів
+                if (isTruncated && !isPro) {
+                    Text(
+                        text = stringResource(R.string.voice_transcript_truncated),
+                        color = colorScheme.primary,
+                        fontSize = 10.sp
+                    )
+                }
+            }
+        } else {
+            // Show "Transcribe" button — доступно всім
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

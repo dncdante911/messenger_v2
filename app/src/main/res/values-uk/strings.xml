@@ -1031,8 +1031,9 @@
     <string name="playback_speed">Швидкість відтворення</string>
     <string name="player_repeat">Повтор</string>
     <string name="open_player">Відкрити плеєр</string>
-    <string name="voice_transcribe">Текст (PRO)</string>
+    <string name="voice_transcribe">Текст</string>
     <string name="voice_transcribing">Розпізнавання…</string>
+    <string name="voice_transcript_truncated">…показати повністю (PRO)</string>
 
     <!-- ===== EMOJI PICKER ===== -->
     <string name="emoji_smileys">Смайлики</string>

@@ -43,8 +43,10 @@ class VoiceRecorder(private val context: Context) {
     // Якість запису
     var audioQuality: AudioQuality = AudioQuality.STANDARD
 
-    // Максимальна тривалість запису (2 хвилини)
-    private val MAX_DURATION_MS = 2 * 60 * 1000L
+    // Максимальна тривалість запису.
+    // Встановлюється перед стартом: 15 хв для звичайних, 60 хв для PRO.
+    // Значення за замовчуванням — 15 хв (ліміт звичайного користувача).
+    var maxDurationMs: Long = 15 * 60 * 1000L
 
     enum class AudioQuality(val bitRate: Int, val sampleRate: Int, val label: String) {
         COMPRESSED(64000, 22050, "Стиснутий (64 kbps)"),
@@ -63,6 +65,9 @@ class VoiceRecorder(private val context: Context) {
 
     companion object {
         private const val TAG = "VoiceRecorder"
+
+        const val DURATION_FREE_MS = 15 * 60 * 1000L   // 15 хвилин — звичайний користувач
+        const val DURATION_PRO_MS  = 60 * 60 * 1000L   // 60 хвилин — PRO
     }
 
     /**
@@ -233,9 +238,9 @@ class VoiceRecorder(private val context: Context) {
                 mediaRecorder?.maxAmplitude ?: 0
             } catch (_: Exception) { 0 }
 
-            // Авто-завершення при досягненні ліміту
-            if (duration >= MAX_DURATION_MS) {
-                Log.d(TAG, "Max duration reached ($MAX_DURATION_MS ms), auto-stopping")
+            // Авто-завершення при досягненні ліміту (15 хв для звичайних / 60 хв для PRO)
+            if (duration >= maxDurationMs) {
+                Log.d(TAG, "Max duration reached ($maxDurationMs ms), auto-stopping")
                 mediaRecorder?.let {
                     try { it.stop() } catch (_: Exception) {}
                     it.release()
