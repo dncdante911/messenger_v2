@@ -65,6 +65,7 @@ import com.worldmates.messenger.ui.theme.PresetBackground
 import com.worldmates.messenger.ui.theme.AnimatedBgPrefs
 import com.worldmates.messenger.ui.theme.AnimatedBgVariant
 import com.worldmates.messenger.ui.theme.ChatAnimatedBackground
+import com.worldmates.messenger.ui.theme.DefaultChatBackground
 import com.worldmates.messenger.ui.components.UserProfileMenuSheet
 import com.worldmates.messenger.ui.components.UserMenuData
 import com.worldmates.messenger.ui.components.UserMenuAction
@@ -591,26 +592,9 @@ fun MessagesScreen(
                     Log.e("MessagesScreen", "Preset not found for ID: ${themeState.presetBackgroundId}")
                 }
             }
-            // Стандартний фон з теми - з тонким градієнтом для глибини
+            // Стандартний фон — Telegram-подібний (градієнт + крапковий патерн)
             else -> {
-                Log.d("MessagesScreen", "Using enhanced default background")
-                val bgBase = MaterialTheme.colorScheme.background
-                val bgAccent = MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    bgBase,
-                                    bgAccent,
-                                    bgBase
-                                ),
-                                startY = 0f,
-                                endY = Float.POSITIVE_INFINITY
-                            )
-                        )
-                )
+                DefaultChatBackground(modifier = Modifier.fillMaxSize())
             }
         }
 
