@@ -29,6 +29,16 @@
         <item name="windowActionBar">false</item>
         <item name="android:windowFullscreen">false</item>
     </style>
+
+    <!-- Splash Screen: полноэкранный, фоновый градиент как у иконки маскота -->
+    <style name="Theme.WorldMatesMessenger.Splash" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:statusBarColor">#4ECDC4</item>
+        <item name="android:navigationBarColor">#95E1A3</item>
+        <item name="android:windowBackground">@drawable/ic_launcher_background</item>
+    </style>
     
     <!-- Typography -->
     <style name="TextAppearance.App.Headline1" parent="TextAppearance.MaterialComponents.Headline1">

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon background: teal-to-green gradient matching the mascot icon -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:type="linear"
+        android:angle="135"
+        android:startColor="#4ECDC4"
+        android:centerColor="#7DD8A0"
+        android:endColor="#95E1A3" />
+</shape>
