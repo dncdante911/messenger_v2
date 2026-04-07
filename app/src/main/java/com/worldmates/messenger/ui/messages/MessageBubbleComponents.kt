@@ -1690,13 +1690,14 @@ fun GroupCallMessageCard(
     modifier: Modifier = Modifier
 ) {
     val isVideo    = callType == "video"
-    val accentColor = Color(0xFF7C4DFF)
+    val accentColor = MaterialTheme.colorScheme.primary
+    val cardColor   = MaterialTheme.colorScheme.surfaceContainerHigh
 
     Surface(
         modifier  = modifier.widthIn(max = 280.dp),
         shape     = RoundedCornerShape(16.dp),
-        color     = accentColor.copy(alpha = 0.08f),
-        border    = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.3f))
+        color     = cardColor,
+        border    = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.4f))
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -1725,13 +1726,13 @@ fun GroupCallMessageCard(
                         ),
                         fontWeight = FontWeight.Bold,
                         fontSize   = 13.sp,
-                        color      = accentColor
+                        color      = MaterialTheme.colorScheme.onSurface
                     )
                     if (initiatorName.isNotEmpty()) {
                         Text(
                             text  = initiatorName,
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
                         )
                     }
                 }
@@ -1754,7 +1755,7 @@ fun GroupCallMessageCard(
             Text(
                 text  = stringResource(R.string.group_call_up_to_n, maxParticipants),
                 fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(Modifier.height(10.dp))

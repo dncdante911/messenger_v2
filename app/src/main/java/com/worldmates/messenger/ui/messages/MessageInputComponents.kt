@@ -153,7 +153,7 @@ fun MessageInputBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colorScheme.surface)
+            .background(colorScheme.surfaceContainerLow)
             .navigationBarsPadding()
     ) {
 
@@ -366,7 +366,7 @@ fun MessageInputBar(
                                 modifier = Modifier
                                     .weight(1f)
                                     .heightIn(min = 40.dp, max = 120.dp)
-                                    .background(colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
+                                    .background(colorScheme.surfaceContainerHighest, RoundedCornerShape(20.dp)),
                                 placeholder = {
                                     Text(
                                         stringResource(R.string.messages),
@@ -402,7 +402,7 @@ fun MessageInputBar(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(40.dp)
-                                    .background(colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(20.dp)),
+                                    .background(colorScheme.surfaceContainerHighest.copy(alpha = 0.7f), RoundedCornerShape(20.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(
