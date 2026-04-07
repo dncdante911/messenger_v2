@@ -282,6 +282,7 @@
     <string name="add_reaction">Додати реакцію</string>
     <string name="recording">Запис…</string>
     <string name="hold_to_record">Утримуйте для запису</string>
+    <string name="voice_record_max_duration_reached">Максимальну тривалість запису досягнуто</string>
     <string name="release_to_send">Відпустіть для надсилання</string>
     <string name="slide_to_cancel">Посуньте для скасування</string>
     <string name="select_all">Вибрати все</string>

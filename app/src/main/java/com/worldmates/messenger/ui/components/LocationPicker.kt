@@ -28,6 +28,7 @@ import com.worldmates.messenger.data.repository.LocationData
 import com.worldmates.messenger.data.repository.LocationRepository
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -79,8 +80,14 @@ fun LocationPicker(
     var isLoadingLocation by remember { mutableStateOf(false) }
     var pickerMode by remember { mutableStateOf(LocationPickerMode.PICK) }
 
-    // Camera state для управления картой
-    val defaultLocation = LatLng(50.4501, 30.5234) // Киев как дефолт
+    // Використовуємо останню відому локацію з репозиторію як дефолт (замість хардкоду Києва)
+    val lastKnownLocation = remember {
+        locationRepo.currentLocation.value?.let { loc ->
+            LatLng(loc.latitude, loc.longitude)
+        }
+    }
+    val defaultLocation = lastKnownLocation ?: LatLng(50.4501, 30.5234) // fallback — Київ
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
             selectedLocation ?: defaultLocation,
@@ -110,18 +117,25 @@ fun LocationPicker(
         }
     }
 
-    // Обновлять адрес при изменении позиции камеры (в режиме PICK)
+    // Оновлювати адресу при зупинці камери (в режимі PICK) з дебаунсом 400мс.
+    // Без дебаунсу запит геокодування виконується при кожній зупинці (навіть проміжній),
+    // що призводить до зайвих мережевих запитів.
     LaunchedEffect(cameraPositionState.isMoving) {
         if (!cameraPositionState.isMoving && pickerMode == LocationPickerMode.PICK) {
-            val centerLatLng = cameraPositionState.position.target
-            selectedLocation = centerLatLng
+            // Дебаунс: чекаємо 400мс перед геокодуванням
+            delay(400)
+            // Перевіряємо що камера все ще стоїть (користувач не почав рухати знову)
+            if (!cameraPositionState.isMoving) {
+                val centerLatLng = cameraPositionState.position.target
+                selectedLocation = centerLatLng
 
-            isLoadingAddress = true
-            scope.launch {
-                locationRepo.getAddressFromLocation(centerLatLng).onSuccess { addr ->
-                    address = addr
+                isLoadingAddress = true
+                scope.launch {
+                    locationRepo.getAddressFromLocation(centerLatLng).onSuccess { addr ->
+                        address = addr
+                    }
+                    isLoadingAddress = false
                 }
-                isLoadingAddress = false
             }
         }
     }
