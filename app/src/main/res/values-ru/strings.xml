@@ -1348,6 +1348,11 @@
     <string name="attach_file">Прикрепить файл</string>
     <string name="record_audio">Записать аудио</string>
     <string name="send_location">Отправить местоположение</string>
+    <string name="live_location_share_for">Делиться геолокацией %s</string>
+    <string name="live_location_15min">15 минут</string>
+    <string name="live_location_30min">30 минут</string>
+    <string name="live_location_60min">1 час</string>
+    <string name="live_location_expired">Геолокация больше не передаётся</string>
     <string name="send_contact">Отправить контакт</string>
     <string name="emoji">Эмодзи</string>
     <string name="leave_group_action">Покинуть группу</string>    <string name="chat_search">Поиск в чате</string>

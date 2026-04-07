@@ -33,6 +33,10 @@ class MediaLoadingManager(private val context: Context) {
         private const val CACHE_DIR_NAME = "media_cache"
         private const val THUMBNAILS_DIR_NAME = "thumbnails"
         private const val MAX_CONCURRENT_DOWNLOADS = 3
+
+        // LRU: максимальний розмір кешу (200 МБ для повного медіа + 20 МБ для превью)
+        private const val MAX_FULL_CACHE_BYTES   = 200L * 1024 * 1024
+        private const val MAX_THUMB_CACHE_BYTES  =  20L * 1024 * 1024
     }
 
     /**
@@ -186,6 +190,10 @@ class MediaLoadingManager(private val context: Context) {
             progress = 100,
             thumbnailPath = thumbnailFile.absolutePath
         )
+
+        // LRU-очистка превью-кешу
+        evictCacheIfNeeded(thumbnailsDir, MAX_THUMB_CACHE_BYTES)
+
         Log.d(TAG, "✅ Thumbnail loaded for message $messageId")
     }
 
@@ -219,6 +227,10 @@ class MediaLoadingManager(private val context: Context) {
         )
 
         saveMediaPathToDatabase(messageId, mediaFile.absolutePath)
+
+        // LRU-очистка кешу повного медіа
+        evictCacheIfNeeded(cacheDir, MAX_FULL_CACHE_BYTES)
+
         Log.d(TAG, "✅ Full media loaded for message $messageId")
     }
 
@@ -274,6 +286,28 @@ class MediaLoadingManager(private val context: Context) {
             name.startsWith("media_$messageId.")
         }
         return files?.firstOrNull()
+    }
+
+    /**
+     * LRU-очистка: видаляємо найстаріші файли якщо розмір кешу перевищує ліміт.
+     * Сортуємо за датою зміни (lastModified) — найстаріший видаляється першим.
+     */
+    private fun evictCacheIfNeeded(dir: File, maxBytes: Long) {
+        val files = dir.listFiles()?.filter { it.isFile } ?: return
+        val totalSize = files.sumOf { it.length() }
+        if (totalSize <= maxBytes) return
+
+        Log.d(TAG, "🗑️ Cache eviction: ${totalSize / 1024 / 1024}MB > ${maxBytes / 1024 / 1024}MB limit")
+
+        // Сортуємо від найстарішого до найновішого
+        val sorted = files.sortedBy { it.lastModified() }
+        var freed = 0L
+        for (file in sorted) {
+            if (totalSize - freed <= maxBytes) break
+            freed += file.length()
+            file.delete()
+            Log.d(TAG, "🗑️ Evicted: ${file.name} (${file.length() / 1024}KB)")
+        }
     }
 
     /**

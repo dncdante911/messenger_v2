@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.location.Location
 import android.os.Build
+import android.os.HandlerThread
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
@@ -51,6 +52,11 @@ class LocationRepository private constructor(
 
     // Geocoder для получения адреса по координатам
     private val geocoder: Geocoder = Geocoder(context, Locale.getDefault())
+
+    // Виділений HandlerThread для GPS-коллбеків (замість mainLooper):
+    // GPS-події не виконуються на головному потоці → не блокують UI
+    private val locationHandlerThread = HandlerThread("LocationHandlerThread").also { it.start() }
+    private val locationHandler = android.os.Handler(locationHandlerThread.looper)
 
     // Live Location state
     private val _currentLocation = MutableStateFlow<Location?>(null)
@@ -139,10 +145,12 @@ class LocationRepository private constructor(
                 }
             }
 
+            // Використовуємо locationHandler (HandlerThread) замість mainLooper
+            // щоб GPS-коллбеки не навантажували головний UI-потік
             fusedLocationClient.requestLocationUpdates(
                 locationRequest,
                 callback,
-                context.mainLooper
+                locationHandler.looper
             )
         } catch (e: SecurityException) {
             continuation.resume(null)
@@ -183,10 +191,11 @@ class LocationRepository private constructor(
                 }
             }
 
+            // Використовуємо locationHandler (HandlerThread) замість mainLooper
             fusedLocationClient.requestLocationUpdates(
                 locationRequest,
                 locationCallback!!,
-                context.mainLooper
+                locationHandler.looper
             )
 
             _isTrackingLocation.value = true
@@ -308,6 +317,14 @@ class LocationRepository private constructor(
             results
         )
         return results[0]
+    }
+
+    /**
+     * Звільнити ресурси HandlerThread (викликати при завершенні додатку)
+     */
+    fun release() {
+        stopLocationTracking()
+        locationHandlerThread.quitSafely()
     }
 }
 
