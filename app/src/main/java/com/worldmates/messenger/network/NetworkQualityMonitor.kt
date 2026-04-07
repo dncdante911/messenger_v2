@@ -77,6 +77,9 @@ class NetworkQualityMonitor(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var pingJob: Job? = null
 
+    // Зберігаємо посилання на callback для коректного unregister (запобігає витоку пам'яті)
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
     // Історія останніх пінгів для згладжування (thread-safe)
     private val pingHistory = java.util.Collections.synchronizedList(mutableListOf<Long>())
     private val maxHistorySize = 5
@@ -103,8 +106,13 @@ class NetworkQualityMonitor(private val context: Context) {
             }
         }
 
-        // Слухаємо зміни мережі
-        connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+        // Знімаємо старий callback перед реєстрацією нового
+        networkCallback?.let {
+            try { connectivityManager.unregisterNetworkCallback(it) } catch (_: Exception) {}
+        }
+
+        // Слухаємо зміни мережі (зберігаємо посилання для unregister в stopMonitoring)
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 Log.d(TAG, "📶 Network available")
                 checkConnectionQuality()
@@ -130,7 +138,7 @@ class NetworkQualityMonitor(private val context: Context) {
                     bandwidthKbps = downKbps
                 )
             }
-        })
+        }.also { connectivityManager.registerDefaultNetworkCallback(it) }
     }
 
     /**
@@ -295,11 +303,16 @@ class NetworkQualityMonitor(private val context: Context) {
     }
 
     /**
-     * Зупинити моніторинг
+     * Зупинити моніторинг і звільнити ресурси
      */
     fun stopMonitoring() {
         Log.d(TAG, "⏹️ Stopping network quality monitoring")
         pingJob?.cancel()
+        // Знімаємо реєстрацію callback — запобігаємо витоку пам'яті
+        networkCallback?.let {
+            try { connectivityManager.unregisterNetworkCallback(it) } catch (_: Exception) {}
+            networkCallback = null
+        }
         scope.cancel()
     }
 
