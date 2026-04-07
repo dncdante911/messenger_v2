@@ -8,125 +8,168 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
- * Telegram-like default chat background — consistent across all screens.
+ * Default chat background — used on ALL screens when no custom image or preset is set.
+ * Inspired by Telegram's default wallpaper: a 4-point mesh gradient that blends
+ * teal, blue, lavender, and peach blobs, with a subtle hex-dot texture on top.
  *
- * Renders four radial "blob" gradients at the screen corners, blending
- * together for a modern multi-color wash (matches Telegram's default wallpaper).
- * A subtle hex-dot texture is drawn on top.
- *
- * Light mode: peach / lavender / teal / sky-blue blobs.
- * Dark mode:  deep navy / indigo / dark-teal / midnight-blue blobs.
+ * Light mode: warm off-white base + pastel mesh (sky-blue / lavender / peach / mint).
+ * Dark mode:  Telegram Night — deep navy + indigo + teal blobs on #17212B base.
  */
 @Composable
 fun DefaultChatBackground(modifier: Modifier = Modifier) {
     val isDark = isSystemInDarkTheme()
 
-    // ── Blob colors (4 corners: top-left, top-right, bottom-left, bottom-right) ──
-    val blobTL: Color
-    val blobTR: Color
-    val blobBL: Color
-    val blobBR: Color
-    val baseColor: Color
-    val dotColor: Color
-
-    if (isDark) {
-        baseColor = Color(0xFF0D1520)
-        blobTL    = Color(0x992D1B4E)   // deep indigo
-        blobTR    = Color(0x991A3040)   // dark teal
-        blobBL    = Color(0x991C2E50)   // dark navy
-        blobBR    = Color(0x99251A3D)   // dark violet
-        dotColor  = Color(0x18FFFFFF)
-    } else {
-        baseColor = Color(0xFFF0EEE9)
-        blobTL    = Color(0xCCFFD9C8)   // warm peach
-        blobTR    = Color(0xCCC8E6FF)   // sky blue
-        blobBL    = Color(0xCCE6D5FF)   // soft lavender
-        blobBR    = Color(0xCCC0F0E0)   // mint
-        dotColor  = Color(0x22456A8A)
-    }
-
     Box(modifier = modifier) {
-        // ── 1. Base fill ──────────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(baseColor)
-        )
-
-        // ── 2. Four corner blobs + hex-dot pattern ────────────────────────────
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            val blobRadius = maxOf(w, h) * 0.78f
 
-            // Top-left blob
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(blobTL, Color.Transparent),
-                    center = Offset(0f, 0f),
-                    radius = blobRadius,
-                    tileMode = TileMode.Clamp
-                ),
-                radius = blobRadius,
-                center = Offset(0f, 0f)
-            )
-            // Top-right blob
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(blobTR, Color.Transparent),
-                    center = Offset(w, 0f),
-                    radius = blobRadius,
-                    tileMode = TileMode.Clamp
-                ),
-                radius = blobRadius,
-                center = Offset(w, 0f)
-            )
-            // Bottom-left blob
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(blobBL, Color.Transparent),
-                    center = Offset(0f, h),
-                    radius = blobRadius,
-                    tileMode = TileMode.Clamp
-                ),
-                radius = blobRadius,
-                center = Offset(0f, h)
-            )
-            // Bottom-right blob
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(blobBR, Color.Transparent),
-                    center = Offset(w, h),
-                    radius = blobRadius,
-                    tileMode = TileMode.Clamp
-                ),
-                radius = blobRadius,
-                center = Offset(w, h)
-            )
+            if (!isDark) {
+                // ── Light mode ──────────────────────────────────────────────
+                // 1. Warm off-white base
+                drawRect(color = Color(0xFFF2ECE6))
 
-            // ── 3. Hex-dot texture overlay ────────────────────────────────────
-            val dotRadius = 1.6f
-            val spacingX  = 26f
-            // Row height for a hex grid: spacingX * sin(60°) ≈ spacingX * 0.866
-            val spacingY  = spacingX * 0.866f
-            val cols = (w / spacingX).toInt() + 2
-            val rows = (h / spacingY).toInt() + 2
+                // 2. Four overlapping radial blobs (mesh gradient effect)
+                //    Top-left  → sky blue
+                //    Top-right → soft lavender
+                //    Bottom-left → mint green
+                //    Bottom-right → warm peach
+                val blobR = maxOf(w, h) * 0.85f
 
-            for (row in 0..rows) {
-                for (col in 0..cols) {
-                    val offsetX = if (row % 2 == 0) 0f else spacingX / 2f
-                    drawCircle(
-                        color  = dotColor,
-                        radius = dotRadius,
-                        center = Offset(col * spacingX + offsetX, row * spacingY)
-                    )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF9EC9E8), Color.Transparent),
+                        center = Offset(0f, 0f),
+                        radius = blobR,
+                        tileMode = TileMode.Clamp
+                    ),
+                    size = Size(w, h)
+                )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFFB8A0E8), Color.Transparent),
+                        center = Offset(w, 0f),
+                        radius = blobR,
+                        tileMode = TileMode.Clamp
+                    ),
+                    size = Size(w, h)
+                )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF8ECFB0), Color.Transparent),
+                        center = Offset(0f, h),
+                        radius = blobR,
+                        tileMode = TileMode.Clamp
+                    ),
+                    size = Size(w, h)
+                )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFFE8B090), Color.Transparent),
+                        center = Offset(w, h),
+                        radius = blobR,
+                        tileMode = TileMode.Clamp
+                    ),
+                    size = Size(w, h)
+                )
+
+                // 3. Light white overlay in center to keep readability
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xA0FFFFFF), Color.Transparent),
+                        center = Offset(w / 2f, h / 2f),
+                        radius = minOf(w, h) * 0.55f,
+                        tileMode = TileMode.Clamp
+                    ),
+                    size = Size(w, h)
+                )
+
+                // 4. Hex-dot texture
+                val dotColor = Color(0x30305870)
+                val spacingX = 26f
+                val spacingY = spacingX * 0.866f
+                val cols = (w / spacingX).toInt() + 2
+                val rows = (h / spacingY).toInt() + 2
+                for (row in 0..rows) {
+                    for (col in 0..cols) {
+                        val offsetX = if (row % 2 == 0) 0f else spacingX / 2f
+                        drawCircle(
+                            color = dotColor,
+                            radius = 1.5f,
+                            center = Offset(col * spacingX + offsetX, row * spacingY)
+                        )
+                    }
+                }
+
+            } else {
+                // ── Dark mode (Telegram Night) ──────────────────────────────
+                // 1. #17212B base — classic Telegram Night color
+                drawRect(color = Color(0xFF17212B))
+
+                val blobR = maxOf(w, h) * 0.85f
+
+                // Top-left → deep indigo
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF2A1F55), Color.Transparent),
+                        center = Offset(0f, 0f),
+                        radius = blobR,
+                        tileMode = TileMode.Clamp
+                    ),
+                    size = Size(w, h)
+                )
+                // Top-right → dark teal
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF0F3040), Color.Transparent),
+                        center = Offset(w, 0f),
+                        radius = blobR,
+                        tileMode = TileMode.Clamp
+                    ),
+                    size = Size(w, h)
+                )
+                // Bottom-left → navy blue
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF152540), Color.Transparent),
+                        center = Offset(0f, h),
+                        radius = blobR,
+                        tileMode = TileMode.Clamp
+                    ),
+                    size = Size(w, h)
+                )
+                // Bottom-right → dark violet
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF221535), Color.Transparent),
+                        center = Offset(w, h),
+                        radius = blobR,
+                        tileMode = TileMode.Clamp
+                    ),
+                    size = Size(w, h)
+                )
+
+                // Hex-dot texture
+                val dotColor = Color(0x20FFFFFF)
+                val spacingX = 26f
+                val spacingY = spacingX * 0.866f
+                val cols = (w / spacingX).toInt() + 2
+                val rows = (h / spacingY).toInt() + 2
+                for (row in 0..rows) {
+                    for (col in 0..cols) {
+                        val offsetX = if (row % 2 == 0) 0f else spacingX / 2f
+                        drawCircle(
+                            color = dotColor,
+                            radius = 1.5f,
+                            center = Offset(col * spacingX + offsetX, row * spacingY)
+                        )
+                    }
                 }
             }
         }

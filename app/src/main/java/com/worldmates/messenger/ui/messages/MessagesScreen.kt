@@ -557,7 +557,6 @@ fun MessagesScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .imePadding()
     ) {
         // Застосування фону в залежності від налаштувань
