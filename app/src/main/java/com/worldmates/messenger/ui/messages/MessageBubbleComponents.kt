@@ -894,6 +894,10 @@ fun VoiceMessagePlayer(
     // Стан для відображення повноекранного плеєра
     var showAdvancedPlayer by remember { mutableStateOf(false) }
 
+    // Швидкість відтворення для голосових (1x → 1.5x → 2x → 0.5x → 1x)
+    var playbackSpeed by remember(message.id) { mutableStateOf(1f) }
+    val speedSteps = listOf(1f, 1.5f, 2f, 0.5f)
+
     // Transcript state (PRO only)
     var transcript       by remember(message.id) { mutableStateOf<String?>(null) }
     var transcriptLoading by remember(message.id) { mutableStateOf(false) }
@@ -1063,6 +1067,31 @@ fun VoiceMessagePlayer(
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
                 )
+
+                // Кнопка швидкості відтворення (тільки для голосових повідомлень)
+                if (isVoiceMessage) {
+                    TextButton(
+                        onClick = {
+                            val nextIndex = (speedSteps.indexOf(playbackSpeed) + 1) % speedSteps.size
+                            playbackSpeed = speedSteps[nextIndex]
+                            com.worldmates.messenger.services.MusicPlaybackService.setSpeed(playbackSpeed)
+                        },
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
+                        modifier = Modifier
+                            .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                            .height(28.dp)
+                    ) {
+                        Text(
+                            text = if (playbackSpeed == playbackSpeed.toLong().toFloat())
+                                "${playbackSpeed.toInt()}x"
+                            else
+                                "${playbackSpeed}x",
+                            color = if (playbackSpeed != 1f) colorScheme.primary else textColor.copy(alpha = 0.6f),
+                            fontSize = 11.sp,
+                            fontWeight = if (playbackSpeed != 1f) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
 
                 // Кнопка розгортання плеєра
                 IconButton(

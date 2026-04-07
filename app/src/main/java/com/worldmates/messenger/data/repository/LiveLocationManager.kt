@@ -72,9 +72,13 @@ class LiveLocationManager(
             locationRepo.currentLocation
                 .filterNotNull()
                 // Фільтруємо дублікати (той самий округлений ~1 м пробіг)
+                // Використовуємо Pair щоб уникнути помилкових збігів при строковій конкатенації
+                // (наприклад: lat=12.3456, lng=7.89 і lat=123.456, lng=0.789 давали однаковий рядок)
                 .distinctUntilChangedBy { loc ->
-                    "${(loc.latitude  * 10_000).toLong()}" +
-                    "${(loc.longitude * 10_000).toLong()}"
+                    Pair(
+                        (loc.latitude  * 10_000).toLong(),
+                        (loc.longitude * 10_000).toLong()
+                    )
                 }
                 .collect { location ->
                     val payload = JSONObject().apply {
