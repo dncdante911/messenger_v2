@@ -1,6 +1,6 @@
 // Top-level build file
 buildscript {
-    ext.kotlin_version = '2.3.20'
+    ext.kotlin_version = '2.1.20'
     ext.compose_version = '1.10.6'
 
     repositories {
@@ -17,12 +17,12 @@ buildscript {
 plugins {
     id 'com.android.application' version '8.13.2' apply false
     id 'com.android.library' version '8.13.2' apply false
-    // Kotlin version must exactly match the language version
-    id 'org.jetbrains.kotlin.android' version '2.3.20' apply false
+    // Kotlin 2.1.20 — stable release with proven KSP compatibility
+    id 'org.jetbrains.kotlin.android' version '2.1.20' apply false
     // Compose compiler plugin (Kotlin 2.0+)
-    id 'org.jetbrains.kotlin.plugin.compose' version '2.3.20' apply false
-    // KSP for Room Database (standalone versioning since 2.3.x, compatible with Kotlin 2.3.20)
-    id 'com.google.devtools.ksp' version '2.3.6' apply false
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.1.20' apply false
+    // KSP — version must match Kotlin exactly
+    id 'com.google.devtools.ksp' version '2.1.20-1.0.31' apply false
     // FCM / Firebase — apply false so only :app enables it
     id 'com.google.gms.google-services' version '4.4.2' apply false
 }
