@@ -21,8 +21,8 @@ plugins {
     id 'org.jetbrains.kotlin.android' version '2.3.20' apply false
     // Compose compiler plugin (Kotlin 2.0+)
     id 'org.jetbrains.kotlin.plugin.compose' version '2.3.20' apply false
-    // KSP for Room Database (must match Kotlin 2.3.20)
-    id 'com.google.devtools.ksp' version '2.3.20-1.0.31' apply false
+    // KSP for Room Database (standalone versioning since 2.3.x, compatible with Kotlin 2.3.20)
+    id 'com.google.devtools.ksp' version '2.3.6' apply false
     // FCM / Firebase — apply false so only :app enables it
     id 'com.google.gms.google-services' version '4.4.2' apply false
 }
