@@ -112,13 +112,9 @@ fun BackgroundImage(
                     )
                 }
             }
-            // Пріоритет 3: Стандартний фон теми
+            // Пріоритет 3: Стандартний фон — Telegram-подібний (однаковий у всіх екранах)
             else -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                )
+                DefaultChatBackground(modifier = Modifier.fillMaxSize())
             }
         }
     }
