@@ -282,6 +282,7 @@
     <string name="add_reaction">Додати реакцію</string>
     <string name="recording">Запис…</string>
     <string name="hold_to_record">Утримуйте для запису</string>
+    <string name="voice_record_max_duration_reached">Максимальну тривалість запису досягнуто</string>
     <string name="release_to_send">Відпустіть для надсилання</string>
     <string name="slide_to_cancel">Посуньте для скасування</string>
     <string name="select_all">Вибрати все</string>
@@ -1382,6 +1383,11 @@
     <string name="attach_file">Прикріпити файл</string>
     <string name="record_audio">Записати аудіо</string>
     <string name="send_location">Надіслати місцезнаходження</string>
+    <string name="live_location_share_for">Ділитися геолокацією %s</string>
+    <string name="live_location_15min">15 хвилин</string>
+    <string name="live_location_30min">30 хвилин</string>
+    <string name="live_location_60min">1 година</string>
+    <string name="live_location_expired">Геолокація більше не передається</string>
     <string name="send_contact">Надіслати контакт</string>
     <string name="emoji">Емодзі</string>
     <string name="leave_group_action">Покинути групу</string>    <string name="chat_search">Пошук у чаті</string>

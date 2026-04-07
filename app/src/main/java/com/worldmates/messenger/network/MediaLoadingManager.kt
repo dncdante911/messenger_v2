@@ -1,16 +1,16 @@
 package com.worldmates.messenger.network
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.Log
 import com.worldmates.messenger.data.local.AppDatabase
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 📦 MediaLoadingManager - Менеджер прогресивного завантаження медіа
@@ -20,6 +20,11 @@ import java.io.FileOutputStream
  * - Progressive loading: спочатку превью, потім повне медіа
  * - Кешування: зберігає завантажені файли локально
  * - Пріоритизація: важливі медіа завантажуються першими
+ *
+ * Fixes:
+ * - OOM: streaming замість bytes() — файл не тримається цілком в RAM
+ * - activeDownloads: Semaphore + ConcurrentHashMap — скасування реально працює
+ * - loadingStates: ConcurrentHashMap — thread-safe доступ
  */
 class MediaLoadingManager(private val context: Context) {
 
@@ -28,6 +33,10 @@ class MediaLoadingManager(private val context: Context) {
         private const val CACHE_DIR_NAME = "media_cache"
         private const val THUMBNAILS_DIR_NAME = "thumbnails"
         private const val MAX_CONCURRENT_DOWNLOADS = 3
+
+        // LRU: максимальний розмір кешу (200 МБ для повного медіа + 20 МБ для превью)
+        private const val MAX_FULL_CACHE_BYTES   = 200L * 1024 * 1024
+        private const val MAX_THUMB_CACHE_BYTES  =  20L * 1024 * 1024
     }
 
     /**
@@ -54,6 +63,9 @@ class MediaLoadingManager(private val context: Context) {
     private val apiService = NodeRetrofitClient.chatUploadApi
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    // Семафор для обмеження кількості паралельних завантажень
+    private val downloadSemaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
+
     // Кеш директорії
     private val cacheDir: File by lazy {
         File(context.cacheDir, CACHE_DIR_NAME).apply { mkdirs() }
@@ -63,188 +75,163 @@ class MediaLoadingManager(private val context: Context) {
         File(cacheDir, THUMBNAILS_DIR_NAME).apply { mkdirs() }
     }
 
-    // Черга завантаження з пріоритетами
-    private val downloadQueue = Channel<MediaDownloadTask>(capacity = Channel.UNLIMITED)
+    // Активні завантаження: messageId → Job (thread-safe, для скасування)
+    private val activeDownloads = ConcurrentHashMap<Long, Job>()
 
-    // Активні завантаження
-    private val activeDownloads = mutableMapOf<Long, Job>()
-
-    // Стани завантаження для кожного медіа
-    private val loadingStates = mutableMapOf<Long, MutableStateFlow<MediaLoadProgress>>()
-
-    init {
-        startDownloadWorkers()
-    }
-
-    /**
-     * Запустити воркери для завантаження
-     */
-    private fun startDownloadWorkers() {
-        repeat(MAX_CONCURRENT_DOWNLOADS) { workerId ->
-            scope.launch {
-                for (task in downloadQueue) {
-                    try {
-                        Log.d(TAG, "Worker #$workerId: processing ${task.messageId}")
-                        processDownloadTask(task)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Worker #$workerId error", e)
-                        updateState(task.messageId, LoadingState.ERROR, error = e.message)
-                    }
-                }
-            }
-        }
-    }
+    // Стани завантаження для кожного медіа (thread-safe)
+    private val loadingStates = ConcurrentHashMap<Long, MutableStateFlow<MediaLoadProgress>>()
 
     /**
      * Завантажити превью (thumbnail)
      */
     fun loadThumbnail(messageId: Long, thumbnailUrl: String, priority: Int = 0): StateFlow<MediaLoadProgress> {
-        return getOrCreateStateFlow(messageId).apply {
-            // Перевіряємо чи вже є в кеші
-            val cachedThumb = getCachedThumbnail(messageId)
-            if (cachedThumb != null) {
-                value = value.copy(
-                    state = LoadingState.THUMB_LOADED,
-                    progress = 100,
-                    thumbnailPath = cachedThumb.absolutePath
-                )
-                return@apply
-            }
+        val stateFlow = getOrCreateStateFlow(messageId)
 
-            // Додаємо в чергу
-            scope.launch {
-                downloadQueue.send(
-                    MediaDownloadTask(
-                        messageId = messageId,
-                        url = thumbnailUrl,
-                        type = MediaType.THUMBNAIL,
-                        priority = priority
-                    )
-                )
-            }
-
-            // Оновлюємо стан
-            value = value.copy(state = LoadingState.LOADING_THUMB, progress = 0)
+        // Перевіряємо чи вже є в кеші
+        val cachedThumb = getCachedThumbnail(messageId)
+        if (cachedThumb != null) {
+            stateFlow.value = stateFlow.value.copy(
+                state = LoadingState.THUMB_LOADED,
+                progress = 100,
+                thumbnailPath = cachedThumb.absolutePath
+            )
+            return stateFlow
         }
+
+        // Якщо вже завантажується — не дублюємо
+        if (stateFlow.value.state == LoadingState.LOADING_THUMB) return stateFlow
+
+        stateFlow.value = stateFlow.value.copy(state = LoadingState.LOADING_THUMB, progress = 0)
+
+        val job = scope.launch {
+            downloadSemaphore.withPermit {
+                try {
+                    downloadThumbnail(messageId, thumbnailUrl)
+                } catch (e: CancellationException) {
+                    Log.d(TAG, "Thumbnail download cancelled for $messageId")
+                    updateState(messageId, LoadingState.IDLE)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Thumbnail download error for $messageId", e)
+                    updateState(messageId, LoadingState.ERROR, error = e.message)
+                } finally {
+                    activeDownloads.remove(messageId)
+                }
+            }
+        }
+        activeDownloads[messageId] = job
+
+        return stateFlow
     }
 
     /**
      * Завантажити повне медіа
      */
     fun loadFullMedia(messageId: Long, mediaUrl: String, priority: Int = 5): StateFlow<MediaLoadProgress> {
-        return getOrCreateStateFlow(messageId).apply {
-            // Перевіряємо чи вже є в кеші
-            val cachedFull = getCachedFullMedia(messageId)
-            if (cachedFull != null) {
-                value = value.copy(
-                    state = LoadingState.FULL_LOADED,
-                    progress = 100,
-                    fullMediaPath = cachedFull.absolutePath
-                )
-                return@apply
-            }
+        val stateFlow = getOrCreateStateFlow(messageId)
 
-            // Додаємо в чергу з вищим пріоритетом
-            scope.launch {
-                downloadQueue.send(
-                    MediaDownloadTask(
-                        messageId = messageId,
-                        url = mediaUrl,
-                        type = MediaType.FULL,
-                        priority = priority
-                    )
-                )
-            }
-
-            // Оновлюємо стан
-            value = value.copy(state = LoadingState.LOADING_FULL, progress = 0)
-        }
-    }
-
-    /**
-     * Обробити задачу завантаження
-     */
-    private suspend fun processDownloadTask(task: MediaDownloadTask) = withContext(Dispatchers.IO) {
-        try {
-            when (task.type) {
-                MediaType.THUMBNAIL -> downloadThumbnail(task)
-                MediaType.FULL -> downloadFullMedia(task)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to download ${task.type} for message ${task.messageId}", e)
-            updateState(task.messageId, LoadingState.ERROR, error = e.message)
-        }
-    }
-
-    /**
-     * Завантажити превью
-     */
-    private suspend fun downloadThumbnail(task: MediaDownloadTask) {
-        Log.d(TAG, "📥 Downloading thumbnail for message ${task.messageId}")
-
-        updateState(task.messageId, LoadingState.LOADING_THUMB, progress = 10)
-
-        try {
-            val response = apiService.downloadMedia(task.url)
-            val bytes = response.bytes()
-
-            updateState(task.messageId, LoadingState.LOADING_THUMB, progress = 50)
-
-            // Зберігаємо в кеш
-            val thumbnailFile = File(thumbnailsDir, "thumb_${task.messageId}.jpg")
-            FileOutputStream(thumbnailFile).use { it.write(bytes) }
-
-            updateState(
-                task.messageId,
-                LoadingState.THUMB_LOADED,
+        // Перевіряємо чи вже є в кеші
+        val cachedFull = getCachedFullMedia(messageId)
+        if (cachedFull != null) {
+            stateFlow.value = stateFlow.value.copy(
+                state = LoadingState.FULL_LOADED,
                 progress = 100,
-                thumbnailPath = thumbnailFile.absolutePath
+                fullMediaPath = cachedFull.absolutePath
             )
-
-            Log.d(TAG, "✅ Thumbnail loaded for message ${task.messageId}")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to download thumbnail", e)
-            updateState(task.messageId, LoadingState.ERROR, error = e.message)
+            return stateFlow
         }
+
+        // Якщо вже завантажується — не дублюємо
+        if (stateFlow.value.state == LoadingState.LOADING_FULL) return stateFlow
+
+        stateFlow.value = stateFlow.value.copy(state = LoadingState.LOADING_FULL, progress = 0)
+
+        val job = scope.launch {
+            downloadSemaphore.withPermit {
+                try {
+                    downloadFullMedia(messageId, mediaUrl)
+                } catch (e: CancellationException) {
+                    Log.d(TAG, "Full media download cancelled for $messageId")
+                    updateState(messageId, LoadingState.IDLE)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Full media download error for $messageId", e)
+                    updateState(messageId, LoadingState.ERROR, error = e.message)
+                } finally {
+                    activeDownloads.remove(messageId)
+                }
+            }
+        }
+        activeDownloads[messageId] = job
+
+        return stateFlow
     }
 
     /**
-     * Завантажити повне медіа
+     * Завантажити превью — streaming (без завантаження всього файлу в RAM)
      */
-    private suspend fun downloadFullMedia(task: MediaDownloadTask) {
-        Log.d(TAG, "📥 Downloading full media for message ${task.messageId}")
+    private suspend fun downloadThumbnail(messageId: Long, url: String) {
+        Log.d(TAG, "📥 Downloading thumbnail for message $messageId")
+        updateState(messageId, LoadingState.LOADING_THUMB, progress = 10)
 
-        updateState(task.messageId, LoadingState.LOADING_FULL, progress = 10)
+        val response = apiService.downloadMedia(url)
+        val thumbnailFile = File(thumbnailsDir, "thumb_$messageId.jpg")
 
-        try {
-            val response = apiService.downloadMedia(task.url)
-            val bytes = response.bytes()
+        updateState(messageId, LoadingState.LOADING_THUMB, progress = 30)
 
-            updateState(task.messageId, LoadingState.LOADING_FULL, progress = 50)
-
-            // Визначаємо розширення файлу з URL
-            val extension = task.url.substringAfterLast('.', "jpg")
-            val mediaFile = File(cacheDir, "media_${task.messageId}.$extension")
-
-            FileOutputStream(mediaFile).use { it.write(bytes) }
-
-            updateState(
-                task.messageId,
-                LoadingState.FULL_LOADED,
-                progress = 100,
-                fullMediaPath = mediaFile.absolutePath
-            )
-
-            // Оновлюємо базу даних
-            saveMediaPathToDatabase(task.messageId, mediaFile.absolutePath)
-
-            Log.d(TAG, "✅ Full media loaded for message ${task.messageId}")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to download full media", e)
-            updateState(task.messageId, LoadingState.ERROR, error = e.message)
+        // Streaming: файл пишеться по шматках, не тримається в RAM
+        response.byteStream().use { input ->
+            FileOutputStream(thumbnailFile).use { output ->
+                input.copyTo(output, bufferSize = 8 * 1024)
+            }
         }
+
+        updateState(
+            messageId,
+            LoadingState.THUMB_LOADED,
+            progress = 100,
+            thumbnailPath = thumbnailFile.absolutePath
+        )
+
+        // LRU-очистка превью-кешу
+        evictCacheIfNeeded(thumbnailsDir, MAX_THUMB_CACHE_BYTES)
+
+        Log.d(TAG, "✅ Thumbnail loaded for message $messageId")
+    }
+
+    /**
+     * Завантажити повне медіа — streaming (без завантаження всього файлу в RAM)
+     */
+    private suspend fun downloadFullMedia(messageId: Long, url: String) {
+        Log.d(TAG, "📥 Downloading full media for message $messageId")
+        updateState(messageId, LoadingState.LOADING_FULL, progress = 10)
+
+        val response = apiService.downloadMedia(url)
+
+        // Визначаємо розширення файлу з URL (без query-параметрів)
+        val extension = url.substringBefore("?").substringAfterLast('.', "bin")
+        val mediaFile = File(cacheDir, "media_$messageId.$extension")
+
+        updateState(messageId, LoadingState.LOADING_FULL, progress = 30)
+
+        // Streaming: копіюємо по шматках
+        response.byteStream().use { input ->
+            FileOutputStream(mediaFile).use { output ->
+                input.copyTo(output, bufferSize = 16 * 1024)
+            }
+        }
+
+        updateState(
+            messageId,
+            LoadingState.FULL_LOADED,
+            progress = 100,
+            fullMediaPath = mediaFile.absolutePath
+        )
+
+        saveMediaPathToDatabase(messageId, mediaFile.absolutePath)
+
+        // LRU-очистка кешу повного медіа
+        evictCacheIfNeeded(cacheDir, MAX_FULL_CACHE_BYTES)
+
+        Log.d(TAG, "✅ Full media loaded for message $messageId")
     }
 
     /**
@@ -269,7 +256,7 @@ class MediaLoadingManager(private val context: Context) {
     }
 
     /**
-     * Отримати або створити StateFlow для медіа
+     * Отримати або створити StateFlow для медіа (thread-safe через ConcurrentHashMap)
      */
     private fun getOrCreateStateFlow(messageId: Long): MutableStateFlow<MediaLoadProgress> {
         return loadingStates.getOrPut(messageId) {
@@ -287,7 +274,7 @@ class MediaLoadingManager(private val context: Context) {
      * Отримати кешоване превью
      */
     private fun getCachedThumbnail(messageId: Long): File? {
-        val file = File(thumbnailsDir, "thumb_${messageId}.jpg")
+        val file = File(thumbnailsDir, "thumb_$messageId.jpg")
         return if (file.exists()) file else null
     }
 
@@ -295,11 +282,32 @@ class MediaLoadingManager(private val context: Context) {
      * Отримати кешоване повне медіа
      */
     private fun getCachedFullMedia(messageId: Long): File? {
-        // Шукаємо файл з будь-яким розширенням
         val files = cacheDir.listFiles { _, name ->
             name.startsWith("media_$messageId.")
         }
         return files?.firstOrNull()
+    }
+
+    /**
+     * LRU-очистка: видаляємо найстаріші файли якщо розмір кешу перевищує ліміт.
+     * Сортуємо за датою зміни (lastModified) — найстаріший видаляється першим.
+     */
+    private fun evictCacheIfNeeded(dir: File, maxBytes: Long) {
+        val files = dir.listFiles()?.filter { it.isFile } ?: return
+        val totalSize = files.sumOf { it.length() }
+        if (totalSize <= maxBytes) return
+
+        Log.d(TAG, "🗑️ Cache eviction: ${totalSize / 1024 / 1024}MB > ${maxBytes / 1024 / 1024}MB limit")
+
+        // Сортуємо від найстарішого до найновішого
+        val sorted = files.sortedBy { it.lastModified() }
+        var freed = 0L
+        for (file in sorted) {
+            if (totalSize - freed <= maxBytes) break
+            freed += file.length()
+            file.delete()
+            Log.d(TAG, "🗑️ Evicted: ${file.name} (${file.length() / 1024}KB)")
+        }
     }
 
     /**
@@ -316,7 +324,7 @@ class MediaLoadingManager(private val context: Context) {
     }
 
     /**
-     * Скасувати завантаження
+     * Скасувати завантаження — тепер реально відміняє Job
      */
     fun cancelDownload(messageId: Long) {
         activeDownloads[messageId]?.cancel()
@@ -354,26 +362,8 @@ class MediaLoadingManager(private val context: Context) {
      * Очистити ресурси
      */
     fun cleanup() {
-        downloadQueue.close()
+        activeDownloads.values.forEach { it.cancel() }
+        activeDownloads.clear()
         scope.cancel()
-    }
-
-    // ==================== ВНУТРІШНІ КЛАСИ ====================
-
-    private data class MediaDownloadTask(
-        val messageId: Long,
-        val url: String,
-        val type: MediaType,
-        val priority: Int
-    ) : Comparable<MediaDownloadTask> {
-        override fun compareTo(other: MediaDownloadTask): Int {
-            // Вищий пріоритет = менше число
-            return this.priority.compareTo(other.priority)
-        }
-    }
-
-    private enum class MediaType {
-        THUMBNAIL,
-        FULL
     }
 }

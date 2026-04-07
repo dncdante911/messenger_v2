@@ -5,6 +5,7 @@ import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
@@ -13,6 +14,13 @@ import java.io.IOException
 
 /**
  * Утилита для записи голосовых сообщений
+ *
+ * Fixes:
+ * - updateDuration/updatePosition: прибрано зайве withContext(Dispatchers.Main) —
+ *   delay() є suspend-функцією і не потребує Main-потоку
+ * - startRecording/stopRecording: IO-операції на Dispatchers.IO
+ * - Додано ліміт тривалості запису (MAX_DURATION_MS)
+ * - Додано amplitude StateFlow для відображення waveform під час запису
  */
 class VoiceRecorder(private val context: Context) {
 
@@ -25,11 +33,18 @@ class VoiceRecorder(private val context: Context) {
     private val _recordingDuration = MutableStateFlow(0L)
     val recordingDuration: StateFlow<Long> = _recordingDuration
 
+    // Поточна амплітуда мікрофону (0..32767) для відображення waveform під час запису
+    private val _currentAmplitude = MutableStateFlow(0)
+    val currentAmplitude: StateFlow<Int> = _currentAmplitude
+
     private var recordingStartTime = 0L
     private var pausedTime = 0L
 
     // Якість запису
     var audioQuality: AudioQuality = AudioQuality.STANDARD
+
+    // Максимальна тривалість запису (2 хвилини)
+    private val MAX_DURATION_MS = 2 * 60 * 1000L
 
     enum class AudioQuality(val bitRate: Int, val sampleRate: Int, val label: String) {
         COMPRESSED(64000, 22050, "Стиснутий (64 kbps)"),
@@ -42,6 +57,7 @@ class VoiceRecorder(private val context: Context) {
         object Recording : RecordingState()
         object Paused : RecordingState()
         data class Completed(val filePath: String, val duration: Long) : RecordingState()
+        data class MaxDurationReached(val filePath: String, val duration: Long) : RecordingState()
         data class Error(val message: String) : RecordingState()
     }
 
@@ -52,9 +68,8 @@ class VoiceRecorder(private val context: Context) {
     /**
      * Начинает запись голосового сообщения
      */
-    suspend fun startRecording(): Boolean = withContext(Dispatchers.Default) {
+    suspend fun startRecording(): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
-            // Создаем файл для записи
             currentRecordingFile = File(
                 context.cacheDir,
                 "VOICE_${System.currentTimeMillis()}.m4a"
@@ -76,7 +91,7 @@ class VoiceRecorder(private val context: Context) {
             _recordingState.value = RecordingState.Recording
             Log.d(TAG, "Recording started: ${currentRecordingFile!!.absolutePath}")
 
-            // Обновляем длительность каждые 100мс
+            // Оновлюємо тривалість і амплітуду кожні 100мс
             updateDuration()
 
             true
@@ -94,11 +109,12 @@ class VoiceRecorder(private val context: Context) {
     /**
      * Паузирует запись
      */
-    suspend fun pauseRecording(): Boolean = withContext(Dispatchers.Default) {
+    suspend fun pauseRecording(): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
             if (mediaRecorder != null && _recordingState.value == RecordingState.Recording) {
                 mediaRecorder?.pause()
                 pausedTime = System.currentTimeMillis()
+                _currentAmplitude.value = 0
                 _recordingState.value = RecordingState.Paused
                 Log.d(TAG, "Recording paused")
                 true
@@ -115,7 +131,7 @@ class VoiceRecorder(private val context: Context) {
     /**
      * Возобновляет запись
      */
-    suspend fun resumeRecording(): Boolean = withContext(Dispatchers.Default) {
+    suspend fun resumeRecording(): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
             if (mediaRecorder != null && _recordingState.value == RecordingState.Paused) {
                 mediaRecorder?.resume()
@@ -139,13 +155,12 @@ class VoiceRecorder(private val context: Context) {
     /**
      * Завершает запись и возвращает путь к файлу
      */
-    suspend fun stopRecording(): Boolean = withContext(Dispatchers.Default) {
+    suspend fun stopRecording(): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
             if (mediaRecorder != null) {
                 try {
                     mediaRecorder?.stop()
                 } catch (e: RuntimeException) {
-                    // Может быть выброшено если не было записано ничего
                     Log.w(TAG, "Stop recording error: ${e.message}")
                 }
 
@@ -153,6 +168,7 @@ class VoiceRecorder(private val context: Context) {
                 mediaRecorder = null
 
                 val duration = System.currentTimeMillis() - recordingStartTime
+                _currentAmplitude.value = 0
                 _recordingState.value = RecordingState.Completed(
                     currentRecordingFile!!.absolutePath,
                     duration
@@ -174,7 +190,7 @@ class VoiceRecorder(private val context: Context) {
     /**
      * Отменяет запись
      */
-    suspend fun cancelRecording(): Boolean = withContext(Dispatchers.Default) {
+    suspend fun cancelRecording(): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
             if (mediaRecorder != null) {
                 try {
@@ -187,11 +203,10 @@ class VoiceRecorder(private val context: Context) {
             }
 
             currentRecordingFile?.let {
-                if (it.exists()) {
-                    it.delete()
-                }
+                if (it.exists()) it.delete()
             }
 
+            _currentAmplitude.value = 0
             _recordingState.value = RecordingState.Idle
             _recordingDuration.value = 0
             Log.d(TAG, "Recording cancelled")
@@ -203,13 +218,38 @@ class VoiceRecorder(private val context: Context) {
         }
     }
 
+    /**
+     * Оновлює тривалість і амплітуду кожні 100мс.
+     * delay() є suspend-функцією — withContext(Main) не потрібен.
+     * При досягненні MAX_DURATION_MS запис зупиняється автоматично.
+     */
     private suspend fun updateDuration() {
         while (_recordingState.value == RecordingState.Recording) {
             val duration = System.currentTimeMillis() - recordingStartTime
             _recordingDuration.value = duration
-            withContext(Dispatchers.Main) {
-                kotlinx.coroutines.delay(100)
+
+            // Знімаємо амплітуду для waveform-анімації під час запису
+            _currentAmplitude.value = try {
+                mediaRecorder?.maxAmplitude ?: 0
+            } catch (_: Exception) { 0 }
+
+            // Авто-завершення при досягненні ліміту
+            if (duration >= MAX_DURATION_MS) {
+                Log.d(TAG, "Max duration reached ($MAX_DURATION_MS ms), auto-stopping")
+                mediaRecorder?.let {
+                    try { it.stop() } catch (_: Exception) {}
+                    it.release()
+                }
+                mediaRecorder = null
+                _currentAmplitude.value = 0
+                _recordingState.value = RecordingState.MaxDurationReached(
+                    currentRecordingFile!!.absolutePath,
+                    duration
+                )
+                break
             }
+
+            delay(100)
         }
     }
 
@@ -265,20 +305,24 @@ class VoicePlayer(private val context: Context) {
     /**
      * Начинает воспроизведение файла или URL
      */
-    suspend fun play(filePathOrUrl: String): Boolean = withContext(Dispatchers.Default) {
+    suspend fun play(filePathOrUrl: String): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
-            stop() // Останавливаем предыдущее воспроизведение
+            stop()
 
             mediaPlayer = MediaPlayer().apply {
-                // Проверяем является ли это URL или локальный файл
                 if (filePathOrUrl.startsWith("http://") || filePathOrUrl.startsWith("https://")) {
-                    // Это URL - используем setDataSource с context и Uri
                     Log.d(TAG, "Playing from URL: $filePathOrUrl")
                     setDataSource(context, android.net.Uri.parse(filePathOrUrl))
                 } else {
-                    // Это локальный файл
                     Log.d(TAG, "Playing from file: $filePathOrUrl")
                     setDataSource(filePathOrUrl)
+                }
+
+                // При завершенні відтворення — скидаємо стан
+                setOnCompletionListener {
+                    _playbackState.value = PlaybackState.Stopped
+                    _currentPosition.value = 0
+                    _currentPlayingUrl.value = null
                 }
 
                 prepare()
@@ -325,7 +369,7 @@ class VoicePlayer(private val context: Context) {
     /**
      * Возобновляет воспроизведение
      */
-    suspend fun resume(): Boolean = withContext(Dispatchers.Default) {
+    suspend fun resume(): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
             if (mediaPlayer != null && !mediaPlayer!!.isPlaying) {
                 mediaPlayer?.start()
@@ -348,9 +392,7 @@ class VoicePlayer(private val context: Context) {
     fun stop(): Boolean {
         return try {
             mediaPlayer?.let {
-                if (it.isPlaying) {
-                    it.stop()
-                }
+                if (it.isPlaying) it.stop()
                 it.release()
             }
             mediaPlayer = null
@@ -378,12 +420,14 @@ class VoicePlayer(private val context: Context) {
         }
     }
 
+    /**
+     * Оновлює позицію кожні 100мс.
+     * delay() є suspend-функцією — withContext(Main) не потрібен.
+     */
     private suspend fun updatePosition() {
         while (mediaPlayer?.isPlaying == true) {
             _currentPosition.value = mediaPlayer?.currentPosition?.toLong() ?: 0
-            withContext(Dispatchers.Main) {
-                kotlinx.coroutines.delay(100)
-            }
+            delay(100)
         }
     }
 

@@ -45,6 +45,7 @@ import com.worldmates.messenger.ui.components.media.VideoMessageComponent
 import com.worldmates.messenger.ui.messages.selection.MediaActionMenu
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
 import com.worldmates.messenger.utils.VoicePlayer
+import com.worldmates.messenger.utils.VoiceTranscriptCache
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
@@ -894,8 +895,14 @@ fun VoiceMessagePlayer(
     // Стан для відображення повноекранного плеєра
     var showAdvancedPlayer by remember { mutableStateOf(false) }
 
-    // Transcript state (PRO only)
-    var transcript       by remember(message.id) { mutableStateOf<String?>(null) }
+    // Швидкість відтворення для голосових (1x → 1.5x → 2x → 0.5x → 1x)
+    var playbackSpeed by remember(message.id) { mutableStateOf(1f) }
+    val speedSteps = listOf(1f, 1.5f, 2f, 0.5f)
+
+    // Transcript state (PRO only).
+    // Ініціалізуємо зі singleton-кешу: якщо користувач вже розпізнав голосове і
+    // прокрутив список — при поверненні транскрипт вже є, без повторного запиту до Whisper.
+    var transcript       by remember(message.id) { mutableStateOf(VoiceTranscriptCache[message.id]) }
     var transcriptLoading by remember(message.id) { mutableStateOf(false) }
     var transcriptError  by remember(message.id) { mutableStateOf<String?>(null) }
     val isPro = remember { UserSession.isProActive }
@@ -1064,6 +1071,31 @@ fun VoiceMessagePlayer(
                     fontWeight = FontWeight.Medium
                 )
 
+                // Кнопка швидкості відтворення (тільки для голосових повідомлень)
+                if (isVoiceMessage) {
+                    TextButton(
+                        onClick = {
+                            val nextIndex = (speedSteps.indexOf(playbackSpeed) + 1) % speedSteps.size
+                            playbackSpeed = speedSteps[nextIndex]
+                            com.worldmates.messenger.services.MusicPlaybackService.setSpeed(playbackSpeed)
+                        },
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
+                        modifier = Modifier
+                            .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                            .height(28.dp)
+                    ) {
+                        Text(
+                            text = if (playbackSpeed == playbackSpeed.toLong().toFloat())
+                                "${playbackSpeed.toInt()}x"
+                            else
+                                "${playbackSpeed}x",
+                            color = if (playbackSpeed != 1f) colorScheme.primary else textColor.copy(alpha = 0.6f),
+                            fontSize = 11.sp,
+                            fontWeight = if (playbackSpeed != 1f) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+
                 // Кнопка розгортання плеєра
                 IconButton(
                     onClick = { showAdvancedPlayer = true },
@@ -1122,6 +1154,8 @@ fun VoiceMessagePlayer(
                                     val resp = NodeRetrofitClient.voiceApi.transcribe(mediaUrl)
                                     if (resp.apiStatus == 200 && resp.transcript.isNotBlank()) {
                                         transcript = resp.transcript
+                                        // Зберігаємо в кеш — при прокрутці назад повторний запит не потрібен
+                                        VoiceTranscriptCache[message.id] = resp.transcript
                                     } else {
                                         transcriptError = resp.errorMessage ?: "Error"
                                     }

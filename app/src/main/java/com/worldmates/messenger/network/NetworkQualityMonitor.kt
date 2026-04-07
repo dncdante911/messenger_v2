@@ -25,14 +25,14 @@ class NetworkQualityMonitor(private val context: Context) {
 
     companion object {
         private const val TAG = "NetworkQualityMonitor"
-        private const val PING_INTERVAL_MS = 10000L // Перевірка кожні 10 секунд
-        private const val PING_TIMEOUT_MS = 5000L // Таймаут пінгу 5 секунд
+        private const val PING_TIMEOUT_MS = 5000L
         private const val PING_URL = "https://worldmates.club:449/api/health"
 
-        // Пороги для визначення якості (в мілісекундах)
-        private const val EXCELLENT_THRESHOLD_MS = 200L // < 200ms = відмінно
-        private const val GOOD_THRESHOLD_MS = 500L      // < 500ms = добре
-        private const val POOR_THRESHOLD_MS = 2000L     // < 2000ms = погано
+        // Пороги за пропускною здатністю (Kbps) з NetworkCapabilities
+        // Системні оцінки набагато дешевші ніж HTTP HEAD-запити кожні 10 с
+        private const val EXCELLENT_KBPS = 5_000  // > 5 Mbps = відмінно
+        private const val GOOD_KBPS      = 1_000  // > 1 Mbps = добре
+        // < GOOD_KBPS = погано
     }
 
     /**
@@ -77,6 +77,9 @@ class NetworkQualityMonitor(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var pingJob: Job? = null
 
+    // Зберігаємо посилання на callback для коректного unregister (запобігає витоку пам'яті)
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
     // Історія останніх пінгів для згладжування (thread-safe)
     private val pingHistory = java.util.Collections.synchronizedList(mutableListOf<Long>())
     private val maxHistorySize = 5
@@ -86,100 +89,151 @@ class NetworkQualityMonitor(private val context: Context) {
     }
 
     /**
-     * Запустити моніторинг
+     * Запустити моніторинг.
+     *
+     * Якість визначається через NetworkCapabilities (без HTTP HEAD-запитів кожні 10с):
+     * - onCapabilitiesChanged: отримуємо bandwidthKbps + isMetered + NET_CAPABILITY_VALIDATED
+     * - onAvailable/onLost: перемикаємо OFFLINE стан
+     *
+     * HTTP-пінг виконується лише при зміні мережі (не постійно) для точного вимірювання latency.
      */
     fun startMonitoring() {
         Log.d(TAG, "🔍 Starting network quality monitoring")
 
-        // Початкова перевірка
-        checkConnectionQuality()
+        // Початкова перевірка через NetworkCapabilities (без пінгу)
+        evaluateFromCapabilities()
 
-        // Періодичний пінг
-        pingJob?.cancel()
-        pingJob = scope.launch {
-            while (isActive) {
-                checkConnectionQuality()
-                delay(PING_INTERVAL_MS)
-            }
+        // Знімаємо старий callback перед реєстрацією нового
+        networkCallback?.let {
+            try { connectivityManager.unregisterNetworkCallback(it) } catch (_: Exception) {}
         }
 
-        // Слухаємо зміни мережі
-        connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+        // Слухаємо зміни мережі (зберігаємо посилання для unregister в stopMonitoring)
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 Log.d(TAG, "📶 Network available")
-                checkConnectionQuality()
+                // При появі мережі — перевіряємо пінгом (один раз, не постійно)
+                pingJob?.cancel()
+                pingJob = scope.launch { checkLatencyOnce() }
             }
 
             override fun onLost(network: Network) {
                 Log.d(TAG, "📵 Network lost")
+                pingJob?.cancel()
                 _connectionState.value = _connectionState.value.copy(
                     quality = ConnectionQuality.OFFLINE,
                     mediaLoadMode = MediaLoadMode.NONE,
-                    latencyMs = Long.MAX_VALUE
+                    latencyMs = Long.MAX_VALUE,
+                    bandwidthKbps = 0
                 )
             }
 
             override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
                 val isMetered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
                 val downKbps = capabilities.linkDownstreamBandwidthKbps
+                val isValidated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 
-                Log.d(TAG, "📊 Connection: metered=$isMetered, bandwidth=$downKbps Kbps")
+                Log.d(TAG, "📊 Connection: metered=$isMetered, bandwidth=${downKbps}Kbps, validated=$isValidated")
+
+                // Визначаємо якість за пропускною здатністю (системна оцінка, без HTTP-запитів)
+                val quality = when {
+                    !isValidated             -> ConnectionQuality.POOR
+                    downKbps >= EXCELLENT_KBPS -> ConnectionQuality.EXCELLENT
+                    downKbps >= GOOD_KBPS      -> ConnectionQuality.GOOD
+                    downKbps > 0               -> ConnectionQuality.POOR
+                    else                       -> ConnectionQuality.OFFLINE
+                }
 
                 _connectionState.value = _connectionState.value.copy(
+                    quality = quality,
+                    mediaLoadMode = computeMediaMode(quality, isMetered),
                     isMetered = isMetered,
                     bandwidthKbps = downKbps
                 )
             }
-        })
+        }.also { connectivityManager.registerDefaultNetworkCallback(it) }
     }
 
     /**
-     * Перевірити якість з'єднання
+     * Оцінити якість з'єднання через поточні NetworkCapabilities (без мережевого запиту)
      */
-    private fun checkConnectionQuality() {
-        scope.launch {
-            try {
-                // Перевіряємо чи є інтернет взагалі
-                val activeNetwork = connectivityManager.activeNetwork
-                if (activeNetwork == null) {
-                    updateConnectionState(ConnectionQuality.OFFLINE, Long.MAX_VALUE)
-                    return@launch
-                }
+    private fun evaluateFromCapabilities() {
+        val activeNetwork = connectivityManager.activeNetwork
+        if (activeNetwork == null) {
+            updateConnectionState(ConnectionQuality.OFFLINE, Long.MAX_VALUE)
+            return
+        }
+        val caps = connectivityManager.getNetworkCapabilities(activeNetwork)
+        if (caps == null) {
+            updateConnectionState(ConnectionQuality.POOR, Long.MAX_VALUE)
+            return
+        }
 
-                // Пінгуємо сервер для вимірювання затримки
-                val latency = measureLatency()
+        val isMetered = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        val downKbps = caps.linkDownstreamBandwidthKbps
+        val isValidated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 
-                // Додаємо до історії (thread-safe)
-                synchronized(pingHistory) {
-                    pingHistory.add(latency)
-                    if (pingHistory.size > maxHistorySize) {
-                        pingHistory.removeAt(0)
-                    }
-                }
+        val quality = when {
+            !isValidated             -> ConnectionQuality.POOR
+            downKbps >= EXCELLENT_KBPS -> ConnectionQuality.EXCELLENT
+            downKbps >= GOOD_KBPS      -> ConnectionQuality.GOOD
+            downKbps > 0               -> ConnectionQuality.POOR
+            else                       -> ConnectionQuality.OFFLINE
+        }
 
-                // Середня затримка (згладжування)
-                val avgLatency = synchronized(pingHistory) {
-                    if (pingHistory.isNotEmpty()) {
-                        pingHistory.toList().average().toLong()
-                    } else {
-                        latency
-                    }
-                }
+        _connectionState.value = _connectionState.value.copy(
+            quality = quality,
+            mediaLoadMode = computeMediaMode(quality, isMetered),
+            isMetered = isMetered,
+            bandwidthKbps = downKbps
+        )
+        Log.d(TAG, "📡 Evaluated from capabilities: $quality (${downKbps}Kbps, metered=$isMetered)")
+    }
 
-                // Визначаємо якість
-                val quality = when {
-                    avgLatency < EXCELLENT_THRESHOLD_MS -> ConnectionQuality.EXCELLENT
-                    avgLatency < GOOD_THRESHOLD_MS -> ConnectionQuality.GOOD
-                    avgLatency < POOR_THRESHOLD_MS -> ConnectionQuality.POOR
-                    else -> ConnectionQuality.OFFLINE
-                }
+    /**
+     * Одноразовий HTTP-пінг — виконується тільки при зміні мережі (не кожні 10с)
+     */
+    private suspend fun checkLatencyOnce() {
+        try {
+            val latency = measureLatency()
 
-                updateConnectionState(quality, avgLatency)
-
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error checking connection quality", e)
-                updateConnectionState(ConnectionQuality.POOR, Long.MAX_VALUE)
+            // Згладжуємо по останніх 5 вимірах
+            synchronized(pingHistory) {
+                pingHistory.add(latency)
+                if (pingHistory.size > maxHistorySize) pingHistory.removeAt(0)
             }
+            val avgLatency = synchronized(pingHistory) {
+                pingHistory.toList().average().toLong()
+            }
+
+            // Уточнюємо якість з урахуванням реальної затримки
+            val currentQuality = _connectionState.value.quality
+            val latencyQuality = when {
+                avgLatency < 200L  -> ConnectionQuality.EXCELLENT
+                avgLatency < 500L  -> ConnectionQuality.GOOD
+                avgLatency < 2000L -> ConnectionQuality.POOR
+                else               -> ConnectionQuality.OFFLINE
+            }
+            // Беремо гірший з двох показників (bandwidth + latency)
+            val finalQuality = if (latencyQuality.ordinal > currentQuality.ordinal) latencyQuality else currentQuality
+
+            updateConnectionState(finalQuality, avgLatency)
+            Log.d(TAG, "⏱️ Latency check: ${avgLatency}ms → $finalQuality")
+
+        } catch (e: Exception) {
+            Log.w(TAG, "Ping failed (network may be slow): ${e.message}")
+        }
+    }
+
+    /**
+     * Обчислити режим завантаження медіа
+     */
+    private fun computeMediaMode(quality: ConnectionQuality, isMetered: Boolean): MediaLoadMode {
+        return when (quality) {
+            ConnectionQuality.EXCELLENT -> if (isMetered) MediaLoadMode.THUMBNAILS else MediaLoadMode.FULL
+            ConnectionQuality.GOOD      -> MediaLoadMode.THUMBNAILS
+            ConnectionQuality.POOR      -> MediaLoadMode.NONE
+            ConnectionQuality.OFFLINE   -> MediaLoadMode.NONE
         }
     }
 
@@ -214,32 +268,15 @@ class NetworkQualityMonitor(private val context: Context) {
     }
 
     /**
-     * Оновити стан з'єднання
+     * Оновити стан з'єднання (latency-based, після пінгу)
      */
     private fun updateConnectionState(quality: ConnectionQuality, latency: Long) {
-        // Визначаємо режим завантаження медіа
-        val mediaLoadMode = when (quality) {
-            ConnectionQuality.EXCELLENT -> {
-                // Відмінне з'єднання - завантажуємо все
-                // Але якщо мобільний інтернет - тільки превью
-                if (_connectionState.value.isMetered) {
-                    MediaLoadMode.THUMBNAILS
-                } else {
-                    MediaLoadMode.FULL
-                }
-            }
-            ConnectionQuality.GOOD -> MediaLoadMode.THUMBNAILS
-            ConnectionQuality.POOR -> MediaLoadMode.NONE
-            ConnectionQuality.OFFLINE -> MediaLoadMode.NONE
-        }
-
         val newState = _connectionState.value.copy(
             quality = quality,
-            mediaLoadMode = mediaLoadMode,
+            mediaLoadMode = computeMediaMode(quality, _connectionState.value.isMetered),
             latencyMs = latency
         )
 
-        // Логування змін
         if (newState.quality != _connectionState.value.quality) {
             Log.i(TAG, "🔄 Connection quality changed: ${_connectionState.value.quality} → ${newState.quality}")
             Log.i(TAG, "📦 Media load mode: ${newState.mediaLoadMode}")
@@ -249,13 +286,13 @@ class NetworkQualityMonitor(private val context: Context) {
     }
 
     /**
-     * Примусово перевірити якість
+     * Примусово перевірити якість (через capabilities + одноразовий пінг)
      */
     fun forceCheck() {
         Log.d(TAG, "🔄 Force checking connection quality")
-        scope.launch {
-            checkConnectionQuality()
-        }
+        evaluateFromCapabilities()
+        pingJob?.cancel()
+        pingJob = scope.launch { checkLatencyOnce() }
     }
 
     /**
@@ -295,11 +332,16 @@ class NetworkQualityMonitor(private val context: Context) {
     }
 
     /**
-     * Зупинити моніторинг
+     * Зупинити моніторинг і звільнити ресурси
      */
     fun stopMonitoring() {
         Log.d(TAG, "⏹️ Stopping network quality monitoring")
         pingJob?.cancel()
+        // Знімаємо реєстрацію callback — запобігаємо витоку пам'яті
+        networkCallback?.let {
+            try { connectivityManager.unregisterNetworkCallback(it) } catch (_: Exception) {}
+            networkCallback = null
+        }
         scope.cancel()
     }
 
