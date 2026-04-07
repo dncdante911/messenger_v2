@@ -9,14 +9,14 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.android.tools.build:gradle:8.13.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
 plugins {
-    id 'com.android.application' version '8.13.0' apply false
-    id 'com.android.library' version '8.13.0' apply false
+    id 'com.android.application' version '8.13.2' apply false
+    id 'com.android.library' version '8.13.2' apply false
     // Kotlin version must exactly match the language version
     id 'org.jetbrains.kotlin.android' version '2.1.0' apply false
     // Compose compiler plugin (Kotlin 2.0+)
