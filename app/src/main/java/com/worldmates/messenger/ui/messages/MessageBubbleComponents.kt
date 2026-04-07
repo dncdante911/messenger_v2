@@ -45,6 +45,7 @@ import com.worldmates.messenger.ui.components.media.VideoMessageComponent
 import com.worldmates.messenger.ui.messages.selection.MediaActionMenu
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
 import com.worldmates.messenger.utils.VoicePlayer
+import com.worldmates.messenger.utils.VoiceTranscriptCache
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
@@ -898,8 +899,10 @@ fun VoiceMessagePlayer(
     var playbackSpeed by remember(message.id) { mutableStateOf(1f) }
     val speedSteps = listOf(1f, 1.5f, 2f, 0.5f)
 
-    // Transcript state (PRO only)
-    var transcript       by remember(message.id) { mutableStateOf<String?>(null) }
+    // Transcript state (PRO only).
+    // Ініціалізуємо зі singleton-кешу: якщо користувач вже розпізнав голосове і
+    // прокрутив список — при поверненні транскрипт вже є, без повторного запиту до Whisper.
+    var transcript       by remember(message.id) { mutableStateOf(VoiceTranscriptCache[message.id]) }
     var transcriptLoading by remember(message.id) { mutableStateOf(false) }
     var transcriptError  by remember(message.id) { mutableStateOf<String?>(null) }
     val isPro = remember { UserSession.isProActive }
@@ -1151,6 +1154,8 @@ fun VoiceMessagePlayer(
                                     val resp = NodeRetrofitClient.voiceApi.transcribe(mediaUrl)
                                     if (resp.apiStatus == 200 && resp.transcript.isNotBlank()) {
                                         transcript = resp.transcript
+                                        // Зберігаємо в кеш — при прокрутці назад повторний запит не потрібен
+                                        VoiceTranscriptCache[message.id] = resp.transcript
                                     } else {
                                         transcriptError = resp.errorMessage ?: "Error"
                                     }
