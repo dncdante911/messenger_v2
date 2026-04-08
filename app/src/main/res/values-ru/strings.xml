@@ -3224,6 +3224,7 @@
     <string name="verification_level_2">Известный аккаунт</string>
     <string name="verification_level_3">Официальный аккаунт</string>
     <string name="verification_level_4">Топ-создатель</string>
+    <string name="badge_founding_member">Первый пользователь</string>
 
     <!-- ── Link preview card ──────────────────────────────────────────────── -->
     <!-- Метка доступности для иконки «открыть в браузере» в карточке превью  -->

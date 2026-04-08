@@ -879,7 +879,9 @@ async function runMigrations(ctx) {
       // Unique index on order_id for deduplication (NULLs do not collide in MySQL UNIQUE)
       "ALTER TABLE wm_stars_transactions ADD UNIQUE KEY IF NOT EXISTS uk_order_id (order_id)",
       // 7-day trial flag per user
-      "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS trial_used TINYINT(1) NOT NULL DEFAULT 0",
+      "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS trial_used   TINYINT(1) NOT NULL DEFAULT 0",
+      // Founding-member badge: first 250 users registered after platform launch
+      "ALTER TABLE Wo_Users ADD COLUMN IF NOT EXISTS is_founder   TINYINT(1) NOT NULL DEFAULT 0",
     ];
     for (const sql of monAlters) {
       try { await ctx.sequelize.query(sql); } catch (e) {

@@ -81,6 +81,8 @@ data class User(
     // Verification level badge: 0=none, 1=verified (blue ✓), 2=notable (gold ★),
     //                           3=official/org (green ✓), 4=top-creator (purple ♦)
     @SerializedName("verification_level") val verificationLevel: Int = 0,
+    // Founding-member badge: 1 = one of the first 250 registered users (lifetime PRO)
+    @SerializedName("is_founder") val isFounder: Int = 0,
 )
 
 /**

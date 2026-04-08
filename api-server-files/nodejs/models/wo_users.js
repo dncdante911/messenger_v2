@@ -621,6 +621,13 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.TINYINT,
       allowNull: false,
       defaultValue: 0
+    },
+    // ── Founding-member badge ──────────────────────────────────────────────
+    // 1 = one of the first 250 users registered after launch (lifetime PRO)
+    is_founder: {
+      type: DataTypes.TINYINT,
+      allowNull: false,
+      defaultValue: 0
     }
   }, {
     sequelize,

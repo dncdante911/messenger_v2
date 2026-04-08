@@ -607,6 +607,21 @@ function quickRegister(ctx) {
                 });
                 isNew = true;
                 console.log(`[Auth] New user registered: ${username} via ${email ? 'email' : 'phone'}`);
+
+                // ── Founding-member gift (first 250 users after launch) ──────
+                try {
+                    const founderCount = await ctx.wo_users.unscoped().count({ where: { is_founder: 1 } });
+                    if (founderCount < 250) {
+                        await ctx.wo_users.unscoped().update(
+                            { is_pro: '1', pro_time: 0, pro_type: '2', is_founder: 1 },
+                            { where: { user_id: user.user_id } }
+                        );
+                        console.log(`[Auth] 🏅 Founding member #${founderCount + 1}: ${username} (id=${user.user_id})`);
+                    }
+                } catch (e) {
+                    console.error('[Auth] Founder check failed:', e.message);
+                }
+                // ────────────────────────────────────────────────────────────
             }
 
             const code    = generateCode(6);
@@ -788,6 +803,21 @@ function register(ctx) {
             });
 
             console.log(`[Auth] User registered: ${username} (id=${user.user_id}, needsVerification=${needsVerification})`);
+
+            // ── Founding-member gift (first 250 users after launch) ──────────
+            try {
+                const founderCount = await ctx.wo_users.unscoped().count({ where: { is_founder: 1 } });
+                if (founderCount < 250) {
+                    await ctx.wo_users.unscoped().update(
+                        { is_pro: '1', pro_time: 0, pro_type: '2', is_founder: 1 },
+                        { where: { user_id: user.user_id } }
+                    );
+                    console.log(`[Auth] 🏅 Founding member #${founderCount + 1}: ${username} (id=${user.user_id})`);
+                }
+            } catch (e) {
+                console.error('[Auth] Founder check failed:', e.message);
+            }
+            // ────────────────────────────────────────────────────────────────
 
             if (needsVerification) {
                 return res.json({
