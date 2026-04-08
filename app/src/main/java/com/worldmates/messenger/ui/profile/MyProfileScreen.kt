@@ -460,9 +460,14 @@ private fun ProfileNameSection(user: User) {
                 fontWeight = FontWeight.Bold,
                 textAlign  = TextAlign.Center
             )
-            if (user.verificationLevel > 0) {
+            if (user.verificationLevel > 0 || user.isFounder == 1) {
                 Spacer(Modifier.width(6.dp))
-                VerificationBadge(level = user.verificationLevel, size = 22.dp)
+                UserBadgeRow(
+                    verificationLevel = user.verificationLevel,
+                    isFounder         = user.isFounder,
+                    verificationSize  = 22.dp,
+                    founderSize       = 18.dp,
+                )
             }
             if (isPro) {
                 Spacer(Modifier.width(6.dp))

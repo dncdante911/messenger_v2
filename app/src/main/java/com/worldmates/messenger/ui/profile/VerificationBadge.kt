@@ -2,8 +2,11 @@ package com.worldmates.messenger.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -69,5 +72,71 @@ fun VerificationBadge(
             )
         }
         // level == 0 or any unknown value → render nothing
+    }
+}
+
+/**
+ * Founding-member badge — shown for the first 250 users registered after launch.
+ *
+ * Design: small teal circle with a ✦ (4-pointed star) glyph inside.
+ * Intentionally a touch smaller than the verification badge (defaults to 16 dp)
+ * to be visible but not dominating.
+ *
+ * Usage: place it next to [VerificationBadge] or standalone after a username.
+ *
+ * @param isFounder pass [User.isFounder]; renders nothing if 0.
+ */
+@Composable
+fun FoundingMemberBadge(
+    isFounder: Int,
+    size: Dp = 16.dp,
+    modifier: Modifier = Modifier,
+) {
+    if (isFounder != 1) return
+
+    Box(
+        modifier         = modifier
+            .size(size)
+            .background(Color(0xFF00897B), CircleShape),   // teal-700 — distinct from all other badges
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text             = "✦",                       // 4-pointed star (U+2726)
+            color            = Color.White,
+            fontSize         = (size.value * 0.58f).sp,
+        )
+    }
+}
+
+/**
+ * Convenience composable: renders [VerificationBadge] and [FoundingMemberBadge]
+ * side-by-side (verification first, then founder), with a 2 dp gap.
+ * Use this wherever you want both badges without duplicating layout logic.
+ */
+@Composable
+fun UserBadgeRow(
+    verificationLevel: Int,
+    isFounder: Int,
+    verificationSize: Dp = 20.dp,
+    founderSize: Dp = 16.dp,
+    modifier: Modifier = Modifier,
+) {
+    val showVerification = verificationLevel > 0
+    val showFounder      = isFounder == 1
+    if (!showVerification && !showFounder) return
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier          = modifier,
+    ) {
+        if (showVerification) {
+            VerificationBadge(level = verificationLevel, size = verificationSize)
+        }
+        if (showVerification && showFounder) {
+            Spacer(Modifier.width(2.dp))
+        }
+        if (showFounder) {
+            FoundingMemberBadge(isFounder = isFounder, size = founderSize)
+        }
     }
 }

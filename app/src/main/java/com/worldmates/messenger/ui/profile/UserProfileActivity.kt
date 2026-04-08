@@ -542,9 +542,14 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
                 Spacer(Modifier.width(6.dp))
                 Text(text = user.profileBadge, fontSize = 20.sp)
             }
-            if (user.verificationLevel > 0) {
+            if (user.verificationLevel > 0 || user.isFounder == 1) {
                 Spacer(Modifier.width(6.dp))
-                VerificationBadge(level = user.verificationLevel, size = 22.dp)
+                UserBadgeRow(
+                    verificationLevel = user.verificationLevel,
+                    isFounder         = user.isFounder,
+                    verificationSize  = 22.dp,
+                    founderSize       = 18.dp,
+                )
             }
             if (user.isPro > 0) {
                 Spacer(Modifier.width(6.dp))

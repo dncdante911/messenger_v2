@@ -3224,6 +3224,7 @@
     <string name="verification_level_2">Відомий акаунт</string>
     <string name="verification_level_3">Офіційний акаунт</string>
     <string name="verification_level_4">Топ-творець</string>
+    <string name="badge_founding_member">Перший користувач</string>
 
     <!-- ── Link preview card ──────────────────────────────────────────────── -->
     <!-- Accessible label for "open in browser" icon in link preview card     -->
