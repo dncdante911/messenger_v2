@@ -37,6 +37,16 @@ class VoiceRecorder(private val context: Context) {
     private val _currentAmplitude = MutableStateFlow(0)
     val currentAmplitude: StateFlow<Int> = _currentAmplitude
 
+    // Тривалість безперервної тиші (мс). Скидається щойно з'являється звук.
+    // Використовується для автоматичної відправки при голосовій команді.
+    private val _continuousSilenceMs = MutableStateFlow(0L)
+    val continuousSilenceMs: StateFlow<Long> = _continuousSilenceMs
+
+    /** Enable silence detection (set true before startRecording for voice-command flow). */
+    var silenceDetectionEnabled: Boolean = false
+    /** Amplitude below this value counts as silence. 0..32767, default 350. */
+    var silenceThresholdAmplitude: Int = 350
+
     private var recordingStartTime = 0L
     private var pausedTime = 0L
 
@@ -174,6 +184,8 @@ class VoiceRecorder(private val context: Context) {
 
                 val duration = System.currentTimeMillis() - recordingStartTime
                 _currentAmplitude.value = 0
+                _continuousSilenceMs.value = 0
+                silenceDetectionEnabled = false
                 _recordingState.value = RecordingState.Completed(
                     currentRecordingFile!!.absolutePath,
                     duration
@@ -212,6 +224,8 @@ class VoiceRecorder(private val context: Context) {
             }
 
             _currentAmplitude.value = 0
+            _continuousSilenceMs.value = 0
+            silenceDetectionEnabled = false
             _recordingState.value = RecordingState.Idle
             _recordingDuration.value = 0
             Log.d(TAG, "Recording cancelled")
@@ -234,9 +248,17 @@ class VoiceRecorder(private val context: Context) {
             _recordingDuration.value = duration
 
             // Знімаємо амплітуду для waveform-анімації під час запису
-            _currentAmplitude.value = try {
-                mediaRecorder?.maxAmplitude ?: 0
-            } catch (_: Exception) { 0 }
+            val amplitude = try { mediaRecorder?.maxAmplitude ?: 0 } catch (_: Exception) { 0 }
+            _currentAmplitude.value = amplitude
+
+            // Silence detection for hands-free voice-command flow
+            if (silenceDetectionEnabled) {
+                if (amplitude < silenceThresholdAmplitude) {
+                    _continuousSilenceMs.value += 100
+                } else {
+                    _continuousSilenceMs.value = 0  // reset on any sound
+                }
+            }
 
             // Авто-завершення при досягненні ліміту (15 хв для звичайних / 60 хв для PRO)
             if (duration >= maxDurationMs) {
@@ -247,6 +269,8 @@ class VoiceRecorder(private val context: Context) {
                 }
                 mediaRecorder = null
                 _currentAmplitude.value = 0
+                _continuousSilenceMs.value = 0
+                silenceDetectionEnabled = false
                 _recordingState.value = RecordingState.MaxDurationReached(
                     currentRecordingFile!!.absolutePath,
                     duration

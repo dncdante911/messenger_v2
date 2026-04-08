@@ -72,7 +72,10 @@ fun MessageInputBar(
     onPollClick: (() -> Unit)? = null,
     onRequestAudioPermission: () -> Boolean = { true },
     viewModel: MessagesViewModel? = null,
-    formattingSettings: FormattingSettings = FormattingSettings()
+    formattingSettings: FormattingSettings = FormattingSettings(),
+    voiceCommandActive: Boolean = false,
+    onToggleVoiceCommand: () -> Unit = {},
+    autoSendCountdown: Int = -1     // 3/2/1 before auto-send, -1 = no countdown
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
@@ -195,6 +198,88 @@ fun MessageInputBar(
             recordingState !is VoiceRecorder.RecordingState.Paused) {
 
             Column {
+                // Voice command toggle + listening indicator
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // "Слушаю..." badge (shown only when active + not recording)
+                    if (voiceCommandActive && recordingState is VoiceRecorder.RecordingState.Idle) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .background(
+                                    colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = null,
+                                tint = colorScheme.primary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.voice_cmd_listening),
+                                fontSize = 11.sp,
+                                color = colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    } else if (autoSendCountdown >= 0) {
+                        // Countdown badge: "Отправка через N..."
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .background(
+                                    colorScheme.errorContainer.copy(alpha = 0.8f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = null,
+                                tint = colorScheme.error,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = if (autoSendCountdown == 0)
+                                    stringResource(R.string.voice_cmd_sending)
+                                else
+                                    stringResource(R.string.voice_cmd_send_countdown, autoSendCountdown),
+                                fontSize = 11.sp,
+                                color = colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    } else {
+                        Spacer(Modifier)
+                    }
+
+                    // Toggle button
+                    IconButton(
+                        onClick = onToggleVoiceCommand,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (voiceCommandActive) Icons.Default.MicOff else Icons.Default.RecordVoiceOver,
+                            contentDescription = stringResource(
+                                if (voiceCommandActive) R.string.voice_cmd_disable
+                                else R.string.voice_cmd_enable
+                            ),
+                            tint = if (voiceCommandActive) colorScheme.primary else colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
                 // 🎯 Swipeable tabs для швидкого перемикання режимів
                 Row(
                     modifier = Modifier

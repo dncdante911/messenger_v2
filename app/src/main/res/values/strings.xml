@@ -283,6 +283,11 @@
     <string name="recording">Запис…</string>
     <string name="hold_to_record">Утримуйте для запису</string>
     <string name="voice_record_max_duration_reached">Максимальну тривалість запису досягнуто</string>
+    <string name="voice_cmd_listening">Слухаю…</string>
+    <string name="voice_cmd_sending">Надсилаю…</string>
+    <string name="voice_cmd_send_countdown">Надсилаю через %d…</string>
+    <string name="voice_cmd_enable">Увімкнути голосову команду</string>
+    <string name="voice_cmd_disable">Вимкнути голосову команду</string>
     <string name="release_to_send">Відпустіть для надсилання</string>
     <string name="slide_to_cancel">Посуньте для скасування</string>
     <string name="select_all">Вибрати все</string>
