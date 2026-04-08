@@ -77,6 +77,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import com.worldmates.messenger.utils.VoiceRecorder
 import com.worldmates.messenger.utils.VoicePlayer
+import com.worldmates.messenger.utils.SpeechCommandManager
+import com.worldmates.messenger.utils.ShakeDetector
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -554,6 +556,99 @@ fun MessagesScreen(
         }
     }
 
+    // ── Voice command: state ──────────────────────────────────────────────────
+    var voiceCommandActive by remember { mutableStateOf(false) }
+    // True only while a recording was triggered by voice command (enables auto-send)
+    var voiceTriggeredRecording by remember { mutableStateOf(false) }
+    val silenceMs by voiceRecorder.continuousSilenceMs.collectAsState()
+
+    // Derive send-countdown displayed in the recording bar (3…2…1 before auto-send)
+    val autoSendCountdown: Int = when {
+        !voiceTriggeredRecording -> -1
+        recordingState !is VoiceRecorder.RecordingState.Recording -> -1
+        silenceMs < 600 -> -1          // small pause — don't alarm yet
+        silenceMs >= 3000 -> 0         // about to send
+        else -> ((3000 - silenceMs) / 1000).toInt() + 1   // 3, 2, 1
+    }
+
+    val speechCommandManager = remember { SpeechCommandManager(context) }
+    val shakeDetector = remember { ShakeDetector(context) }
+
+    // ── Voice command: lifecycle ──────────────────────────────────────────────
+    DisposableEffect(Unit) {
+        onDispose {
+            speechCommandManager.stop()
+            shakeDetector.stop()
+        }
+    }
+
+    LaunchedEffect(voiceCommandActive) {
+        if (voiceCommandActive) speechCommandManager.start()
+        else speechCommandManager.stop()
+    }
+
+    // Pause recogniser while the mic is occupied
+    LaunchedEffect(recordingState) {
+        speechCommandManager.setMicBusy(
+            recordingState is VoiceRecorder.RecordingState.Recording ||
+            recordingState is VoiceRecorder.RecordingState.Paused
+        )
+    }
+
+    // Collect trigger phrases
+    LaunchedEffect(Unit) {
+        speechCommandManager.commands.collect { cmd ->
+            if (cmd is SpeechCommandManager.Command.StartVoiceMessage &&
+                recordingState is VoiceRecorder.RecordingState.Idle &&
+                onRequestAudioPermission()) {
+                voiceTriggeredRecording = true
+                voiceRecorder.silenceDetectionEnabled = true
+                voiceRecorder.maxDurationMs =
+                    if (UserSession.isProActive) VoiceRecorder.DURATION_PRO_MS
+                    else VoiceRecorder.DURATION_FREE_MS
+                scope.launch {
+                    voiceRecorder.startRecording()
+                    if (!isGroup) viewModel.sendRecordingStatus()
+                }
+            }
+        }
+    }
+
+    // Auto-send when silence reaches 3 s (only for voice-triggered recordings)
+    LaunchedEffect(Unit) {
+        snapshotFlow { Triple(voiceTriggeredRecording, recordingState, silenceMs) }
+            .collect { (vt, rs, sms) ->
+                if (vt && rs is VoiceRecorder.RecordingState.Recording && sms >= 3000L) {
+                    voiceTriggeredRecording = false
+                    val stopped = voiceRecorder.stopRecording()
+                    if (stopped) {
+                        val st = voiceRecorder.recordingState.value
+                        if (st is VoiceRecorder.RecordingState.Completed) {
+                            viewModel.uploadAndSendMedia(java.io.File(st.filePath), "voice")
+                        }
+                    }
+                }
+            }
+    }
+
+    // Shake detection — only during voice-triggered recordings
+    LaunchedEffect(voiceTriggeredRecording) {
+        if (voiceTriggeredRecording) shakeDetector.start() else shakeDetector.stop()
+    }
+
+    // Shake → cancel voice-triggered recording
+    LaunchedEffect(Unit) {
+        shakeDetector.shakeEvents.collect {
+            if (voiceTriggeredRecording &&
+                (recordingState is VoiceRecorder.RecordingState.Recording ||
+                 recordingState is VoiceRecorder.RecordingState.Paused)) {
+                voiceTriggeredRecording = false
+                scope.launch { voiceRecorder.cancelRecording() }
+            }
+        }
+    }
+
+    // ── Main UI ───────────────────────────────────────────────────────────────
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1781,7 +1876,10 @@ fun MessagesScreen(
                     onPollClick = if (isGroup) { { showCreatePollDialog = true } } else null,
                     onRequestAudioPermission = onRequestAudioPermission,
                     viewModel = viewModel,
-                    formattingSettings = formattingSettings
+                    formattingSettings = formattingSettings,
+                    voiceCommandActive = voiceCommandActive,
+                    onToggleVoiceCommand = { voiceCommandActive = !voiceCommandActive },
+                    autoSendCountdown = autoSendCountdown
                 )
 
                 // 💾 Draft saving indicator
