@@ -11,6 +11,9 @@ import kotlinx.coroutines.launch
 
 class LoginViewModel : ViewModel() {
 
+    /** Set to true before calling login() when adding a second account. */
+    var isAddAccountMode: Boolean = false
+
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState
 
@@ -31,14 +34,26 @@ class LoginViewModel : ViewModel() {
 
                 when {
                     response.apiStatus == 200 && response.accessToken != null && response.userId != null -> {
-                        UserSession.saveSession(
-                            token    = response.accessToken!!,
-                            id       = response.userId!!,
-                            username = response.username,
-                            avatar   = response.avatar
-                        )
-                        _loginState.value = LoginState.Success
-                        Log.d("LoginViewModel", "Успішно увійшли! User ID: ${response.userId}")
+                        if (isAddAccountMode) {
+                            // Add-account mode: do NOT overwrite UserSession —
+                            // just carry the new credentials back to the Activity.
+                            _loginState.value = LoginState.AddAccountSuccess(
+                                userId   = response.userId!!,
+                                token    = response.accessToken!!,
+                                username = response.username,
+                                avatar   = response.avatar
+                            )
+                            Log.d("LoginViewModel", "Add-account success, new userId=${response.userId}")
+                        } else {
+                            UserSession.saveSession(
+                                token    = response.accessToken!!,
+                                id       = response.userId!!,
+                                username = response.username,
+                                avatar   = response.avatar
+                            )
+                            _loginState.value = LoginState.Success
+                            Log.d("LoginViewModel", "Успішно увійшли! User ID: ${response.userId}")
+                        }
                     }
                     else -> {
                         val errorMsg = response.errorMessage ?: "Невірні учетні дані"
@@ -68,8 +83,15 @@ class LoginViewModel : ViewModel() {
 }
 
 sealed class LoginState {
-    object Idle : LoginState()
+    object Idle    : LoginState()
     object Loading : LoginState()
     object Success : LoginState()
     data class Error(val message: String) : LoginState()
+    /** Emitted in add-account mode: new credentials ready, UserSession NOT touched. */
+    data class AddAccountSuccess(
+        val userId:   Long,
+        val token:    String,
+        val username: String?,
+        val avatar:   String?
+    ) : LoginState()
 }

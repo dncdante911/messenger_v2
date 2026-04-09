@@ -43,7 +43,15 @@ object AccountManager {
     fun init(context: Context) {
         appContext = context.applicationContext
         db = AppDatabase.getInstance(context)
-        scope.launch { loadAccounts() }
+        scope.launch {
+            loadAccounts()
+            // If the user is already logged in but no accounts were ever persisted
+            // (e.g. upgrading from a version before multi-account was added),
+            // save the current session automatically so the switcher isn't empty.
+            if (_accounts.value.isEmpty() && UserSession.isLoggedIn) {
+                saveCurrentSessionAsAccount()
+            }
+        }
     }
 
     // ==================== LIMITS ====================

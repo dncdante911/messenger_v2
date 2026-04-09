@@ -921,6 +921,9 @@ fun SettingsDrawerContent(
                                     android.content.Intent(
                                         context,
                                         com.worldmates.messenger.ui.login.LoginActivity::class.java
+                                    ).putExtra(
+                                        com.worldmates.messenger.ui.login.LoginActivity.EXTRA_ADD_ACCOUNT,
+                                        true
                                     )
                                 )
                             }
