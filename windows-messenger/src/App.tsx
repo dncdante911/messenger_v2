@@ -465,10 +465,11 @@ export default function App() {
     if (!msg.text_encrypted || !msg.iv || !msg.tag || !msg.signal_header) return msg;
 
     const senderId  = msg.from_id;
-    const plaintext = await svc.decryptIncoming(senderId, msg.text_encrypted, msg.iv, msg.tag, msg.signal_header);
+    // Pass msg.id so the service deduplicates concurrent calls for the same message
+    // (socket event + REST list reload arriving simultaneously) — mirrors Android.
+    const plaintext = await svc.decryptIncoming(senderId, msg.text_encrypted, msg.iv, msg.tag, msg.signal_header, msg.id);
     if (plaintext === null) return { ...msg, _decryptFailed: true };
 
-    svc.cacheDecryptedMessage(msg.id, plaintext);
     return { ...msg, text: plaintext };
   }, [session]);
 

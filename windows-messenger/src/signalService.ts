@@ -209,6 +209,23 @@ export class SignalService {
     console.info('[Signal] Cleared DR session for user', userId);
   }
 
+  /**
+   * Extract the remote user's Base64 identity key from a stored session's
+   * associatedData (IK_A || IK_B, 64 bytes).
+   *   – initiator (Alice): IK_us = [0..32), IK_them = [32..64)
+   *   – responder (Bob):   IK_them = [0..32), IK_us = [32..64)
+   */
+  private extractRemoteIkB64(session: SessionState): string | null {
+    try {
+      const ad = b64Decode(session.associatedData);
+      if (ad.length < 64) return null;
+      const remoteIkBytes = session.isInitiator ? ad.slice(32, 64) : ad.slice(0, 32);
+      return b64Encode(remoteIkBytes);
+    } catch {
+      return null;
+    }
+  }
+
   // ─── Plaintext cache ────────────────────────────────────────────────────────
 
   cacheDecryptedMessage(msgId: number, plaintext: string): void {
@@ -251,6 +268,21 @@ export class SignalService {
     try {
       let session    = this.loadSession(recipientId);
       let x3dhFields: Record<string, unknown> | null = null;
+
+      // Stale session detection: if we have a cached session, verify the remote
+      // user's identity key still matches the server.  If they reinstalled the app
+      // and the signal:identity_changed socket event was missed (e.g. device was
+      // offline), our session is stale and will produce undecryptable ciphertext.
+      // This uses a lightweight endpoint that does NOT consume any OPK.
+      if (session !== null) {
+        const localIk  = this.extractRemoteIkB64(session);
+        const serverIk = await this.nodeApi.getSignalIdentityKey(recipientId);
+        if (localIk !== null && serverIk !== null && localIk !== serverIk) {
+          console.warn('[Signal] Remote IK changed for %d — clearing stale session for re-key', recipientId);
+          this.deleteSession(recipientId);
+          session = null;
+        }
+      }
 
       // X3DH session establishment if no existing session
       if (!session) {
@@ -313,9 +345,20 @@ export class SignalService {
     ciphertextB64:    string,
     ivB64:            string,
     tagB64:           string,
-    signalHeaderJson: string
+    signalHeaderJson: string,
+    msgId?:           number
   ): Promise<string | null> {
     try {
+      // Deduplication: if another concurrent call already decrypted this exact
+      // message (socket event + REST list reload arriving simultaneously), return
+      // the cached plaintext immediately without touching the ratchet chain.
+      // DR message keys are one-time — a second decryption attempt advances (or
+      // breaks) the chain and produces a BAD_DECRYPT on the *next* message.
+      if (msgId !== undefined && msgId > 0) {
+        const cached = this.getCachedDecryptedMessage(msgId);
+        if (cached !== null) return cached;
+      }
+
       const h = JSON.parse(signalHeaderJson) as Record<string, unknown>;
 
       const ratchetKey = b64Decode(h['rk'] as string);
@@ -369,11 +412,30 @@ export class SignalService {
 
       const [newSession, plainBytes] = await ratchetDecrypt(session, encMsg);
       this.saveSession(senderId, newSession);
-      return new TextDecoder().decode(plainBytes);
+      const plainText = new TextDecoder().decode(plainBytes);
+
+      // Cache inside the try-block so any queued call for the same msgId
+      // gets a cache hit and skips re-decryption (mirrors Android behaviour).
+      if (msgId !== undefined && msgId > 0) {
+        this.cacheDecryptedMessage(msgId, plainText);
+      }
+
+      return plainText;
     } catch (e) {
       const errMsg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-      console.error('[Signal] decryptIncoming FAILED from sender=%d: %s', senderId, errMsg);
-      console.error('[Signal] Full error:', e);
+      // Web Crypto throws DOMException('OperationError') when GCM tag verification
+      // fails — equivalent to Android's AEADBadTagException.  This means the session
+      // keys are out of sync with the sender.  Clear the session so the next outgoing
+      // message triggers a fresh X3DH key-agreement and re-syncs both sides.
+      const isBadDecrypt = e instanceof DOMException && e.name === 'OperationError';
+      if (isBadDecrypt && this.hasSession(senderId)) {
+        this.deleteSession(senderId);
+        console.warn('[Signal] decryptIncoming BAD_DECRYPT from sender=%d — ' +
+          'session desync detected, session cleared for re-key on next send', senderId);
+      } else {
+        console.error('[Signal] decryptIncoming FAILED from sender=%d: %s', senderId, errMsg);
+        console.error('[Signal] Full error:', e);
+      }
       return null;
     }
   }
@@ -416,6 +478,10 @@ export interface NodeApiShim {
   getSignalBundle(userId: number): Promise<PreKeyBundle | null>;
 
   replenishSignalPreKeys(prekeys: string): Promise<void>;
+
+  /** Fetch remote user's identity key without consuming any OPK.
+   *  Used for stale-session detection before sending. */
+  getSignalIdentityKey(userId: number): Promise<string | null>;
 }
 
 export { CIPHER_VERSION_SIGNAL };
