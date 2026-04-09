@@ -99,6 +99,11 @@ class ChatsActivity : AppCompatActivity() {
     // Prevents double-launch if onResume fires while AppLockActivity is already open
     private var lockScreenActive = false
 
+    // Tracks the userId active when this Activity instance was created.
+    // If it changes while the activity is stopped (e.g. user added/switched account via
+    // LoginActivity), onResume will recreate the Activity to fully reset the UI.
+    private var lastActiveUserId: Long = -1L
+
     // App-lock launcher — called when ChatsActivity comes to foreground
     private val appLockLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -134,6 +139,8 @@ class ChatsActivity : AppCompatActivity() {
 
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        lastActiveUserId = com.worldmates.messenger.data.UserSession.userId
 
         // Edge-to-edge: app renders under system bars; each composable adds its own inset padding
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -298,6 +305,16 @@ class ChatsActivity : AppCompatActivity() {
                 Intent(this, AppLockActivity::class.java)
             )
             return   // Skip data refresh until user unlocks
+        }
+
+        // ── Detect account switch from add-account flow ─────────────────────
+        // When the user added a new account via LoginActivity, AccountManager.switchAccount()
+        // already updated UserSession. Recreating the Activity fully resets all UI state
+        // (header, chats, avatars) for the new account.
+        val currentUserId = com.worldmates.messenger.data.UserSession.userId
+        if (currentUserId != lastActiveUserId) {
+            recreate()
+            return
         }
 
         // Оновлюємо список чатів при поверненні на екран

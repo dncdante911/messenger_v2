@@ -134,22 +134,27 @@ class LoginActivity : AppCompatActivity() {
                         navigateToChats()
                     }
                     is LoginState.AddAccountSuccess -> {
-                        // Add-account mode: persist new account, return to chats
+                        // Add-account mode: persist new account, switch to it, then return to chats.
+                        // All DB work happens inside the coroutine so finish() is only called after
+                        // everything is complete — no race with lifecycleScope cancellation.
                         lifecycleScope.launch {
-                            AccountManager.addOrUpdateAccount(
+                            val added = AccountManager.addOrUpdateAccount(
                                 userId   = state.userId,
                                 token    = state.token,
                                 username = state.username,
                                 avatar   = state.avatar,
                                 isPro    = 0  // will sync on next profile refresh
                             )
+                            if (added) {
+                                AccountManager.switchAccount(state.userId)
+                            }
+                            Toast.makeText(
+                                this@LoginActivity,
+                                getString(R.string.account_added),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            finish()  // go back to ChatsActivity — account already switched
                         }
-                        Toast.makeText(
-                            this@LoginActivity,
-                            getString(R.string.account_added),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        finish()  // go back to ChatsActivity — no restart
                     }
                     is LoginState.Error -> {
                         Toast.makeText(
