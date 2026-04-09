@@ -379,8 +379,13 @@ export class SignalService {
         if (opkId !== null && opkKP === null) {
           // Alice computed 4-DH (with OPK) but we lost the private key.
           // 3-DH fallback will ALWAYS produce a different shared secret — bail out.
+          // The OPK store is desynced with the server (e.g. page reload without
+          // re-registration, or localStorage was partially cleared).  Wipe all
+          // Signal state and re-register so future messages work; the sender will
+          // need to retry after our new keys are published.
           console.error('[Signal] X3DH(Bob): opk_id=%d not found locally — ' +
-            'cannot match sender 4-DH; requesting session reset', opkId);
+            'OPK store desynced; clearing state and re-registering', opkId);
+          this.clearAndReregister();
           return null;
         }
 
@@ -438,6 +443,22 @@ export class SignalService {
       }
       return null;
     }
+  }
+
+  // ─── OPK desync recovery ────────────────────────────────────────────────────
+
+  /** Called when an incoming X3DH message references an OPK we no longer have.
+   *  Wipes all local Signal state and re-registers fresh keys so future
+   *  messages from any contact can succeed. */
+  private clearAndReregister(): void {
+    console.warn('[Signal] OPK desync — clearing all Signal state and re-registering');
+    this.clearAllSignalState();
+    // Run asynchronously so we don't block the current decrypt call chain.
+    setTimeout(() => {
+      this.ensureRegistered().catch(e =>
+        console.error('[Signal] Re-registration after OPK desync failed:', e)
+      );
+    }, 0);
   }
 
   // ─── OPK replenishment ──────────────────────────────────────────────────────

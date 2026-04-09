@@ -331,6 +331,24 @@ export default function App() {
             ? { ...c, last_message: asText(decrypted.text, '[media]'), time: 'now' }
             : c
         ));
+
+        // After a successful X3DH session establishment (incoming message has `ik`
+        // field), reload the current chat from the server and re-decrypt everything.
+        // This fixes messages that arrived before the session was ready and were
+        // shown as "🔒 Encrypted message" — they're now decryptable via the new
+        // DR chain without requiring the user to switch chats.
+        if (!decrypted._decryptFailed && msg.cipher_version === CIPHER_VERSION_SIGNAL && msg.signal_header) {
+          try {
+            const hdr = JSON.parse(msg.signal_header) as Record<string, unknown>;
+            if ('ik' in hdr && selectedChatRef.current) {
+              console.info('[Signal] X3DH established — reloading chat to re-decrypt previous failures');
+              loadMessages(session.token, selectedChatRef.current.user_id, session.userId)
+                .then(r => Promise.all((r.messages ?? []).map(tryDecryptMessage)))
+                .then(reDecrypted => setMessages(reDecrypted))
+                .catch(e => console.warn('[Signal] Post-X3DH reload failed:', e));
+            }
+          } catch { /* signal_header parse error — ignore */ }
+        }
       },
 
       onTyping:     e => { if (e.sender_id !== session.userId) setTypingUsers(s => new Set([...s, e.sender_id])); },
