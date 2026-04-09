@@ -115,10 +115,7 @@ fun AccountSwitcherDialog(
                             isActive = account.userId == activeAccount?.userId,
                             onSwitch = {
                                 if (account.userId != activeAccount?.userId) {
-                                    scope.launch {
-                                        AccountManager.switchAccount(account.userId)
-                                        onSwitchAccount(account.userId)
-                                    }
+                                    onSwitchAccount(account.userId)
                                 }
                                 onDismiss()
                             },
