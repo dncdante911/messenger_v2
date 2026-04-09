@@ -259,6 +259,13 @@ export default function App() {
   // ── Signal service ────────────────────────────────────────────────────────
   const signalRef = useRef<SignalService | null>(null);
 
+  /**
+   * Queue of user IDs that need a signal:session_reset_request emitted.
+   * Accumulated when the socket is disconnected and flushed on reconnect.
+   * Prevents losing the recovery signal when the socket is temporarily offline.
+   */
+  const pendingResetsRef = useRef<Set<number>>(new Set());
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const composerRef    = useRef<HTMLTextAreaElement>(null);
   const typingTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -295,6 +302,30 @@ export default function App() {
     const s = createChatSocket(session.token, {
       onStatus: setSocketStatus,
 
+      onConnected: () => {
+        // ── Flush pending session reset requests ────────────────────────────
+        // If we tried to emit session_reset_request while the socket was down,
+        // the user IDs were queued.  Emit them all now.
+        const pending = pendingResetsRef.current;
+        if (pending.size > 0) {
+          pending.forEach(uid => {
+            s.emit('signal:session_reset_request', { target_user_id: uid });
+            console.info('[Signal] Flushed pending session_reset_request to user', uid);
+          });
+          pendingResetsRef.current = new Set();
+        }
+        // ── Reload current chat ─────────────────────────────────────────────
+        // After a reconnect we may have missed socket messages while offline.
+        // Re-fetch from REST so the chat view is up to date.
+        const chat = selectedChatRef.current;
+        if (chat) {
+          loadMessages(session.token, chat.user_id, session.userId)
+            .then(r => Promise.all((r.messages ?? []).map(tryDecryptMessage)))
+            .then(decrypted => setMessages(decrypted))
+            .catch(() => {});
+        }
+      },
+
       onMessage: async (rawMsg) => {
         // Socket events arrive as raw server JSON — normalise before decrypting
         // so Signal messages have text_encrypted set (not text) and from_id/to_id
@@ -314,10 +345,16 @@ export default function App() {
         // In both cases the sender receiving session_reset_request will clear their
         // outgoing session, and the next send triggers a fresh X3DH that Windows
         // can complete successfully.
-        if (decrypted._decryptFailed && msg.cipher_version === 3 && s?.connected && msg.from_id) {
-          s.emit('signal:session_reset_request', { target_user_id: msg.from_id });
-          console.info('[Signal] Emitted session_reset_request to user', msg.from_id,
-            '(decrypt failed — sender will re-run X3DH)');
+        if (decrypted._decryptFailed && msg.cipher_version === 3 && msg.from_id) {
+          if (s?.connected) {
+            s.emit('signal:session_reset_request', { target_user_id: msg.from_id });
+            console.info('[Signal] Emitted session_reset_request to user', msg.from_id);
+          } else {
+            // Socket offline — queue for when we reconnect (onConnected will flush)
+            pendingResetsRef.current.add(msg.from_id);
+            console.info('[Signal] Queued session_reset_request for user', msg.from_id,
+              '(socket offline — will send on reconnect)');
+          }
         }
 
         setMessages(prev => {

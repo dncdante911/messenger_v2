@@ -23,6 +23,8 @@ import type {
 
 export type SocketHandlers = {
   onStatus?:              (status: string) => void;
+  /** Fires on first connect AND every successful reconnect. */
+  onConnected?:           () => void;
   onMessage?:             (msg: MessageItem) => void;
   onGroupMessage?:        (msg: MessageItem & { group_id: number }) => void;
   onTyping?:              (event: TypingEvent) => void;
@@ -54,8 +56,9 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
   const socket = io(SOCKET_URL, {
     transports:           ['websocket', 'polling'],
     auth:                 { token },
-    reconnectionAttempts: 3,
-    reconnectionDelay:    5000,
+    // No reconnectionAttempts cap → default is Infinity.
+    // This lets socket.io keep trying on transient network failures.
+    reconnectionDelay:    3000,
     reconnectionDelayMax: 15000,
     timeout:              15000
   });
@@ -69,15 +72,35 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
   socket.on('connect', () => {
     handlers.onStatus?.('Connected');
     socket.emit('join', { access_token: token });
+    // Notify App so it can flush pending actions (session resets, message reload).
+    handlers.onConnected?.();
   });
 
   socket.on('disconnect', (reason: string) => {
     handlers.onStatus?.(`Disconnected (${reason})`);
+    // socket.io does NOT auto-reconnect after 'io server disconnect'
+    // (server explicitly called socket.disconnect()). Schedule a manual
+    // socket.connect() call so we recover from server-side kicks / restarts.
+    if (reason === 'io server disconnect') {
+      setTimeout(() => {
+        console.info('[Socket] Server-initiated disconnect — reconnecting in 5 s');
+        socket.connect();
+      }, 5000);
+    }
   });
 
   socket.on('reconnect', (attempt: number) => {
     handlers.onStatus?.(`Reconnected (attempt ${attempt})`);
     socket.emit('join', { access_token: token });
+    // 'connect' event also fires on reconnect, which calls onConnected — no
+    // need to call it again here to avoid double-reloading.
+  });
+
+  socket.on('reconnect_failed', () => {
+    handlers.onStatus?.('Reconnect failed — retrying in 15 s');
+    // All automatic retry attempts were exhausted (shouldn't happen with no cap,
+    // but guard anyway). Manually reconnect so we never stay offline permanently.
+    setTimeout(() => socket.connect(), 15000);
   });
 
   // ── Private messages ───────────────────────────────────────────────────────
