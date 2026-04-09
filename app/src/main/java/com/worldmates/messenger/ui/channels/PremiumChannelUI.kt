@@ -2,6 +2,8 @@ package com.worldmates.messenger.ui.channels
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import com.worldmates.messenger.ui.components.formatting.FormattedText
+import com.worldmates.messenger.ui.components.formatting.FormattingSettings
 import androidx.compose.foundation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -691,12 +693,18 @@ fun PremiumPostCard(
                             onVote = { optionId -> onPollVote(post.poll.id, optionId) }
                         )
                     } else if (post.text.isNotBlank()) {
-                        Text(
-                            text = post.text,
-                            fontSize = 15.sp,
-                            color = colorScheme.onSurface,
-                            lineHeight = 23.sp,
-                            fontWeight = FontWeight.Normal
+                        // PREMIUM style: primary-tinted quote bar, more refined appearance
+                        val quoteBar = colorScheme.primary
+                        FormattedText(
+                            text                 = post.text,
+                            fontSize             = 15.sp,
+                            lineHeight           = 23.sp,
+                            color                = colorScheme.onSurface,
+                            quoteBarColor        = quoteBar,
+                            quoteBackgroundColor = quoteBar.copy(alpha = 0.09f),
+                            quoteBarWidth        = 4.dp,
+                            quoteCornerRadius    = 8.dp,
+                            settings             = FormattingSettings(allowQuotes = true),
                         )
                     }
                 }
