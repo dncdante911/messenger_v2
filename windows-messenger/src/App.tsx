@@ -302,18 +302,22 @@ export default function App() {
         const msg = normaliseMessage(rawMsg as unknown as Record<string, unknown>);
         const decrypted = await tryDecryptMessage(msg);
 
-        // If decryption failed for an E2EE message that was sent with an EXISTING
-        // session (no X3DH fields), the sender's ratchet state is ahead of ours.
-        // Tell the sender to reset their session so the next send re-runs X3DH.
-        if (decrypted._decryptFailed && msg.cipher_version === 3 && s?.connected) {
-          try {
-            const hdr = msg.signal_header ? JSON.parse(msg.signal_header) as Record<string, unknown> : {};
-            const senderUsedExistingSession = !hdr['ik']; // no X3DH fields = existing DR session
-            if (senderUsedExistingSession && msg.from_id) {
-              s.emit('signal:session_reset_request', { target_user_id: msg.from_id });
-              console.info('[Signal] Emitted session_reset_request to user', msg.from_id);
-            }
-          } catch { /* parsing error — ignore */ }
+        // If ANY E2EE decryption failed — whether from a broken DR session
+        // (no X3DH fields) or from a missing OPK during X3DH (with 'ik' field) —
+        // tell the sender to reset their session and retry.
+        //
+        //  • No 'ik': sender used an existing DR session whose state is ahead of
+        //    ours (BAD_DECRYPT).  Reset makes them re-run X3DH on next send.
+        //  • With 'ik': sender used an OPK we no longer have.  Reset makes them
+        //    fetch a fresh bundle (with valid OPK IDs) and re-run X3DH.
+        //
+        // In both cases the sender receiving session_reset_request will clear their
+        // outgoing session, and the next send triggers a fresh X3DH that Windows
+        // can complete successfully.
+        if (decrypted._decryptFailed && msg.cipher_version === 3 && s?.connected && msg.from_id) {
+          s.emit('signal:session_reset_request', { target_user_id: msg.from_id });
+          console.info('[Signal] Emitted session_reset_request to user', msg.from_id,
+            '(decrypt failed — sender will re-run X3DH)');
         }
 
         setMessages(prev => {
