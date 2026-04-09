@@ -527,12 +527,20 @@ export async function getSignalPreKeyCount(token: string): Promise<number> {
   } catch { return 0; }
 }
 
+export async function getSignalIdentityKey(token: string, userId: number): Promise<string | null> {
+  try {
+    const resp = await nodeGet<Record<string, unknown>>(`/api/node/signal/identity/${userId}`, token);
+    return (resp.identity_key as string | undefined) ?? null;
+  } catch { return null; }
+}
+
 // ─── NodeApiShim factory ──────────────────────────────────────────────────────
 
 export function createNodeApiShim(token: string): NodeApiShim {
   return {
-    registerSignalKeys: (payload) => registerSignalKeys(token, payload),
-    getSignalBundle:    (userId)  => getSignalBundle(token, userId),
-    replenishSignalPreKeys: (prekeys) => replenishSignalPreKeys(token, prekeys)
+    registerSignalKeys:    (payload) => registerSignalKeys(token, payload),
+    getSignalBundle:       (userId)  => getSignalBundle(token, userId),
+    replenishSignalPreKeys:(prekeys) => replenishSignalPreKeys(token, prekeys),
+    getSignalIdentityKey:  (userId)  => getSignalIdentityKey(token, userId)
   };
 }
