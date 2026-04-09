@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -189,8 +190,8 @@ enum class PresetBackground(
     NEON_CITY(
         id = "neon_city",
         nameResId = R.string.bg_neon_city,
-        // Кіберпанк-місто вночі: чорний → пурпур → неоновий синій
-        gradientColors = listOf(Color(0xFF0D0019), Color(0xFF2D003E), Color(0xFFBC00B8), Color(0xFF0066FF))
+        // Нічне місто: м'який неон без кричливих кольорів
+        gradientColors = listOf(Color(0xFF0A0015), Color(0xFF1A0A35), Color(0xFF5E1B8C), Color(0xFF1A3A8C))
     ),
     // ── Нейтральні / сезонні ────────────────────────────────────────────────
     WINTER(
@@ -204,6 +205,37 @@ enum class PresetBackground(
         nameResId = R.string.bg_messenger,
         // Класичний синій месенджер — схожий на палітру Telegram
         gradientColors = listOf(Color(0xFF2AABEE), Color(0xFF1E88E5), Color(0xFF1565C0))
+    ),
+    // ── Нові / оновлені ─────────────────────────────────────────────────────
+    ROSE_QUARTZ(
+        id = "rose_quartz",
+        nameResId = R.string.bg_rose_quartz,
+        gradientColors = listOf(Color(0xFFFFF0F3), Color(0xFFFFB3C6), Color(0xFFFF85A1), Color(0xFFFF4D6D))
+    ),
+    GOLDEN_HOUR(
+        id = "golden_hour",
+        nameResId = R.string.bg_golden_hour,
+        gradientColors = listOf(Color(0xFFFFF8E1), Color(0xFFFFCC02), Color(0xFFFF9800), Color(0xFFE65100))
+    ),
+    MINT_SKY(
+        id = "mint_sky",
+        nameResId = R.string.bg_mint_sky,
+        gradientColors = listOf(Color(0xFFE0FFF4), Color(0xFF80FFCC), Color(0xFF00D4AA), Color(0xFF0096C7))
+    ),
+    VELVET_NIGHT(
+        id = "velvet_night",
+        nameResId = R.string.bg_velvet_night,
+        gradientColors = listOf(Color(0xFF1A0030), Color(0xFF3D005C), Color(0xFF1A1040), Color(0xFF0A0A2A))
+    ),
+    ARCTIC_BLUE(
+        id = "arctic_blue",
+        nameResId = R.string.bg_arctic_blue,
+        gradientColors = listOf(Color(0xFFF0FAFF), Color(0xFFB8E8FF), Color(0xFF56CCF2), Color(0xFF2F80ED))
+    ),
+    DEEP_PLUM(
+        id = "deep_plum",
+        nameResId = R.string.bg_deep_plum,
+        gradientColors = listOf(Color(0xFF1A0025), Color(0xFF3B0060), Color(0xFF5C0080), Color(0xFF2D0040))
     );
 
     companion object {
@@ -303,6 +335,7 @@ fun ThemeSettingsScreen(
                 ThemeSectionHeader(
                     emoji = "🎨",
                     title = stringResource(R.string.select_theme),
+                    accentColor = Color(0xFF7C4DFF),
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
                 )
             }
@@ -320,6 +353,7 @@ fun ThemeSettingsScreen(
                 ThemeSectionHeader(
                     emoji = "🌙",
                     title = stringResource(R.string.appearance_section),
+                    accentColor = Color(0xFF1976D2),
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
                 )
             }
@@ -349,6 +383,7 @@ fun ThemeSettingsScreen(
                     emoji = "🖼️",
                     title = stringResource(R.string.bg_section_title),
                     subtitle = stringResource(R.string.bg_section_desc),
+                    accentColor = Color(0xFF00897B),
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
                 )
             }
@@ -382,6 +417,7 @@ fun ThemeSettingsScreen(
                     emoji = "✨",
                     title = stringResource(R.string.animated_bg_section_title),
                     subtitle = stringResource(R.string.animated_bg_section_desc),
+                    accentColor = Color(0xFF8E24AA),
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 12.dp)
                 )
             }
@@ -397,6 +433,7 @@ fun ThemeSettingsScreen(
                     emoji = "💬",
                     title = stringResource(R.string.bubble_style_title),
                     subtitle = stringResource(R.string.bubble_style_desc),
+                    accentColor = Color(0xFF0097A7),
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
                 )
             }
@@ -415,6 +452,7 @@ fun ThemeSettingsScreen(
                     emoji = "🎛️",
                     title = stringResource(R.string.interface_style),
                     subtitle = stringResource(R.string.interface_style_desc),
+                    accentColor = Color(0xFF2E7D32),
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
                 )
             }
@@ -431,9 +469,10 @@ fun ThemeSettingsScreen(
             // ══════════════════════════════════════════════════════════════════
             item {
                 ThemeSectionHeader(
-                    emoji = "📢",
+                    emoji = "📺",
                     title = stringResource(R.string.channel_view_style_title),
                     subtitle = stringResource(R.string.channel_view_style_desc),
+                    accentColor = Color(0xFFD81B60),
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
                 )
             }
@@ -453,6 +492,7 @@ fun ThemeSettingsScreen(
                     emoji = "❤️",
                     title = stringResource(R.string.quick_reaction_title),
                     subtitle = stringResource(R.string.quick_reaction_desc),
+                    accentColor = Color(0xFFF4511E),
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
                 )
             }
@@ -471,6 +511,7 @@ fun ThemeSettingsScreen(
                     ThemeSectionHeader(
                         emoji = "📹",
                         title = stringResource(R.string.video_frame_section),
+                        accentColor = Color(0xFF455A64),
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
                     )
                 }
@@ -1380,18 +1421,24 @@ fun ThemeSectionHeader(
     emoji: String,
     title: String,
     subtitle: String? = null,
+    accentColor: Color? = null,
     modifier: Modifier = Modifier
 ) {
+    val boxColor = accentColor ?: MaterialTheme.colorScheme.primary
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = if (subtitle != null) Alignment.Top else Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(40.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(10.dp)
+                    brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                        colors = listOf(boxColor, boxColor.copy(alpha = 0.65f)),
+                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                        end = androidx.compose.ui.geometry.Offset(40f, 40f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -1715,7 +1762,8 @@ fun BubbleStyleChip(
     Column(
         modifier = Modifier
             .scale(scale)
-            .width(82.dp)
+            .width(92.dp)
+            .heightIn(min = 92.dp)
             .clip(RoundedCornerShape(14.dp))
             .border(2.dp, borderColor, RoundedCornerShape(14.dp))
             .background(
@@ -1744,8 +1792,7 @@ fun BubbleStyleChip(
 }
 
 /**
- * Сегментований перемикач стилю інтерфейсу (WorldMates / Класичний).
- * Замінює два громіздких RadioButton-рядки.
+ * Дві картки вибору стилю інтерфейсу з візуальним превью.
  */
 @Composable
 fun UIStyleToggleRow(
@@ -1755,11 +1802,8 @@ fun UIStyleToggleRow(
 ) {
     Row(
         modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         UIStyle.values().forEach { style ->
             val isSelected = style == currentStyle
@@ -1771,37 +1815,145 @@ fun UIStyleToggleRow(
                 UIStyle.WORLDMATES -> stringResource(R.string.interface_modern_desc)
                 UIStyle.TELEGRAM -> stringResource(R.string.interface_classic_desc)
             }
-            Column(
+
+            val scale by animateFloatAsState(
+                targetValue = if (isSelected) 1.03f else 1f,
+                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow),
+                label = "uistyle_scale_${style.name}"
+            )
+
+            val borderColor by animateColorAsState(
+                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                animationSpec = tween(300),
+                label = "uistyle_border_${style.name}"
+            )
+
+            Card(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        if (isSelected) MaterialTheme.colorScheme.primary
-                        else Color.Transparent
-                    )
-                    .clickable(
-                        onClick = { onStyleSelected(style) },
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    )
-                    .padding(vertical = 10.dp, horizontal = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .scale(scale)
+                    .height(160.dp)
+                    .then(
+                        if (isSelected) Modifier.border(2.dp, borderColor, RoundedCornerShape(16.dp))
+                        else Modifier
+                    ),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isSelected)
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                    else
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp),
+                onClick = { onStyleSelected(style) }
             ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(top = 2.dp)
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Visual mockup of the style
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                            )
+                            .padding(6.dp)
+                    ) {
+                        if (style == UIStyle.WORLDMATES) {
+                            // Card-style mockup (gradient cards)
+                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                repeat(2) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(22.dp)
+                                            .background(
+                                                brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                                    listOf(
+                                                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f)
+                                                    )
+                                                ),
+                                                shape = RoundedCornerShape(6.dp)
+                                            )
+                                    )
+                                }
+                            }
+                        } else {
+                            // List-style mockup (lines like Telegram)
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                repeat(3) { i ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(18.dp)
+                                                .background(
+                                                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                                    shape = CircleShape
+                                                )
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(if (i == 1) 0.9f else 0.7f)
+                                                .height(4.dp)
+                                                .background(
+                                                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
+                                                    shape = RoundedCornerShape(3.dp)
+                                                )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Label + checkmark
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = description,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 1.dp),
+                                maxLines = 2
+                            )
+                        }
+                        if (isSelected) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -1854,7 +2006,7 @@ fun ChannelViewStyleSelector(
         ChannelViewStyleCard(
             title = stringResource(R.string.channel_style_classic),
             description = stringResource(R.string.channel_style_classic_desc),
-            emoji = "🌍",
+            emoji = "📋",
             isSelected = currentStyle == ChannelViewStyle.CLASSIC,
             onClick = { onStyleSelected(ChannelViewStyle.CLASSIC) },
             modifier = Modifier.weight(1f)
@@ -1862,7 +2014,7 @@ fun ChannelViewStyleSelector(
         ChannelViewStyleCard(
             title = stringResource(R.string.channel_style_premium),
             description = stringResource(R.string.channel_style_premium_desc),
-            emoji = "💎",
+            emoji = "⭐",
             isSelected = currentStyle == ChannelViewStyle.PREMIUM,
             onClick = { onStyleSelected(ChannelViewStyle.PREMIUM) },
             modifier = Modifier.weight(1f)
@@ -1897,6 +2049,7 @@ private fun ChannelViewStyleCard(
     Card(
         modifier = modifier
             .scale(scale)
+            .height(170.dp)
             .then(
                 if (isSelected) Modifier.border(
                     width = 2.dp,
@@ -1907,9 +2060,9 @@ private fun ChannelViewStyleCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected)
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
             else
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (isSelected) 4.dp else 1.dp
@@ -1918,59 +2071,105 @@ private fun ChannelViewStyleCard(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = emoji,
-                fontSize = 28.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isSelected)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = description,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                lineHeight = 14.sp,
-                maxLines = 2
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (isSelected) {
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .border(
-                            width = 1.5.dp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                            shape = CircleShape
+            // Visual mockup preview of channel list
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                        else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                    )
+                    .padding(6.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                repeat(3) { i ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .background(
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                    shape = CircleShape
+                                )
                         )
-                )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(if (i == 0) 0.7f else if (i == 1) 0.85f else 0.6f)
+                                    .height(5.dp)
+                                    .background(
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                                        shape = RoundedCornerShape(3.dp)
+                                    )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(if (i == 0) 0.5f else if (i == 1) 0.65f else 0.45f)
+                                    .height(4.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(3.dp)
+                                    )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Title + checkmark row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = description,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 13.sp,
+                        maxLines = 2
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                if (isSelected) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .border(
+                                width = 1.5.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                shape = CircleShape
+                            )
+                    )
+                }
             }
         }
     }

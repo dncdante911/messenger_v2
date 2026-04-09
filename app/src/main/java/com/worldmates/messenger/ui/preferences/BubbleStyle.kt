@@ -11,17 +11,17 @@ enum class BubbleStyle(
     STANDARD(
         displayName = "Стандарт",
         description = "Заокруглені бульбашки з м'якими тінями",
-        icon = "💬"
+        icon = "🗨️"
     ),
     COMIC(
         displayName = "Комікс",
         description = "Бульбашки з хвостиком як в коміксах",
-        icon = "💭"
+        icon = "🗯️"
     ),
     TELEGRAM(
         displayName = "Класичний",
         description = "Мінімалістичні кутасті бульбашки",
-        icon = "📱"
+        icon = "▬"
     ),
     MINIMAL(
         displayName = "Мінімал",
@@ -31,32 +31,42 @@ enum class BubbleStyle(
     MODERN(
         displayName = "Модерн",
         description = "Градієнти та glass morphism ефекти",
-        icon = "✨"
+        icon = "🪩"
     ),
     RETRO(
         displayName = "Ретро",
         description = "Яскраві кольори з товстими рамками",
-        icon = "🔴"
+        icon = "🟧"
     ),
     GLASS(
         displayName = "Скляний",
         description = "Glassmorphism з напівпрозорістю",
-        icon = "🪟"
+        icon = "💠"
     ),
     NEON(
         displayName = "Неон",
         description = "Cyberpunk світіння по контуру",
-        icon = "💡"
+        icon = "🔵"
     ),
     GRADIENT(
         displayName = "Градієнт",
         description = "Яскраві кольорові переходи",
-        icon = "🌈"
+        icon = "🎆"
     ),
     NEUMORPHISM(
         displayName = "Неоморфізм",
         description = "М'який 3D-ефект з тінями",
-        icon = "🎭"
+        icon = "⬜"
+    ),
+    SOFT(
+        displayName = "М'який",
+        description = "Ультра-плавні куточки, без тіней, пастельні тони",
+        icon = "🫧"
+    ),
+    OUTLINED(
+        displayName = "Контурний",
+        description = "Тільки контур без заливки — мінімалізм та легкість",
+        icon = "◻️"
     );
 
     companion object {
