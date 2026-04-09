@@ -997,6 +997,10 @@
     <string name="animated_bg_neon">Неон</string>
     <string name="animated_bg_forest">Ліс</string>
     <string name="animated_bg_fire">Вогонь</string>
+    <string name="animated_bg_stardust">Зоряний пил</string>
+    <string name="animated_bg_gentle_rain">Дощ</string>
+    <string name="animated_bg_gradient_cycle">Градієнт</string>
+    <string name="animated_bg_bokeh">Боке</string>
     <string name="animated_bg_premium_title">Функція Pro та нових користувачів</string>
     <string name="animated_bg_premium_desc">Доступно з підпискою Pro або перші 5 днів після реєстрації</string>
     <string name="animated_bg_get_pro">Отримати Pro</string>
@@ -1029,6 +1033,12 @@
     <!-- Назви готових фонів (нейтральні / сезонні) -->
     <string name="bg_winter">Зима</string>
     <string name="bg_messenger">Синій месенджер</string>
+    <string name="bg_rose_quartz">Рожевий кварц</string>
+    <string name="bg_golden_hour">Золота година</string>
+    <string name="bg_mint_sky">М\'ятне небо</string>
+    <string name="bg_velvet_night">Оксамитова ніч</string>
+    <string name="bg_arctic_blue">Арктичний блакит</string>
+    <string name="bg_deep_plum">Глибока слива</string>
 
     <!-- ===== MUSIC PLAYER ===== -->
     <string name="player">Плеєр</string>

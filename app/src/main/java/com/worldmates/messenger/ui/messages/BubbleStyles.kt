@@ -483,6 +483,60 @@ fun NeumorphismBubble(
 }
 
 /**
+ * Soft bubble — ultra-rounded, no shadow, pastel-friendly.
+ */
+@Composable
+fun SoftBubble(
+    isOwn: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val containerColor = if (isOwn)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+    else
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+
+    Box(
+        modifier = modifier
+            .background(
+                color = containerColor,
+                shape = RoundedCornerShape(24.dp)
+            )
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            content = content
+        )
+    }
+}
+
+/**
+ * Outlined bubble — border only, transparent fill.
+ */
+@Composable
+fun OutlinedBubble(
+    isOwn: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val borderColor = if (isOwn)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+    else
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+
+    Box(
+        modifier = modifier
+            .background(Color.Transparent, RoundedCornerShape(18.dp))
+            .border(1.5.dp, borderColor, RoundedCornerShape(18.dp))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            content = content
+        )
+    }
+}
+
+/**
  * 🎨 Фабрика для створення бульбашки відповідного стилю
  */
 @Composable
@@ -504,5 +558,7 @@ fun StyledBubble(
         BubbleStyle.NEON -> NeonBubble(isOwn, bgColor, modifier, content)
         BubbleStyle.GRADIENT -> GradientBubble(isOwn, bgColor, modifier, content)
         BubbleStyle.NEUMORPHISM -> NeumorphismBubble(isOwn, bgColor, modifier, content)
+        BubbleStyle.SOFT -> SoftBubble(isOwn = isOwn, modifier = modifier, content = content)
+        BubbleStyle.OUTLINED -> OutlinedBubble(isOwn = isOwn, modifier = modifier, content = content)
     }
 }

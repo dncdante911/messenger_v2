@@ -47,7 +47,19 @@ enum class AnimatedBgVariant {
     FOREST_MIST,
 
     /** Fire with floating ember particles (dark red/orange, particles floating up) */
-    FIRE_EMBERS
+    FIRE_EMBERS,
+
+    /** Tiny glowing star particles slowly drifting — peaceful night sky */
+    STARDUST,
+
+    /** Soft blurred bokeh circles of light floating gently */
+    BOKEH_LIGHTS,
+
+    /** Smooth slow looping gradient color cycle */
+    GRADIENT_CYCLE,
+
+    /** Gentle falling rain streaks — subtle and calm */
+    GENTLE_RAIN
 }
 
 // ---------------------------------------------------------------------------
@@ -72,6 +84,10 @@ fun ChatAnimatedBackground(
         AnimatedBgVariant.NEON_PULSE -> NeonPulseBackground(modifier)
         AnimatedBgVariant.FOREST_MIST -> ForestMistBackground(modifier)
         AnimatedBgVariant.FIRE_EMBERS -> FireEmbersBackground(modifier)
+        AnimatedBgVariant.STARDUST      -> StardustBackground(modifier = modifier)
+        AnimatedBgVariant.BOKEH_LIGHTS  -> BokehLightsBackground(modifier = modifier)
+        AnimatedBgVariant.GRADIENT_CYCLE -> GradientCycleBackground(modifier = modifier)
+        AnimatedBgVariant.GENTLE_RAIN   -> GentleRainBackground(modifier = modifier)
     }
 }
 
@@ -713,6 +729,193 @@ private fun FireEmbersBackground(modifier: Modifier = Modifier) {
                 color = emberColor.copy(alpha = emberAlpha.coerceIn(0f, 1f)),
                 radius = ember.radius,
                 center = Offset(currentX, currentY)
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// STARDUST
+// ---------------------------------------------------------------------------
+
+@Composable
+fun StardustBackground(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "stardust")
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(8000, easing = LinearEasing)),
+        label = "stardust_time"
+    )
+
+    val stars = remember {
+        List(60) {
+            Triple(
+                (0..100).random() / 100f,  // x position
+                (0..100).random() / 100f,  // y position
+                (3..8).random() / 10f       // speed factor
+            )
+        }
+    }
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        drawRect(
+            brush = Brush.verticalGradient(
+                listOf(Color(0xFF0A0A1F), Color(0xFF0F0F35), Color(0xFF151530))
+            )
+        )
+        stars.forEach { (x, y, speed) ->
+            val animY = (y - time * speed * 0.3f + 1f) % 1f
+            val alpha = (0.3f + sin(time * speed * PI.toFloat() * 2f).coerceIn(-1f, 1f) * 0.35f + 0.35f).coerceIn(0.1f, 0.9f)
+            val radius = (1.5f + speed * 2f)
+            drawCircle(
+                color = Color.White.copy(alpha = alpha),
+                radius = radius,
+                center = Offset(x * size.width, animY * size.height)
+            )
+            // Subtle glow
+            if (speed > 0.6f) {
+                drawCircle(
+                    color = Color(0xFFADD8FF).copy(alpha = alpha * 0.3f),
+                    radius = radius * 2.5f,
+                    center = Offset(x * size.width, animY * size.height)
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// BOKEH LIGHTS
+// ---------------------------------------------------------------------------
+
+@Composable
+fun BokehLightsBackground(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "bokeh")
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(12000, easing = LinearEasing)),
+        label = "bokeh_time"
+    )
+
+    val circleData: List<Triple<Float, Float, Float>> = remember {
+        List(18) {
+            Triple(
+                (5..95).random() / 100f,
+                (5..95).random() / 100f,
+                (3..10).random() / 10f
+            )
+        }
+    }
+    val circleRadii = remember { List(18) { (20..60).random().toFloat() } }
+    val circleColorIndices = remember { List(18) { (0..5).random() } }
+    val bokehColors = listOf(
+        Color(0xFFFF6B9D), Color(0xFF6B9DFF), Color(0xFF9DFF6B),
+        Color(0xFFFFD96B), Color(0xFF6BFFD9), Color(0xFFD96BFF)
+    )
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        drawRect(color = Color(0xFF0D0D1A))
+        circleData.forEachIndexed { i, c ->
+            val offsetX = cos(time * c.third) * 30f
+            val offsetY = sin(time * c.third * 0.7f) * 20f
+            val alpha = (0.12f + sin(time * c.third + c.first * PI.toFloat()).coerceIn(-1f, 1f) * 0.06f + 0.06f).coerceIn(0.05f, 0.25f)
+            drawCircle(
+                color = bokehColors[circleColorIndices[i]].copy(alpha = alpha),
+                radius = circleRadii[i] * (size.width / 400f),
+                center = Offset(c.first * size.width + offsetX, c.second * size.height + offsetY)
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GRADIENT CYCLE
+// ---------------------------------------------------------------------------
+
+@Composable
+fun GradientCycleBackground(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "gradcycle")
+    val hueShift by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(16000, easing = LinearEasing)),
+        label = "hue_shift"
+    )
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val h1 = (hueShift % 360f) / 360f
+        val h2 = ((hueShift + 120f) % 360f) / 360f
+        val h3 = ((hueShift + 240f) % 360f) / 360f
+
+        fun hslToColor(h: Float, s: Float, l: Float): Color {
+            val c = (1f - kotlin.math.abs(2f * l - 1f)) * s
+            val x = c * (1f - kotlin.math.abs((h * 6f) % 2f - 1f))
+            val m = l - c / 2f
+            val (r, g, b) = when {
+                h < 1f/6f -> Triple(c, x, 0f)
+                h < 2f/6f -> Triple(x, c, 0f)
+                h < 3f/6f -> Triple(0f, c, x)
+                h < 4f/6f -> Triple(0f, x, c)
+                h < 5f/6f -> Triple(x, 0f, c)
+                else -> Triple(c, 0f, x)
+            }
+            return Color(r + m, g + m, b + m)
+        }
+
+        drawRect(
+            brush = Brush.verticalGradient(
+                listOf(
+                    hslToColor(h1, 0.6f, 0.28f),
+                    hslToColor(h2, 0.55f, 0.22f),
+                    hslToColor(h3, 0.5f, 0.18f)
+                )
+            )
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GENTLE RAIN
+// ---------------------------------------------------------------------------
+
+@Composable
+fun GentleRainBackground(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "rain")
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
+        label = "rain_time"
+    )
+
+    val drops = remember {
+        List(80) {
+            Triple(
+                (0..100).random() / 100f,  // x
+                (0..100).random() / 100f,  // initial y offset
+                (4..12).random() / 10f      // speed
+            )
+        }
+    }
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        drawRect(
+            brush = Brush.verticalGradient(
+                listOf(Color(0xFF1A2A3A), Color(0xFF0F1F2F), Color(0xFF0A1520))
+            )
+        )
+        drops.forEach { (x, yOff, speed) ->
+            val y = (yOff + time * speed) % 1f
+            val alpha = (0.15f + speed * 0.2f).coerceIn(0.1f, 0.4f)
+            val length = 8f + speed * 12f
+            drawLine(
+                color = Color(0xFF9EC8E8).copy(alpha = alpha),
+                start = Offset(x * size.width, y * size.height),
+                end = Offset(x * size.width - length * 0.15f, y * size.height + length),
+                strokeWidth = 1f,
+                cap = StrokeCap.Round
             )
         }
     }

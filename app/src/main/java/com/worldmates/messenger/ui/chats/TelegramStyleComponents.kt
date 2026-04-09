@@ -40,7 +40,7 @@ fun TelegramChatItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress
@@ -170,7 +170,7 @@ fun TelegramGroupItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress

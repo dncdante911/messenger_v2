@@ -249,12 +249,16 @@ private fun AnimatedBgCard(
 }
 
 private fun variantLabelRes(variant: AnimatedBgVariant): Int = when (variant) {
-    AnimatedBgVariant.NONE         -> R.string.animated_bg_none
-    AnimatedBgVariant.AURORA       -> R.string.animated_bg_aurora
-    AnimatedBgVariant.OCEAN_WAVES  -> R.string.animated_bg_ocean
-    AnimatedBgVariant.COSMIC       -> R.string.animated_bg_cosmic
-    AnimatedBgVariant.SUNSET_FLOW  -> R.string.animated_bg_sunset
-    AnimatedBgVariant.NEON_PULSE   -> R.string.animated_bg_neon
-    AnimatedBgVariant.FOREST_MIST  -> R.string.animated_bg_forest
-    AnimatedBgVariant.FIRE_EMBERS  -> R.string.animated_bg_fire
+    AnimatedBgVariant.NONE           -> R.string.animated_bg_none
+    AnimatedBgVariant.AURORA         -> R.string.animated_bg_aurora
+    AnimatedBgVariant.OCEAN_WAVES    -> R.string.animated_bg_ocean
+    AnimatedBgVariant.COSMIC         -> R.string.animated_bg_cosmic
+    AnimatedBgVariant.SUNSET_FLOW    -> R.string.animated_bg_sunset
+    AnimatedBgVariant.NEON_PULSE     -> R.string.animated_bg_neon
+    AnimatedBgVariant.FOREST_MIST    -> R.string.animated_bg_forest
+    AnimatedBgVariant.FIRE_EMBERS    -> R.string.animated_bg_fire
+    AnimatedBgVariant.STARDUST       -> R.string.animated_bg_stardust
+    AnimatedBgVariant.BOKEH_LIGHTS   -> R.string.animated_bg_bokeh
+    AnimatedBgVariant.GRADIENT_CYCLE -> R.string.animated_bg_gradient_cycle
+    AnimatedBgVariant.GENTLE_RAIN    -> R.string.animated_bg_gentle_rain
 }
