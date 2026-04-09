@@ -972,6 +972,10 @@
     <string name="animated_bg_neon">Неон</string>
     <string name="animated_bg_forest">Лес</string>
     <string name="animated_bg_fire">Огонь</string>
+    <string name="animated_bg_stardust">Звёздная пыль</string>
+    <string name="animated_bg_gentle_rain">Лёгкий дождь</string>
+    <string name="animated_bg_gradient_cycle">Градиент</string>
+    <string name="animated_bg_bokeh">Боке</string>
     <string name="animated_bg_premium_title">Функция Pro и новых пользователей</string>
     <string name="animated_bg_premium_desc">Доступно с подпиской Pro или первые 5 дней после регистрации</string>
     <string name="animated_bg_get_pro">Получить Pro</string>
@@ -1004,6 +1008,12 @@
     
     <string name="bg_winter">Зима</string>
     <string name="bg_messenger">Синий мессенджер</string>
+    <string name="bg_rose_quartz">Розовый кварц</string>
+    <string name="bg_golden_hour">Золотой час</string>
+    <string name="bg_mint_sky">Мятное небо</string>
+    <string name="bg_velvet_night">Бархатная ночь</string>
+    <string name="bg_arctic_blue">Арктическая лазурь</string>
+    <string name="bg_deep_plum">Глубокая слива</string>
 
     
     <string name="player">Плеер</string>
@@ -1469,6 +1479,10 @@
     <string name="bubble_gradient_desc">Яркие цветовые переходы</string>
     <string name="bubble_neumorphism">Неоморфизм</string>
     <string name="bubble_neumorphism_desc">Мягкий 3D-эффект с тенями</string>
+    <string name="bubble_soft">Мягкий</string>
+    <string name="bubble_soft_desc">Ультра-плавные углы, без теней, пастельные тона</string>
+    <string name="bubble_outlined">Контурный</string>
+    <string name="bubble_outlined_desc">Только контур без заливки — минимализм и лёгкость</string>
 
     
     <string name="theme_classic_desc">Классическая синяя тема в стиле Messenger</string>

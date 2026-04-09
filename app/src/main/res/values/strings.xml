@@ -1514,6 +1514,10 @@
     <string name="bubble_gradient_desc">Яскраві кольорові переходи</string>
     <string name="bubble_neumorphism">Неоморфізм</string>
     <string name="bubble_neumorphism_desc">М\'який 3D-ефект з тінями</string>
+    <string name="bubble_soft">М\'який</string>
+    <string name="bubble_soft_desc">Ультра-плавні куточки, без тіней, пастельні тони</string>
+    <string name="bubble_outlined">Контурний</string>
+    <string name="bubble_outlined_desc">Тільки контур без заливки — мінімалізм та легкість</string>
 
     <!-- ===== THEME VARIANT DESCRIPTIONS ===== -->
     <string name="theme_classic_desc">Класична синя тема в стилі Messenger</string>

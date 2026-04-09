@@ -1390,6 +1390,8 @@ fun BubbleStyle.localizedDisplayName(): String {
         BubbleStyle.NEON -> stringResource(R.string.bubble_neon)
         BubbleStyle.GRADIENT -> stringResource(R.string.bubble_gradient)
         BubbleStyle.NEUMORPHISM -> stringResource(R.string.bubble_neumorphism)
+        BubbleStyle.SOFT -> stringResource(R.string.bubble_soft)
+        BubbleStyle.OUTLINED -> stringResource(R.string.bubble_outlined)
     }
 }
 
@@ -1406,6 +1408,8 @@ fun BubbleStyle.localizedDescription(): String {
         BubbleStyle.NEON -> stringResource(R.string.bubble_neon_desc)
         BubbleStyle.GRADIENT -> stringResource(R.string.bubble_gradient_desc)
         BubbleStyle.NEUMORPHISM -> stringResource(R.string.bubble_neumorphism_desc)
+        BubbleStyle.SOFT -> stringResource(R.string.bubble_soft_desc)
+        BubbleStyle.OUTLINED -> stringResource(R.string.bubble_outlined_desc)
     }
 }
 
