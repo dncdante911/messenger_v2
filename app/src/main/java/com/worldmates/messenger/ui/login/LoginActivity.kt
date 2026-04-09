@@ -49,6 +49,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.worldmates.messenger.R
+import com.worldmates.messenger.data.AccountManager
 import com.worldmates.messenger.ui.chats.ChatsActivity
 import com.worldmates.messenger.ui.components.*
 import com.worldmates.messenger.ui.language.LanguageSelectionActivity
@@ -60,6 +61,11 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 class LoginActivity : AppCompatActivity() {
+
+    companion object {
+        /** Pass this extra (Boolean = true) when opening LoginActivity to add a second account. */
+        const val EXTRA_ADD_ACCOUNT = "add_account_mode"
+    }
 
     private lateinit var viewModel: LoginViewModel
 
@@ -73,20 +79,23 @@ class LoginActivity : AppCompatActivity() {
         // Дозволяємо Compose керувати window insets
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        // Перший запуск: показати вибір мови
-        if (!LanguageManager.isLanguageSelected) {
+        val isAddAccountMode = intent.getBooleanExtra(EXTRA_ADD_ACCOUNT, false)
+
+        // Перший запуск: показати вибір мови (тільки при звичайному логіні)
+        if (!isAddAccountMode && !LanguageManager.isLanguageSelected) {
             startActivity(Intent(this, LanguageSelectionActivity::class.java))
             finish()
             return
         }
 
-        // Проверка автологина
-        if (com.worldmates.messenger.data.UserSession.isLoggedIn) {
+        // Авто-логін: пропускаємо в режимі add-account (там вже залогований)
+        if (!isAddAccountMode && com.worldmates.messenger.data.UserSession.isLoggedIn) {
             navigateToChats()
             return
         }
 
         viewModel = ViewModelProvider(this).get(LoginViewModel::class.java)
+        viewModel.isAddAccountMode = isAddAccountMode
 
         // Инициализируем ThemeManager
         ThemeManager.initialize(this)
@@ -113,12 +122,34 @@ class LoginActivity : AppCompatActivity() {
             viewModel.loginState.collect { state ->
                 when (state) {
                     is LoginState.Success -> {
+                        // Normal login: save session as account, then go to chats
+                        lifecycleScope.launch {
+                            AccountManager.saveCurrentSessionAsAccount()
+                        }
                         Toast.makeText(
                             this@LoginActivity,
                             getString(R.string.login_success),
                             Toast.LENGTH_SHORT
                         ).show()
                         navigateToChats()
+                    }
+                    is LoginState.AddAccountSuccess -> {
+                        // Add-account mode: persist new account, return to chats
+                        lifecycleScope.launch {
+                            AccountManager.addOrUpdateAccount(
+                                userId   = state.userId,
+                                token    = state.token,
+                                username = state.username,
+                                avatar   = state.avatar,
+                                isPro    = 0  // will sync on next profile refresh
+                            )
+                        }
+                        Toast.makeText(
+                            this@LoginActivity,
+                            getString(R.string.account_added),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        finish()  // go back to ChatsActivity — no restart
                     }
                     is LoginState.Error -> {
                         Toast.makeText(

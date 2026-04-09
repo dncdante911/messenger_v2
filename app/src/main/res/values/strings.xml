@@ -30,6 +30,7 @@
     <string name="login_title">Ласкаво просимо</string>
     <string name="login_subtitle">Увійдіть до свого акаунту WorldMates</string>
     <string name="login_success">Успішно увійшли!</string>
+    <string name="account_added">Акаунт додано</string>
     <string name="login_failed">Помилка входу</string>
     <string name="register_success">Реєстрацію успішно завершено!</string>
     <string name="username_or_email">Ім\'я користувача або email</string>
