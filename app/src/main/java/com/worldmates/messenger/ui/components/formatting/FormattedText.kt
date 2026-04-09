@@ -59,8 +59,9 @@ object FormattedTextColors {
     val LinkColor = Color(0xFF1E88E5) // Blue
     val CodeBackground = Color(0x1A000000) // 10% black
     val CodeTextColor = Color(0xFFE91E63) // Pink for code
-    val QuoteBarColor = Color(0xFF9E9E9E) // Gray
-    val QuoteBackground = Color(0x0D000000) // 5% black
+    // Quote — Telegram-style warm orange accent (was gray)
+    val QuoteBarColor    = Color(0xFFFF7043) // deep-orange accent
+    val QuoteBackground  = Color(0x14FF7043) // ~8% orange tint
     val SpoilerBackground = Color(0xFF424242) // Dark gray
     val SpoilerRevealedBackground = Color(0x1A000000) // Light when revealed
 }
@@ -79,6 +80,10 @@ fun FormattedText(
     fontSize: TextUnit = 15.sp,
     lineHeight: TextUnit = 20.sp,
     settings: FormattingSettings = FormattingSettings(),
+    quoteBarColor: Color = FormattedTextColors.QuoteBarColor,
+    quoteBackgroundColor: Color = FormattedTextColors.QuoteBackground,
+    quoteBarWidth: androidx.compose.ui.unit.Dp = 3.dp,
+    quoteCornerRadius: androidx.compose.ui.unit.Dp = 6.dp,
     onMentionClick: (String) -> Unit = {},
     onHashtagClick: (String) -> Unit = {},
     onLinkClick: (String) -> Unit = {}
@@ -106,11 +111,14 @@ fun FormattedText(
                 }
 
                 is FormattedSegment.Quote -> {
-                    // Quote block with vertical bar
                     QuoteView(
-                        text = segment.text,
-                        textColor = color,
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        text            = segment.text,
+                        textColor       = color,
+                        barColor        = quoteBarColor,
+                        backgroundColor = quoteBackgroundColor,
+                        barWidth        = quoteBarWidth,
+                        cornerRadius    = quoteCornerRadius,
+                        modifier        = Modifier.padding(vertical = 4.dp)
                     )
                 }
 
@@ -330,41 +338,46 @@ fun CodeBlockView(
 }
 
 /**
- * Quote block with vertical bar
+ * Quote block with a coloured vertical bar — like Telegram blockquotes.
+ *
+ * @param barColor      Colour of the left accent bar (default: deep orange, à la Telegram).
+ * @param backgroundColor Background fill behind the quote text.
+ * @param barWidth      Width of the left bar in dp (CLASSIC = 3, PREMIUM = 4).
+ * @param cornerRadius  Corner radius of the background chip.
  */
 @Composable
 fun QuoteView(
     text: String,
     textColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    barColor: Color = FormattedTextColors.QuoteBarColor,
+    backgroundColor: Color = FormattedTextColors.QuoteBackground,
+    barWidth: androidx.compose.ui.unit.Dp = 3.dp,
+    cornerRadius: androidx.compose.ui.unit.Dp = 6.dp,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                color = FormattedTextColors.QuoteBackground,
-                shape = RoundedCornerShape(4.dp)
-            )
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .background(backgroundColor, RoundedCornerShape(cornerRadius))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        // Vertical bar
+        // Coloured vertical accent bar
         Box(
             modifier = Modifier
-                .width(3.dp)
-                .height(IntrinsicSize.Min)
+                .width(barWidth)
+                .heightIn(min = 16.dp)
                 .fillMaxHeight()
-                .background(
-                    color = FormattedTextColors.QuoteBarColor,
-                    shape = RoundedCornerShape(2.dp)
-                )
+                .background(barColor, RoundedCornerShape(barWidth / 2))
         )
 
-        // Quote text
+        // Quote text — italic, slightly dimmed
         Text(
             text = text,
-            color = textColor.copy(alpha = 0.8f),
+            color = textColor.copy(alpha = 0.85f),
             fontSize = 14.sp,
+            lineHeight = 20.sp,
             fontStyle = FontStyle.Italic,
             modifier = Modifier.weight(1f)
         )

@@ -1,6 +1,8 @@
 package com.worldmates.messenger.ui.channels
 
 import com.worldmates.messenger.util.toFullMediaUrl
+import com.worldmates.messenger.ui.components.formatting.FormattedText
+import com.worldmates.messenger.ui.components.formatting.FormattingSettings
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -317,13 +319,18 @@ fun ChannelPostCard(
                     onVote = { optionId -> onPollVote(post.poll.id, optionId) }
                 )
             } else if (post.text.isNotEmpty()) {
-                Text(
-                    text = post.text,
-                    fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 24.sp,
-                    letterSpacing = 0.15.sp,
-                    style = MaterialTheme.typography.bodyLarge
+                // CLASSIC style: Telegram-like orange quote bar
+                FormattedText(
+                    text              = post.text,
+                    fontSize          = 15.sp,
+                    lineHeight        = 24.sp,
+                    color             = MaterialTheme.colorScheme.onSurface,
+                    style             = MaterialTheme.typography.bodyLarge,
+                    quoteBarColor     = androidx.compose.ui.graphics.Color(0xFFFF7043),
+                    quoteBackgroundColor = androidx.compose.ui.graphics.Color(0x14FF7043),
+                    quoteBarWidth     = 3.dp,
+                    quoteCornerRadius = 6.dp,
+                    settings          = FormattingSettings(allowQuotes = true),
                 )
             }
 
