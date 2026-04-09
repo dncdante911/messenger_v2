@@ -254,7 +254,8 @@ export default function App() {
   const [searchQuery, setSearchQuery]   = useState('');
 
   // ── Send error banner ─────────────────────────────────────────────────────
-  const [sendError, setSendError]       = useState('');
+  const [sendError, setSendError]           = useState('');
+  const [signalResetStatus, setSignalResetStatus] = useState<'idle'|'working'|'done'|'error'>('idle');
 
   // ── Signal service ────────────────────────────────────────────────────────
   const signalRef = useRef<SignalService | null>(null);
@@ -1129,6 +1130,39 @@ export default function App() {
               <div className="settings-row">
                 <span>Keys registered</span>
                 <span className="badge-green">✓</span>
+              </div>
+              <div className="settings-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ fontSize: 12, opacity: 0.7 }}>
+                  If messages show "Encrypted message", reset your E2EE keys.
+                  This re-registers your device — contacts will be notified and
+                  both sides will automatically re-establish encryption.
+                </span>
+                <button
+                  className={signalResetStatus === 'done' ? 'btn-success' : 'btn-secondary'}
+                  disabled={signalResetStatus === 'working'}
+                  onClick={async () => {
+                    const svc = signalRef.current;
+                    if (!svc) return;
+                    setSignalResetStatus('working');
+                    try {
+                      svc.clearAllSignalState();
+                      await svc.ensureRegistered();
+                      setSignalResetStatus('done');
+                      // Re-init the service with the new keys
+                      signalRef.current = SignalService.getInstance(createNodeApiShim(session.token));
+                      setTimeout(() => setSignalResetStatus('idle'), 4000);
+                      console.info('[Signal] Keys reset and re-registered — contacts will receive identity_changed');
+                    } catch {
+                      setSignalResetStatus('error');
+                      setTimeout(() => setSignalResetStatus('idle'), 4000);
+                    }
+                  }}
+                >
+                  {signalResetStatus === 'working' ? 'Resetting…' :
+                   signalResetStatus === 'done'    ? '✓ Keys reset — reconnect Android' :
+                   signalResetStatus === 'error'   ? 'Error — try again' :
+                   'Reset E2EE keys'}
+                </button>
               </div>
             </div>
             <div className="settings-section">
