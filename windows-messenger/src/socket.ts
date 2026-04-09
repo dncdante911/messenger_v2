@@ -22,19 +22,22 @@ import type {
 // ─── Handler map ─────────────────────────────────────────────────────────────
 
 export type SocketHandlers = {
-  onStatus?:           (status: string) => void;
-  onMessage?:          (msg: MessageItem) => void;
-  onGroupMessage?:     (msg: MessageItem & { group_id: number }) => void;
-  onTyping?:           (event: TypingEvent) => void;
-  onTypingDone?:       (event: TypingEvent) => void;
-  onUserAction?:       (event: UserActionEvent) => void;
-  onMessageSeen?:      (event: MessageSeenEvent) => void;
-  onReaction?:         (event: MessageReactionEvent) => void;
-  onPinned?:           (event: MessagePinnedEvent) => void;
-  onUserOnline?:       (event: UserPresenceEvent) => void;
-  onUserOffline?:      (event: UserPresenceEvent) => void;
-  onCallSignal?:       (payload: CallSignalPayload) => void;
-  onIdentityChanged?:  (event: { user_id: number }) => void;
+  onStatus?:              (status: string) => void;
+  onMessage?:             (msg: MessageItem) => void;
+  onGroupMessage?:        (msg: MessageItem & { group_id: number }) => void;
+  onTyping?:              (event: TypingEvent) => void;
+  onTypingDone?:          (event: TypingEvent) => void;
+  onUserAction?:          (event: UserActionEvent) => void;
+  onMessageSeen?:         (event: MessageSeenEvent) => void;
+  onReaction?:            (event: MessageReactionEvent) => void;
+  onPinned?:              (event: MessagePinnedEvent) => void;
+  onUserOnline?:          (event: UserPresenceEvent) => void;
+  onUserOffline?:         (event: UserPresenceEvent) => void;
+  onCallSignal?:          (payload: CallSignalPayload) => void;
+  onIdentityChanged?:     (event: { user_id: number }) => void;
+  /** Server relays this when a remote peer's decryption failed —
+   *  we must clear our outgoing session so the next send includes X3DH. */
+  onSessionResetRequest?: (event: { from_user_id: number }) => void;
 };
 
 export type CallSignalPayload = {
@@ -127,6 +130,15 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
 
   socket.on('signal:identity_changed', (data: { user_id: number }) => {
     handlers.onIdentityChanged?.(data);
+  });
+
+  // ── Signal session reset request ─────────────────────────────────────────
+  // Server relays this when a peer's decryption failed (session desync).
+  // We clear our outgoing session so the next send includes fresh X3DH fields,
+  // letting the peer re-initialise their incoming session.
+
+  socket.on('signal:session_reset_request', (data: { from_user_id: number }) => {
+    handlers.onSessionResetRequest?.(data);
   });
 
   return socket;

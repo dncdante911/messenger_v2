@@ -301,6 +301,21 @@ export default function App() {
         // are always populated regardless of which field names the server uses.
         const msg = normaliseMessage(rawMsg as unknown as Record<string, unknown>);
         const decrypted = await tryDecryptMessage(msg);
+
+        // If decryption failed for an E2EE message that was sent with an EXISTING
+        // session (no X3DH fields), the sender's ratchet state is ahead of ours.
+        // Tell the sender to reset their session so the next send re-runs X3DH.
+        if (decrypted._decryptFailed && msg.cipher_version === 3 && s?.connected) {
+          try {
+            const hdr = msg.signal_header ? JSON.parse(msg.signal_header) as Record<string, unknown> : {};
+            const senderUsedExistingSession = !hdr['ik']; // no X3DH fields = existing DR session
+            if (senderUsedExistingSession && msg.from_id) {
+              s.emit('signal:session_reset_request', { target_user_id: msg.from_id });
+              console.info('[Signal] Emitted session_reset_request to user', msg.from_id);
+            }
+          } catch { /* parsing error — ignore */ }
+        }
+
         setMessages(prev => {
           // De-duplicate by id
           if (prev.some(m => m.id === decrypted.id)) return prev;
@@ -359,6 +374,16 @@ export default function App() {
           signalRef.current.clearSessionFor(e.user_id);
           console.info('[Signal] Cleared stale DR session for user', e.user_id,
             '(they re-registered their identity key)');
+        }
+      },
+
+      onSessionResetRequest: (e) => {
+        // Peer's decryption failed — our outgoing session is stale.
+        // Clear it so the next send includes X3DH headers and re-syncs both sides.
+        if (signalRef.current) {
+          signalRef.current.clearSessionFor(e.from_user_id);
+          console.info('[Signal] Session reset requested by user', e.from_user_id,
+            '— cleared outgoing session, next send will include X3DH');
         }
       },
     });
