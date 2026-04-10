@@ -216,11 +216,16 @@ ipcMain.handle('wm:request', async (_event, payload) => {
 
 /**
  * wm:notify  { title: string, body: string, chatId?: number }
- * Shows a native desktop notification only when the window is hidden / blurred.
- * Clicking the notification brings the window to front and opens the chat.
+ * Shows a native desktop notification.
+ * Skipped only when the window is both visible AND focused (user is actively
+ * reading the app). When hidden, minimised, or another OS window has focus
+ * the notification is always shown.
  */
 ipcMain.handle('wm:notify', (_e, { title, body, chatId }) => {
   if (!Notification.isSupported()) return;
+
+  // Suppress only when the user is actively looking at the app
+  if (mainWindow && mainWindow.isVisible() && mainWindow.isFocused()) return;
 
   const n = new Notification({ title, body, silent: false });
   n.on('click', () => {
