@@ -729,14 +729,15 @@ function quickVerify(ctx) {
 
 function register(ctx) {
     return async (req, res) => {
-        const L        = t(req);
-        const username = (req.body.username || '').trim();
-        const email    = (req.body.email    || '').trim().toLowerCase();
-        const phone    = (req.body.phone_number || '').trim();
-        const password = (req.body.password         || '').trim();
-        const confirm  = (req.body.confirm_password || '').trim();
-        const gender   = (req.body.gender   || 'male').trim();
-        const platform = (req.body.device_type || 'phone').trim();
+        const L          = t(req);
+        const username   = (req.body.username || '').trim();
+        const email      = (req.body.email    || '').trim().toLowerCase();
+        const phone      = (req.body.phone_number || '').trim();
+        const password   = (req.body.password         || '').trim();
+        const confirm    = (req.body.confirm_password || '').trim();
+        const gender     = (req.body.gender   || 'male').trim();
+        const platform   = (req.body.device_type || 'phone').trim();
+        const inviteCode = (req.body.invite_code || '').trim().toUpperCase();
 
         if (!username) {
             return res.json({ api_status: 400, error_message: L.username_required || 'Username is required' });
@@ -788,6 +789,24 @@ function register(ctx) {
             const hashedPassword = await hashPassword(password);
             const now            = Math.floor(Date.now() / 1000);
 
+            // ── Validate invite code before creating user (if provided) ───────
+            let inviteRow = null;
+            if (inviteCode) {
+                inviteRow = await ctx.sequelize.query(
+                    `SELECT id, type, expires_at FROM wm_invite_codes
+                      WHERE code = ? AND is_used = 0 LIMIT 1`,
+                    { replacements: [inviteCode], type: ctx.sequelize.QueryTypes.SELECT }
+                ).then(rows => rows[0] || null);
+
+                if (!inviteRow) {
+                    return res.json({ api_status: 400, error_message: L.invite_code_invalid || 'Invalid or already used invite code' });
+                }
+                if (inviteRow.expires_at && inviteRow.expires_at < now) {
+                    return res.json({ api_status: 400, error_message: L.invite_code_expired || 'Invite code has expired' });
+                }
+            }
+            // ─────────────────────────────────────────────────────────────────
+
             const user = await ctx.wo_users.create({
                 username,
                 email:        email || '',
@@ -804,20 +823,77 @@ function register(ctx) {
 
             console.log(`[Auth] User registered: ${username} (id=${user.user_id}, needsVerification=${needsVerification})`);
 
-            // ── Founding-member gift (first 250 users after launch) ──────────
+            // ── Early adopter gift + invite code redemption (single transaction) ─
             try {
-                const founderCount = await ctx.wo_users.unscoped().count({ where: { is_founder: 1 } });
-                if (founderCount < 250) {
-                    await ctx.wo_users.unscoped().update(
-                        { is_pro: '1', pro_time: 0, pro_type: '2', is_founder: 1 },
-                        { where: { user_id: user.user_id } }
-                    );
-                    console.log(`[Auth] 🏅 Founding member #${founderCount + 1}: ${username} (id=${user.user_id})`);
-                }
+                await ctx.sequelize.transaction(async (t) => {
+                    if (inviteCode && inviteRow) {
+                        // ── Redeem invite code ────────────────────────────────
+                        // Lock the row so a parallel request can't double-redeem
+                        const [locked] = await ctx.sequelize.query(
+                            `SELECT id FROM wm_invite_codes
+                              WHERE id = ? AND is_used = 0
+                              FOR UPDATE`,
+                            { replacements: [inviteRow.id], type: ctx.sequelize.QueryTypes.SELECT, transaction: t }
+                        );
+                        if (!locked) {
+                            throw new Error('INVITE_ALREADY_USED');
+                        }
+
+                        let proTime, proType;
+                        if (inviteRow.type === 'ultra') {
+                            // Lifetime premium: expires 2099-12-31
+                            proTime = Math.floor(new Date('2099-12-31T23:59:59Z').getTime() / 1000);
+                            proType = '3';   // lifetime / ULTRA tier
+                            console.log(`[Auth] 🌟 ULTRA invite redeemed by ${username} (id=${user.user_id})`);
+                        } else {
+                            // PRO: +1 year from activation, regardless of code remaining validity
+                            proTime = now + 365 * 24 * 60 * 60;
+                            proType = '2';
+                            console.log(`[Auth] ⭐ PRO invite redeemed by ${username} (id=${user.user_id})`);
+                        }
+
+                        await ctx.sequelize.query(
+                            `UPDATE wm_invite_codes
+                                SET is_used = 1, used_by = ?, used_at = ?
+                              WHERE id = ?`,
+                            { replacements: [user.user_id, now, inviteRow.id], transaction: t }
+                        );
+
+                        await ctx.wo_users.unscoped().update(
+                            { is_pro: '1', pro_time: proTime, pro_type: proType },
+                            { where: { user_id: user.user_id }, transaction: t }
+                        );
+
+                    } else {
+                        // ── Early adopter: user_id 101–850 → 3 months premium ─
+                        // Lock the user row to prevent concurrent registration race
+                        const [earlyUser] = await ctx.sequelize.query(
+                            `SELECT user_id FROM wo_users
+                              WHERE user_id = ? AND user_id BETWEEN 101 AND 850
+                              FOR UPDATE`,
+                            { replacements: [user.user_id], type: ctx.sequelize.QueryTypes.SELECT, transaction: t }
+                        );
+
+                        if (earlyUser) {
+                            const threeMonths = now + 90 * 24 * 60 * 60;
+                            await ctx.wo_users.unscoped().update(
+                                { is_pro: '1', pro_time: threeMonths, pro_type: '1' },
+                                { where: { user_id: user.user_id }, transaction: t }
+                            );
+                            console.log(`[Auth] 🎁 Early adopter #${user.user_id}: ${username} — 3 months premium`);
+                        }
+                    }
+                });
             } catch (e) {
-                console.error('[Auth] Founder check failed:', e.message);
+                if (e.message === 'INVITE_ALREADY_USED') {
+                    // Race condition: someone redeemed the same code a millisecond earlier
+                    // User is created but gets no premium — inform them
+                    console.warn(`[Auth] Invite code race for ${inviteCode} by ${username}`);
+                } else {
+                    console.error('[Auth] Premium grant failed:', e.message);
+                }
             }
-            // ────────────────────────────────────────────────────────────────
+            // ─────────────────────────────────────────────────────────────────
 
             if (needsVerification) {
                 return res.json({
