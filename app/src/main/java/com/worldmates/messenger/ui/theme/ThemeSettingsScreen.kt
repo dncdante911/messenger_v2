@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,7 +52,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -1804,161 +1807,101 @@ fun UIStyleToggleRow(
     onStyleSelected: (UIStyle) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         UIStyle.values().forEach { style ->
             val isSelected = style == currentStyle
+            val icon = when (style) {
+                UIStyle.WORLDMATES -> "🪟"
+                UIStyle.TELEGRAM   -> "📋"
+            }
             val label = when (style) {
                 UIStyle.WORLDMATES -> "WorldMates"
-                UIStyle.TELEGRAM -> stringResource(R.string.frame_style_classic)
+                UIStyle.TELEGRAM   -> stringResource(R.string.frame_style_classic)
             }
             val description = when (style) {
                 UIStyle.WORLDMATES -> stringResource(R.string.interface_modern_desc)
-                UIStyle.TELEGRAM -> stringResource(R.string.interface_classic_desc)
+                UIStyle.TELEGRAM   -> stringResource(R.string.interface_classic_desc)
             }
-
-            val scale by animateFloatAsState(
-                targetValue = if (isSelected) 1.03f else 1f,
-                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow),
-                label = "uistyle_scale_${style.name}"
-            )
-
-            val borderColor by animateColorAsState(
-                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                animationSpec = tween(300),
-                label = "uistyle_border_${style.name}"
-            )
-
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .scale(scale)
-                    .height(160.dp)
-                    .then(
-                        if (isSelected) Modifier.border(2.dp, borderColor, RoundedCornerShape(16.dp))
-                        else Modifier
-                    ),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isSelected)
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp),
+            StyleOptionRow(
+                icon = icon,
+                label = label,
+                description = description,
+                isSelected = isSelected,
                 onClick = { onStyleSelected(style) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun StyleOptionRow(
+    icon: String,
+    label: String,
+    description: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        else
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        animationSpec = tween(250),
+        label = "style_row_bg"
+    )
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = bgColor,
+        border = if (isSelected)
+            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+        else
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        tonalElevation = if (isSelected) 2.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(
+                        color = if (isSelected)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        else
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                        shape = RoundedCornerShape(10.dp)
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Visual mockup of the style
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                                else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-                            )
-                            .padding(6.dp)
-                    ) {
-                        if (style == UIStyle.WORLDMATES) {
-                            // Card-style mockup (gradient cards)
-                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                repeat(2) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(22.dp)
-                                            .background(
-                                                brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                                                    listOf(
-                                                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f)
-                                                    )
-                                                ),
-                                                shape = RoundedCornerShape(6.dp)
-                                            )
-                                    )
-                                }
-                            }
-                        } else {
-                            // List-style mockup (lines like Telegram)
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                repeat(3) { i ->
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(18.dp)
-                                                .background(
-                                                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                                                    shape = CircleShape
-                                                )
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth(if (i == 1) 0.9f else 0.7f)
-                                                .height(4.dp)
-                                                .background(
-                                                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
-                                                    shape = RoundedCornerShape(3.dp)
-                                                )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Label + checkmark
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = description,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 1.dp),
-                                maxLines = 2
-                            )
-                        }
-                        if (isSelected) {
-                            Icon(
-                                Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
+                Text(text = icon, fontSize = 22.sp)
             }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
+            }
+            RadioButton(
+                selected = isSelected,
+                onClick = null,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = MaterialTheme.colorScheme.primary
+                )
+            )
         }
     }
 }
@@ -2003,25 +1946,20 @@ fun ChannelViewStyleSelector(
     onStyleSelected: (ChannelViewStyle) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         ChannelViewStyleCard(
             title = stringResource(R.string.channel_style_classic),
             description = stringResource(R.string.channel_style_classic_desc),
-            emoji = "📋",
+            emoji = "📺",
             isSelected = currentStyle == ChannelViewStyle.CLASSIC,
-            onClick = { onStyleSelected(ChannelViewStyle.CLASSIC) },
-            modifier = Modifier.weight(1f)
+            onClick = { onStyleSelected(ChannelViewStyle.CLASSIC) }
         )
         ChannelViewStyleCard(
             title = stringResource(R.string.channel_style_premium),
             description = stringResource(R.string.channel_style_premium_desc),
             emoji = "⭐",
             isSelected = currentStyle == ChannelViewStyle.PREMIUM,
-            onClick = { onStyleSelected(ChannelViewStyle.PREMIUM) },
-            modifier = Modifier.weight(1f)
+            onClick = { onStyleSelected(ChannelViewStyle.PREMIUM) }
         )
     }
 }
@@ -2032,149 +1970,69 @@ private fun ChannelViewStyleCard(
     description: String,
     emoji: String,
     isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.03f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "channel_style_scale"
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        else
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        animationSpec = tween(250),
+        label = "channel_card_bg"
     )
-
-    val borderColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        animationSpec = tween(300),
-        label = "channel_style_border"
-    )
-
-    Card(
-        modifier = modifier
-            .scale(scale)
-            .height(170.dp)
-            .then(
-                if (isSelected) Modifier.border(
-                    width = 2.dp,
-                    color = borderColor,
-                    shape = RoundedCornerShape(16.dp)
-                ) else Modifier
-            ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected)
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-            else
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 4.dp else 1.dp
-        ),
-        onClick = onClick
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = bgColor,
+        border = if (isSelected)
+            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+        else
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        tonalElevation = if (isSelected) 2.dp else 0.dp
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Visual mockup preview of channel list
-            Column(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(42.dp)
                     .background(
-                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                        else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-                    )
-                    .padding(6.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                repeat(3) { i ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(22.dp)
-                                .background(
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                                    shape = CircleShape
-                                )
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(if (i == 0) 0.7f else if (i == 1) 0.85f else 0.6f)
-                                    .height(5.dp)
-                                    .background(
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
-                                        shape = RoundedCornerShape(3.dp)
-                                    )
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(if (i == 0) 0.5f else if (i == 1) 0.65f else 0.45f)
-                                    .height(4.dp)
-                                    .background(
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                        shape = RoundedCornerShape(3.dp)
-                                    )
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Title + checkmark row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
                         color = if (isSelected)
-                            MaterialTheme.colorScheme.primary
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                         else
-                            MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = description,
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 13.sp,
-                        maxLines = 2
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                if (isSelected) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .border(
-                                width = 1.5.dp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                shape = CircleShape
-                            )
-                    )
-                }
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                        shape = RoundedCornerShape(10.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = emoji, fontSize = 22.sp)
             }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
+            }
+            RadioButton(
+                selected = isSelected,
+                onClick = null,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = MaterialTheme.colorScheme.primary
+                )
+            )
         }
     }
 }
