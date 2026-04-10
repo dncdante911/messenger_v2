@@ -80,6 +80,7 @@
     <string name="invite_code_placeholder">ULTRA-XXXX-XXXX-XXXX</string>
     <string name="invite_code_invalid">Неверный или уже использованный инвайт-код</string>
     <string name="invite_code_expired">Срок действия инвайт-кода истёк</string>
+    <string name="invite_too_many_attempts">Слишком много неверных попыток. Попробуйте через 1 час</string>
     <string name="quick_reg_info">Введите email или телефон — мы отправим код подтверждения.\nНикаких логинов и паролей!</string>
     <string name="reg_method_title">Способ регистрации</string>
     <string name="error_registration">Ошибка регистрации</string>
