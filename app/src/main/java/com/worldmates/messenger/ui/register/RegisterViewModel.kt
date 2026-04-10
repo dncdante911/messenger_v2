@@ -18,7 +18,7 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
 
     private val api = NodeRetrofitClient.api
 
-    fun register(username: String, email: String, password: String, confirmPassword: String) {
+    fun register(username: String, email: String, password: String, confirmPassword: String, inviteCode: String = "") {
         if (username.isBlank() || email.isBlank() || password.isBlank()) {
             _registerState.value = RegisterState.Error("Заповніть всі поля")
             return
@@ -42,7 +42,8 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
                     username        = username,
                     email           = email,
                     password        = password,
-                    confirmPassword = confirmPassword
+                    confirmPassword = confirmPassword,
+                    inviteCode      = inviteCode.takeIf { it.isNotBlank() }
                 )
 
                 Log.d("RegisterViewModel", "apiStatus: ${response.apiStatus}, successType: ${response.successType}")
@@ -87,7 +88,8 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
         email:           String,
         password:        String,
         confirmPassword: String,
-        gender:          String = "male"
+        gender:          String = "male",
+        inviteCode:      String = ""
     ) {
         if (username.isBlank() || email.isBlank() || password.isBlank()) {
             _registerState.value = RegisterState.Error("Заповніть всі поля")
@@ -113,7 +115,8 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
                     email           = email,
                     password        = password,
                     confirmPassword = confirmPassword,
-                    gender          = gender
+                    gender          = gender,
+                    inviteCode      = inviteCode.takeIf { it.isNotBlank() }
                 )
 
                 Log.d("RegisterViewModel", "Email reg: apiStatus=${response.apiStatus}, successType=${response.successType}")
@@ -165,7 +168,8 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
         phoneNumber:     String,
         password:        String,
         confirmPassword: String,
-        gender:          String = "male"
+        gender:          String = "male",
+        inviteCode:      String = ""
     ) {
         if (username.isBlank() || phoneNumber.isBlank() || password.isBlank()) {
             _registerState.value = RegisterState.Error("Заповніть всі поля")
@@ -191,7 +195,8 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
                     phoneNumber     = phoneNumber,
                     password        = password,
                     confirmPassword = confirmPassword,
-                    gender          = gender
+                    gender          = gender,
+                    inviteCode      = inviteCode.takeIf { it.isNotBlank() }
                 )
 
                 Log.d("RegisterViewModel", "Phone reg: apiStatus=${response.apiStatus}, successType=${response.successType}")

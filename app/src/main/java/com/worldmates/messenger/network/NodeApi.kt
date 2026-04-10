@@ -969,7 +969,8 @@ interface NodeApi {
         @Field("password")         password:        String,
         @Field("confirm_password") confirmPassword: String,
         @Field("gender")           gender:          String  = "male",
-        @Field("device_type")      deviceType:      String  = "phone"
+        @Field("device_type")      deviceType:      String  = "phone",
+        @Field("invite_code")      inviteCode:      String? = null
     ): AuthResponse
 
     /** Send 6-digit OTP to an existing user for email/phone verification. */

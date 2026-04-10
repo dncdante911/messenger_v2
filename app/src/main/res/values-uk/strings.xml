@@ -76,6 +76,10 @@
     <string name="create_account_title">Створити акаунт</string>
     <string name="join_worldmates">Приєднуйтесь до WorldMates</string>
     <string name="passwords_mismatch">Паролі не співпадають</string>
+    <string name="invite_code_label">Інвайт-код (необов\'язково)</string>
+    <string name="invite_code_placeholder">ULTRA-XXXX-XXXX-XXXX</string>
+    <string name="invite_code_invalid">Невірний або вже використаний інвайт-код</string>
+    <string name="invite_code_expired">Термін дії інвайт-коду вийшов</string>
     <string name="quick_reg_info">Введіть email або телефон — ми надішлемо код підтвердження.\nНіяких логінів та паролів!</string>
     <string name="reg_method_title">Спосіб реєстрації</string>
     <string name="error_registration">Помилка реєстрації</string>

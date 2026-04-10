@@ -150,6 +150,7 @@ fun RegisterScreen(
     var selectedGender by remember { mutableStateOf("male") }
     var selectedCountry by remember { mutableStateOf(com.worldmates.messenger.ui.components.popularCountries[0]) }
     var selectedTab by remember { mutableStateOf(0) }
+    var inviteCode by remember { mutableStateOf("") }
     val registerState by viewModel.registerState.collectAsState()
     val isLoading = registerState is RegisterState.Loading
 
@@ -264,13 +265,15 @@ fun RegisterScreen(
                 onCountryChange = { selectedCountry = it },
                 selectedTab = selectedTab,
                 onTabChange = { selectedTab = it },
+                inviteCode = inviteCode,
+                onInviteCodeChange = { inviteCode = it.uppercase() },
                 isLoading = isLoading,
                 onRegisterClick = {
                     if (selectedTab == 0) {
                         // Email регистрация
                         if (username.isNotEmpty() && email.isNotEmpty() &&
                             password.isNotEmpty() && password == confirmPassword) {
-                            viewModel.registerWithEmail(username, email, password, confirmPassword, selectedGender)
+                            viewModel.registerWithEmail(username, email, password, confirmPassword, selectedGender, inviteCode)
                         }
                     } else {
                         // Phone регистрация - передаємо повний номер з кодом країни
@@ -279,7 +282,7 @@ fun RegisterScreen(
                             val fullPhone = com.worldmates.messenger.ui.components.getFullPhoneNumber(
                                 selectedCountry.dialCode, phoneNumber
                             )
-                            viewModel.registerWithPhone(username, fullPhone, password, confirmPassword, selectedGender)
+                            viewModel.registerWithPhone(username, fullPhone, password, confirmPassword, selectedGender, inviteCode)
                         }
                     }
                 },
@@ -355,6 +358,8 @@ fun RegisterFormCard(
     onCountryChange: (com.worldmates.messenger.ui.components.Country) -> Unit,
     selectedTab: Int,
     onTabChange: (Int) -> Unit,
+    inviteCode: String,
+    onInviteCodeChange: (String) -> Unit,
     isLoading: Boolean,
     onRegisterClick: () -> Unit,
     registerState: RegisterState
@@ -563,6 +568,24 @@ fun RegisterFormCard(
                     modifier = Modifier.padding(start = 16.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Invite code field (optional)
+            OutlinedTextField(
+                value = inviteCode,
+                onValueChange = onInviteCodeChange,
+                label = { Text(stringResource(R.string.invite_code_label)) },
+                placeholder = { Text(stringResource(R.string.invite_code_placeholder), color = Color.White.copy(alpha = 0.35f)) },
+                leadingIcon = {
+                    Icon(Icons.Default.CardGiftcard, contentDescription = null)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = premiumFieldColors()
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
