@@ -172,10 +172,15 @@ function lastMsgPreview(raw: unknown): string {
   if (typeof raw === 'object') {
     const m  = raw as Record<string, unknown>;
     const cv = m.cipher_version ? Number(m.cipher_version) : 0;
-    if (cv === 3) return '🔒 Encrypted message';
+    // Signal encrypted — return empty so the UI shows a translated placeholder
+    // and updates to plaintext once the first decrypted message arrives via socket.
+    if (cv === 3) return '';
     return toStr(m.decrypted_text ?? m.text, '');
   }
-  return toStr(raw, '');
+  // Raw string from server: if it looks like a base64 ciphertext return empty
+  const s = toStr(raw, '');
+  if (s.length > 30 && !/\s/.test(s) && /^[A-Za-z0-9+/=]+$/.test(s)) return '';
+  return s;
 }
 
 function normaliseChatItem(m: Record<string, unknown>): ChatItem {
