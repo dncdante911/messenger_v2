@@ -72,6 +72,34 @@ function previewLastMessage(raw: unknown): string {
   return text.slice(0, 50);
 }
 
+// ─── Notification sound ───────────────────────────────────────────────────────
+// Two-tone beep synthesised via Web Audio API — no external asset files needed.
+
+function playNotificationBeep(): void {
+  try {
+    const ctx = new AudioContext();
+
+    function tone(freq: number, startAt: number, duration: number, vol = 0.22) {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime + startAt);
+      gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + startAt + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startAt + duration);
+      osc.start(ctx.currentTime + startAt);
+      osc.stop(ctx.currentTime + startAt + duration);
+      return osc;
+    }
+
+    tone(880,  0,    0.22); // A5
+    const last = tone(1047, 0.18, 0.28); // C6
+    last.onended = () => { ctx.close().catch(() => {}); };
+  } catch { /* AudioContext unavailable */ }
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Avatar({ name, src, size = 40, online }: { name: string; src?: string; size?: number; online?: boolean }) {
@@ -277,8 +305,9 @@ export default function App() {
    */
   const pendingResetsRef = useRef<Set<number>>(new Set());
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const composerRef    = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef    = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const composerRef       = useRef<HTMLTextAreaElement>(null);
   const typingTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Session restore ──────────────────────────────────────────────────────
@@ -395,15 +424,21 @@ export default function App() {
           };
         }));
 
-        // Desktop notification — fires for incoming messages when the active
-        // chat is different OR the window does not have focus
-        if (isIncomingFromOther && (!isActiveChatNow || !document.hasFocus())) {
+        // Desktop notification + sound for incoming messages from other users.
+        // • Sound plays whenever the message is NOT in the currently-open chat
+        //   (so the user isn't beeped while actively reading the same thread).
+        // • Native popup is always sent to main process; main.cjs suppresses it
+        //   if the window is visible AND focused (document.hasFocus() is
+        //   unreliable in Electron when the window is hidden/minimised).
+        if (isIncomingFromOther) {
           const senderChat = chatsRef.current.find(c => c.user_id === chatPartnerId);
           const senderName = senderChat?.name ?? `User ${chatPartnerId}`;
-          const body = decrypted._decryptFailed
+          const msgBody = decrypted._decryptFailed
             ? t('bubble.encrypted')
             : asText(decrypted.text, t('bubble.media')).slice(0, 100);
-          window.desktopApp?.notify?.({ title: senderName, body, chatId: chatPartnerId });
+
+          if (!isActiveChatNow) playNotificationBeep();
+          window.desktopApp?.notify?.({ title: senderName, body: msgBody, chatId: chatPartnerId });
         }
 
         // After a successful X3DH session establishment (incoming message has `ik`
@@ -579,9 +614,20 @@ export default function App() {
   }, [session, selectedChat?.user_id]);
 
   // ─── Auto-scroll to bottom ────────────────────────────────────────────────
+  // Using scrollTop = scrollHeight on the container is far more reliable than
+  // scrollIntoView() inside a flex/overflow scroll container in Electron.
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = messagesScrollRef.current;
+    if (!el) return;
+    // Only auto-scroll when the user is already near the bottom (≤ 120 px),
+    // so we don't forcibly jump them away from old messages they're reading.
+    // For initial load the container height equals scrollHeight → always scrolls.
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 120;
+    if (nearBottom) {
+      // rAF ensures the new bubble is in the DOM before we measure
+      requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+    }
   }, [messages.length]);
 
   // ─── Signal decryption helper ─────────────────────────────────────────────
@@ -1293,7 +1339,7 @@ export default function App() {
             </div>
 
             {/* ── Messages ─────────────────────────────────────────────── */}
-            <div className="messages-scroll">
+            <div className="messages-scroll" ref={messagesScrollRef}>
               {hasMore && (
                 <button className="load-more" onClick={handleLoadMore}>{t('chat.loadEarlier')}</button>
               )}
