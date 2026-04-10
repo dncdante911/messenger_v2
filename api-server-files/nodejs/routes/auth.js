@@ -739,6 +739,18 @@ function register(ctx) {
         const platform   = (req.body.device_type || 'phone').trim();
         const inviteCode = (req.body.invite_code || '').trim().toUpperCase();
 
+        // ── Invite code format check (fast, no DB hit) ────────────────────────
+        // Valid formats:
+        //   ULTRA-XXXX-XXXX-XXXX
+        //   PRO-XXXX-XXXX-XXXX
+        //   BLOGGER-ULTRA-XXXX-XXXX-XXXX   (blogger prefix: 2–20 A-Z0-9)
+        //   BLOGGER-PRO-XXXX-XXXX-XXXX
+        const INVITE_REGEX = /^([A-Z][A-Z0-9]{1,19}-)?(ULTRA|PRO)-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/;
+        if (inviteCode && !INVITE_REGEX.test(inviteCode)) {
+            return res.json({ api_status: 400, error_message: L.invite_code_invalid || 'Invalid invite code format' });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         if (!username) {
             return res.json({ api_status: 400, error_message: L.username_required || 'Username is required' });
         }
@@ -789,9 +801,26 @@ function register(ctx) {
             const hashedPassword = await hashPassword(password);
             const now            = Math.floor(Date.now() / 1000);
 
-            // ── Validate invite code before creating user (if provided) ───────
+            // ── Brute-force protection + invite code validation ───────────────
+            // Per-IP counter stored in Redis. After 5 wrong codes → locked 1 hour.
+            const clientIp   = getClientIp(req);
+            const failKey    = `invite_fail:${clientIp}`;
+            const MAX_FAILS  = 5;
+            const LOCK_TTL   = 3600; // seconds
+
             let inviteRow = null;
             if (inviteCode) {
+                // Check if this IP is already locked out
+                const failCount = parseInt(await otpRedis.get(failKey) || '0');
+                if (failCount >= MAX_FAILS) {
+                    const ttl = await otpRedis.ttl(failKey);
+                    return res.json({
+                        api_status:    429,
+                        error_message: L.invite_too_many_attempts || 'Too many invalid invite code attempts. Try again in 1 hour.',
+                        retry_after:   ttl,
+                    });
+                }
+
                 inviteRow = await ctx.sequelize.query(
                     `SELECT id, type, expires_at FROM wm_invite_codes
                       WHERE code = ? AND is_used = 0 LIMIT 1`,
@@ -799,11 +828,24 @@ function register(ctx) {
                 ).then(rows => rows[0] || null);
 
                 if (!inviteRow) {
-                    return res.json({ api_status: 400, error_message: L.invite_code_invalid || 'Invalid or already used invite code' });
+                    // Record failed attempt
+                    await otpRedis.multi()
+                        .incr(failKey)
+                        .expire(failKey, LOCK_TTL)
+                        .exec();
+                    const remaining = MAX_FAILS - (failCount + 1);
+                    const msg = remaining > 0
+                        ? `${L.invite_code_invalid || 'Invalid or already used invite code'} (${remaining} attempts left)`
+                        : (L.invite_too_many_attempts || 'Too many invalid invite code attempts. Try again in 1 hour.');
+                    return res.json({ api_status: 400, error_message: msg });
                 }
                 if (inviteRow.expires_at && inviteRow.expires_at < now) {
+                    await otpRedis.multi().incr(failKey).expire(failKey, LOCK_TTL).exec();
                     return res.json({ api_status: 400, error_message: L.invite_code_expired || 'Invite code has expired' });
                 }
+
+                // Valid code — reset fail counter
+                await otpRedis.del(failKey);
             }
             // ─────────────────────────────────────────────────────────────────
 

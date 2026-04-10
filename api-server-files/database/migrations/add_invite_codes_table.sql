@@ -4,19 +4,17 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS `wm_invite_codes` (
-    `id`         INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-    `code`       VARCHAR(32)     NOT NULL,
+    `id`         INT              NOT NULL AUTO_INCREMENT,
+    `code`       VARCHAR(32)      NOT NULL,
     `type`       ENUM('ultra','pro') NOT NULL,
-    `is_used`    TINYINT(1)      NOT NULL DEFAULT 0,
-    `used_by`    INT UNSIGNED    NULL     DEFAULT NULL,
-    `used_at`    INT UNSIGNED    NULL     DEFAULT NULL,  -- unix timestamp
-    `created_at` INT UNSIGNED    NOT NULL,               -- unix timestamp
-    `expires_at` INT UNSIGNED    NULL     DEFAULT NULL,  -- unix timestamp; NULL = never expires
+    `is_used`    TINYINT(1)       NOT NULL DEFAULT 0,
+    `used_by`    INT              NULL     DEFAULT NULL,
+    `used_at`    INT              NULL     DEFAULT NULL,
+    `created_at` INT              NOT NULL,
+    `expires_at` INT              NULL     DEFAULT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_code` (`code`),
     KEY `idx_is_used` (`is_used`),
     KEY `idx_type` (`type`),
-    CONSTRAINT `fk_invite_used_by`
-        FOREIGN KEY (`used_by`) REFERENCES `wo_users` (`user_id`)
-        ON DELETE SET NULL ON UPDATE CASCADE
+    KEY `idx_used_by` (`used_by`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
