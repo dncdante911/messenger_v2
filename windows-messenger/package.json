@@ -3,6 +3,7 @@
   "productName": "WorldMates Messenger",
   "version": "0.2.0",
   "private": true,
+  "author": "WorldMates",
   "description": "Windows 10/11 desktop messenger client for WorldMates APIs",
   "main": "electron/main.cjs",
   "scripts": {
