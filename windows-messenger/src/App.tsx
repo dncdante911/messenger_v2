@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { t, initLang, setLang, getLang, translateSocketStatus, type Lang } from './i18n';
 import type { Socket } from 'socket.io-client';
 import {
   archiveChat, AuthError, clearHistory, createChannel, createGroup, createStory,
@@ -64,11 +65,11 @@ function avatarColor(name: string): string {
 
 /** Returns a human-readable preview of last_message, masking encrypted blobs. */
 function previewLastMessage(raw: unknown): string {
-  const t = asText(raw, '');
-  if (!t) return 'No messages';
+  const text = asText(raw, '');
+  if (!text) return t('misc.noMessages');
   // Base64-encoded ciphertext: long, no spaces, only base64 chars
-  if (t.length > 30 && !/\s/.test(t) && /^[A-Za-z0-9+/=]+$/.test(t)) return '🔒 Encrypted message';
-  return t.slice(0, 50);
+  if (text.length > 30 && !/\s/.test(text) && /^[A-Za-z0-9+/=]+$/.test(text)) return t('bubble.encrypted');
+  return text.slice(0, 50);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -120,10 +121,10 @@ function Bubble({
     >
       {showActions && (
         <div className={`bubble-actions ${isOwn ? 'actions-left' : 'actions-right'}`}>
-          <button className="action-btn" title="Reply" onClick={() => onReply(msg)}>↩</button>
-          <button className="action-btn" title="React" onClick={() => setShowEmojiPicker(v => !v)}>😀</button>
-          {isOwn && <button className="action-btn" title="Edit" onClick={() => onEdit(msg)}>✎</button>}
-          {isOwn && <button className="action-btn" title="Delete" onClick={() => onDelete(msg)}>🗑</button>}
+          <button className="action-btn" title={t('bubble.reply')} onClick={() => onReply(msg)}>↩</button>
+          <button className="action-btn" title={t('bubble.react')} onClick={() => setShowEmojiPicker(v => !v)}>😀</button>
+          {isOwn && <button className="action-btn" title={t('bubble.edit')} onClick={() => onEdit(msg)}>✎</button>}
+          {isOwn && <button className="action-btn" title={t('bubble.delete')} onClick={() => onDelete(msg)}>🗑</button>}
           {showEmojiPicker && (
             <div className="emoji-picker">
               {EMOJI_QUICK.map(e => (
@@ -140,8 +141,8 @@ function Bubble({
           <div className="reply-quote">
             <div className="reply-bar" />
             <div className="reply-content">
-              <span className="reply-from">{msg.reply_to.from_id === userId ? 'You' : 'User'}</span>
-              <span className="reply-text">{asText(msg.reply_to.text, '[media]').slice(0, 80)}</span>
+              <span className="reply-from">{msg.reply_to.from_id === userId ? t('bubble.you') : t('bubble.user')}</span>
+              <span className="reply-text">{asText(msg.reply_to.text, t('bubble.media')).slice(0, 80)}</span>
             </div>
           </div>
         )}
@@ -156,7 +157,7 @@ function Bubble({
                 : msg.media_type === 'audio' || msg.media_type === 'voice'
                   ? <audio src={msg.media} controls className="media-audio" />
                   : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">
-                      📎 {msg.media_filename ?? 'Download file'}
+                      📎 {msg.media_filename ?? t('misc.downloadFile')}
                     </a>
             }
           </div>
@@ -164,19 +165,19 @@ function Bubble({
 
         {/* Text */}
         {msg._decryptFailed ? (
-          <p className="bubble-text decrypt-msg">🔒 Encrypted message</p>
+          <p className="bubble-text decrypt-msg">{t('bubble.encrypted')}</p>
         ) : msg.text ? (
           <p className="bubble-text">
             {msg.text}
-            {msg.is_edited && <span className="edited-mark"> (edited)</span>}
+            {msg.is_edited && <span className="edited-mark">{t('bubble.edited')}</span>}
           </p>
         ) : msg.cipher_version === CIPHER_VERSION_SIGNAL ? (
-          <p className="bubble-text decrypt-msg">🔒 Encrypted message</p>
+          <p className="bubble-text decrypt-msg">{t('bubble.encrypted')}</p>
         ) : null}
 
         {/* Footer: time + status */}
         <div className="bubble-footer">
-          {isEncrypted && <span className="lock-icon" title="End-to-end encrypted">🔒</span>}
+          {isEncrypted && <span className="lock-icon" title={t('bubble.e2eTitle')}>🔒</span>}
           <time className="bubble-time">{formatTime(msg.time_text, msg.time)}</time>
           {isOwn && <span className="seen-tick">{msg.is_seen ? '✓✓' : '✓'}</span>}
         </div>
@@ -200,6 +201,15 @@ function Bubble({
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
+  // ── Language ───────────────────────────────────────────────────────────────
+  const [lang, setLangState] = useState<Lang>(() => { initLang(); return getLang(); });
+
+  function handleLangChange(l: Lang) {
+    setLang(l);
+    setLangState(l);
+    window.desktopApp?.setLanguage?.(l);
+  }
+
   // ── Auth state ─────────────────────────────────────────────────────────────
   const [session, setSession]       = useState<Session | null>(null);
   const [authMode, setAuthMode]     = useState<'login' | 'register'>('login');
@@ -367,12 +377,34 @@ export default function App() {
           }
           return prev;
         });
-        // Update last message in chat list
-        setChats(prev => prev.map(c =>
-          c.user_id === (decrypted.from_id === session.userId ? decrypted.to_id : decrypted.from_id)
-            ? { ...c, last_message: asText(decrypted.text, '[media]'), time: 'now' }
-            : c
-        ));
+
+        // Update last message + unread count in chat list
+        const chatPartnerId      = decrypted.from_id === session.userId ? decrypted.to_id : decrypted.from_id;
+        const isIncomingFromOther = decrypted.from_id !== session.userId;
+        const isActiveChatNow    = selectedChatRef.current?.user_id === chatPartnerId;
+
+        setChats(prev => prev.map(c => {
+          if (c.user_id !== chatPartnerId) return c;
+          return {
+            ...c,
+            last_message: asText(decrypted.text, t('bubble.media')),
+            time: 'now',
+            unread_count: isIncomingFromOther && !isActiveChatNow
+              ? (c.unread_count ?? 0) + 1
+              : c.unread_count,
+          };
+        }));
+
+        // Desktop notification — fires for incoming messages when the active
+        // chat is different OR the window does not have focus
+        if (isIncomingFromOther && (!isActiveChatNow || !document.hasFocus())) {
+          const senderChat = chatsRef.current.find(c => c.user_id === chatPartnerId);
+          const senderName = senderChat?.name ?? `User ${chatPartnerId}`;
+          const body = decrypted._decryptFailed
+            ? t('bubble.encrypted')
+            : asText(decrypted.text, t('bubble.media')).slice(0, 100);
+          window.desktopApp?.notify?.({ title: senderName, body, chatId: chatPartnerId });
+        }
 
         // After a successful X3DH session establishment (incoming message has `ik`
         // field), reload the current chat from the server and re-decrypt everything.
@@ -453,9 +485,31 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
-  // Keep a ref to selectedChat so socket callbacks can read it
+  // Keep refs so socket callbacks always read the latest values without stale closures
   const selectedChatRef = useRef<ChatItem | null>(null);
+  const chatsRef        = useRef<ChatItem[]>([]);
   useEffect(() => { selectedChatRef.current = selectedChat; }, [selectedChat]);
+  useEffect(() => { chatsRef.current = chats; }, [chats]);
+
+  // ─── Badge count (tray + taskbar overlay) ───────────────────────────────
+  useEffect(() => {
+    const total = chats.reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
+    window.desktopApp?.setBadge?.(total);
+  }, [chats]);
+
+  // ─── Open-chat from notification click ──────────────────────────────────
+  useEffect(() => {
+    window.desktopApp?.onOpenChat?.((chatId) => {
+      const chat = chatsRef.current.find(c => c.user_id === chatId);
+      if (chat) {
+        setSection('chats');
+        setSelectedChat(chat);
+        setChats(prev => prev.map(c => c.user_id === chatId ? { ...c, unread_count: 0 } : c));
+      }
+    });
+    return () => window.desktopApp?.offOpenChat?.();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── Load initial data ────────────────────────────────────────────────────
 
@@ -470,7 +524,7 @@ export default function App() {
       safe(loadChats(session.token, session.userId).then(r => {
         const list = r?.data ?? [];
         setChats(list);
-        if (list.length > 0 && !selectedChat) setSelectedChat(list[0]);
+        if (list.length > 0 && !selectedChat) selectChat(list[0]);
       })),
       safe(loadGroups(session.token).then(r    => setGroups(r?.data ?? []))),
       safe(loadChannels(session.token).then(r  => setChannels(r?.data ?? []))),
@@ -573,7 +627,7 @@ export default function App() {
           setSession(s);
           return;
         }
-        setAuthError(r.message ?? 'Registration failed.');
+        setAuthError(r.message ?? t('auth.error.regFailed'));
         return;
       }
       const r = loginBy === 'username'
@@ -586,9 +640,9 @@ export default function App() {
         setSession(s);
         return;
       }
-      setAuthError(r.message ?? 'Auth failed.');
+      setAuthError(r.message ?? t('auth.error.authFailed'));
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Unknown error');
+      setAuthError(err instanceof Error ? err.message : t('auth.error.unknown'));
     } finally {
       setAuthLoading(false);
     }
@@ -673,7 +727,7 @@ export default function App() {
     } catch (err) {
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
       console.error('Send failed:', err);
-      setSendError('Failed to send message. Server may be unavailable.');
+      setSendError(t('misc.sendError'));
       setTimeout(() => setSendError(''), 4000);
     }
   }
@@ -702,7 +756,7 @@ export default function App() {
   // ─── Message actions ──────────────────────────────────────────────────────
 
   function handleReply(msg: MessageItem) {
-    setReplyTarget({ id: msg.id, from_id: msg.from_id, text: asText(msg.text, '[media]') });
+    setReplyTarget({ id: msg.id, from_id: msg.from_id, text: asText(msg.text, t('bubble.media')) });
     composerRef.current?.focus();
   }
 
@@ -836,6 +890,13 @@ export default function App() {
     }
   }
 
+  // ─── Select chat (resets unread badge for that chat) ─────────────────────
+
+  function selectChat(chat: ChatItem) {
+    setSelectedChat(chat);
+    setChats(prev => prev.map(c => c.user_id === chat.user_id ? { ...c, unread_count: 0 } : c));
+  }
+
   // ─── Filtered lists ───────────────────────────────────────────────────────
 
   const filteredChats = chats.filter(c =>
@@ -857,53 +918,53 @@ export default function App() {
             <div className="auth-logo-icon">WM</div>
             <h1 className="auth-title">WorldMates</h1>
           </div>
-          <p className="auth-subtitle">Sign in to your messenger</p>
+          <p className="auth-subtitle">{t('auth.subtitle')}</p>
 
           <div className="tabs">
-            <button type="button" className={authMode === 'login' ? 'tab active' : 'tab'} onClick={() => setAuthMode('login')}>Sign In</button>
-            <button type="button" className={authMode === 'register' ? 'tab active' : 'tab'} onClick={() => setAuthMode('register')}>Register</button>
+            <button type="button" className={authMode === 'login' ? 'tab active' : 'tab'} onClick={() => setAuthMode('login')}>{t('auth.tab.login')}</button>
+            <button type="button" className={authMode === 'register' ? 'tab active' : 'tab'} onClick={() => setAuthMode('register')}>{t('auth.tab.register')}</button>
           </div>
 
           {authMode === 'login' && (
             <div className="tabs" style={{ marginTop: 0 }}>
-              <button type="button" className={loginBy === 'username' ? 'tab active' : 'tab'} onClick={() => setLoginBy('username')}>Username</button>
-              <button type="button" className={loginBy === 'phone' ? 'tab active' : 'tab'} onClick={() => setLoginBy('phone')}>Phone</button>
+              <button type="button" className={loginBy === 'username' ? 'tab active' : 'tab'} onClick={() => setLoginBy('username')}>{t('auth.field.username')}</button>
+              <button type="button" className={loginBy === 'phone' ? 'tab active' : 'tab'} onClick={() => setLoginBy('phone')}>{t('auth.field.phone')}</button>
             </div>
           )}
 
           {(authMode === 'register' || loginBy === 'username') && (
             <label className="field">
-              <span>Username</span>
+              <span>{t('auth.field.username')}</span>
               <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-                placeholder="your_username" autoComplete="username" required={authMode === 'register' || loginBy === 'username'} />
+                placeholder={t('auth.placeholder.username')} autoComplete="username" required={authMode === 'register' || loginBy === 'username'} />
             </label>
           )}
 
           {(authMode === 'register' || loginBy === 'phone') && (
             <label className="field">
-              <span>Phone</span>
+              <span>{t('auth.field.phone')}</span>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="+1 234 567 8900" autoComplete="tel" required={authMode === 'register' || loginBy === 'phone'} />
+                placeholder={t('auth.placeholder.phone')} autoComplete="tel" required={authMode === 'register' || loginBy === 'phone'} />
             </label>
           )}
 
           {authMode === 'register' && (
             <label className="field">
-              <span>Email</span>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" />
+              <span>{t('auth.field.email')}</span>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('auth.placeholder.email')} />
             </label>
           )}
 
           <label className="field">
-            <span>Password</span>
+            <span>{t('auth.field.password')}</span>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} required />
+              placeholder={t('auth.placeholder.password')} autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} required />
           </label>
 
           {authError && <div className="auth-error">{authError}</div>}
 
           <button className="btn-primary" type="submit" disabled={authLoading}>
-            {authLoading ? 'Please wait…' : authMode === 'register' ? 'Create account' : 'Sign in'}
+            {authLoading ? t('auth.loading') : authMode === 'register' ? t('auth.createAccount') : t('auth.signIn')}
           </button>
         </form>
       </div>
@@ -913,12 +974,12 @@ export default function App() {
   // ─── Render: Main App ─────────────────────────────────────────────────────
 
   const navItems: { key: ActiveSection; icon: string; label: string }[] = [
-    { key: 'chats',    icon: '💬', label: 'Chats'    },
-    { key: 'groups',   icon: '👥', label: 'Groups'   },
-    { key: 'channels', icon: '📢', label: 'Channels' },
-    { key: 'stories',  icon: '⭕', label: 'Stories'  },
-    { key: 'calls',    icon: '📞', label: 'Calls'    },
-    { key: 'settings', icon: '⚙️', label: 'Settings' },
+    { key: 'chats',    icon: '💬', label: t('nav.chats')    },
+    { key: 'groups',   icon: '👥', label: t('nav.groups')   },
+    { key: 'channels', icon: '📢', label: t('nav.channels') },
+    { key: 'stories',  icon: '⭕', label: t('nav.stories')  },
+    { key: 'calls',    icon: '📞', label: t('nav.calls')    },
+    { key: 'settings', icon: '⚙️', label: t('nav.settings') },
   ];
 
   return (
@@ -931,20 +992,19 @@ export default function App() {
             <Avatar name={(callState as { peer: ChatItem }).peer.name} size={72} />
             <h2>{(callState as { peer: ChatItem }).peer.name}</h2>
             <p className="call-status">
-              {callState.phase === 'outgoing' ? 'Calling…' :
-               callState.phase === 'incoming' ? 'Incoming call' : 'Connected'}
+              {callState.phase === 'outgoing' ? t('call.calling') :
+               callState.phase === 'incoming' ? t('call.incoming') : t('call.connected')}
             </p>
             <div className="call-actions">
               {callState.phase === 'incoming' && (
                 <button className="call-btn accept" onClick={() => {
-                  // Accept: peer connection already set in handleCallSignal
                   setCallState(prev => ({ ...prev, phase: 'connected', duration: 0 } as CallState));
                 }}>
-                  ✓ Accept
+                  {t('call.accept')}
                 </button>
               )}
               <button className="call-btn decline" onClick={endActiveCall}>
-                ✕ {callState.phase === 'incoming' ? 'Decline' : 'End'}
+                {callState.phase === 'incoming' ? t('call.decline') : t('call.end')}
               </button>
             </div>
           </div>
@@ -966,7 +1026,7 @@ export default function App() {
           ))}
         </div>
         <div className="rail-bottom">
-          <button className="rail-btn" title="Logout" onClick={logout}>
+          <button className="rail-btn" title={t('nav.logout')} onClick={logout}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" />
@@ -981,9 +1041,11 @@ export default function App() {
       <aside className="sidebar">
         <div className="sidebar-head">
           <h2 className="sidebar-title">
-            {section === 'chats' ? 'Messages' : section === 'groups' ? 'Groups' :
-             section === 'channels' ? 'Channels' : section === 'stories' ? 'Stories' :
-             section === 'calls' ? 'Calls' : 'Settings'}
+            {section === 'chats'    ? t('sidebar.messages') :
+             section === 'groups'   ? t('sidebar.groups')   :
+             section === 'channels' ? t('sidebar.channels') :
+             section === 'stories'  ? t('sidebar.stories')  :
+             section === 'calls'    ? t('sidebar.calls')    : t('sidebar.settings')}
           </h2>
           <div className="socket-badge" title={socketStatus}>
             <span className={`dot ${socketStatus.startsWith('Connected') ? 'green' : 'grey'}`} />
@@ -994,7 +1056,7 @@ export default function App() {
         {section === 'chats' && (
           <div className="search-box">
             <span className="search-icon">🔍</span>
-            <input placeholder="Search chats…" value={searchQuery}
+            <input placeholder={t('sidebar.search')} value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)} />
           </div>
         )}
@@ -1003,12 +1065,12 @@ export default function App() {
         {section === 'chats' && (
           <div className="list-scroll">
             {filteredChats.length === 0 && (
-              <div className="empty-state">No chats yet</div>
+              <div className="empty-state">{t('sidebar.noChats')}</div>
             )}
             {filteredChats.map(chat => (
               <button key={chat.user_id}
                 className={`chat-item ${selectedChat?.user_id === chat.user_id ? 'active' : ''}`}
-                onClick={() => setSelectedChat(chat)}
+                onClick={() => selectChat(chat)}
               >
                 <Avatar name={chat.name} src={chat.avatar} size={46} online={onlineUsers.has(chat.user_id)} />
                 <div className="chat-item-body">
@@ -1032,16 +1094,16 @@ export default function App() {
         {section === 'groups' && (
           <div className="list-scroll">
             <form className="create-form" onSubmit={handleCreateGroup}>
-              <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="New group name…" />
-              <button type="submit" className="btn-sm">Create</button>
+              <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder={t('sidebar.newGroupName')} />
+              <button type="submit" className="btn-sm">{t('sidebar.create')}</button>
             </form>
-            {groups.length === 0 && <div className="empty-state">No groups</div>}
+            {groups.length === 0 && <div className="empty-state">{t('sidebar.noGroups')}</div>}
             {groups.map(g => (
               <div key={g.id} className="list-item">
                 <Avatar name={asText(g.group_name, 'G')} src={g.avatar} size={44} />
                 <div className="list-item-body">
-                  <span className="list-item-name">{asText(g.group_name, 'Group')}</span>
-                  <span className="list-item-sub">{g.members_count ?? 0} members</span>
+                  <span className="list-item-name">{asText(g.group_name, t('nav.groups'))}</span>
+                  <span className="list-item-sub">{g.members_count ?? 0} {t('sidebar.members')}</span>
                 </div>
               </div>
             ))}
@@ -1052,17 +1114,17 @@ export default function App() {
         {section === 'channels' && (
           <div className="list-scroll">
             <form className="create-form" onSubmit={handleCreateChannel}>
-              <input value={newChannelName} onChange={e => setNewChannelName(e.target.value)} placeholder="Channel name…" />
-              <input value={newChannelDesc} onChange={e => setNewChannelDesc(e.target.value)} placeholder="Description…" />
-              <button type="submit" className="btn-sm">Create</button>
+              <input value={newChannelName} onChange={e => setNewChannelName(e.target.value)} placeholder={t('sidebar.channelName')} />
+              <input value={newChannelDesc} onChange={e => setNewChannelDesc(e.target.value)} placeholder={t('sidebar.description')} />
+              <button type="submit" className="btn-sm">{t('sidebar.create')}</button>
             </form>
-            {channels.length === 0 && <div className="empty-state">No channels</div>}
+            {channels.length === 0 && <div className="empty-state">{t('sidebar.noChannels')}</div>}
             {channels.map(c => (
               <div key={c.id} className="list-item">
                 <Avatar name={asText(c.name, 'C')} src={c.avatar_url} size={44} />
                 <div className="list-item-body">
-                  <span className="list-item-name">{asText(c.name, 'Channel')}</span>
-                  <span className="list-item-sub">{c.subscribers_count ?? 0} subscribers</span>
+                  <span className="list-item-name">{asText(c.name, t('nav.channels'))}</span>
+                  <span className="list-item-sub">{c.subscribers_count ?? 0} {t('sidebar.subscribers')}</span>
                 </div>
               </div>
             ))}
@@ -1074,11 +1136,11 @@ export default function App() {
           <div className="list-scroll">
             <form className="create-form" onSubmit={handleCreateStory}>
               <label className="file-label">
-                {newStoryFile ? newStoryFile.name : 'Choose image / video'}
+                {newStoryFile ? newStoryFile.name : t('sidebar.chooseMedia')}
                 <input type="file" accept="image/*,video/*" style={{ display: 'none' }}
                   onChange={e => setNewStoryFile(e.target.files?.[0] ?? null)} />
               </label>
-              <button type="submit" className="btn-sm" disabled={!newStoryFile}>Upload story</button>
+              <button type="submit" className="btn-sm" disabled={!newStoryFile}>{t('sidebar.uploadStory')}</button>
             </form>
             <div className="stories-grid">
               {stories.map(s => (
@@ -1101,12 +1163,12 @@ export default function App() {
           <div className="list-scroll">
             {selectedChat ? (
               <div className="call-controls">
-                <p className="call-target">Call: <strong>{selectedChat.name}</strong></p>
-                <button className="call-pill audio" onClick={() => startCall('audio')}>🎙 Voice call</button>
-                <button className="call-pill video" onClick={() => startCall('video')}>📹 Video call</button>
+                <p className="call-target">{t('call.callLabel')} <strong>{selectedChat.name}</strong></p>
+                <button className="call-pill audio" onClick={() => startCall('audio')}>🎙 {t('call.voiceCall')}</button>
+                <button className="call-pill video" onClick={() => startCall('video')}>📹 {t('call.videoCall')}</button>
               </div>
             ) : (
-              <div className="empty-state">Select a chat first</div>
+              <div className="empty-state">{t('call.selectChatFirst')}</div>
             )}
           </div>
         )}
@@ -1118,25 +1180,35 @@ export default function App() {
               <Avatar name={session.username} size={48} />
               <div>
                 <div className="settings-name">{session.username}</div>
-                <div className="settings-sub">User ID: {session.userId}</div>
+                <div className="settings-sub">{t('settings.userId')} {session.userId}</div>
               </div>
             </div>
             <div className="settings-section">
-              <div className="settings-label">Security</div>
+              <div className="settings-label">{t('settings.language')}</div>
               <div className="settings-row">
-                <span>End-to-end encryption</span>
-                <span className="badge-green">Signal Protocol v3</span>
+                {(['ru', 'uk', 'en'] as Lang[]).map(l => (
+                  <button key={l}
+                    className={lang === l ? 'tab active' : 'tab'}
+                    style={{ marginRight: 4 }}
+                    onClick={() => handleLangChange(l)}
+                  >
+                    {t(`lang.${l}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="settings-section">
+              <div className="settings-label">{t('settings.security')}</div>
+              <div className="settings-row">
+                <span>{t('settings.e2ee')}</span>
+                <span className="badge-green">{t('settings.signalBadge')}</span>
               </div>
               <div className="settings-row">
-                <span>Keys registered</span>
+                <span>{t('settings.keysReg')}</span>
                 <span className="badge-green">✓</span>
               </div>
               <div className="settings-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>
-                  If messages show "Encrypted message", reset your E2EE keys.
-                  This re-registers your device — contacts will be notified and
-                  both sides will automatically re-establish encryption.
-                </span>
+                <span style={{ fontSize: 12, opacity: 0.7 }}>{t('settings.e2eeHint')}</span>
                 <button
                   className={signalResetStatus === 'done' ? 'btn-success' : 'btn-secondary'}
                   disabled={signalResetStatus === 'working'}
@@ -1148,7 +1220,6 @@ export default function App() {
                       svc.clearAllSignalState();
                       await svc.ensureRegistered();
                       setSignalResetStatus('done');
-                      // Re-init the service with the new keys
                       signalRef.current = SignalService.getInstance(createNodeApiShim(session.token));
                       setTimeout(() => setSignalResetStatus('idle'), 4000);
                       console.info('[Signal] Keys reset and re-registered — contacts will receive identity_changed');
@@ -1158,21 +1229,21 @@ export default function App() {
                     }
                   }}
                 >
-                  {signalResetStatus === 'working' ? 'Resetting…' :
-                   signalResetStatus === 'done'    ? '✓ Keys reset — reconnect Android' :
-                   signalResetStatus === 'error'   ? 'Error — try again' :
-                   'Reset E2EE keys'}
+                  {signalResetStatus === 'working' ? t('settings.resetting') :
+                   signalResetStatus === 'done'    ? t('settings.keysReset') :
+                   signalResetStatus === 'error'   ? t('settings.errorRetry') :
+                   t('settings.resetKeys')}
                 </button>
               </div>
             </div>
             <div className="settings-section">
-              <div className="settings-label">Connection</div>
+              <div className="settings-label">{t('settings.connection')}</div>
               <div className="settings-row">
-                <span>Socket status</span>
-                <span>{socketStatus}</span>
+                <span>{t('settings.socketStatus')}</span>
+                <span>{translateSocketStatus(socketStatus)}</span>
               </div>
             </div>
-            <button className="btn-danger" onClick={logout}>Sign out</button>
+            <button className="btn-danger" onClick={logout}>{t('settings.signOut')}</button>
           </div>
         )}
       </aside>
@@ -1182,8 +1253,8 @@ export default function App() {
         {!selectedChat || (section !== 'chats' && section !== 'calls') ? (
           <div className="chat-empty">
             <div className="chat-empty-icon">💬</div>
-            <h3>Select a conversation</h3>
-            <p>Choose a chat from the list to start messaging</p>
+            <h3>{t('chat.selectConversation')}</h3>
+            <p>{t('chat.selectConversationHint')}</p>
           </div>
         ) : (
           <>
@@ -1196,26 +1267,26 @@ export default function App() {
                   <span className="chat-header-name">{selectedChat.name}</span>
                   <span className="chat-header-status">
                     {typingInChat
-                      ? 'typing…'
-                      : onlineUsers.has(selectedChat.user_id) ? 'online' : 'offline'}
+                      ? t('chat.typing')
+                      : onlineUsers.has(selectedChat.user_id) ? t('chat.online') : t('chat.offline')}
                   </span>
                 </div>
               </div>
               <div className="chat-header-actions">
-                <button className="icon-btn" title="Voice call" onClick={() => { setSection('calls'); startCall('audio'); }}>
+                <button className="icon-btn" title={t('call.voiceCall')} onClick={() => { setSection('calls'); startCall('audio'); }}>
                   🎙
                 </button>
-                <button className="icon-btn" title="Video call" onClick={() => { setSection('calls'); startCall('video'); }}>
+                <button className="icon-btn" title={t('call.videoCall')} onClick={() => { setSection('calls'); startCall('video'); }}>
                   📹
                 </button>
-                <button className="icon-btn" title="Mute" onClick={() => muteChat(session.token, selectedChat.user_id, true)}>
+                <button className="icon-btn" title={t('chat.mute')} onClick={() => muteChat(session.token, selectedChat.user_id, true)}>
                   🔕
                 </button>
-                <button className="icon-btn" title="Archive" onClick={() => archiveChat(session.token, selectedChat.user_id, true)}>
+                <button className="icon-btn" title={t('chat.archive')} onClick={() => archiveChat(session.token, selectedChat.user_id, true)}>
                   📦
                 </button>
-                <button className="icon-btn danger" title="Delete conversation"
-                  onClick={() => { if (window.confirm('Delete conversation?')) deleteConversation(session.token, selectedChat.user_id); }}>
+                <button className="icon-btn danger" title={t('chat.deleteConversation')}
+                  onClick={() => { if (window.confirm(t('chat.deleteConversationConfirm'))) deleteConversation(session.token, selectedChat.user_id); }}>
                   🗑
                 </button>
               </div>
@@ -1224,7 +1295,7 @@ export default function App() {
             {/* ── Messages ─────────────────────────────────────────────── */}
             <div className="messages-scroll">
               {hasMore && (
-                <button className="load-more" onClick={handleLoadMore}>Load earlier messages</button>
+                <button className="load-more" onClick={handleLoadMore}>{t('chat.loadEarlier')}</button>
               )}
 
               {messagesLoading && (
@@ -1235,7 +1306,7 @@ export default function App() {
 
               {!messagesLoading && msgLoadError && messages.length === 0 && (
                 <div className="msg-load-error">
-                  <p>Couldn't load messages.<br />Server may be temporarily unavailable.</p>
+                  <p>{t('chat.loadError').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}</p>
                   <button className="retry-btn" onClick={() => {
                     setMsgLoadError(false);
                     setMessagesLoading(true);
@@ -1257,7 +1328,7 @@ export default function App() {
                       if (!done) { setMsgLoadError(true); setMessagesLoading(false); }
                     };
                     attempt();
-                  }}>Retry</button>
+                  }}>{t('chat.retry')}</button>
                 </div>
               )}
 
@@ -1314,7 +1385,7 @@ export default function App() {
                   <div className="composer-banner-line" />
                   <div className="composer-banner-content">
                     <span className="composer-banner-label">
-                      {editingMsg ? '✎ Editing' : `↩ Reply to ${replyTarget!.from_id === session.userId ? 'yourself' : selectedChat.name}`}
+                      {editingMsg ? t('chat.editing') : `${t('chat.replyTo')}${replyTarget!.from_id === session.userId ? t('chat.yourself') : selectedChat.name}`}
                     </span>
                     <span className="composer-banner-text">
                       {editingMsg ? asText(editingMsg.text, '').slice(0, 60) : replyTarget!.text.slice(0, 60)}
@@ -1334,7 +1405,7 @@ export default function App() {
 
               <div className="composer-row">
                 {/* Attach button */}
-                <label className="icon-btn attach-btn" title="Attach file">
+                <label className="icon-btn attach-btn" title={t('chat.attachFile')}>
                   📎
                   <input type="file" style={{ display: 'none' }}
                     accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
@@ -1345,7 +1416,7 @@ export default function App() {
                 <textarea
                   ref={composerRef}
                   className="composer-input"
-                  placeholder={editingMsg ? 'Edit message…' : 'Write a message…'}
+                  placeholder={editingMsg ? t('chat.editPlaceholder') : t('chat.writePlaceholder')}
                   value={newMessage}
                   rows={1}
                   onChange={e => handleComposerInput(e.target.value)}
