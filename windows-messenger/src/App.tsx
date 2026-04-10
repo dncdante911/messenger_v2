@@ -79,24 +79,33 @@ function playNotificationBeep(): void {
   try {
     const ctx = new AudioContext();
 
-    function tone(freq: number, startAt: number, duration: number, vol = 0.22) {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, ctx.currentTime + startAt);
-      gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + startAt + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startAt + duration);
-      osc.start(ctx.currentTime + startAt);
-      osc.stop(ctx.currentTime + startAt + duration);
-      return osc;
+    function scheduleTones() {
+      function tone(freq: number, startAt: number, duration: number, vol = 0.22) {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, ctx.currentTime + startAt);
+        gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + startAt + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startAt + duration);
+        osc.start(ctx.currentTime + startAt);
+        osc.stop(ctx.currentTime + startAt + duration);
+        return osc;
+      }
+      tone(880,  0,    0.22); // A5
+      const last = tone(1047, 0.18, 0.28); // C6
+      last.onended = () => { ctx.close().catch(() => {}); };
     }
 
-    tone(880,  0,    0.22); // A5
-    const last = tone(1047, 0.18, 0.28); // C6
-    last.onended = () => { ctx.close().catch(() => {}); };
+    // Chromium/Electron may start AudioContext in 'suspended' state when there
+    // has been no prior user gesture.  Resume first, then schedule the tones.
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(scheduleTones).catch(() => {});
+    } else {
+      scheduleTones();
+    }
   } catch { /* AudioContext unavailable */ }
 }
 
@@ -414,9 +423,15 @@ export default function App() {
 
         setChats(prev => prev.map(c => {
           if (c.user_id !== chatPartnerId) return c;
+          // Only overwrite last_message when we have real decrypted text.
+          // If decryption failed or text is empty, keep the existing preview so
+          // the sidebar doesn't flash back to "No messages".
+          const newPreview = !decrypted._decryptFailed && decrypted.text
+            ? decrypted.text
+            : (decrypted.media ? t('bubble.media') : null);
           return {
             ...c,
-            last_message: asText(decrypted.text, t('bubble.media')),
+            ...(newPreview != null ? { last_message: newPreview } : {}),
             time: 'now',
             unread_count: isIncomingFromOther && !isActiveChatNow
               ? (c.unread_count ?? 0) + 1
@@ -614,20 +629,15 @@ export default function App() {
   }, [session, selectedChat?.user_id]);
 
   // ─── Auto-scroll to bottom ────────────────────────────────────────────────
-  // Using scrollTop = scrollHeight on the container is far more reliable than
-  // scrollIntoView() inside a flex/overflow scroll container in Electron.
+  // Direct scrollTop assignment on the container is reliable in Electron;
+  // scrollIntoView() targets the document viewport, not the inner container.
+  // rAF guarantees the new bubble is painted before we measure scrollHeight.
 
   useEffect(() => {
-    const el = messagesScrollRef.current;
-    if (!el) return;
-    // Only auto-scroll when the user is already near the bottom (≤ 120 px),
-    // so we don't forcibly jump them away from old messages they're reading.
-    // For initial load the container height equals scrollHeight → always scrolls.
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 120;
-    if (nearBottom) {
-      // rAF ensures the new bubble is in the DOM before we measure
-      requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
-    }
+    requestAnimationFrame(() => {
+      const el = messagesScrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
   }, [messages.length]);
 
   // ─── Signal decryption helper ─────────────────────────────────────────────
