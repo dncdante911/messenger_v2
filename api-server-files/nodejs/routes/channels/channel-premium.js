@@ -69,6 +69,7 @@ async function createWayforpayPayment({ orderId, amountUAH, plan, channelId }) {
     const secretKey       = process.env.WAYFORPAY_MERCHANT_SECRET;
     const merchantDomain  = process.env.WAYFORPAY_MERCHANT_DOMAIN || 'worldmates.club';
     const siteUrl         = process.env.SITE_URL || 'https://worldmates.club';
+    const webhookBase     = process.env.NODE_WEBHOOK_BASE_URL || siteUrl;
 
     if (!merchantAccount || !secretKey) throw new Error('Way4Pay credentials not configured');
 
@@ -90,7 +91,7 @@ async function createWayforpayPayment({ orderId, amountUAH, plan, channelId }) {
         productPrice:      [amountUAH],
         merchantSignature: signature,
         returnUrl: `${siteUrl}/channel-premium-success`,
-        serviceUrl: `${siteUrl}/api/node/channel-premium/wayforpay-webhook`
+        serviceUrl: `${webhookBase}/api/node/channel-premium/wayforpay-webhook`
     });
 
     return new Promise((resolve, reject) => {
@@ -122,14 +123,15 @@ function createLiqpayPayment({ orderId, amountUAH, plan, channelId }) {
     const privateKey = process.env.LIQPAY_PRIVATE_KEY;
     if (!publicKey || !privateKey) throw new Error('LiqPay credentials not configured');
 
-    const siteUrl  = process.env.SITE_URL || 'https://worldmates.club';
+    const siteUrl     = process.env.SITE_URL || 'https://worldmates.club';
+    const webhookBase = process.env.NODE_WEBHOOK_BASE_URL || siteUrl;
     const params   = {
         public_key: publicKey, version: '3', action: 'pay',
         amount: amountUAH, currency: 'UAH',
         description: `Channel Premium (${plan}) – channel #${channelId}`,
         order_id: orderId,
         result_url: `${siteUrl}/channel-premium-success`,
-        server_url: `${siteUrl}/api/node/channel-premium/liqpay-webhook`
+        server_url: `${webhookBase}/api/node/channel-premium/liqpay-webhook`
     };
     const data      = Buffer.from(JSON.stringify(params)).toString('base64');
     const signature = Buffer.from(crypto.createHash('sha1').update(privateKey + data + privateKey).digest()).toString('base64');
@@ -138,8 +140,9 @@ function createLiqpayPayment({ orderId, amountUAH, plan, channelId }) {
 
 // ─── Monobank helper ─────────────────────────────────────────────────────────
 async function createMonobankPayment({ orderId, amountUAH, plan, channelId }) {
-    const token   = process.env.MONOBANK_TOKEN;
-    const siteUrl = process.env.SITE_URL || 'https://worldmates.club';
+    const token       = process.env.MONOBANK_TOKEN;
+    const siteUrl     = process.env.SITE_URL || 'https://worldmates.club';
+    const webhookBase = process.env.NODE_WEBHOOK_BASE_URL || siteUrl;
     if (!token) throw new Error('MONOBANK_TOKEN not configured');
 
     const amountKopecks = Math.round(amountUAH * 100);
@@ -160,7 +163,7 @@ async function createMonobankPayment({ orderId, amountUAH, plan, channelId }) {
             }],
         },
         redirectUrl: `${siteUrl}/channel-premium-success?order=${orderId}&provider=monobank`,
-        webHookUrl:  `${siteUrl}/api/node/channel-premium/monobank-webhook`,
+        webHookUrl:  `${webhookBase}/api/node/channel-premium/monobank-webhook`,
         validity:    600,
         paymentType: 'debit',
     });

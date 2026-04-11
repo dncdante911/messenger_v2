@@ -90,6 +90,7 @@ async function createWayforpayPayment({ orderId, amountUAH, months, userId }) {
     const secretKey       = process.env.WAYFORPAY_MERCHANT_SECRET;
     const merchantDomain  = process.env.WAYFORPAY_MERCHANT_DOMAIN || 'worldmates.club';
     const siteUrl         = process.env.SITE_URL || 'https://worldmates.club';
+    const webhookBase     = process.env.NODE_WEBHOOK_BASE_URL || siteUrl;
 
     if (!merchantAccount || !secretKey) {
         throw new Error('Way4Pay credentials not configured (WAYFORPAY_MERCHANT_ACCOUNT / WAYFORPAY_MERCHANT_SECRET)');
@@ -131,7 +132,7 @@ async function createWayforpayPayment({ orderId, amountUAH, months, userId }) {
         defaultPaymentSystem: 'card',
         orderLifetime: 600,  // 10 minutes
         returnUrl: `${siteUrl}/premium/success?order=${orderId}&provider=wayforpay`,
-        serviceUrl: `${siteUrl}/api/node/subscription/wayforpay-webhook`
+        serviceUrl: `${webhookBase}/api/node/subscription/wayforpay-webhook`
     };
 
     return new Promise((resolve, reject) => {
@@ -169,9 +170,10 @@ function liqpaySignature(privateKey, data) {
 }
 
 function createLiqpayPayment({ orderId, amountUAH, months }) {
-    const publicKey  = process.env.LIQPAY_PUBLIC_KEY;
-    const privateKey = process.env.LIQPAY_PRIVATE_KEY;
-    const siteUrl    = process.env.SITE_URL || 'https://worldmates.club';
+    const publicKey   = process.env.LIQPAY_PUBLIC_KEY;
+    const privateKey  = process.env.LIQPAY_PRIVATE_KEY;
+    const siteUrl     = process.env.SITE_URL || 'https://worldmates.club';
+    const webhookBase = process.env.NODE_WEBHOOK_BASE_URL || siteUrl;
 
     if (!publicKey || !privateKey) {
         throw new Error('LiqPay credentials not configured (LIQPAY_PUBLIC_KEY / LIQPAY_PRIVATE_KEY)');
@@ -186,7 +188,7 @@ function createLiqpayPayment({ orderId, amountUAH, months }) {
         description:  `WorldMates PRO ${months} міс.`,
         order_id:     orderId,
         result_url:   `${siteUrl}/premium/success?order=${orderId}&provider=liqpay`,
-        server_url:   `${siteUrl}/api/node/subscription/liqpay-webhook`
+        server_url:   `${webhookBase}/api/node/subscription/liqpay-webhook`
     };
 
     const data      = Buffer.from(JSON.stringify(params)).toString('base64');
@@ -204,8 +206,9 @@ function createLiqpayPayment({ orderId, amountUAH, months }) {
  * Returns { invoiceUrl, invoiceId }
  */
 async function createMonobankPayment({ orderId, amountUAH, months }) {
-    const token   = process.env.MONOBANK_TOKEN;
-    const siteUrl = process.env.SITE_URL || 'https://worldmates.club';
+    const token       = process.env.MONOBANK_TOKEN;
+    const siteUrl     = process.env.SITE_URL || 'https://worldmates.club';
+    const webhookBase = process.env.NODE_WEBHOOK_BASE_URL || siteUrl;
 
     if (!token) {
         throw new Error('MONOBANK_TOKEN not configured');
@@ -229,7 +232,7 @@ async function createMonobankPayment({ orderId, amountUAH, months }) {
             }],
         },
         redirectUrl: `${siteUrl}/premium/success?order=${orderId}&provider=monobank`,
-        webHookUrl:  `${siteUrl}/api/node/subscription/monobank-webhook`,
+        webHookUrl:  `${webhookBase}/api/node/subscription/monobank-webhook`,
         validity:    600, // 10 minutes
         paymentType: 'debit',
     });
