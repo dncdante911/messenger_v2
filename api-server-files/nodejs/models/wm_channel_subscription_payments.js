@@ -4,7 +4,7 @@ module.exports = (sequelize, DataTypes) => {
         channel_id:    { type: DataTypes.INTEGER, allowNull: false },
         owner_user_id: { type: DataTypes.INTEGER, allowNull: false },
         order_id:      { type: DataTypes.STRING(64), allowNull: false, unique: true },
-        provider:      { type: DataTypes.ENUM('wayforpay', 'liqpay'), allowNull: false },
+        provider:      { type: DataTypes.ENUM('wayforpay', 'liqpay', 'monobank'), allowNull: false },
         plan:          { type: DataTypes.ENUM('monthly', 'quarterly', 'annual'), allowNull: false },
         amount_uah:    { type: DataTypes.DECIMAL(10, 2), allowNull: false },
         status:        { type: DataTypes.ENUM('pending', 'success', 'failed', 'refunded'), defaultValue: 'pending' },

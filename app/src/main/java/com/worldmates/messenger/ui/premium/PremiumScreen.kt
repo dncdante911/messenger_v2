@@ -120,11 +120,12 @@ fun PremiumScreen(viewModel: PremiumViewModel, onBack: () -> Unit) {
                 item {
                     Spacer(Modifier.height(20.dp))
                     PaymentButtons(
-                        isLoading  = state.isLoading,
-                        amountUah  = state.amountUah,
-                        months     = state.months,
+                        isLoading   = state.isLoading,
+                        amountUah   = state.amountUah,
+                        months      = state.months,
                         onWayForPay = { viewModel.pay(PaymentProvider.WAYFORPAY) },
-                        onLiqPay    = { viewModel.pay(PaymentProvider.LIQPAY) }
+                        onLiqPay    = { viewModel.pay(PaymentProvider.LIQPAY) },
+                        onMonoBank  = { viewModel.pay(PaymentProvider.MONOBANK) }
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -294,7 +295,8 @@ private fun PaymentButtons(
     amountUah: Int,
     months: Int,
     onWayForPay: () -> Unit,
-    onLiqPay: () -> Unit
+    onLiqPay: () -> Unit,
+    onMonoBank: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -317,7 +319,7 @@ private fun PaymentButtons(
             } else {
                 Icon(Icons.Default.CreditCard, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(8.dp))
-                Text("Оплатити через Way4Pay  •  $amountUah ₴",
+                Text("Way4Pay  •  $amountUah ₴",
                     color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
@@ -335,8 +337,25 @@ private fun PaymentButtons(
         ) {
             Icon(Icons.Default.CreditCard, contentDescription = null, tint = liqPayGreen)
             Spacer(Modifier.width(8.dp))
-            Text("Оплатити через LiqPay  •  $amountUah ₴",
+            Text("LiqPay  •  $amountUah ₴",
                 color = liqPayGreen, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        }
+
+        // Monobank — tertiary button
+        val monoBlack = Color(0xFF1A1A1A)
+        OutlinedButton(
+            onClick = onMonoBank,
+            enabled = !isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.5.dp, monoBlack)
+        ) {
+            Icon(Icons.Default.AccountBalance, contentDescription = null, tint = monoBlack)
+            Spacer(Modifier.width(8.dp))
+            Text("Monobank  •  $amountUah ₴",
+                color = monoBlack, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
     }
 }

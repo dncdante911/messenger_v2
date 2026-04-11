@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-enum class PaymentProvider { WAYFORPAY, LIQPAY }
+enum class PaymentProvider { WAYFORPAY, LIQPAY, MONOBANK }
 
 data class PremiumUiState(
     val isPro:        Boolean = false,
@@ -67,7 +67,11 @@ class PremiumViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 val api      = NodeRetrofitClient.subscriptionApi
-                val provStr  = if (provider == PaymentProvider.WAYFORPAY) "wayforpay" else "liqpay"
+                val provStr  = when (provider) {
+                    PaymentProvider.WAYFORPAY -> "wayforpay"
+                    PaymentProvider.LIQPAY    -> "liqpay"
+                    PaymentProvider.MONOBANK  -> "monobank"
+                }
                 val response = api.createPayment(months = months, provider = provStr)
                 if (response.apiStatus == 200 && response.paymentUrl.isNotBlank()) {
                     openUrl(response.paymentUrl)

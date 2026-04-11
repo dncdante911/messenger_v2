@@ -360,9 +360,9 @@ module.exports = function(sequelize, DataTypes) {
       defaultValue: 0
     },
     pro_type: {
-      type: DataTypes.ENUM('0','1','2','3','4'),
+      type: DataTypes.INTEGER,  // stores number of months purchased (0 = not pro / trial)
       allowNull: false,
-      defaultValue: "0"
+      defaultValue: 0
     },
     joined: {
       type: DataTypes.INTEGER,

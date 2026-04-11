@@ -8,6 +8,7 @@
  *   POST /api/node/channels/:channel_id/premium/create-payment — start payment (owner only)
  *   POST /api/node/channel-premium/wayforpay-webhook          — Way4Pay callback (no auth)
  *   POST /api/node/channel-premium/liqpay-webhook             — LiqPay callback (no auth)
+ *   POST /api/node/channel-premium/monobank-webhook           — Monobank callback (no auth)
  *
  * Plans and pricing:
  *   monthly   = 1 month  × BASE_CHANNEL_PRICE_UAH × 1.00
@@ -16,7 +17,7 @@
  *
  * Env vars:
  *   CHANNEL_SUBSCRIPTION_PRICE_UAH  — base price per month (default: 299)
- *   (reuses WAYFORPAY_* and LIQPAY_* from subscription.js)
+ *   (reuses WAYFORPAY_*, LIQPAY_*, MONOBANK_TOKEN from subscription.js)
  */
 
 const crypto  = require('crypto');
@@ -135,6 +136,65 @@ function createLiqpayPayment({ orderId, amountUAH, plan, channelId }) {
     return { data, signature, checkoutUrl: `https://www.liqpay.ua/api/3/checkout` };
 }
 
+// ─── Monobank helper ─────────────────────────────────────────────────────────
+async function createMonobankPayment({ orderId, amountUAH, plan, channelId }) {
+    const token   = process.env.MONOBANK_TOKEN;
+    const siteUrl = process.env.SITE_URL || 'https://worldmates.club';
+    if (!token) throw new Error('MONOBANK_TOKEN not configured');
+
+    const amountKopecks = Math.round(amountUAH * 100);
+    const description   = `Channel Premium (${plan}) – channel #${channelId}`;
+
+    const payload = JSON.stringify({
+        amount:      amountKopecks,
+        ccy:         980,
+        merchantPaymInfo: {
+            reference:   orderId,
+            destination: description,
+            basketOrder: [{
+                name:   description,
+                qty:    1,
+                sum:    amountKopecks,
+                icon:   `${siteUrl}/favicon.ico`,
+                unit:   'шт',
+            }],
+        },
+        redirectUrl: `${siteUrl}/channel-premium-success?order=${orderId}&provider=monobank`,
+        webHookUrl:  `${siteUrl}/api/node/channel-premium/monobank-webhook`,
+        validity:    600,
+        paymentType: 'debit',
+    });
+
+    return new Promise((resolve, reject) => {
+        const req = https.request({
+            hostname: 'api.monobank.ua',
+            path:     '/api/merchant/invoice/create',
+            method:   'POST',
+            headers:  {
+                'X-Token':        token,
+                'Content-Type':   'application/json',
+                'Content-Length': Buffer.byteLength(payload),
+            },
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.invoiceId && json.pageUrl) {
+                        resolve({ invoiceUrl: json.pageUrl, invoiceId: json.invoiceId });
+                    } else {
+                        reject(new Error(json.errText || JSON.stringify(json)));
+                    }
+                } catch (e) { reject(e); }
+            });
+        });
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+    });
+}
+
 // ─── Activate helper ──────────────────────────────────────────────────────────
 async function activateChannelPremium(ctx, channelId, plan) {
     if (!ctx.wm_channel_subscriptions) return;
@@ -238,6 +298,9 @@ module.exports = function registerChannelPremiumRoutes(app, ctx) {
                 if (provider === 'liqpay') {
                     const liqpay = createLiqpayPayment({ orderId, amountUAH, plan, channelId });
                     return res.json({ api_status: 200, provider: 'liqpay', ...liqpay, order_id: orderId, amount_uah: amountUAH });
+                } else if (provider === 'monobank') {
+                    const mono = await createMonobankPayment({ orderId, amountUAH, plan, channelId });
+                    return res.json({ api_status: 200, provider: 'monobank', invoice_url: mono.invoiceUrl, invoice_id: mono.invoiceId, order_id: orderId, amount_uah: amountUAH });
                 } else {
                     const w4p = await createWayforpayPayment({ orderId, amountUAH, plan, channelId });
                     return res.json({ api_status: 200, provider: 'wayforpay', invoice_url: w4p.invoiceUrl, order_id: orderId, amount_uah: amountUAH });
@@ -279,9 +342,13 @@ module.exports = function registerChannelPremiumRoutes(app, ctx) {
 
             const merchantAccount = process.env.WAYFORPAY_MERCHANT_ACCOUNT;
             const secretKey       = process.env.WAYFORPAY_MERCHANT_SECRET;
-            const time            = Math.floor(Date.now() / 1000);
-            const sigStr          = [merchantAccount, orderId, time].join(';');
-            const sig             = crypto.createHmac('md5', secretKey || '').update(sigStr).digest('hex');
+            if (!secretKey) {
+                console.error('[ChannelPremium] WAYFORPAY_MERCHANT_SECRET not set');
+                return res.status(500).end();
+            }
+            const time   = Math.floor(Date.now() / 1000);
+            const sigStr = [merchantAccount, orderId, time].join(';');
+            const sig    = crypto.createHmac('md5', secretKey).update(sigStr).digest('hex');
 
             return res.json({ orderReference: orderId, status: 'accept', time, signature: sig });
         } catch (e) {
@@ -332,6 +399,48 @@ module.exports = function registerChannelPremiumRoutes(app, ctx) {
             return res.status(200).end();
         } catch (e) {
             console.error('[ChannelPremium] LiqPay webhook error:', e);
+            return res.status(500).end();
+        }
+    });
+
+    // ── Monobank webhook (no auth) ───────────────────────────────────────────
+    app.post('/api/node/channel-premium/monobank-webhook', async (req, res) => {
+        try {
+            // Optional HMAC-SHA256 verification
+            const secret = process.env.MONOBANK_WEBHOOK_SECRET;
+            if (secret) {
+                const xSign    = req.headers['x-sign'];
+                const rawBody  = req.body ? JSON.stringify(req.body) : '';
+                const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
+                if (xSign !== expected) {
+                    console.warn('[ChannelPremium] Monobank invalid webhook signature');
+                    return res.status(400).json({ status: 'fail', code: 'INVALID_SIGNATURE' });
+                }
+            }
+
+            const { status, reference } = req.body;
+            console.log(`[ChannelPremium] Monobank webhook: reference=${reference} status=${status}`);
+
+            if (status === 'success' && reference) {
+                if (ctx.wm_channel_subscription_payments) {
+                    const payment = await ctx.wm_channel_subscription_payments.findOne({
+                        where: { order_id: reference }, raw: true
+                    });
+                    if (payment && payment.status !== 'success') {
+                        await ctx.wm_channel_subscription_payments.update(
+                            { status: 'success', raw_response: JSON.stringify(req.body) },
+                            { where: { order_id: reference } }
+                        );
+                        await activateChannelPremium(ctx, payment.channel_id, payment.plan);
+                    } else if (!payment) {
+                        console.warn(`[ChannelPremium] Monobank webhook: order ${reference} not found`);
+                    }
+                }
+            }
+
+            return res.status(200).json({ status: 'ok' });
+        } catch (e) {
+            console.error('[ChannelPremium] Monobank webhook error:', e);
             return res.status(500).end();
         }
     });
