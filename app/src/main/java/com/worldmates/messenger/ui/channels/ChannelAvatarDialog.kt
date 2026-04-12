@@ -10,8 +10,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.worldmates.messenger.R
 
 /**
  * 📸 Діалог вибору джерела для зміни аватара каналу
@@ -39,7 +41,7 @@ fun ChannelAvatarDialog(
             ) {
                 // Title
                 Text(
-                    text = "Змінити аватар каналу",
+                    text = stringResource(R.string.change_channel_avatar),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -55,13 +57,13 @@ fun ChannelAvatarDialog(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Camera",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "Зробити фото",
+                        text = stringResource(R.string.take_photo),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -82,13 +84,13 @@ fun ChannelAvatarDialog(
                 ) {
                     Icon(
                         imageVector = Icons.Default.PhotoLibrary,
-                        contentDescription = "Gallery",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "Вибрати з галереї",
+                        text = stringResource(R.string.choose_from_gallery),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -101,7 +103,7 @@ fun ChannelAvatarDialog(
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         }

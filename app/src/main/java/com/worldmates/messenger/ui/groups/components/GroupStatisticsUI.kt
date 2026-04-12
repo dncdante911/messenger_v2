@@ -175,16 +175,16 @@ fun StatisticsOverviewCards(statistics: GroupStatistics) {
         ) {
             StatCard(
                 icon = Icons.Default.Visibility,
-                title = "Активних (24г)",
+                title = stringResource(R.string.active_members_24h),
                 value = statistics.activeMembers24h.toString(),
-                subtitle = "учасників",
+                subtitle = stringResource(R.string.stat_members_label),
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 icon = Icons.Default.TrendingUp,
-                title = "Активних (тижд.)",
+                title = stringResource(R.string.active_members_week),
                 value = statistics.activeMembersWeek.toString(),
-                subtitle = "учасників",
+                subtitle = stringResource(R.string.stat_members_label),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -282,7 +282,7 @@ fun ActivityChartCard(statistics: GroupStatistics) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Активність за тиждень",
+                text = stringResource(R.string.stat_activity_week),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -291,13 +291,13 @@ fun ActivityChartCard(statistics: GroupStatistics) {
 
             // Simple bar chart
             val weekData = listOf(
-                "Пн" to (statistics.messagesThisWeek / 7 * 0.8f).toInt(),
-                "Вт" to (statistics.messagesThisWeek / 7 * 1.2f).toInt(),
-                "Ср" to (statistics.messagesThisWeek / 7 * 1.0f).toInt(),
-                "Чт" to (statistics.messagesThisWeek / 7 * 0.9f).toInt(),
-                "Пт" to (statistics.messagesThisWeek / 7 * 1.3f).toInt(),
-                "Сб" to (statistics.messagesThisWeek / 7 * 0.7f).toInt(),
-                "Нд" to (statistics.messagesThisWeek / 7 * 0.6f).toInt()
+                stringResource(R.string.day_mon) to (statistics.messagesThisWeek / 7 * 0.8f).toInt(),
+                stringResource(R.string.day_tue) to (statistics.messagesThisWeek / 7 * 1.2f).toInt(),
+                stringResource(R.string.day_wed) to (statistics.messagesThisWeek / 7 * 1.0f).toInt(),
+                stringResource(R.string.day_thu) to (statistics.messagesThisWeek / 7 * 0.9f).toInt(),
+                stringResource(R.string.day_fri) to (statistics.messagesThisWeek / 7 * 1.3f).toInt(),
+                stringResource(R.string.day_sat) to (statistics.messagesThisWeek / 7 * 0.7f).toInt(),
+                stringResource(R.string.day_sun) to (statistics.messagesThisWeek / 7 * 0.6f).toInt()
             )
 
             val maxValue = weekData.maxOfOrNull { it.second } ?: 1
@@ -353,7 +353,7 @@ fun MembersGrowthCard(statistics: GroupStatistics) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Динаміка учасників",
+                text = stringResource(R.string.stat_members_dynamics),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -385,7 +385,7 @@ fun MembersGrowthCard(statistics: GroupStatistics) {
                         color = Color(0xFF4CAF50)
                     )
                     Text(
-                        text = "Сьогодні",
+                        text = stringResource(R.string.stat_today),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -412,7 +412,7 @@ fun MembersGrowthCard(statistics: GroupStatistics) {
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "За тиждень",
+                        text = stringResource(R.string.stat_this_week),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -439,7 +439,7 @@ fun MembersGrowthCard(statistics: GroupStatistics) {
                         color = MaterialTheme.colorScheme.error
                     )
                     Text(
-                        text = "Вийшли",
+                        text = stringResource(R.string.stat_left_members),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -463,7 +463,7 @@ fun MembersGrowthCard(statistics: GroupStatistics) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Ріст за тиждень: ${if (statistics.growthRate >= 0) "+" else ""}${statistics.growthRate}%",
+                    text = stringResource(R.string.stat_weekly_growth, "${if (statistics.growthRate >= 0) "+" else ""}${statistics.growthRate}%"),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (statistics.growthRate >= 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
@@ -494,7 +494,7 @@ fun TopContributorsCard(contributors: List<TopContributor>) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Топ контриб'ютори",
+                    text = stringResource(R.string.stat_top_contributors),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -504,7 +504,7 @@ fun TopContributorsCard(contributors: List<TopContributor>) {
 
             if (contributors.isEmpty()) {
                 Text(
-                    text = "Дані недоступні",
+                    text = stringResource(R.string.stat_data_unavailable),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -586,7 +586,7 @@ private fun ContributorItem(
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "повідомлень",
+                text = stringResource(R.string.stat_messages_label),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -615,7 +615,7 @@ fun PeakHoursCard(peakHours: List<Int>) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Пікові години",
+                    text = stringResource(R.string.stat_peak_hours_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -625,7 +625,7 @@ fun PeakHoursCard(peakHours: List<Int>) {
 
             if (peakHours.isEmpty()) {
                 Text(
-                    text = "Дані недоступні",
+                    text = stringResource(R.string.stat_data_unavailable),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -682,7 +682,7 @@ fun PeakHoursCard(peakHours: List<Int>) {
                 // Top peak hours
                 val sortedPeaks = peakHours.take(3).sortedDescending()
                 Text(
-                    text = "Найактивніші години: ${sortedPeaks.joinToString(", ") { "${it}:00" }}",
+                    text = stringResource(R.string.stat_most_active_hours_fmt, sortedPeaks.joinToString(", ") { "${it}:00" }),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -720,7 +720,7 @@ fun CompactStatisticsCard(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Статистика групи",
+                    text = stringResource(R.string.group_statistics),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -741,15 +741,15 @@ fun CompactStatisticsCard(
                 ) {
                     MiniStat(
                         value = statistics.membersCount.toString(),
-                        label = "Учасників"
+                        label = stringResource(R.string.members_count_label)
                     )
                     MiniStat(
                         value = statistics.messagesToday.toString(),
-                        label = "Сьогодні"
+                        label = stringResource(R.string.stat_today)
                     )
                     MiniStat(
                         value = statistics.activeMembers24h.toString(),
-                        label = "Активних"
+                        label = stringResource(R.string.stat_active_label)
                     )
                 }
             }

@@ -1,5 +1,6 @@
 package com.worldmates.messenger.ui.groups
 
+import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -24,6 +25,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -176,7 +178,7 @@ fun ModernGroupCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${group.membersCount} ${getMemberText(group.membersCount)}",
+                            text = "${group.membersCount} ${getMemberText(group.membersCount, LocalContext.current)}",
                             fontSize = 14.sp,
                             color = Color.White.copy(alpha = 0.8f)
                         )
@@ -204,7 +206,7 @@ fun ModernGroupCard(
                     group.lastActivity?.let { lastActivity ->
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = formatLastActivity(lastActivity),
+                            text = formatLastActivity(lastActivity, LocalContext.current),
                             fontSize = 12.sp,
                             color = Color.White.copy(alpha = 0.6f)
                         )
@@ -298,7 +300,7 @@ fun EmptyGroupsPlaceholder(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Ще немає груп",
+            text = stringResource(R.string.no_groups_yet),
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -307,7 +309,7 @@ fun EmptyGroupsPlaceholder(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Створіть свою першу групу для\nспілкування з друзями",
+            text = stringResource(R.string.no_groups_create_hint),
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -328,7 +330,7 @@ fun EmptyGroupsPlaceholder(
             Icon(Icons.Default.Add, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Створити групу",
+                text = stringResource(R.string.create_group),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -354,7 +356,7 @@ fun GroupsSearchBar(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         placeholder = {
             Text(
-                "Пошук груп...",
+                stringResource(R.string.search_groups_hint),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         },
@@ -417,28 +419,28 @@ fun GroupFilterChip(
 }
 
 /**
- * Хелпер для форматування кількості членів
+ * Хелпер для форматування кількості членів (plural forms)
  */
-private fun getMemberText(count: Int): String {
+private fun getMemberText(count: Int, context: Context): String {
     return when {
-        count % 10 == 1 && count % 100 != 11 -> "учасник"
-        count % 10 in 2..4 && (count % 100 < 10 || count % 100 >= 20) -> "учасники"
-        else -> "учасників"
+        count % 10 == 1 && count % 100 != 11 -> context.getString(R.string.member_one)
+        count % 10 in 2..4 && (count % 100 < 10 || count % 100 >= 20) -> context.getString(R.string.member_few)
+        else -> context.getString(R.string.members_many)
     }
 }
 
 /**
  * Хелпер для форматування останньої активності
  */
-private fun formatLastActivity(timestamp: Long): String {
+private fun formatLastActivity(timestamp: Long, context: Context): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
 
     return when {
-        diff < 60000 -> "щойно"
-        diff < 3600000 -> "${diff / 60000} хв тому"
-        diff < 86400000 -> "${diff / 3600000} год тому"
-        diff < 604800000 -> "${diff / 86400000} дн тому"
+        diff < 60000 -> context.getString(R.string.time_just_now)
+        diff < 3600000 -> context.getString(R.string.time_minutes_ago, diff / 60000)
+        diff < 86400000 -> context.getString(R.string.time_hours_ago, diff / 3600000)
+        diff < 604800000 -> context.getString(R.string.time_days_ago, diff / 86400000)
         else -> SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(timestamp))
     }
 }
