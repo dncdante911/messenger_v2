@@ -3412,4 +3412,40 @@
     <string name="webp_optimized">Оптимизировано (WebP)</string>
     <!-- Метка анимированного медиафайла (WebP animated / GIF) в галерее -->
     <string name="media_animated_label">Анимированное</string>
+
+    <!-- ===== GROUP / CHANNEL STATISTICS ===== -->
+    <string name="stat_activity_week">Активность за неделю</string>
+    <string name="stat_members_dynamics">Динамика участников</string>
+    <string name="stat_left_members">Вышли</string>
+    <string name="stat_top_contributors">Топ вкладчиков</string>
+    <string name="stat_data_unavailable">Данные недоступны</string>
+    <string name="stat_messages_label">сообщений</string>
+    <string name="stat_peak_hours_title">Пиковые часы</string>
+    <string name="stat_most_active_hours_fmt">Самые активные часы: %s</string>
+    <string name="stat_members_label">участников</string>
+    <!-- Time formatting (short forms) -->
+    <string name="time_min_short">%d мин</string>
+    <!-- Member plural forms -->
+    <string name="member_one">участник</string>
+    <string name="member_few">участника</string>
+    <string name="members_many">участников</string>
+    <!-- Group sections -->
+    <string name="group_members_fmt">Участники • %d</string>
+    <string name="joined_date_fmt">Присоединился %s</string>
+    <string name="no_groups_yet">Ещё нет групп</string>
+    <string name="no_groups_create_hint">Создайте свою первую группу для общения с друзьями</string>
+    <string name="search_groups_hint">Поиск групп…</string>
+    <string name="private_group_cd">Приватная группа</string>
+    <!-- Engagement Rate labels (short) -->
+    <string name="er_label_viral">Вирусный 🔥</string>
+    <string name="er_label_excellent">Отличный</string>
+    <string name="er_label_medium">Средний</string>
+    <string name="er_label_low">Низкий</string>
+    <!-- Channel creation dialog -->
+    <string name="channel_name_placeholder">Мой канал</string>
+    <string name="channel_type_private">Приватный канал</string>
+    <string name="channel_type_public">Публичный канал</string>
+    <string name="channel_invite_only">Только по приглашению</string>
+    <string name="channel_anyone_can_subscribe">Любой может подписаться</string>
+    <string name="change_channel_avatar">Изменить аватар канала</string>
 </resources>

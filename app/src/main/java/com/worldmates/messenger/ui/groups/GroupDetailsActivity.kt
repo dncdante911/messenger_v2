@@ -461,7 +461,7 @@ fun GroupDetailsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Members • ${members.size}",
+                                text = stringResource(R.string.group_members_fmt, members.size),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Gray
@@ -808,8 +808,13 @@ fun GroupHeaderSection(
             Spacer(modifier = Modifier.height(4.dp))
 
             // Members Count
+            val membersWord = when {
+                group.membersCount % 10 == 1 && group.membersCount % 100 != 11 -> stringResource(R.string.member_one)
+                group.membersCount % 10 in 2..4 && (group.membersCount % 100 < 10 || group.membersCount % 100 >= 20) -> stringResource(R.string.member_few)
+                else -> stringResource(R.string.members_many)
+            }
             Text(
-                text = "${group.membersCount} учасників",
+                text = "${group.membersCount} $membersWord",
                 fontSize = 14.sp,
                 color = Color.Gray
             )
@@ -990,8 +995,8 @@ fun MemberCard(
                         ) {
                             Text(
                                 text = when (member.role) {
-                                    "admin" -> "Адмін"
-                                    "moderator" -> "Модератор"
+                                    "admin" -> stringResource(R.string.role_admin_short)
+                                    "moderator" -> stringResource(R.string.role_moderator_short)
                                     else -> ""
                                 },
                                 fontSize = 10.sp,
@@ -1005,7 +1010,7 @@ fun MemberCard(
                 // Joined date
                 val joinedDate = SimpleDateFormat("dd MMM yyyy", Locale("uk")).format(Date(member.joinedTime * 1000))
                 Text(
-                    text = "Приєднався $joinedDate",
+                    text = stringResource(R.string.joined_date_fmt, joinedDate),
                     fontSize = 13.sp,
                     color = Color.Gray
                 )

@@ -1,5 +1,6 @@
 package com.worldmates.messenger.ui.channels.components
 
+import android.content.Context
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -212,7 +214,7 @@ fun ChannelOverviewSection(statistics: ChannelStatistics) {
                 icon = Icons.Default.Percent,
                 title = stringResource(R.string.stat_er_label),
                 value = "${statistics.engagementRate}%",
-                subtitle = engagementLabel(statistics.engagementRate),
+                subtitle = engagementLabel(statistics.engagementRate, LocalContext.current),
                 trendPositive = statistics.engagementRate >= 1f,
                 modifier = Modifier.weight(1f)
             )
@@ -880,7 +882,15 @@ private fun PostPeriodItem(value: String, label: String) {
 @Composable
 private fun WeekBarChart(data: List<Int>, barColor: Color) {
     val maxVal = data.maxOrNull()?.toFloat()?.coerceAtLeast(1f) ?: 1f
-    val days = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд")
+    val days = listOf(
+        stringResource(R.string.day_mon),
+        stringResource(R.string.day_tue),
+        stringResource(R.string.day_wed),
+        stringResource(R.string.day_thu),
+        stringResource(R.string.day_fri),
+        stringResource(R.string.day_sat),
+        stringResource(R.string.day_sun)
+    )
     val today = Calendar.getInstance()
     val labels = (0..6).map { i ->
         val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, i - 6) }
@@ -1435,10 +1445,10 @@ private fun formatNumber(n: Int): String = when {
 private fun formatDate(unixSeconds: Long): String =
     SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(Date(unixSeconds * 1000))
 
-private fun engagementLabel(er: Float) = when {
-    er >= 10f -> "Вірусний 🔥"
-    er >= 5f  -> "Відмінний"
-    er >= 1f  -> "Середній"
-    er > 0f   -> "Низький"
-    else      -> "Немає даних"
+private fun engagementLabel(er: Float, context: Context) = when {
+    er >= 10f -> context.getString(R.string.er_label_viral)
+    er >= 5f  -> context.getString(R.string.er_label_excellent)
+    er >= 1f  -> context.getString(R.string.er_label_medium)
+    er > 0f   -> context.getString(R.string.er_label_low)
+    else      -> context.getString(R.string.stat_no_data)
 }

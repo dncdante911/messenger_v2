@@ -3412,4 +3412,40 @@
     <string name="webp_optimized">Оптимізовано (WebP)</string>
     <!-- Мітка анімованого медіафайлу (WebP animated / GIF) у галереї -->
     <string name="media_animated_label">Анімоване</string>
+
+    <!-- ===== GROUP / CHANNEL STATISTICS ===== -->
+    <string name="stat_activity_week">Активність за тиждень</string>
+    <string name="stat_members_dynamics">Динаміка учасників</string>
+    <string name="stat_left_members">Вийшли</string>
+    <string name="stat_top_contributors">Топ контриб\'юторів</string>
+    <string name="stat_data_unavailable">Дані недоступні</string>
+    <string name="stat_messages_label">повідомлень</string>
+    <string name="stat_peak_hours_title">Пікові години</string>
+    <string name="stat_most_active_hours_fmt">Найактивніші години: %s</string>
+    <string name="stat_members_label">учасників</string>
+    <!-- Time formatting (short forms) -->
+    <string name="time_min_short">%d хв</string>
+    <!-- Member plural forms -->
+    <string name="member_one">учасник</string>
+    <string name="member_few">учасники</string>
+    <string name="members_many">учасників</string>
+    <!-- Group sections -->
+    <string name="group_members_fmt">Учасники • %d</string>
+    <string name="joined_date_fmt">Приєднався %s</string>
+    <string name="no_groups_yet">Ще немає груп</string>
+    <string name="no_groups_create_hint">Створіть свою першу групу для спілкування з друзями</string>
+    <string name="search_groups_hint">Пошук груп…</string>
+    <string name="private_group_cd">Приватна група</string>
+    <!-- Engagement Rate labels (short) -->
+    <string name="er_label_viral">Вірусний 🔥</string>
+    <string name="er_label_excellent">Відмінний</string>
+    <string name="er_label_medium">Середній</string>
+    <string name="er_label_low">Низький</string>
+    <!-- Channel creation dialog -->
+    <string name="channel_name_placeholder">Мій канал</string>
+    <string name="channel_type_private">Приватний канал</string>
+    <string name="channel_type_public">Публічний канал</string>
+    <string name="channel_invite_only">Тільки за запрошенням</string>
+    <string name="channel_anyone_can_subscribe">Будь-хто може підписатись</string>
+    <string name="change_channel_avatar">Змінити аватар каналу</string>
 </resources>

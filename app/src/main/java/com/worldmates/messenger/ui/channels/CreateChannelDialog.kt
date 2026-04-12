@@ -13,12 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.worldmates.messenger.R
 
 @Composable
 fun CreateChannelDialog(
@@ -56,14 +58,14 @@ fun CreateChannelDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Створити канал",
+                        stringResource(R.string.create_channel),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2C3E50)
                     )
                     if (!isCreating) {
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, "Закрити", tint = Color.Gray)
+                            Icon(Icons.Default.Close, stringResource(R.string.close_cd), tint = Color.Gray)
                         }
                     }
                 }
@@ -100,8 +102,8 @@ fun CreateChannelDialog(
                         channelName = it
                         errorMessage = null
                     },
-                    label = { Text("Назва каналу *") },
-                    placeholder = { Text("Мій канал") },
+                    label = { Text(stringResource(R.string.channel_name_hint)) },
+                    placeholder = { Text(stringResource(R.string.channel_name_placeholder)) },
                     singleLine = true,
                     enabled = !isCreating,
                     modifier = Modifier.fillMaxWidth(),
@@ -123,7 +125,7 @@ fun CreateChannelDialog(
                         }
                         errorMessage = null
                     },
-                    label = { Text("@username (опціонально)") },
+                    label = { Text(stringResource(R.string.channel_username_hint)) },
                     placeholder = { Text("mychannel") },
                     singleLine = true,
                     enabled = !isCreating,
@@ -145,8 +147,8 @@ fun CreateChannelDialog(
                         channelDescription = it
                         errorMessage = null
                     },
-                    label = { Text("Опис (опціонально)") },
-                    placeholder = { Text("Розкажіть про ваш канал...") },
+                    label = { Text(stringResource(R.string.channel_description_hint)) },
+                    placeholder = { Text(stringResource(R.string.ch_channel_about)) },
                     minLines = 3,
                     maxLines = 5,
                     enabled = !isCreating,
@@ -180,13 +182,13 @@ fun CreateChannelDialog(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                if (isPrivate) "Приватний канал" else "Публічний канал",
+                                if (isPrivate) stringResource(R.string.channel_type_private) else stringResource(R.string.channel_type_public),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF2C3E50)
                             )
                             Text(
-                                if (isPrivate) "Тільки за запрошенням" else "Будь-хто може підписатись",
+                                if (isPrivate) stringResource(R.string.channel_invite_only) else stringResource(R.string.channel_anyone_can_subscribe),
                                 fontSize = 12.sp,
                                 color = Color.Gray
                             )
@@ -245,7 +247,7 @@ fun CreateChannelDialog(
                         onClick = onDismiss,
                         enabled = !isCreating
                     ) {
-                        Text("Скасувати", color = Color.Gray)
+                        Text(stringResource(R.string.cancel), color = Color.Gray)
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -281,7 +283,7 @@ fun CreateChannelDialog(
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                         Text(
-                            if (isCreating) "Створення..." else "Створити",
+                            if (isCreating) stringResource(R.string.creating_channel) else stringResource(R.string.create_channel),
                             color = Color.White
                         )
                     }
