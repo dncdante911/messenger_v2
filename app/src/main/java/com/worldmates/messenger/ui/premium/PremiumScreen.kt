@@ -36,18 +36,18 @@ private val GoldLight = Color(0xFFFFF9E0)
 private data class Feature(val icon: ImageVector, val title: String, val subtitle: String)
 
 private val FEATURES = listOf(
-    Feature(Icons.Default.PeopleAlt,   "До 10 акаунтів",         "Безкоштовно — лише 5. З PRO — до 10 паралельних акаунтів."),
-    Feature(Icons.Default.Folder,      "Папки чатів",            "Організуй переписку по категоріях: робота, сім'я, друзі."),
-    Feature(Icons.Default.AttachFile,  "Файли до 2 ГБ",          "Надсилай великі відео, архіви та документи без обмежень."),
-    Feature(Icons.Default.AutoStories, "Необмежені Stories",     "Публікуй скільки завгодно сторіз — без добових лімітів."),
-    Feature(Icons.Default.Mic,         "Голосові до 5 хв",       "Звичайним користувачам — 2 хв. PRO — до 5 хвилин."),
-    Feature(Icons.Default.Translate,   "Переклад повідомлень",   "Перекладай будь-яке повідомлення в один дотик."),
-    Feature(Icons.Default.Palette,     "Ексклюзивні теми",       "Унікальні колірні схеми, доступні тільки PRO-користувачам."),
-    Feature(Icons.Default.CloudUpload, "Хмарний бекап",          "Автоматичне резервне копіювання листування у хмару."),
-    Feature(Icons.Default.BarChart,    "Розширена аналітика",    "Статистика читань, реакцій і охоплення твоїх постів."),
-    Feature(Icons.Default.Stars,       "PRO-значок у профілі",   "Золота мітка, що підкреслює твій статус у спільноті."),
-    Feature(Icons.Default.SupportAgent,"Пріоритетна підтримка",  "Відповідь служби підтримки протягом 2 годин."),
-    Feature(Icons.Default.Block,       "Без реклами",            "Жодного рекламного контенту у стрічці та Stories."),
+    Feature(Icons.Default.PeopleAlt,   "До 10 акаунтів",           "Безкоштовно — лише 5. З PRO — до 10 паралельних акаунтів."),
+    Feature(Icons.Default.Folder,      "До 50 папок чатів",        "Безкоштовно — 10 папок. PRO — до 50 для ідеального порядку."),
+    Feature(Icons.Default.PhotoCamera, "До 25 аватарів",           "Безкоштовно — 10 фото. PRO — до 25 + анімовані (GIF) аватари."),
+    Feature(Icons.Default.AutoStories, "До 25 Stories на добу",    "Безкоштовно — 5 сторіз (30 сек відео / 24 год). PRO — 25 сторіз (60 сек / 48 год)."),
+    Feature(Icons.Default.Mic,         "Голосові до 60 хвилин",    "Безкоштовно — до 15 хв. PRO — до 1 години запису."),
+    Feature(Icons.Default.GraphicEq,   "Транскрипція голосових",   "Автоматичний текстовий переклад голосових повідомлень (PRO-ексклюзив)."),
+    Feature(Icons.Default.EmojiEmotions,"Кастомний emoji-статус",  "Встановлюй унікальні emoji замість стандартного статусу."),
+    Feature(Icons.Default.PushPin,     "До 15 закріплених",        "Безкоштовно — 5 закріплених повідомлень. PRO — до 15."),
+    Feature(Icons.Default.AttachFile,  "Файли до 1 ГБ",            "Надсилай великі відео та архіви без обмежень за розміром."),
+    Feature(Icons.Default.Palette,     "Ексклюзивні теми",         "Унікальні колірні схеми та анімовані фони, доступні тільки PRO."),
+    Feature(Icons.Default.Stars,       "PRO-значок у профілі",     "Градієнтна рамка навколо аватара, що підкреслює твій статус."),
+    Feature(Icons.Default.Block,       "Без реклами",              "Жодного рекламного контенту у стрічці та Stories."),
 )
 
 // ─── Root composable ──────────────────────────────────────────────────────────

@@ -141,6 +141,8 @@ fun MyProfileScreen(
     var showAvatarSheet       by remember { mutableStateOf(false) }
     var showAppearanceDialog  by remember { mutableStateOf(false) }
     var showEmojiStatusSheet  by remember { mutableStateOf(false) }
+    var showAvatarViewer      by remember { mutableStateOf(false) }
+    var avatarViewerPage      by remember { mutableStateOf(0) }
 
     val avatars by avatarGalleryViewModel.avatars.collectAsState()
 
@@ -207,7 +209,11 @@ fun MyProfileScreen(
                         isPremium     = user.isPro > 0,
                         modifier      = Modifier.padding(vertical = 4.dp),
                         onAddPhotoClick = { showAvatarSheet = true },
-                        onManageClick   = { showAvatarSheet = true }
+                        onManageClick   = { showAvatarSheet = true },
+                        onTap           = { page ->
+                            avatarViewerPage = page
+                            showAvatarViewer = true
+                        }
                     )
                 }
             }
@@ -285,6 +291,15 @@ fun MyProfileScreen(
             userId     = user.userId,
             isPremium  = user.isPro > 0,
             onDismiss  = { showAvatarSheet = false }
+        )
+    }
+
+    // ── Full-screen avatar viewer ───────────────────────────────────────────
+    if (showAvatarViewer && avatars.isNotEmpty()) {
+        AvatarFullScreenViewer(
+            avatars     = avatars,
+            initialPage = avatarViewerPage,
+            onDismiss   = { showAvatarViewer = false }
         )
     }
 

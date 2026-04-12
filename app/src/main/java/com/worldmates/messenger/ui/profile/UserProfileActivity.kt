@@ -388,6 +388,9 @@ fun UserProfileContent(
 
 @Composable
 private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: String) {
+    var showAvatarViewer  by remember { mutableStateOf(false) }
+    var avatarViewerPage  by remember { mutableStateOf(0) }
+    var avatarViewerList  by remember { mutableStateOf<List<com.worldmates.messenger.data.model.UserAvatar>>(emptyList()) }
     val darkerAccent = Color(
         android.graphics.Color.HSVToColor(
             FloatArray(3).also { hsv ->
@@ -480,6 +483,11 @@ private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: Strin
             userId      = user.userId,
             fallbackUrl = user.avatar,
             isPremium   = isPremium,
+            onTap       = { avatars, page ->
+                avatarViewerList = avatars
+                avatarViewerPage = page
+                showAvatarViewer = true
+            },
             modifier    = Modifier
                 .size(96.dp)
                 .align(Alignment.BottomStart)
@@ -500,6 +508,14 @@ private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: Strin
                         Modifier.border(3.dp, MaterialTheme.colorScheme.background, CircleShape)
                 )
         )
+
+        if (showAvatarViewer && avatarViewerList.isNotEmpty()) {
+            AvatarFullScreenViewer(
+                avatars     = avatarViewerList,
+                initialPage = avatarViewerPage,
+                onDismiss   = { showAvatarViewer = false }
+            )
+        }
 
         // Online dot on avatar
         val isOnline = user.lastSeenStatus == "online"
