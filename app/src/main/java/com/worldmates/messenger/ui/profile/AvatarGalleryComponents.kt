@@ -41,6 +41,7 @@ import coil.compose.AsyncImage
 import coil.decode.GifDecoder
 import coil.request.ImageRequest
 import com.worldmates.messenger.data.model.UserAvatar
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 // ─── Avatar pager (Telegram-style header) ────────────────────────────────────
 
@@ -66,6 +67,7 @@ fun AvatarPager(
     isPremium: Boolean = false,
     onAddPhotoClick: (() -> Unit)? = null,
     onManageClick: ((UserAvatar) -> Unit)? = null,
+    onTap: ((page: Int) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val imageLoader = remember {
@@ -140,13 +142,14 @@ fun AvatarPager(
                     contentScale  = ContentScale.Crop,
                     modifier      = Modifier
                         .fillMaxSize()
-                        .then(
-                            if (isOwnProfile && onManageClick != null)
-                                Modifier.pointerInput(avatar.id) {
-                                    detectTapGestures(onLongPress = { onManageClick(avatar) })
-                                }
-                            else Modifier
-                        )
+                        .pointerInput(avatar.id, page, isOwnProfile, onTap, onManageClick) {
+                            detectTapGestures(
+                                onTap = { onTap?.invoke(page) },
+                                onLongPress = if (isOwnProfile && onManageClick != null) {
+                                    { onManageClick(avatar) }
+                                } else null
+                            )
+                        }
                 )
             }
 
@@ -207,6 +210,7 @@ fun UserAvatarPagerInProfile(
     fallbackUrl: String?,
     modifier: Modifier = Modifier,
     isPremium: Boolean = false,
+    onTap: ((avatars: List<UserAvatar>, page: Int) -> Unit)? = null,
     galleryViewModel: AvatarGalleryViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         key = "avatars_$userId"
     )
@@ -227,8 +231,105 @@ fun UserAvatarPagerInProfile(
         avatars      = displayAvatars,
         isOwnProfile = false,
         modifier     = modifier,
-        isPremium    = isPremium
+        isPremium    = isPremium,
+        onTap        = onTap?.let { cb -> { page -> cb(displayAvatars, page) } }
     )
+}
+
+// ─── Full-screen avatar viewer (Telegram-style) ───────────────────────────────
+
+/**
+ * Full-screen dialog that shows avatar(s) with swipe support.
+ * Tap the X button or press Back to dismiss.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun AvatarFullScreenViewer(
+    avatars: List<UserAvatar>,
+    initialPage: Int = 0,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val imageLoader = remember {
+        ImageLoader.Builder(context)
+            .components { add(GifDecoder.Factory()) }
+            .build()
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            val safeInitial = initialPage.coerceIn(0, (avatars.size - 1).coerceAtLeast(0))
+            val pagerState = rememberPagerState(initialPage = safeInitial) { avatars.size }
+
+            HorizontalPager(
+                state    = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val avatar = avatars[page]
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(avatar.url)
+                        .crossfade(true)
+                        .build(),
+                    imageLoader        = imageLoader,
+                    contentDescription = null,
+                    contentScale       = ContentScale.Fit,
+                    modifier           = Modifier.fillMaxSize()
+                )
+            }
+
+            // Page counter (top-center)
+            if (avatars.size > 1) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text     = "${pagerState.currentPage + 1} / ${avatars.size}",
+                        color    = Color.White,
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+
+            // Close button (top-end)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .clickable(
+                        indication     = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onDismiss() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector        = Icons.Default.Close,
+                    contentDescription = null,
+                    tint               = Color.White,
+                    modifier           = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
 }
 
 // ─── Avatar management bottom sheet ──────────────────────────────────────────
