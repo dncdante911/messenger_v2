@@ -3454,4 +3454,14 @@
     <!-- Short time units for post timestamps -->
     <string name="time_hours_short">%d ч</string>
     <string name="time_days_short">%d д</string>
+
+    <!-- ===== AVATAR MANAGEMENT SHEET ===== -->
+    <string name="avatar_sheet_title">Фото профиля</string>
+    <string name="avatar_main_photo">Основное фото</string>
+    <string name="avatar_is_main_hint">Это фото сейчас установлено как основное</string>
+    <string name="avatar_set_main">Сделать основным</string>
+    <string name="avatar_delete_photo">Удалить фото</string>
+    <string name="avatar_delete_photo_title">Удалить фото?</string>
+    <string name="avatar_delete_photo_message">Это фото будет удалено из вашего профиля.</string>
+    <string name="avatar_premium_hint">Premium: до 25 фото и анимированных аватаров</string>
 </resources>

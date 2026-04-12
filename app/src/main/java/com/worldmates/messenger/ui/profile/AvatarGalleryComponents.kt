@@ -42,6 +42,8 @@ import coil.decode.GifDecoder
 import coil.request.ImageRequest
 import com.worldmates.messenger.data.model.UserAvatar
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 
 // ─── Avatar pager (Telegram-style header) ────────────────────────────────────
 
@@ -391,7 +393,7 @@ fun AvatarManagementSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Фото профілю",
+                    stringResource(R.string.avatar_sheet_title),
                     style     = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -433,7 +435,7 @@ fun AvatarManagementSheet(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            "Premium: до 25 фото та анімованих аватарок",
+                            stringResource(R.string.avatar_premium_hint),
                             fontSize = 12.sp,
                             color    = MaterialTheme.colorScheme.onTertiaryContainer
                         )
@@ -470,7 +472,7 @@ fun AvatarManagementSheet(
                                     Icon(Icons.Default.Add, null,
                                         tint     = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(32.dp))
-                                    Text("Додати", fontSize = 11.sp,
+                                    Text(stringResource(R.string.add), fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.primary,
                                         textAlign = TextAlign.Center)
                                 }
@@ -540,12 +542,12 @@ fun AvatarManagementSheet(
         val isMain = avatars.firstOrNull()?.id == avatar.id
         AlertDialog(
             onDismissRequest = { selectedAvatar = null },
-            title = { Text(if (isMain) "Основне фото" else "Фото профілю") },
+            title = { Text(if (isMain) stringResource(R.string.avatar_main_photo) else stringResource(R.string.avatar_sheet_title)) },
             text  = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (isMain) {
                         Text(
-                            "Це фото зараз встановлено як основне",
+                            stringResource(R.string.avatar_is_main_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -559,7 +561,7 @@ fun AvatarManagementSheet(
                         ) {
                             Icon(Icons.Default.Star, null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Зробити основним")
+                            Text(stringResource(R.string.avatar_set_main))
                         }
                     }
                     TextButton(
@@ -569,13 +571,13 @@ fun AvatarManagementSheet(
                     ) {
                         Icon(Icons.Default.Delete, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Видалити фото")
+                        Text(stringResource(R.string.avatar_delete_photo))
                     }
                 }
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { selectedAvatar = null }) { Text("Скасувати") }
+                TextButton(onClick = { selectedAvatar = null }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -584,8 +586,8 @@ fun AvatarManagementSheet(
     if (showConfirmDelete) {
         AlertDialog(
             onDismissRequest = { showConfirmDelete = false },
-            title = { Text("Видалити фото?") },
-            text  = { Text("Це фото буде видалено з вашого профілю.") },
+            title = { Text(stringResource(R.string.avatar_delete_photo_title)) },
+            text  = { Text(stringResource(R.string.avatar_delete_photo_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -594,10 +596,10 @@ fun AvatarManagementSheet(
                         showConfirmDelete = false
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) { Text("Видалити") }
+                ) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmDelete = false }) { Text("Скасувати") }
+                TextButton(onClick = { showConfirmDelete = false }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

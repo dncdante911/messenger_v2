@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.UserAvatar
 import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,7 +96,10 @@ class AvatarGalleryViewModel : ViewModel() {
                     } else {
                         _avatars.value + resp.avatar
                     }
-                    _avatars.value = newList.mapIndexed { i, a -> a.copy(position = i) }
+                    val indexed = newList.mapIndexed { i, a -> a.copy(position = i) }
+                    _avatars.value = indexed
+                    // If new avatar is set as main, propagate to all screens
+                    if (setAsMain) indexed.firstOrNull()?.url?.let { UserSession.avatar = it }
                     _limitInfo.value = LimitInfo(
                         count     = resp.count,
                         limit     = resp.limit,
@@ -131,7 +135,10 @@ class AvatarGalleryViewModel : ViewModel() {
                         current.add(0, moved)
                     }
                     // Re-index position fields so the grid star indicator stays correct
-                    _avatars.value = current.mapIndexed { i, a -> a.copy(position = i) }
+                    val updated = current.mapIndexed { i, a -> a.copy(position = i) }
+                    _avatars.value = updated
+                    // Propagate new main avatar URL to all screens via UserSession
+                    updated.firstOrNull()?.url?.let { UserSession.avatar = it }
                     onDone(true)
                 } else {
                     _error.value = resp.errorMessage
