@@ -3448,4 +3448,10 @@
     <string name="channel_invite_only">Тільки за запрошенням</string>
     <string name="channel_anyone_can_subscribe">Будь-хто може підписатись</string>
     <string name="change_channel_avatar">Змінити аватар каналу</string>
+    <!-- Post header: ad / forwarded -->
+    <string name="post_ad_badge">РЕКЛАМА</string>
+    <string name="post_forwarded_from_fmt">Переслано від: %s</string>
+    <!-- Short time units for post timestamps -->
+    <string name="time_hours_short">%d год</string>
+    <string name="time_days_short">%d д</string>
 </resources>

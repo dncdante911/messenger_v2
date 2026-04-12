@@ -307,7 +307,7 @@ private fun formatDate(timestamp: Long): String {
         diff < 86400_000 -> "${diff / 3600_000} ч назад"
         diff < 604800_000 -> "${diff / 86400_000} д назад"
         else -> {
-            val format = SimpleDateFormat("dd MMM yyyy", Locale("ru"))
+            val format = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             format.format(Date(timestamp))
         }
     }

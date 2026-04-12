@@ -1008,7 +1008,7 @@ fun MemberCard(
                 }
 
                 // Joined date
-                val joinedDate = SimpleDateFormat("dd MMM yyyy", Locale("uk")).format(Date(member.joinedTime * 1000))
+                val joinedDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(member.joinedTime * 1000))
                 Text(
                     text = stringResource(R.string.joined_date_fmt, joinedDate),
                     fontSize = 13.sp,
