@@ -24,6 +24,8 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.repository.LocationData
 import com.worldmates.messenger.data.repository.LocationRepository
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -175,14 +177,14 @@ fun LocationPicker(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Требуется доступ к геолокации",
+                                text = stringResource(R.string.contacts_permission_required),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Разрешите доступ к местоположению для отправки геолокации",
+                                text = stringResource(R.string.allow_location_access),
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center,
                                 color = colorScheme.onSurface.copy(alpha = 0.7f)
@@ -191,11 +193,11 @@ fun LocationPicker(
                             Button(
                                 onClick = { locationPermissions.launchMultiplePermissionRequest() }
                             ) {
-                                Text("Разрешить доступ")
+                                Text(stringResource(R.string.allow_access))
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             TextButton(onClick = onDismiss) {
-                                Text("Отмена")
+                                Text(stringResource(R.string.cancel))
                             }
                         }
                     } else {
@@ -354,7 +356,7 @@ fun LocationPicker(
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Отправить место")
+                                    Text(stringResource(R.string.send_location))
                                 }
                             }
                         }

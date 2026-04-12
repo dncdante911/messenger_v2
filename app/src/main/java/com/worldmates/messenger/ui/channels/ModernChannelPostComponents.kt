@@ -526,105 +526,99 @@ fun ChannelPostCard(
                 thickness = 1.dp
             )
 
-            // Action Buttons - стильные современные кнопки
+            // Action Buttons — flat modern bar (no colored backgrounds)
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Comments button
-                Surface(
-                    onClick = onCommentsClick,
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                    modifier = Modifier.weight(1f)
+                // Comments
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = true)
+                        ) { onCommentsClick() },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Comment,
-                            contentDescription = "Comments",
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        if (post.commentsCount > 0) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = formatCount(post.commentsCount),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.ch_comments),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = if (post.commentsCount > 0) formatCount(post.commentsCount)
+                               else stringResource(R.string.ch_comments),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
                 }
 
-                // Share button
-                Surface(
-                    onClick = onShareClick,
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f),
-                    modifier = Modifier.weight(1f)
+                VerticalDivider(
+                    modifier = Modifier.height(20.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                // Share
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = true)
+                        ) { onShareClick() },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Share,
-                            contentDescription = "Share",
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(R.string.ch_share),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = stringResource(R.string.ch_share),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
                 }
 
-                // Save / Bookmark button
-                Surface(
-                    onClick = onSaveClick,
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isSaved)
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.weight(1f)
+                VerticalDivider(
+                    modifier = Modifier.height(20.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                // Bookmark
+                Box(
+                    modifier = Modifier
+                        .width(52.dp)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = true)
+                        ) { onSaveClick() },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            contentDescription = if (isSaved)
-                                stringResource(R.string.unsave_post)
-                            else
-                                stringResource(R.string.save_post),
-                            tint = if (isSaved)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                        contentDescription = if (isSaved) stringResource(R.string.unsave_post)
+                                            else stringResource(R.string.save_post),
+                        tint = if (isSaved) MaterialTheme.colorScheme.primary
+                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
