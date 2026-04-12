@@ -23,6 +23,8 @@ import coil.compose.rememberAsyncImagePainter
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Contact
 import com.worldmates.messenger.data.repository.ContactRepository
 import kotlinx.coroutines.launch
@@ -114,7 +116,7 @@ fun ContactPicker(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                placeholder = { Text("Поиск контакта...") },
+                placeholder = { Text(stringResource(R.string.search_contact_hint)) },
                 leadingIcon = {
                     Icon(Icons.Default.Search, contentDescription = null)
                 },
@@ -130,12 +132,12 @@ fun ContactPicker(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "Требуется доступ к контактам",
+                            text = stringResource(R.string.contacts_permission_required),
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
                         Button(onClick = { contactsPermission.launchPermissionRequest() }) {
-                            Text("Предоставить доступ")
+                            Text(stringResource(R.string.grant_access))
                         }
                     }
                 }

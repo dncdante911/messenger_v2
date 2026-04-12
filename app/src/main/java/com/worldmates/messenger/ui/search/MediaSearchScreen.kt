@@ -290,9 +290,9 @@ private fun SearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        placeholder = { Text("Поиск медиа...") },
+        placeholder = { Text(stringResource(R.string.search_media)) },
         leadingIcon = {
-            Icon(Icons.Default.Search, "Поиск")
+            Icon(Icons.Default.Search, contentDescription = null)
         },
         trailingIcon = {
             if (query.isNotEmpty()) {

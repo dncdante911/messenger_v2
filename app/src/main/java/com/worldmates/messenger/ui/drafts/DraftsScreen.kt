@@ -18,6 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.local.entity.Draft
 import com.worldmates.messenger.data.repository.DraftRepository
 import com.worldmates.messenger.ui.messages.MessagesActivity
@@ -119,10 +121,10 @@ fun DraftsScreen(
                     Icon(Icons.Default.Delete, contentDescription = null)
                 },
                 title = {
-                    Text("Удалить все черновики?")
+                    Text(stringResource(R.string.delete_all_drafts))
                 },
                 text = {
-                    Text("Это действие нельзя отменить. Все черновики (${drafts.size}) будут удалены.")
+                    Text(stringResource(R.string.delete_all_drafts_confirm))
                 },
                 confirmButton = {
                     TextButton(
@@ -133,12 +135,12 @@ fun DraftsScreen(
                             }
                         }
                     ) {
-                        Text("Удалить")
+                        Text(stringResource(R.string.delete))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteAllDialog = false }) {
-                        Text("Отмена")
+                        Text(stringResource(R.string.cancel))
                     }
                 }
             )
@@ -208,7 +210,7 @@ private fun DraftItem(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )
                 Text(
-                    text = if (draft.chatType == Draft.CHAT_TYPE_GROUP) "Группа" else "Чат",
+                    text = if (draft.chatType == Draft.CHAT_TYPE_GROUP) stringResource(R.string.group_label) else stringResource(R.string.chat_label),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -219,7 +221,7 @@ private fun DraftItem(
         IconButton(onClick = { showDeleteDialog = true }) {
             Icon(
                 Icons.Default.Delete,
-                contentDescription = "Удалить",
+                contentDescription = stringResource(R.string.delete),
                 tint = MaterialTheme.colorScheme.error
             )
         }
@@ -233,10 +235,10 @@ private fun DraftItem(
                 Icon(Icons.Default.Delete, contentDescription = null)
             },
             title = {
-                Text("Удалить черновик?")
+                Text(stringResource(R.string.delete_draft))
             },
             text = {
-                Text("Вы уверены, что хотите удалить этот черновик?")
+                Text(stringResource(R.string.delete_draft_confirm))
             },
             confirmButton = {
                 TextButton(
@@ -245,12 +247,12 @@ private fun DraftItem(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("Удалить")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Отмена")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

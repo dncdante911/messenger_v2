@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import androidx.compose.ui.res.stringResource
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.repository.GiphyRepository
 import com.worldmates.messenger.data.repository.GifItem
 import kotlinx.coroutines.Job
@@ -156,11 +158,11 @@ fun GifPicker(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Поиск GIF...") },
+                placeholder = { Text(stringResource(R.string.search_gif_hint)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Поиск"
+                        contentDescription = null
                     )
                 },
                 trailingIcon = {

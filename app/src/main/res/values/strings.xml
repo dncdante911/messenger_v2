@@ -1406,6 +1406,12 @@
     <string name="record_audio">Записати аудіо</string>
     <string name="send_location">Надіслати місцезнаходження</string>
     <string name="live_location_share_for">Ділитися геолокацією %s</string>
+    <string name="allow_location_access">Дозвольте доступ до місцезнаходження для надсилання геолокації</string>
+    <string name="allow_access">Дозволити доступ</string>
+    <string name="contacts_permission_required">Потрібен доступ до контактів</string>
+    <string name="grant_access">Надати доступ</string>
+    <string name="search_contact_hint">Пошук контакту…</string>
+    <string name="search_gif_hint">Пошук GIF…</string>
     <string name="live_location_15min">15 хвилин</string>
     <string name="live_location_30min">30 хвилин</string>
     <string name="live_location_60min">1 година</string>
