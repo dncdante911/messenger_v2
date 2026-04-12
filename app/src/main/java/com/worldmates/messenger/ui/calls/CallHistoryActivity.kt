@@ -525,14 +525,14 @@ private fun getDateGroup(timestamp: Long, context: Context): String {
         isSameDay(callDate, today) -> context.getString(R.string.today)
         isSameDay(callDate, yesterday) -> context.getString(R.string.yesterday)
         isSameWeek(callDate, today) -> {
-            val dayFormat = SimpleDateFormat("EEEE", Locale("uk"))
+            val dayFormat = SimpleDateFormat("EEEE", Locale.getDefault())
             dayFormat.format(callDate.time).replaceFirstChar { it.uppercase() }
         }
         callDate.get(Calendar.YEAR) == today.get(Calendar.YEAR) -> {
-            SimpleDateFormat("d MMMM", Locale("uk")).format(callDate.time)
+            SimpleDateFormat("d MMMM", Locale.getDefault()).format(callDate.time)
         }
         else -> {
-            SimpleDateFormat("d MMMM yyyy", Locale("uk")).format(callDate.time)
+            SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(callDate.time)
         }
     }
 }

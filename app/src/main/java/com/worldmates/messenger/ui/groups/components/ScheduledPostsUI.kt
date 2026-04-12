@@ -1023,7 +1023,7 @@ private fun showTimePicker(
 private fun formatDateHeader(dateString: String, todayLabel: String, tomorrowLabel: String): String {
     return try {
         val inputFormat  = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("d MMMM", Locale("uk"))
+        val outputFormat = SimpleDateFormat("d MMMM", Locale.getDefault())
         val date         = inputFormat.parse(dateString)
 
         val today    = Calendar.getInstance()

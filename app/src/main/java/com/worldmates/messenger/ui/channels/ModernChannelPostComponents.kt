@@ -1,5 +1,6 @@
 package com.worldmates.messenger.ui.channels
 
+import android.content.Context
 import com.worldmates.messenger.util.toFullMediaUrl
 import com.worldmates.messenger.ui.components.formatting.FormattedText
 import com.worldmates.messenger.ui.components.formatting.FormattingSettings
@@ -45,6 +46,7 @@ import com.worldmates.messenger.ui.fonts.AppFonts
 import com.worldmates.messenger.ui.messages.components.PollMessageComponent
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 import kotlinx.coroutines.launch
@@ -55,6 +57,8 @@ import androidx.compose.ui.window.Dialog
 @Composable
 fun ChannelPostCard(
     post: ChannelPost,
+    channelName: String = "",
+    channelAvatarUrl: String? = null,
     onPostClick: () -> Unit = {},
     onReactionClick: (String) -> Unit = {},
     onCommentsClick: () -> Unit = {},
@@ -127,7 +131,38 @@ fun ChannelPostCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Post Header - Современный стильный дизайн
+            // Ad banner — prominent visual separation
+            if (post.isAd) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color(0xFFFFF8E1),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Campaign,
+                            contentDescription = null,
+                            tint = Color(0xFFFF8F00),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.post_ad_badge),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF8F00),
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Post Header — channel avatar + channel name
+            val context = LocalContext.current
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -137,15 +172,13 @@ fun ChannelPostCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    // Аватар автора с красивой тенью и border
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                    ) {
-                        if (!post.authorAvatar.isNullOrEmpty()) {
+                    // Channel avatar
+                    Box(modifier = Modifier.size(48.dp)) {
+                        val displayAvatar = if (post.isAd) post.authorAvatar else channelAvatarUrl
+                        if (!displayAvatar.isNullOrEmpty()) {
                             AsyncImage(
-                                model = post.authorAvatar.toFullMediaUrl(),
-                                contentDescription = "Author Avatar",
+                                model = displayAvatar.toFullMediaUrl(),
+                                contentDescription = null,
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .clip(CircleShape)
@@ -162,11 +195,10 @@ fun ChannelPostCard(
                                 contentScale = ContentScale.Crop
                             )
                         } else {
-                            // Placeholder з першою літерою імені автора
-                            val authorInitial = (post.authorName?.firstOrNull()
-                                ?: post.authorUsername?.firstOrNull()
-                                ?: 'U').uppercaseChar().toString()
-
+                            val initial = if (post.isAd)
+                                (post.authorName?.firstOrNull() ?: post.authorUsername?.firstOrNull() ?: 'A').uppercaseChar().toString()
+                            else
+                                channelName.firstOrNull()?.uppercaseChar()?.toString() ?: "C"
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -192,7 +224,7 @@ fun ChannelPostCard(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = authorInitial,
+                                    text = initial,
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimary
@@ -204,32 +236,25 @@ fun ChannelPostCard(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
-                                fontFamily = AppFonts.Exo2,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                letterSpacing = 0.15.sp
-                            )
-                            // User karma/trust badge
-                            if (userKarmaScore != null && userKarmaScore > 0) {
-                                KarmaMiniBadge(score = userKarmaScore)
-                            }
-                            if (userTrustLevel != null) {
-                                TrustMiniBadge(trustLevel = userTrustLevel)
-                            }
-                        }
+                        // Show channel name (or advertiser name for ad posts)
+                        val displayName = if (post.isAd)
+                            post.authorName ?: post.authorUsername ?: channelName
+                        else
+                            channelName.ifEmpty { post.authorName ?: post.authorUsername ?: "" }
+                        Text(
+                            text = displayName,
+                            fontFamily = AppFonts.Exo2,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            letterSpacing = 0.15.sp
+                        )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = formatPostTime(post.createdTime),
+                                text = formatPostTime(post.createdTime, context),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                 fontWeight = FontWeight.Medium
@@ -251,7 +276,7 @@ fun ChannelPostCard(
                     }
                 }
 
-                // More options - стильная кнопка
+                // More options button
                 if (canEdit) {
                     Surface(
                         onClick = onMoreClick,
@@ -262,12 +287,34 @@ fun ChannelPostCard(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Default.MoreVert,
-                                contentDescription = "More",
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
                     }
+                }
+            }
+
+            // Forwarded-from label
+            if (post.forwardedFromName != null) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Forward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.post_forwarded_from_fmt, post.forwardedFromName),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
 
@@ -958,20 +1005,18 @@ fun ActionButton(
 
 // ==================== UTILITY FUNCTIONS ====================
 
-fun formatPostTime(timestamp: Long): String {
-    // Конвертуємо timestamp з секунд в мілісекунди, якщо потрібно
+fun formatPostTime(timestamp: Long, context: Context? = null): String {
     val timestampMs = if (timestamp < 10000000000L) timestamp * 1000 else timestamp
-
     val now = System.currentTimeMillis()
     val diff = now - timestampMs
 
     return when {
-        diff < 60_000 -> "Щойно"
-        diff < 3_600_000 -> "${diff / 60_000} хв"
-        diff < 86_400_000 -> "${diff / 3_600_000} год"
-        diff < 604_800_000 -> "${diff / 86_400_000} д"
+        diff < 60_000 -> context?.getString(R.string.time_just_now) ?: "щойно"
+        diff < 3_600_000 -> context?.getString(R.string.time_min_short, diff / 60_000) ?: "${diff / 60_000} хв"
+        diff < 86_400_000 -> context?.getString(R.string.time_hours_short, diff / 3_600_000) ?: "${diff / 3_600_000} год"
+        diff < 604_800_000 -> context?.getString(R.string.time_days_short, diff / 86_400_000) ?: "${diff / 86_400_000} д"
         else -> {
-            val sdf = SimpleDateFormat("dd MMM", Locale("uk"))
+            val sdf = SimpleDateFormat("dd MMM", Locale.getDefault())
             sdf.format(Date(timestampMs))
         }
     }

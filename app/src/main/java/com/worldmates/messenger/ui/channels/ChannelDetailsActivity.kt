@@ -678,6 +678,8 @@ fun ChannelDetailsScreen(
                                     ChannelViewStyle.PREMIUM -> {
                                         PremiumPostCard(
                                             post = post,
+                                            channelName = channel.name,
+                                            channelAvatarUrl = channel.avatarUrl,
                                             onPostClick = onPostClickHandler,
                                             onReactionClick = onReactionClickHandler,
                                             onCommentsClick = onCommentsClickHandler,
@@ -692,6 +694,8 @@ fun ChannelDetailsScreen(
                                     ChannelViewStyle.CLASSIC -> {
                                         ChannelPostCard(
                                             post = post,
+                                            channelName = channel.name,
+                                            channelAvatarUrl = channel.avatarUrl,
                                             onPostClick = onPostClickHandler,
                                             onReactionClick = onReactionClickHandler,
                                             onCommentsClick = onCommentsClickHandler,

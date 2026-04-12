@@ -1662,7 +1662,7 @@ private fun formatStoryTime(timestamp: Long): String {
         diff < 60 -> "щойно"
         diff < 3600 -> "${diff / 60} хв тому"
         diff < 86400 -> "${diff / 3600} год тому"
-        else -> SimpleDateFormat("dd MMM", Locale("uk")).format(Date(timestamp * 1000))
+        else -> SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(timestamp * 1000))
     }
 }
 

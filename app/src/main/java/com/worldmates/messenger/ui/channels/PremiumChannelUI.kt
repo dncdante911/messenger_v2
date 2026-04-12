@@ -47,6 +47,7 @@ import com.worldmates.messenger.data.model.PostMedia
 import com.worldmates.messenger.util.toFullMediaUrl
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.messages.components.PollMessageComponent
@@ -465,6 +466,8 @@ private fun PremiumBannerStat(
 @Composable
 fun PremiumPostCard(
     post: ChannelPost,
+    channelName: String = "",
+    channelAvatarUrl: String? = null,
     onPostClick: () -> Unit,
     onReactionClick: (String) -> Unit,
     onCommentsClick: () -> Unit,
@@ -535,7 +538,8 @@ fun PremiumPostCard(
                 }
             }
 
-            // ── AUTHOR HEADER (always at top) ──────────────────────────────────
+            // ── CHANNEL HEADER ─────────────────────────────────────────────────
+            val context = LocalContext.current
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -548,14 +552,19 @@ fun PremiumPostCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(9.dp)
             ) {
+                val displayAvatar = if (post.isAd) post.authorAvatar else channelAvatarUrl
+                val displayName = if (post.isAd)
+                    post.authorName ?: post.authorUsername ?: channelName
+                else
+                    channelName.ifEmpty { post.authorName ?: post.authorUsername ?: "" }
                 PremiumSmallAvatar(
-                    avatarUrl = post.authorAvatar ?: "",
-                    name = post.authorName ?: post.authorUsername ?: "?",
+                    avatarUrl = displayAvatar ?: "",
+                    name = displayName.ifEmpty { "?" },
                     size = 34.dp
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = post.authorName ?: post.authorUsername ?: "User #${post.authorId}",
+                        text = displayName,
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = AppFonts.Exo2,
@@ -563,9 +572,36 @@ fun PremiumPostCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (post.isAd) {
+                        Text(
+                            text = stringResource(R.string.post_ad_badge),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF8F00),
+                            letterSpacing = 0.8.sp
+                        )
+                    }
+                    if (post.forwardedFromName != null) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Forward,
+                                contentDescription = null,
+                                tint = colorScheme.primary.copy(alpha = 0.7f),
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.post_forwarded_from_fmt, post.forwardedFromName),
+                                fontSize = 11.sp,
+                                color = colorScheme.primary.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
                 }
                 Text(
-                    text = formatPostTime(post.createdTime),
+                    text = formatPostTime(post.createdTime, context),
                     fontSize = 11.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.45f)
                 )
