@@ -498,7 +498,7 @@ fun AvatarManagementSheet(
                             )
 
                             // Main avatar crown indicator
-                            if (avatar.position == 0) {
+                            if (avatars.firstOrNull()?.id == avatar.id) {
                                 Box(
                                     Modifier
                                         .align(Alignment.TopStart)
@@ -537,12 +537,19 @@ fun AvatarManagementSheet(
 
     // Avatar action dialog (set main / delete)
     selectedAvatar?.let { avatar ->
+        val isMain = avatars.firstOrNull()?.id == avatar.id
         AlertDialog(
             onDismissRequest = { selectedAvatar = null },
-            title = { Text(if (avatar.position == 0) "Основне фото" else "Фото профілю") },
+            title = { Text(if (isMain) "Основне фото" else "Фото профілю") },
             text  = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (avatar.position != 0) {
+                    if (isMain) {
+                        Text(
+                            "Це фото зараз встановлено як основне",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
                         TextButton(
                             onClick = {
                                 viewModel.setMainAvatar(avatar.id)

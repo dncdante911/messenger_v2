@@ -90,12 +90,12 @@ class AvatarGalleryViewModel : ViewModel() {
                 tmpFile.delete()
 
                 if (resp.apiStatus == 200 && resp.avatar != null) {
-                    // Prepend the new avatar so it appears first if it's main
-                    _avatars.value = if (setAsMain) {
+                    val newList = if (setAsMain) {
                         listOf(resp.avatar) + _avatars.value
                     } else {
                         _avatars.value + resp.avatar
                     }
+                    _avatars.value = newList.mapIndexed { i, a -> a.copy(position = i) }
                     _limitInfo.value = LimitInfo(
                         count     = resp.count,
                         limit     = resp.limit,
@@ -124,14 +124,14 @@ class AvatarGalleryViewModel : ViewModel() {
             try {
                 val resp = NodeRetrofitClient.api.setMainAvatar(avatarId)
                 if (resp.apiStatus == 200) {
-                    // Move selected avatar to front of the list
                     val current = _avatars.value.toMutableList()
                     val idx = current.indexOfFirst { it.id == avatarId }
                     if (idx > 0) {
                         val moved = current.removeAt(idx)
                         current.add(0, moved)
-                        _avatars.value = current
                     }
+                    // Re-index position fields so the grid star indicator stays correct
+                    _avatars.value = current.mapIndexed { i, a -> a.copy(position = i) }
                     onDone(true)
                 } else {
                     _error.value = resp.errorMessage
@@ -155,7 +155,8 @@ class AvatarGalleryViewModel : ViewModel() {
             try {
                 val resp = NodeRetrofitClient.api.deleteAvatar(avatarId)
                 if (resp.apiStatus == 200) {
-                    _avatars.value = _avatars.value.filter { it.id != avatarId }
+                    val filtered = _avatars.value.filter { it.id != avatarId }
+                    _avatars.value = filtered.mapIndexed { i, a -> a.copy(position = i) }
                     onDone(true)
                 } else {
                     _error.value = resp.errorMessage
@@ -177,9 +178,9 @@ class AvatarGalleryViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 NodeRetrofitClient.api.reorderAvatars(orderedIds)
-                // Reorder local list to match
                 val byId = _avatars.value.associateBy { it.id }
-                _avatars.value = orderedIds.mapNotNull { byId[it] }
+                val reordered = orderedIds.mapNotNull { byId[it] }
+                _avatars.value = reordered.mapIndexed { i, a -> a.copy(position = i) }
             } catch (e: Exception) {
                 Log.e(TAG, "reorderAvatars error", e)
             }
