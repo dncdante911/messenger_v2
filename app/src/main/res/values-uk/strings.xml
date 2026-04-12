@@ -3309,4 +3309,14 @@
     <!-- Short time units for post timestamps -->
     <string name="time_hours_short">%d год</string>
     <string name="time_days_short">%d д</string>
+
+    <!-- ===== AVATAR MANAGEMENT SHEET ===== -->
+    <string name="avatar_sheet_title">Фото профілю</string>
+    <string name="avatar_main_photo">Основне фото</string>
+    <string name="avatar_is_main_hint">Це фото зараз встановлено як основне</string>
+    <string name="avatar_set_main">Зробити основним</string>
+    <string name="avatar_delete_photo">Видалити фото</string>
+    <string name="avatar_delete_photo_title">Видалити фото?</string>
+    <string name="avatar_delete_photo_message">Це фото буде видалено з вашого профілю.</string>
+    <string name="avatar_premium_hint">Premium: до 25 фото та анімованих аватарок</string>
 </resources>
