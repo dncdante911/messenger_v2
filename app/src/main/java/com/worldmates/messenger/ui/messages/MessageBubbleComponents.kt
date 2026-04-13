@@ -76,8 +76,9 @@ fun MessageBubbleComposable(
     isSelected: Boolean = false,
     onToggleSelection: (Long) -> Unit = {},
     onDoubleTap: (Long) -> Unit = {},
-    // 👤 Параметри для відображення імені відправника в групових чатах
+    // 👤 Параметри для відображення імені відправника (групові та приватні чати)
     isGroup: Boolean = false,
+    recipientName: String = "",
     onSenderNameClick: (Long) -> Unit = {},
     // 📝 Параметри для форматування тексту
     formattingSettings: FormattingSettings = FormattingSettings(),
@@ -389,10 +390,17 @@ fun MessageBubbleComposable(
 
                 // 💬 ТЕКСТ/МЕДІА В БУЛЬБАШЦІ - використовуємо вибраний стиль
                 Column {
-                    // 👤 Ім'я відправника (тільки для групових чатів/каналів, і не для власних повідомлень)
-                    if (isGroup && !isOwn && !message.senderName.isNullOrEmpty()) {
+                    // 👤 Ім'я відправника: в групах — з message.senderName;
+                    //    у приватних чатах — recipientName (якщо повідомлення не моє)
+                    val displaySenderName = when {
+                        isOwn -> null
+                        isGroup && !message.senderName.isNullOrEmpty() -> message.senderName
+                        !isGroup && recipientName.isNotBlank() -> recipientName
+                        else -> null
+                    }
+                    if (displaySenderName != null) {
                         Text(
-                            text = message.senderName.orEmpty(),
+                            text = displaySenderName,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.primary,
@@ -748,28 +756,40 @@ fun MessageBubbleComposable(
                         }
 
                         // Час з покращеним форматуванням + галочки прочитано
-                        Row(
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = formatTime(message.timeStamp),
-                                color = textColor.copy(alpha = 0.45f),
-                                fontSize = 11.sp,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(top = 2.dp)
-                            )
+                        Column(horizontalAlignment = Alignment.End, modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = formatTime(message.timeStamp),
+                                    color = textColor.copy(alpha = 0.45f),
+                                    fontSize = 11.sp,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
 
-                            // ✓✓ Галочки прочитано (тільки для власних повідомлень)
-                            if (isOwn) {
-                                Spacer(modifier = Modifier.width(3.dp))
-                                if (message.isLocalPending) {
-                                    PendingMessageIcon(modifier = Modifier.padding(top = 2.dp))
-                                } else {
-                                    MessageStatusIcon(
-                                        isRead = message.isRead ?: false,
-                                        modifier = Modifier.padding(top = 2.dp)
+                                // ✓✓ Галочки прочитано (тільки для власних повідомлень)
+                                if (isOwn) {
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    if (message.isLocalPending) {
+                                        PendingMessageIcon(modifier = Modifier.padding(top = 2.dp))
+                                    } else {
+                                        MessageStatusIcon(
+                                            isRead = message.isRead ?: false,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            // 🕐 Час прочитання — показуємо лише для власних прочитаних повідомлень
+                            if (isOwn && message.isRead == true) {
+                                message.readAt?.let { readAt ->
+                                    Text(
+                                        text = stringResource(R.string.read_at_fmt, formatTime(readAt)),
+                                        color = textColor.copy(alpha = 0.35f),
+                                        fontSize = 10.sp,
+                                        style = MaterialTheme.typography.labelSmall
                                     )
                                 }
                             }
@@ -994,7 +1014,8 @@ fun VoiceMessagePlayer(
                                     artist = displayArtist,
                                     timestamp = message.timeStamp,
                                     iv = message.iv,
-                                    tag = message.tag
+                                    tag = message.tag,
+                                    isVoice = isVoiceMessage
                                 )
                             }
                         },

@@ -3506,6 +3506,9 @@
     <!-- Voice message label -->
     <string name="voice_message_label">Голосовое сообщение</string>
 
+    <!-- Message read time -->
+    <string name="read_at_fmt">прочитано %s</string>
+
     <!-- Business chat header badge -->
     <string name="business_account_label">Бизнес-аккаунт</string>
     <string name="view_business_label">Просмотреть бизнес</string>

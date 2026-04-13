@@ -1337,8 +1337,9 @@ fun MessagesScreen(
                                     showQuickReaction = false
                                 }
                             },
-                            // 👤 Параметри для відображення імені в групових чатах
+                            // 👤 Параметри для відображення імені (групові та приватні чати)
                             isGroup = isGroup,
+                            recipientName = if (!isGroup) recipientName else "",
                             onSenderNameClick = { senderId ->
                                 // Шукаємо повідомлення з цим відправником для отримання даних
                                 val senderMessage = messages.find { it.fromId == senderId }
@@ -1723,15 +1724,16 @@ fun MessagesScreen(
             val musicServiceTrack by com.worldmates.messenger.services.MusicPlaybackService.currentTrackInfo.collectAsState()
             var showExpandedMusicPlayer by remember { mutableStateOf(false) }
 
-            if (musicServiceTrack.url.isNotEmpty()) {
+            // Mini bar and full player only for music (not voice messages)
+            if (musicServiceTrack.url.isNotEmpty() && !musicServiceTrack.isVoice) {
                 com.worldmates.messenger.ui.music.MusicMiniBar(
                     onExpand = { showExpandedMusicPlayer = true },
                     onStop = { /* сервіс зупинено */ }
                 )
             }
 
-            // Повноекранний плеєр з міні-бара
-            if (showExpandedMusicPlayer && musicServiceTrack.url.isNotEmpty()) {
+            // Повноекранний плеєр з міні-бара (тільки для музики)
+            if (showExpandedMusicPlayer && musicServiceTrack.url.isNotEmpty() && !musicServiceTrack.isVoice) {
                 com.worldmates.messenger.ui.music.AdvancedMusicPlayer(
                     audioUrl = musicServiceTrack.url,
                     title = musicServiceTrack.title,
