@@ -3471,4 +3471,42 @@
     <string name="avatar_delete_photo_title">Удалить фото?</string>
     <string name="avatar_delete_photo_message">Это фото будет удалено из вашего профиля.</string>
     <string name="avatar_premium_hint">Premium: до 25 фото и анимированных аватаров</string>
+
+    <!-- Theme display names (product names — not translated) -->
+    <string name="theme_classic_name">Classic Blue</string>
+    <string name="theme_ocean_name">Deep Ocean</string>
+    <string name="theme_sunset_name">Sunset Dreams</string>
+    <string name="theme_forest_name">Forest Green</string>
+    <string name="theme_purple_name">Purple Dream</string>
+    <string name="theme_rose_gold_name">Rose Gold</string>
+    <string name="theme_monochrome_name">Monochrome</string>
+    <string name="theme_nord_name">Nord Frost</string>
+    <string name="theme_dracula_name">Dracula</string>
+    <string name="theme_material_you_name">Material You</string>
+    <!-- Theme actions -->
+    <string name="theme_reset_to_default">Сбросить до стандартной темы</string>
+    <string name="theme_reset_done">Тема сброшена до стандартной</string>
+
+    <!-- Image viewer hints -->
+    <string name="viewer_hint_swipe">Свайпните влево/вправо</string>
+    <string name="viewer_hint_double_tap">Дважды коснитесь для увеличения</string>
+
+    <!-- Reply preview media type labels -->
+    <string name="reply_type_voice">🎙 Голосовое</string>
+    <string name="reply_type_audio">🎵 Аудио</string>
+    <string name="reply_type_video">🎥 Видео</string>
+    <string name="reply_type_photo">📷 Фото</string>
+    <string name="reply_type_sticker">🎭 Стикер</string>
+    <string name="reply_type_media">📎 Медиа</string>
+    <string name="reply_type_message">🔒 Сообщение</string>
+
+    <!-- Private chat — both participants label -->
+    <string name="private_chat_with">с %s</string>
+
+    <!-- Voice message label -->
+    <string name="voice_message_label">Голосовое сообщение</string>
+
+    <!-- Business chat header badge -->
+    <string name="business_account_label">Бизнес-аккаунт</string>
+    <string name="view_business_label">Просмотреть бизнес</string>
 </resources>

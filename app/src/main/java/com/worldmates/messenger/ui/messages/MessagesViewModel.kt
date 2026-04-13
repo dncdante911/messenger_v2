@@ -1564,9 +1564,11 @@ class MessagesViewModel(application: Application) :
     override fun onUserOffline(userId: Long) {
         if (userId == recipientId) {
             presenceIsOnline = false
+            // Stamp the current time so formatLastSeen shows "just now" / "5 min ago"
+            presenceLastSeenTs = System.currentTimeMillis() / 1000L
             // Only update if not in a transient action state (typing etc.)
             val cur = _presenceStatus.value
-            if (cur is UserPresenceStatus.Online) {
+            if (cur is UserPresenceStatus.Online || cur is UserPresenceStatus.Typing) {
                 _presenceStatus.value = basePresenceStatus()
             }
             Log.d("MessagesViewModel", "❌ Користувач $userId з'явився офлайн")

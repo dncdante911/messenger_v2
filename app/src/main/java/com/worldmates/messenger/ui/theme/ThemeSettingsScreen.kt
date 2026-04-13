@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -51,6 +52,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
@@ -347,6 +349,26 @@ fun ThemeSettingsScreen(
                     selectedVariant = themeState.variant,
                     onVariantSelected = { themeViewModel.setThemeVariant(it) }
                 )
+            }
+            item {
+                val resetDoneText = stringResource(R.string.theme_reset_done)
+                OutlinedButton(
+                    onClick = {
+                        themeViewModel.resetToDefaults()
+                        android.widget.Toast.makeText(context, resetDoneText, android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = stringResource(R.string.theme_reset_to_default))
+                }
             }
 
             // ══════════════════════════════════════════════════════════════════
@@ -886,7 +908,7 @@ fun ThemeVariantCard(
 
             // Название
             Text(
-                text = variant.displayName,
+                text = variant.localizedDisplayName(),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
@@ -1377,6 +1399,22 @@ fun ThemeVariant.localizedDescription(): String {
         ThemeVariant.NORD -> stringResource(R.string.theme_nord_desc)
         ThemeVariant.DRACULA -> stringResource(R.string.theme_dracula_desc)
         ThemeVariant.MATERIAL_YOU -> stringResource(R.string.theme_material_you_desc)
+    }
+}
+
+@Composable
+fun ThemeVariant.localizedDisplayName(): String {
+    return when (this) {
+        ThemeVariant.CLASSIC -> stringResource(R.string.theme_classic_name)
+        ThemeVariant.OCEAN -> stringResource(R.string.theme_ocean_name)
+        ThemeVariant.SUNSET -> stringResource(R.string.theme_sunset_name)
+        ThemeVariant.FOREST -> stringResource(R.string.theme_forest_name)
+        ThemeVariant.PURPLE -> stringResource(R.string.theme_purple_name)
+        ThemeVariant.ROSE_GOLD -> stringResource(R.string.theme_rose_gold_name)
+        ThemeVariant.MONOCHROME -> stringResource(R.string.theme_monochrome_name)
+        ThemeVariant.NORD -> stringResource(R.string.theme_nord_name)
+        ThemeVariant.DRACULA -> stringResource(R.string.theme_dracula_name)
+        ThemeVariant.MATERIAL_YOU -> stringResource(R.string.theme_material_you_name)
     }
 }
 

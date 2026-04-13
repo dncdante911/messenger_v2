@@ -293,7 +293,7 @@ fun FullscreenImageViewer(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Двічі торкніться для збільшення",
+                            text = stringResource(R.string.viewer_hint_double_tap),
                             color = Color.White,
                             fontSize = 14.sp
                         )
@@ -604,12 +604,12 @@ fun ImageGalleryViewer(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Свайпніть ліворуч/праворуч",
+                            text = stringResource(R.string.viewer_hint_swipe),
                             color = Color.White,
                             fontSize = 14.sp
                         )
                         Text(
-                            text = "Двічі торкніться для збільшення",
+                            text = stringResource(R.string.viewer_hint_double_tap),
                             color = Color.White.copy(alpha = 0.7f),
                             fontSize = 12.sp
                         )
