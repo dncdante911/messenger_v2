@@ -1498,14 +1498,64 @@
     
     <string name="theme_classic_desc">Классическая синяя тема в стиле Messenger</string>
     <string name="theme_ocean_desc">Глубокие океанские оттенки синего и бирюзового</string>
-    <string name="theme_sunset_desc">Тёплые оранжево-розовые тона заката</string>
-    <string name="theme_forest_desc">Природные зелёные и изумрудные оттенки</string>
-    <string name="theme_purple_desc">Элегантные фиолетовые и сиреневые тона</string>
-    <string name="theme_rose_gold_desc">Утончённое сочетание розового и золотого</string>
-    <string name="theme_monochrome_desc">Минималистичная черно-белая тема</string>
+    <string name="theme_purple_desc">Насыщенные фиолетовые тона с приятным контрастом</string>
+    <string name="theme_monochrome_desc">Тёмный сланец — мягкий контраст, лёгкое чтение</string>
     <string name="theme_nord_desc">Холодные северные оттенки Nord палитры</string>
     <string name="theme_dracula_desc">Тёмная тема с яркими акцентами</string>
     <string name="theme_material_you_desc">Динамические цвета из обоев (Android 12+)</string>
+    <!-- Premium theme descriptions -->
+    <string name="theme_stranger_things_desc">80-е, Перевёрнутый мир, красное свечение</string>
+    <string name="theme_lotr_desc">Средиземье: золото, тёмная магия и эпос</string>
+    <string name="theme_terminator_desc">Стальной киборг, красный взгляд, тёмное будущее</string>
+    <string name="theme_supernatural_desc">Охотники на монстров: янтарный огонь в кромешной тьме</string>
+    <string name="theme_marvel_desc">Красно-золотой героизм вселенной Marvel</string>
+    <string name="theme_cyberpunk_desc">Неоново-жёлтый киберпанк ночного города</string>
+    <string name="theme_interstellar_desc">Бесконечный космос, золото звёзд и тишина</string>
+    <string name="theme_harry_potter_desc">Хогвартс: бордовое золото магического мира</string>
+    <string name="theme_dune_desc">Пустыня Арракис: песок, пряность и мощь</string>
+    <string name="theme_demon_slayer_desc">Клинок, рассекающий демонов: чёрный и алый</string>
+    <!-- Theme display names (product names — not translated) -->
+    <string name="theme_classic_name">Classic Blue</string>
+    <string name="theme_ocean_name">Deep Ocean</string>
+    <string name="theme_purple_name">Violet Dream</string>
+    <string name="theme_monochrome_name">Dark Slate</string>
+    <string name="theme_nord_name">Nord Frost</string>
+    <string name="theme_dracula_name">Dracula Night</string>
+    <string name="theme_material_you_name">Material You</string>
+    <string name="theme_stranger_things_name">Stranger Things</string>
+    <string name="theme_lotr_name">Lord of the Rings</string>
+    <string name="theme_terminator_name">Terminator</string>
+    <string name="theme_supernatural_name">Supernatural</string>
+    <string name="theme_marvel_name">Marvel</string>
+    <string name="theme_cyberpunk_name">Cyberpunk 2077</string>
+    <string name="theme_interstellar_name">Interstellar</string>
+    <string name="theme_harry_potter_name">Harry Potter</string>
+    <string name="theme_dune_name">Dune</string>
+    <string name="theme_demon_slayer_name">Demon Slayer</string>
+    <!-- Theme PRO/Exclusive badges -->
+    <string name="theme_badge_pro">PRO</string>
+    <string name="theme_badge_exclusive">EXCLUSIVE</string>
+    <!-- One-click interface pack names and descriptions -->
+    <string name="pack_classic_name">Классический мессенджер</string>
+    <string name="pack_classic_desc">Синяя тема + ночной фон + стиль Telegram</string>
+    <string name="pack_nord_name">Северный мороз</string>
+    <string name="pack_nord_desc">Nord палитра + зимний фон + скруглённые пузыри</string>
+    <string name="pack_night_focus_name">Ночной фокус</string>
+    <string name="pack_night_focus_desc">Ocean + Аврора + стеклянные пузыри</string>
+    <string name="pack_neon_creator_name">Неоновый креатор</string>
+    <string name="pack_neon_creator_desc">Dracula + Космос + неоновые пузыри</string>
+    <string name="pack_violet_name">Violet Bloom</string>
+    <string name="pack_violet_desc">Фиолетовая мечта + Лаванда + современный стиль</string>
+    <string name="pack_business_name">Деловой</string>
+    <string name="pack_business_desc">Dark Slate + Утренний туман + минимализм</string>
+    <string name="pack_spring_name">Весенний сад</string>
+    <string name="pack_spring_desc">Material You + Весна + мягкие пузыри</string>
+    <string name="pack_stranger_name">Перевёрнутый мир</string>
+    <string name="pack_stranger_desc">Stranger Things + тёмный фон + неон · PRO</string>
+    <string name="pack_lotr_name">Средиземье</string>
+    <string name="pack_lotr_desc">Lord of the Rings + Песчаные дюны + контурный стиль · PRO</string>
+    <string name="pack_cyberpunk_name">Киберпанк</string>
+    <string name="pack_cyberpunk_desc">Cyberpunk 2077 + Тёмная слива + неон · PRO</string>
 
     
     <string name="avatar_updated">Аватар обновлён</string>
@@ -3471,17 +3521,6 @@
     <string name="avatar_delete_photo_message">Это фото будет удалено из вашего профиля.</string>
     <string name="avatar_premium_hint">Premium: до 25 фото и анимированных аватаров</string>
 
-    <!-- Theme display names (product names — not translated) -->
-    <string name="theme_classic_name">Classic Blue</string>
-    <string name="theme_ocean_name">Deep Ocean</string>
-    <string name="theme_sunset_name">Sunset Dreams</string>
-    <string name="theme_forest_name">Forest Green</string>
-    <string name="theme_purple_name">Purple Dream</string>
-    <string name="theme_rose_gold_name">Rose Gold</string>
-    <string name="theme_monochrome_name">Monochrome</string>
-    <string name="theme_nord_name">Nord Frost</string>
-    <string name="theme_dracula_name">Dracula</string>
-    <string name="theme_material_you_name">Material You</string>
     <!-- Theme actions -->
     <string name="theme_reset_to_default">Сбросить до стандартной темы</string>
     <string name="theme_reset_done">Тема сброшена до стандартной</string>
