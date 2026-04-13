@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -748,6 +749,7 @@ private fun ProfileStatChip(count: String, label: String, accentColor: Color? = 
 private fun ProfileInfoSection(user: User, accentColor: Color) {
     val genderMaleStr   = stringResource(R.string.gender_male)
     val genderFemaleStr = stringResource(R.string.gender_female)
+    val uriHandler      = LocalUriHandler.current
 
     val hasAnyInfo = listOf(user.working, user.school, user.city, user.website, user.birthday, user.gender)
         .any { !it.isNullOrBlank() }
@@ -782,7 +784,20 @@ private fun ProfileInfoSection(user: User, accentColor: Color) {
                 InfoItemCompact(Icons.Default.LocationOn, stringResource(R.string.city),            user.city,      accentColor)
             }
             if (!user.website.isNullOrBlank()) {
-                InfoItemCompact(Icons.Default.Language,   stringResource(R.string.website_label),   user.website,   accentColor)
+                InfoItemCompact(
+                    icon        = Icons.Default.Language,
+                    label       = stringResource(R.string.website_label),
+                    value       = user.website!!,
+                    accentColor = accentColor,
+                    onClick     = {
+                        // Ensure the URL has a scheme so the browser can open it
+                        val url = if (user.website.startsWith("http://") || user.website.startsWith("https://"))
+                            user.website
+                        else
+                            "https://${user.website}"
+                        runCatching { uriHandler.openUri(url) }
+                    }
+                )
             }
             if (!user.birthday.isNullOrBlank()) {
                 InfoItemCompact(Icons.Default.Cake,       stringResource(R.string.birthday_label),  user.birthday,  accentColor)
@@ -800,10 +815,16 @@ private fun InfoItemCompact(
     icon:       androidx.compose.ui.graphics.vector.ImageVector,
     label:      String,
     value:      String,
-    accentColor: Color
+    accentColor: Color,
+    onClick:    (() -> Unit)? = null
 ) {
+    val clickableModifier = if (onClick != null)
+        Modifier.fillMaxWidth().padding(vertical = 7.dp).clickable { onClick() }
+    else
+        Modifier.fillMaxWidth().padding(vertical = 7.dp)
+
     Row(
-        modifier          = Modifier.fillMaxWidth().padding(vertical = 7.dp),
+        modifier          = clickableModifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -816,8 +837,12 @@ private fun InfoItemCompact(
         }
         Spacer(Modifier.width(12.dp))
         Column {
-            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text(label, style = MaterialTheme.typography.bodySmall,  color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text  = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (onClick != null) accentColor else MaterialTheme.colorScheme.onSurface
+            )
+            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

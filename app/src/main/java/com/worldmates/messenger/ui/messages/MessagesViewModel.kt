@@ -325,10 +325,18 @@ class MessagesViewModel(application: Application) :
                 if (response.apiStatus == 200 && response.messages != null) {
                     val decryptedMessages = response.messages.decryptAll()
 
-                    val currentMessages = _messages.value.toMutableList()
-                    currentMessages.addAll(decryptedMessages)
-                    // Сортируем по времени (старые сверху, новые внизу)
-                    setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
+                    // Use atomic update to avoid a race with the Socket.IO listener:
+                    // if onNewMessage() adds a voice/media message between the moment we
+                    // read _messages.value and the moment we write it back, a plain
+                    // read-modify-write would silently drop the socket-added message,
+                    // making the bubble disappear until the user re-enters the chat.
+                    _messages.update { curr ->
+                        val combined = (curr + decryptedMessages)
+                            .distinctBy { it.id }
+                            .sortedBy { it.timeStamp }
+                        if (permanentlyDeletedIds.isEmpty()) combined
+                        else combined.filter { it.id !in permanentlyDeletedIds }
+                    }
 
                     _error.value = null
                     Log.d("MessagesViewModel", "Завантажено ${decryptedMessages.size} повідомлень (Node.js)")
@@ -411,9 +419,15 @@ class MessagesViewModel(application: Application) :
                 if (response.apiStatus == 200 && response.messages != null) {
                     val decryptedMessages = response.messages!!.decryptAll()
 
-                    val currentMessages = _messages.value.toMutableList()
-                    currentMessages.addAll(decryptedMessages)
-                    setMessagesSafe(currentMessages.distinctBy { it.id }.sortedBy { it.timeStamp })
+                    // Same atomic update as in fetchMessages() — prevents socket-added
+                    // media/voice messages from being overwritten by a concurrent fetch.
+                    _messages.update { curr ->
+                        val combined = (curr + decryptedMessages)
+                            .distinctBy { it.id }
+                            .sortedBy { it.timeStamp }
+                        if (permanentlyDeletedIds.isEmpty()) combined
+                        else combined.filter { it.id !in permanentlyDeletedIds }
+                    }
 
                     _error.value = null
                     Log.d(TAG, "Завантажено ${decryptedMessages.size} повідомлень групи $groupId")
@@ -1255,6 +1269,13 @@ class MessagesViewModel(application: Application) :
 
                         // Node.js send-media endpoint already handles Socket.IO broadcast,
                         // so no separate notify-media call is needed.
+
+                        // Brief pause so the socket event (emitted by the server right after
+                        // saving the message) arrives and is processed by onNewMessage()
+                        // before we issue an HTTP fetch.  The atomic _messages.update() in
+                        // fetchMessages/fetchGroupMessages guarantees the socket-added message
+                        // is preserved even if both paths run concurrently.
+                        delay(600)
 
                         // Refresh message list
                         if (groupId != 0L) {
