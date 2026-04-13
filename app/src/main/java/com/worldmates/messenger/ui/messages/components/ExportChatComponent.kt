@@ -61,7 +61,7 @@ fun ExportChatBottomSheet(
 
             if (error != null) {
                 Text(
-                    text = error!!,
+                    text = error.orEmpty(),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )

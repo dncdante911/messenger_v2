@@ -270,7 +270,7 @@ fun MessageBubbleComposable(
 
             // ── 📇 CONTACT MESSAGE (Node.js private chat — raw vCard in contact field) ──
             if (message.typeTwo == "contact" && !message.contact.isNullOrBlank()) {
-                val contact = com.worldmates.messenger.data.model.Contact.fromVCard(message.contact!!)
+                val contact = com.worldmates.messenger.data.model.Contact.fromVCard(message.contact.orEmpty())
                 if (contact != null) {
                     com.worldmates.messenger.ui.components.ContactMessageBubble(
                         contact  = contact,
@@ -284,8 +284,8 @@ fun MessageBubbleComposable(
             val isLocationMessage = message.type == "map" &&
                 !message.lat.isNullOrBlank() && !message.lng.isNullOrBlank()
             if (isLocationMessage) {
-                val lat = message.lat!!.toDoubleOrNull()
-                val lng = message.lng!!.toDoubleOrNull()
+                val lat = message.lat?.toDoubleOrNull()
+                val lng = message.lng?.toDoubleOrNull()
                 if (lat != null && lng != null) {
                     com.worldmates.messenger.ui.components.LocationMessageBubble(
                         lat     = lat,
@@ -353,10 +353,11 @@ fun MessageBubbleComposable(
                 ) {
                     // Text message - буде рендеритися далі в коді
                     if (!message.decryptedText.isNullOrEmpty()) {
+                        val decryptedText = message.decryptedText.orEmpty()
                         Text(
-                            text = message.decryptedText!!,
-                            fontSize = getEmojiSize(message.decryptedText!!),
-                            lineHeight = (getEmojiSize(message.decryptedText!!).value + 4).sp,
+                            text = decryptedText,
+                            fontSize = getEmojiSize(decryptedText),
+                            lineHeight = (getEmojiSize(decryptedText).value + 4).sp,
                             modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp)
                         )
                     }
@@ -370,7 +371,7 @@ fun MessageBubbleComposable(
                     !message.mediaUrl.isNullOrEmpty() -> message.mediaUrl.also {
                         Log.d("MessageBubble", "Використовую mediaUrl: $it")
                     }
-                    !message.decryptedText.isNullOrEmpty() -> extractMediaUrlFromText(message.decryptedText!!).also {
+                    !message.decryptedText.isNullOrEmpty() -> extractMediaUrlFromText(message.decryptedText.orEmpty()).also {
                         Log.d("MessageBubble", "Витягнуто з тексту: $it")
                     }
                     else -> null
@@ -379,7 +380,7 @@ fun MessageBubbleComposable(
                 Log.d("MessageBubble", "ID: ${message.id}, Type: ${message.type}, Detected: $detectedMediaType, URL: $effectiveMediaUrl")
 
                 val shouldShowText = !message.decryptedText.isNullOrEmpty() &&
-                        !isOnlyMediaUrl(message.decryptedText!!)
+                        !isOnlyMediaUrl(message.decryptedText.orEmpty())
 
                 // Transparent media = image/video/sticker/gif without a text caption
                 val isTransparentMedia = !effectiveMediaUrl.isNullOrEmpty() &&
@@ -391,7 +392,7 @@ fun MessageBubbleComposable(
                     // 👤 Ім'я відправника (тільки для групових чатів/каналів, і не для власних повідомлень)
                     if (isGroup && !isOwn && !message.senderName.isNullOrEmpty()) {
                         Text(
-                            text = message.senderName!!,
+                            text = message.senderName.orEmpty(),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.primary,
@@ -403,7 +404,7 @@ fun MessageBubbleComposable(
                         )
                     }
 
-                    if (isTransparentMedia) {
+                    if (isTransparentMedia && effectiveMediaUrl != null) {
                         // ── 🖼️ TRANSPARENT MEDIA BUBBLE (like Telegram) ───────────
                         when (detectedMediaType) {
                             "sticker" -> {
@@ -418,7 +419,7 @@ fun MessageBubbleComposable(
                                         )
                                 ) {
                                     AnimatedStickerView(
-                                        url = effectiveMediaUrl!!,
+                                        url = effectiveMediaUrl,
                                         size = 150.dp,
                                         autoPlay = true,
                                         loop = true
@@ -439,7 +440,7 @@ fun MessageBubbleComposable(
                                                 if (isSelectionMode) {
                                                     onToggleSelection(message.id)
                                                 } else if (detectedMediaType == "image") {
-                                                    onImageClick(effectiveMediaUrl!!)
+                                                    onImageClick(effectiveMediaUrl)
                                                 }
                                             },
                                             onLongClick = { if (!isSelectionMode) { onLongPress(); onToggleSelection(message.id) } },
@@ -457,7 +458,7 @@ fun MessageBubbleComposable(
                                     } else if (detectedMediaType == "video") {
                                         VideoMessageComponent(
                                             message = message,
-                                            videoUrl = effectiveMediaUrl!!,
+                                            videoUrl = effectiveMediaUrl,
                                             showTextAbove = false,
                                             enablePiP = true,
                                             modifier = Modifier
@@ -529,12 +530,12 @@ fun MessageBubbleComposable(
                         // 💬 Reply quote block — TG/Viber style
                         if ((message.replyToId ?: 0L) > 0L) {
                             val replyAuthor = when {
-                                !message.replyToName.isNullOrBlank() -> message.replyToName!!
+                                !message.replyToName.isNullOrBlank() -> message.replyToName.orEmpty()
                                 message.replyToId == UserSession.userId -> stringResource(R.string.you_label)
                                 else -> stringResource(R.string.reply_to)
                             }
                             val replyPreview = when {
-                                !message.replyToText.isNullOrBlank() -> message.replyToText!!
+                                !message.replyToText.isNullOrBlank() -> message.replyToText.orEmpty()
                                 else -> "🔒 Повідомлення"
                             }
 
@@ -596,12 +597,13 @@ fun MessageBubbleComposable(
 
                         // Text message
                         if (shouldShowText) {
+                            val decryptedText = message.decryptedText.orEmpty()
                             // 📇 Проверяем, является ли сообщение vCard контактом
-                            val isContactMessage = com.worldmates.messenger.ui.components.isVCardMessage(message.decryptedText!!)
+                            val isContactMessage = com.worldmates.messenger.ui.components.isVCardMessage(decryptedText)
 
                             if (isContactMessage) {
                                 // Рендерим контакт
-                                val contact = com.worldmates.messenger.ui.components.parseContactFromMessage(message.decryptedText!!)
+                                val contact = com.worldmates.messenger.ui.components.parseContactFromMessage(decryptedText)
                                 if (contact != null) {
                                     com.worldmates.messenger.ui.components.ContactMessageBubble(
                                         contact = contact
@@ -609,7 +611,7 @@ fun MessageBubbleComposable(
                                 } else {
                                     // Если не удалось распарсить, показываем как обычный текст з форматуванням
                                     FormattedMessageText(
-                                        text = message.decryptedText!!,
+                                        text = decryptedText,
                                         textColor = textColor,
                                         settings = formattingSettings,
                                         onMentionClick = onMentionClick,
@@ -1117,8 +1119,8 @@ fun VoiceMessagePlayer(
     if (isVoiceMessage) {
         Spacer(modifier = Modifier.height(4.dp))
         if (transcript != null) {
-            val isTruncated = transcript!!.length > transcriptCharLimit
-            val displayText = if (isTruncated) transcript!!.take(transcriptCharLimit) else transcript!!
+            val isTruncated = transcript.length > transcriptCharLimit
+            val displayText = if (isTruncated) transcript.take(transcriptCharLimit) else transcript
             // Show transcript text (truncated to limit)
             Column(
                 modifier = Modifier
@@ -1200,7 +1202,7 @@ fun VoiceMessagePlayer(
                 if (transcriptError != null) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = transcriptError!!,
+                        text = transcriptError,
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 10.sp,
                         maxLines = 1
@@ -1548,11 +1550,11 @@ fun ReplyIndicator(
         val colorScheme = MaterialTheme.colorScheme
         val senderName = when {
             replyToMessage.fromId == UserSession.userId -> stringResource(R.string.you_label)
-            !replyToMessage.senderName.isNullOrBlank()  -> replyToMessage.senderName!!
+            !replyToMessage.senderName.isNullOrBlank()  -> replyToMessage.senderName.orEmpty()
             else -> stringResource(R.string.user_label)
         }
         val previewText = when {
-            !replyToMessage.decryptedText.isNullOrBlank() -> replyToMessage.decryptedText!!
+            !replyToMessage.decryptedText.isNullOrBlank() -> replyToMessage.decryptedText.orEmpty()
             replyToMessage.type == "voice"  -> "🎙 Голосове"
             replyToMessage.type == "audio"  -> "🎵 Аудіо"
             replyToMessage.type == "video"  -> "🎥 Відео"

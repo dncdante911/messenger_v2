@@ -417,7 +417,7 @@ fun MessagesScreen(
     val albumGroups: Map<Long, List<com.worldmates.messenger.data.model.Message>> = remember(messages) {
         messages
             .filter { it.albumId != null }
-            .groupBy { it.albumId!! }
+            .groupBy { it.albumId ?: 0L }
     }
     val albumSecondaryIds: Set<Long> = remember(albumGroups) {
         albumGroups.flatMap { (_, msgs) ->
@@ -777,7 +777,7 @@ fun MessagesScreen(
                 onMuteClick = {
                     if (isGroup && currentGroup != null) {
                         // Для груп - перемикаємо сповіщення
-                        if (currentGroup!!.isMuted) {
+                        if (currentGroup?.isMuted == true) {
                             viewModel.unmuteGroup(
                                 onSuccess = {
                                     android.widget.Toast.makeText(context, context.getString(R.string.notifications_enabled_for, recipientName), android.widget.Toast.LENGTH_SHORT).show()
@@ -1060,8 +1060,7 @@ fun MessagesScreen(
             }
 
             // 📌 Pinned Message Banner для особистих чатів
-            if (!isGroup && pinnedPrivateMessage != null) {
-                val pinnedMsg = pinnedPrivateMessage!!
+            if (!isGroup) pinnedPrivateMessage?.let { pinnedMsg ->
                 val pinnedText = pinnedMsg.decryptedText ?: pinnedMsg.encryptedText ?: ""
                 PinnedMessageBanner(
                     pinnedMessage = pinnedMsg,
@@ -1448,9 +1447,9 @@ fun MessagesScreen(
             }
 
             // 🎨 ФОТОРЕДАКТОР
-            if (showPhotoEditor && editImageUrl != null) {
+            if (showPhotoEditor) editImageUrl?.let { editorUrl ->
                 com.worldmates.messenger.ui.editor.PhotoEditorScreen(
-                    imageUrl = editImageUrl!!,
+                    imageUrl = editorUrl,
                     onDismiss = {
                         showPhotoEditor = false
                         editImageUrl = null
@@ -1490,9 +1489,9 @@ fun MessagesScreen(
             }
 
             // Message Context Menu Bottom Sheet
-            if (showContextMenu && selectedMessage != null) {
+            if (showContextMenu) selectedMessage?.let { msg ->
                 MessageContextMenu(
-                    message = selectedMessage!!,
+                    message = msg,
                     onDismiss = {
                         showContextMenu = false
                         selectedMessage = null
@@ -1563,12 +1562,12 @@ fun MessagesScreen(
                 showSelectionDeleteDialog = showSelectionDeleteDialog,
                 selectedCount = selectedMessages.size,
                 onDeleteForEveryone = {
-                    viewModel.deleteMessage(messageToDelete!!.id, "everyone")
+                    messageToDelete?.let { viewModel.deleteMessage(it.id, "everyone") }
                     showDeleteDialog = false
                     messageToDelete = null
                 },
                 onDeleteForMe = {
-                    viewModel.deleteMessage(messageToDelete!!.id, "just_me")
+                    messageToDelete?.let { viewModel.deleteMessage(it.id, "just_me") }
                     showDeleteDialog = false
                     messageToDelete = null
                 },
@@ -1607,9 +1606,9 @@ fun MessagesScreen(
             )
 
             // 👤 User Profile Menu (при кліку на ім'я в групі)
-            if (showUserProfileMenu && selectedUserForMenu != null) {
+            if (showUserProfileMenu) selectedUserForMenu?.let { menuUser ->
                 UserProfileMenuSheet(
-                    user = selectedUserForMenu!!,
+                    user = menuUser,
                     onDismiss = {
                         showUserProfileMenu = false
                         selectedUserForMenu = null
@@ -1620,7 +1619,7 @@ fun MessagesScreen(
                                 // Відкриваємо повний профіль
                                 context.startActivity(
                                     android.content.Intent(context, com.worldmates.messenger.ui.profile.UserProfileActivity::class.java).apply {
-                                        putExtra("user_id", selectedUserForMenu?.userId)
+                                        putExtra("user_id", menuUser.userId)
                                     }
                                 )
                             }
@@ -1628,18 +1627,18 @@ fun MessagesScreen(
                                 // Відкриваємо приватний чат з користувачем
                                 context.startActivity(
                                     android.content.Intent(context, com.worldmates.messenger.ui.messages.MessagesActivity::class.java).apply {
-                                        putExtra("recipient_id", selectedUserForMenu?.userId)
-                                        putExtra("recipient_name", selectedUserForMenu?.name ?: selectedUserForMenu?.username)
-                                        putExtra("recipient_avatar", selectedUserForMenu?.avatar ?: "")
+                                        putExtra("recipient_id", menuUser.userId)
+                                        putExtra("recipient_name", menuUser.name ?: menuUser.username)
+                                        putExtra("recipient_avatar", menuUser.avatar ?: "")
                                     }
                                 )
                             }
                             is UserMenuAction.CopyUsername -> {
-                                clipboardManager.setText(AnnotatedString("@${selectedUserForMenu?.username}"))
+                                clipboardManager.setText(AnnotatedString("@${menuUser.username}"))
                                 android.widget.Toast.makeText(context, context.getString(R.string.username_copied_toast), android.widget.Toast.LENGTH_SHORT).show()
                             }
                             is UserMenuAction.Report -> {
-                                reportTargetUser = selectedUserForMenu
+                                reportTargetUser = menuUser
                                 showReportDialog = true
                             }
                             else -> {
@@ -1654,15 +1653,15 @@ fun MessagesScreen(
             }
 
             // 🚩 Report user dialog
-            if (showReportDialog && reportTargetUser != null) {
+            if (showReportDialog) reportTargetUser?.let { target ->
                 ReportUserDialog(
-                    userName = reportTargetUser!!.username,
+                    userName = target.username,
                     onDismiss = {
                         showReportDialog = false
                         reportTargetUser = null
                     },
                     onReport = { reason, details ->
-                        val userId = reportTargetUser!!.userId
+                        val userId = target.userId
                         showReportDialog = false
                         reportTargetUser = null
                         scope.launch {
@@ -1812,7 +1811,7 @@ fun MessagesScreen(
                         if (messageText.isNotBlank()) {
                             if (editingMessage != null) {
                                 // Show scope dialog: edit for everyone vs just for me
-                                pendingEditMessageId = editingMessage!!.id
+                                pendingEditMessageId = editingMessage?.id ?: 0L
                                 pendingEditText = messageText
                                 showEditScopeDialog = true
                             } else {
@@ -1977,12 +1976,12 @@ fun MessagesScreen(
                 showAudioQualityDialog = showAudioQualityDialog,
                 pendingAudioFile = pendingAudioFile,
                 onSendOriginalAudio = {
-                    viewModel.uploadAndSendMedia(pendingAudioFile!!, "audio")
+                    pendingAudioFile?.let { viewModel.uploadAndSendMedia(it, "audio") }
                     showAudioQualityDialog = false
                     pendingAudioFile = null
                 },
                 onSendCompressedAudio = {
-                    viewModel.uploadAndSendMedia(pendingAudioFile!!, "voice")
+                    pendingAudioFile?.let { viewModel.uploadAndSendMedia(it, "voice") }
                     showAudioQualityDialog = false
                     pendingAudioFile = null
                 },

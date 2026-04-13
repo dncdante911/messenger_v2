@@ -150,7 +150,7 @@ fun AdvancedVideoPlayer(
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(exoPlayer) {
         onDispose {
             exoPlayer.release()
         }
