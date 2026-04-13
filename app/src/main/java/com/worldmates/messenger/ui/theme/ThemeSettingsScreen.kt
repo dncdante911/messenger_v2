@@ -3,6 +3,8 @@ package com.worldmates.messenger.ui.theme
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.ui.premium.PremiumActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -89,148 +91,108 @@ import androidx.compose.foundation.lazy.LazyRow
 
 /**
  * Готові фонові градієнти для чатів.
- * Назви беруться з ресурсів рядків (nameResId), щоб підтримувати локалізацію.
- * id — стабільний ключ, який використовується в одноклікових пакетах та сховищі.
+ * Назви беруться з ресурсів рядків (nameResId) для підтримки локалізації.
+ * id — стабільний ключ для DataStore та одноклікових пакетів.
+ *
+ * Видалені: ocean, deep_space, forest, cherry, neon_city, messenger,
+ *           rose_quartz, golden_hour, velvet_night.
+ * Перероблені: spring (квіткові відтінки) та winter (льодова палітра).
  */
 enum class PresetBackground(
     val id: String,
     @StringRes val nameResId: Int,
     val gradientColors: List<Color>
 ) {
-    // ── Класичні ────────────────────────────────────────────────────────────
-    OCEAN(
-        id = "ocean",
-        nameResId = R.string.bg_ocean,
-        // Глибокий синьо-фіолетовий, схожий на стандартні теми Telegram
-        gradientColors = listOf(Color(0xFF1565C0), Color(0xFF283593), Color(0xFF6200EA))
-    ),
+    // ── Нейтральні темні ────────────────────────────────────────────────────
     MIDNIGHT(
         id = "midnight",
         nameResId = R.string.bg_midnight,
-        // Глибоке нічне небо — темно-синій, майже чорний
         gradientColors = listOf(Color(0xFF0A0E27), Color(0xFF1A237E), Color(0xFF0D2137))
     ),
-    DEEP_SPACE(
-        id = "deep_space",
-        nameResId = R.string.bg_deep_space,
-        // Темний космос — безодня з відтінком синього
-        gradientColors = listOf(Color(0xFF000005), Color(0xFF00061C), Color(0xFF001650))
-    ),
+
     // ── Тепла палітра ───────────────────────────────────────────────────────
     SUNSET(
         id = "sunset",
         nameResId = R.string.bg_sunset,
-        // Тепле небо на заході: золото → помаранчевий → пурпур
-        gradientColors = listOf(Color(0xFFFFD93D), Color(0xFFFF6B35), Color(0xFFE53E3E), Color(0xFF9F2793))
+        // Приємний захід: золото → помаранчевий → насичений пурпур
+        gradientColors = listOf(Color(0xFFFFB347), Color(0xFFFF6B35), Color(0xFFD44000), Color(0xFF7B1FA2))
     ),
     PEACH(
         id = "peach",
         nameResId = R.string.bg_peach,
-        // Затишний персиковий — як WhatsApp neutral
         gradientColors = listOf(Color(0xFFFFF3E0), Color(0xFFFFCC80), Color(0xFFFF9A5C))
     ),
     FIRE(
         id = "fire",
         nameResId = R.string.bg_fire,
-        // Лава та вогонь: темно-червоний → помаранчевий → жовте полум'я
         gradientColors = listOf(Color(0xFF7F0000), Color(0xFFBF360C), Color(0xFFFF6F00), Color(0xFFFFD54F))
     ),
     SAND_DUNES(
         id = "sand_dunes",
         nameResId = R.string.bg_sand_dunes,
-        // Тепла пустеля — пісок і бежевий (нейтральний, WA-стиль)
         gradientColors = listOf(Color(0xFFFFF8DC), Color(0xFFEDCB84), Color(0xFFC8965C))
     ),
-    // ── Природа ─────────────────────────────────────────────────────────────
-    FOREST(
-        id = "forest",
-        nameResId = R.string.bg_forest,
-        // Глибокий ліс: темний смарагд → насичений зелений
-        gradientColors = listOf(Color(0xFF1A472A), Color(0xFF2D6A4F), Color(0xFF52B788))
-    ),
+
+    // ── Природа (перероблені) ────────────────────────────────────────────────
     SPRING(
         id = "spring",
         nameResId = R.string.bg_spring,
-        // Свіжа весна: молодий пагін, цвіт яблуні
-        gradientColors = listOf(Color(0xFFE8F5E9), Color(0xFFA5D6A7), Color(0xFF43A047))
+        // Японська весна: м'який рожевий → ніжна зелень → молода листва
+        gradientColors = listOf(
+            Color(0xFFFFF0F5),
+            Color(0xFFFFD6E8),
+            Color(0xFFFFC8C8),
+            Color(0xFFD4EDAA),
+            Color(0xFF8BC34A)
+        )
     ),
-    CHERRY(
-        id = "cherry",
-        nameResId = R.string.bg_cherry,
-        // Японська сакура: ніжний рожевий → насичений малиновий
-        gradientColors = listOf(Color(0xFFFCE4EC), Color(0xFFF8BBD0), Color(0xFFF06292), Color(0xFFE91E63))
+    WINTER(
+        id = "winter",
+        nameResId = R.string.bg_winter,
+        // Глибока зима: перлинний → льодовий синій → сталевий
+        gradientColors = listOf(
+            Color(0xFFF8FBFF),
+            Color(0xFFD6EAF8),
+            Color(0xFF85C1E9),
+            Color(0xFF2E86C1),
+            Color(0xFF1A5276)
+        )
     ),
-    // ── Пастельна палітра ───────────────────────────────────────────────────
+
+    // ── Пастельна палітра ────────────────────────────────────────────────────
     LAVENDER(
         id = "lavender",
         nameResId = R.string.bg_lavender,
-        // Елегантна лаванда — ніжний ліловий
         gradientColors = listOf(Color(0xFFEDE7F6), Color(0xFFD1C4E9), Color(0xFF9575CD))
     ),
     COTTON_CANDY(
         id = "cotton_candy",
         nameResId = R.string.bg_cotton_candy,
-        // Цукрова вата: рожевий → бузковий → блакитний (kawaii)
         gradientColors = listOf(Color(0xFFFFD6E0), Color(0xFFFFAFCC), Color(0xFFCDB4DB), Color(0xFFA2D2FF))
     ),
     MORNING_MIST(
         id = "morning_mist",
         nameResId = R.string.bg_morning_mist,
-        // Ранковий туман — м'який сіро-блакитний, нейтральний як WhatsApp
         gradientColors = listOf(Color(0xFFF5F7FA), Color(0xFFDDE8F5), Color(0xFFB0CCE9))
     ),
-    // ── Ефектні ─────────────────────────────────────────────────────────────
+
+    // ── Ефектні ──────────────────────────────────────────────────────────────
     AURORA(
         id = "aurora",
         nameResId = R.string.bg_aurora,
-        // Північне сяйво на темному небі: зелений → бірюзовий → фіолетовий
         gradientColors = listOf(Color(0xFF0A1628), Color(0xFF004D40), Color(0xFF00BFA5), Color(0xFF7B1FA2))
     ),
     COSMIC(
         id = "cosmic",
         nameResId = R.string.bg_cosmic,
-        // Глибокий космос: темний → фіолет → лаванда
         gradientColors = listOf(Color(0xFF0D0221), Color(0xFF2D1B69), Color(0xFF6D3FC0), Color(0xFF9C6EE8))
     ),
-    NEON_CITY(
-        id = "neon_city",
-        nameResId = R.string.bg_neon_city,
-        // Нічне місто: м'який неон без кричливих кольорів
-        gradientColors = listOf(Color(0xFF0A0015), Color(0xFF1A0A35), Color(0xFF5E1B8C), Color(0xFF1A3A8C))
-    ),
-    // ── Нейтральні / сезонні ────────────────────────────────────────────────
-    WINTER(
-        id = "winter",
-        nameResId = R.string.bg_winter,
-        // Крижана зима: майже білий → ніжний блакит → синій лід
-        gradientColors = listOf(Color(0xFFE3F2FD), Color(0xFFBBDEFB), Color(0xFF42A5F5))
-    ),
-    MESSENGER_BLUE(
-        id = "messenger",
-        nameResId = R.string.bg_messenger,
-        // Класичний синій месенджер — схожий на палітру Telegram
-        gradientColors = listOf(Color(0xFF2AABEE), Color(0xFF1E88E5), Color(0xFF1565C0))
-    ),
-    // ── Нові / оновлені ─────────────────────────────────────────────────────
-    ROSE_QUARTZ(
-        id = "rose_quartz",
-        nameResId = R.string.bg_rose_quartz,
-        gradientColors = listOf(Color(0xFFFFF0F3), Color(0xFFFFB3C6), Color(0xFFFF85A1), Color(0xFFFF4D6D))
-    ),
-    GOLDEN_HOUR(
-        id = "golden_hour",
-        nameResId = R.string.bg_golden_hour,
-        gradientColors = listOf(Color(0xFFFFF8E1), Color(0xFFFFCC02), Color(0xFFFF9800), Color(0xFFE65100))
-    ),
+
+    // ── М'ятно-блакитна / арктична ───────────────────────────────────────────
     MINT_SKY(
         id = "mint_sky",
         nameResId = R.string.bg_mint_sky,
         gradientColors = listOf(Color(0xFFE0FFF4), Color(0xFF80FFCC), Color(0xFF00D4AA), Color(0xFF0096C7))
-    ),
-    VELVET_NIGHT(
-        id = "velvet_night",
-        nameResId = R.string.bg_velvet_night,
-        gradientColors = listOf(Color(0xFF1A0030), Color(0xFF3D005C), Color(0xFF1A1040), Color(0xFF0A0A2A))
     ),
     ARCTIC_BLUE(
         id = "arctic_blue",
@@ -245,7 +207,7 @@ enum class PresetBackground(
 
     companion object {
         fun fromId(id: String?): PresetBackground? {
-            return values().find { it.id == id }
+            return entries.find { it.id == id }
         }
     }
 }
@@ -1389,32 +1351,46 @@ fun EmojiReactionCard(
 @Composable
 fun ThemeVariant.localizedDescription(): String {
     return when (this) {
-        ThemeVariant.CLASSIC -> stringResource(R.string.theme_classic_desc)
-        ThemeVariant.OCEAN -> stringResource(R.string.theme_ocean_desc)
-        ThemeVariant.SUNSET -> stringResource(R.string.theme_sunset_desc)
-        ThemeVariant.FOREST -> stringResource(R.string.theme_forest_desc)
-        ThemeVariant.PURPLE -> stringResource(R.string.theme_purple_desc)
-        ThemeVariant.ROSE_GOLD -> stringResource(R.string.theme_rose_gold_desc)
-        ThemeVariant.MONOCHROME -> stringResource(R.string.theme_monochrome_desc)
-        ThemeVariant.NORD -> stringResource(R.string.theme_nord_desc)
-        ThemeVariant.DRACULA -> stringResource(R.string.theme_dracula_desc)
-        ThemeVariant.MATERIAL_YOU -> stringResource(R.string.theme_material_you_desc)
+        ThemeVariant.CLASSIC          -> stringResource(R.string.theme_classic_desc)
+        ThemeVariant.OCEAN            -> stringResource(R.string.theme_ocean_desc)
+        ThemeVariant.PURPLE           -> stringResource(R.string.theme_purple_desc)
+        ThemeVariant.MONOCHROME       -> stringResource(R.string.theme_monochrome_desc)
+        ThemeVariant.NORD             -> stringResource(R.string.theme_nord_desc)
+        ThemeVariant.DRACULA          -> stringResource(R.string.theme_dracula_desc)
+        ThemeVariant.MATERIAL_YOU     -> stringResource(R.string.theme_material_you_desc)
+        ThemeVariant.STRANGER_THINGS  -> stringResource(R.string.theme_stranger_things_desc)
+        ThemeVariant.LORD_OF_THE_RINGS-> stringResource(R.string.theme_lotr_desc)
+        ThemeVariant.TERMINATOR       -> stringResource(R.string.theme_terminator_desc)
+        ThemeVariant.SUPERNATURAL     -> stringResource(R.string.theme_supernatural_desc)
+        ThemeVariant.MARVEL           -> stringResource(R.string.theme_marvel_desc)
+        ThemeVariant.CYBERPUNK        -> stringResource(R.string.theme_cyberpunk_desc)
+        ThemeVariant.INTERSTELLAR     -> stringResource(R.string.theme_interstellar_desc)
+        ThemeVariant.HARRY_POTTER     -> stringResource(R.string.theme_harry_potter_desc)
+        ThemeVariant.DUNE             -> stringResource(R.string.theme_dune_desc)
+        ThemeVariant.DEMON_SLAYER     -> stringResource(R.string.theme_demon_slayer_desc)
     }
 }
 
 @Composable
 fun ThemeVariant.localizedDisplayName(): String {
     return when (this) {
-        ThemeVariant.CLASSIC -> stringResource(R.string.theme_classic_name)
-        ThemeVariant.OCEAN -> stringResource(R.string.theme_ocean_name)
-        ThemeVariant.SUNSET -> stringResource(R.string.theme_sunset_name)
-        ThemeVariant.FOREST -> stringResource(R.string.theme_forest_name)
-        ThemeVariant.PURPLE -> stringResource(R.string.theme_purple_name)
-        ThemeVariant.ROSE_GOLD -> stringResource(R.string.theme_rose_gold_name)
-        ThemeVariant.MONOCHROME -> stringResource(R.string.theme_monochrome_name)
-        ThemeVariant.NORD -> stringResource(R.string.theme_nord_name)
-        ThemeVariant.DRACULA -> stringResource(R.string.theme_dracula_name)
-        ThemeVariant.MATERIAL_YOU -> stringResource(R.string.theme_material_you_name)
+        ThemeVariant.CLASSIC          -> stringResource(R.string.theme_classic_name)
+        ThemeVariant.OCEAN            -> stringResource(R.string.theme_ocean_name)
+        ThemeVariant.PURPLE           -> stringResource(R.string.theme_purple_name)
+        ThemeVariant.MONOCHROME       -> stringResource(R.string.theme_monochrome_name)
+        ThemeVariant.NORD             -> stringResource(R.string.theme_nord_name)
+        ThemeVariant.DRACULA          -> stringResource(R.string.theme_dracula_name)
+        ThemeVariant.MATERIAL_YOU     -> stringResource(R.string.theme_material_you_name)
+        ThemeVariant.STRANGER_THINGS  -> stringResource(R.string.theme_stranger_things_name)
+        ThemeVariant.LORD_OF_THE_RINGS-> stringResource(R.string.theme_lotr_name)
+        ThemeVariant.TERMINATOR       -> stringResource(R.string.theme_terminator_name)
+        ThemeVariant.SUPERNATURAL     -> stringResource(R.string.theme_supernatural_name)
+        ThemeVariant.MARVEL           -> stringResource(R.string.theme_marvel_name)
+        ThemeVariant.CYBERPUNK        -> stringResource(R.string.theme_cyberpunk_name)
+        ThemeVariant.INTERSTELLAR     -> stringResource(R.string.theme_interstellar_name)
+        ThemeVariant.HARRY_POTTER     -> stringResource(R.string.theme_harry_potter_name)
+        ThemeVariant.DUNE             -> stringResource(R.string.theme_dune_name)
+        ThemeVariant.DEMON_SLAYER     -> stringResource(R.string.theme_demon_slayer_name)
     }
 }
 
@@ -1518,7 +1494,9 @@ fun ThemeVariantsLazyRow(
     selectedVariant: ThemeVariant,
     onVariantSelected: (ThemeVariant) -> Unit
 ) {
-    val availableThemes = ThemeVariant.values().filter { v ->
+    val context = LocalContext.current
+    val canUsePremium = remember { UserSession.isProActive }
+    val availableThemes = ThemeVariant.entries.filter { v ->
         v != ThemeVariant.MATERIAL_YOU || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     }
     LazyRow(
@@ -1526,10 +1504,18 @@ fun ThemeVariantsLazyRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(availableThemes) { variant ->
+            val isLocked = variant.isPremium && !canUsePremium
             ThemeVariantChip(
                 variant = variant,
                 isSelected = variant == selectedVariant,
-                onClick = { onVariantSelected(variant) }
+                isLocked = isLocked,
+                onClick = {
+                    if (isLocked) {
+                        context.startActivity(Intent(context, PremiumActivity::class.java))
+                    } else {
+                        onVariantSelected(variant)
+                    }
+                }
             )
         }
     }
@@ -1537,16 +1523,23 @@ fun ThemeVariantsLazyRow(
 
 /**
  * Компактна картка теми в горизонтальному ряду: емодзі + назва + 3 кольорових кружки.
+ * Для PRO/підписки показує золотий значок і замок, якщо не підписаний.
  */
 @Composable
 fun ThemeVariantChip(
     variant: ThemeVariant,
     isSelected: Boolean,
+    isLocked: Boolean = false,
     onClick: () -> Unit
 ) {
     val palette = variant.getPalette()
     val borderColor by animateColorAsState(
-        targetValue = if (isSelected) palette.primary else Color.Transparent,
+        targetValue = when {
+            isSelected -> palette.primary
+            variant.isSubscriptionOnly -> Color(0xFFFFD700).copy(alpha = 0.6f)
+            variant.isPremium          -> Color(0xFFFFD700).copy(alpha = 0.4f)
+            else                       -> Color.Transparent
+        },
         animationSpec = tween(300),
         label = "chipBorder"
     )
@@ -1556,53 +1549,89 @@ fun ThemeVariantChip(
         label = "chipScale"
     )
 
-    Column(
+    Box(
         modifier = Modifier
             .scale(scale)
             .width(88.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .border(2.dp, borderColor, RoundedCornerShape(14.dp))
-            .background(
-                if (isSelected) palette.primary.copy(alpha = 0.1f)
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .clickable(
-                onClick = onClick,
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            )
-            .padding(10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = variant.emoji, fontSize = 28.sp)
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = variant.displayName,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-            textAlign = TextAlign.Center,
-            color = if (isSelected) palette.primary else MaterialTheme.colorScheme.onSurface,
-            maxLines = 1
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            listOf(palette.primary, palette.secondary, palette.accent).forEach { c ->
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(c)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+                .background(
+                    when {
+                        isSelected -> palette.primary.copy(alpha = 0.12f)
+                        isLocked   -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        else       -> MaterialTheme.colorScheme.surfaceVariant
+                    }
+                )
+                .clickable(
+                    onClick = onClick,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                )
+                .padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = variant.emoji, fontSize = 28.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = variant.localizedDisplayName(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                textAlign = TextAlign.Center,
+                color = if (isSelected) palette.primary
+                        else MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                lineHeight = 13.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                listOf(palette.primary, palette.secondary, palette.accent).forEach { c ->
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(c)
+                    )
+                }
+            }
+            if (isSelected) {
+                Spacer(modifier = Modifier.height(5.dp))
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = palette.primary,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
-        if (isSelected) {
-            Spacer(modifier = Modifier.height(6.dp))
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = palette.primary,
-                modifier = Modifier.size(16.dp)
+
+        // PRO / замок бейдж (верхній правий кут)
+        if (variant.isPremium) {
+            val badgeText = stringResource(
+                if (variant.isSubscriptionOnly) R.string.theme_badge_exclusive
+                else R.string.theme_badge_pro
             )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 4.dp)
+                    .background(
+                        color = if (variant.isSubscriptionOnly) Color(0xFFFF6D00)
+                                else Color(0xFFFFD700),
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = if (isLocked) "🔒 $badgeText" else badgeText,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF212121)
+                )
+            }
         }
     }
 }

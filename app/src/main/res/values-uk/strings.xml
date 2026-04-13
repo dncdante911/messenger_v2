@@ -1533,14 +1533,22 @@
     <!-- ===== THEME VARIANT DESCRIPTIONS ===== -->
     <string name="theme_classic_desc">Класична синя тема в стилі Messenger</string>
     <string name="theme_ocean_desc">Глибокі океанські відтінки синього та бірюзового</string>
-    <string name="theme_sunset_desc">Теплі оранжево-рожеві тони заходу сонця</string>
-    <string name="theme_forest_desc">Природні зелені та смарагдові відтінки</string>
-    <string name="theme_purple_desc">Елегантні фіолетові та бузкові тони</string>
-    <string name="theme_rose_gold_desc">Вишукане поєднання рожевого та золотого</string>
-    <string name="theme_monochrome_desc">Мінімалістична чорно-біла тема</string>
+    <string name="theme_purple_desc">Насичені фіолетові тони з приємним контрастом</string>
+    <string name="theme_monochrome_desc">Темний сланець — м\'який контраст, легке читання</string>
     <string name="theme_nord_desc">Холодні північні відтінки Nord палітри</string>
     <string name="theme_dracula_desc">Темна тема з яскравими акцентами</string>
     <string name="theme_material_you_desc">Динамічні кольори з шпалер (Android 12+)</string>
+    <!-- Premium theme descriptions -->
+    <string name="theme_stranger_things_desc">80-ті, Перевернутий світ, червоне сяйво</string>
+    <string name="theme_lotr_desc">Середзем\'я: золото, темна магія й епос</string>
+    <string name="theme_terminator_desc">Сталевий кіборг, червоний погляд, темне майбутнє</string>
+    <string name="theme_supernatural_desc">Мисливці на монстрів: бурштиновий вогонь у пітьмі</string>
+    <string name="theme_marvel_desc">Червоно-золотий героїзм всесвіту Marvel</string>
+    <string name="theme_cyberpunk_desc">Неоново-жовтий кіберпанк нічного міста</string>
+    <string name="theme_interstellar_desc">Нескінченний космос, золото зірок і тиша</string>
+    <string name="theme_harry_potter_desc">Хогвартс: бордове золото чарівного світу</string>
+    <string name="theme_dune_desc">Пустеля Арракіс: пісок, прянощі й міць</string>
+    <string name="theme_demon_slayer_desc">Клинок, що розсікає демонів: чорний і алий</string>
 
     <!-- ===== USER PROFILE ===== -->
     <string name="avatar_updated">Аватар оновлено</string>
@@ -3330,14 +3338,45 @@
     <!-- Theme display names (product names — not translated) -->
     <string name="theme_classic_name">Classic Blue</string>
     <string name="theme_ocean_name">Deep Ocean</string>
-    <string name="theme_sunset_name">Sunset Dreams</string>
-    <string name="theme_forest_name">Forest Green</string>
-    <string name="theme_purple_name">Purple Dream</string>
-    <string name="theme_rose_gold_name">Rose Gold</string>
-    <string name="theme_monochrome_name">Monochrome</string>
+    <string name="theme_purple_name">Violet Dream</string>
+    <string name="theme_monochrome_name">Dark Slate</string>
     <string name="theme_nord_name">Nord Frost</string>
-    <string name="theme_dracula_name">Dracula</string>
+    <string name="theme_dracula_name">Dracula Night</string>
     <string name="theme_material_you_name">Material You</string>
+    <string name="theme_stranger_things_name">Stranger Things</string>
+    <string name="theme_lotr_name">Lord of the Rings</string>
+    <string name="theme_terminator_name">Terminator</string>
+    <string name="theme_supernatural_name">Supernatural</string>
+    <string name="theme_marvel_name">Marvel</string>
+    <string name="theme_cyberpunk_name">Cyberpunk 2077</string>
+    <string name="theme_interstellar_name">Interstellar</string>
+    <string name="theme_harry_potter_name">Harry Potter</string>
+    <string name="theme_dune_name">Dune</string>
+    <string name="theme_demon_slayer_name">Demon Slayer</string>
+    <!-- Theme PRO/Exclusive badges -->
+    <string name="theme_badge_pro">PRO</string>
+    <string name="theme_badge_exclusive">EXCLUSIVE</string>
+    <!-- One-click interface pack names and descriptions -->
+    <string name="pack_classic_name">Класичний месенджер</string>
+    <string name="pack_classic_desc">Синя тема + нічний фон + стиль Telegram</string>
+    <string name="pack_nord_name">Північний мороз</string>
+    <string name="pack_nord_desc">Nord палітра + зимовий фон + скруглені бульбашки</string>
+    <string name="pack_night_focus_name">Нічний фокус</string>
+    <string name="pack_night_focus_desc">Ocean + Аврора + скляні бульбашки</string>
+    <string name="pack_neon_creator_name">Неоновий креатор</string>
+    <string name="pack_neon_creator_desc">Dracula + Космос + неонові бульбашки</string>
+    <string name="pack_violet_name">Violet Bloom</string>
+    <string name="pack_violet_desc">Фіолетова мрія + Лаванда + сучасний стиль</string>
+    <string name="pack_business_name">Діловий</string>
+    <string name="pack_business_desc">Dark Slate + Ранковий туман + мінімалізм</string>
+    <string name="pack_spring_name">Весняний сад</string>
+    <string name="pack_spring_desc">Material You + Весна + м\'які бульбашки</string>
+    <string name="pack_stranger_name">Перевернутий світ</string>
+    <string name="pack_stranger_desc">Stranger Things + темний фон + неон · PRO</string>
+    <string name="pack_lotr_name">Середзем\'я</string>
+    <string name="pack_lotr_desc">Lord of the Rings + Піщані дюни + контурний стиль · PRO</string>
+    <string name="pack_cyberpunk_name">Кіберпанк</string>
+    <string name="pack_cyberpunk_desc">Cyberpunk 2077 + Темна слива + неон · PRO</string>
     <!-- Theme actions -->
     <string name="theme_reset_to_default">Скинути до стандартної теми</string>
     <string name="theme_reset_done">Тему скинуто до стандартної</string>

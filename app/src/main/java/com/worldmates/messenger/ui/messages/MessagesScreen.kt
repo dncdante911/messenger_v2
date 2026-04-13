@@ -37,6 +37,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -701,6 +703,22 @@ fun MessagesScreen(
                 variant = animatedBgVariant,
                 modifier = Modifier.fillMaxSize()
             )
+        }
+
+        // Seasonal particle overlay for Spring/Winter preset backgrounds
+        if (themeState.presetBackgroundId != null) {
+            val seasonPreset = PresetBackground.fromId(themeState.presetBackgroundId)
+            when (seasonPreset) {
+                PresetBackground.SPRING -> SeasonalParticlesOverlay(
+                    isSpring = true,
+                    modifier = Modifier.fillMaxSize()
+                )
+                PresetBackground.WINTER -> SeasonalParticlesOverlay(
+                    isSpring = false,
+                    modifier = Modifier.fillMaxSize()
+                )
+                else -> {}
+            }
         }
 
         // Контент поверх фону
@@ -2251,6 +2269,83 @@ private fun FloatingDateChip(timestamp: Long) {
                 fontWeight = FontWeight.Medium,
                 color = colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * Lightweight animated particle overlay for seasonal preset backgrounds.
+ * Spring: floating pink cherry blossom petals.
+ * Winter: drifting white snowflake crystals.
+ */
+@Composable
+private fun SeasonalParticlesOverlay(
+    isSpring: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val transition = rememberInfiniteTransition(label = "seasonal_particles")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = if (isSpring) 9000 else 13000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "seasonal_fall"
+    )
+
+    val count = if (isSpring) 22 else 32
+    // Deterministic particle layout — x position, phase offset, drift scale, radius
+    val particles = remember(isSpring) {
+        List(count) { i ->
+            val x = (i.toFloat() / count)
+            val phase = (i * 7.31f) % 1f
+            val drift = 0.18f + (i % 7) * 0.07f
+            val radius = if (isSpring) 4f + (i % 5) * 2f else 2.5f + (i % 4) * 1.5f
+            floatArrayOf(x, phase, drift, radius)
+        }
+    }
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        particles.forEach { p ->
+            val yFrac = (progress + p[1]) % 1f
+            val y = yFrac * (h + 80f) - 40f
+            val sineArg = ((progress + p[1]) * 2.0 * Math.PI * 1.5).let { sin(it).toFloat() }
+            val x = (p[0] * w + sineArg * p[2] * 65f).coerceIn(0f, w)
+            val alpha = 0.25f + (p[1] % 0.35f)
+            if (isSpring) {
+                // Pink petal dot
+                drawCircle(
+                    color = Color(0xFFFFB6D0).copy(alpha = alpha.coerceIn(0.2f, 0.65f)),
+                    radius = p[3],
+                    center = Offset(x, y)
+                )
+                // Tiny inner highlight
+                drawCircle(
+                    color = Color(0xFFFFFFFF).copy(alpha = 0.3f),
+                    radius = p[3] * 0.4f,
+                    center = Offset(x - p[3] * 0.25f, y - p[3] * 0.25f)
+                )
+            } else {
+                val snowColor = Color(0xFFE8F4FF).copy(alpha = alpha.coerceIn(0.2f, 0.6f))
+                val r = p[3]
+                // Snowflake: 3 crossing lines
+                for (angle in listOf(0.0, 1.047, 2.094)) {
+                    val cosA = kotlin.math.cos(angle).toFloat()
+                    val sinA = sin(angle).toFloat()
+                    drawLine(
+                        color = snowColor,
+                        start = Offset(x - cosA * r, y - sinA * r),
+                        end = Offset(x + cosA * r, y + sinA * r),
+                        strokeWidth = 1.5f
+                    )
+                }
+            }
         }
     }
 }
