@@ -3326,4 +3326,42 @@
     <string name="avatar_delete_photo_title">Видалити фото?</string>
     <string name="avatar_delete_photo_message">Це фото буде видалено з вашого профілю.</string>
     <string name="avatar_premium_hint">Premium: до 25 фото та анімованих аватарок</string>
+
+    <!-- Theme display names (product names — not translated) -->
+    <string name="theme_classic_name">Classic Blue</string>
+    <string name="theme_ocean_name">Deep Ocean</string>
+    <string name="theme_sunset_name">Sunset Dreams</string>
+    <string name="theme_forest_name">Forest Green</string>
+    <string name="theme_purple_name">Purple Dream</string>
+    <string name="theme_rose_gold_name">Rose Gold</string>
+    <string name="theme_monochrome_name">Monochrome</string>
+    <string name="theme_nord_name">Nord Frost</string>
+    <string name="theme_dracula_name">Dracula</string>
+    <string name="theme_material_you_name">Material You</string>
+    <!-- Theme actions -->
+    <string name="theme_reset_to_default">Скинути до стандартної теми</string>
+    <string name="theme_reset_done">Тему скинуто до стандартної</string>
+
+    <!-- Image viewer hints -->
+    <string name="viewer_hint_swipe">Свайпніть ліворуч/праворуч</string>
+    <string name="viewer_hint_double_tap">Двічі торкніться для збільшення</string>
+
+    <!-- Reply preview media type labels -->
+    <string name="reply_type_voice">🎙 Голосове</string>
+    <string name="reply_type_audio">🎵 Аудіо</string>
+    <string name="reply_type_video">🎥 Відео</string>
+    <string name="reply_type_photo">📷 Фото</string>
+    <string name="reply_type_sticker">🎭 Стікер</string>
+    <string name="reply_type_media">📎 Медіа</string>
+    <string name="reply_type_message">🔒 Повідомлення</string>
+
+    <!-- Private chat — both participants label -->
+    <string name="private_chat_with">з %s</string>
+
+    <!-- Voice message label -->
+    <string name="voice_message_label">Голосове повідомлення</string>
+
+    <!-- Business chat header badge -->
+    <string name="business_account_label">Бізнес-акаунт</string>
+    <string name="view_business_label">Переглянути бізнес</string>
 </resources>

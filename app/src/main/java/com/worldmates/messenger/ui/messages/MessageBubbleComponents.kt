@@ -876,6 +876,11 @@ fun MessageBubbleComposable(
     }
 }
 
+/** Persists voice playback speed globally across all voice messages in the session. */
+object VoicePlaybackState {
+    var speed: Float = 1f
+}
+
 @Composable
 fun VoiceMessagePlayer(
     message: Message,
@@ -898,7 +903,8 @@ fun VoiceMessagePlayer(
     var showAdvancedPlayer by remember { mutableStateOf(false) }
 
     // Швидкість відтворення для голосових (1x → 1.5x → 2x → 0.5x → 1x)
-    var playbackSpeed by remember(message.id) { mutableStateOf(1f) }
+    // Зберігається глобально через VoicePlaybackState, щоб не скидатися при скролі
+    var playbackSpeed by remember { mutableStateOf(VoicePlaybackState.speed) }
     val speedSteps = listOf(1f, 1.5f, 2f, 0.5f)
 
     // Transcript state (PRO only).
@@ -1079,6 +1085,7 @@ fun VoiceMessagePlayer(
                         onClick = {
                             val nextIndex = (speedSteps.indexOf(playbackSpeed) + 1) % speedSteps.size
                             playbackSpeed = speedSteps[nextIndex]
+                            VoicePlaybackState.speed = playbackSpeed
                             com.worldmates.messenger.services.MusicPlaybackService.setSpeed(playbackSpeed)
                         },
                         contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
@@ -1098,17 +1105,19 @@ fun VoiceMessagePlayer(
                     }
                 }
 
-                // Кнопка розгортання плеєра
-                IconButton(
-                    onClick = { showAdvancedPlayer = true },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Fullscreen,
-                        contentDescription = stringResource(R.string.open_player),
-                        tint = textColor.copy(alpha = 0.5f),
-                        modifier = Modifier.size(14.dp)
-                    )
+                // Кнопка розгортання плеєра — тільки для музики, не для голосових
+                if (!isVoiceMessage) {
+                    IconButton(
+                        onClick = { showAdvancedPlayer = true },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Fullscreen,
+                            contentDescription = stringResource(R.string.open_player),
+                            tint = textColor.copy(alpha = 0.5f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
         }
     }
@@ -1216,7 +1225,7 @@ fun VoiceMessagePlayer(
     if (showAdvancedPlayer) {
         com.worldmates.messenger.ui.music.AdvancedMusicPlayer(
             audioUrl = mediaUrl,
-            title = if (!isVoiceMessage) displayTitle else "Голосове повідомлення",
+            title = if (!isVoiceMessage) displayTitle else voiceMessageLabel,
             artist = displayArtist,
             timestamp = message.timeStamp,
             iv = message.iv,
@@ -1544,24 +1553,26 @@ fun ContextMenuItem(
 @Composable
 fun ReplyIndicator(
     replyToMessage: Message?,
-    onCancelReply: () -> Unit
+    onCancelReply: () -> Unit,
+    recipientName: String = ""
 ) {
     if (replyToMessage != null) {
         val colorScheme = MaterialTheme.colorScheme
         val senderName = when {
             replyToMessage.fromId == UserSession.userId -> stringResource(R.string.you_label)
             !replyToMessage.senderName.isNullOrBlank()  -> replyToMessage.senderName.orEmpty()
-            else -> stringResource(R.string.user_label)
+            recipientName.isNotBlank()                  -> recipientName
+            else                                        -> stringResource(R.string.user_label)
         }
         val previewText = when {
             !replyToMessage.decryptedText.isNullOrBlank() -> replyToMessage.decryptedText.orEmpty()
-            replyToMessage.type == "voice"  -> "🎙 Голосове"
-            replyToMessage.type == "audio"  -> "🎵 Аудіо"
-            replyToMessage.type == "video"  -> "🎥 Відео"
-            replyToMessage.type == "image"  -> "📷 Фото"
-            replyToMessage.type == "sticker"-> "🎭 Стікер"
-            !replyToMessage.mediaUrl.isNullOrBlank() -> "📎 Медіа"
-            else -> "🔒 Повідомлення"
+            replyToMessage.type == "voice"   -> stringResource(R.string.reply_type_voice)
+            replyToMessage.type == "audio"   -> stringResource(R.string.reply_type_audio)
+            replyToMessage.type == "video"   -> stringResource(R.string.reply_type_video)
+            replyToMessage.type == "image"   -> stringResource(R.string.reply_type_photo)
+            replyToMessage.type == "sticker" -> stringResource(R.string.reply_type_sticker)
+            !replyToMessage.mediaUrl.isNullOrBlank() -> stringResource(R.string.reply_type_media)
+            else -> stringResource(R.string.reply_type_message)
         }
 
         Row(

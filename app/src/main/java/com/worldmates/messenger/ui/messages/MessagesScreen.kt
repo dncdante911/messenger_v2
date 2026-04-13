@@ -714,6 +714,7 @@ fun MessagesScreen(
                 presenceStatus = presenceStatus,
                 onBackPressed = onBackPressed,
                 isBusinessChat = isBusinessChat,
+                myUsername = if (!isGroup) UserSession.username.orEmpty() else "",
                 onUserProfileClick = {
                     Log.d("MessagesScreen", "Відкриваю профіль: $recipientName (business=$isBusinessChat)")
                     when {
@@ -1704,7 +1705,8 @@ fun MessagesScreen(
             // Reply Indicator
             ReplyIndicator(
                 replyToMessage = replyToMessage,
-                onCancelReply = { replyToMessage = null }
+                onCancelReply = { replyToMessage = null },
+                recipientName = recipientName
             )
 
             // Edit Indicator

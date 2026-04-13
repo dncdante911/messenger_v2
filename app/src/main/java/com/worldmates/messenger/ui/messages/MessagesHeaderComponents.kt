@@ -59,6 +59,8 @@ fun MessagesHeaderBar(
     onGroupSettingsClick: () -> Unit = {},
     // Business chat
     isBusinessChat: Boolean = false,
+    // My username for private chat subtitle (shows "with @you" subtitle)
+    myUsername: String = "",
     // 🔥 Параметри для режиму вибору
     isSelectionMode: Boolean = false,
     selectedCount: Int = 0,
@@ -168,11 +170,17 @@ fun MessagesHeaderBar(
                                 )
                                 Spacer(Modifier.width(3.dp))
                                 Text(
-                                    text = "Бізнес-акаунт",
+                                    text = stringResource(R.string.business_account_label),
                                     color = colorScheme.onPrimary.copy(alpha = 0.75f),
                                     fontSize = 12.sp
                                 )
                             }
+                        } else if (!isGroup && myUsername.isNotBlank()) {
+                            Text(
+                                text = stringResource(R.string.private_chat_with, "@$myUsername"),
+                                color = colorScheme.onPrimary.copy(alpha = 0.75f),
+                                fontSize = 12.sp
+                            )
                         } else {
                             PresenceStatusText(
                                 status = presenceStatus,
@@ -247,7 +255,7 @@ fun MessagesHeaderBar(
                             text = {
                                 Text(when {
                                     isGroup -> stringResource(R.string.group_details)
-                                    isBusinessChat -> "Переглянути бізнес"
+                                    isBusinessChat -> stringResource(R.string.view_business_label)
                                     else -> stringResource(R.string.view_profile)
                                 })
                             },
