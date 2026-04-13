@@ -1945,6 +1945,13 @@
     <string name="stars_send_button">Надіслати зірки</string>
     <string name="stars_error_recipient">Вкажіть коректний ID користувача</string>
     <string name="stars_error_amount">Вкажіть суму від 1 до вашого балансу</string>
+    <string name="stars_send_success">⭐ Зірки надіслано!</string>
+    <string name="stars_send_profile_btn">Надіслати ⭐</string>
+    <string name="stars_balance_fmt">%d ⭐</string>
+    <string name="stars_send_sheet_balance">Ваш баланс: %d ⭐</string>
+    <string name="stars_select_amount">Оберіть суму:</string>
+    <string name="stars_transactions_error">Помилка завантаження транзакцій</string>
+    <string name="stars_packs_error">Помилка завантаження пакетів</string>
 
     <!-- ===== PREMIUM SUBSCRIPTION ===== -->
     <string name="premium_screen_title">WorldMates PRO</string>

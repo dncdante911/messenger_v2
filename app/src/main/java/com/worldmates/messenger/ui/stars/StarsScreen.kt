@@ -58,10 +58,11 @@ fun StarsScreen(viewModel: StarsViewModel, onBack: () -> Unit) {
         }
     }
 
+    val sendSuccessText = stringResource(R.string.stars_send_success)
     // Send success snackbar
     LaunchedEffect(state.sendSuccess) {
         if (state.sendSuccess) {
-            snackbarHostState.showSnackbar("⭐ Зірки надіслано!")
+            snackbarHostState.showSnackbar(sendSuccessText)
             viewModel.clearSendSuccess()
         }
     }

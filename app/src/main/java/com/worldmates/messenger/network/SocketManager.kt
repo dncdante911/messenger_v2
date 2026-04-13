@@ -411,6 +411,22 @@ class SocketManager(
                 }
             }
 
+            // WorldStars: real-time notification when the current user receives stars
+            // Payload: { from_user_id, amount, new_balance }
+            socket?.on("stars_received") { args ->
+                if (args.isNotEmpty() && args[0] is JSONObject) {
+                    val data       = args[0] as JSONObject
+                    val fromUserId = data.optLong("from_user_id", 0L)
+                    val amount     = data.optInt("amount", 0)
+                    val newBalance = data.optInt("new_balance", 0)
+                    Log.d(TAG, "⭐ Received $amount stars from user $fromUserId, new balance: $newBalance")
+                    if (newBalance > 0) UserSession.starsBalance = newBalance
+                    if (listener is ExtendedSocketListener) {
+                        listener.onStarsReceived(fromUserId, amount, newBalance)
+                    }
+                }
+            }
+
             // 18c. Очищення історії групи для всіх (group_history_cleared)
             // Payload: {group_id}
             socket?.on("group_history_cleared") { args ->
@@ -1215,5 +1231,7 @@ class SocketManager(
         fun onGroupMemberJoined(groupId: Long, userId: Long) {}
         /** Group E2EE: a member left [groupId] — their sender key must be invalidated. */
         fun onGroupMemberLeft(groupId: Long, userId: Long) {}
+        /** WorldStars: current user received [amount] stars from [fromUserId]; [newBalance] is the updated balance. */
+        fun onStarsReceived(fromUserId: Long, amount: Int, newBalance: Int) {}
     }
 }

@@ -1900,6 +1900,13 @@
     <string name="stars_send_button">Отправить звёзды</string>
     <string name="stars_error_recipient">Укажите корректный ID пользователя</string>
     <string name="stars_error_amount">Укажите сумму от 1 до вашего баланса</string>
+    <string name="stars_send_success">⭐ Звёзды отправлены!</string>
+    <string name="stars_send_profile_btn">Отправить ⭐</string>
+    <string name="stars_balance_fmt">%d ⭐</string>
+    <string name="stars_send_sheet_balance">Ваш баланс: %d ⭐</string>
+    <string name="stars_select_amount">Выберите сумму:</string>
+    <string name="stars_transactions_error">Ошибка загрузки транзакций</string>
+    <string name="stars_packs_error">Ошибка загрузки пакетов</string>
 
     
     <string name="premium_screen_title">WorldMates PRO</string>
