@@ -186,7 +186,7 @@ sealed class SyncState {
  */
 data class GroupTheme(
     val bubbleStyle: String = BubbleStyle.STANDARD.name,
-    val presetBackgroundId: String = PresetBackground.OCEAN.id,
+    val presetBackgroundId: String = PresetBackground.MIDNIGHT.id,
     val accentColor: String = "#2196F3",
     val enabledByAdmin: Boolean = true
 ) {
@@ -200,7 +200,7 @@ data class GroupTheme(
 
     fun getPresetBackground(): PresetBackground {
         return PresetBackground.values().find { it.id == presetBackgroundId }
-            ?: PresetBackground.OCEAN
+            ?: PresetBackground.MIDNIGHT
     }
 
     companion object {
@@ -234,7 +234,7 @@ data class GroupTheme(
                 emoji = "🌿",
                 theme = GroupTheme(
                     bubbleStyle = BubbleStyle.STANDARD.name,
-                    presetBackgroundId = PresetBackground.FOREST.id,
+                    presetBackgroundId = PresetBackground.SPRING.id,
                     accentColor = "#4CAF50"
                 )
             ),
@@ -270,7 +270,7 @@ data class GroupTheme(
                 emoji = "🚀",
                 theme = GroupTheme(
                     bubbleStyle = BubbleStyle.GLASS.name,
-                    presetBackgroundId = PresetBackground.DEEP_SPACE.id,
+                    presetBackgroundId = PresetBackground.COSMIC.id,
                     accentColor = "#7C4DFF"
                 )
             )
