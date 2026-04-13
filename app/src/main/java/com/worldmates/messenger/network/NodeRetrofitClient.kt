@@ -38,7 +38,6 @@ object NodeRetrofitClient {
                 okhttp3.Dns.SYSTEM.lookup(hostname)
                     .sortedBy { if (it is Inet4Address) 0 else 1 }
             } catch (e: UnknownHostException) {
-                Thread.sleep(500)
                 try {
                     okhttp3.Dns.SYSTEM.lookup(hostname)
                         .sortedBy { if (it is Inet4Address) 0 else 1 }
