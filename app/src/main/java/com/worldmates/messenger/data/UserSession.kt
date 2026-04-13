@@ -19,8 +19,9 @@ object UserSession {
     private const val KEY_PRO_TYPE = "pro_type"
     private const val KEY_PRO_EXPIRES_AT = "pro_expires_at"
     private const val KEY_REGISTERED_AT = "registered_at"
-    private const val KEY_STATUS_EMOJI = "status_emoji"
-    private const val KEY_STATUS_TEXT  = "status_text"
+    private const val KEY_STATUS_EMOJI   = "status_emoji"
+    private const val KEY_STATUS_TEXT    = "status_text"
+    private const val KEY_STARS_BALANCE  = "stars_balance"
 
     private val prefs: SharedPreferences by lazy {
         WMApplication.instance.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -29,6 +30,17 @@ object UserSession {
     // Reactive avatar state for UI updates
     private val _avatarFlow = MutableStateFlow<String?>(null)
     val avatarFlow: StateFlow<String?> = _avatarFlow.asStateFlow()
+
+    // Reactive stars balance — updated after every load/send/receive via socket
+    private val _starsBalanceFlow = MutableStateFlow(0)
+    val starsBalanceFlow: StateFlow<Int> = _starsBalanceFlow.asStateFlow()
+
+    var starsBalance: Int
+        get() = _starsBalanceFlow.value
+        set(value) {
+            prefs.edit().putInt(KEY_STARS_BALANCE, value).apply()
+            _starsBalanceFlow.value = value
+        }
 
     var accessToken: String?
         get() = prefs.getString(KEY_ACCESS_TOKEN, null)
@@ -132,6 +144,7 @@ object UserSession {
     init {
         // Initialize avatar flow from SharedPreferences on startup
         _avatarFlow.value = prefs.getString(KEY_AVATAR, null)
+        _starsBalanceFlow.value = prefs.getInt(KEY_STARS_BALANCE, 0)
     }
 
     fun saveSession(
@@ -186,5 +199,6 @@ object UserSession {
     fun clearSession() {
         prefs.edit().clear().apply()
         _avatarFlow.value = null
+        _starsBalanceFlow.value = 0
     }
 }

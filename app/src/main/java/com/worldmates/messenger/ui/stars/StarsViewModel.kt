@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.StarsPack
 import com.worldmates.messenger.network.StarsTransaction
@@ -52,6 +53,7 @@ class StarsViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val resp = api.getBalance()
                 if (resp.apiStatus == 200) {
+                    UserSession.starsBalance = resp.balance
                     _uiState.update { it.copy(
                         isLoading      = false,
                         balance        = resp.balance,
@@ -76,8 +78,12 @@ class StarsViewModel(application: Application) : AndroidViewModel(application) {
                 val resp = api.getTransactions(limit = 20, offset = currentCount)
                 if (resp.apiStatus == 200 && resp.transactions.isNotEmpty()) {
                     _uiState.update { it.copy(transactions = it.transactions + resp.transactions) }
+                } else if (resp.apiStatus != 200) {
+                    _uiState.update { it.copy(error = resp.errorMessage) }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            }
         }
     }
 
@@ -90,8 +96,12 @@ class StarsViewModel(application: Application) : AndroidViewModel(application) {
                         packs        = resp.packs,
                         selectedPack = resp.packs.firstOrNull { p -> p.isPopular } ?: resp.packs.firstOrNull(),
                     ) }
+                } else {
+                    _uiState.update { it.copy(error = resp.errorMessage) }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            }
         }
     }
 
@@ -130,13 +140,13 @@ class StarsViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val resp = api.sendStars(toUserId = toUserId, amount = amount, note = note?.ifBlank { null })
                 if (resp.apiStatus == 200) {
+                    UserSession.starsBalance = resp.newBalance
                     _uiState.update { it.copy(
                         isSending      = false,
                         balance        = resp.newBalance,
                         sendSuccess    = true,
                         successMessage = null,
                     ) }
-                    // Оновлюємо список транзакцій
                     loadBalance()
                 } else {
                     _uiState.update { it.copy(isSending = false, error = resp.errorMessage) }

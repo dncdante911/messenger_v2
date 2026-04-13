@@ -1139,6 +1139,7 @@ fun SettingsDrawerContent(
                 )
             }
             item {
+                val starsBalance by com.worldmates.messenger.data.UserSession.starsBalanceFlow.collectAsState()
                 DrawerMenuItem(
                     icon = Icons.Outlined.AutoAwesome,
                     title = stringResource(R.string.stars_title),
@@ -1147,7 +1148,23 @@ fun SettingsDrawerContent(
                         context.startActivity(
                             android.content.Intent(context, com.worldmates.messenger.ui.stars.StarsActivity::class.java)
                         )
-                    }
+                    },
+                    trailingContent = if (starsBalance > 0) {
+                        {
+                            Surface(
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                                color = androidx.compose.ui.graphics.Color(0xFFFFD700).copy(alpha = 0.18f),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.stars_balance_fmt, starsBalance),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = androidx.compose.ui.graphics.Color(0xFFB8860B),
+                                )
+                            }
+                        }
+                    } else null
                 )
             }
             item {
@@ -1209,7 +1226,8 @@ fun SettingsDrawerContent(
 fun DrawerMenuItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    trailingContent: (@Composable () -> Unit)? = null,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Row(
@@ -1230,8 +1248,10 @@ fun DrawerMenuItem(
             text = title,
             fontSize = 15.sp,
             color = colorScheme.onSurface,
-            fontWeight = FontWeight.Normal
+            fontWeight = FontWeight.Normal,
+            modifier = Modifier.weight(1f)
         )
+        trailingContent?.invoke()
     }
 }
 

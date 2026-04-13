@@ -47,8 +47,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.User
+import com.worldmates.messenger.ui.stars.StarsViewModel
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.LanguageManager
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 
 class UserProfileActivity : AppCompatActivity() {
 
@@ -345,6 +348,17 @@ fun UserProfileContent(
         // ── Stats row ───────────────────────────────────────────────────────
         item {
             ProfileStatsRow(user = user, accentColor = accentColor, isPremium = user.isPro > 0)
+        }
+
+        // ── Send Stars ──────────────────────────────────────────────────
+        if (!isOwnProfile) {
+            item {
+                SendStarsButton(
+                    toUserId   = user.userId,
+                    toUserName = "${user.firstName ?: ""} ${user.lastName ?: ""}".trim()
+                        .ifBlank { user.username ?: "" }
+                )
+            }
         }
 
         // ── Rating/Karma ─────────────────────────────────────────────────
@@ -1291,6 +1305,192 @@ private fun RatingVoteButton(
             Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = contentColor)
+        }
+    }
+}
+
+// ─── Send Stars ───────────────────────────────────────────────────────────────
+
+private val StarGoldColor      = Color(0xFFFFD700)
+private val StarGoldDarkColor  = Color(0xFFB8860B)
+private val StarGoldDeepColor  = Color(0xFF7B5800)
+
+@Composable
+private fun SendStarsButton(toUserId: Long, toUserName: String) {
+    val starsVm: StarsViewModel = viewModel()
+    val state by starsVm.uiState.collectAsState()
+    var showSheet by remember { mutableStateOf(false) }
+    val snackbarHost = remember { SnackbarHostState() }
+    val successText  = stringResource(R.string.stars_send_success)
+
+    LaunchedEffect(state.sendSuccess) {
+        if (state.sendSuccess) {
+            starsVm.clearSendSuccess()
+            showSheet = false
+            snackbarHost.showSnackbar(successText)
+        }
+    }
+
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        OutlinedButton(
+            onClick  = { showSheet = true },
+            modifier = Modifier.fillMaxWidth(),
+            border   = BorderStroke(1.dp, StarGoldColor),
+            colors   = ButtonDefaults.outlinedButtonColors(contentColor = StarGoldDarkColor)
+        ) {
+            Text("⭐", fontSize = 16.sp)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                stringResource(R.string.stars_send_profile_btn),
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        SnackbarHost(
+            hostState = snackbarHost,
+            modifier  = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
+    if (showSheet) {
+        SendStarsSheet(
+            toUserId   = toUserId.toInt(),
+            toUserName = toUserName,
+            balance    = state.balance,
+            isSending  = state.isSending,
+            error      = state.error,
+            onSend     = { amount, note -> starsVm.sendStars(toUserId.toInt(), amount, note) },
+            onClearError = { starsVm.clearError() },
+            onDismiss  = { showSheet = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SendStarsSheet(
+    toUserId:     Int,
+    toUserName:   String,
+    balance:      Int,
+    isSending:    Boolean,
+    error:        String?,
+    onSend:       (amount: Int, note: String?) -> Unit,
+    onClearError: () -> Unit,
+    onDismiss:    () -> Unit,
+) {
+    var selectedAmount by remember { mutableIntStateOf(0) }
+    var noteInput      by remember { mutableStateOf("") }
+    var amountError    by remember { mutableStateOf(false) }
+    val snackbar       = remember { SnackbarHostState() }
+    val presets        = listOf(10, 25, 50, 100)
+
+    LaunchedEffect(error) {
+        error?.let { snackbar.showSnackbar(it); onClearError() }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState       = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Scaffold(
+            snackbarHost    = { SnackbarHost(snackbar) },
+            containerColor  = Color.Transparent,
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(padding)
+                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .navigationBarsPadding(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // Header
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("⭐", fontSize = 24.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            stringResource(R.string.stars_send_title),
+                            style      = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            stringResource(R.string.stars_send_sheet_balance, balance),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                // Amount presets
+                Text(
+                    stringResource(R.string.stars_select_amount),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    presets.forEach { preset ->
+                        FilterChip(
+                            selected = selectedAmount == preset,
+                            onClick  = { selectedAmount = preset; amountError = false },
+                            label    = { Text("$preset ⭐") },
+                            colors   = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = StarGoldColor.copy(alpha = 0.18f),
+                                selectedLabelColor     = StarGoldDarkColor,
+                            ),
+                        )
+                    }
+                }
+                if (amountError) {
+                    Text(
+                        stringResource(R.string.stars_error_amount),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+                // Optional note
+                OutlinedTextField(
+                    value         = noteInput,
+                    onValueChange = { if (it.length <= 255) noteInput = it },
+                    label         = { Text(stringResource(R.string.stars_note_label)) },
+                    modifier      = Modifier.fillMaxWidth(),
+                    maxLines      = 2,
+                )
+
+                // Send button
+                Button(
+                    onClick  = {
+                        if (selectedAmount <= 0 || selectedAmount > balance) {
+                            amountError = true
+                            return@Button
+                        }
+                        onSend(selectedAmount, noteInput.ifBlank { null })
+                    },
+                    enabled  = !isSending,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors   = ButtonDefaults.buttonColors(
+                        containerColor = StarGoldColor,
+                        contentColor   = StarGoldDeepColor,
+                    ),
+                ) {
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            modifier    = Modifier.size(20.dp),
+                            color       = StarGoldDeepColor,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text(stringResource(R.string.stars_send_button), fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+            }
         }
     }
 }
