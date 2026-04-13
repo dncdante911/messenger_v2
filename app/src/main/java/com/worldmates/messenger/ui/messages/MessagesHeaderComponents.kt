@@ -157,19 +157,9 @@ fun MessagesHeaderBar(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    // Name and status / business badge
+                    // Name and status — like Telegram/Viber: just the contact name + presence
                     Column {
-                        // Title row: contact name + small "· @myUsername" for private chats
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(recipientName, color = colorScheme.onPrimary)
-                            if (!isGroup && !isBusinessChat && myUsername.isNotBlank()) {
-                                Text(
-                                    text = " · @$myUsername",
-                                    color = colorScheme.onPrimary.copy(alpha = 0.55f),
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
+                        Text(recipientName, color = colorScheme.onPrimary)
                         // Subtitle: always presence status (or business badge)
                         if (isBusinessChat) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
