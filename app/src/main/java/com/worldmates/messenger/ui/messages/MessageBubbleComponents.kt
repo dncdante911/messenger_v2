@@ -1118,9 +1118,9 @@ fun VoiceMessagePlayer(
     val transcriptCharLimit = if (isPro) 500 else 200
     if (isVoiceMessage) {
         Spacer(modifier = Modifier.height(4.dp))
-        if (transcript != null) {
-            val isTruncated = transcript.length > transcriptCharLimit
-            val displayText = if (isTruncated) transcript.take(transcriptCharLimit) else transcript
+        transcript?.let { t ->
+            val isTruncated = t.length > transcriptCharLimit
+            val displayText = if (isTruncated) t.take(transcriptCharLimit) else t
             // Show transcript text (truncated to limit)
             Column(
                 modifier = Modifier
@@ -1141,7 +1141,7 @@ fun VoiceMessagePlayer(
                     )
                 }
             }
-        } else {
+        } ?: run {
             // Show "Transcribe" button — доступно всім
             Row(
                 modifier = Modifier
@@ -1199,10 +1199,10 @@ fun VoiceMessagePlayer(
                         )
                     }
                 }
-                if (transcriptError != null) {
+                transcriptError?.let { error ->
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = transcriptError,
+                        text = error,
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 10.sp,
                         maxLines = 1
