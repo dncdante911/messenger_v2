@@ -607,6 +607,9 @@ fun MessagesScreen(
                     if (UserSession.isProActive) VoiceRecorder.DURATION_PRO_MS
                     else VoiceRecorder.DURATION_FREE_MS
                 scope.launch {
+                    // Brief pause to let the SpeechRecognizer fully release the mic
+                    // before MediaRecorder tries to acquire it (avoids EBUSY / beep errors).
+                    delay(250)
                     voiceRecorder.startRecording()
                     if (!isGroup) viewModel.sendRecordingStatus()
                 }

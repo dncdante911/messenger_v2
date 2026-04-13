@@ -149,6 +149,17 @@ class SpeechCommandManager(private val context: Context) {
         }
         if (triggered) {
             Log.d(TAG, "Trigger detected in: $results")
+            // Release the mic immediately so VoiceRecorder can acquire it.
+            // This is critical when called from onPartialResults — the recognizer
+            // still holds the mic at that point and MediaRecorder.prepare() would fail.
+            mainHandler.removeCallbacksAndMessages(null)
+            recognizer?.stopListening()
+            destroyRecognizer()
+            // Mark busy so scheduleListening won't restart while recording is starting.
+            // MessagesScreen's LaunchedEffect(recordingState) will call setMicBusy(true)
+            // once VoiceRecorder transitions to Recording, and setMicBusy(false) when
+            // the recording ends — which re-enables the recognizer automatically.
+            micBusy = true
             _commands.tryEmit(Command.StartVoiceMessage)
         }
     }
