@@ -3486,7 +3486,6 @@
     <string name="er_label_medium">Середній</string>
     <string name="er_label_low">Низький</string>
     <!-- Channel creation dialog -->
-    <string name="channel_name_placeholder">Мій канал</string>
     <string name="channel_type_private">Приватний канал</string>
     <string name="channel_type_public">Публічний канал</string>
     <string name="channel_invite_only">Тільки за запрошенням</string>
