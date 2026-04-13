@@ -3361,6 +3361,9 @@
     <!-- Voice message label -->
     <string name="voice_message_label">Голосове повідомлення</string>
 
+    <!-- Message read time -->
+    <string name="read_at_fmt">прочитано %s</string>
+
     <!-- Business chat header badge -->
     <string name="business_account_label">Бізнес-акаунт</string>
     <string name="view_business_label">Переглянути бізнес</string>
