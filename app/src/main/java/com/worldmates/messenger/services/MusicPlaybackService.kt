@@ -87,6 +87,7 @@ class MusicPlaybackService : MediaSessionService() {
         private const val EXTRA_TIMESTAMP  = "timestamp"
         private const val EXTRA_IV         = "iv"
         private const val EXTRA_TAG        = "tag"
+        private const val EXTRA_IS_VOICE   = "is_voice"
 
         /**
          * Запуск відтворення треку.

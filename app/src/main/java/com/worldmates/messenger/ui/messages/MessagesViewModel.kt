@@ -1644,8 +1644,13 @@ class MessagesViewModel(application: Application) :
             try {
                 val resp = nodeApi.getUserStatus(recipientId)
                 if (resp.apiStatus == 200) {
-                    presenceIsOnline    = resp.online
-                    if (resp.lastSeen > 0) presenceLastSeenTs = resp.lastSeen
+                    presenceIsOnline = resp.online
+                    // Only overwrite presenceLastSeenTs with the REST value if it is NEWER than
+                    // what we already have (avoids replacing a fresh socket-stamped timestamp
+                    // with a stale DB value when the server hasn't committed the disconnect yet).
+                    if (resp.lastSeen > presenceLastSeenTs) {
+                        presenceLastSeenTs = resp.lastSeen
+                    }
                     // Only update the UI if no transient state (typing etc.) is active
                     val cur = _presenceStatus.value
                     if (cur is UserPresenceStatus.Offline || cur is UserPresenceStatus.LastSeen) {
