@@ -1229,33 +1229,52 @@ fun MessagesScreen(
                 )
             }
 
-            // 🎙️ Sticky voice mini-bar — shown when the playing voice message scrolls out of view
-            val voiceTrack by com.worldmates.messenger.services.MusicPlaybackService.currentTrackInfo.collectAsState()
+            // 🎙️ Sticky voice mini-bar (Telegram-style)
+            // Shows when the playing voice message is scrolled out of the visible viewport.
+            val voiceTrack    by com.worldmates.messenger.services.MusicPlaybackService.currentTrackInfo.collectAsState()
             val voicePlayback by com.worldmates.messenger.services.MusicPlaybackService.playbackState.collectAsState()
-            if (voiceTrack.isVoice && voiceTrack.url.isNotEmpty()) {
-                val visibleKeys = listState.layoutInfo.visibleItemsInfo.map { it.key }
-                val isPlayingVisible = visibleKeys.contains(voiceTrack.messageId)
-                if (!isPlayingVisible) {
-                    VoiceMessageStickyBar(
-                        title = voiceTrack.title,
-                        isPlaying = voicePlayback.isPlaying,
-                        currentPositionMs = voicePlayback.currentPosition,
-                        durationMs = voicePlayback.duration,
-                        onPlayPause = {
-                            if (voicePlayback.isPlaying)
-                                com.worldmates.messenger.services.MusicPlaybackService.pausePlayback(context)
-                            else
-                                com.worldmates.messenger.services.MusicPlaybackService.resumePlayback(context)
-                        },
-                        onClose = {
-                            com.worldmates.messenger.services.MusicPlaybackService.stopPlayback(context)
-                        },
-                        onTap = {
-                            val idx = reversedMessages.indexOfFirst { it.id == voiceTrack.messageId }
-                            if (idx >= 0) scope.launch { listState.animateScrollToItem(idx) }
-                        }
-                    )
-                }
+            val visibleItemKeys = remember(listState.layoutInfo) {
+                listState.layoutInfo.visibleItemsInfo.map { it.key }.toSet()
+            }
+            val showVoiceBar = voiceTrack.isVoice &&
+                voiceTrack.url.isNotEmpty() &&
+                !visibleItemKeys.contains(voiceTrack.messageId)
+
+            AnimatedVisibility(
+                visible = showVoiceBar,
+                enter = slideInVertically(
+                    initialOffsetY = { -it },
+                    animationSpec = tween(200, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(150)),
+                exit = slideOutVertically(
+                    targetOffsetY = { -it },
+                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(120))
+            ) {
+                VoiceMessageStickyBar(
+                    title = voiceTrack.title,
+                    isPlaying = voicePlayback.isPlaying,
+                    currentPositionMs = voicePlayback.currentPosition,
+                    durationMs = voicePlayback.duration,
+                    playbackSpeed = VoicePlaybackState.speed,
+                    onPlayPause = {
+                        if (voicePlayback.isPlaying)
+                            com.worldmates.messenger.services.MusicPlaybackService.pausePlayback(context)
+                        else
+                            com.worldmates.messenger.services.MusicPlaybackService.resumePlayback(context)
+                    },
+                    onSpeedChange = { newSpeed ->
+                        VoicePlaybackState.speed = newSpeed
+                        com.worldmates.messenger.services.MusicPlaybackService.setSpeed(newSpeed)
+                    },
+                    onClose = {
+                        com.worldmates.messenger.services.MusicPlaybackService.stopPlayback(context)
+                    },
+                    onTap = {
+                        val idx = reversedMessages.indexOfFirst { it.id == voiceTrack.messageId }
+                        if (idx >= 0) scope.launch { listState.animateScrollToItem(idx) }
+                    }
+                )
             }
 
             // Messages List
@@ -2303,15 +2322,15 @@ private fun FloatingDateChip(timestamp: Long) {
 }
 
 /**
- * Telegram-style sticky mini voice player bar.
+ * Telegram-style sticky mini voice player bar (36 dp tall).
  *
- * Appears just below the chat header when the currently playing voice message
- * scrolls out of the visible viewport.  Tapping anywhere on it scrolls back to
- * the originating message bubble.
+ * Slides in below the chat header when the playing voice message is not in
+ * the visible viewport; slides out when it scrolls back into view.
+ * Tapping anywhere scrolls back to the originating bubble.
  *
- * Layout (42 dp tall):
- *   [▶/⏸ icon] [animated waveform] [title · time] ··· [✕]
- *   ─────────── thin progress line at the very bottom ────────
+ * Layout:
+ *   [▶/⏸]  ▌▌▌  [title  0:23 / 1:05]  [1.5x]  [✕]
+ *   ──── 2 dp progress line ────────────────────────
  */
 @Composable
 fun VoiceMessageStickyBar(
@@ -2319,51 +2338,46 @@ fun VoiceMessageStickyBar(
     isPlaying: Boolean,
     currentPositionMs: Long,
     durationMs: Long,
+    playbackSpeed: Float,
     onPlayPause: () -> Unit,
+    onSpeedChange: (Float) -> Unit,
     onClose: () -> Unit,
     onTap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val speedSteps = listOf(1f, 1.5f, 2f, 0.5f)
 
-    // Animated waveform: 3 bars that bounce when playing
+    // Animated waveform: 3 bars that bounce when playing, static when paused
     val waveTransition = rememberInfiniteTransition(label = "sticky_wave")
-    val barScales = List(3) { i ->
-        if (isPlaying) {
-            waveTransition.animateFloat(
-                initialValue = 0.35f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(
-                        durationMillis = 380 + i * 120,
-                        easing = FastOutSlowInEasing
-                    ),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "bar$i"
-            )
-        } else {
-            // Static bars when paused
-            remember { androidx.compose.runtime.mutableFloatStateOf(0.5f) }
-        }
+    val bar0 = if (isPlaying) waveTransition.animateFloat(0.3f, 1f,
+        infiniteRepeatable(tween(340, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "b0").value else 0.45f
+    val bar1 = if (isPlaying) waveTransition.animateFloat(0.5f, 1f,
+        infiniteRepeatable(tween(480, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "b1").value else 0.7f
+    val bar2 = if (isPlaying) waveTransition.animateFloat(0.25f, 1f,
+        infiniteRepeatable(tween(390, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "b2").value else 0.4f
+    val bar3 = if (isPlaying) waveTransition.animateFloat(0.6f, 1f,
+        infiniteRepeatable(tween(420, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "b3").value else 0.55f
+    val barScales = listOf(bar0, bar1, bar2, bar3)
+
+    val progress = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+
+    fun Long.fmt(): String {
+        val s = (this / 1000).coerceAtLeast(0)
+        return "%d:%02d".format(s / 60, s % 60)
     }
+    val timeStr = if (durationMs > 0) "${currentPositionMs.fmt()} / ${durationMs.fmt()}"
+                  else currentPositionMs.fmt()
 
-    val progress = if (durationMs > 0) currentPositionMs.toFloat() / durationMs else 0f
-
-    fun Long.toMmSs(): String {
-        val totalSec = (this / 1000).coerceAtLeast(0)
-        return "%d:%02d".format(totalSec / 60, totalSec % 60)
-    }
-
-    val timeLabel = if (durationMs > 0)
-        "${currentPositionMs.toMmSs()} / ${durationMs.toMmSs()}"
-    else
-        currentPositionMs.toMmSs()
+    val speedLabel = if (playbackSpeed == playbackSpeed.toLong().toFloat())
+        "${playbackSpeed.toInt()}x" else "${playbackSpeed}x"
 
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onTap),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onTap),
         color = colorScheme.surfaceContainer,
         tonalElevation = 3.dp,
         shadowElevation = 2.dp
@@ -2372,88 +2386,85 @@ fun VoiceMessageStickyBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(42.dp)
-                    .padding(horizontal = 8.dp),
+                    .height(36.dp)
+                    .padding(start = 4.dp, end = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Play / Pause
-                IconButton(
-                    onClick = onPlayPause,
-                    modifier = Modifier.size(34.dp)
-                ) {
+                // ▶ / ⏸
+                IconButton(onClick = onPlayPause, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = null,
                         tint = colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-
-                Spacer(modifier = Modifier.width(6.dp))
 
                 // Animated waveform bars
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    modifier = Modifier.padding(end = 8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.padding(horizontal = 5.dp)
                 ) {
-                    val barColor = colorScheme.primary
-                    barScales.forEach { scaleState ->
-                        val scale = (scaleState as? androidx.compose.runtime.State<Float>)?.value ?: 0.5f
+                    barScales.forEach { scale ->
                         Box(
                             modifier = Modifier
                                 .width(3.dp)
-                                .height((18 * scale).dp)
+                                .height((16 * scale).dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(barColor)
+                                .background(colorScheme.primary.copy(alpha = 0.85f))
                         )
                     }
                 }
 
-                // Title + time
-                Column(modifier = Modifier.weight(1f)) {
+                // Title · time — fills remaining space
+                Text(
+                    text = "$title · $timeStr",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+
+                // Speed button: cycles 1x → 1.5x → 2x → 0.5x → 1x
+                TextButton(
+                    onClick = {
+                        val next = speedSteps[(speedSteps.indexOf(playbackSpeed) + 1) % speedSteps.size]
+                        onSpeedChange(next)
+                    },
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                        .height(36.dp)
+                ) {
                     Text(
-                        text = title,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = timeLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colorScheme.onSurface.copy(alpha = 0.55f)
+                        text = speedLabel,
+                        fontSize = 11.sp,
+                        fontWeight = if (playbackSpeed != 1f) FontWeight.Bold else FontWeight.Normal,
+                        color = if (playbackSpeed != 1f) colorScheme.primary
+                                else colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Close / Stop
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.size(30.dp)
-                ) {
+                // ✕ Close / Stop
+                IconButton(onClick = onClose, modifier = Modifier.size(34.dp)) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.close),
-                        tint = colorScheme.onSurface.copy(alpha = 0.5f),
-                        modifier = Modifier.size(16.dp)
+                        tint = colorScheme.onSurface.copy(alpha = 0.45f),
+                        modifier = Modifier.size(15.dp)
                     )
                 }
             }
 
-            // Thin progress line at the bottom
+            // 2 dp progress line at the bottom
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .background(colorScheme.primary.copy(alpha = 0.15f))
+                modifier = Modifier.fillMaxWidth().height(2.dp)
+                    .background(colorScheme.primary.copy(alpha = 0.12f))
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progress.coerceIn(0f, 1f))
-                        .fillMaxHeight()
+                    modifier = Modifier.fillMaxWidth(progress).fillMaxHeight()
                         .background(colorScheme.primary)
                 )
             }
