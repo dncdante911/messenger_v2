@@ -3548,4 +3548,9 @@
     <string name="avatar_delete_photo_title">Видалити фото?</string>
     <string name="avatar_delete_photo_message">Це фото буде видалено з вашого профілю.</string>
     <string name="avatar_premium_hint">Premium: до 25 фото та анімованих аватарок</string>
+
+    <!-- ===== OTHER USER PROFILE CTA ACTIONS ===== -->
+    <string name="profile_action_message">Написати</string>
+    <string name="profile_action_call">Дзвінок</string>
+    <string name="profile_action_video">Відео</string>
 </resources>

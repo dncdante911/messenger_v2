@@ -516,37 +516,6 @@ private fun ProfileNameSection(user: User) {
 
         Spacer(Modifier.height(6.dp))
 
-        // Статус онлайн — chip
-        val online = user.lastSeenStatus == "online"
-        Surface(
-            color = if (online) Color(0xFF4CAF50).copy(alpha = 0.12f)
-                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-            shape = RoundedCornerShape(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .background(
-                            if (online) Color(0xFF4CAF50)
-                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(0.45f),
-                            CircleShape
-                        )
-                )
-                Spacer(Modifier.width(5.dp))
-                Text(
-                    text  = if (online) stringResource(R.string.online) else stringResource(R.string.last_seen_recently),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (online) Color(0xFF4CAF50)
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
         // Emoji status chip (PRO)
         if (!user.statusEmoji.isNullOrBlank() || !user.statusText.isNullOrBlank()) {
             Spacer(Modifier.height(6.dp))
@@ -1261,7 +1230,14 @@ private fun formatBirthday(birthday: String): String {
             val day   = parts[2].toInt()
             val names = listOf("", "янв.", "февр.", "мар.", "апр.", "мая", "июн.",
                 "июл.", "авг.", "сент.", "окт.", "нояб.", "дек.")
-            val age   = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) - year
+            val today = java.util.Calendar.getInstance()
+            val todayYear  = today.get(java.util.Calendar.YEAR)
+            val todayMonth = today.get(java.util.Calendar.MONTH) + 1 // Calendar.MONTH is 0-based
+            val todayDay   = today.get(java.util.Calendar.DAY_OF_MONTH)
+            // Subtract 1 if the birthday hasn't occurred yet this year
+            val birthdayPassedThisYear = month < todayMonth ||
+                (month == todayMonth && day <= todayDay)
+            val age = todayYear - year - (if (birthdayPassedThisYear) 0 else 1)
             "$day ${names.getOrElse(month) { "" }} $year ($age лет)"
         } else birthday
     } catch (e: Exception) { birthday }
