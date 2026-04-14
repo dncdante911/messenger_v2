@@ -55,6 +55,10 @@ const DisconnectController = async (ctx, reason, io, socket) => {
       for (const recipientId of notifySet) {
           await io.to(String(recipientId)).emit("on_user_loggedoff", { user_id: user_id })
       }
+
+      // ✅ Update lastseen in DB so REST /api/node/user/status returns the
+      // correct "was online N min ago" timestamp on next chat open.
+      await funcs.Wo_LastSeen(ctx, user_id)
   }
   if (ctx.userIdSocket[user_id]) {
       ctx.userIdSocket[user_id] = ctx.userIdSocket[user_id].filter(d => d.id != socket.id)
