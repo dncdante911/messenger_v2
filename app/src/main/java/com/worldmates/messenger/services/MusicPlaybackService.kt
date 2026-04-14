@@ -25,8 +25,11 @@ import androidx.media3.session.MediaSessionService
 import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.EncryptedMediaHandler
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
@@ -69,6 +72,15 @@ class MusicPlaybackService : MediaSessionService() {
 
         private val _currentTrackInfo = MutableStateFlow(TrackInfo())
         val currentTrackInfo: StateFlow<TrackInfo> = _currentTrackInfo.asStateFlow()
+
+        // IDs of voice messages that have been fully listened to (cleared on service destroy)
+        private val _listenedVoiceIds = MutableStateFlow(setOf<Long>())
+        val listenedVoiceIds: StateFlow<Set<Long>> = _listenedVoiceIds.asStateFlow()
+
+        // Fires the messageId of a voice message that just finished playing.
+        // UI collects this to trigger auto-play of the next voice message.
+        private val _voiceEndedEvent = MutableSharedFlow<Long>(extraBufferCapacity = 1)
+        val voiceEndedEvent: SharedFlow<Long> = _voiceEndedEvent.asSharedFlow()
 
         @Volatile private var serviceInstance: MusicPlaybackService? = null
 
@@ -201,10 +213,16 @@ class MusicPlaybackService : MediaSessionService() {
                         )
                     }
                     Player.STATE_ENDED -> {
+                        val endedTrack = _currentTrackInfo.value
                         _playbackState.value = _playbackState.value.copy(
                             isPlaying       = false,
                             currentPosition = 0L
                         )
+                        // Mark voice message as listened and signal UI to auto-play next
+                        if (endedTrack.isVoice && endedTrack.messageId >= 0) {
+                            _listenedVoiceIds.value = _listenedVoiceIds.value + endedTrack.messageId
+                            serviceScope.launch { _voiceEndedEvent.emit(endedTrack.messageId) }
+                        }
                     }
                     else -> {}
                 }
@@ -418,6 +436,7 @@ class MusicPlaybackService : MediaSessionService() {
         }
         _playbackState.value    = MusicPlaybackState()
         _currentTrackInfo.value = TrackInfo()
+        _listenedVoiceIds.value = setOf()
         Log.d(TAG, "MusicPlaybackService destroyed")
         super.onDestroy()
     }
