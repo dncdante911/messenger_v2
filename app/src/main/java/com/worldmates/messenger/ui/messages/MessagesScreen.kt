@@ -342,16 +342,22 @@ fun MessagesScreen(
     // 📜 Auto-scroll для автоматичної прокрутки до нових повідомлень
     val listState = rememberLazyListState()
 
-    // 🔥 КРИТИЧНО: Auto-scroll при додаванні нового повідомлення
-    LaunchedEffect(messages.size) {
+    // Auto-scroll only when a NEW message arrives (newest message id changes).
+    // Keying on messages.lastOrNull()?.id means loading older messages via
+    // pagination (which prepends to the list, keeping the newest id unchanged)
+    // will NOT trigger this effect — so the user's scroll position is preserved.
+    // Also guard: only scroll if the user is already near the bottom (index ≤ 2),
+    // so we don't forcibly jump them back while they're reading history.
+    LaunchedEffect(messages.lastOrNull()?.id) {
         if (messages.isNotEmpty()) {
-            // Прокрутити до останнього повідомлення (reversed, тому index 0)
-            // Використовуємо animateScrollToItem для плавної анімації
-            try {
-                listState.animateScrollToItem(index = 0)
-                Log.d("MessagesScreen", "✅ Auto-scrolled to latest message (index 0)")
-            } catch (e: Exception) {
-                Log.e("MessagesScreen", "❌ Auto-scroll error: ${e.message}")
+            val firstVisibleIndex = listState.firstVisibleItemIndex
+            if (firstVisibleIndex <= 2) {
+                try {
+                    listState.animateScrollToItem(index = 0)
+                    Log.d("MessagesScreen", "✅ Auto-scrolled to latest message")
+                } catch (e: Exception) {
+                    Log.e("MessagesScreen", "❌ Auto-scroll error: ${e.message}")
+                }
             }
         }
     }
