@@ -3512,4 +3512,9 @@
     <!-- Business chat header badge -->
     <string name="business_account_label">Бизнес-аккаунт</string>
     <string name="view_business_label">Просмотреть бизнес</string>
+
+    <!-- ===== OTHER USER PROFILE CTA ACTIONS ===== -->
+    <string name="profile_action_message">Написать</string>
+    <string name="profile_action_call">Позвонить</string>
+    <string name="profile_action_video">Видео</string>
 </resources>

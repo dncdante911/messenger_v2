@@ -190,25 +190,12 @@ fun UserProfileScreen(
             }
         }
     } else {
-        // Чужий профіль - старий дизайн з TopAppBar
+        // Чужий профіль — immersive full-screen design (без TopAppBar)
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.profile)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
-                        }
-                    }
-                )
-            }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
+            containerColor = MaterialTheme.colorScheme.background
+        ) { _ ->
+            Box(modifier = Modifier.fillMaxSize()) {
                 when (val state = profileState) {
                     is ProfileState.Loading -> {
                         CircularProgressIndicator(
@@ -222,12 +209,30 @@ fun UserProfileScreen(
                         )
                     }
                     is ProfileState.Success -> {
+                        val u = state.user
                         UserProfileContent(
-                            user = state.user,
+                            user = u,
                             isOwnProfile = false,
                             ratingState = ratingState,
                             onRateUser = { ratingType, comment ->
-                                viewModel.rateUser(state.user.userId, ratingType, comment)
+                                viewModel.rateUser(u.userId, ratingType, comment)
+                            },
+                            onBackClick = onBackClick,
+                            onMessageClick = {
+                                context.startActivity(
+                                    Intent(
+                                        context,
+                                        com.worldmates.messenger.ui.messages.MessagesActivity::class.java
+                                    ).apply {
+                                        putExtra("recipient_id", u.userId)
+                                        putExtra(
+                                            "recipient_name",
+                                            "${u.firstName ?: ""} ${u.lastName ?: ""}".trim()
+                                                .ifBlank { u.username ?: "" }
+                                        )
+                                        putExtra("recipient_avatar", u.avatar ?: "")
+                                    }
+                                )
                             }
                         )
                     }
@@ -324,33 +329,47 @@ fun UserProfileContent(
     user: User,
     isOwnProfile: Boolean,
     ratingState: RatingState,
-    onRateUser: (String, String?) -> Unit
+    onRateUser: (String, String?) -> Unit,
+    onBackClick: () -> Unit = {},
+    onMessageClick: () -> Unit = {}
 ) {
     val accentColor = parseHexColor(user.profileAccent) ?: Color(0xFF667EEA)
     val headerStyle = user.profileHeaderStyle ?: "gradient"
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
 
-        // ── Hero header ─────────────────────────────────────────────────────
+        // ── Immersive hero (floating back button inside) ─────────────────────
         item {
             ProfileHeroHeader(
                 user        = user,
                 accentColor = accentColor,
                 headerStyle = headerStyle,
+                onBackClick = onBackClick
             )
         }
 
-        // ── Name + bio block ────────────────────────────────────────────────
+        // ── Identity: name, username, status, emoji, bio (center-aligned) ───
         item {
             ProfileIdentityBlock(user = user, accentColor = accentColor)
         }
 
-        // ── Stats row ───────────────────────────────────────────────────────
+        // ── CTA buttons: Write / Call / Video ────────────────────────────────
+        if (!isOwnProfile) {
+            item {
+                ProfileCTARow(
+                    accentColor    = accentColor,
+                    onMessageClick = onMessageClick
+                )
+            }
+        }
+
+        // ── Stats row ────────────────────────────────────────────────────────
         item {
+            Spacer(Modifier.height(4.dp))
             ProfileStatsRow(user = user, accentColor = accentColor, isPremium = user.isPro > 0)
         }
 
-        // ── Send Stars ──────────────────────────────────────────────────
+        // ── Send Stars ───────────────────────────────────────────────────────
         if (!isOwnProfile) {
             item {
                 SendStarsButton(
@@ -361,7 +380,7 @@ fun UserProfileContent(
             }
         }
 
-        // ── Rating/Karma ─────────────────────────────────────────────────
+        // ── Rating / Karma ───────────────────────────────────────────────────
         if (!isOwnProfile) {
             item {
                 Spacer(Modifier.height(4.dp))
@@ -390,10 +409,10 @@ fun UserProfileContent(
             }
         }
 
-        // ── Info section ─────────────────────────────────────────────────
+        // ── Info section ─────────────────────────────────────────────────────
         item {
             ProfileInfoSection(user = user, accentColor = accentColor)
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(56.dp))
         }
     }
 }
@@ -401,10 +420,16 @@ fun UserProfileContent(
 // ─── Hero Header ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: String) {
-    var showAvatarViewer  by remember { mutableStateOf(false) }
-    var avatarViewerPage  by remember { mutableStateOf(0) }
-    var avatarViewerList  by remember { mutableStateOf<List<com.worldmates.messenger.data.model.UserAvatar>>(emptyList()) }
+private fun ProfileHeroHeader(
+    user: User,
+    accentColor: Color,
+    headerStyle: String,
+    onBackClick: () -> Unit = {}
+) {
+    var showAvatarViewer by remember { mutableStateOf(false) }
+    var avatarViewerPage by remember { mutableStateOf(0) }
+    var avatarViewerList by remember { mutableStateOf<List<com.worldmates.messenger.data.model.UserAvatar>>(emptyList()) }
+
     val darkerAccent = Color(
         android.graphics.Color.HSVToColor(
             FloatArray(3).also { hsv ->
@@ -413,13 +438,19 @@ private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: Strin
             }
         )
     )
+    val isPremium = user.isPro > 0
+    val isOnline  = user.lastSeenStatus == "online"
+    val premiumRingColors = listOf(
+        Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6),
+        Color(0xFFb91d73), Color(0xFF667EEA)
+    )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(300.dp)
     ) {
-        // Background: cover image or styled gradient/pattern
+        // ── Background ────────────────────────────────────────────────────
         if (!user.cover.isNullOrBlank() && headerStyle != "minimal") {
             AsyncImage(
                 model              = user.cover,
@@ -427,14 +458,12 @@ private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: Strin
                 modifier           = Modifier.fillMaxSize(),
                 contentScale       = ContentScale.Crop
             )
-            // Tinted overlay using accent color
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(accentColor.copy(alpha = 0.35f))
+                    .background(accentColor.copy(alpha = 0.30f))
             )
         } else {
-            // Accent-based background
             val bgBrush = when (headerStyle) {
                 "pattern" -> Brush.sweepGradient(
                     listOf(accentColor, darkerAccent, accentColor.copy(alpha = 0.7f), darkerAccent, accentColor)
@@ -442,33 +471,68 @@ private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: Strin
                 "minimal" -> Brush.verticalGradient(
                     listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.background)
                 )
-                else -> Brush.linearGradient(
-                    listOf(accentColor, darkerAccent)
-                )
+                else -> Brush.linearGradient(listOf(accentColor, darkerAccent))
             }
             Box(modifier = Modifier.fillMaxSize().background(bgBrush))
         }
 
-        // Bottom gradient scrim for readability
+        // ── Bottom scrim: hero fades into page background ─────────────────
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.65f to Color.Transparent,
-                        1f to MaterialTheme.colorScheme.background
+                        0f   to Color.Transparent,
+                        0.55f to Color.Transparent,
+                        1f   to MaterialTheme.colorScheme.background
                     )
                 )
         )
 
-        // Premium header label (top-right corner)
-        val isPremium = user.isPro > 0
+        // ── Top scrim: dark gradient so back button is always readable ─────
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(130.dp)
+                .align(Alignment.TopStart)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Black.copy(alpha = 0.50f), Color.Transparent)
+                    )
+                )
+        )
+
+        // ── Floating back button (respects status bar height) ─────────────
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(start = 10.dp, top = 8.dp)
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.35f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication        = null,
+                    onClick           = onBackClick
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector        = Icons.Default.ArrowBack,
+                contentDescription = stringResource(R.string.back),
+                tint               = Color.White,
+                modifier           = Modifier.size(20.dp)
+            )
+        }
+
+        // ── Premium badge (top-right, respects status bar) ────────────────
         if (isPremium) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(12.dp)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(end = 12.dp, top = 8.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(
                         Brush.linearGradient(
@@ -489,39 +553,54 @@ private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: Strin
                 }
             }
         }
-        val premiumRingColors = listOf(
-            Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFf953c6),
-            Color(0xFFb91d73), Color(0xFF667EEA),
-        )
-        UserAvatarPagerInProfile(
-            userId      = user.userId,
-            fallbackUrl = user.avatar,
-            isPremium   = isPremium,
-            onTap       = { avatars, page ->
-                avatarViewerList = avatars
-                avatarViewerPage = page
-                showAvatarViewer = true
-            },
-            modifier    = Modifier
-                .size(96.dp)
-                .align(Alignment.BottomStart)
-                .offset(x = 18.dp, y = 48.dp)
-                .shadow(8.dp, CircleShape)
-                .then(
-                    if (isPremium)
-                        Modifier.drawWithContent {
-                            drawContent()
-                            val sw = 3.dp.toPx()
-                            drawCircle(
-                                brush  = Brush.sweepGradient(premiumRingColors),
-                                radius = size.minDimension / 2f - sw / 2f,
-                                style  = Stroke(width = sw)
-                            )
-                        }
-                    else
-                        Modifier.border(3.dp, MaterialTheme.colorScheme.background, CircleShape)
+
+        // ── Large centered avatar + online dot ────────────────────────────
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .align(Alignment.BottomCenter)
+                .offset(y = 60.dp)
+        ) {
+            UserAvatarPagerInProfile(
+                userId      = user.userId,
+                fallbackUrl = user.avatar,
+                isPremium   = isPremium,
+                onTap       = { avatars, page ->
+                    avatarViewerList = avatars
+                    avatarViewerPage = page
+                    showAvatarViewer = true
+                },
+                modifier    = Modifier
+                    .fillMaxSize()
+                    .shadow(14.dp, CircleShape)
+                    .then(
+                        if (isPremium)
+                            Modifier.drawWithContent {
+                                drawContent()
+                                val sw = 3.5.dp.toPx()
+                                drawCircle(
+                                    brush  = Brush.sweepGradient(premiumRingColors),
+                                    radius = size.minDimension / 2f - sw / 2f,
+                                    style  = Stroke(width = sw)
+                                )
+                            }
+                        else
+                            Modifier.border(3.5.dp, MaterialTheme.colorScheme.background, CircleShape)
+                    )
+            )
+
+            // Online status dot — bottom-right of avatar
+            if (isOnline) {
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .align(Alignment.BottomEnd)
+                        .offset(x = (-4).dp, y = (-4).dp)
+                        .border(3.dp, MaterialTheme.colorScheme.background, CircleShape)
+                        .background(Color(0xFF4CAF50), CircleShape)
                 )
-        )
+            }
+        }
 
         if (showAvatarViewer && avatarViewerList.isNotEmpty()) {
             AvatarFullScreenViewer(
@@ -530,43 +609,35 @@ private fun ProfileHeroHeader(user: User, accentColor: Color, headerStyle: Strin
                 onDismiss   = { showAvatarViewer = false }
             )
         }
-
-        // Online dot on avatar
-        val isOnline = user.lastSeenStatus == "online"
-        if (isOnline) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .offset(x = 94.dp, y = 38.dp)
-                    .size(16.dp)
-                    .border(2.5.dp, MaterialTheme.colorScheme.background, CircleShape)
-                    .background(Color(0xFF4CAF50), CircleShape)
-            )
-        }
     }
 
-    // Spacer to compensate the avatar overlap
-    Spacer(Modifier.height(52.dp))
+    // Compensate for the avatar's 60 dp downward offset (half of 120dp)
+    Spacer(Modifier.height(68.dp))
 }
 
-// ─── Identity block (name + badge + username + bio + action buttons) ──────────
+// ─── Identity block (center-aligned: name + badges + username + status + bio) ──
 
 @Composable
 private fun ProfileIdentityBlock(user: User, accentColor: Color) {
+    val isPremium = user.isPro > 0
+
     Column(
-        modifier = Modifier
+        modifier              = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 20.dp),
+        horizontalAlignment   = Alignment.CenterHorizontally
     ) {
-        // Name row
-        val isPremium = user.isPro > 0
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // ── Full name + inline badges ─────────────────────────────────────
+        Row(
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
             Text(
                 text       = "${user.firstName ?: ""} ${user.lastName ?: ""}".trim().ifBlank { user.username },
                 style      = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color      = if (isPremium) accentColor else MaterialTheme.colorScheme.onSurface,
-                modifier   = Modifier.weight(1f, fill = false)
+                textAlign  = TextAlign.Center
             )
             if (!user.profileBadge.isNullOrBlank()) {
                 Spacer(Modifier.width(6.dp))
@@ -578,10 +649,10 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
                     verificationLevel = user.verificationLevel,
                     isFounder         = user.isFounder,
                     verificationSize  = 22.dp,
-                    founderSize       = 18.dp,
+                    founderSize       = 18.dp
                 )
             }
-            if (user.isPro > 0) {
+            if (isPremium) {
                 Spacer(Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
@@ -603,13 +674,16 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
             }
         }
 
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(4.dp))
 
-        // Username + online status chip
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // ── @username + online chip ───────────────────────────────────────
+        Row(
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
             Text(
                 text  = "@${user.username}",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (user.lastSeenStatus == "online") {
@@ -628,17 +702,17 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
             }
         }
 
-        // Emoji status chip
+        // ── Custom emoji status chip ──────────────────────────────────────
         if (!user.statusEmoji.isNullOrBlank() || !user.statusText.isNullOrBlank()) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(20.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    modifier              = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     if (!user.statusEmoji.isNullOrBlank()) {
                         Text(text = user.statusEmoji, fontSize = 14.sp)
@@ -647,20 +721,87 @@ private fun ProfileIdentityBlock(user: User, accentColor: Color) {
                         Text(
                             text  = user.statusText,
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
         }
 
-        // Bio
+        // ── Bio ───────────────────────────────────────────────────────────
         if (!user.about.isNullOrBlank()) {
             Spacer(Modifier.height(10.dp))
-            FormattedBioText(text = user.about)
+            FormattedBioText(
+                text     = user.about,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+// ─── CTA buttons row (Write · Call · Video) ───────────────────────────────────
+
+@Composable
+private fun ProfileCTARow(
+    accentColor:    Color,
+    onMessageClick: () -> Unit
+) {
+    Row(
+        modifier              = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Primary: Write message
+        Button(
+            onClick  = onMessageClick,
+            modifier = Modifier.weight(2f),
+            colors   = ButtonDefaults.buttonColors(containerColor = accentColor),
+            shape    = RoundedCornerShape(14.dp)
+        ) {
+            Icon(
+                imageVector        = Icons.Default.Message,
+                contentDescription = null,
+                modifier           = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text       = stringResource(R.string.profile_action_message),
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        // Secondary: Voice call
+        OutlinedButton(
+            onClick  = {},
+            modifier = Modifier.weight(1f),
+            border   = BorderStroke(1.dp, accentColor.copy(alpha = 0.55f)),
+            colors   = ButtonDefaults.outlinedButtonColors(contentColor = accentColor),
+            shape    = RoundedCornerShape(14.dp)
+        ) {
+            Icon(
+                imageVector        = Icons.Default.Phone,
+                contentDescription = stringResource(R.string.profile_action_call),
+                modifier           = Modifier.size(18.dp)
+            )
+        }
+
+        // Secondary: Video call
+        OutlinedButton(
+            onClick  = {},
+            modifier = Modifier.weight(1f),
+            border   = BorderStroke(1.dp, accentColor.copy(alpha = 0.55f)),
+            colors   = ButtonDefaults.outlinedButtonColors(contentColor = accentColor),
+            shape    = RoundedCornerShape(14.dp)
+        ) {
+            Icon(
+                imageVector        = Icons.Default.VideoCall,
+                contentDescription = stringResource(R.string.profile_action_video),
+                modifier           = Modifier.size(18.dp)
+            )
+        }
     }
 }
 

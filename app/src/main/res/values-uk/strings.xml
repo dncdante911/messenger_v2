@@ -3367,4 +3367,9 @@
     <!-- Business chat header badge -->
     <string name="business_account_label">Бізнес-акаунт</string>
     <string name="view_business_label">Переглянути бізнес</string>
+
+    <!-- ===== OTHER USER PROFILE CTA ACTIONS ===== -->
+    <string name="profile_action_message">Написати</string>
+    <string name="profile_action_call">Дзвінок</string>
+    <string name="profile_action_video">Відео</string>
 </resources>
