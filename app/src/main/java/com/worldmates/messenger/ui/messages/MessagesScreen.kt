@@ -1229,6 +1229,35 @@ fun MessagesScreen(
                 )
             }
 
+            // 🎙️ Sticky voice mini-bar — shown when the playing voice message scrolls out of view
+            val voiceTrack by com.worldmates.messenger.services.MusicPlaybackService.currentTrackInfo.collectAsState()
+            val voicePlayback by com.worldmates.messenger.services.MusicPlaybackService.playbackState.collectAsState()
+            if (voiceTrack.isVoice && voiceTrack.url.isNotEmpty()) {
+                val visibleKeys = listState.layoutInfo.visibleItemsInfo.map { it.key }
+                val isPlayingVisible = visibleKeys.contains(voiceTrack.messageId)
+                if (!isPlayingVisible) {
+                    VoiceMessageStickyBar(
+                        title = voiceTrack.title,
+                        isPlaying = voicePlayback.isPlaying,
+                        currentPositionMs = voicePlayback.currentPosition,
+                        durationMs = voicePlayback.duration,
+                        onPlayPause = {
+                            if (voicePlayback.isPlaying)
+                                com.worldmates.messenger.services.MusicPlaybackService.pausePlayback(context)
+                            else
+                                com.worldmates.messenger.services.MusicPlaybackService.resumePlayback(context)
+                        },
+                        onClose = {
+                            com.worldmates.messenger.services.MusicPlaybackService.stopPlayback(context)
+                        },
+                        onTap = {
+                            val idx = reversedMessages.indexOfFirst { it.id == voiceTrack.messageId }
+                            if (idx >= 0) scope.launch { listState.animateScrollToItem(idx) }
+                        }
+                    )
+                }
+            }
+
             // Messages List
             LazyColumn(
                 state = listState,  // 🔥 Додано для auto-scroll
@@ -2267,6 +2296,165 @@ private fun FloatingDateChip(timestamp: Long) {
                 fontWeight = FontWeight.Medium,
                 color = colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * Telegram-style sticky mini voice player bar.
+ *
+ * Appears just below the chat header when the currently playing voice message
+ * scrolls out of the visible viewport.  Tapping anywhere on it scrolls back to
+ * the originating message bubble.
+ *
+ * Layout (42 dp tall):
+ *   [▶/⏸ icon] [animated waveform] [title · time] ··· [✕]
+ *   ─────────── thin progress line at the very bottom ────────
+ */
+@Composable
+fun VoiceMessageStickyBar(
+    title: String,
+    isPlaying: Boolean,
+    currentPositionMs: Long,
+    durationMs: Long,
+    onPlayPause: () -> Unit,
+    onClose: () -> Unit,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    // Animated waveform: 3 bars that bounce when playing
+    val waveTransition = rememberInfiniteTransition(label = "sticky_wave")
+    val barScales = List(3) { i ->
+        if (isPlaying) {
+            waveTransition.animateFloat(
+                initialValue = 0.35f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = 380 + i * 120,
+                        easing = FastOutSlowInEasing
+                    ),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "bar$i"
+            )
+        } else {
+            // Static bars when paused
+            remember { androidx.compose.runtime.mutableFloatStateOf(0.5f) }
+        }
+    }
+
+    val progress = if (durationMs > 0) currentPositionMs.toFloat() / durationMs else 0f
+
+    fun Long.toMmSs(): String {
+        val totalSec = (this / 1000).coerceAtLeast(0)
+        return "%d:%02d".format(totalSec / 60, totalSec % 60)
+    }
+
+    val timeLabel = if (durationMs > 0)
+        "${currentPositionMs.toMmSs()} / ${durationMs.toMmSs()}"
+    else
+        currentPositionMs.toMmSs()
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onTap),
+        color = colorScheme.surfaceContainer,
+        tonalElevation = 3.dp,
+        shadowElevation = 2.dp
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Play / Pause
+                IconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Animated waveform bars
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    val barColor = colorScheme.primary
+                    barScales.forEach { scaleState ->
+                        val scale = (scaleState as? androidx.compose.runtime.State<Float>)?.value ?: 0.5f
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height((18 * scale).dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(barColor)
+                        )
+                    }
+                }
+
+                // Title + time
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = timeLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colorScheme.onSurface.copy(alpha = 0.55f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Close / Stop
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.close),
+                        tint = colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            // Thin progress line at the bottom
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(colorScheme.primary.copy(alpha = 0.15f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .fillMaxHeight()
+                        .background(colorScheme.primary)
+                )
+            }
         }
     }
 }

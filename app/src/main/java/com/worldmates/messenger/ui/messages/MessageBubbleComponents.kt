@@ -998,7 +998,9 @@ fun VoiceMessagePlayer(
                                     artist = displayArtist,
                                     timestamp = message.timeStamp,
                                     iv = message.iv,
-                                    tag = message.tag
+                                    tag = message.tag,
+                                    messageId = message.id,
+                                    isVoice = isVoiceMessage
                                 )
                             }
                         },
