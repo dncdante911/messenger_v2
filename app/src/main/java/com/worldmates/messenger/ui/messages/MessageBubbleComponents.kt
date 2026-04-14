@@ -86,7 +86,9 @@ fun MessageBubbleComposable(
     onHashtagClick: (String) -> Unit = {},
     onLinkClick: (String) -> Unit = {},
     // 🗑️ ViewModel для видалення повідомлень
-    viewModel: MessagesViewModel? = null
+    viewModel: MessagesViewModel? = null,
+    // 💬 Reply bubble navigation — tap to scroll to the original replied-to message
+    onReplyClick: ((Long) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val isOwn = message.fromId == UserSession.userId
@@ -566,7 +568,10 @@ fun MessageBubbleComposable(
                                     .padding(bottom = 6.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(replyBg)
-                                    .height(IntrinsicSize.Min),  // lets the bar fill row height
+                                    .height(IntrinsicSize.Min)  // lets the bar fill row height
+                                    .clickable(enabled = onReplyClick != null) {
+                                        message.replyToId?.let { onReplyClick?.invoke(it) }
+                                    },
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // ▌ Left accent bar — stretches full height of the card
@@ -911,6 +916,7 @@ fun VoiceMessagePlayer(
     val context = LocalContext.current
     val servicePlaybackState by com.worldmates.messenger.services.MusicPlaybackService.playbackState.collectAsState()
     val serviceTrackInfo by com.worldmates.messenger.services.MusicPlaybackService.currentTrackInfo.collectAsState()
+    val listenedVoiceIds by com.worldmates.messenger.services.MusicPlaybackService.listenedVoiceIds.collectAsState()
 
     // Чи саме цей трек грає у сервісі
     val isThisTrackPlaying = serviceTrackInfo.url == mediaUrl && servicePlaybackState.isPlaying
@@ -1127,6 +1133,17 @@ fun VoiceMessagePlayer(
                             color = if (playbackSpeed != 1f) colorScheme.primary else textColor.copy(alpha = 0.6f),
                             fontSize = 11.sp,
                             fontWeight = if (playbackSpeed != 1f) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+
+                    // 👁️ Listened indicator — double checkmark shown after voice message was played
+                    if (message.id in listenedVoiceIds) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(
+                            imageVector = Icons.Default.DoneAll,
+                            contentDescription = null,
+                            tint = colorScheme.primary.copy(alpha = 0.75f),
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }

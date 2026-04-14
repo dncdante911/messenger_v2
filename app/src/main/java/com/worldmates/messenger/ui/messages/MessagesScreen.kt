@@ -277,6 +277,37 @@ fun MessagesScreen(
     LaunchedEffect(Unit) { AnimatedBgPrefs.syncFromPrefs(context) }
     val animatedBgVariant by AnimatedBgPrefs.variantFlow.collectAsState()
 
+    // 🎙️ Auto-play next voice message when the current one ends
+    val latestMessages by rememberUpdatedState(messages)
+    LaunchedEffect(Unit) {
+        com.worldmates.messenger.services.MusicPlaybackService.voiceEndedEvent.collect { endedId ->
+            // Build a chronological list of voice messages (ascending id = oldest first)
+            val voiceMessages = latestMessages.filter { msg ->
+                msg.type?.lowercase() == "voice" ||
+                msg.mediaType?.lowercase() == "voice" ||
+                msg.mediaFileName?.startsWith("VOICE_", ignoreCase = true) == true ||
+                (msg.mediaUrl ?: "").substringAfterLast("/").startsWith("VOICE_", ignoreCase = true)
+            }.sortedBy { it.id }
+
+            val idx = voiceMessages.indexOfFirst { it.id == endedId }
+            if (idx >= 0 && idx + 1 < voiceMessages.size) {
+                val next = voiceMessages[idx + 1]
+                val nextUrl = next.decryptedMediaUrl ?: next.mediaUrl ?: return@collect
+                com.worldmates.messenger.services.MusicPlaybackService.startPlayback(
+                    context  = context,
+                    audioUrl = nextUrl,
+                    title    = context.getString(R.string.voice_message),
+                    artist   = "",
+                    timestamp = next.timeStamp,
+                    iv       = next.iv,
+                    tag      = next.tag,
+                    messageId = next.id,
+                    isVoice  = true
+                )
+            }
+        }
+    }
+
     // 📝 Налаштування форматування тексту
     // Для особистих чатів - всі функції доступні
     // Для груп/каналів - беремо з налаштувань групи (якщо admin) або з permissions
@@ -1433,7 +1464,11 @@ fun MessagesScreen(
                             onMentionClick = onMentionClick,
                             onHashtagClick = onHashtagClick,
                             onLinkClick = onLinkClick,
-                            viewModel = viewModel
+                            viewModel = viewModel,
+                            onReplyClick = { replyId ->
+                                val idx = reversedMessages.indexOfFirst { it.id == replyId }
+                                if (idx >= 0) scope.launch { listState.animateScrollToItem(idx) }
+                            }
                         )
                         }  // Закриття else (album/normal branch)
                     }  // Закриття AnimatedVisibility
