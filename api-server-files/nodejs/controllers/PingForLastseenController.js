@@ -10,13 +10,12 @@ const PingForLastseenController = async (ctx, data, io) => {
     const userId = ctx.userHashUserId[data.user_id];
     if (!userId) return;
     try {
-        let userlastseen_status = await ctx.wo_users.findOne({
-            attributes: ["status"],
-            where: { user_id: userId }
-        })
-        if (userlastseen_status && userlastseen_status.status == 0) {
-            await funcs.Wo_LastSeen(ctx, userId)
-        }
+        // Always update lastseen on every ping — the old `status == 0` guard
+        // prevented updates whenever the REST login had set status=1 in the DB,
+        // causing lastseen to stay frozen at the last time the user properly
+        // disconnected (sometimes months old).  If the socket is alive and the
+        // client is pinging, the timestamp must be refreshed unconditionally.
+        await funcs.Wo_LastSeen(ctx, userId);
     } catch (err) {
         console.error('[PingForLastseenController] error:', err.message)
     }

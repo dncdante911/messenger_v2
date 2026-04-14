@@ -130,6 +130,15 @@ const JoinController = async (ctx, data, io, socket, callback) => {
             console.error('[JoinController] group rooms error:', groupErr.message)
         }
 
+        // Stamp lastseen immediately on connect so the REST /api/node/user/status
+        // endpoint returns a fresh timestamp right away, even before the first
+        // ping_for_lastseen event arrives.
+        try {
+            await funcs.Wo_LastSeen(ctx, user_id);
+        } catch (lsErr) {
+            console.error('[JoinController] lastseen update error:', lsErr.message)
+        }
+
         console.log("✅ JoinController SUCCESS for user_id:", user_id);
 
         // Безопасний вызов callback
