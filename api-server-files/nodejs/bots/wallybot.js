@@ -1539,12 +1539,16 @@ async function initializeWallyBot(ctx, io) {
                 updated_at:      new Date()
             });
             console.log(`[WallyBot] Wo_Bots entry created, token: ${token}`);
-        } else if (!existing.linked_user_id) {
-            // Проставить linked_user_id если не было
+        } else if (existing.linked_user_id !== WALLYBOT_USER_ID) {
+            // Always sync linked_user_id — it diverges if the Wo_Users record was
+            // deleted and findOrCreate above recreated it with a new auto-increment ID.
+            // The old check (!existing.linked_user_id) missed this case and left a
+            // dangling foreign-key that breaks PrivateMessageController's bot lookup.
             await ctx.wo_bots.update(
                 { linked_user_id: WALLYBOT_USER_ID },
                 { where: { bot_id: WALLYBOT_ID } }
             );
+            console.log(`[WallyBot] Wo_Bots.linked_user_id synced → ${WALLYBOT_USER_ID}`);
         }
 
         // ── 3. Команды WallyBot ──────────────────────────────────────────────

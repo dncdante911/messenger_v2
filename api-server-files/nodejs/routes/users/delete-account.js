@@ -40,15 +40,22 @@ function registerDeleteAccountRoutes(app, ctx) {
                 return res.json({ api_status: 400, error_message: 'Password is required' });
             }
 
-            // Fetch the user (unscoped to access the password field)
+            // Fetch the user (unscoped to access the password and type fields)
             const user = await ctx.wo_users.unscoped().findOne({
                 where:      { user_id: userId },
-                attributes: ['user_id', 'password'],
+                attributes: ['user_id', 'password', 'type'],
                 raw:        true,
             });
 
             if (!user) {
                 return res.json({ api_status: 404, error_message: 'User not found' });
+            }
+
+            // Guard: never allow deletion of system bot accounts.
+            // Bot users (type='bot') are created by the server itself — deleting them
+            // breaks bot routing in PrivateMessageController and causes silent failures.
+            if (user.type === 'bot') {
+                return res.json({ api_status: 403, error_message: 'System accounts cannot be deleted' });
             }
 
             const ok = await verifyPassword(password, user.password);
