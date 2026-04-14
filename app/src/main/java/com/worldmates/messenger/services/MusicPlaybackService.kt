@@ -101,8 +101,14 @@ class MusicPlaybackService : MediaSessionService() {
             timestamp: Long = 0L,
             iv: String? = null,
             tag: String? = null,
+            messageId: Long = -1L,
             isVoice: Boolean = false
         ) {
+            // Update track info immediately so sticky bar can show before service starts
+            _currentTrackInfo.value = TrackInfo(
+                url = audioUrl, title = title, artist = artist,
+                messageId = messageId, isVoice = isVoice
+            )
             val intent = Intent(context, MusicPlaybackService::class.java).apply {
                 action = ACTION_PLAY
                 putExtra(EXTRA_AUDIO_URL, audioUrl)
@@ -111,7 +117,8 @@ class MusicPlaybackService : MediaSessionService() {
                 putExtra(EXTRA_TIMESTAMP, timestamp)
                 putExtra(EXTRA_IV, iv)
                 putExtra(EXTRA_TAG, tag)
-                putExtra(EXTRA_IS_VOICE, isVoice)
+                putExtra("message_id", messageId)
+                putExtra("is_voice", isVoice)
             }
             ContextCompat.startForegroundService(context, intent)
         }
@@ -246,14 +253,18 @@ class MusicPlaybackService : MediaSessionService() {
                 val timestamp = intent.getLongExtra(EXTRA_TIMESTAMP, 0L)
                 val iv        = intent.getStringExtra(EXTRA_IV)
                 val tag       = intent.getStringExtra(EXTRA_TAG)
-                val isVoice   = intent.getBooleanExtra(EXTRA_IS_VOICE, false)
+                val msgId     = intent.getLongExtra("message_id", -1L)
+                val isVoice   = intent.getBooleanExtra("is_voice", false)
 
                 // Негайно виводимо foreground notification, щоб сервіс не був знищений
                 // поки йде асинхронна розшифровка. Media3 потім замінить цю нотифікацію
                 // на повноцінний плеєр з кнопками керування.
                 promoteToForeground(title, artist)
 
-                _currentTrackInfo.value = TrackInfo(url = audioUrl, title = title, artist = artist, isVoice = isVoice)
+                _currentTrackInfo.value = TrackInfo(
+                    url = audioUrl, title = title, artist = artist,
+                    messageId = msgId, isVoice = isVoice
+                )
 
                 serviceScope.launch {
                     playAudio(audioUrl, title, artist, timestamp, iv, tag)
@@ -426,6 +437,7 @@ class MusicPlaybackService : MediaSessionService() {
         val url: String = "",
         val title: String = "",
         val artist: String = "",
+        val messageId: Long = -1L,
         val isVoice: Boolean = false
     )
 }

@@ -1019,6 +1019,7 @@ fun VoiceMessagePlayer(
                                     timestamp = message.timeStamp,
                                     iv = message.iv,
                                     tag = message.tag,
+                                    messageId = message.id,
                                     isVoice = isVoiceMessage
                                 )
                             }
