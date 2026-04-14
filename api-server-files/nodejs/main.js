@@ -1395,10 +1395,15 @@ async function main() {
     if (isFirstWorker) {
       // DB migrations (idempotent ALTER TABLE / CREATE TABLE / ADD INDEX)
       runMigrations(ctx).catch(e => console.error('[Migration] Fatal error:', e));
-
-      // WallyBot (встроенный бот-менеджер) — only one instance per cluster
-      initializeWallyBot(ctx, io).catch(e => console.error('[WallyBot] Init error:', e));
     }
+
+    // WallyBot must register its handler on EVERY worker because ctx.botSockets
+    // is a plain in-memory Map — not shared across PM2 cluster processes.
+    // Without this, only worker-0 has the handler; requests routed to workers
+    // 1…N see ctx.botSockets.has('wallybot') === false → complete silence.
+    // All DB operations inside initializeWallyBot are idempotent (findOrCreate /
+    // update-if-changed), so running them on every worker is safe.
+    initializeWallyBot(ctx, io).catch(e => console.error('[WallyBot] Init error:', e));
   });
 }
 
