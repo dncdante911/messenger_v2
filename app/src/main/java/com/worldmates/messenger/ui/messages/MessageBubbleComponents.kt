@@ -942,9 +942,13 @@ fun VoiceMessagePlayer(
     val displayTitle = trackInfo.title
     val displayArtist = trackInfo.artist
     // Detect voice messages by type OR by server filename pattern (VOICE_*)
+    // Also handles socket events where type may arrive as null/audio but media_type="voice"
+    // or the encrypted URL ends in .m4a (voice recordings are always m4a, music is mp3/flac/etc.)
     val isVoiceMessage = message.type?.lowercase() == "voice" ||
+        message.mediaType?.lowercase() == "voice" ||
         message.mediaFileName?.startsWith("VOICE_", ignoreCase = true) == true ||
-        mediaUrl.substringAfterLast("/").startsWith("VOICE_", ignoreCase = true)
+        mediaUrl.substringAfterLast("/").startsWith("VOICE_", ignoreCase = true) ||
+        (mediaUrl.substringAfterLast(".").lowercase() == "m4a" && message.type?.lowercase() != "audio")
     val voiceMessageLabel = stringResource(R.string.voice_message)
 
     // Компактний аудіо плеєр (без фону — бульбашка повідомлення вже є контейнером)

@@ -148,7 +148,11 @@ class MusicPlaybackService : MediaSessionService() {
             serviceInstance?.player?.seekTo(position)
         }
 
+        // Persists the desired speed across media items so every new track starts at the same speed.
+        private var pendingSpeed: Float = 1f
+
         fun setSpeed(speed: Float) {
+            pendingSpeed = speed
             serviceInstance?.player?.setPlaybackSpeed(speed)
         }
     }
@@ -363,6 +367,7 @@ class MusicPlaybackService : MediaSessionService() {
 
                 player.setMediaItem(mediaItem)
                 player.prepare()
+                player.setPlaybackSpeed(pendingSpeed) // Restore speed before playback starts
                 player.playWhenReady = true
             }
         } catch (e: Exception) {
