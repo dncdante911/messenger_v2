@@ -16,8 +16,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * 📍 LocationRepository - управление геолокацией
@@ -240,25 +242,41 @@ class LocationRepository private constructor(
             Log.d(TAG, "🌍 Reverse geocoding: ${latLng.latitude}, ${latLng.longitude}")
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Android 13+ - новый асинхронный API
-                suspendCancellableCoroutine { continuation ->
-                    geocoder.getFromLocation(
-                        latLng.latitude,
-                        latLng.longitude,
-                        1
-                    ) { addresses ->
-                        if (addresses.isNotEmpty()) {
-                            val address = addresses[0]
-                            val addressText = buildAddressString(address)
-                            Log.d(TAG, "✅ Address: $addressText")
-                            continuation.resume(Result.success(addressText))
-                        } else {
-                            Log.w(TAG, "⚠️ No address found")
-                            continuation.resume(
-                                Result.success("${latLng.latitude}, ${latLng.longitude}")
-                            )
+                // Android 13+ — async geocoding API.
+                // Wrap in withTimeoutOrNull: on some devices the callback never fires
+                // (no network, Play Services unavailable), causing the coroutine to
+                // hang forever without a timeout.
+                // Guard continuation.isActive before resuming: the callback runs on the
+                // main thread and may arrive after a scope cancellation.
+                val result = withTimeoutOrNull(5_000L) {
+                    suspendCancellableCoroutine<Result<String>> { continuation ->
+                        try {
+                            geocoder.getFromLocation(
+                                latLng.latitude,
+                                latLng.longitude,
+                                1
+                            ) { addresses ->
+                                if (!continuation.isActive) return@getFromLocation
+                                if (addresses.isNotEmpty()) {
+                                    val address    = addresses[0]
+                                    val addressText = buildAddressString(address)
+                                    Log.d(TAG, "✅ Address (API33+): $addressText")
+                                    continuation.resume(Result.success(addressText))
+                                } else {
+                                    Log.w(TAG, "⚠️ No address found (API33+)")
+                                    continuation.resume(
+                                        Result.success("${latLng.latitude}, ${latLng.longitude}")
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (continuation.isActive) continuation.resumeWithException(e)
                         }
                     }
+                }
+                result ?: run {
+                    Log.w(TAG, "⚠️ Geocoding timed out — falling back to coordinates")
+                    Result.success("${latLng.latitude}, ${latLng.longitude}")
                 }
             } else {
                 // Android 12 и ниже - старый синхронный API
