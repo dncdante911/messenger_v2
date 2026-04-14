@@ -2,6 +2,7 @@ package com.worldmates.messenger.ui.messages
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -10,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.Composable
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
@@ -211,14 +213,44 @@ class MessagesActivity : AppCompatActivity() {
     /**
      * Повідомляємо сервіс сповіщень, який чат відкрито,
      * щоб не показувати дублюючі нотифікації.
+     * Також одразу скасовуємо вже показане сповіщення для цього чату —
+     * setAutoCancel(true) прибирає його лише при тапі по ньому,
+     * але не коли чат відкрито інакше (з ChatsActivity, пуш-сервісу тощо).
      */
     override fun onResume() {
         super.onResume()
-        when {
-            isChannel  -> MessageNotificationService.activeChannelId   = channelId
-            isGroup    -> MessageNotificationService.activeGroupId      = groupId
-            else       -> MessageNotificationService.activeRecipientId  = recipientId
+        val notifId: Int = when {
+            isChannel -> {
+                MessageNotificationService.activeChannelId = channelId
+                (channelId + 200_000L).toInt()
+            }
+            isGroup -> {
+                MessageNotificationService.activeGroupId = groupId
+                (groupId + 100_000L).toInt()
+            }
+            else -> {
+                MessageNotificationService.activeRecipientId = recipientId
+                recipientId.toInt()
+            }
         }
+        NotificationManagerCompat.from(this).cancel(notifId)
+    }
+
+    /**
+     * Якщо активність вже запущена (FLAG_ACTIVITY_CLEAR_TOP) і прийшов
+     * новий інтент (тап на інше сповіщення) — оновлюємо змінні та
+     * скасовуємо відповідне сповіщення.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // Re-read parameters from the new intent so onResume cancels the right notif
+        recipientId = intent.getLongExtra("recipient_id", recipientId)
+        groupId     = intent.getLongExtra("group_id", groupId)
+        channelId   = intent.getLongExtra("channel_id", channelId)
+        isGroup     = intent.getBooleanExtra("is_group", isGroup)
+        isChannel   = intent.getBooleanExtra("is_channel", isChannel)
+        // onResume() is called automatically after onNewIntent — it will cancel the notif
     }
 
     /**
