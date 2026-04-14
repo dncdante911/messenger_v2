@@ -171,19 +171,29 @@ async function sendToUser(ctx, io, userId, text, replyMarkup = null) {
                 });
 
                 // 3. Отправить как regular private_message — Android отобразит в обычном чате
+                // Payload must match the standard buildMessage() shape so that:
+                //   - MessagesViewModel reads from_id/to_id/text and shows message inline
+                //   - MessageNotificationService reads from_id and suppresses the
+                //     notification when the wallybot chat is already open
                 if (io) {
                     io.to(String(userId)).emit('private_message', {
                         status:            200,
-                        id:                String(WALLYBOT_USER_ID),
-                        message:           text,
+                        id:                woMsg.id,           // message ID (number), not user ID
+                        from_id:           WALLYBOT_USER_ID,   // standard sender field
+                        to_id:             userId,              // standard recipient field
+                        text:              text,                // standard text field
+                        message:           text,                // kept for legacy web clients
                         message_id:        woMsg.id,
+                        time:              now,
                         time_api:          now,
                         messages_html:     '',
                         message_page_html: '',
                         username:          WALLYBOT_NAME,
                         avatar:            'upload/photos/d-avatar.jpg',
                         receiver:          userId,
-                        sender:            WALLYBOT_USER_ID,
+                        sender:            WALLYBOT_USER_ID,   // kept for legacy web clients
+                        cipher_version:    1,                   // plaintext — no decryption needed
+                        media:             '',
                         isMedia:           false,
                         isRecord:          false,
                         reply_markup:      replyMarkup || null
