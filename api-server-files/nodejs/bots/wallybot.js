@@ -451,10 +451,10 @@ async function registerDefaultCommands(ctx, botId) {
 // ─── Personality helpers ──────────────────────────────────────────────────────
 
 const GREETINGS = [
-    (name) => `Привіт, ${name}! 👋 Я WallyBot — твій особистий помічник у WorldMates.\n\nЧим можу допомогти сьогодні?`,
-    (name) => `Вітаю, ${name}! ✨ Радий тебе бачити!\n\nГотовий допомогти з ботами та відповісти на запитання.`,
+    (name) => `Привет, ${name}! 👋 Я WallyBot — твой личный помощник в WorldMates.\n\nЧем могу помочь сегодня?`,
+    (name) => `Приветствую, ${name}! ✨ Рад тебя видеть!\n\nГотов помочь с ботами и ответить на вопросы.`,
     (name) => `Привет, ${name}! 🤖 Я WallyBot — создаю ботов, отвечаю на вопросы и помогаю разобраться в WorldMates.\n\nЧто сделаем?`,
-    (name) => `Хай, ${name}! 🌟 WallyBot на зв'язку!\n\nЯкщо потрібна допомога — я тут.`,
+    (name) => `Привет, ${name}! 🌟 WallyBot на связи!\n\nЕсли нужна помощь — я здесь.`,
 ];
 
 function randomGreeting(name) {
@@ -471,13 +471,13 @@ async function handleStart(ctx, io, userId, userName) {
     clearState(userId);
     const text = randomGreeting(userName);
     const kb = inlineKeyboard([
-        btn('Створити бота / Создать бота', 'cmd_newbot'),
-        btn('Мої боти / Мои боты',          'cmd_mybots'),
-        btn('Навчити мене / Обучить меня',   'cmd_learn'),
-        btn('Запитати WallyBot',             'cmd_ask'),
-        btn('Функції месенджера',            'cmd_messenger_guide'),
-        btn('Статистика / Статистика',       'cmd_stats'),
-        btn('Допомога / Помощь',             'cmd_help')
+        btn('Создать бота',        'cmd_newbot'),
+        btn('Мои боты',            'cmd_mybots'),
+        btn('Обучить меня',        'cmd_learn'),
+        btn('Спросить WallyBot',   'cmd_ask'),
+        btn('Функции мессенджера', 'cmd_messenger_guide'),
+        btn('Статистика',          'cmd_stats'),
+        btn('Помощь',              'cmd_help')
     ], 2);
     await sendToUser(ctx, io, userId, text, kb);
 }
@@ -485,22 +485,22 @@ async function handleStart(ctx, io, userId, userName) {
 async function handleHelp(ctx, io, userId) {
     clearState(userId);
     const text =
-        `*Команди WallyBot / Команды WallyBot:*\n\n` +
-        `🤖 *Керування ботами:*\n` +
-        `/newbot — створити нового бота\n` +
-        `/mybots — список твоїх ботів\n` +
-        `/editbot — змінити налаштування бота\n` +
-        `/deletebot — видалити бота\n` +
+        `*Команды WallyBot:*\n\n` +
+        `🤖 *Управление ботами:*\n` +
+        `/newbot — создать нового бота\n` +
+        `/mybots — список твоих ботов\n` +
+        `/editbot — изменить настройки бота\n` +
+        `/deletebot — удалить бота\n` +
         `/token — токен бота\n` +
-        `/setcommands — команди бота\n` +
-        `/setdesc — опис бота\n\n` +
-        `🧠 *База знань:*\n` +
-        `/learn — навчити мене новому\n` +
-        `/forget — забути відповідь\n` +
-        `/ask — задати питання\n` +
-        `/messenger — довідка по месенджеру\n\n` +
-        `📊 /stats — статистика ботів\n\n` +
-        `💬 Просто напиши питання — спробую відповісти!`;
+        `/setcommands — команды бота\n` +
+        `/setdesc — описание бота\n\n` +
+        `🧠 *База знаний:*\n` +
+        `/learn — научить меня новому\n` +
+        `/forget — забыть ответ\n` +
+        `/ask — задать вопрос\n` +
+        `/messenger — справка по мессенджеру\n\n` +
+        `📊 /stats — статистика ботов\n\n` +
+        `💬 Просто напиши вопрос — постараюсь ответить!`;
     await sendToUser(ctx, io, userId, text);
 }
 
@@ -612,13 +612,13 @@ async function handleAsk(ctx, io, userId) {
 
 async function handleMessengerGuide(ctx, io, userId) {
     clearState(userId);
-    const text = `*Справка по мессенджеру / Довідка по месенджеру*\n\n` +
+    const text = `*Справка по мессенджеру*\n\n` +
         `Я могу отвечать по функциям WorldMates. Примеры вопросов:\n` +
         `• Как найти бота в мессенджере?\n` +
         `• Как создать своего бота?\n` +
         `• Как добавить бота в группу?\n` +
-        `• Як знайти бота в месенджері?\n` +
-        `• Як створити свого бота?\n\n` +
+        `• Как заблокировать бота?\n` +
+        `• Как использовать команды бота?\n\n` +
         `Просто напиши вопрос обычным текстом — я постараюсь подобрать ответ.`;
 
     return sendToUser(ctx, io, userId, text, inlineKeyboard([
@@ -629,11 +629,11 @@ async function handleMessengerGuide(ctx, io, userId) {
 
 async function handleCancel(ctx, io, userId) {
     clearState(userId);
-    await sendToUser(ctx, io, userId, 'Добре, скасовано! ✌️ Чим ще можу допомогти?',
+    await sendToUser(ctx, io, userId, 'Хорошо, отменено! ✌️ Чем ещё могу помочь?',
         inlineKeyboard([
-            btn('Створити бота', 'cmd_newbot'),
-            btn('Мої боти',      'cmd_mybots'),
-            btn('Допомога',      'cmd_help')
+            btn('Создать бота', 'cmd_newbot'),
+            btn('Мои боты',     'cmd_mybots'),
+            btn('Помощь',       'cmd_help')
         ])
     );
 }
@@ -649,25 +649,25 @@ async function handleStats(ctx, io, userId) {
         ]);
         const text =
             `📊 *Статистика WorldMates Bots*\n\n` +
-            `🤖 Всього ботів: *${totalBots}*\n` +
-            `🟢 Активних: *${activeBots}*\n` +
-            `💬 Повідомлень надіслано: *${totalMessages || 0}*\n` +
-            `🧠 Фактів у базі знань WallyBot: *${kbCount}*\n\n` +
-            `Хочеш стати частиною екосистеми? Створи свого бота! 🚀`;
+            `🤖 Всего ботов: *${totalBots}*\n` +
+            `🟢 Активных: *${activeBots}*\n` +
+            `💬 Отправлено сообщений: *${totalMessages || 0}*\n` +
+            `🧠 Фактов в базе знаний WallyBot: *${kbCount}*\n\n` +
+            `Хочешь стать частью экосистемы? Создай своего бота! 🚀`;
         await sendToUser(ctx, io, userId, text,
-            inlineKeyboard([btn('Створити бота', 'cmd_newbot'), btn('Мої боти', 'cmd_mybots')])
+            inlineKeyboard([btn('Создать бота', 'cmd_newbot'), btn('Мои боты', 'cmd_mybots')])
         );
     } catch (e) {
-        await sendToUser(ctx, io, userId, 'Не вдалося отримати статистику 😔 Спробуй пізніше.');
+        await sendToUser(ctx, io, userId, 'Не удалось получить статистику 😔 Попробуй позже.');
     }
 }
 
 // Easter egg: /who or free-text "хто ти / кто ты / who are you"
 async function handleWho(ctx, io, userId) {
     const lines = [
-        '🤖 Я WallyBot — розумний бот-менеджер WorldMates!\n\nСтворений, щоб допомагати тобі будувати власних ботів і відповідати на запитання. Трохи знаю про месенджер, трохи — про всесвіт. 😄',
-        '👾 Я WallyBot! Частина команди WorldMates.\n\nМоя місія: зробити боти доступними кожному. Питай — відповім!',
-        '🌟 WallyBot до твоїх послуг!\n\nПрацюю 24/7, не їм, не сплю — тільки допомагаю. Іноді жартую. 😄',
+        '🤖 Я WallyBot — умный бот-менеджер WorldMates!\n\nСоздан, чтобы помогать тебе строить собственных ботов и отвечать на вопросы. Немного знаю о мессенджере, немного — о вселенной. 😄',
+        '👾 Я WallyBot! Часть команды WorldMates.\n\nМоя миссия: сделать ботов доступными каждому. Спрашивай — отвечу!',
+        '🌟 WallyBot к твоим услугам!\n\nРаботаю 24/7, не ем, не сплю — только помогаю. Иногда шучу. 😄',
     ];
     await sendToUser(ctx, io, userId, lines[Math.floor(Math.random() * lines.length)]);
 }
@@ -675,9 +675,9 @@ async function handleWho(ctx, io, userId) {
 // "Thank you" handler
 async function handleThanks(ctx, io, userId) {
     const replies = [
-        'Будь ласка! 😊 Завжди радий допомогти.',
-        'Немає за що! Якщо знову щось потрібно — пиши. 🤝',
-        'На здоров\'я! 🌟 Удачі з ботами!',
+        'Пожалуйста! 😊 Всегда рад помочь.',
+        'Не за что! Если снова что-то понадобится — пиши. 🤝',
+        'На здоровье! 🌟 Удачи с ботами!',
         'Пожалуйста! Если что — я рядом. 👋',
     ];
     await sendToUser(ctx, io, userId, replies[Math.floor(Math.random() * replies.length)]);
@@ -690,8 +690,8 @@ async function handleSetInline(ctx, io, userId) {
     const bots = await ctx.wo_bots.findAll({ where: { owner_id: userId, status: 'active' }, raw: true });
     if (!bots.length) {
         return sendToUser(ctx, io, userId,
-            'У тебе ще немає активних ботів.\nСтвори бота: /newbot',
-            inlineKeyboard([btn('Створити бота', 'cmd_newbot')])
+            'У тебя ещё нет активных ботов.\nСоздай бота: /newbot',
+            inlineKeyboard([btn('Создать бота', 'cmd_newbot')])
         );
     }
     setState(userId, STATES.SETINLINE_SELECT);
@@ -700,7 +700,7 @@ async function handleSetInline(ctx, io, userId) {
         `setinline_${b.bot_id}`
     ));
     return sendToUser(ctx, io, userId,
-        '🔀 *Inline-режим*\n\nОбери бота, щоб перемкнути inline:',
+        '🔀 *Inline-режим*\n\nВыбери бота, чтобы переключить inline:',
         inlineKeyboard(buttons, 1)
     );
 }
@@ -712,17 +712,17 @@ async function handleSetGroups(ctx, io, userId) {
     const bots = await ctx.wo_bots.findAll({ where: { owner_id: userId, status: 'active' }, raw: true });
     if (!bots.length) {
         return sendToUser(ctx, io, userId,
-            'У тебе ще немає активних ботів.\nСтвори бота: /newbot',
-            inlineKeyboard([btn('Створити бота', 'cmd_newbot')])
+            'У тебя ещё нет активных ботов.\nСоздай бота: /newbot',
+            inlineKeyboard([btn('Создать бота', 'cmd_newbot')])
         );
     }
     setState(userId, STATES.SETGROUPS_SELECT);
     const buttons = bots.map(b => btn(
-        `@${b.username} [${b.can_join_groups ? '✅ групи ON' : '❌ групи OFF'}]`,
+        `@${b.username} [${b.can_join_groups ? '✅ группы ON' : '❌ группы OFF'}]`,
         `setgroups_${b.bot_id}`
     ));
     return sendToUser(ctx, io, userId,
-        '👥 *Доступ до груп*\n\nОбери бота, щоб перемкнути режим:',
+        '👥 *Доступ к группам*\n\nВыбери бота, чтобы переключить режим:',
         inlineKeyboard(buttons, 1)
     );
 }
@@ -733,12 +733,12 @@ async function handleRevoke(ctx, io, userId) {
     clearState(userId);
     const bots = await ctx.wo_bots.findAll({ where: { owner_id: userId }, raw: true });
     if (!bots.length) {
-        return sendToUser(ctx, io, userId, 'У тебе немає ботів.');
+        return sendToUser(ctx, io, userId, 'У тебя нет ботов.');
     }
     setState(userId, STATES.REVOKE_SELECT);
     const buttons = bots.map(b => btn(`@${b.username}`, `revokeconfirm_${b.bot_id}`));
     return sendToUser(ctx, io, userId,
-        '🔑 *Відкликати токен*\n\n⚠️ Старий токен стане недійсним одразу!\nОбери бота:',
+        '🔑 *Отозвать токен*\n\n⚠️ Старый токен станет недействительным сразу!\nВыбери бота:',
         inlineKeyboard(buttons, 1)
     );
 }
@@ -749,15 +749,15 @@ async function handleBroadcast(ctx, io, userId) {
     clearState(userId);
     const bots = await ctx.wo_bots.findAll({ where: { owner_id: userId, status: 'active' }, raw: true });
     if (!bots.length) {
-        return sendToUser(ctx, io, userId, 'У тебе немає активних ботів.');
+        return sendToUser(ctx, io, userId, 'У тебя нет активных ботов.');
     }
     setState(userId, STATES.BROADCAST_SELECT);
     const buttons = bots.map(b => {
         const userCount = b.total_users || 0;
-        return btn(`@${b.username} (${userCount} кор.)`, `broadcast_${b.bot_id}`);
+        return btn(`@${b.username} (${userCount} польз.)`, `broadcast_${b.bot_id}`);
     });
     return sendToUser(ctx, io, userId,
-        '📢 *Розсилка*\n\nОбери бота для розсилки:',
+        '📢 *Рассылка*\n\nВыбери бота для рассылки:',
         inlineKeyboard(buttons, 1)
     );
 }
@@ -794,18 +794,18 @@ async function handleBotStats(ctx, io, userId, botUsername) {
 
     const text =
         `📊 *Статистика @${bot.username}*\n\n` +
-        `👥 Користувачів: *${totalUsers}*\n` +
-        `🟢 Активні (24h): *${activeDay}* ${bar(activePercent)}\n` +
-        `📅 Активні (7d): *${activeWeek}*\n\n` +
-        `📥 Отримано повідомлень: *${totalIn}*\n` +
-        `📤 Надіслано повідомлень: *${totalOut}*\n\n` +
-        `🔗 Webhook: ${bot.webhook_enabled ? '✅ активний' : '❌ вимкнений'}\n` +
+        `👥 Пользователей: *${totalUsers}*\n` +
+        `🟢 Активных (24h): *${activeDay}* ${bar(activePercent)}\n` +
+        `📅 Активных (7d): *${activeWeek}*\n\n` +
+        `📥 Получено сообщений: *${totalIn}*\n` +
+        `📤 Отправлено сообщений: *${totalOut}*\n\n` +
+        `🔗 Webhook: ${bot.webhook_enabled ? '✅ активен' : '❌ отключён'}\n` +
         `📌 Статус: *${bot.status}*`;
 
     return sendToUser(ctx, io, userId, text,
         inlineKeyboard([
-            btn('Мої боти',     'cmd_mybots'),
-            btn('Головне меню', 'cmd_start')
+            btn('Мои боты',    'cmd_mybots'),
+            btn('Главное меню', 'cmd_start')
         ])
     );
 }
@@ -1005,7 +1005,7 @@ async function processState(ctx, io, userId, text, currentState) {
         const { bot_id: targetBotId, username: botUsername, user_count } = data;
         const msgText = text.trim();
         if (!msgText) {
-            return sendToUser(ctx, io, userId, 'Повідомлення не може бути порожнім. Введи текст:');
+            return sendToUser(ctx, io, userId, 'Сообщение не может быть пустым. Введи текст:');
         }
 
         // Encode message as base64 to embed in callback_data safely
@@ -1015,15 +1015,15 @@ async function processState(ctx, io, userId, text, currentState) {
         // callback_data limit ~64 bytes — if too large, truncate with warning
         if (cbData.length > 200) {
             return sendToUser(ctx, io, userId,
-                '⚠️ Повідомлення занадто довге для підтвердження. Скороти текст до ~100 символів і введи знову:'
+                '⚠️ Сообщение слишком длинное для подтверждения. Сократи текст до ~100 символов и введи снова:'
             );
         }
 
         return sendToUser(ctx, io, userId,
-            `📋 Попередній перегляд розсилки:\n\n${msgText}\n\n—\n📢 Буде надіслано *${user_count}* користувачам @${botUsername}. Підтвердити?`,
+            `📋 Предпросмотр рассылки:\n\n${msgText}\n\n—\n📢 Будет отправлено *${user_count}* пользователям @${botUsername}. Подтвердить?`,
             inlineKeyboard([
-                btn('✅ Надіслати',  cbData),
-                btn('❌ Скасувати', 'cmd_cancel')
+                btn('✅ Отправить',  cbData),
+                btn('❌ Отменить', 'cmd_cancel')
             ], 1)
         );
     }
@@ -1066,8 +1066,8 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
         const text = `*База знаний WallyBot (${list.length} записей):*\n\n` +
             list.map(item => `• *${item.title}*\n  ${item.description.substring(0, 80)}...`).join('\n\n');
         return sendToUser(ctx, io, userId, text, inlineKeyboard([
-            btn('Забыть запись', 'cmd_forget'),
-            btn('Добавить',      'cmd_learn')
+            btn('Удалить запись', 'cmd_forget'),
+            btn('Добавить',       'cmd_learn')
         ]));
     }
 
@@ -1251,9 +1251,9 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
 
         return sendToUser(ctx, io, userId,
             newVal
-                ? `✅ Inline-режим *увімкнено* для @${bot.username}.\n\nТепер користувачі можуть використовувати бота через \`@${bot.username} запит\` у будь-якому чаті.`
-                : `❌ Inline-режим *вимкнено* для @${bot.username}.`,
-            inlineKeyboard([btn('Мої боти', 'cmd_mybots'), btn('Налаштувати ще', 'cmd_setinline')])
+                ? `✅ Inline-режим *включён* для @${bot.username}.\n\nТеперь пользователи могут использовать бота через \`@${bot.username} запрос\` в любом чате.`
+                : `❌ Inline-режим *отключён* для @${bot.username}.`,
+            inlineKeyboard([btn('Мои боты', 'cmd_mybots'), btn('Настроить ещё', 'cmd_setinline')])
         );
     }
 
@@ -1269,9 +1269,9 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
 
         return sendToUser(ctx, io, userId,
             newVal
-                ? `✅ Доступ до груп *увімкнено* для @${bot.username}.`
-                : `❌ Доступ до груп *вимкнено* для @${bot.username}.`,
-            inlineKeyboard([btn('Мої боти', 'cmd_mybots'), btn('Налаштувати ще', 'cmd_setgroups')])
+                ? `✅ Доступ к группам *включён* для @${bot.username}.`
+                : `❌ Доступ к группам *отключён* для @${bot.username}.`,
+            inlineKeyboard([btn('Мои боты', 'cmd_mybots'), btn('Настроить ещё', 'cmd_setgroups')])
         );
     }
 
@@ -1282,10 +1282,10 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
         if (!bot) return sendToUser(ctx, io, userId, 'Бот не знайдений.');
 
         return sendToUser(ctx, io, userId,
-            `⚠️ Ти впевнений, що хочеш відкликати токен *@${bot.username}*?\n\nСтарий токен стане *недійсним негайно*. Усі інтеграції зупиняться.`,
+            `⚠️ Ты уверен, что хочешь отозвать токен *@${bot.username}*?\n\nСтарый токен станет *недействительным немедленно*. Все интеграции остановятся.`,
             inlineKeyboard([
-                btn(`✅ Так, відкликати`, `revokedo_${botId}`),
-                btn('❌ Скасувати',       'cmd_cancel')
+                btn(`✅ Да, отозвать`, `revokedo_${botId}`),
+                btn('❌ Отменить',     'cmd_cancel')
             ], 1)
         );
     }
@@ -1301,8 +1301,8 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
         clearState(userId);
 
         return sendToUser(ctx, io, userId,
-            `🔑 Токен *@${bot.username}* відкликано і замінено!\n\nНовий токен:\n\`${newToken}\`\n\n⚠️ Збережи його — показую тільки один раз!`,
-            inlineKeyboard([btn('Мої боти', 'cmd_mybots')])
+            `🔑 Токен *@${bot.username}* отозван и заменён!\n\nНовый токен:\n\`${newToken}\`\n\n⚠️ Сохрани его — показываю только один раз!`,
+            inlineKeyboard([btn('Мои боты', 'cmd_mybots')])
         );
     }
 
@@ -1315,15 +1315,15 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
         const userCount = await ctx.wo_bot_users.count({ where: { bot_id: botId } });
         if (userCount === 0) {
             return sendToUser(ctx, io, userId,
-                `У бота @${bot.username} ще немає користувачів. Розсилати нема кому.`,
-                inlineKeyboard([btn('Мої боти', 'cmd_mybots')])
+                `У бота @${bot.username} ещё нет пользователей. Рассылать некому.`,
+                inlineKeyboard([btn('Мои боты', 'cmd_mybots')])
             );
         }
 
         setState(userId, STATES.BROADCAST_INPUT, { bot_id: botId, username: bot.username, user_count: userCount });
         return sendToUser(ctx, io, userId,
-            `📢 Розсилка для *@${bot.username}*\nОтримувачів: *${userCount}*\n\nВведи текст повідомлення для розсилки:`,
-            inlineKeyboard([btn('Скасувати', 'cmd_cancel')])
+            `📢 Рассылка для *@${bot.username}*\nПолучателей: *${userCount}*\n\nВведи текст сообщения для рассылки:`,
+            inlineKeyboard([btn('Отменить', 'cmd_cancel')])
         );
     }
 
@@ -1336,7 +1336,7 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
         try { broadcastText = Buffer.from(encodedMsg, 'base64').toString('utf8'); } catch { broadcastText = ''; }
 
         const bot = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId }, raw: true });
-        if (!bot || !broadcastText) return sendToUser(ctx, io, userId, 'Помилка. Спробуй ще раз.');
+        if (!bot || !broadcastText) return sendToUser(ctx, io, userId, 'Ошибка. Попробуй ещё раз.');
 
         const recipients = await ctx.wo_bot_users.findAll({ where: { bot_id: botId }, attributes: ['user_id'], raw: true });
 
@@ -1360,8 +1360,8 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
         clearState(userId);
 
         return sendToUser(ctx, io, userId,
-            `✅ Розсилка завершена!\n\nНадіслано: *${sent}* / ${recipients.length} повідомлень`,
-            inlineKeyboard([btn('Мої боти', 'cmd_mybots'), btn('Ще розсилка', 'cmd_broadcast')])
+            `✅ Рассылка завершена!\n\nОтправлено: *${sent}* / ${recipients.length} сообщений`,
+            inlineKeyboard([btn('Мои боты', 'cmd_mybots'), btn('Ещё рассылка', 'cmd_broadcast')])
         );
     }
 }
@@ -1375,7 +1375,7 @@ async function handleMessage(ctx, io, data) {
     if (!userId) return;
 
     // Получаем имя пользователя
-    let userName = 'пользователь';
+    let userName = 'друг';
     try {
         const user = await ctx.wo_users.findOne({
             where:      { user_id: userId },
@@ -1427,8 +1427,8 @@ async function handleMessage(ctx, io, data) {
         if (handler) return handler();
 
         return sendToUser(ctx, io, userId,
-            `Невідома команда: /${cmd} 🤔\n\nВведи /help для списку команд.`,
-            inlineKeyboard([btn('Допомога', 'cmd_help'), btn('Головне меню', 'cmd_start')])
+            `Неизвестная команда: /${cmd} 🤔\n\nВведи /help для списка команд.`,
+            inlineKeyboard([btn('Помощь', 'cmd_help'), btn('Главное меню', 'cmd_start')])
         );
     }
 
@@ -1445,13 +1445,13 @@ async function handleMessage(ctx, io, data) {
             const currentState = getState(userId);
             if (currentState.state === STATES.IDLE) {
                 const greets = [
-                    `${userName}! 👋 Привіт! Чим можу допомогти?`,
-                    `Привіт, ${userName}! 😊 Радий тебе бачити! Пиши /help або просто питай.`,
-                    `Хай, ${userName}! 🌟 Що будемо робити?`,
+                    `${userName}! 👋 Привет! Чем могу помочь?`,
+                    `Привет, ${userName}! 😊 Рад тебя видеть! Пиши /help или просто спрашивай.`,
+                    `Привет, ${userName}! 🌟 Что будем делать?`,
                 ];
                 return sendToUser(ctx, io, userId,
                     greets[Math.floor(Math.random() * greets.length)],
-                    inlineKeyboard([btn('Головне меню', 'cmd_start'), btn('Допомога', 'cmd_help')])
+                    inlineKeyboard([btn('Главное меню', 'cmd_start'), btn('Помощь', 'cmd_help')])
                 );
             }
         }
@@ -1476,21 +1476,18 @@ async function handleMessage(ctx, io, data) {
             return sendToUser(ctx, io, userId,
                 `*${fact.title}*\n\n${fact.description}`,
                 inlineKeyboard([
-                    btn('Це допомогло! 👍', 'kb_helpful_yes'),
-                    btn('Не те, що треба',  'kb_helpful_no')
+                    btn('Помогло! 👍',       'kb_helpful_yes'),
+                    btn('Не то, что нужно', 'kb_helpful_no')
                 ])
             );
         }
 
-        // Fallback — bilingual, friendly
-        const lang = detectLang(text);
-        const fallback = lang === 'uk'
-            ? `Гмм, я не знаю відповіді на це 🤔\n\nСпробуй:\n• /help — список команд\n• /ask — пошук у базі знань\n• /learn — навчи мене цьому!\n• /messenger — довідка по месенджеру`
-            : `Хм, я не знаю ответа на это 🤔\n\nПопробуй:\n• /help — список команд\n• /ask — поиск по базе знаний\n• /learn — научи меня этому!\n• /messenger — справка по мессенджеру`;
+        // Fallback — Russian
+        const fallback = `Хм, я не знаю ответа на это 🤔\n\nПопробуй:\n• /help — список команд\n• /ask — поиск по базе знаний\n• /learn — научи меня этому!\n• /messenger — справка по мессенджеру`;
         await sendToUser(ctx, io, userId, fallback,
             inlineKeyboard([
-                btn('Навчити WallyBot', 'cmd_learn'),
-                btn('Головне меню',     'cmd_start')
+                btn('Обучить WallyBot', 'cmd_learn'),
+                btn('Главное меню',     'cmd_start')
             ])
         );
     }
@@ -1566,22 +1563,22 @@ async function initializeWallyBot(ctx, io) {
         await ensureMessengerKnowledgeBase(ctx);
 
         const extraCommands = [
-            { command: 'newbot',      description: 'Створити нового бота',                     sort_order: 3 },
-            { command: 'mybots',      description: 'Список моїх ботів',                         sort_order: 4 },
-            { command: 'editbot',     description: 'Редагувати бота',                           sort_order: 5 },
-            { command: 'deletebot',   description: 'Видалити бота',                             sort_order: 6 },
-            { command: 'token',       description: 'Отримати токен бота',                       sort_order: 7 },
-            { command: 'setcommands', description: 'Встановити команди бота',                   sort_order: 8 },
-            { command: 'setdesc',     description: 'Змінити опис бота',                         sort_order: 9 },
-            { command: 'setinline',   description: 'Увімк/вимкн inline-режим бота',             sort_order: 10 },
-            { command: 'setgroups',   description: 'Дозволити/заборонити бота в групах',         sort_order: 11 },
-            { command: 'revoke',      description: 'Відкликати та замінити токен бота',          sort_order: 12 },
-            { command: 'broadcast',   description: 'Надіслати повідомлення всім користувачам',   sort_order: 13 },
+            { command: 'newbot',      description: 'Создать нового бота',                       sort_order: 3 },
+            { command: 'mybots',      description: 'Список моих ботов',                         sort_order: 4 },
+            { command: 'editbot',     description: 'Редактировать бота',                        sort_order: 5 },
+            { command: 'deletebot',   description: 'Удалить бота',                              sort_order: 6 },
+            { command: 'token',       description: 'Получить токен бота',                       sort_order: 7 },
+            { command: 'setcommands', description: 'Установить команды бота',                   sort_order: 8 },
+            { command: 'setdesc',     description: 'Изменить описание бота',                    sort_order: 9 },
+            { command: 'setinline',   description: 'Вкл/выкл inline-режим бота',                sort_order: 10 },
+            { command: 'setgroups',   description: 'Разрешить/запретить бота в группах',        sort_order: 11 },
+            { command: 'revoke',      description: 'Отозвать и заменить токен бота',            sort_order: 12 },
+            { command: 'broadcast',   description: 'Отправить сообщение всем пользователям',    sort_order: 13 },
             { command: 'stats',       description: 'Статистика (@botname для конкретного бота)', sort_order: 14 },
-            { command: 'learn',       description: 'Навчити WallyBot новій відповіді',           sort_order: 15 },
-            { command: 'forget',      description: 'Видалити відповідь з бази знань',            sort_order: 16 },
-            { command: 'ask',         description: 'Задати питання WallyBot',                    sort_order: 17 },
-            { command: 'messenger',   description: 'Довідка по функціям месенджера',             sort_order: 18 }
+            { command: 'learn',       description: 'Обучить WallyBot новому ответу',            sort_order: 15 },
+            { command: 'forget',      description: 'Удалить ответ из базы знаний',              sort_order: 16 },
+            { command: 'ask',         description: 'Задать вопрос WallyBot',                    sort_order: 17 },
+            { command: 'messenger',   description: 'Справка по функциям мессенджера',           sort_order: 18 }
         ];
 
         for (const cmd of extraCommands) {
