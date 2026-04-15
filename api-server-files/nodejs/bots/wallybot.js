@@ -964,55 +964,54 @@ async function handleThanks(ctx, io, userId) {
 const TOUR_STEPS = [
     {
         text:
-            `🤖 *Добро пожаловать в WallyBot!*\n\n` +
+            `🤖 *Добро пожаловать в WallyBot!* (1/3)\n\n` +
             `Я твой помощник в WorldMates. Вот что я умею:\n\n` +
             `✅ Создавать ботов за 3 шага — без кода\n` +
             `✅ Рассылать сообщения подписчикам\n` +
             `✅ Отвечать на вопросы о мессенджере\n` +
-            `✅ Обучаться новым знаниям через /learn\n\n` +
-            `*Шаг 1 из 3* — нажми "Дальше" чтобы продолжить`,
-        kb: (uid) => inlineKeyboard([
-            btn('Дальше →', `tour_step_2`),
+            `✅ Обучаться новым знаниям через /learn`,
+        kb: () => inlineKeyboard([
+            btn('Дальше →',      'tour_step_2'),
             btn('Пропустить тур', 'tour_skip')
         ])
     },
     {
         text:
-            `🛠 *Создание ботов*\n\n` +
-            `Бот — это автоматический помощник в чате. Ты можешь создать своего бота и:\n\n` +
+            `🛠 *Создание ботов* (2/3)\n\n` +
+            `Бот — это автоматический помощник в чате. Ты можешь:\n\n` +
             `• Подключить его к сайту или приложению\n` +
             `• Настроить автоответы на вопросы\n` +
             `• Рассылать новости подписчикам\n` +
             `• Принимать обращения в поддержку\n\n` +
-            `Есть готовые *шаблоны* — можно запустить бота за 2 минуты!\n\n` +
-            `*Шаг 2 из 3*`,
-        kb: (uid) => inlineKeyboard([
-            btn('← Назад',   'tour_step_1'),
-            btn('Дальше →',  'tour_step_3'),
-            btn('Создать бота сейчас', 'cmd_newbot')
+            `Есть готовые *шаблоны* — запуск за 2 минуты!`,
+        kb: () => inlineKeyboard([
+            btn('← Назад',            'tour_step_1'),
+            btn('Дальше →',           'tour_step_3'),
+            btn('🛠 Создать бота',    'cmd_newbot')
         ])
     },
     {
         text:
-            `🧠 *Умный помощник*\n\n` +
+            `🧠 *Умный помощник* (3/3)\n\n` +
             `Меня можно обучить отвечать на любые вопросы.\n\n` +
             `Используй /learn — добавь вопрос и ответ, и я буду помогать твоим пользователям.\n\n` +
             `Я уже знаю много о WorldMates — просто спроси!\n\n` +
-            `*Шаг 3 из 3* — Готов начать? 🚀`,
-        kb: (uid) => inlineKeyboard([
-            btn('← Назад',            'tour_step_2'),
-            btn('🛠 Создать бота',    'cmd_newbot'),
-            btn('📋 Шаблоны ботов',  'cmd_templates'),
-            btn('📖 К главному меню', 'cmd_start')
+            `Готов начать? 🚀`,
+        kb: () => inlineKeyboard([
+            btn('← Назад',           'tour_step_2'),
+            btn('🛠 Создать бота',   'cmd_newbot'),
+            btn('📋 Шаблоны',        'cmd_templates'),
+            btn('📖 Главное меню',   'cmd_start')
         ])
     }
 ];
 
 async function handleTour(ctx, io, userId, step = 1) {
-    clearState(userId);
     const idx  = Math.max(1, Math.min(step, TOUR_STEPS.length)) - 1;
     const tour = TOUR_STEPS[idx];
-    await sendToUser(ctx, io, userId, tour.text, tour.kb(userId));
+    await sendToUser(ctx, io, userId, tour.text, tour.kb());
+    // Сохраняем шаг в FSM — позволяет навигацию текстом если кнопки не отображаются
+    setState(userId, STATES.TOUR_STEP, { step: idx + 1 });
 }
 
 // ─── Шаблоны ботов ───────────────────────────────────────────────────────────
@@ -1444,6 +1443,34 @@ async function processState(ctx, io, userId, text, currentState) {
                 btn('✅ Отправить',  cbData),
                 btn('❌ Отменить', 'cmd_cancel')
             ], 1)
+        );
+    }
+
+    // TOUR: текстовая навигация (запасной вариант когда кнопки не отображаются)
+    if (state === STATES.TOUR_STEP) {
+        const { step } = data;
+        const lText = text.toLowerCase().trim();
+        if (/^(дальше|далее|вперёд|вперед|следующий|>|next|\+|2)$/.test(lText)) {
+            if (step >= TOUR_STEPS.length) {
+                // Последний шаг — идём в главное меню
+                clearState(userId);
+                return handleStart(ctx, io, userId, 'ты');
+            }
+            return handleTour(ctx, io, userId, step + 1);
+        }
+        if (/^(назад|<|back|prev|\-|1)$/.test(lText)) {
+            return handleTour(ctx, io, userId, Math.max(1, step - 1));
+        }
+        if (/^(пропустить|стоп|stop|выход|меню|menu|главное)$/.test(lText)) {
+            clearState(userId);
+            return handleStart(ctx, io, userId, 'ты');
+        }
+        // Любой другой текст — подсказка по навигации
+        const tour = TOUR_STEPS[step - 1];
+        return sendToUser(ctx, io, userId,
+            `Ты сейчас в туре (шаг ${step}/${TOUR_STEPS.length}).\n` +
+            `Напиши *"дальше"* или *"назад"* для навигации, *"пропустить"* для выхода.`,
+            tour.kb()
         );
     }
 
@@ -2063,10 +2090,22 @@ async function initializeWallyBot(ctx, io) {
             ctx.botSockets.set(WALLYBOT_ID, {
                 isInternal: true,
                 botId:      WALLYBOT_ID,
-                emit:       (event, data) => {
+                emit: (event, data) => {
                     if (event === 'user_message') {
                         handleMessage(ctx, io, data).catch(err =>
                             console.error('[WallyBot/handleMessage]', err.message)
+                        );
+                    }
+                    // Нажатие inline-кнопки — BotCallbackQueryController отправляет event='callback_query'
+                    // с полем data.data (строка callback_data) и data.user_id
+                    if (event === 'callback_query') {
+                        handleMessage(ctx, io, {
+                            user_id:           data.user_id,
+                            text:              '',
+                            callback_data:     data.data,
+                            callback_query_id: data.callback_query_id
+                        }).catch(err =>
+                            console.error('[WallyBot/callback_query]', err.message)
                         );
                     }
                 }
