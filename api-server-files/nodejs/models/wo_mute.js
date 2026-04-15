@@ -46,6 +46,11 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true,
       defaultValue: 'no'
     },
+    hidden: {
+      type: DataTypes.STRING(5),
+      allowNull: true,
+      defaultValue: 'no'
+    },
     type: {
       type: DataTypes.STRING(10),
       allowNull: true

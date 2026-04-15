@@ -69,6 +69,8 @@ object Constants {
     const val NODE_CHAT_CLEAR_HIST  = "api/node/chat/clear-history" // clear history (soft-delete)
     const val NODE_CHAT_MUTE_STATUS = "api/node/chat/mute-status"  // get mute/notify status
     const val NODE_CHAT_MEDIA_AUTO_DELETE = "api/node/chat/media-auto-delete-setting" // media auto-delete setting
+    const val NODE_CHAT_HIDE         = "api/node/chat/hide"         // hide/unhide chat (server-persisted)
+    const val NODE_CHAT_HIDDEN_COUNT = "api/node/chat/hidden/count" // count of hidden chats
 
     // Favorites
     const val NODE_CHAT_FAV      = "api/node/chat/fav"                 // fav/unfav message

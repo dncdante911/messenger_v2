@@ -150,6 +150,10 @@ fun ChatsScreenModern(
     var showContactMenu by remember { mutableStateOf(false) }
     var showSearchDialog by remember { mutableStateOf(false) }
 
+    // Діалог видалення чату
+    var showDeleteChatDialog by remember { mutableStateOf(false) }
+    var deleteChatTarget by remember { mutableStateOf<Chat?>(null) }
+
     // 📇 Стан для ContactPicker
     var showContactPicker by remember { mutableStateOf(false) }
 
@@ -167,12 +171,16 @@ fun ChatsScreenModern(
     val folderMapping by ChatOrganizationManager.chatFolderMapping.collectAsState()
     val chatFolders by ChatOrganizationManager.folders.collectAsState()
 
+    // Приховані чати (server-synced)
+    val hiddenChats by viewModel.hiddenChats.collectAsState()
+    val hiddenChatsCount by viewModel.hiddenChatsCount.collectAsState()
+
     // Визначаємо яку сторінку пейджера показувати за обраною папкою
     val targetPagerPage = remember(selectedFolderId) {
         when (selectedFolderId) {
             "channels" -> 1
             "groups" -> 2
-            else -> 0 // all, personal, unread, archived, custom folders -> chats page
+            else -> 0 // all, personal, unread, archived, hidden, custom folders -> chats page
         }
     }
 
@@ -183,10 +191,19 @@ fun ChatsScreenModern(
         }
     }
 
+    // Завантажуємо приховані чати при переході у папку "hidden"
+    LaunchedEffect(selectedFolderId) {
+        if (selectedFolderId == "hidden") {
+            viewModel.fetchHiddenChats()
+        }
+    }
+
     // Фільтрація чатів за обраною папкою
     val filteredChats = remember(chats, selectedFolderId, archivedIds, folderMapping) {
         filterChatsByFolder(chats, selectedFolderId, archivedIds, folderMapping)
     }
+    // Для папки "hidden" відображаємо hiddenChats зі ViewModel
+    val chatsToShow = if (selectedFolderId == "hidden") hiddenChats else filteredChats
 
     val context = LocalContext.current
     val nicknameRepository = remember { ContactNicknameRepository(context) }
@@ -246,15 +263,16 @@ fun ChatsScreenModern(
                 title = {
                     Text(
                         text = when {
-                            selectedFolderId == "all" -> "WorldMates"
+                            selectedFolderId == "all" -> stringResource(R.string.chats_screen_title)
                             selectedFolderId == "archived" -> stringResource(R.string.archive_folder_label)
+                            selectedFolderId == "hidden" -> "🔒 ${stringResource(R.string.hidden_chats)}"
                             selectedFolderId == "channels" -> stringResource(R.string.channels)
                             selectedFolderId == "groups" -> stringResource(R.string.groups)
                             selectedFolderId == "personal" -> stringResource(R.string.personal)
                             selectedFolderId == "unread" -> stringResource(R.string.unread_label)
                             else -> chatFolders.find { it.id == selectedFolderId }?.let {
                                 "${it.emoji} ${it.name}"
-                            } ?: "WorldMates"
+                            } ?: stringResource(R.string.chats_screen_title)
                         },
                         style = MaterialTheme.typography.titleLarge
                     )
@@ -313,11 +331,10 @@ fun ChatsScreenModern(
         ) {
             // Telegram-style папки замінюють TabRow
             ChatFolderTabs(
-                selectedFolderId = selectedFolderId,
-                onFolderSelected = { folderId ->
-                    selectedFolderId = folderId
-                },
-                onAddFolder = { showCreateFolderDialog = true }
+                selectedFolderId  = selectedFolderId,
+                onFolderSelected  = { folderId -> selectedFolderId = folderId },
+                onAddFolder       = { showCreateFolderDialog = true },
+                hiddenChatsCount  = hiddenChatsCount
             )
 
             // HorizontalPager з вкладками
@@ -334,14 +351,18 @@ fun ChatsScreenModern(
                             val hasMoreChats  by viewModel.hasMoreChats.collectAsState()
                             // Список чатів (вже відфільтрований)
                             ChatListTabWithStories(
-                                chats = filteredChats,
+                                chats = chatsToShow,
                                 stories = if (selectedFolderId == "all") stories else emptyList(),
                                 isLoading = isLoadingChats,
                                 isLoadingStories = isLoadingStories,
                                 uiStyle = uiStyle,
                                 onRefresh = {
-                                    viewModel.fetchChats()
-                                    storyViewModel.loadStories()
+                                    if (selectedFolderId == "hidden") {
+                                        viewModel.fetchHiddenChats()
+                                    } else {
+                                        viewModel.fetchChats()
+                                        storyViewModel.loadStories()
+                                    }
                                 },
                                 onChatClick = onChatClick,
                                 onChatLongPress = { chat ->
@@ -513,7 +534,7 @@ fun ChatsScreenModern(
         )
     }
 
-    // Contact Context Menu з підтримкою архіву, тегів, папок
+    // Contact Context Menu з підтримкою архіву, тегів, папок, прихованих
     if (showContactMenu && selectedChat != null) {
         ContactContextMenu(
             chat = selectedChat!!,
@@ -521,37 +542,56 @@ fun ChatsScreenModern(
                 showContactMenu = false
                 selectedChat = null
             },
-            onRename = { chat: Chat ->
-                // Діалог відкривається всередині ContactContextMenu
-            },
+            onRename = { _: Chat -> /* Діалог відкривається всередині ContactContextMenu */ },
             onDelete = { chat: Chat ->
+                // Відкриваємо діалог вибору типу видалення
                 showContactMenu = false
-                scope.launch {
-                    viewModel.hideChat(chat.userId)
-                    snackbarHostState.showSnackbar(
-                        message = context.getString(R.string.chat_hidden_toast),
-                        duration = SnackbarDuration.Short
-                    )
-                }
+                deleteChatTarget = chat
+                showDeleteChatDialog = true
                 selectedChat = null
             },
             nicknameRepository = nicknameRepository,
+            isInHiddenFolder = selectedFolderId == "hidden",
             onArchive = { chat ->
-                ChatOrganizationManager.archiveChat(chat.userId)
+                showContactMenu = false
+                viewModel.archiveChat(chat.userId)
                 scope.launch {
                     snackbarHostState.showSnackbar(
                         message = context.getString(R.string.chat_archived_toast),
                         duration = SnackbarDuration.Short
                     )
                 }
+                selectedChat = null
             },
             onUnarchive = { chat ->
-                ChatOrganizationManager.unarchiveChat(chat.userId)
+                showContactMenu = false
+                viewModel.unarchiveChat(chat.userId)
                 scope.launch {
                     snackbarHostState.showSnackbar(
                         message = context.getString(R.string.chat_unarchived_toast),
                         duration = SnackbarDuration.Short
                     )
+                }
+                selectedChat = null
+            },
+            onHide = { chat ->
+                if (selectedFolderId == "hidden") {
+                    // Знаходимося в прихованих — показуємо чат знову
+                    viewModel.unhideChat(chat.userId)
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = context.getString(R.string.chat_unhidden_toast),
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                } else {
+                    viewModel.hideChat(chat.userId)
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = context.getString(R.string.chat_moved_to_hidden),
+                            duration = SnackbarDuration.Short
+                        )
+                    }
                 }
             },
             onManageTags = { chat ->
@@ -563,6 +603,62 @@ fun ChatsScreenModern(
                 folderTargetChatId = chat.userId
                 folderTargetChatName = chat.username ?: chatLabel
                 showMoveFolderDialog = true
+            }
+        )
+    }
+
+    // Діалог видалення чату з вибором типу
+    if (showDeleteChatDialog && deleteChatTarget != null) {
+        DeleteChatDialog(
+            chat = deleteChatTarget!!,
+            onDismiss = {
+                showDeleteChatDialog = false
+                deleteChatTarget = null
+            },
+            onDeleteForMe = {
+                val target = deleteChatTarget
+                showDeleteChatDialog = false
+                deleteChatTarget = null
+                if (target != null) {
+                    viewModel.deleteChatForMe(target.userId) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.chat_deleted_toast),
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                }
+            },
+            onDeleteForEveryone = {
+                val target = deleteChatTarget
+                showDeleteChatDialog = false
+                deleteChatTarget = null
+                if (target != null) {
+                    viewModel.deleteChatForEveryone(target.userId) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.chat_deleted_toast),
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                }
+            },
+            onDeleteAndBlock = {
+                val target = deleteChatTarget
+                showDeleteChatDialog = false
+                deleteChatTarget = null
+                if (target != null) {
+                    viewModel.deleteChatAndBlock(target.userId) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.chat_deleted_and_blocked_toast),
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                }
             }
         )
     }

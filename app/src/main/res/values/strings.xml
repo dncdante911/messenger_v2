@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">WorldMates NEW v2.0</string>
+    <string name="chats_screen_title">WorldMates</string>
 
     <!-- ===== LANGUAGE SELECTION ===== -->
     <string name="language_selection_title">Виберіть мову</string>
@@ -1303,6 +1304,11 @@
     <string name="error_register">Помилка реєстрації</string>
     <string name="error_no_internet">Немає з\'єднання з інтернетом</string>
     <string name="error_server">Помилка сервера. Спробуйте пізніше</string>
+    <string name="error_session_expired">Сесія застаріла. Будь ласка, увійдіть знову</string>
+    <string name="error_auth_retry">Помилка авторизації. Повторна спроба…</string>
+    <string name="error_parse_response">Помилка розбору відповіді від сервера</string>
+    <string name="error_connect_server">Не вдалося з\'єднатися з сервером</string>
+    <string name="error_with_message">Помилка: %s</string>
     <string name="error_something_wrong">Щось пішло не так</string>
     <string name="error_invalid_credentials">Невірний логін або пароль</string>
     <string name="error_user_not_found">Користувача не знайдено</string>
@@ -1749,6 +1755,26 @@
     <string name="chat_archived_toast">Чат архівовано</string>
     <string name="chat_unarchived_toast">Чат розархівовано</string>
     <string name="chat_label">Чат</string>
+
+    <!-- HIDDEN CHATS -->
+    <string name="hide_in_hidden">Сховати в прихованих</string>
+    <string name="hidden_chats">Приховані чати</string>
+    <string name="hidden_chats_folder">Приховані</string>
+    <string name="chat_moved_to_hidden">Чат переміщено в приховані</string>
+    <string name="chat_unhidden_toast">Чат показано знову</string>
+    <string name="show_chat_again">Показати знову</string>
+
+    <!-- DELETE CHAT DIALOG -->
+    <string name="delete_chat_title">Видалити чат?</string>
+    <string name="delete_chat_subtitle">Оберіть спосіб видалення</string>
+    <string name="delete_for_me_only">Видалити для мене</string>
+    <string name="delete_for_me_only_desc">Чат зникне тільки у вас</string>
+    <string name="delete_clear_both">Видалити і очистити у обох</string>
+    <string name="delete_clear_both_desc">Історія переписки буде видалена в обох</string>
+    <string name="delete_and_block">Видалити і заблокувати</string>
+    <string name="delete_and_block_desc">Чат видалено, користувача заблоковано</string>
+    <string name="chat_deleted_toast">Чат видалено</string>
+    <string name="chat_deleted_and_blocked_toast">Чат видалено, користувача заблоковано</string>
 
     <!-- CHATS SCREEN: Drawer and state strings -->
     <string name="no_groups_subtitle">Створіть нову групу або приєднайтесь до існуючої</string>

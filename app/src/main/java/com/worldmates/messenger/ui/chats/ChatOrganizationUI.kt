@@ -99,12 +99,16 @@ fun presetTagResId(tagName: String): Int = when (tagName) {
  * Горизонтальна смуга з табами-папками (Telegram-style).
  * Замінює окремий TabRow + старі папки.
  * Включає системні папки (Усі, Особисті, Канали, Групи, Непрочитані) + кастомні.
+ *
+ * @param hiddenChatsCount кількість прихованих чатів (з ViewModel, server-synced).
+ *                         Якщо > 0, показується таб «Приховані» в кінці рядка.
  */
 @Composable
 fun ChatFolderTabs(
     selectedFolderId: String,
     onFolderSelected: (String) -> Unit,
     onAddFolder: () -> Unit,
+    hiddenChatsCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val folders by ChatOrganizationManager.folders.collectAsState()
@@ -135,6 +139,18 @@ fun ChatFolderTabs(
                 isSelected = selectedFolderId == "archived",
                 badge = archivedCount.size,
                 onClick = { onFolderSelected("archived") }
+            )
+        }
+
+        // Hidden chats tab — відображається лише якщо є приховані чати.
+        // Знаходиться в кінці рядка (потрібно прокрутити), що робить його ненав'язливим.
+        if (hiddenChatsCount > 0) {
+            FolderTabChip(
+                folder = ChatFolder("hidden", stringResource(R.string.hidden_chats_folder), "🔒", 100),
+                displayName = stringResource(R.string.hidden_chats_folder),
+                isSelected = selectedFolderId == "hidden",
+                badge = hiddenChatsCount,
+                onClick = { onFolderSelected("hidden") }
             )
         }
 
@@ -213,7 +229,10 @@ private fun FolderTabChip(
 }
 
 /**
- * Фільтрує чати за обраною папкою
+ * Фільтрує чати за обраною папкою.
+ *
+ * Папка "hidden" обробляється окремо в ChatsScreenModern через ViewModel.hiddenChats;
+ * тут повертається порожній список, щоб не відображати дані з основного списку.
  */
 fun filterChatsByFolder(
     chats: List<Chat>,
@@ -221,6 +240,8 @@ fun filterChatsByFolder(
     archivedIds: Set<Long>,
     folderMapping: Map<Long, String>
 ): List<Chat> {
+    if (folderId == "hidden") return emptyList()
+
     // Спочатку виключаємо архівовані (крім папки "archived")
     val nonArchived = if (folderId == "archived") {
         chats.filter { archivedIds.contains(it.userId) }
