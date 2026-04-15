@@ -1775,6 +1775,12 @@
     <string name="delete_and_block_desc">Чат видалено, користувача заблоковано</string>
     <string name="chat_deleted_toast">Чат видалено</string>
     <string name="chat_deleted_and_blocked_toast">Чат видалено, користувача заблоковано</string>
+    <!-- Media type labels for last-message preview -->
+    <string name="media_label_image">📷 Зображення</string>
+    <string name="media_label_video">🎬 Відео</string>
+    <string name="media_label_audio">🎵 Аудіо</string>
+    <string name="media_label_gif">🎞️ GIF</string>
+    <string name="media_label_file">📎 Файл</string>
 
     <!-- CHATS SCREEN: Drawer and state strings -->
     <string name="no_groups_subtitle">Створіть нову групу або приєднайтесь до існуючої</string>

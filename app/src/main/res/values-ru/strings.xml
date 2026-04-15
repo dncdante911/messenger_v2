@@ -1711,6 +1711,12 @@
     <string name="delete_and_block_desc">Чат удалён, пользователь заблокирован</string>
     <string name="chat_deleted_toast">Чат удалён</string>
     <string name="chat_deleted_and_blocked_toast">Чат удалён, пользователь заблокирован</string>
+    <!-- Media type labels for last-message preview -->
+    <string name="media_label_image">📷 Изображение</string>
+    <string name="media_label_video">🎬 Видео</string>
+    <string name="media_label_audio">🎵 Аудио</string>
+    <string name="media_label_gif">🎞️ GIF</string>
+    <string name="media_label_file">📎 Файл</string>
 
     
     <string name="no_groups_subtitle">Создайте новую группу или присоединитесь к существующей</string>
