@@ -54,6 +54,24 @@ const BotCallbackQueryController = async (ctx, data, io, socket) => {
             const botSocket = ctx.botSockets.get(bot_id);
             botSocket.emit('callback_query', payload);
             console.log(`[Bot] 🔘 Callback query from user ${user_id} -> bot ${bot_id}: ${callback_data}`);
+        } else if (ctx.defaultBotShell && ctx.wo_bots) {
+            // Дефолтный шелл: обрабатываем shell_cmd_<command> кнопки за ботов без webhook
+            try {
+                const botRecord = await ctx.wo_bots.findOne({ where: { bot_id: bot_id }, raw: true });
+                if (botRecord && !botRecord.webhook_enabled && !botRecord.webhook_url) {
+                    if (callback_data.startsWith('shell_cmd_')) {
+                        const cmd = callback_data.replace('shell_cmd_', '');
+                        ctx.defaultBotShell(botRecord, user_id, `/${cmd}`, true, [cmd]);
+                    } else {
+                        ctx.defaultBotShell(botRecord, user_id, '/help', true, ['help']);
+                    }
+                    console.log(`[Bot] 🔘 DefaultShell callback: user ${user_id} -> @${botRecord.username}: ${callback_data}`);
+                } else {
+                    console.log(`[Bot] 🔘 Callback query from user ${user_id} -> bot ${bot_id} (webhook/offline, queued)`);
+                }
+            } catch (shellErr) {
+                console.warn('[Bot] DefaultShell callback error:', shellErr.message);
+            }
         } else {
             console.log(`[Bot] 🔘 Callback query from user ${user_id} -> bot ${bot_id} (offline, queued)`);
         }

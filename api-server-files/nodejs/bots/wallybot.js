@@ -664,6 +664,118 @@ async function ensureMessengerKnowledgeBase(ctx) {
     }
 }
 
+// ─── Создание Wo_Users записи для бота ───────────────────────────────────────
+// Нужна чтобы бот появлялся в поиске и мог отправлять private_message (с кнопками)
+
+async function createBotUser(ctx, botId, username, displayName) {
+    try {
+        const now = Math.floor(Date.now() / 1000);
+        const [botUser] = await ctx.wo_users.findOrCreate({
+            where: { username: username.toLowerCase() },
+            defaults: {
+                email:           `${username.toLowerCase()}@bots.internal`,
+                password:        crypto.randomBytes(20).toString('hex'),
+                first_name:      displayName,
+                last_name:       '',
+                about:           '',
+                type:            'bot',
+                active:          '1',
+                verified:        '0',
+                lastseen:        now,
+                registered:      new Date().toLocaleDateString('en-US'),
+                joined:          now,
+                message_privacy: '0'
+            }
+        });
+        // Sync linked_user_id so PrivateMessageController can find the bot
+        await ctx.wo_bots.update(
+            { linked_user_id: botUser.user_id },
+            { where: { bot_id: botId } }
+        );
+        console.log(`[WallyBot] Bot @${username} linked to Wo_Users.user_id=${botUser.user_id}`);
+        return botUser.user_id;
+    } catch (e) {
+        console.warn('[WallyBot] createBotUser failed:', e.message);
+        return null;
+    }
+}
+
+// ─── Отправка сообщения от произвольного бота пользователю ───────────────────
+// Используется дефолтным шеллом. Отправляет через private_message (так же как WallyBot)
+// чтобы reply_markup отображался в Android.
+
+async function sendFromBot(ctx, io, botLinkedUserId, botId, botName, targetUserId, text, replyMarkup) {
+    try {
+        const now = Math.floor(Date.now() / 1000);
+
+        // Сохранить в Wo_Bot_Messages
+        const botMsg = await ctx.wo_bot_messages.create({
+            bot_id:       botId,
+            chat_id:      String(targetUserId),
+            chat_type:    'private',
+            direction:    'outgoing',
+            text,
+            reply_markup: replyMarkup ? JSON.stringify(replyMarkup) : null,
+            processed:    1,
+            processed_at: new Date()
+        });
+
+        // Если есть Wo_Users запись — отправляем через private_message (Android отобразит кнопки)
+        if (botLinkedUserId && io) {
+            try {
+                const woMsg = await ctx.wo_messages.create({
+                    from_id: botLinkedUserId,
+                    to_id:   targetUserId,
+                    text:    text,
+                    seen:    0,
+                    time:    now
+                });
+                io.to(String(targetUserId)).emit('private_message', {
+                    status:            200,
+                    id:                woMsg.id,
+                    from_id:           botLinkedUserId,
+                    to_id:             targetUserId,
+                    text,
+                    message:           text,
+                    message_id:        woMsg.id,
+                    time:              now,
+                    time_api:          now,
+                    messages_html:     '',
+                    message_page_html: '',
+                    username:          botName,
+                    avatar:            'upload/photos/d-avatar.jpg',
+                    receiver:          targetUserId,
+                    sender:            botLinkedUserId,
+                    cipher_version:    1,
+                    media:             '',
+                    isMedia:           false,
+                    isRecord:          false,
+                    reply_markup:      replyMarkup || null,
+                    bot_id:            botId
+                });
+            } catch (msgErr) {
+                console.warn('[BotShell/Wo_Messages]', msgErr.message);
+            }
+        }
+
+        // Также emit bot_message для совместимости
+        if (io) {
+            io.to(String(targetUserId)).emit('bot_message', {
+                event:        'bot_message',
+                bot_id:       botId,
+                message_id:   botMsg.id,
+                text,
+                reply_markup: replyMarkup || null,
+                timestamp:    Date.now()
+            });
+        }
+
+        await ctx.wo_bots.increment('messages_sent', { where: { bot_id: botId } });
+    } catch (e) {
+        console.error('[BotShell/send]', e.message);
+    }
+}
+
 // ─── Вспомогательные функции управления ботами ───────────────────────────────
 
 async function getUserBots(ctx, userId) {
@@ -1097,6 +1209,9 @@ async function applyTemplate(ctx, io, userId, templateId, displayName, username)
         });
     }
 
+    // Создаём Wo_Users запись для бота
+    await createBotUser(ctx, botId, username, displayName);
+
     clearState(userId);
     console.log(`[WallyBot] Created bot @${username} from template "${tpl.id}" for user ${userId}`);
 
@@ -1309,6 +1424,10 @@ async function processState(ctx, io, userId, text, currentState) {
         });
 
         await registerDefaultCommands(ctx, botId);
+
+        // Создаём Wo_Users запись для бота — нужна чтобы бот появлялся в поиске
+        // и мог отправлять сообщения с inline-кнопками через private_message.
+        await createBotUser(ctx, botId, data.username, data.display_name);
 
         clearState(userId);
 
@@ -1599,6 +1718,70 @@ async function processState(ctx, io, userId, text, currentState) {
     }
 
     return null; // состояние не обработано
+}
+
+// ─── Default Bot Shell ───────────────────────────────────────────────────────
+// Отвечает пользователю от имени бота без webhook/socket (auto-reply).
+// Даёт базовую навигацию с inline-кнопками команд до тех пор, пока владелец
+// не подключит webhook или свой сокет.
+
+async function handleDefaultBot(ctx, io, bot, userId, text, isCommand, cmdParts) {
+    const botName     = bot.display_name || bot.username;
+    const botUserId   = bot.linked_user_id || null;
+
+    // Загружаем команды бота
+    const commands = await ctx.wo_bot_commands.findAll({
+        where:   { bot_id: bot.bot_id },
+        order:   [['sort_order', 'ASC']],
+        limit:   20,
+        raw:     true
+    });
+
+    // Строим inline-клавиатуру из команд бота
+    // callback_data: shell_cmd_<command> — обрабатывается BotCallbackQueryController
+    const cmdButtons = commands
+        .filter(c => c.command !== 'cancel')
+        .map(c => btn(`/${c.command}`, `shell_cmd_${c.command}`));
+
+    const mainKb = cmdButtons.length ? inlineKeyboard(cmdButtons, 2) : null;
+
+    async function reply(msg, markup) {
+        return sendFromBot(ctx, io, botUserId, bot.bot_id, botName, userId, msg, markup);
+    }
+
+    if (isCommand) {
+        const cmd = (cmdParts[0] || '').toLowerCase();
+
+        if (cmd === 'start') {
+            const desc     = bot.description ? `\n\n${bot.description}` : '';
+            const cmdList  = commands.length
+                ? '\n\n*Команды:*\n' + commands.map(c => `/${c.command} — ${c.description}`).join('\n')
+                : '';
+            return reply(`👋 Привет! Я *${botName}*.${desc}${cmdList}`, mainKb);
+        }
+
+        if (cmd === 'help') {
+            const desc    = bot.description ? `${bot.description}\n\n` : '';
+            const cmdList = commands.length
+                ? '*Команды:*\n' + commands.map(c => `/${c.command} — ${c.description}`).join('\n')
+                : 'Команды ещё не настроены.';
+            return reply(`ℹ️ *${botName}*\n\n${desc}${cmdList}`, mainKb);
+        }
+
+        // Известная команда — откликаемся её описанием
+        const knownCmd = commands.find(c => c.command === cmd);
+        if (knownCmd) {
+            return reply(`*/${knownCmd.command}*\n${knownCmd.description}`, mainKb);
+        }
+
+        return reply(`Команда /${cmd} не поддерживается.\n\nВведи /help для списка команд.`, mainKb);
+    }
+
+    // Текстовое сообщение без команды
+    return reply(
+        `💬 Бот *${botName}* работает в автономном режиме.\n\nДля навигации используй /start или /help.`,
+        mainKb
+    );
 }
 
 // ─── /checkbot — диагностика бота ────────────────────────────────────────────
@@ -2435,6 +2618,13 @@ async function initializeWallyBot(ctx, io) {
                 }
             });
         }
+
+        // ── 5. Регистрируем дефолтный шелл для ботов без вебхука ─────────────
+        // PrivateMessageController вызывает ctx.defaultBotShell когда бот не имеет
+        // webhook и не зарегистрирован в ctx.botSockets.
+        ctx.defaultBotShell = (bot, userId, text, isCommand, cmdParts) =>
+            handleDefaultBot(ctx, io, bot, userId, text, isCommand, cmdParts)
+                .catch(e => console.error('[BotShell]', e.message));
 
         console.log(`[WallyBot] Ready! Bot ID: ${WALLYBOT_ID}, Wo_Users ID: ${WALLYBOT_USER_ID}`);
         console.log(`[WallyBot] Users can find WallyBot by searching "@wallybot" in the app`);
