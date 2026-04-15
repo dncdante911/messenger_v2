@@ -608,55 +608,49 @@ fun ChatsScreenModern(
     }
 
     // Діалог видалення чату з вибором типу
-    if (showDeleteChatDialog && deleteChatTarget != null) {
+    // Capture target at render time so callbacks always have the non-null value
+    // even if deleteChatTarget is cleared by onDismiss before the action fires.
+    val capturedDeleteTarget = deleteChatTarget
+    if (showDeleteChatDialog && capturedDeleteTarget != null) {
         DeleteChatDialog(
-            chat = deleteChatTarget!!,
+            chat = capturedDeleteTarget,
             onDismiss = {
                 showDeleteChatDialog = false
                 deleteChatTarget = null
             },
             onDeleteForMe = {
-                val target = deleteChatTarget
                 showDeleteChatDialog = false
                 deleteChatTarget = null
-                if (target != null) {
-                    viewModel.deleteChatForMe(target.userId) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = context.getString(R.string.chat_deleted_toast),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
+                viewModel.deleteChatForMe(capturedDeleteTarget.userId) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = context.getString(R.string.chat_deleted_toast),
+                            duration = SnackbarDuration.Short
+                        )
                     }
                 }
             },
             onDeleteForEveryone = {
-                val target = deleteChatTarget
                 showDeleteChatDialog = false
                 deleteChatTarget = null
-                if (target != null) {
-                    viewModel.deleteChatForEveryone(target.userId) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = context.getString(R.string.chat_deleted_toast),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
+                viewModel.deleteChatForEveryone(capturedDeleteTarget.userId) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = context.getString(R.string.chat_deleted_toast),
+                            duration = SnackbarDuration.Short
+                        )
                     }
                 }
             },
             onDeleteAndBlock = {
-                val target = deleteChatTarget
                 showDeleteChatDialog = false
                 deleteChatTarget = null
-                if (target != null) {
-                    viewModel.deleteChatAndBlock(target.userId) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = context.getString(R.string.chat_deleted_and_blocked_toast),
-                                duration = SnackbarDuration.Short
-                            )
-                        }
+                viewModel.deleteChatAndBlock(capturedDeleteTarget.userId) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = context.getString(R.string.chat_deleted_and_blocked_toast),
+                            duration = SnackbarDuration.Short
+                        )
                     }
                 }
             }

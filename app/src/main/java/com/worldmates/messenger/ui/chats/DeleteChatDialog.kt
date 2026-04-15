@@ -77,8 +77,8 @@ fun DeleteChatDialog(
                     description = stringResource(R.string.delete_for_me_only_desc),
                     tint        = MaterialTheme.colorScheme.onSurface,
                     onClick     = {
-                        onDismiss()
                         onDeleteForMe()
+                        onDismiss()
                     }
                 )
 
@@ -91,8 +91,8 @@ fun DeleteChatDialog(
                     description = stringResource(R.string.delete_clear_both_desc),
                     tint        = Color(0xFFE65100),
                     onClick     = {
-                        onDismiss()
                         onDeleteForEveryone()
+                        onDismiss()
                     }
                 )
 
@@ -105,8 +105,8 @@ fun DeleteChatDialog(
                     description = stringResource(R.string.delete_and_block_desc),
                     tint        = Color(0xFFD32F2F),
                     onClick     = {
-                        onDismiss()
                         onDeleteAndBlock()
+                        onDismiss()
                     }
                 )
             }
