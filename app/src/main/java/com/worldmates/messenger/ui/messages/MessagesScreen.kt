@@ -156,6 +156,8 @@ fun MessagesScreen(
     recipientAvatar: String,
     isGroup: Boolean,
     isBusinessChat: Boolean = false,
+    isBotChat: Boolean = false,
+    botDescription: String? = null,
     onBackPressed: () -> Unit,
     onRequestAudioPermission: () -> Boolean = { true },  // Default для preview
     onRequestVideoPermissions: () -> Boolean = { true }  // Default для preview
@@ -1315,11 +1317,11 @@ fun MessagesScreen(
             }
 
             // Messages List
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
                 state = listState,  // 🔥 Додано для auto-scroll
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(horizontal = 6.dp),
                 reverseLayout = true,
                 contentPadding = PaddingValues(vertical = 8.dp)
@@ -1493,7 +1495,19 @@ fun MessagesScreen(
                     }  // Закриття AnimatedVisibility
                     }  // Закриття ThanosDisintegrationEffect
                 }
+            }  // LazyColumn
+
+            // 🚀 Bot START overlay — shown when bot chat has no messages yet
+            if (isBotChat && messages.isEmpty() && !isLoading) {
+                com.worldmates.messenger.ui.bots.BotStartOverlay(
+                    botName = recipientName,
+                    botDescription = botDescription,
+                    botAvatar = recipientAvatar.ifEmpty { null },
+                    onStartClick = { viewModel.sendMessage("/start") },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
+            }  // Box
 
             // 📸 ГАЛЕРЕЯ ФОТО
             var showPhotoEditor by remember { mutableStateOf(false) }

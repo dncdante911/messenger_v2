@@ -83,12 +83,16 @@ class BotStoreActivity : AppCompatActivity() {
                     state = botDetailState,
                     onStartChat = { bot ->
                         startActivity(Intent(this@BotStoreActivity, MessagesActivity::class.java).apply {
-                            putExtra("recipient_id", bot.botId.hashCode().toLong())
+                            // Use linked_user_id (real Wo_Users row) when available so that
+                            // PrivateMessageController can intercept and route to the bot.
+                            // Fall back to hashCode() for external bots without a linked user.
+                            putExtra("recipient_id", bot.linkedUserId ?: bot.botId.hashCode().toLong())
                             putExtra("recipient_name", bot.displayName)
                             putExtra("recipient_avatar", bot.avatar ?: "")
                             putExtra("is_bot", true)
                             putExtra("bot_id", bot.botId)
                             putExtra("bot_username", bot.username)
+                            putExtra("bot_description", bot.description ?: bot.about)
                         })
                     },
                     onBack = {
