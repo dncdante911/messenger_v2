@@ -436,7 +436,8 @@ async function sendToUser(ctx, io, userId, text, replyMarkup = null) {
                         media:             '',
                         isMedia:           false,
                         isRecord:          false,
-                        reply_markup:      replyMarkup || null
+                        reply_markup:      replyMarkup || null,
+                        bot_id:            WALLYBOT_ID           // for Android to route callback_query
                     });
                 }
             } catch (msgErr) {

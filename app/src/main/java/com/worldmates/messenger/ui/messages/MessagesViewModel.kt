@@ -40,6 +40,8 @@ import com.worldmates.messenger.data.local.entity.Draft
 import kotlinx.coroutines.isActive
 import org.json.JSONObject
 import java.io.File
+import com.google.gson.Gson
+import com.worldmates.messenger.data.model.BotReplyMarkup
 
 class MessagesViewModel(application: Application) :
     AndroidViewModel(application), SocketManager.ExtendedSocketListener {
@@ -1452,6 +1454,11 @@ class MessagesViewModel(application: Application) :
 
                 val stickers = messageJson.optString("stickers", null)?.takeIf { it.isNotEmpty() }
                 val typeTwo  = messageJson.optString("type_two", null)?.takeIf { it.isNotEmpty() }
+                val botIdField = messageJson.optString("bot_id", null)?.takeIf { it.isNotEmpty() }
+                val replyMarkup = messageJson.optJSONObject("reply_markup")?.let { rmObj ->
+                    try { Gson().fromJson(rmObj.toString(), BotReplyMarkup::class.java) }
+                    catch (e: Exception) { null }
+                }
 
                 // Build raw Message object with encrypted payload
                 val rawMessage = Message(
@@ -1470,7 +1477,9 @@ class MessagesViewModel(application: Application) :
                     cipherVersion = cipherVersion,
                     signalHeader  = signalHeader,
                     stickers      = stickers,
-                    typeTwo       = typeTwo
+                    typeTwo       = typeTwo,
+                    replyMarkup   = replyMarkup,
+                    botId         = botIdField
                 )
 
                 // Decrypt (suspend — handles Signal v3 and legacy GCM/ECB)
@@ -1502,6 +1511,15 @@ class MessagesViewModel(application: Application) :
                 Log.e(TAG, "❌ [Socket.IO] Error processing incoming message", e)
             }
         }
+    }
+
+    /**
+     * Send bot_callback_query when the user taps an inline keyboard button.
+     * Called from MessageBubbleComposable via MessagesScreen.
+     */
+    fun sendBotCallbackQuery(botId: String, messageId: Long, callbackData: String) {
+        socketManager?.sendBotCallbackQuery(botId, messageId, callbackData)
+        Log.d(TAG, "🔘 sendBotCallbackQuery: bot=$botId msg=$messageId data=$callbackData")
     }
 
     override fun onSocketConnected() {

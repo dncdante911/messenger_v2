@@ -56,8 +56,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.style.TextOverflow
 import com.google.gson.Gson
+import com.worldmates.messenger.data.model.BotInlineButton
 import com.worldmates.messenger.data.model.GroupPollData
 import com.worldmates.messenger.network.Poll
+import com.worldmates.messenger.ui.bots.BotInlineKeyboard
 import com.worldmates.messenger.network.PollOption
 import com.worldmates.messenger.ui.messages.components.PollMessageComponent
 
@@ -88,7 +90,9 @@ fun MessageBubbleComposable(
     // 🗑️ ViewModel для видалення повідомлень
     viewModel: MessagesViewModel? = null,
     // 💬 Reply bubble navigation — tap to scroll to the original replied-to message
-    onReplyClick: ((Long) -> Unit)? = null
+    onReplyClick: ((Long) -> Unit)? = null,
+    // 🤖 Bot inline keyboard button click handler
+    onBotButtonClick: (botId: String, messageId: Long, button: BotInlineButton) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val isOwn = message.fromId == UserSession.userId
@@ -810,6 +814,19 @@ fun MessageBubbleComposable(
                         },
                         modifier = Modifier.align(if (isOwn) Alignment.End else Alignment.Start)
                     )
+
+                    // 🤖 Inline keyboard (bot messages with reply_markup)
+                    if (message.replyMarkup != null) {
+                        val msgBotId = message.botId ?: ""
+                        BotInlineKeyboard(
+                            markup = message.replyMarkup,
+                            onButtonClick = { button ->
+                                onBotButtonClick(msgBotId, message.id, button)
+                            },
+                            botId = msgBotId,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }  // Закриття Column
             }  // Закриття else block
         }  // Закриття Row

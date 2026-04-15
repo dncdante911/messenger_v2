@@ -648,6 +648,24 @@ class SocketManager(
         }
     }
 
+    /**
+     * Emit bot_callback_query when user taps an inline keyboard button in a bot message.
+     */
+    fun sendBotCallbackQuery(botId: String, messageId: Long?, callbackData: String) {
+        if (socket?.connected() == true && UserSession.accessToken != null) {
+            val payload = JSONObject().apply {
+                put("bot_id", botId)
+                if (messageId != null) put("message_id", messageId)
+                put("callback_data", callbackData)
+                put("user_id", UserSession.accessToken)
+            }
+            socket?.emit("bot_callback_query", payload)
+            Log.d("SocketManager", "🔘 Emitted bot_callback_query: bot=$botId data=$callbackData")
+        } else {
+            Log.w("SocketManager", "bot_callback_query not sent: socket not connected")
+        }
+    }
+
     fun disconnect() {
         Log.d(TAG, "🔌 Disconnecting Socket.IO and cleaning up")
         socket?.disconnect()
