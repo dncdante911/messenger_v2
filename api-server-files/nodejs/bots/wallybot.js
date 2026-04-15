@@ -35,13 +35,10 @@ const WALLYBOT_NAME  = 'WallyBot';
 const OWNER_USER_ID  = 1; // системный владелец
 
 const MESSENGER_KB_SEED = [
+    // ── Боты ──────────────────────────────────────────────────────────────────
     {
         keyword: 'как найти бота в мессенджере',
         response: 'Открой вкладку Чаты и нажми на иконку робота (Bot Store), либо используй поиск по имени/@username бота.'
-    },
-    {
-        keyword: 'як знайти бота в месенджері',
-        response: 'Відкрий вкладку Чати та натисни на іконку робота (Bot Store), або скористайся пошуком за ім’ям/@username бота.'
     },
     {
         keyword: 'как запустить бота',
@@ -49,32 +46,190 @@ const MESSENGER_KB_SEED = [
     },
     {
         keyword: 'как создать своего бота',
-        response: 'Открой Bot Store → Мои боты → Создать бота. Заполни username, display name, описание и сохрани bot_token.'
-    },
-    {
-        keyword: 'як створити свого бота',
-        response: 'Відкрий Bot Store → Мої боти → Створити бота. Заповни username, display name, опис і збережи bot_token.'
+        response: 'Напиши /newbot прямо сюда! Я проведу тебя за 3 шага: имя → username → описание. Готово за минуту.'
     },
     {
         keyword: 'что умеют боты',
-        response: 'Боты могут отвечать на FAQ, отправлять уведомления/новости, создавать опросы, помогать с задачами и поддержкой.'
+        response: 'Боты могут отвечать на FAQ, рассылать новости, создавать опросы, принимать обращения и автоматизировать поддержку. Создай своего: /newbot'
     },
     {
         keyword: 'как добавить бота в группу',
-        response: 'Если бот поддерживает группы, открой профиль бота и добавь его в нужную группу через меню участников.'
+        response: 'Открой профиль бота → "Добавить в группу" → выбери нужную группу. Бот должен поддерживать группы (настройка /setgroups).'
     },
     {
         keyword: 'как заблокировать бота',
-        response: 'Открой чат с ботом → профиль бота → Block Bot. Разблокировка: Settings → Privacy → Blocked list.'
+        response: 'Открой чат с ботом → профиль → Block. Разблокировка: Настройки → Конфиденциальность → Заблокированные.'
     },
     {
         keyword: 'как использовать команды бота',
-        response: 'Команды начинаются с /. Нажми кнопку / возле поля ввода или отправь вручную: /start, /help, /settings и т.д.'
+        response: 'Команды начинаются с /. Нажми иконку "/" у поля ввода или введи вручную: /start, /help, /settings и т.д.'
     },
     {
-        keyword: 'як користуватись командами бота',
-        response: 'Команди починаються з /. Натисни кнопку / біля поля вводу або надішли вручну: /start, /help, /settings.'
-    }
+        keyword: 'что такое токен бота',
+        response: 'Токен — секретный ключ для доступа к API бота. Получи его командой /token или при создании бота. Никому не передавай!'
+    },
+    {
+        keyword: 'что такое вебхук бота',
+        response: 'Webhook — адрес твоего сервера, куда WorldMates отправляет сообщения боту. Настраивается через API: POST /api/v2/bot/setWebhook с полем url.'
+    },
+    {
+        keyword: 'как сделать рассылку',
+        response: 'Используй команду /broadcast — выбери бота и введи текст. Сообщение получат все пользователи этого бота.'
+    },
+    // ── Чаты и сообщения ──────────────────────────────────────────────────────
+    {
+        keyword: 'как удалить сообщение',
+        response: 'Зажми сообщение и выбери "Удалить". Можно удалить у себя или у обоих участников (если прошло менее 48 часов).'
+    },
+    {
+        keyword: 'как редактировать сообщение',
+        response: 'Зажми своё сообщение → "Редактировать". Время на редактирование — 48 часов. Собеседник увидит пометку "изменено".'
+    },
+    {
+        keyword: 'как переслать сообщение',
+        response: 'Зажми сообщение → "Переслать" → выбери чат или контакт. Можно переслать сразу нескольким.'
+    },
+    {
+        keyword: 'как закрепить сообщение',
+        response: 'В групповом чате зажми сообщение → "Закрепить". Только администраторы могут закреплять сообщения.'
+    },
+    {
+        keyword: 'как ответить на сообщение',
+        response: 'Свайпни сообщение вправо или зажми → "Ответить". Твой ответ будет привязан к оригинальному сообщению.'
+    },
+    {
+        keyword: 'что такое сохранённые сообщения',
+        response: '"Сохранённые сообщения" — твой личный блокнот в мессенджере. Пересылай туда всё что хочешь запомнить.'
+    },
+    {
+        keyword: 'как очистить историю чата',
+        response: 'Открой чат → нажми имя контакта вверху → "Очистить историю". Это удалит сообщения только у тебя.'
+    },
+    // ── Группы и каналы ───────────────────────────────────────────────────────
+    {
+        keyword: 'чем отличается группа от канала',
+        response: 'Группа — чат для общения, все участники могут писать. Канал — только администраторы публикуют контент, остальные читают.'
+    },
+    {
+        keyword: 'как создать группу',
+        response: 'Нажми иконку карандаша → "Новая группа" → добавь участников → задай название и фото.'
+    },
+    {
+        keyword: 'как создать канал',
+        response: 'Нажми иконку карандаша → "Новый канал" → задай название, описание, выбери тип (публичный/приватный).'
+    },
+    {
+        keyword: 'как стать администратором группы',
+        response: 'Создатель группы может назначить администратора: открой список участников → нажми на пользователя → "Назначить администратором".'
+    },
+    {
+        keyword: 'как удалить участника из группы',
+        response: 'Только администратор: открой список участников → нажми на пользователя → "Удалить из группы".'
+    },
+    {
+        keyword: 'как покинуть группу',
+        response: 'Открой чат группы → нажми название вверху → "Покинуть группу".'
+    },
+    {
+        keyword: 'как сделать группу публичной',
+        response: 'Настройки группы → "Тип группы" → Публичная. Можно задать @username чтобы группу можно было найти через поиск.'
+    },
+    // ── Звонки ────────────────────────────────────────────────────────────────
+    {
+        keyword: 'как позвонить в мессенджере',
+        response: 'Открой чат → нажми иконку телефона (аудио) или видеокамеры (видео) вверху справа. Или перейди на вкладку Звонки.'
+    },
+    {
+        keyword: 'как сделать групповой звонок',
+        response: 'В групповом чате нажми иконку телефона вверху. Все участники группы получат приглашение присоединиться.'
+    },
+    // ── Уведомления ───────────────────────────────────────────────────────────
+    {
+        keyword: 'как отключить уведомления',
+        response: 'Открой чат → нажми имя контакта → "Уведомления" → выключи или задай время "Не беспокоить".'
+    },
+    {
+        keyword: 'как настроить уведомления',
+        response: 'Настройки → Уведомления. Там можно настроить звуки, вибрацию, уведомления для групп и личных чатов отдельно.'
+    },
+    // ── Аккаунт и профиль ─────────────────────────────────────────────────────
+    {
+        keyword: 'как изменить имя в профиле',
+        response: 'Настройки → нажми на своё имя или аватар → "Редактировать профиль". Там можно изменить имя, фото, username и статус.'
+    },
+    {
+        keyword: 'как изменить username',
+        response: 'Настройки → профиль → "Изменить" → поле Username. Username должен быть уникальным и содержать от 5 символов.'
+    },
+    {
+        keyword: 'как изменить фото профиля',
+        response: 'Настройки → нажми на аватар → "Изменить фото". Можно загрузить из галереи или сделать новое фото.'
+    },
+    {
+        keyword: 'как удалить аккаунт',
+        response: 'Настройки → Аккаунт → "Удалить аккаунт". Удаление необратимо — все данные, чаты и боты будут удалены.'
+    },
+    {
+        keyword: 'как восстановить пароль',
+        response: 'На экране входа нажми "Забыли пароль?" → введи email или телефон → получи код подтверждения → задай новый пароль.'
+    },
+    // ── Конфиденциальность ────────────────────────────────────────────────────
+    {
+        keyword: 'как скрыть статус онлайн',
+        response: 'Настройки → Конфиденциальность → "Статус онлайн" → выбери кто видит: Все / Мои контакты / Никто.'
+    },
+    {
+        keyword: 'как заблокировать пользователя',
+        response: 'Открой профиль пользователя → прокрути вниз → "Заблокировать". Заблокированный не сможет писать тебе и видеть твой статус.'
+    },
+    {
+        keyword: 'как разблокировать пользователя',
+        response: 'Настройки → Конфиденциальность → "Заблокированные" → выбери пользователя → "Разблокировать".'
+    },
+    {
+        keyword: 'кто видит мой номер телефона',
+        response: 'Настройки → Конфиденциальность → "Номер телефона" → выбери: Все / Мои контакты / Никто.'
+    },
+    // ── Медиа и файлы ─────────────────────────────────────────────────────────
+    {
+        keyword: 'как отправить файл',
+        response: 'В поле ввода нажми иконку скрепки (📎) → выбери файл. Поддерживаются документы, фото, видео, аудио. Лимит — 2 ГБ.'
+    },
+    {
+        keyword: 'как отправить голосовое сообщение',
+        response: 'Зажми иконку микрофона справа от поля ввода и говори. Отпусти чтобы отправить, свайпни влево чтобы отменить.'
+    },
+    {
+        keyword: 'как отправить стикер',
+        response: 'Нажми иконку смайлика → вкладка Стикеры. Можно найти нужный стикер через поиск.'
+    },
+    // ── Поиск ─────────────────────────────────────────────────────────────────
+    {
+        keyword: 'как найти человека в мессенджере',
+        response: 'Нажми иконку поиска → введи имя или @username. Если человек не появляется — уточни полный @username.'
+    },
+    {
+        keyword: 'как найти сообщение в чате',
+        response: 'Открой чат → нажми иконку поиска (🔍) вверху → введи текст. Можно искать по ключевым словам.'
+    },
+    // ── Сторис ────────────────────────────────────────────────────────────────
+    {
+        keyword: 'как добавить историю',
+        response: 'Перейди на вкладку Истории → нажми кнопку "+" → загрузи фото или видео. История пропадёт через 24 часа.'
+    },
+    {
+        keyword: 'как скрыть истории от пользователя',
+        response: 'Настройки → Конфиденциальность → "Истории" → можно выбрать кто видит твои истории, и скрыть конкретных пользователей.'
+    },
+    // ── Premium ───────────────────────────────────────────────────────────────
+    {
+        keyword: 'что даёт premium worldmates',
+        response: 'WorldMates PRO даёт: больший лимит файлов, эксклюзивные стикеры, приоритетную поддержку, расширенную статистику ботов и другие привилегии.'
+    },
+    {
+        keyword: 'как купить premium',
+        response: 'Настройки → WorldMates PRO → выбери план подписки → оплати. Доступны ежемесячная и годовая подписки.'
+    },
 ];
 
 // user_id WallyBot в таблице Wo_Users (устанавливается при инициализации)
@@ -105,6 +260,81 @@ const STATES = {
     REVOKE_SELECT:      'revoke_select',
     BROADCAST_SELECT:   'broadcast_select',
     BROADCAST_INPUT:    'broadcast_input',
+    TOUR_STEP:          'tour_step',
+    TEMPLATE_SELECT:    'template_select',
+    TEMPLATE_NAME:      'template_name',
+    TEMPLATE_USERNAME:  'template_username',
+};
+
+// ─── Шаблоны ботов ────────────────────────────────────────────────────────────
+
+const BOT_TEMPLATES = {
+    faq: {
+        id:           'faq',
+        icon:         '❓',
+        name:         'FAQ-бот',
+        description:  'Отвечает на часто задаваемые вопросы. Идеально для поддержки клиентов.',
+        default_desc: 'Привет! Я помогу ответить на твои вопросы. Напиши /help чтобы начать.',
+        commands: [
+            { command: 'start',   description: 'Начать работу' },
+            { command: 'help',    description: 'Список вопросов и ответов' },
+            { command: 'contact', description: 'Связаться с поддержкой' },
+        ],
+        knowledge: [
+            { keyword: 'помощь',    response: 'Напиши свой вопрос, и я постараюсь ответить!' },
+            { keyword: 'контакт',   response: 'Свяжитесь с нами: напишите вопрос прямо здесь и мы ответим.' },
+            { keyword: 'режим работы', response: 'Мы работаем ежедневно с 9:00 до 21:00.' },
+        ]
+    },
+    news: {
+        id:           'news',
+        icon:         '📰',
+        name:         'Бот новостей',
+        description:  'Рассылает новости и анонсы подписчикам. Идеально для каналов и проектов.',
+        default_desc: 'Подпишись чтобы получать актуальные новости и анонсы.',
+        commands: [
+            { command: 'start',     description: 'Подписаться на новости' },
+            { command: 'help',      description: 'Информация о боте' },
+            { command: 'unsubscribe', description: 'Отписаться от рассылки' },
+        ],
+        knowledge: [
+            { keyword: 'подписка',   response: 'Вы подписаны на наши новости! Ждите обновлений.' },
+            { keyword: 'отписаться', response: 'Вы отписались от рассылки. Если передумаете — напишите /start.' },
+        ]
+    },
+    welcome: {
+        id:           'welcome',
+        icon:         '👋',
+        name:         'Бот-приветствие',
+        description:  'Встречает новых пользователей и знакомит их с продуктом или сервисом.',
+        default_desc: 'Добро пожаловать! Я расскажу тебе всё о нашем проекте.',
+        commands: [
+            { command: 'start',  description: 'Начать знакомство' },
+            { command: 'about',  description: 'О нашем проекте' },
+            { command: 'help',   description: 'Что я умею' },
+        ],
+        knowledge: [
+            { keyword: 'о проекте', response: 'Расскажи мне о себе — и я расскажу о нас!' },
+            { keyword: 'начать',    response: 'Привет! Давай начнём знакомство. Что тебя интересует?' },
+        ]
+    },
+    support: {
+        id:           'support',
+        icon:         '🆘',
+        name:         'Бот поддержки',
+        description:  'Принимает обращения пользователей и передаёт их команде. Для бизнеса.',
+        default_desc: 'Служба поддержки. Опишите свою проблему и мы ответим в ближайшее время.',
+        commands: [
+            { command: 'start',   description: 'Написать в поддержку' },
+            { command: 'status',  description: 'Статус моего обращения' },
+            { command: 'help',    description: 'Частые вопросы' },
+        ],
+        knowledge: [
+            { keyword: 'обращение',  response: 'Опишите проблему и мы ответим в течение 24 часов.' },
+            { keyword: 'статус',     response: 'Ваше обращение рассматривается. Пожалуйста, ожидайте.' },
+            { keyword: 'не работает', response: 'Опишите подробнее что именно не работает, и мы поможем.' },
+        ]
+    },
 };
 
 // ─── Хранение состояний в памяти (для быстрого доступа) ──────────────────────
@@ -121,6 +351,16 @@ function setState(userId, state, data = {}) {
 
 function clearState(userId) {
     userStates.set(userId, { state: STATES.IDLE, data: {} });
+}
+
+// Возвращает true если пользователь ещё не получал сообщений от WallyBot
+async function isNewUser(ctx, userId) {
+    try {
+        const count = await ctx.wo_bot_messages.count({
+            where: { bot_id: WALLYBOT_ID, chat_id: String(userId), direction: 'outgoing' }
+        });
+        return count === 0;
+    } catch { return false; }
 }
 
 // ─── Генерация токена бота ────────────────────────────────────────────────────
@@ -345,7 +585,7 @@ function normalizeText(value = '') {
     return String(value)
         .toLowerCase()
         .replace(/[ё]/g, 'е')
-        .replace(/[’']/g, '')
+        .replace(/['']/g, '')
         .replace(/[^\p{L}\p{N}\s]/gu, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -469,15 +709,36 @@ function detectLang(text = '') {
 
 async function handleStart(ctx, io, userId, userName) {
     clearState(userId);
+
+    // Первый раз — показываем онбординг
+    const firstTime = await isNewUser(ctx, userId);
+    if (firstTime) {
+        const onboarding =
+            `👋 Привет, ${userName}! Я *WallyBot* — помощник WorldMates.\n\n` +
+            `Я помогу тебе:\n` +
+            `🤖 Создавать ботов без кода\n` +
+            `🧠 Настраивать автоответы\n` +
+            `📢 Делать рассылки подписчикам\n` +
+            `❓ Разобраться в функциях мессенджера\n\n` +
+            `С чего начнём?`;
+        return sendToUser(ctx, io, userId, onboarding, inlineKeyboard([
+            btn('📖 Краткий тур (3 шага)',  'tour_step_1'),
+            btn('🛠 Создать бота сразу',    'cmd_newbot'),
+            btn('📋 Шаблоны ботов',         'cmd_templates'),
+            btn('❓ Задать вопрос',          'cmd_ask')
+        ], 1));
+    }
+
     const text = randomGreeting(userName);
     const kb = inlineKeyboard([
-        btn('Создать бота',        'cmd_newbot'),
-        btn('Мои боты',            'cmd_mybots'),
-        btn('Обучить меня',        'cmd_learn'),
-        btn('Спросить WallyBot',   'cmd_ask'),
-        btn('Функции мессенджера', 'cmd_messenger_guide'),
-        btn('Статистика',          'cmd_stats'),
-        btn('Помощь',              'cmd_help')
+        btn('🛠 Создать бота',        'cmd_newbot'),
+        btn('📋 Шаблоны',            'cmd_templates'),
+        btn('📦 Мои боты',           'cmd_mybots'),
+        btn('🧠 Обучить меня',       'cmd_learn'),
+        btn('❓ Спросить WallyBot',  'cmd_ask'),
+        btn('📊 Статистика',         'cmd_stats'),
+        btn('🔍 Функции мессенджера','cmd_messenger_guide'),
+        btn('💡 Помощь',             'cmd_help')
     ], 2);
     await sendToUser(ctx, io, userId, text, kb);
 }
@@ -505,6 +766,21 @@ async function handleHelp(ctx, io, userId) {
 }
 
 async function handleNewBot(ctx, io, userId) {
+    clearState(userId);
+    // Предлагаем шаблоны как более простой путь
+    const templates = Object.values(BOT_TEMPLATES);
+    const text =
+        `🛠 *Создание нового бота*\n\n` +
+        `Можно начать с готового шаблона (быстрее и проще) или создать бота с нуля.\n\n` +
+        `*Доступные шаблоны:*\n` +
+        templates.map(t => `${t.icon} *${t.name}* — ${t.description}`).join('\n');
+    await sendToUser(ctx, io, userId, text, inlineKeyboard([
+        ...templates.map(t => btn(`${t.icon} ${t.name}`, `template_select_${t.id}`)),
+        btn('✏️ С нуля (без шаблона)', 'newbot_blank')
+    ], 1));
+}
+
+async function handleNewBotBlank(ctx, io, userId) {
     setState(userId, STATES.NEWBOT_NAME, {});
     await sendToUser(ctx, io, userId,
         `Создаём нового бота!\n\nШаг 1/3: Введи отображаемое имя бота (например: "Мой Помощник", "WeatherBot"):`
@@ -681,6 +957,149 @@ async function handleThanks(ctx, io, userId) {
         'Пожалуйста! Если что — я рядом. 👋',
     ];
     await sendToUser(ctx, io, userId, replies[Math.floor(Math.random() * replies.length)]);
+}
+
+// ─── Онбординг / тур ─────────────────────────────────────────────────────────
+
+const TOUR_STEPS = [
+    {
+        text:
+            `🤖 *Добро пожаловать в WallyBot!*\n\n` +
+            `Я твой помощник в WorldMates. Вот что я умею:\n\n` +
+            `✅ Создавать ботов за 3 шага — без кода\n` +
+            `✅ Рассылать сообщения подписчикам\n` +
+            `✅ Отвечать на вопросы о мессенджере\n` +
+            `✅ Обучаться новым знаниям через /learn\n\n` +
+            `*Шаг 1 из 3* — нажми "Дальше" чтобы продолжить`,
+        kb: (uid) => inlineKeyboard([
+            btn('Дальше →', `tour_step_2`),
+            btn('Пропустить тур', 'tour_skip')
+        ])
+    },
+    {
+        text:
+            `🛠 *Создание ботов*\n\n` +
+            `Бот — это автоматический помощник в чате. Ты можешь создать своего бота и:\n\n` +
+            `• Подключить его к сайту или приложению\n` +
+            `• Настроить автоответы на вопросы\n` +
+            `• Рассылать новости подписчикам\n` +
+            `• Принимать обращения в поддержку\n\n` +
+            `Есть готовые *шаблоны* — можно запустить бота за 2 минуты!\n\n` +
+            `*Шаг 2 из 3*`,
+        kb: (uid) => inlineKeyboard([
+            btn('← Назад',   'tour_step_1'),
+            btn('Дальше →',  'tour_step_3'),
+            btn('Создать бота сейчас', 'cmd_newbot')
+        ])
+    },
+    {
+        text:
+            `🧠 *Умный помощник*\n\n` +
+            `Меня можно обучить отвечать на любые вопросы.\n\n` +
+            `Используй /learn — добавь вопрос и ответ, и я буду помогать твоим пользователям.\n\n` +
+            `Я уже знаю много о WorldMates — просто спроси!\n\n` +
+            `*Шаг 3 из 3* — Готов начать? 🚀`,
+        kb: (uid) => inlineKeyboard([
+            btn('← Назад',            'tour_step_2'),
+            btn('🛠 Создать бота',    'cmd_newbot'),
+            btn('📋 Шаблоны ботов',  'cmd_templates'),
+            btn('📖 К главному меню', 'cmd_start')
+        ])
+    }
+];
+
+async function handleTour(ctx, io, userId, step = 1) {
+    clearState(userId);
+    const idx  = Math.max(1, Math.min(step, TOUR_STEPS.length)) - 1;
+    const tour = TOUR_STEPS[idx];
+    await sendToUser(ctx, io, userId, tour.text, tour.kb(userId));
+}
+
+// ─── Шаблоны ботов ───────────────────────────────────────────────────────────
+
+async function handleTemplates(ctx, io, userId) {
+    clearState(userId);
+    const templates = Object.values(BOT_TEMPLATES);
+    const text =
+        `📋 *Шаблоны ботов*\n\n` +
+        `Выбери готовый шаблон — я создам бота с нужными командами и базой знаний. Тебе останется только задать имя и username.\n\n` +
+        templates.map(t => `${t.icon} *${t.name}* — ${t.description}`).join('\n\n');
+
+    const buttons = templates.map(t => btn(`${t.icon} ${t.name}`, `template_select_${t.id}`));
+    buttons.push(btn('✏️ Создать с нуля', 'cmd_newbot'));
+    await sendToUser(ctx, io, userId, text, inlineKeyboard(buttons, 1));
+}
+
+async function applyTemplate(ctx, io, userId, templateId, displayName, username) {
+    const tpl = BOT_TEMPLATES[templateId];
+    if (!tpl) return;
+
+    const botCount = await ctx.wo_bots.count({ where: { owner_id: userId } });
+    if (botCount >= 20) {
+        clearState(userId);
+        return sendToUser(ctx, io, userId, 'Достигнут лимит: максимум 20 ботов на аккаунт.');
+    }
+
+    const botId    = 'bot_' + crypto.randomBytes(12).toString('hex');
+    const botToken = generateBotToken(botId);
+
+    await ctx.wo_bots.create({
+        bot_id:       botId,
+        owner_id:     userId,
+        bot_token:    botToken,
+        username:     sanitize(username),
+        display_name: sanitize(displayName),
+        description:  tpl.default_desc,
+        category:     'general',
+        status:       'active',
+        created_at:   new Date(),
+        updated_at:   new Date()
+    });
+
+    // Регистрируем команды шаблона + дефолтные
+    await registerDefaultCommands(ctx, botId);
+    for (let i = 0; i < tpl.commands.length; i++) {
+        const cmd = tpl.commands[i];
+        await ctx.wo_bot_commands.findOrCreate({
+            where:    { bot_id: botId, command: cmd.command },
+            defaults: { bot_id: botId, ...cmd, scope: 'all', is_hidden: 0, sort_order: 10 + i }
+        });
+    }
+
+    // Заполняем базу знаний из шаблона
+    for (const item of tpl.knowledge) {
+        await ctx.wo_bot_tasks.findOrCreate({
+            where: { bot_id: botId, title: item.keyword },
+            defaults: {
+                bot_id:      botId,
+                user_id:     userId,
+                chat_id:     String(userId),
+                title:       item.keyword,
+                description: item.response,
+                status:      'done',
+                priority:    'low',
+                created_at:  new Date()
+            }
+        });
+    }
+
+    clearState(userId);
+    console.log(`[WallyBot] Created bot @${username} from template "${tpl.id}" for user ${userId}`);
+
+    const responseText =
+        `${tpl.icon} *Бот создан по шаблону "${tpl.name}"!*\n\n` +
+        `Имя: ${displayName}\n` +
+        `Username: @${username}\n` +
+        `Bot ID: \`${botId}\`\n\n` +
+        `*Токен (СЕКРЕТНЫЙ, сохрани!):*\n\`${botToken}\`\n\n` +
+        `✅ Команды и база знаний уже настроены по шаблону.\n` +
+        `Используй /learn чтобы добавить свои ответы.`;
+
+    return sendToUser(ctx, io, userId, responseText, inlineKeyboard([
+        btn('Все мои боты',  'cmd_mybots'),
+        btn('Добавить знания', 'cmd_learn'),
+        btn('Создать ещё',   'cmd_newbot')
+    ]));
 }
 
 // ─── /setinline — перемикання inline-режиму бота ──────────────────────────────
@@ -1028,6 +1447,32 @@ async function processState(ctx, io, userId, text, currentState) {
         );
     }
 
+    // TEMPLATE: шаг 1 — имя бота
+    if (state === STATES.TEMPLATE_NAME) {
+        if (!text.trim()) return sendToUser(ctx, io, userId, 'Имя не может быть пустым. Попробуй снова:');
+        setState(userId, STATES.TEMPLATE_USERNAME, { ...data, display_name: text.trim() });
+        return sendToUser(ctx, io, userId,
+            `Имя: *${text.trim()}*\n\n` +
+            `*Шаг 2/2:* Введи username бота\n_(только буквы, цифры, _, должен заканчиваться на _bot)_\n` +
+            `Например: my_support_bot, news_myproject_bot`
+        );
+    }
+
+    // TEMPLATE: шаг 2 — username → создать бота
+    if (state === STATES.TEMPLATE_USERNAME) {
+        const username = text.trim().toLowerCase();
+        if (!/^[a-zA-Z][a-zA-Z0-9_]{2,30}_bot$/.test(username)) {
+            return sendToUser(ctx, io, userId,
+                'Неверный формат! Username должен:\n' +
+                '• Начинаться с буквы\n• Содержать только буквы, цифры, _\n' +
+                '• Заканчиваться на _bot\n• Длина: 5-32 символа\n\nПопробуй снова:'
+            );
+        }
+        const existing = await ctx.wo_bots.findOne({ where: { username } });
+        if (existing) return sendToUser(ctx, io, userId, `Username @${username} уже занят! Придумай другой:`);
+        return applyTemplate(ctx, io, userId, data.tplId, data.display_name, username);
+    }
+
     return null; // состояние не обработано
 }
 
@@ -1046,18 +1491,39 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
 
     // ── Главные команды через кнопки ────────────────────────────────────────
     if (callbackData === 'cmd_newbot')    return handleNewBot(ctx, io, userId);
+    if (callbackData === 'newbot_blank')  return handleNewBotBlank(ctx, io, userId);
+    if (callbackData === 'cmd_templates') return handleTemplates(ctx, io, userId);
     if (callbackData === 'cmd_mybots')    return handleMyBots(ctx, io, userId);
     if (callbackData === 'cmd_help')      return handleHelp(ctx, io, userId);
     if (callbackData === 'cmd_cancel')    return handleCancel(ctx, io, userId);
     if (callbackData === 'cmd_learn')     return handleLearn(ctx, io, userId);
     if (callbackData === 'cmd_ask')       return handleAsk(ctx, io, userId);
     if (callbackData === 'cmd_messenger_guide') return handleMessengerGuide(ctx, io, userId);
-    if (callbackData === 'cmd_start')     return handleStart(ctx, io, userId, 'ти');
+    if (callbackData === 'cmd_start')     return handleStart(ctx, io, userId, 'ты');
     if (callbackData === 'cmd_stats')     return handleStats(ctx, io, userId);
     if (callbackData === 'cmd_setinline') return handleSetInline(ctx, io, userId);
     if (callbackData === 'cmd_setgroups') return handleSetGroups(ctx, io, userId);
     if (callbackData === 'cmd_revoke')    return handleRevoke(ctx, io, userId);
     if (callbackData === 'cmd_broadcast') return handleBroadcast(ctx, io, userId);
+
+    // ── Тур/онбординг ───────────────────────────────────────────────────────
+    if (callbackData === 'tour_skip') return handleStart(ctx, io, userId, 'ты');
+    if (callbackData.startsWith('tour_step_')) {
+        const step = parseInt(callbackData.replace('tour_step_', ''), 10);
+        return handleTour(ctx, io, userId, step);
+    }
+
+    // ── Шаблоны ботов ───────────────────────────────────────────────────────
+    if (callbackData.startsWith('template_select_')) {
+        const tplId = callbackData.replace('template_select_', '');
+        const tpl   = BOT_TEMPLATES[tplId];
+        if (!tpl) return sendToUser(ctx, io, userId, 'Шаблон не найден.');
+        setState(userId, STATES.TEMPLATE_NAME, { tplId });
+        return sendToUser(ctx, io, userId,
+            `${tpl.icon} *Шаблон "${tpl.name}"*\n\n${tpl.description}\n\n` +
+            `*Шаг 1/2:* Введи отображаемое имя бота\n_(например: "Моя Поддержка", "Новости Проекта")_`
+        );
+    }
 
     // ── Просмотр базы знаний ─────────────────────────────────────────────────
     if (callbackData === 'cmd_knowledge') {
@@ -1421,6 +1887,8 @@ async function handleMessage(ctx, io, data) {
                 return handleStats(ctx, io, userId);
             },
             who:         () => handleWho(ctx, io, userId),
+            tour:        () => handleTour(ctx, io, userId, 1),
+            templates:   () => handleTemplates(ctx, io, userId),
         };
 
         const handler = cmdHandlers[cmd];
@@ -1563,22 +2031,24 @@ async function initializeWallyBot(ctx, io) {
         await ensureMessengerKnowledgeBase(ctx);
 
         const extraCommands = [
-            { command: 'newbot',      description: 'Создать нового бота',                       sort_order: 3 },
-            { command: 'mybots',      description: 'Список моих ботов',                         sort_order: 4 },
-            { command: 'editbot',     description: 'Редактировать бота',                        sort_order: 5 },
-            { command: 'deletebot',   description: 'Удалить бота',                              sort_order: 6 },
-            { command: 'token',       description: 'Получить токен бота',                       sort_order: 7 },
-            { command: 'setcommands', description: 'Установить команды бота',                   sort_order: 8 },
-            { command: 'setdesc',     description: 'Изменить описание бота',                    sort_order: 9 },
-            { command: 'setinline',   description: 'Вкл/выкл inline-режим бота',                sort_order: 10 },
-            { command: 'setgroups',   description: 'Разрешить/запретить бота в группах',        sort_order: 11 },
-            { command: 'revoke',      description: 'Отозвать и заменить токен бота',            sort_order: 12 },
-            { command: 'broadcast',   description: 'Отправить сообщение всем пользователям',    sort_order: 13 },
-            { command: 'stats',       description: 'Статистика (@botname для конкретного бота)', sort_order: 14 },
-            { command: 'learn',       description: 'Обучить WallyBot новому ответу',            sort_order: 15 },
-            { command: 'forget',      description: 'Удалить ответ из базы знаний',              sort_order: 16 },
-            { command: 'ask',         description: 'Задать вопрос WallyBot',                    sort_order: 17 },
-            { command: 'messenger',   description: 'Справка по функциям мессенджера',           sort_order: 18 }
+            { command: 'tour',        description: 'Краткий тур по возможностям WallyBot',        sort_order: 3  },
+            { command: 'templates',   description: 'Готовые шаблоны для быстрого старта',          sort_order: 4  },
+            { command: 'newbot',      description: 'Создать нового бота',                          sort_order: 5  },
+            { command: 'mybots',      description: 'Список моих ботов',                            sort_order: 6  },
+            { command: 'editbot',     description: 'Редактировать бота',                           sort_order: 7  },
+            { command: 'deletebot',   description: 'Удалить бота',                                 sort_order: 8  },
+            { command: 'token',       description: 'Получить токен бота',                          sort_order: 9  },
+            { command: 'setcommands', description: 'Установить команды бота',                      sort_order: 10 },
+            { command: 'setdesc',     description: 'Изменить описание бота',                       sort_order: 11 },
+            { command: 'setinline',   description: 'Вкл/выкл inline-режим бота',                   sort_order: 12 },
+            { command: 'setgroups',   description: 'Разрешить/запретить бота в группах',           sort_order: 13 },
+            { command: 'revoke',      description: 'Отозвать и заменить токен бота',               sort_order: 14 },
+            { command: 'broadcast',   description: 'Отправить сообщение всем пользователям',       sort_order: 15 },
+            { command: 'stats',       description: 'Статистика (@botname для конкретного бота)',    sort_order: 16 },
+            { command: 'learn',       description: 'Обучить WallyBot новому ответу',               sort_order: 17 },
+            { command: 'forget',      description: 'Удалить ответ из базы знаний',                 sort_order: 18 },
+            { command: 'ask',         description: 'Задать вопрос WallyBot',                       sort_order: 19 },
+            { command: 'messenger',   description: 'Справка по функциям мессенджера',              sort_order: 20 }
         ];
 
         for (const cmd of extraCommands) {
