@@ -87,6 +87,10 @@ function registerPrivateChatRoutes(app, ctx, io) {
     // ── archive count ─────────────────────────────────────────────────────────
     app.get('/api/node/chat/archive/count', auth, chatsList.archivedCount(ctx));
 
+    // ── hide / unhide chat ────────────────────────────────────────────────────
+    app.post('/api/node/chat/hide',          auth, chatsList.hideChat(ctx, io));
+    app.get( '/api/node/chat/hidden/count',  auth, chatsList.hiddenCount(ctx));
+
     // ── favorites ────────────────────────────────────────────────────────────
     app.post('/api/node/chat/fav',      auth, favs.favMessage(ctx, io));
     app.post('/api/node/chat/fav-list', auth, favs.getFavMessages(ctx, io));

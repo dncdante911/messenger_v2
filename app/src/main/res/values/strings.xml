@@ -1750,6 +1750,26 @@
     <string name="chat_unarchived_toast">Чат розархівовано</string>
     <string name="chat_label">Чат</string>
 
+    <!-- HIDDEN CHATS -->
+    <string name="hide_in_hidden">Сховати в прихованих</string>
+    <string name="hidden_chats">Приховані чати</string>
+    <string name="hidden_chats_folder">Приховані</string>
+    <string name="chat_moved_to_hidden">Чат переміщено в приховані</string>
+    <string name="chat_unhidden_toast">Чат показано знову</string>
+    <string name="show_chat_again">Показати знову</string>
+
+    <!-- DELETE CHAT DIALOG -->
+    <string name="delete_chat_title">Видалити чат?</string>
+    <string name="delete_chat_subtitle">Оберіть спосіб видалення</string>
+    <string name="delete_for_me_only">Видалити для мене</string>
+    <string name="delete_for_me_only_desc">Чат зникне тільки у вас</string>
+    <string name="delete_clear_both">Видалити і очистити у обох</string>
+    <string name="delete_clear_both_desc">Історія переписки буде видалена в обох</string>
+    <string name="delete_and_block">Видалити і заблокувати</string>
+    <string name="delete_and_block_desc">Чат видалено, користувача заблоковано</string>
+    <string name="chat_deleted_toast">Чат видалено</string>
+    <string name="chat_deleted_and_blocked_toast">Чат видалено, користувача заблоковано</string>
+
     <!-- CHATS SCREEN: Drawer and state strings -->
     <string name="no_groups_subtitle">Створіть нову групу або приєднайтесь до існуючої</string>
     <string name="invite_friends_text">Приєднуйся до WorldMates - найкращого месенджера! 🚀\nЗавантаж тут: https://worldmates.club</string>

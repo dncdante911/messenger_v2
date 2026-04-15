@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,6 +71,8 @@ fun ContactContextMenu(
     // Опціональні дії організації чатів
     onArchive: ((Chat) -> Unit)? = null,
     onUnarchive: ((Chat) -> Unit)? = null,
+    onHide: ((Chat) -> Unit)? = null,
+    isInHiddenFolder: Boolean = false,
     onManageTags: ((Chat) -> Unit)? = null,
     onMoveToFolder: ((Chat) -> Unit)? = null
 ) {
@@ -179,11 +183,36 @@ fun ContactContextMenu(
                 )
             }
 
-            // Delete / Hide
+            // Hide / Unhide chat (тільки якщо передано callback)
+            if (onHide != null) {
+                Divider(modifier = Modifier.padding(vertical = 4.dp, horizontal = 24.dp))
+                if (isInHiddenFolder) {
+                    // В папці прихованих — пропонуємо показати знову
+                    ContactMenuRow(
+                        icon = Icons.Default.Visibility,
+                        title = stringResource(R.string.show_chat_again),
+                        onClick = {
+                            onHide(chat)
+                            onDismiss()
+                        }
+                    )
+                } else {
+                    ContactMenuRow(
+                        icon = Icons.Default.VisibilityOff,
+                        title = stringResource(R.string.hide_in_hidden),
+                        onClick = {
+                            onHide(chat)
+                            onDismiss()
+                        }
+                    )
+                }
+            }
+
+            // Delete chat (відкриває діалог вибору типу видалення)
             Divider(modifier = Modifier.padding(vertical = 4.dp, horizontal = 24.dp))
             ContactMenuRow(
                 icon = Icons.Default.Delete,
-                title = stringResource(R.string.hide_chat),
+                title = stringResource(R.string.delete_chat),
                 tint = Color(0xFFD32F2F),
                 onClick = { onDelete(chat) }
             )

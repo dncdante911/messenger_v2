@@ -332,7 +332,8 @@ interface NodeApi {
     suspend fun getChats(
         @Field("limit")          limit: Int = 30,
         @Field("offset")         offset: Int = 0,
-        @Field("show_archived")  showArchived: String = "false"
+        @Field("show_archived")  showArchived: String = "false",
+        @Field("show_hidden")    showHidden: String = "false"
     ): NodeChatListResponse
 
     /**
@@ -429,6 +430,23 @@ interface NodeApi {
         @Field("recipient_id") recipientId: Long,
         @Field("clear_type")   clearType: String = "just_me"
     ): NodeSimpleResponse
+
+    /**
+     * HIDE / UNHIDE chat (server-persisted via wo_mute.hidden flag).
+     * hidden: "yes" | "no"
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_CHAT_HIDE)
+    suspend fun hideChat(
+        @Field("chat_id") chatId: Long,
+        @Field("hidden")  hidden: String
+    ): NodeSimpleResponse
+
+    /**
+     * GET count of hidden chats (for folder badge).
+     */
+    @GET(Constants.NODE_CHAT_HIDDEN_COUNT)
+    suspend fun getHiddenChatsCount(): NodeCountResponse
 
     /**
      * GET MUTE STATUS — returns current notify/call_chat/archive/pin flags for a chat.
@@ -1206,6 +1224,13 @@ data class NodeMessageResponse(
 data class NodeSimpleResponse(
     @SerializedName("api_status")   val apiStatus: Int,
     @SerializedName("message")      val message: String? = null,
+    @SerializedName("error_message") val errorMessage: String? = null
+)
+
+/** Generic count response (e.g. hidden/count, archive/count). */
+data class NodeCountResponse(
+    @SerializedName("api_status") val apiStatus: Int,
+    @SerializedName("count")      val count: Int = 0,
     @SerializedName("error_message") val errorMessage: String? = null
 )
 

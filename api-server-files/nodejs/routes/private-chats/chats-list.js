@@ -51,9 +51,9 @@ async function getMuteSettings(ctx, userId, chatId) {
             where: { user_id: userId, chat_id: chatId, type: 'user' },
             raw: true,
         });
-        return m || { notify: 'yes', call_chat: 'yes', archive: 'no', fav: 'no', pin: 'no' };
+        return m || { notify: 'yes', call_chat: 'yes', archive: 'no', fav: 'no', pin: 'no', hidden: 'no' };
     } catch {
-        return { notify: 'yes', call_chat: 'yes', archive: 'no', fav: 'no', pin: 'no' };
+        return { notify: 'yes', call_chat: 'yes', archive: 'no', fav: 'no', pin: 'no', hidden: 'no' };
     }
 }
 
@@ -72,6 +72,7 @@ function getChats(ctx, io) {
             const limit        = Math.min(parseInt(req.body.limit  || req.body.user_limit)  || 30, 100);
             const offset       = parseInt(req.body.offset || req.body.user_offset) || 0;
             const showArchived = req.body.show_archived === 'true';
+            const showHidden   = req.body.show_hidden   === 'true';
             const siteUrl      = (ctx.globalconfig?.site_url || '').replace(/\/$/, '');
 
             // 1 ── paginated conversation rows
@@ -97,14 +98,18 @@ function getChats(ctx, io) {
                 where: { user_id: userId, chat_id: { [Op.in]: allPartnerIds }, type: 'user' },
                 raw: true,
             });
-            const defaultMute = { notify: 'yes', call_chat: 'yes', archive: 'no', fav: 'no', pin: 'no' };
+            const defaultMute = { notify: 'yes', call_chat: 'yes', archive: 'no', fav: 'no', pin: 'no', hidden: 'no' };
             const muteMap = new Map();
             for (const m of muteRows) muteMap.set(m.chat_id, m);
 
-            // apply archive filter in memory
+            // apply archive / hidden filter in memory
             const filteredChats = chatRows.filter(chat => {
-                const archived = (muteMap.get(chat.conversation_user_id) || defaultMute).archive === 'yes';
-                return showArchived ? archived : !archived;
+                const muteRow = muteMap.get(chat.conversation_user_id) || defaultMute;
+                const archived = muteRow.archive === 'yes';
+                const hidden   = muteRow.hidden   === 'yes';
+                if (showHidden)   return hidden;
+                if (showArchived) return archived && !hidden;
+                return !archived && !hidden;
             });
 
             if (filteredChats.length === 0) {
@@ -440,6 +445,7 @@ async function upsertMute(ctx, userId, chatId, fields) {
             archive:   'no',
             fav:       'no',
             pin:       'no',
+            hidden:    'no',
             ...fields,
         });
     }
@@ -856,6 +862,47 @@ function getBusinessInbox(ctx, io) {
     };
 }
 
+// ─── HIDE / UNHIDE chat ───────────────────────────────────────────────────────
+// Stores hidden state in wo_mute.hidden ('yes'|'no').
+// Hidden chats are excluded from the main list and accessible only via show_hidden=true.
+
+function hideChat(ctx, io) {
+    return async (req, res) => {
+        try {
+            const userId = req.userId;
+            const chatId = parseInt(req.body.chat_id || req.body.user_id);
+            const hidden = req.body.hidden === 'yes' ? 'yes' : 'no';
+
+            if (!chatId || isNaN(chatId))
+                return res.status(400).json({ api_status: 400, error_message: 'chat_id is required' });
+
+            await upsertMute(ctx, userId, chatId, { hidden });
+
+            res.json({ api_status: 200, hidden });
+        } catch (err) {
+            console.error('[Node/chat/hide]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to hide chat' });
+        }
+    };
+}
+
+// ─── HIDDEN CHATS COUNT (for badge in UI) ────────────────────────────────────
+
+function hiddenCount(ctx) {
+    return async (req, res) => {
+        try {
+            const userId = req.userId;
+            const count  = await ctx.wo_mute.count({
+                where: { user_id: userId, type: 'user', hidden: 'yes' },
+            });
+            res.json({ api_status: 200, count });
+        } catch (err) {
+            console.error('[Node/chat/hidden-count]', err.message);
+            res.status(500).json({ api_status: 500, error_message: 'Failed to get hidden count' });
+        }
+    };
+}
+
 // ─── exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -867,6 +914,8 @@ module.exports = {
     getMuteStatus,
     archiveChat,
     archivedCount,
+    hideChat,
+    hiddenCount,
     muteChat,
     pinChat,
     changeChatColor,

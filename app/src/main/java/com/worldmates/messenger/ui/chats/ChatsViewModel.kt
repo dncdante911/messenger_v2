@@ -44,18 +44,23 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
     val hasMoreChats: StateFlow<Boolean> = _hasMoreChats
 
     private val PAGE_SIZE   = 50
-    private var chatsOffset = 0   // зміщення для наступного запиту
+    private var chatsOffset = 0
 
-    private val hiddenChatIds = mutableSetOf<Long>()
+    // ─── Приховані чати (server-synced) ──────────────────────────────────────
+    private val _hiddenChats = MutableStateFlow<List<Chat>>(emptyList())
+    val hiddenChats: StateFlow<List<Chat>> = _hiddenChats
+
+    private val _hiddenChatsCount = MutableStateFlow(0)
+    val hiddenChatsCount: StateFlow<Int> = _hiddenChatsCount
+
     private var socketManager: SocketManager? = null
     private var authErrorCount = 0
 
     init {
-        // Добавляем задержку перед первым запросом
-        // чтобы токен успел активироваться на сервере
         viewModelScope.launch {
-            kotlinx.coroutines.delay(2000) // 2 секунды задержка
+            kotlinx.coroutines.delay(2000)
             fetchChats()
+            fetchHiddenChatsCount()
         }
         setupSocket()
     }
@@ -88,23 +93,18 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                 Log.d("ChatsViewModel", "Chats count: ${response.data?.size ?: 0}")
 
                 if (response.apiStatus == 200) {
-                    authErrorCount = 0  // Reset on success
+                    authErrorCount = 0
                     if (response.data != null && response.data.isNotEmpty()) {
                         Log.d("ChatsViewModel", "Отримано ${response.data.size} особистих чатів (Node.js)")
 
-                        // Дешифруємо останнє повідомлення у кожному чаті
                         val decryptedChats = response.data
-                            .filter { !it.isGroup && !hiddenChatIds.contains(it.userId) }
+                            .filter { !it.isGroup }
                             .map { chat ->
                             Log.d("ChatsViewModel", "✅ Особистий чат: ${chat.username}, last_msg: ${chat.lastMessage?.encryptedText}")
 
                             val lastMessage = chat.lastMessage?.let { msg ->
-                                // Перевіряємо чи є текст повідомлення
                                 val encryptedText = msg.encryptedText ?: ""
 
-                                // cipher_version=3 is Signal Double Ratchet — keys are one-time
-                                // use, so we never attempt live decryption here.  Read from the
-                                // persistent plaintext cache written by MessagesViewModel instead.
                                 val decryptedText = when {
                                     msg.cipherVersion == 3 -> {
                                         try {
@@ -122,15 +122,7 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                                             tag = msg.tag,
                                             cipherVersion = msg.cipherVersion
                                         )
-                                        // Only show placeholder when the text actually looks like
-                                        // ciphertext (Base64-structured, min length).  Plain text
-                                        // messages also satisfy result == encryptedText (unchanged),
-                                        // so we must distinguish them from real ciphertext.
                                         if (result == encryptedText) {
-                                            // Real Base64 uses only 7-bit ASCII chars.
-                                            // Unicode-styled text (FULLWIDTH, SMALL_CAPS, etc.)
-                                            // contains non-ASCII letters that also pass
-                                            // isLetterOrDigit() — add c.code < 128 guard.
                                             val looksEncrypted = encryptedText.length >= 12 &&
                                                 encryptedText.length % 4 == 0 &&
                                                 encryptedText.all { c ->
@@ -142,17 +134,9 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                                                 result
                                         } else result
                                     }
-                                    else -> "" // Порожнє повідомлення (можливо медіа без тексту)
+                                    else -> ""
                                 }
 
-                                Log.d("ChatsViewModel", "🔐 Дешифрування для ${chat.username}:")
-                                Log.d("ChatsViewModel", "   Зашифровано: $encryptedText")
-                                Log.d("ChatsViewModel", "   Timestamp: ${msg.timeStamp}")
-                                Log.d("ChatsViewModel", "   Cipher version: ${msg.cipherVersion ?: "ECB (v1)"}")
-                                Log.d("ChatsViewModel", "   Has IV/TAG: ${msg.iv != null}/${msg.tag != null}")
-                                Log.d("ChatsViewModel", "   Дешифровано: $decryptedText")
-
-                                // Конвертуємо URL медіа в зрозумілі мітки
                                 val displayText = convertMediaUrlToLabel(decryptedText)
                                 msg.copy(
                                     encryptedText = msg.encryptedText,
@@ -193,18 +177,15 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
                 _isLoading.value = false
             } catch (e: com.google.gson.JsonSyntaxException) {
-                val errorMsg = "Помилка парсингу відповіді від сервера"
-                _error.value = errorMsg
+                _error.value = "Помилка парсингу відповіді від сервера"
                 _isLoading.value = false
-                Log.e("ChatsViewModel", "❌ $errorMsg", e)
+                Log.e("ChatsViewModel", "❌ JSON parse error", e)
             } catch (e: java.net.ConnectException) {
-                val errorMsg = "Не вдалося з'єднатися з сервером"
-                _error.value = errorMsg
+                _error.value = "Не вдалося з'єднатися з сервером"
                 _isLoading.value = false
-                Log.e("ChatsViewModel", "❌ $errorMsg", e)
+                Log.e("ChatsViewModel", "❌ Connection error", e)
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
-                _error.value = errorMsg
+                _error.value = "Помилка: ${e.localizedMessage}"
                 _isLoading.value = false
                 Log.e("ChatsViewModel", "❌ Помилка завантаження чатів", e)
             }
@@ -213,7 +194,6 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
     /**
      * Дозавантажує наступну сторінку чатів (infinite scroll).
-     * Безпечно викликати кілька разів — повторний запит ігнорується.
      */
     fun loadMoreChats() {
         if (_isLoadingMore.value || !_hasMoreChats.value) return
@@ -231,7 +211,7 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
                 if (response.apiStatus == 200 && !response.data.isNullOrEmpty()) {
                     val newDecrypted = response.data
-                        .filter { !it.isGroup && !hiddenChatIds.contains(it.userId) }
+                        .filter { !it.isGroup }
                         .map { chat ->
                             val lastMessage = chat.lastMessage?.let { msg ->
                                 val displayText = convertMediaUrlToLabel(
@@ -256,7 +236,6 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                     Log.d("ChatsViewModel", "📄 loadMoreChats: +${unique.size} чатів, offset=$chatsOffset (Node.js)")
                 } else {
                     _hasMoreChats.value = false
-                    Log.d("ChatsViewModel", "📄 loadMoreChats: більше чатів немає")
                 }
             } catch (e: Exception) {
                 Log.e("ChatsViewModel", "❌ loadMoreChats error", e)
@@ -266,9 +245,226 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
         }
     }
 
+    // ─── Архів (server + local sync) ─────────────────────────────────────────
+
     /**
-     * Налаштовує Socket.IO для отримання чатів у реальному часі
+     * Архівує чат: відправляє запит на сервер і оновлює локальний стан.
      */
+    fun archiveChat(userId: Long) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.api.archiveChat(chatId = userId, archive = "yes")
+                if (response.apiStatus == 200) {
+                    ChatOrganizationManager.archiveChat(userId)
+                    // Видаляємо зі списку (сервер більше не поверне його без show_archived=true)
+                    _chatList.value = _chatList.value.filter { it.userId != userId }
+                    Log.d("ChatsViewModel", "✅ Чат $userId архівовано")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ archiveChat error", e)
+                // Fallback: оновлюємо тільки локально
+                ChatOrganizationManager.archiveChat(userId)
+                _chatList.value = _chatList.value.filter { it.userId != userId }
+            }
+        }
+    }
+
+    /**
+     * Розархівує чат: відправляє запит на сервер і оновлює локальний стан.
+     */
+    fun unarchiveChat(userId: Long) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.api.archiveChat(chatId = userId, archive = "no")
+                if (response.apiStatus == 200) {
+                    ChatOrganizationManager.unarchiveChat(userId)
+                    fetchChats()
+                    Log.d("ChatsViewModel", "✅ Чат $userId розархівовано")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ unarchiveChat error", e)
+                ChatOrganizationManager.unarchiveChat(userId)
+                fetchChats()
+            }
+        }
+    }
+
+    // ─── Приховані чати (server-persisted) ───────────────────────────────────
+
+    /**
+     * Завантажує приховані чати з сервера (show_hidden=true).
+     */
+    fun fetchHiddenChats() {
+        if (UserSession.accessToken == null) return
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.api.getChats(
+                    limit        = 100,
+                    offset       = 0,
+                    showHidden   = "true"
+                )
+                if (response.apiStatus == 200) {
+                    val decrypted = (response.data ?: emptyList())
+                        .filter { !it.isGroup }
+                        .map { chat ->
+                            val lastMessage = chat.lastMessage?.let { msg ->
+                                val displayText = convertMediaUrlToLabel(
+                                    DecryptionUtility.decryptMessageOrOriginal(
+                                        text          = msg.encryptedText ?: "",
+                                        timestamp     = msg.timeStamp,
+                                        iv            = msg.iv,
+                                        tag           = msg.tag,
+                                        cipherVersion = msg.cipherVersion
+                                    )
+                                )
+                                msg.copy(decryptedText = displayText)
+                            }
+                            chat.copy(lastMessage = lastMessage)
+                        }
+                    _hiddenChats.value = decrypted
+                    _hiddenChatsCount.value = decrypted.size
+                    Log.d("ChatsViewModel", "✅ Завантажено ${decrypted.size} прихованих чатів")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ fetchHiddenChats error", e)
+            }
+        }
+    }
+
+    /**
+     * Отримує тільки кількість прихованих чатів (для бейджа вкладки).
+     */
+    fun fetchHiddenChatsCount() {
+        if (UserSession.accessToken == null) return
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.api.getHiddenChatsCount()
+                if (response.apiStatus == 200) {
+                    _hiddenChatsCount.value = response.count
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ fetchHiddenChatsCount error", e)
+            }
+        }
+    }
+
+    /**
+     * Ховає чат (server-persisted): переміщує в "приховані".
+     */
+    fun hideChat(userId: Long) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.api.hideChat(chatId = userId, hidden = "yes")
+                if (response.apiStatus == 200) {
+                    // Видаляємо з основного списку
+                    _chatList.value = _chatList.value.filter { it.userId != userId }
+                    _hiddenChatsCount.value = _hiddenChatsCount.value + 1
+                    Log.d("ChatsViewModel", "✅ Чат $userId приховано")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ hideChat error", e)
+                // Fallback: приховуємо локально
+                _chatList.value = _chatList.value.filter { it.userId != userId }
+            }
+        }
+    }
+
+    /**
+     * Показує раніше прихований чат.
+     */
+    fun unhideChat(userId: Long) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.api.hideChat(chatId = userId, hidden = "no")
+                if (response.apiStatus == 200) {
+                    _hiddenChats.value = _hiddenChats.value.filter { it.userId != userId }
+                    _hiddenChatsCount.value = maxOf(0, _hiddenChatsCount.value - 1)
+                    fetchChats()
+                    Log.d("ChatsViewModel", "✅ Чат $userId показано знову")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ unhideChat error", e)
+                _hiddenChats.value = _hiddenChats.value.filter { it.userId != userId }
+                fetchChats()
+            }
+        }
+    }
+
+    // ─── Видалення чату (3 варіанти) ─────────────────────────────────────────
+
+    /**
+     * Видалити чат тільки для себе (переписка залишається у співрозмовника).
+     */
+    fun deleteChatForMe(userId: Long, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val response = NodeRetrofitClient.api.deleteConversation(
+                    userId     = userId,
+                    deleteType = "me"
+                )
+                if (response.apiStatus == 200) {
+                    _chatList.value = _chatList.value.filter { it.userId != userId }
+                    onSuccess()
+                    Log.d("ChatsViewModel", "✅ Чат $userId видалено для мене")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ deleteChatForMe error", e)
+            }
+        }
+    }
+
+    /**
+     * Видалити чат і очистити переписку для обох сторін.
+     */
+    fun deleteChatForEveryone(userId: Long, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                // Очищаємо історію для обох
+                NodeRetrofitClient.api.clearHistory(
+                    recipientId = userId,
+                    clearType   = "everyone"
+                )
+                // Видаляємо запис розмови для себе
+                val response = NodeRetrofitClient.api.deleteConversation(
+                    userId     = userId,
+                    deleteType = "me"
+                )
+                if (response.apiStatus == 200) {
+                    _chatList.value = _chatList.value.filter { it.userId != userId }
+                    onSuccess()
+                    Log.d("ChatsViewModel", "✅ Чат $userId видалено і очищено для обох")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ deleteChatForEveryone error", e)
+            }
+        }
+    }
+
+    /**
+     * Видалити чат і заблокувати користувача.
+     */
+    fun deleteChatAndBlock(userId: Long, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                // Видаляємо чат
+                NodeRetrofitClient.api.deleteConversation(
+                    userId     = userId,
+                    deleteType = "me"
+                )
+                // Блокуємо користувача
+                NodeRetrofitClient.profileApi.blockUser(userId)
+
+                _chatList.value = _chatList.value.filter { it.userId != userId }
+                onSuccess()
+                Log.d("ChatsViewModel", "✅ Чат $userId видалено і користувача заблоковано")
+            } catch (e: Exception) {
+                Log.e("ChatsViewModel", "❌ deleteChatAndBlock error", e)
+            }
+        }
+    }
+
+    // ─── Socket ───────────────────────────────────────────────────────────────
+
     private fun setupSocket() {
         try {
             socketManager = SocketManager(this, context)
@@ -279,15 +475,11 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
         }
     }
 
-    /**
-     * Завантажує бізнес-чати (вхідні від клієнтів до власника бізнес-профілю).
-     */
     fun fetchBusinessChats() {
         if (UserSession.accessToken == null) return
         _isLoadingBusiness.value = true
         viewModelScope.launch {
             try {
-                // getBusinessInbox() = owner's view: returns clients who messaged this business
                 val response = NodeRetrofitClient.api.getBusinessInbox(limit = 50, offset = 0)
                 if (response.apiStatus == 200) {
                     _businessChatList.value = response.data ?: emptyList()
@@ -303,9 +495,6 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
         }
     }
 
-    /**
-     * Callback для нових повідомлень
-     */
     override fun onNewMessage(messageJson: JSONObject) {
         Log.d("ChatsViewModel", "Нове повідомлення отримано")
         val isBusinessMsg = messageJson.optInt("is_business_chat", 0) == 1
@@ -323,10 +512,6 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
     override fun onSocketDisconnected() {
         Log.w("ChatsViewModel", "Socket відключено")
-        // Не показуємо помилку користувачу, оскільки Socket.IO автоматично спробує переподключитися
-        // _error.value = "Втрачено з'єднання"
-
-        // Спробуємо переподключитися через 2 секунди, якщо автоматичне переподключення не спрацює
         viewModelScope.launch {
             kotlinx.coroutines.delay(2000)
             if (socketManager != null) {
@@ -342,23 +527,16 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
     override fun onSocketError(error: String) {
         Log.e("ChatsViewModel", "Помилка Socket: $error")
-        // Не показуємо помилку Socket користувачу, якщо це тимчасова помилка з'єднання
         if (!error.contains("xhr poll error", ignoreCase = true) &&
             !error.contains("timeout", ignoreCase = true)) {
             _error.value = error
         }
     }
 
-    /**
-     * Видаляє помилку при закритті
-     */
     fun clearError() {
         _error.value = null
     }
 
-    /**
-     * Конвертує URL медіа в зрозумілі мітки для відображення в списку чатів
-     */
     private fun convertMediaUrlToLabel(text: String): String {
         if (!text.startsWith("http://") && !text.startsWith("https://")) {
             return text
@@ -383,28 +561,6 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
             else -> text
         }
-    }
-
-    /**
-     * Приховує чат локально (не видаляє на сервері)
-     * @param userId ID користувача, чий чат треба приховати
-     */
-    fun hideChat(userId: Long) {
-        hiddenChatIds.add(userId)
-        // Оновлюємо список чатів, виключаючи прихований
-        _chatList.value = _chatList.value.filter { it.userId != userId }
-        Log.d("ChatsViewModel", "Чат з користувачем $userId приховано")
-    }
-
-    /**
-     * Показує раніше прихований чат
-     * @param userId ID користувача, чий чат треба показати
-     */
-    fun unhideChat(userId: Long) {
-        hiddenChatIds.remove(userId)
-        // Перезавантажуємо чати для відображення прихованого
-        fetchChats()
-        Log.d("ChatsViewModel", "Чат з користувачем $userId показано знову")
     }
 
     override fun onCleared() {
