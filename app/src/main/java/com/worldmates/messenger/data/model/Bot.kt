@@ -30,6 +30,8 @@ data class Bot(
     @SerializedName("webhook_enabled") val webhookEnabled: Int = 0,
     // Mini Apps: URL веб-приложения бота (если задан — кнопки web_app активны)
     @SerializedName("web_app_url") val webAppUrl: String? = null,
+    // Linked Wo_Users.user_id — set for system bots like WallyBot
+    @SerializedName("linked_user_id") val linkedUserId: Long? = null,
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("last_active_at") val lastActiveAt: String? = null,
     // Only returned on creation
