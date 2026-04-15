@@ -70,7 +70,7 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
      */
     fun fetchChats() {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = context.getString(R.string.geo_not_authenticated)
             Log.e("ChatsViewModel", "Access token is null!")
             return
         }
@@ -164,28 +164,28 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
                         Log.e("ChatsViewModel", "❌ 3 consecutive auth errors — forcing re-login")
                         UserSession.clearSession()
                         _needsRelogin.value = true
-                        _error.value = "Сесія застаріла. Будь ласка, увійдіть знову"
+                        _error.value = context.getString(R.string.error_session_expired)
                     } else {
-                        _error.value = response.errorMessage ?: "Помилка авторизації. Повторна спроба..."
+                        _error.value = response.errorMessage ?: context.getString(R.string.error_auth_retry)
                     }
                 } else {
                     authErrorCount = 0
-                    val errorMsg = response.errorMessage ?: "Невідома помилка (${response.apiStatus})"
+                    val errorMsg = response.errorMessage ?: context.getString(R.string.unknown_error)
                     _error.value = errorMsg
                     Log.e("ChatsViewModel", "❌ Помилка Node.js API: ${response.apiStatus} - $errorMsg")
                 }
 
                 _isLoading.value = false
             } catch (e: com.google.gson.JsonSyntaxException) {
-                _error.value = "Помилка парсингу відповіді від сервера"
+                _error.value = context.getString(R.string.error_parse_response)
                 _isLoading.value = false
                 Log.e("ChatsViewModel", "❌ JSON parse error", e)
             } catch (e: java.net.ConnectException) {
-                _error.value = "Не вдалося з'єднатися з сервером"
+                _error.value = context.getString(R.string.error_connect_server)
                 _isLoading.value = false
                 Log.e("ChatsViewModel", "❌ Connection error", e)
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = context.getString(R.string.error_with_message, e.localizedMessage ?: "")
                 _isLoading.value = false
                 Log.e("ChatsViewModel", "❌ Помилка завантаження чатів", e)
             }

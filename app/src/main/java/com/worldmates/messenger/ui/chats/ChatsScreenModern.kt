@@ -263,7 +263,7 @@ fun ChatsScreenModern(
                 title = {
                     Text(
                         text = when {
-                            selectedFolderId == "all" -> "WorldMates"
+                            selectedFolderId == "all" -> stringResource(R.string.chats_screen_title)
                             selectedFolderId == "archived" -> stringResource(R.string.archive_folder_label)
                             selectedFolderId == "hidden" -> "🔒 ${stringResource(R.string.hidden_chats)}"
                             selectedFolderId == "channels" -> stringResource(R.string.channels)
@@ -272,7 +272,7 @@ fun ChatsScreenModern(
                             selectedFolderId == "unread" -> stringResource(R.string.unread_label)
                             else -> chatFolders.find { it.id == selectedFolderId }?.let {
                                 "${it.emoji} ${it.name}"
-                            } ?: "WorldMates"
+                            } ?: stringResource(R.string.chats_screen_title)
                         },
                         style = MaterialTheme.typography.titleLarge
                     )

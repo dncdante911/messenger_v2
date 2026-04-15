@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">WorldMates NEW v2.0</string>
+    <string name="chats_screen_title">WorldMates</string>
 
     <!-- ===== LANGUAGE SELECTION ===== -->
     <string name="language_selection_title">Виберіть мову</string>
@@ -1303,6 +1304,11 @@
     <string name="error_register">Помилка реєстрації</string>
     <string name="error_no_internet">Немає з\'єднання з інтернетом</string>
     <string name="error_server">Помилка сервера. Спробуйте пізніше</string>
+    <string name="error_session_expired">Сесія застаріла. Будь ласка, увійдіть знову</string>
+    <string name="error_auth_retry">Помилка авторизації. Повторна спроба…</string>
+    <string name="error_parse_response">Помилка розбору відповіді від сервера</string>
+    <string name="error_connect_server">Не вдалося з\'єднатися з сервером</string>
+    <string name="error_with_message">Помилка: %s</string>
     <string name="error_something_wrong">Щось пішло не так</string>
     <string name="error_invalid_credentials">Невірний логін або пароль</string>
     <string name="error_user_not_found">Користувача не знайдено</string>
