@@ -1178,7 +1178,7 @@ fun ChannelListTab(
                                                 android.widget.Toast.makeText(context, context.getString(R.string.unsubscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                             },
                                             onError = { error ->
-                                                android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.error_with_message, error), android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         )
                                     } else {
@@ -1188,7 +1188,7 @@ fun ChannelListTab(
                                                 android.widget.Toast.makeText(context, context.getString(R.string.subscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                             },
                                             onError = { error ->
-                                                android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.error_with_message, error), android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         )
                                     }
@@ -1221,7 +1221,7 @@ fun ChannelListTab(
                                                         android.widget.Toast.makeText(context, context.getString(R.string.unsubscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                                     },
                                                     onError = { error ->
-                                                        android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.error_with_message, error), android.widget.Toast.LENGTH_SHORT).show()
                                                     }
                                                 )
                                             } else {
@@ -1231,7 +1231,7 @@ fun ChannelListTab(
                                                         android.widget.Toast.makeText(context, context.getString(R.string.subscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                                     },
                                                     onError = { error ->
-                                                        android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.error_with_message, error), android.widget.Toast.LENGTH_SHORT).show()
                                                     }
                                                 )
                                             }
@@ -1510,7 +1510,7 @@ fun ChannelListTabWithStories(
                                                 android.widget.Toast.makeText(context, context.getString(R.string.unsubscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                             },
                                             onError = { error ->
-                                                android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.error_with_message, error), android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         )
                                     } else {
@@ -1520,7 +1520,7 @@ fun ChannelListTabWithStories(
                                                 android.widget.Toast.makeText(context, context.getString(R.string.subscribed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                             },
                                             onError = { error ->
-                                                android.widget.Toast.makeText(context, "Помилка: $error", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, context.getString(R.string.error_with_message, error), android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         )
                                     }

@@ -214,7 +214,12 @@ fun ContactContextMenu(
                 icon = Icons.Default.Delete,
                 title = stringResource(R.string.delete_chat),
                 tint = Color(0xFFD32F2F),
-                onClick = { onDelete(chat) }
+                onClick = {
+                    scope.launch {
+                        sheetState.hide()
+                        onDelete(chat)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))

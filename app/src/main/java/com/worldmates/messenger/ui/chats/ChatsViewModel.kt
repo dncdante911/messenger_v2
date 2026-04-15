@@ -546,18 +546,18 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
 
         return when {
             lowerText.contains("/upload/photos/") ||
-            lowerText.matches(Regex(".*\\.(jpg|jpeg|png|gif|webp|bmp)$")) -> "📷 Зображення"
+            lowerText.matches(Regex(".*\\.(jpg|jpeg|png|gif|webp|bmp)$")) -> context.getString(R.string.media_label_image)
 
             lowerText.contains("/upload/videos/") ||
-            lowerText.matches(Regex(".*\\.(mp4|webm|mov|avi|mkv)$")) -> "🎬 Відео"
+            lowerText.matches(Regex(".*\\.(mp4|webm|mov|avi|mkv)$")) -> context.getString(R.string.media_label_video)
 
             lowerText.contains("/upload/sounds/") ||
-            lowerText.matches(Regex(".*\\.(mp3|wav|ogg|m4a|aac)$")) -> "🎵 Аудіо"
+            lowerText.matches(Regex(".*\\.(mp3|wav|ogg|m4a|aac)$")) -> context.getString(R.string.media_label_audio)
 
-            lowerText.matches(Regex(".*\\.gif$")) -> "🎞️ GIF"
+            lowerText.matches(Regex(".*\\.gif$")) -> context.getString(R.string.media_label_gif)
 
             lowerText.contains("/upload/files/") ||
-            lowerText.matches(Regex(".*\\.(pdf|doc|docx|xls|xlsx|zip|rar)$")) -> "📎 Файл"
+            lowerText.matches(Regex(".*\\.(pdf|doc|docx|xls|xlsx|zip|rar)$")) -> context.getString(R.string.media_label_file)
 
             else -> text
         }
