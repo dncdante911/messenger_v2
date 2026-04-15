@@ -91,6 +91,10 @@ data class Message(
     @SerializedName("lng") val lng: String? = null,
     // Contact card (Node.js private chat: raw vCard string)
     @SerializedName("contact") val contact: String? = null,
+    // Bot inline keyboard (присутній тільки в повідомленнях від ботів)
+    @SerializedName("reply_markup") val replyMarkup: BotReplyMarkup? = null,
+    // Bot ID (присутній тільки в повідомленнях від ботів)
+    @SerializedName("bot_id") val botId: String? = null,
     // Локальные поля (не приходят с сервера)
     val decryptedText: String? = null,
     val decryptedMediaUrl: String? = null, // Розшифрований URL медіа (для веб-версії)

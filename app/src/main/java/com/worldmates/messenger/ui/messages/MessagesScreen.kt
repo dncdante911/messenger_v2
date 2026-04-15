@@ -1468,6 +1468,25 @@ fun MessagesScreen(
                             onReplyClick = { replyId ->
                                 val idx = reversedMessages.indexOfFirst { it.id == replyId }
                                 if (idx >= 0) scope.launch { listState.animateScrollToItem(idx) }
+                            },
+                            onBotButtonClick = { botId, msgId, button ->
+                                when (button.type) {
+                                    com.worldmates.messenger.data.model.BotButtonType.CALLBACK -> {
+                                        viewModel.sendBotCallbackQuery(botId, msgId, button.callbackData ?: "")
+                                    }
+                                    com.worldmates.messenger.data.model.BotButtonType.URL -> {
+                                        val url = button.url
+                                        if (url != null) {
+                                            try {
+                                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                android.util.Log.w("MessagesScreen", "Cannot open URL: $url")
+                                            }
+                                        }
+                                    }
+                                    else -> {}
+                                }
                             }
                         )
                         }  // Закриття else (album/normal branch)
