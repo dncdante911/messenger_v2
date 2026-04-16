@@ -1366,16 +1366,8 @@ fun MessagesScreen(
                         isDisintegrating = message.id in deletingMessages,
                         seed = message.id
                     ) {
-                    // ✨ Анімація появи повідомлення
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = slideInVertically(
-                            initialOffsetY = { it / 4 }
-                        ) + fadeIn(
-                            initialAlpha = 0.3f
-                        ),
-                        modifier = Modifier.animateItem()
-                    ) {
+                    // ✨ Анімація появи повідомлення (animateItem handles placement)
+                    Box(modifier = Modifier.animateItem()) {
                         // 📸 Album rendering: first message of an album → MediaAlbumComponent
                         val albumId = message.albumId
                         if (albumId != null) {
