@@ -132,8 +132,8 @@ fun GifPicker(
                     )
                     Text(
                         text = when (currentMode) {
-                            GifPickerMode.TRENDING -> "Популярные"
-                            GifPickerMode.SEARCH -> "Результаты: ${gifs.size}"
+                            GifPickerMode.TRENDING -> stringResource(R.string.gif_trending_tab)
+                            GifPickerMode.SEARCH -> stringResource(R.string.gif_results_count, gifs.size)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = colorScheme.onSurfaceVariant
@@ -143,7 +143,7 @@ fun GifPicker(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Закрыть",
+                        contentDescription = stringResource(R.string.close),
                         tint = colorScheme.onSurface
                     )
                 }
@@ -170,7 +170,7 @@ fun GifPicker(
                         IconButton(onClick = { searchQuery = "" }) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Очистить"
+                                contentDescription = stringResource(R.string.gif_clear)
                             )
                         }
                     }
@@ -199,7 +199,7 @@ fun GifPicker(
                             CircularProgressIndicator()
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Загрузка GIF...",
+                                text = stringResource(R.string.gif_loading),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = colorScheme.onSurfaceVariant
                             )
@@ -218,13 +218,13 @@ fun GifPicker(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Ничего не найдено",
+                                text = stringResource(R.string.gif_empty_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Попробуйте другой запрос",
+                                text = stringResource(R.string.gif_empty_hint),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = colorScheme.onSurfaceVariant
                             )

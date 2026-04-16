@@ -3587,4 +3587,24 @@
     <string name="profile_action_message">Написать</string>
     <string name="profile_action_call">Позвонить</string>
     <string name="profile_action_video">Видео</string>
+
+    <!-- ===== PICKER COMPONENTS ===== -->
+    <string name="sticker_standard_pack_name">Стандартный пак</string>
+    <string name="sticker_standard_pack_desc">Базовые стикеры для общения</string>
+    <string name="sticker_pack_no_available">Нет доступных паков</string>
+    <string name="sticker_pack_count">%d стикеров</string>
+    <string name="sticker_pack_animated_badge">Анимированный</string>
+    <string name="gif_loading">Загрузка GIF…</string>
+    <string name="gif_empty_title">Ничего не найдено</string>
+    <string name="gif_empty_hint">Попробуйте другой запрос</string>
+    <string name="gif_results_count">Результаты: %d</string>
+    <string name="gif_clear">Очистить</string>
+    <string name="location_your_location">Ваше местоположение</string>
+    <string name="location_select_on_map">Выберите место на карте</string>
+    <string name="location_determining_address">Определение адреса…</string>
+    <string name="contact_pick_title">Выбрать контакт</string>
+    <string name="contact_not_found">Контакты не найдены</string>
+    <string name="no_results">Нет результатов</string>
+    <string name="contact_load_error">Ошибка загрузки контактов</string>
+    <string name="draft_saving">💾 Сохраняется…</string>
 </resources>

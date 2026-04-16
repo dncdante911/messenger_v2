@@ -172,11 +172,6 @@ fun MessageInputBar(
             onFileClick = { onPickFile() },
             onLocationClick = { onToggleLocationPicker() },
             onContactClick = { onToggleContactPicker() },
-            onStickerClick = { onToggleStickerPicker() },
-            onGifClick = { onToggleGifPicker() },
-            onEmojiClick = { onToggleEmojiPicker() },
-            onStrapiClick = { onToggleStrapiPicker() },
-            onBatchClick = { onBatchClick() },
             onPollClick = onPollClick
         )
         }
