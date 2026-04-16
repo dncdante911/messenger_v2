@@ -147,7 +147,9 @@ function getMessagesRoute(ctx, io) {
 
                 let type = '';
                 if (msg.media) type = 'file';
-                if (msg.stickers && msg.stickers.includes('.gif')) type = 'gif';
+                if (msg.stickers && msg.stickers.startsWith('http') && !msg.stickers.startsWith('{')) {
+                    type = msg.stickers.includes('.gif') ? 'gif' : 'sticker';
+                }
                 if (msg.type_two === 'contact') type = 'contact';
                 if (msg.lng && msg.lat && msg.lng !== '0' && msg.lat !== '0') type = 'map';
                 type = position + '_' + type;

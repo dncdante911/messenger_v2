@@ -1036,14 +1036,15 @@ class MessagesViewModel(application: Application) :
         if (groupId != 0L) {
             viewModelScope.launch {
                 try {
-                    val resp = groupApi.sendGroupMessage(groupId = groupId, text = gifUrl)
+                    // Send via stickers field (same as private chats) so the server sets type="gif"
+                    val resp = groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = gifUrl)
                     if (resp.apiStatus == 200) {
                         fetchGroupMessages()
                     } else {
-                        _error.value = resp.errorMessage ?: "Не вдалося надіслати GIF"
+                        _error.value = resp.errorMessage ?: getApplication<Application>().getString(R.string.error_send_gif)
                     }
                 } catch (e: Exception) {
-                    _error.value = "Помилка: ${e.localizedMessage}"
+                    _error.value = getApplication<Application>().getString(R.string.error_with_message, e.localizedMessage ?: "")
                 }
             }
             return

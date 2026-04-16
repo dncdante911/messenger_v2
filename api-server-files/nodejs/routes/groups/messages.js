@@ -49,7 +49,9 @@ function resolveType(msg, userId) {
     if (msg.media)                                                  type = 'file';
     if (msg.type_two === 'audio' || msg.type_two === 'voice')       type = msg.type_two;
     if (msg.type_two === 'video')                                   type = 'video';
-    if (msg.stickers && msg.stickers.includes('.gif'))              type = 'gif';
+    if (msg.stickers && msg.stickers.startsWith('http') && !msg.stickers.startsWith('{')) {
+        type = msg.stickers.includes('.gif') ? 'gif' : 'sticker';
+    }
     if (msg.type_two === 'contact')                                 type = 'contact';
     if (msg.lng && msg.lat && msg.lng !== '0' && msg.lat !== '0')  type = 'map';
     if (msg.product_id && msg.product_id > 0)                      type = 'product';
