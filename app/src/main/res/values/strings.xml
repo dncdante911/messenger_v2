@@ -3590,7 +3590,6 @@
     <string name="sticker_standard_pack_name">Стандартний пак</string>
     <string name="sticker_standard_pack_desc">Базові стікери для спілкування</string>
     <string name="sticker_pack_no_available">Немає доступних паків</string>
-    <string name="sticker_pack_count">%d стікерів</string>
     <string name="sticker_pack_animated_badge">Анімований</string>
     <string name="gif_loading">Завантаження GIF…</string>
     <string name="gif_empty_title">Нічого не знайдено</string>
