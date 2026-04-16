@@ -87,6 +87,7 @@
     <string name="error_registration">Ошибка регистрации</string>
     <string name="error_send_code">Ошибка отправки кода</string>
     <string name="error_send_sticker">Не удалось отправить стикер</string>
+    <string name="error_send_gif">Не удалось отправить GIF</string>
     <string name="enter_code_title">Введите код</string>
     <string name="code_sent_default">Код отправлен</string>
     <string name="code_resent">Код повторно отправлен</string>

@@ -13,21 +13,37 @@ fun formatTime(timestamp: Long): String {
 }
 
 /**
- * Определяет тип медиа по URL или явному типу сообщения.
- * Если message.type указан явно (не "text"), используем его.
- * Иначе определяем по расширению файла или пути в URL.
+ * Determines the media type from a URL or explicit message type.
+ *
+ * Node.js server prefixes type with position ("left_gif", "right_sticker") —
+ * those prefixes are stripped before comparison.
  */
 fun detectMediaType(url: String?, messageType: String?): String? {
-    // Если URL пустой, используем тип сообщения
+    // Strip position prefix added by Node.js (e.g. "left_gif" → "gif")
+    val cleanType = messageType?.lowercase()
+        ?.removePrefix("left_")?.removePrefix("right_")
+        ?.takeIf { it.isNotEmpty() }
+
+    // When URL is absent fall back to the message type
     if (url.isNullOrEmpty()) {
-        Log.d("detectMediaType", "URL пустий, тип повідомлення: $messageType")
-        return if (messageType?.isNotEmpty() == true && messageType != "text") messageType else "text"
+        Log.d("detectMediaType", "URL пустий, тип повідомлення: $messageType → clean: $cleanType")
+        return when {
+            cleanType == "gif" || cleanType == "sticker" -> "sticker"
+            cleanType != null && cleanType != "text" -> cleanType
+            else -> "text"
+        }
     }
 
     val lowerUrl = url.lowercase()
     Log.d("detectMediaType", "Аналіз URL: $lowerUrl, тип повідомлення: $messageType")
 
-    // Спочатку перевіряємо за шляхом (найнадійніше)
+    // Explicit gif/sticker type always wins over extension detection
+    if (cleanType == "gif" || cleanType == "sticker") {
+        Log.d("detectMediaType", "Явний тип gif/sticker → sticker")
+        return "sticker"
+    }
+
+    // Path-based detection (most reliable for uploaded files)
     val typeByPath = when {
         lowerUrl.contains("/upload/photos/") || lowerUrl.contains("/upload/images/") -> "image"
         lowerUrl.contains("/upload/videos/") -> "video"
@@ -41,29 +57,30 @@ fun detectMediaType(url: String?, messageType: String?): String? {
         return typeByPath
     }
 
-    // Потім перевіряємо за розширенням
+    // Extension-based detection
     val typeByExtension = when {
-        // Анімовані стікери
+        // Animated stickers & GIF — all rendered via AnimatedStickerView
         lowerUrl.endsWith(".json") || lowerUrl.endsWith(".lottie") ||
                 lowerUrl.endsWith(".tgs") || lowerUrl.startsWith("lottie://") ||
+                lowerUrl.endsWith(".gif") ||
                 lowerUrl.contains("/stickers/") -> "sticker"
 
-        // Изображения
+        // Static images
         lowerUrl.endsWith(".jpg") || lowerUrl.endsWith(".jpeg") ||
-                lowerUrl.endsWith(".png") || lowerUrl.endsWith(".gif") ||
+                lowerUrl.endsWith(".png") ||
                 lowerUrl.endsWith(".webp") || lowerUrl.endsWith(".bmp") -> "image"
 
-        // Видео
+        // Video
         lowerUrl.endsWith(".mp4") || lowerUrl.endsWith(".webm") ||
                 lowerUrl.endsWith(".mov") || lowerUrl.endsWith(".avi") ||
                 lowerUrl.endsWith(".mkv") || lowerUrl.endsWith(".3gp") -> "video"
 
-        // Аудио/Голос
+        // Audio / Voice
         lowerUrl.endsWith(".mp3") || lowerUrl.endsWith(".wav") ||
                 lowerUrl.endsWith(".ogg") || lowerUrl.endsWith(".m4a") ||
                 lowerUrl.endsWith(".aac") || lowerUrl.endsWith(".opus") -> "audio"
 
-        // Файлы
+        // Files
         lowerUrl.endsWith(".pdf") || lowerUrl.endsWith(".doc") ||
                 lowerUrl.endsWith(".docx") || lowerUrl.endsWith(".xls") ||
                 lowerUrl.endsWith(".xlsx") || lowerUrl.endsWith(".zip") ||
@@ -77,10 +94,10 @@ fun detectMediaType(url: String?, messageType: String?): String? {
         return typeByExtension
     }
 
-    // Якщо нічого не знайшли, використовуємо messageType
-    if (messageType?.isNotEmpty() == true && messageType != "text") {
-        Log.d("detectMediaType", "Використовую тип повідомлення: $messageType")
-        return messageType
+    // Last resort: use clean message type
+    if (cleanType != null && cleanType != "text") {
+        Log.d("detectMediaType", "Використовую тип повідомлення: $cleanType")
+        return cleanType
     }
 
     Log.d("detectMediaType", "Не вдалося визначити тип, повертаю 'text'")
@@ -88,13 +105,12 @@ fun detectMediaType(url: String?, messageType: String?): String? {
 }
 
 /**
- * Извлекает URL медиа-файла из текста сообщения.
- * Возвращает URL если он найден, иначе null.
+ * Extracts a media URL from message text.
+ * Returns the URL if found, otherwise null.
  */
 fun extractMediaUrlFromText(text: String): String? {
     val trimmed = text.trim()
 
-    // Проверяем, является ли весь текст URL
     if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
         val lowerText = trimmed.lowercase()
         if (lowerText.contains("/upload/photos/") ||
@@ -106,7 +122,6 @@ fun extractMediaUrlFromText(text: String): String? {
         }
     }
 
-    // Пытаемся найти URL медиа внутри текста
     val urlPattern = "(https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+)".toRegex()
     val match = urlPattern.find(trimmed)
 
@@ -125,18 +140,15 @@ fun extractMediaUrlFromText(text: String): String? {
 }
 
 /**
- * Проверяет, является ли текст только URL медиа-файла.
- * Если да, не нужно показывать текст отдельно (покажем только медиа).
+ * Returns true when the text is purely a media URL (no visible caption needed).
  */
 fun isOnlyMediaUrl(text: String): Boolean {
     val trimmed = text.trim()
 
-    // Если текст не похож на URL, это не чистый URL
     if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
         return false
     }
 
-    // Проверяем, содержит ли URL только медиа-ресурс без дополнительного текста
     val lowerText = trimmed.lowercase()
     val isMediaUrl = lowerText.contains("/upload/photos/") ||
             lowerText.contains("/upload/videos/") ||
@@ -150,12 +162,11 @@ fun isOnlyMediaUrl(text: String): Boolean {
             lowerText.endsWith(".mp3") ||
             lowerText.endsWith(".webm")
 
-    // Если это URL медиа и нет дополнительного текста после URL
     return isMediaUrl && !trimmed.contains(" ") && !trimmed.contains("\n")
 }
 
 /**
- * Перевірка чи URL вказує на зображення
+ * Returns true when the URL points to an image.
  */
 fun isImageUrl(url: String): Boolean {
     val imageExtensions = listOf(".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp")
@@ -167,7 +178,7 @@ fun isImageUrl(url: String): Boolean {
 }
 
 /**
- * 📳 Вібрація при активації режиму вибору
+ * 📳 Vibration when entering selection mode
  */
 fun performSelectionVibration(context: Context) {
     try {
@@ -181,13 +192,12 @@ fun performSelectionVibration(context: Context) {
 
         vibrator?.let {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Короткий подвійний імпульс: 50ms → пауза 30ms → 50ms
                 val timings = longArrayOf(0, 50, 30, 50)
                 val amplitudes = intArrayOf(0, 150, 0, 200)
                 it.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
             } else {
                 @Suppress("DEPRECATION")
-                it.vibrate(100) // Проста вібрація 100ms для старих версій
+                it.vibrate(100)
             }
         }
     } catch (e: Exception) {
@@ -204,21 +214,26 @@ fun formatAudioTime(millis: Long): String {
 }
 
 /**
- * Повертає текст превью останнього повідомлення для списку чатів.
- * Якщо повідомлення містить медіа без тексту - показує тип медіа з іконкою.
+ * Returns the last-message preview text for the chat list.
  */
 fun getLastMessagePreview(message: com.worldmates.messenger.data.model.Message): String {
     val text = message.decryptedText ?: message.encryptedText
 
-    // Визначаємо тип медіа
     val mediaUrl = message.decryptedMediaUrl ?: message.mediaUrl
-    val effectiveMediaUrl = if (!mediaUrl.isNullOrEmpty()) mediaUrl
-        else if (!text.isNullOrEmpty()) extractMediaUrlFromText(text) else null
-    val mediaType = detectMediaType(effectiveMediaUrl, message.type)
+    // Also consider stickers field (GIF/sticker URL stored there)
+    val stickerUrl = message.stickers?.takeIf { it.startsWith("http") }
+    val effectiveMediaUrl = when {
+        !mediaUrl.isNullOrEmpty() -> mediaUrl
+        stickerUrl != null -> stickerUrl
+        !text.isNullOrEmpty() -> extractMediaUrlFromText(text)
+        else -> null
+    }
+    val mediaType = when {
+        stickerUrl != null && effectiveMediaUrl == stickerUrl -> "sticker"
+        else -> detectMediaType(effectiveMediaUrl, message.type)
+    }
 
-    // Якщо є осмислений текст (не просто URL) — повертаємо його
     if (!text.isNullOrEmpty() && !isOnlyMediaUrl(text)) {
-        // Якщо є і текст і медіа — додаємо іконку типу перед текстом
         val prefix = when (mediaType) {
             "image" -> "\uD83D\uDCF7 "  // 📷
             "video" -> "\uD83C\uDFA5 "  // 🎥
@@ -231,7 +246,6 @@ fun getLastMessagePreview(message: com.worldmates.messenger.data.model.Message):
         return if (prefix.isNotEmpty() && effectiveMediaUrl != null) "$prefix$text" else text
     }
 
-    // Якщо тексту немає або він тільки URL — показуємо тип медіа
     return when (mediaType) {
         "image" -> "\uD83D\uDCF7 Фото"
         "video" -> "\uD83C\uDFA5 Відео"
@@ -246,7 +260,7 @@ fun getLastMessagePreview(message: com.worldmates.messenger.data.model.Message):
 }
 
 /**
- * Інформація про аудіо трек: виконавець та назва.
+ * Audio track info: artist and title.
  */
 data class AudioTrackInfo(
     val title: String,
@@ -255,43 +269,29 @@ data class AudioTrackInfo(
 )
 
 /**
- * Витягує інформацію про трек з URL/імені файлу.
- * Парсить формат "Artist - Title.ext" з імені файлу.
- * Якщо не вдається розпарсити — повертає "Unknown Track.ext".
- *
- * @param mediaUrl URL медіа-файлу (може містити зашифроване ім'я)
- * @param originalFileName Оригінальне ім'я файлу з поля mediaFileName (до шифрування)
+ * Extracts track info from a URL or filename.
+ * Parses "Artist - Title.ext" from the filename.
  */
 fun extractAudioTrackInfo(mediaUrl: String?, originalFileName: String? = null): AudioTrackInfo {
     if (mediaUrl.isNullOrEmpty()) {
         return AudioTrackInfo(title = "Unknown Track", artist = "", extension = "")
     }
 
-    // Використовуємо оригінальне ім'я файлу (якщо є), інакше беремо з URL
     val rawFileName = if (!originalFileName.isNullOrBlank()) {
         originalFileName
     } else {
         mediaUrl.substringAfterLast("/").substringBefore("?")
     }
 
-    // Декодуємо URL-encoded символи
     val decodedName = try {
         java.net.URLDecoder.decode(rawFileName, "UTF-8")
     } catch (e: Exception) {
         rawFileName
     }
 
-    // Розширення файлу
-    val extension = if (decodedName.contains(".")) {
-        decodedName.substringAfterLast(".")
-    } else ""
+    val extension = if (decodedName.contains(".")) decodedName.substringAfterLast(".") else ""
+    val nameWithoutExt = if (extension.isNotEmpty()) decodedName.substringBeforeLast(".") else decodedName
 
-    // Ім'я файлу без розширення
-    val nameWithoutExt = if (extension.isNotEmpty()) {
-        decodedName.substringBeforeLast(".")
-    } else decodedName
-
-    // Пробуємо розпарсити "Artist - Title"
     val separators = listOf(" - ", " — ", " – ")
     for (sep in separators) {
         if (nameWithoutExt.contains(sep)) {
@@ -306,20 +306,11 @@ fun extractAudioTrackInfo(mediaUrl: String?, originalFileName: String? = null): 
         }
     }
 
-    // Якщо ім'я файлу виглядає осмислено (не хеш/uuid/encrypted_audio_*) — використовуємо як назву
     val isHashOrEncrypted = nameWithoutExt.matches(Regex("[a-f0-9]{8,}[-_]?[a-f0-9]*")) ||
         nameWithoutExt.matches(Regex("encrypted_\\w+_\\d+_[a-f0-9]+"))
     return if (!isHashOrEncrypted && nameWithoutExt.length > 2) {
-        AudioTrackInfo(
-            title = nameWithoutExt.trim(),
-            artist = "",
-            extension = extension
-        )
+        AudioTrackInfo(title = nameWithoutExt.trim(), artist = "", extension = extension)
     } else {
-        AudioTrackInfo(
-            title = "Unknown Track",
-            artist = "",
-            extension = extension
-        )
+        AudioTrackInfo(title = "Unknown Track", artist = "", extension = extension)
     }
 }

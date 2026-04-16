@@ -371,6 +371,10 @@ fun MessageBubbleComposable(
                 }
             } else {
                 // ── Resolve media URL & type before deciding bubble style ─────────
+                // stickers field holds GIF/sticker URL when it's an http URL (not JSON poll data)
+                val stickerMediaUrl: String? = message.stickers
+                    ?.takeIf { it.startsWith("http") }
+
                 val effectiveMediaUrl: String? = when {
                     !message.decryptedMediaUrl.isNullOrEmpty() -> message.decryptedMediaUrl.also {
                         Log.d("MessageBubble", "Використовую decryptedMediaUrl: $it")
@@ -378,12 +382,19 @@ fun MessageBubbleComposable(
                     !message.mediaUrl.isNullOrEmpty() -> message.mediaUrl.also {
                         Log.d("MessageBubble", "Використовую mediaUrl: $it")
                     }
+                    stickerMediaUrl != null -> stickerMediaUrl.also {
+                        Log.d("MessageBubble", "Використовую stickers URL: $it")
+                    }
                     !message.decryptedText.isNullOrEmpty() -> extractMediaUrlFromText(message.decryptedText.orEmpty()).also {
                         Log.d("MessageBubble", "Витягнуто з тексту: $it")
                     }
                     else -> null
                 }
-                val detectedMediaType = detectMediaType(effectiveMediaUrl ?: "", message.type)
+                // When URL comes from stickers field → always "sticker" (AnimatedStickerView handles both GIFs and animated stickers)
+                val detectedMediaType = when {
+                    stickerMediaUrl != null && effectiveMediaUrl == stickerMediaUrl -> "sticker"
+                    else -> detectMediaType(effectiveMediaUrl ?: "", message.type)
+                }
                 Log.d("MessageBubble", "ID: ${message.id}, Type: ${message.type}, Detected: $detectedMediaType, URL: $effectiveMediaUrl")
 
                 val shouldShowText = !message.decryptedText.isNullOrEmpty() &&
@@ -1631,6 +1642,9 @@ fun ReplyIndicator(
             replyToMessage.type == "video"   -> stringResource(R.string.reply_type_video)
             replyToMessage.type == "image"   -> stringResource(R.string.reply_type_photo)
             replyToMessage.type == "sticker" -> stringResource(R.string.reply_type_sticker)
+            // GIF/sticker sent via stickers field (type may be "left_gif", "right_gif", or empty)
+            !replyToMessage.stickers.isNullOrEmpty() && replyToMessage.stickers!!.startsWith("http") ->
+                stringResource(R.string.reply_type_sticker)
             !replyToMessage.mediaUrl.isNullOrBlank() -> stringResource(R.string.reply_type_media)
             else -> stringResource(R.string.reply_type_message)
         }

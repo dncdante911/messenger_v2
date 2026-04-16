@@ -94,7 +94,9 @@ function getFavMessages(ctx, io) {
                 const pos  = m.from_id === userId ? 'right' : 'left';
                 let type   = '';
                 if (m.media)                                       type = 'file';
-                if (m.stickers && m.stickers.includes('.gif'))    type = 'gif';
+                if (m.stickers && m.stickers.startsWith('http') && !m.stickers.startsWith('{')) {
+                    type = m.stickers.includes('.gif') ? 'gif' : 'sticker';
+                }
                 if (m.type_two === 'contact')                     type = 'contact';
                 if (m.lng && m.lat && m.lng !== '0')              type = 'map';
                 return {

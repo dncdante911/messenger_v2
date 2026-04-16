@@ -239,7 +239,9 @@ function resolveType(msg, userId) {
     const pos = msg.from_id === userId ? 'right' : 'left';
     let type = '';
     if (msg.media)                                         type = 'file';
-    if (msg.stickers && msg.stickers.includes('.gif'))    type = 'gif';
+    if (msg.stickers && msg.stickers.startsWith('http') && !msg.stickers.startsWith('{')) {
+        type = msg.stickers.includes('.gif') ? 'gif' : 'sticker';
+    }
     if (msg.type_two === 'contact')                       type = 'contact';
     if (msg.lng && msg.lat && msg.lng !== '0')            type = 'map';
     if (msg.product_id && msg.product_id > 0)             type = 'product';
