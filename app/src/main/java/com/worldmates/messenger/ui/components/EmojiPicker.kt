@@ -1,5 +1,6 @@
 package com.worldmates.messenger.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.CustomEmoji
 import com.worldmates.messenger.data.repository.EmojiRepository
 import kotlinx.coroutines.launch
@@ -79,12 +82,12 @@ fun EmojiPicker(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Емоджі",
+                    text = stringResource(R.string.emoji_label),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Закрити")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                 }
             }
 
@@ -200,7 +203,7 @@ private fun CategoryTab(
     ) {
         Icon(
             imageVector = category.icon,
-            contentDescription = category.title,
+            contentDescription = stringResource(category.titleRes),
             tint = if (isSelected) colorScheme.primary else colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp)
         )
@@ -211,12 +214,12 @@ private fun CategoryTab(
  * Категорії емоджі
  */
 enum class EmojiCategory(
-    val title: String,
+    @StringRes val titleRes: Int,
     val icon: ImageVector,
     val emojis: List<String>
 ) {
     SMILEYS(
-        title = "Смайлики",
+        titleRes = R.string.emoji_smileys,
         icon = Icons.Default.Face,
         emojis = listOf(
             "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂",
@@ -230,7 +233,7 @@ enum class EmojiCategory(
         )
     ),
     GESTURES(
-        title = "Жести",
+        titleRes = R.string.emoji_gestures,
         icon = Icons.Default.ThumbUp,
         emojis = listOf(
             "👍", "👎", "👊", "✊", "🤛", "🤜", "🤞", "✌️",
@@ -242,7 +245,7 @@ enum class EmojiCategory(
         )
     ),
     ANIMALS(
-        title = "Тварини",
+        titleRes = R.string.emoji_animals,
         icon = Icons.Default.Pets,
         emojis = listOf(
             "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼",
@@ -254,7 +257,7 @@ enum class EmojiCategory(
         )
     ),
     FOOD(
-        title = "Їжа",
+        titleRes = R.string.emoji_food,
         icon = Icons.Default.Restaurant,
         emojis = listOf(
             "🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇",
@@ -266,7 +269,7 @@ enum class EmojiCategory(
         )
     ),
     ACTIVITIES(
-        title = "Активності",
+        titleRes = R.string.emoji_activities,
         icon = Icons.Default.SportsBasketball,
         emojis = listOf(
             "⚽️", "🏀", "🏈", "⚾️", "🥎", "🎾", "🏐", "🏉",
@@ -278,7 +281,7 @@ enum class EmojiCategory(
         )
     ),
     TRAVEL(
-        title = "Подорожі",
+        titleRes = R.string.emoji_travel,
         icon = Icons.Default.Flight,
         emojis = listOf(
             "🚗", "🚕", "🚙", "🚌", "🚎", "🏎", "🚓", "🚑",
@@ -290,7 +293,7 @@ enum class EmojiCategory(
         )
     ),
     OBJECTS(
-        title = "Об'єкти",
+        titleRes = R.string.emoji_objects,
         icon = Icons.Default.Build,
         emojis = listOf(
             "⌚️", "📱", "📲", "💻", "⌨️", "🖥", "🖨", "🖱",
@@ -302,7 +305,7 @@ enum class EmojiCategory(
         )
     ),
     SYMBOLS(
-        title = "Символи",
+        titleRes = R.string.emoji_symbols,
         icon = Icons.Default.Star,
         emojis = listOf(
             "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍",
@@ -314,7 +317,7 @@ enum class EmojiCategory(
         )
     ),
     CUSTOM(
-        title = "Кастомні",
+        titleRes = R.string.emoji_custom,
         icon = Icons.Default.AddCircle,
         emojis = emptyList()  // Кастомні емоджі завантажуються з API
     )

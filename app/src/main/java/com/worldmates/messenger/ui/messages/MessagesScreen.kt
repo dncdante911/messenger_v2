@@ -129,7 +129,9 @@ import com.worldmates.messenger.ui.components.media.MediaAlbumComponent
 import com.worldmates.messenger.ui.components.media.AudioAlbumComponent
 import com.worldmates.messenger.ui.components.media.AudioItem
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.FileProvider
 import com.worldmates.messenger.R
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -528,6 +530,26 @@ fun MessagesScreen(
                 showImagePreviewDialog = true
             } else {
                 Log.e("MessagesScreen", "Не вдалося скопіювати зображення")
+            }
+        }
+    }
+
+    // URI temp file for camera capture (TakePicture requires pre-created URI)
+    var cameraCaptureUri by remember { mutableStateOf<Uri?>(null) }
+
+    val cameraCaptureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success) {
+            cameraCaptureUri?.let { uri ->
+                Log.d("MessagesScreen", "Знято фото камерою: $uri")
+                val file = fileManager.copyUriToCache(uri)
+                if (file != null) {
+                    pendingImageFile = file
+                    showImagePreviewDialog = true
+                } else {
+                    Log.e("MessagesScreen", "Не вдалося скопіювати фото з камери")
+                }
             }
         }
     }
@@ -1999,11 +2021,26 @@ fun MessagesScreen(
                         }
                     },
                     onShowMediaOptions = { showMediaOptions = !showMediaOptions },
-                    onPickImage = { imagePickerLauncher.launch("image/*") },
+                    onPickImage = { multipleFilesPickerLauncher.launch("image/*") },
                     onPickVideo = { videoPickerLauncher.launch("video/*") },
                     onPickAudio = { audioPickerLauncher.launch("audio/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
-                    onCameraClick = { imagePickerLauncher.launch("image/*") },
+                    onCameraClick = {
+                        try {
+                            val photoFile = File.createTempFile(
+                                "camera_${System.currentTimeMillis()}", ".jpg", context.cacheDir
+                            )
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                photoFile
+                            )
+                            cameraCaptureUri = uri
+                            cameraCaptureLauncher.launch(uri)
+                        } catch (e: Exception) {
+                            Log.e("MessagesScreen", "Не вдалося запустити камеру: ${e.message}")
+                        }
+                    },
                     onBatchClick = { multipleFilesPickerLauncher.launch("image/*") },
                     onVideoCameraClick = { if (onRequestVideoPermissions()) showVideoMessageRecorder = true },
                     showMediaOptions = showMediaOptions,
@@ -2037,7 +2074,7 @@ fun MessagesScreen(
                         contentAlignment = androidx.compose.ui.Alignment.CenterEnd
                     ) {
                         androidx.compose.material3.Text(
-                            text = "💾 Сохраняется...",
+                            text = stringResource(R.string.draft_saving),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )

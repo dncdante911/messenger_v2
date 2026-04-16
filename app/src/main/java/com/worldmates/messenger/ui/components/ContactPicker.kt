@@ -64,7 +64,7 @@ fun ContactPicker(
                     isLoading = false
                 }
                 .onFailure { error ->
-                    errorMessage = error.message ?: "Ошибка загрузки контактов"
+                    errorMessage = error.message ?: context.getString(R.string.contact_load_error)
                     isLoading = false
                 }
         }
@@ -100,12 +100,12 @@ fun ContactPicker(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Выбрать контакт",
+                    text = stringResource(R.string.contact_pick_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Закрыть")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                 }
             }
 
@@ -169,7 +169,7 @@ fun ContactPicker(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (searchQuery.isEmpty()) "Контакты не найдены" else "Нет результатов",
+                            text = if (searchQuery.isEmpty()) stringResource(R.string.contact_not_found) else stringResource(R.string.no_results),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )

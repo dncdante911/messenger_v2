@@ -3443,4 +3443,24 @@
     <string name="profile_action_message">Написати</string>
     <string name="profile_action_call">Дзвінок</string>
     <string name="profile_action_video">Відео</string>
+
+    <!-- ===== PICKER COMPONENTS ===== -->
+    <string name="sticker_standard_pack_name">Стандартний пак</string>
+    <string name="sticker_standard_pack_desc">Базові стікери для спілкування</string>
+    <string name="sticker_pack_no_available">Немає доступних паків</string>
+    <string name="sticker_pack_count">%d стікерів</string>
+    <string name="sticker_pack_animated_badge">Анімований</string>
+    <string name="gif_loading">Завантаження GIF…</string>
+    <string name="gif_empty_title">Нічого не знайдено</string>
+    <string name="gif_empty_hint">Спробуйте інший запит</string>
+    <string name="gif_results_count">Результати: %d</string>
+    <string name="gif_clear">Очистити</string>
+    <string name="location_your_location">Ваше місцезнаходження</string>
+    <string name="location_select_on_map">Виберіть місце на карті</string>
+    <string name="location_determining_address">Визначення адреси…</string>
+    <string name="contact_pick_title">Вибрати контакт</string>
+    <string name="contact_not_found">Контакти не знайдено</string>
+    <string name="no_results">Немає результатів</string>
+    <string name="contact_load_error">Помилка завантаження контактів</string>
+    <string name="draft_saving">💾 Зберігається…</string>
 </resources>

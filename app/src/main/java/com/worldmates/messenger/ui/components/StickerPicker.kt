@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.Sticker
 import com.worldmates.messenger.data.model.StickerPack
@@ -65,11 +66,13 @@ fun StickerPicker(
     val embeddedPacks = remember { EmbeddedStickerPacks.getAllEmbeddedPacks() }
 
     // Стандартний пак стікерів (emoji fallback)
-    val standardPack = remember {
+    val standardPackName = stringResource(R.string.sticker_standard_pack_name)
+    val standardPackDesc = stringResource(R.string.sticker_standard_pack_desc)
+    val standardPack = remember(standardPackName, standardPackDesc) {
         StickerPack(
             id = 1,
-            name = "Стандартний пак",
-            description = "Базові стікери для спілкування",
+            name = standardPackName,
+            description = standardPackDesc,
             stickers = getStandardStickers(),
             isActive = true
         )
@@ -122,16 +125,16 @@ fun StickerPicker(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Стікери",
+                    text = stringResource(R.string.stickers_label),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Row {
                     IconButton(onClick = { showManageSheet = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Управління паками")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.sticker_manage_title))
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Закрити")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
                 }
             }
@@ -347,7 +350,7 @@ fun StickerPackManagementSheet(onDismiss: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Управління паками стікерів",
+                    text = stringResource(R.string.sticker_manage_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -366,7 +369,7 @@ fun StickerPackManagementSheet(onDismiss: () -> Unit) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator()
                         Spacer(Modifier.height(8.dp))
-                        Text("Завантаження паків…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.sticker_packs_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             } else if (allStrapiPacks.isEmpty()) {
@@ -374,7 +377,7 @@ fun StickerPackManagementSheet(onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().height(80.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Немає доступних паків", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.sticker_pack_no_available), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(modifier = Modifier.heightIn(max = 480.dp)) {
@@ -385,6 +388,8 @@ fun StickerPackManagementSheet(onDismiss: () -> Unit) {
                             it.endsWith(".gif") || it.endsWith(".json") || it.endsWith(".tgs")
                         } == true
 
+                        val packCountStr = stringResource(R.string.sticker_pack_count, pack.items.size)
+                        val animatedBadge = stringResource(R.string.sticker_pack_animated_badge)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -416,8 +421,8 @@ fun StickerPackManagementSheet(onDismiss: () -> Unit) {
                                 Text(pack.name, fontWeight = FontWeight.Medium)
                                 Text(
                                     text = buildString {
-                                        append("${pack.items.size} стікерів")
-                                        if (isAnimated) append(" • Анімований")
+                                        append(packCountStr)
+                                        if (isAnimated) append(" • $animatedBadge")
                                         if (pack.isPro) append(" • PRO")
                                     },
                                     fontSize = 12.sp,

@@ -220,7 +220,7 @@ fun LocationPicker(
                             if (pickerMode == LocationPickerMode.LIVE && selectedLocation != null) {
                                 Marker(
                                     state = MarkerState(position = selectedLocation!!),
-                                    title = "Ваше местоположение"
+                                    title = stringResource(R.string.location_your_location)
                                 )
                             }
                         }
@@ -270,7 +270,7 @@ fun LocationPicker(
                             } else {
                                 Icon(
                                     Icons.Default.MyLocation,
-                                    contentDescription = "Моя геолокация",
+                                    contentDescription = stringResource(R.string.my_location),
                                     tint = colorScheme.onPrimaryContainer
                                 )
                             }
@@ -287,7 +287,7 @@ fun LocationPicker(
                         ) {
                             Icon(
                                 Icons.Default.Close,
-                                contentDescription = "Закрыть",
+                                contentDescription = stringResource(R.string.close),
                                 tint = Color.White
                             )
                         }
@@ -305,7 +305,7 @@ fun LocationPicker(
                         ) {
                             // Адрес
                             Text(
-                                text = if (isLoadingAddress) "Определение адреса..." else address.ifEmpty { "Выберите место на карте" },
+                                text = if (isLoadingAddress) stringResource(R.string.location_determining_address) else address.ifEmpty { stringResource(R.string.location_select_on_map) },
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium,
                                 color = if (address.isEmpty() && !isLoadingAddress)
