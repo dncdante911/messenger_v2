@@ -1199,6 +1199,24 @@ interface NodeApi {
         @Field("platform")  platform: String = "android",
     ): NodeSimpleResponse
 
+    // ─── Crash Reporting ──────────────────────────────────────────────────────
+
+    /**
+     * Upload a crash report log file to the server.
+     * Sent automatically on the next app launch after a crash.
+     *
+     * @param report   Full text of the crash report (stack trace + device info)
+     * @param filename Suggested filename: crash_{userId}_{datetime}.log
+     * @param secret   Shared secret to prevent unauthenticated spam
+     */
+    @FormUrlEncoded
+    @POST(Constants.NODE_CRASH_REPORT)
+    suspend fun sendCrashReport(
+        @Field("report")   report:   String,
+        @Field("filename") filename: String,
+        @Field("secret")   secret:   String
+    ): NodeSimpleResponse
+
 }
 
 // ═══════════════════════ RESPONSE MODELS ═════════════════════════════════════
