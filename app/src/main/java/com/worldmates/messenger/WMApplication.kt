@@ -19,6 +19,7 @@ import com.worldmates.messenger.update.AppUpdateManager
 import com.worldmates.messenger.services.NotificationKeepAliveManager
 import com.worldmates.messenger.services.SecretChatCleanupWorker
 import com.worldmates.messenger.services.SubscriptionSyncWorker
+import com.worldmates.messenger.utils.CrashReporter
 import com.worldmates.messenger.utils.LanguageManager
 
 /**
@@ -35,6 +36,10 @@ class WMApplication : android.app.Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        // Crash reporter — встановлюємо першим, щоб перехопити будь-який краш
+        CrashReporter.install(this)
+        CrashReporter.sendPendingReports()
 
         // Ініціалізація менеджера мови (до будь-чого іншого)
         LanguageManager.init(this)

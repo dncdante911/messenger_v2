@@ -72,6 +72,9 @@ object Constants {
     const val NODE_CHAT_HIDE         = "api/node/chat/hide"         // hide/unhide chat (server-persisted)
     const val NODE_CHAT_HIDDEN_COUNT = "api/node/chat/hidden/count" // count of hidden chats
 
+    // Crash Reporting
+    const val NODE_CRASH_REPORT = "api/node/crash-report"          // POST crash log to server
+
     // Favorites
     const val NODE_CHAT_FAV      = "api/node/chat/fav"                 // fav/unfav message
     const val NODE_CHAT_FAV_LIST = "api/node/chat/fav-list"            // get favorites

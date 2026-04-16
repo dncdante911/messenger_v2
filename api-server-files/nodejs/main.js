@@ -74,6 +74,7 @@ const { registerLinkPreviewRoutes }  = require('./routes/link-preview')
 const { registerStarsRoutes }                = require('./routes/stars')
 const { registerChannelScheduledPostRoutes } = require('./routes/channels/scheduled-posts')
 const { registerVoiceTranscriptionRoutes }   = require('./routes/voice-transcription')
+const { registerCrashReportRoutes }          = require('./routes/crash-report')
 const { startCronJobs }              = require('./jobs/cronJobs')
 const setupMediaAutoDeleteJob        = require('./jobs/media-auto-delete')
 const { createGeoblockMiddleware }   = require('./middleware/geoblock')
@@ -1316,6 +1317,7 @@ async function main() {
   // Register Global Search route
   registerSearchRoutes(app, ctx);
   registerLinkPreviewRoutes(app);
+  registerCrashReportRoutes(app);
   ctx.handleBusinessAutoReply = handleBusinessAutoReply;
 
   // ── Background cron jobs (premium expiry, story cleanup, notification purge)
