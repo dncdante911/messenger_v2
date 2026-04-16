@@ -3,7 +3,7 @@
     <string name="app_name">WorldMates NEW v2.0</string>
     <string name="chats_screen_title">WorldMates</string>
 
-    
+
     <string name="language_selection_title">Выберите язык</string>
     <string name="language_selection_subtitle">Выберите язык интерфейса. Вы сможете изменить его позже в настройках.</string>
     <string name="language_ukrainian">Українська</string>
@@ -16,7 +16,7 @@
     <string name="language_settings_title">Язык интерфейса</string>
     <string name="language_settings_subtitle">Выберите язык приложения</string>
 
-    
+
     <string name="login">Вход</string>
     <string name="register">Регистрация</string>
     <string name="username">Имя пользователя</string>
@@ -62,7 +62,7 @@
     <string name="restore_via_phone">Восстановить доступ через номер телефона</string>
     <string name="send_code">Отправить код</string>
 
-    
+
     <string name="login_world_subtitle">Общайтесь с друзьями по всему миру</string>
     <string name="login_email_tab">Логин/Email</string>
     <string name="recovery_access_btn">Восстановление доступа</string>
@@ -127,7 +127,7 @@
     <string name="resend_code_full">Отправить код повторно</string>
     <string name="gender_select_label">Выберите пол:</string>
 
-    
+
     <string name="chats">Чаты</string>
     <string name="messages">Сообщения</string>
     <string name="groups">Группы</string>
@@ -138,7 +138,7 @@
     <string name="bots">Боты</string>
     <string name="settings">Настройки</string>
 
-    
+
     <string name="search_chats">Поиск чатов…</string>
     <string name="search">Поиск</string>
     <string name="new_chat">Новый чат</string>
@@ -203,7 +203,7 @@
     <string name="custom_tag">Свой тег</string>
     <string name="nickname">Псевдоним</string>
 
-    
+
     <string name="drafts_title">Черновики</string>
     <string name="no_drafts">Нет черновиков</string>
     <string name="no_drafts_subtitle">Черновики сообщений появятся здесь</string>
@@ -212,7 +212,7 @@
     <string name="delete_draft">Удалить черновик?</string>
     <string name="delete_draft_confirm">Вы уверены, что хотите удалить этот черновик?</string>
 
-    
+
     <string name="type_message">Напишите сообщение…</string>
     <string name="send">Отправить</string>
     <string name="photo">Фото</string>
@@ -291,7 +291,7 @@
     <string name="more_options">Больше</string>
     <string name="my_location">Моя геолокация</string>
 
-    
+
     <string name="create_group">Создать группу</string>
     <string name="group_name_hint">Название группы *</string>
     <string name="group_name">Название группы</string>
@@ -377,7 +377,7 @@
     <string name="add_photo">Добавить фото</string>
     <string name="change_photo">Изменить фото</string>
 
-    
+
     <string name="enter_group_name">Введите название группы</string>
     <string name="describe_group">Опишите группу…</string>
     <string name="tap_to_add_group_photo">Нажмите чтобы добавить фото группы</string>
@@ -395,7 +395,7 @@
     <string name="group_qr_code_label">QR код группы</string>
     <string name="scan_or_share_qr">Отсканируйте этот QR код или поделитесь ссылкой</string>
 
-    
+
     <string name="formatting_subtitle_channel">Настройте, какие функции форматирования доступны для публикаций</string>
     <string name="formatting_subtitle_group">Настройте, какие функции форматирования доступны участникам</string>
     <string name="quick_settings">Быстрые настройки</string>
@@ -419,14 +419,14 @@
     <string name="text_formatting">Форматирование текста</string>
     <string name="configure_allowed_features">Настроить разрешённые функции</string>
 
-    
+
     <string name="ready_templates">Готовые шаблоны</string>
     <string name="accent_color">Акцентный цвет</string>
     <string name="reset_to_global_theme">Сбросить до глобальной темы</string>
     <string name="custom_theme_applied">Кастомная тема установлена</string>
     <string name="using_global_theme">Используется глобальная тема</string>
 
-    
+
     <string name="admin_panel">Панель администратора</string>
     <string name="general_tab">Общие</string>
     <string name="permissions_tab">Права</string>
@@ -439,26 +439,26 @@
     <string name="today_label">Сегодня</string>
     <string name="week_label">За неделю</string>
 
-    
+
     <string name="scheduled_posts_title">Запланированные посты</string>
     <string name="posts_in_queue">%d постов в очереди</string>
     <string name="create_post">Создать пост</string>
     <string name="and_more_posts">… и ещё %d постов</string>
 
-    
+
     <string name="pinned_label">Закреплено</string>
     <string name="media_label">Медиа</string>
     <string name="pinned_message_with_emoji">📌 Закреплённое сообщение</string>
     <string name="media_with_emoji">🖼️ Медиа</string>
 
-    
+
     <string name="invite_members_title">Пригласить участников</string>
     <string name="to_group_format">в %s</string>
     <string name="search_users_placeholder">Поиск пользователей по имени или нику…</string>
     <string name="topics">Темы</string>
     <string name="new_topic">Новая тема</string>
 
-    
+
     <string name="channel_tab_info">Информация</string>
     <string name="channel_tab_settings">Настройки</string>
     <string name="channel_tab_stats">Статистика</string>
@@ -466,7 +466,7 @@
     <string name="channel_tab_members">Участники</string>
     <string name="channel_tab_banned">Заблокированные</string>
 
-    
+
     <string name="create_channel">Создать канал</string>
     <string name="channel_name_hint">Название канала *</string>
     <string name="channel_name">Название канала</string>
@@ -505,7 +505,7 @@
     <string name="comments_label">Комментарии</string>
     <string name="share_post">Поделиться</string>
 
-    
+
     <string name="channel_detail_subscribers">подписчиков</string>
     <string name="channel_detail_posts">постов</string>
     <string name="channel_detail_pinned">Закреплено</string>
@@ -516,7 +516,7 @@
     <string name="channel_detail_no_posts">Постов ещё нет</string>
     <string name="channel_detail_create_first">Создайте первый пост!</string>
 
-    
+
     <string name="post_detail_title">Детали поста</string>
     <string name="post_detail_views">Просмотров</string>
     <string name="post_detail_reactions">Реакций</string>
@@ -545,7 +545,7 @@
     <string name="peak_hours">Пиковые часы публикаций</string>
     <string name="active_24h">Активные (24ч)</string>
 
-    
+
     <string name="voice_call">Голосовой звонок</string>
     <string name="video_call">Видеозвонок</string>
     <string name="incoming_call">Входящий звонок</string>
@@ -572,7 +572,7 @@
     <string name="call_back">Перезвонить</string>
     <string name="add_to_call">Добавить к звонку</string>
 
-    
+
     <string name="my_profile">Мой профиль</string>
     <string name="edit_profile">Редактировать профиль</string>
     <string name="profile_photo">Фото профиля</string>
@@ -623,7 +623,7 @@
     <string name="rate_user">Оцените этого пользователя:</string>
     <string name="already_rated">Вы уже оценили этого пользователя. Нажмите кнопку ещё раз чтобы снять оценку.</string>
 
-    
+
     <string name="settings_title">Настройки</string>
     <string name="account_section">Аккаунт</string>
     <string name="security_section">Безопасность</string>
@@ -672,7 +672,7 @@
     <string name="followers_count_fmt">%s подписчиков</string>
     <string name="following_count_fmt">%s подписок</string>
 
-    
+
     <string name="privacy_title">Конфиденциальность</string>
     <string name="last_seen_privacy">Время последнего визита</string>
     <string name="profile_photo_privacy">Фото профиля</string>
@@ -705,7 +705,7 @@
     <string name="privacy_who_sees_birthday_short">День рождения</string>
     <string name="privacy_who_sees_visits_short">Посещения профиля</string>
 
-    
+
     <string name="notifications_title">Уведомления</string>
     <string name="notifications_enabled">Уведомления</string>
     <string name="sound_notifications">Звук</string>
@@ -729,7 +729,7 @@
     <string name="group_joins">Вступление в группу</string>
     <string name="gifts">Подарки</string>
 
-    
+
     <string name="security_title">Безопасность</string>
     <string name="two_factor_title">Двухфакторная аутентификация</string>
     <string name="two_factor_subtitle">Защитите свой аккаунт дополнительным уровнем безопасности</string>
@@ -759,7 +759,7 @@
     <string name="confirm_identity">Подтвердите свою личность</string>
     <string name="unlock_app_prompt">Разблокируйте приложение</string>
 
-    
+
     <string name="backup_title">Резервная копия</string>
     <string name="cloud_backup">Облачная резервная копия</string>
     <string name="backup_now">Создать резервную копию сейчас</string>
@@ -796,7 +796,7 @@
     <string name="auto_save_cloud">Автоматическое сохранение в облако</string>
     <string name="cloud_provider">Провайдер облака</string>
 
-    
+
     <string name="stories_title">Истории</string>
     <string name="add_story">Добавить историю</string>
     <string name="my_story">Моя история</string>
@@ -812,7 +812,7 @@
     <string name="reply_to_story">Ответить на историю</string>
     <string name="mute_story">Выключить звук</string>
 
-    
+
     <string name="bots_title">Боты</string>
     <string name="bot_store">Магазин ботов</string>
     <string name="my_bots">Мои боты</string>
@@ -830,7 +830,7 @@
     <string name="bot_catalog">Каталог ботов</string>
     <string name="bot_name_hint">Название бота *</string>
     <string name="bot_description_hint">Описание</string>
-    
+
     <string name="bot_search_hint">Поиск ботов...</string>
     <string name="bot_category_all">Все</string>
     <string name="bot_not_found">Ботов не найдено</string>
@@ -842,7 +842,7 @@
     <string name="bot_start_chat">Начать чат</string>
     <string name="bot_description_label">Описание</string>
     <string name="bot_commands_count">Команды (%d)</string>
-    
+
     <string name="bot_category_general">Общее</string>
     <string name="bot_category_news">Новости</string>
     <string name="bot_category_weather">Погода</string>
@@ -853,7 +853,7 @@
     <string name="bot_category_finance">Финансы</string>
     <string name="bot_category_education">Образование</string>
     <string name="bot_category_games">Игры</string>
-    
+
     <string name="bot_commands_menu_title">Команды бота</string>
     <string name="bot_badge_label">бот</string>
     <string name="bot_start_button">СТАРТ</string>
@@ -862,7 +862,7 @@
     <string name="bot_poll_votes">%d голосов</string>
     <string name="bot_badge">БОТ</string>
     <string name="bot_poll_closed_footer">Опрос закрыт · %d голосов</string>
-    
+
     <string name="bot_no_bots_title">У вас нет ботов</string>
     <string name="bot_no_bots_hint">Создайте своего первого бота</string>
     <string name="bot_create_button">Создать бота</string>
@@ -875,7 +875,7 @@
     <string name="bot_stat_messages_count">Сообщений: %d</string>
     <string name="bot_stat_commands_count">Команд: %d</string>
     <string name="bot_regenerate_token">Перегенерировать токен</string>
-    
+
     <string name="bot_created_success">Бот @%s создан!</string>
     <string name="bot_new_bot_title">Новый бот</string>
     <string name="bot_created_title">Бот создан!</string>
@@ -888,7 +888,7 @@
     <string name="bot_category_label">Категория:</string>
     <string name="bot_public_label">Публичный бот (виден в каталоге)</string>
     <string name="bot_can_join_groups">Может вступать в группы</string>
-    
+
     <string name="bot_rss_title">RSS-ленты</string>
     <string name="bot_rss_add">Добавить RSS-ленту</string>
     <string name="bot_rss_empty_title">Нет RSS-лент</string>
@@ -905,7 +905,7 @@
     <string name="bot_rss_error_chat_id">ID чата обязателен</string>
     <string name="bot_rss_field_name">Название ленты (необязательно)</string>
     <string name="bot_rss_field_name_hint">Моя лента новостей</string>
-    
+
     <string name="bot_error_not_authenticated">Не аутентифицирован</string>
     <string name="bot_error_load_failed">Не удалось загрузить ботов</string>
     <string name="bot_error_username_required">Username обязателен</string>
@@ -913,7 +913,7 @@
     <string name="bot_error_username_format">Username должен заканчиваться на _bot</string>
     <string name="bot_error_create_failed">Ошибка создания бота</string>
 
-    
+
     <string name="gallery">Галерея</string>
     <string name="camera">Камера</string>
     <string name="media_settings">Настройки медиа</string>
@@ -935,7 +935,7 @@
     <string name="pack_empty">Пак пустой</string>
     <string name="select_country">Выбрать страну</string>
 
-    
+
     <string name="theme_title">Темы и оформление</string>
     <string name="choose_theme">Выберите тему</string>
     <string name="dark_theme">Тёмная тема</string>
@@ -958,16 +958,16 @@
     <string name="one_click_theme_desc">Полный пакет оформления: тема + фон + реакция + пузырьки + стиль</string>
     <string name="call_frame_style_title">Стиль рамок видеозвонков</string>
     <string name="video_frame_style_title">Стиль рамки видеосообщения</string>
-    
+
     <string name="appearance_section">Внешний вид</string>
     <string name="bubble_style_title">Стиль пузырьков</string>
     <string name="quick_reaction_title">Быстрая реакция</string>
 
-    
-    
+
+
     <string name="bg_section_title">Фоновое изображение</string>
     <string name="bg_section_desc">Собственный фон для чатов</string>
-    
+
     <string name="animated_bg_section_title">Анимированный фон</string>
     <string name="animated_bg_section_desc">Живой Canvas-фон для чата</string>
     <string name="animated_bg_none">Без анимации</string>
@@ -990,28 +990,28 @@
     <string name="bg_no_background">Нет фона</string>
     <string name="bg_pick">Выбрать фон</string>
     <string name="bg_change">Изменить фон</string>
-    
+
     <string name="bg_ocean">Океан</string>
     <string name="bg_midnight">Полночь</string>
     <string name="bg_deep_space">Глубокий космос</string>
-    
+
     <string name="bg_sunset">Закат</string>
     <string name="bg_peach">Персик</string>
     <string name="bg_fire">Огонь</string>
     <string name="bg_sand_dunes">Песчаные дюны</string>
-    
+
     <string name="bg_forest">Лес</string>
     <string name="bg_spring">Весна</string>
     <string name="bg_cherry">Вишня</string>
-    
+
     <string name="bg_lavender">Лаванда</string>
     <string name="bg_cotton_candy">Сахарная вата</string>
     <string name="bg_morning_mist">Утренний туман</string>
-    
+
     <string name="bg_aurora">Полярное сияние</string>
     <string name="bg_cosmic">Космос</string>
     <string name="bg_neon_city">Неоновый город</string>
-    
+
     <string name="bg_winter">Зима</string>
     <string name="bg_messenger">Синий мессенджер</string>
     <string name="bg_rose_quartz">Розовый кварц</string>
@@ -1021,7 +1021,7 @@
     <string name="bg_arctic_blue">Арктическая лазурь</string>
     <string name="bg_deep_plum">Глубокая слива</string>
 
-    
+
     <string name="player">Плеер</string>
     <string name="music_background_note">Музыка продолжит играть при сворачивании и выключении экрана</string>
     <string name="add_music">Добавить музыку</string>
@@ -1034,7 +1034,7 @@
     <string name="voice_transcribing">Распознавание…</string>
     <string name="voice_transcript_truncated">…показать полностью (PRO)</string>
 
-    
+
     <string name="emoji_smileys">Смайлики</string>
     <string name="emoji_gestures">Жесты</string>
     <string name="emoji_animals">Животные</string>
@@ -1048,7 +1048,7 @@
     <string name="emoji_stickers">Стикеры</string>
     <string name="emoji_label">Эмодзи</string>
 
-    
+
     <string name="cancel">Отмена</string>
     <string name="ok">ОК</string>
     <string name="delete">Удалить</string>
@@ -1088,7 +1088,7 @@
     <string name="restore">Восстановить</string>
     <string name="fullscreen">На весь экран</string>
 
-    
+
     <string name="notif_section_general">ОБЩИЕ</string>
     <string name="email_notifications_desc">Получать уведомления на электронную почту</string>
     <string name="notif_section_social">СОЦИАЛЬНЫЕ УВЕДОМЛЕНИЯ</string>
@@ -1118,7 +1118,7 @@
     <string name="notif_gift">Подарки</string>
     <string name="notif_gift_desc">Когда кто-то отправил вам подарок</string>
 
-    
+
     <string name="tap_to_change_photo">Нажмите, чтобы изменить фото</string>
     <string name="gender_male">Мужской</string>
     <string name="gender_female">Женский</string>
@@ -1126,13 +1126,13 @@
     <string name="working_place">Место работы</string>
     <string name="school">Учебное заведение</string>
 
-    
+
     <string name="no_blocked_users">Нет заблокированных пользователей</string>
     <string name="no_blocked_users_desc">Когда вы заблокируете кого-то, они появятся здесь</string>
     <string name="unblock_confirm_title">Разблокировать пользователя?</string>
     <string name="blocked_users_info">Заблокированные пользователи не могут отправлять вам сообщения или звонить</string>
 
-    
+
     <string name="storage_stats_section">Статистика хранилища</string>
     <string name="backup_settings_section">Настройки резервного копирования</string>
     <string name="enable_backup_desc">Автоматическое сохранение в облако</string>
@@ -1140,7 +1140,7 @@
     <string name="backup_now_desc">Сохранить все данные на сервер</string>
     <string name="no_backups_available">Нет доступных резервных копий</string>
 
-    
+
     <string name="app_protected">Приложение защищено</string>
     <string name="protection_disabled">Защита отключена</string>
     <string name="pin_active_status">PIN-код: активен</string>
@@ -1154,7 +1154,7 @@
     <string name="disable_pin_message">Это также отключит биометрическую аутентификацию. Приложение больше не будет защищено.</string>
     <string name="disable_action_label">Отключить</string>
 
-    
+
     <string name="what_is_2fa_title">Что такое 2FA?</string>
     <string name="what_is_2fa_desc">Двухфакторная аутентификация добавляет дополнительный уровень безопасности. Кроме пароля, вам нужно будет ввести 6-значный код из Google Authenticator.</string>
     <string name="account_protected_2fa">Ваш аккаунт защищён</string>
@@ -1174,7 +1174,7 @@
     <string name="two_status_enabled">2FA Включено</string>
     <string name="two_status_disabled">2FA Выключено</string>
 
-    
+
     <string name="create_pin_title">Создать PIN-код</string>
     <string name="enter_4digit_pin_subtitle">Введите 4-значный PIN-код</string>
     <string name="confirm_pin_title">Подтвердить PIN-код</string>
@@ -1185,7 +1185,7 @@
     <string name="wrong_pin_message">Неверный PIN-код</string>
     <string name="use_biometric">Использовать биометрию</string>
 
-    
+
     <string name="auto_download_media">Автоматически загружать медиафайлы</string>
     <string name="up_to_mb">До %d МБ</string>
     <string name="files_label">Файлы</string>
@@ -1210,7 +1210,7 @@
     <string name="select_action">Выбрать</string>
     <string name="create_action">Создать</string>
 
-    
+
     <string name="qr_code_label">QR-код</string>
     <string name="more_options_label">Больше</string>
     <string name="avatar_desc">Аватар</string>
@@ -1232,7 +1232,7 @@
     <string name="no_publications_yet">Публикаций пока нет...</string>
     <string name="publish_photos_videos_cta">Публикуйте фото и видео в своём профиле</string>
 
-    
+
     <string name="settings_header">Настройки</string>
     <string name="nav_back">Назад</string>
     <string name="nav_edit">Редактировать</string>
@@ -1241,7 +1241,7 @@
     <string name="update_auto_check">Автопроверка с сервера каждые 30 мин</string>
     <string name="update_available_version">Доступна версия %s</string>
 
-    
+
     <string name="update_screen_title">Обновление</string>
     <string name="update_current_version">Текущая версия</string>
     <string name="update_latest_version">Последняя версия</string>
@@ -1263,7 +1263,7 @@
     <string name="changelog_section_removed">Удалено</string>
     <string name="update_no_changelog">Описание изменений отсутствует</string>
 
-    
+
     <string name="error_network">Ошибка сети</string>
     <string name="error_login">Ошибка входа</string>
     <string name="error_register">Ошибка регистрации</string>
@@ -1283,7 +1283,7 @@
     <string name="publish_photos_videos">Публикуйте фото и видео в своём профиле</string>
     <string name="search_media">Поиск медиа…</string>
 
-    
+
     <string name="call_frame_select_desc">Выберите стиль рамки для видеозвонков</string>
     <string name="frame_style_classic">Классическая</string>
     <string name="frame_style_neon">Неоновая</string>
@@ -1298,7 +1298,7 @@
     <string name="frame_style_glass_desc">Стеклянный эффект с прозрачностью</string>
     <string name="frame_style_rainbow_desc">Радужная анимированная рамка</string>
 
-    
+
     <string name="video_frame_select_desc">Выберите стиль рамки для ваших видеосообщений</string>
     <string name="video_frame_circle_desc">Классический круглый стиль как в Telegram</string>
     <string name="video_frame_rounded_desc">Закруглённые углы, современный вид</string>
@@ -1308,11 +1308,11 @@
     <string name="video_tip_title">💡 Подсказка</string>
     <string name="video_tip_text">Видеосообщения до 2 минут для всех пользователей.\nPRO пользователи могут записывать до 5 минут!</string>
 
-    
+
     <string name="no_groups_joined">Вы ещё не присоединились ни к одной группе</string>
     <string name="error_loading_groups">Ошибка загрузки групп</string>
 
-    
+
     <string name="profile">Профиль</string>
     <string name="tab_calls">Звонки</string>
     <string name="tab_stories">Новости</string>
@@ -1335,7 +1335,7 @@
     <string name="apply_theme">Применить тему</string>
     <string name="theme_preview">Предварительный просмотр</string>
 
-    
+
     <string name="clear_history_confirm">Вы уверены, что хотите удалить всю историю звонков?</string>
     <string name="call_filter_all">Все</string>
     <string name="call_filter_missed">Пропущенные</string>
@@ -1347,7 +1347,7 @@
     <string name="calls_history_empty">История звонков пуста</string>
     <string name="calls_cta">Позвоните друзьям через WorldMates</string>
 
-    
+
     <string name="group_label">Группа</string>
     <string name="contact_label">Контакт</string>
     <string name="nothing_found">Ничего не найдено</string>
@@ -1356,7 +1356,7 @@
     <string name="selected">Выбрано</string>
     <string name="not_selected">Не выбрано</string>
     <string name="forward_selected_count">Выбрано: %d</string>
-    
+
     <string name="call_user">Позвонить</string>
     <string name="following_status">Вы подписаны</string>
     <string name="following_count">Подписки</string>
@@ -1372,7 +1372,7 @@
     <string name="no_videos">Нет видео</string>
     <string name="user_location">Местоположение</string>    <string name="joined">Дата регистрации</string>
     <string name="last_seen_profile">Последний раз в сети</string>
-    
+
     <string name="attach_file">Прикрепить файл</string>
     <string name="record_audio">Записать аудио</string>
     <string name="send_location">Отправить местоположение</string>
@@ -1394,33 +1394,33 @@
     <string name="edit_message_short">Редактировать</string>    <string name="select_message">Выбрать</string>
     <string name="message_edited_label">Отредактировано</string>    <string name="tap_for_info">Нажмите для получения информации</string>
 
-    
+
     <string name="selected_items">%d выбрано</string>
     <string name="group_details">Детали группы</string>
     <string name="create_subgroup">Создать подгруппу</string>
     <string name="change_wallpaper">Изменить обои</string>
     <string name="block_user_action">Заблокировать</string>
-    
-    
+
+
     <string name="status_typing">печатает</string>
-    
+
     <string name="status_typing_group">%s печатает</string>
-    
+
     <string name="status_recording_voice">🎤 записывает голосовое</string>
     <string name="status_recording_video">🎥 снимает видео</string>
     <string name="status_listening_audio">🎧 слушает аудио</string>
     <string name="status_viewing_media">👁 просматривает</string>
     <string name="status_choosing_sticker">😊 выбирает стикер</string>
-    
+
     <string name="status_online">в сети</string>
     <string name="status_offline">не в сети</string>
-    
+
     <string name="status_seen_recently">недавно</string>
     <string name="status_seen_mins_ago">%d мин назад</string>
     <string name="status_seen_today_at">сегодня в %s</string>
     <string name="status_seen_yesterday_at">вчера в %s</string>
     <string name="status_seen_on_date">%s</string>
-    
+
     <string name="user_typing">%s печатает</string>
     <string name="recording_voice">🎤 Записывает голосовое…</string>
     <string name="recording_video">🎥 Снимает видео…</string>
@@ -1436,7 +1436,7 @@
     <string name="connection_poor">🟠 Плохое соединение. Загружается только текст.</string>
     <string name="connection_offline">🔴 Нет соединения. Показываются кешированные сообщения.</string>
 
-    
+
     <string name="no_chats_yet">У вас нет чатов</string>
     <string name="start_conversation">Начните разговор прямо сейчас!</string>
     <string name="muted_indicator">Без звука</string>    <string name="no_messages_preview">Нет сообщений</string>
@@ -1448,7 +1448,7 @@
     <string name="voice_caption">Голосовое</string>
     <string name="unknown">Неизвестно</string>
 
-    
+
     <string name="themes_title">Темы и оформление</string>
     <string name="select_theme">Выберите тему</string>
     <string name="video_frame_section">Стили рамок видео</string>
@@ -1462,7 +1462,7 @@
     <string name="interface_modern_desc">Карточки с градиентами и анимациями</string>
     <string name="interface_classic_desc">Минималистичный классический стиль</string>
 
-    
+
     <string name="channel_view_style_title">Стиль каналов</string>
     <string name="channel_view_style_desc">Выберите внешний вид списка каналов</string>
     <string name="channel_style_classic">WorldMates</string>
@@ -1475,7 +1475,7 @@
     <string name="quick_reaction_section">❤️ Быстрая реакция</string>
     <string name="quick_reaction_desc">Выберите эмодзи для двойного тапа на сообщении</string>
 
-    
+
     <string name="bubble_standard">Стандарт</string>
     <string name="bubble_standard_desc">Закруглённые пузырьки с мягкими тенями</string>
     <string name="bubble_comic">Комикс</string>
@@ -1501,7 +1501,7 @@
     <string name="bubble_outlined">Контурный</string>
     <string name="bubble_outlined_desc">Только контур без заливки — минимализм и лёгкость</string>
 
-    
+
     <string name="theme_classic_desc">Классическая синяя тема в стиле Messenger</string>
     <string name="theme_ocean_desc">Глубокие океанские оттенки синего и бирюзового</string>
     <string name="theme_purple_desc">Насыщенные фиолетовые тона с приятным контрастом</string>
@@ -1563,7 +1563,7 @@
     <string name="pack_cyberpunk_name">Киберпанк</string>
     <string name="pack_cyberpunk_desc">Cyberpunk 2077 + Тёмная слива + неон · PRO</string>
 
-    
+
     <string name="avatar_updated">Аватар обновлён</string>
     <string name="uploading_avatar">Загрузка аватара…</string>
     <string name="work_label">Работа</string>
@@ -1583,13 +1583,13 @@
     <string name="disliked">Дизлайк поставлен</string>
     <string name="dislike">Дизлайк</string>
 
-    
+
     <string name="mic_permission_granted">✅ Разрешение на микрофон предоставлено</string>
     <string name="mic_permission_required">⚠️ Для голосовых сообщений требуется разрешение на микрофон</string>
     <string name="camera_no_mic_warning">⚠️ Камера разрешена, но без микрофона видео будет без звука</string>
     <string name="camera_permission_required">⚠️ Для видеосообщений требуется доступ к камере</string>
 
-    
+
     <string name="input_mode_text">Текст</string>
     <string name="input_mode_voice">Голос</string>
     <string name="input_mode_video">Видео</string>
@@ -1608,7 +1608,7 @@
     <string name="audio_quality_compressed">Сжатый (экономия трафика)</string>
     <string name="audio_quality_compressed_desc">Уменьшенный размер, меньше трафика</string>
 
-    
+
     <string name="for_me_only">Только для меня</string>
     <string name="for_all_members">Для всех участников</string>
     <string name="for_everyone">Для всех</string>
@@ -1629,7 +1629,7 @@
     <string name="delete_messages_choice_desc">Удалить для всех участников или только для себя?</string>
     <string name="username_copied_toast">Username скопирован</string>
 
-    
+
     <string name="message_selected">Выбрано</string>
     <string name="message_not_selected">Не выбрано</string>
     <string name="delete_media_title">Удалить медиа?</string>
@@ -1647,7 +1647,7 @@
     <string name="media_placeholder">[Медиа]</string>
     <string name="share_media_failed">Не удалось поделиться медиа</string>
 
-    
+
     <string name="search_users_title">Поиск пользователей</string>
     <string name="enter_name_or_username">Введите имя или username</string>
     <string name="search_button">Искать</string>
@@ -1665,7 +1665,7 @@
     <string name="contact_selected">Выбран контакт: %s</string>
     <string name="invite_friend_chooser_title">Пригласить друга</string>
 
-    
+
     <string name="contact_actions_title">Действия с контактом</string>
     <string name="rename_contact_title">Переименовать контакт</string>
     <string name="change_nickname">Изменить псевдоним</string>
@@ -1674,7 +1674,7 @@
     <string name="reset_to_original_name">Сбросить до оригинального имени</string>
     <string name="set_nickname_instruction">Задайте удобное имя для контакта %s</string>
 
-    
+
     <string name="new_folder_dialog_title">Новая папка</string>
     <string name="folder_count_format">Папок: %1$d / %2$d</string>
     <string name="folder_limit_reached">Лимит достигнут. Оформите подписку для большего количества.</string>
@@ -1684,7 +1684,7 @@
     <string name="no_custom_folders_message">Нет собственных папок. Создайте папку, нажав + на панели папок.</string>
     <string name="remove_from_folder">Убрать из папки</string>
 
-    
+
     <string name="no_channels_subtitle">Подпишитесь на каналы, чтобы видеть их здесь</string>
     <string name="subscribed_toast">Подписались!</string>
     <string name="unsubscribed_toast">Отписались</string>
@@ -1718,12 +1718,12 @@
     <string name="media_label_gif">🎞️ GIF</string>
     <string name="media_label_file">📎 Файл</string>
 
-    
+
     <string name="no_groups_subtitle">Создайте новую группу или присоединитесь к существующей</string>
     <string name="invite_friends_text">Присоединяйся к WorldMates — лучшему мессенджеру! 🚀\nСкачай здесь: https://worldmates.club</string>
     <string name="no_messages_in_chat">Нет сообщений</string>
 
-    
+
     <string name="open_link_failed">Не удалось открыть ссылку</string>
     <string name="max_files_per_message">Максимум %d файлов за раз</string>
     <string name="edited_photo_sending">Отредактированное фото отправляется…</string>
@@ -1731,13 +1731,13 @@
     <string name="scroll_to_play_video">Прокрутите чат, чтобы воспроизвести видео</string>
     <string name="file_type_in_dev">Открытие %s файлов — в разработке</string>
 
-    
+
     <string name="section_personal_info">Личная информация</string>
     <string name="section_contact">Контакты</string>
     <string name="section_location">Местоположение</string>
     <string name="section_work_education">Работа и образование</string>
 
-    
+
     <string name="notif_section_messenger">Уведомления чата</string>
     <string name="notif_chat_messages">Уведомления о сообщениях</string>
     <string name="notif_chat_messages_desc">Показывать уведомления для новых сообщений</string>
@@ -1750,22 +1750,22 @@
     <string name="notif_group_messages">Групповые сообщения</string>
     <string name="notif_group_messages_desc">Уведомления о сообщениях в группах</string>
 
-    
+
     <string name="privacy_last_seen">Последний визит</string>
     <string name="privacy_last_seen_desc">Кто может видеть ваше время последнего визита</string>
     <string name="privacy_show_last_seen">Показывать «последний визит»</string>
     <string name="privacy_show_last_seen_desc">Разрешить другим видеть, когда вы были онлайн</string>
 
-    
+
     <string name="new_message_fallback">Новое сообщение</string>
-    
+
     <string name="last_message_encrypted">Новое сообщение</string>
-    
+
     <string name="last_message_e2ee">Новое сообщение</string>
-    
+
     <string name="notification_e2ee_message">Новое сообщение</string>
 
-    
+
     <string name="members_count_title">Участники • %d</string>
     <string name="search_members_hint">Поиск участников...</string>
     <string name="you_suffix">(Вы)</string>
@@ -1779,7 +1779,7 @@
     <string name="ban_member_with_info">Заблокировать (запретить вход)</string>
     <string name="unban_member">Разблокировать</string>
 
-    
+
     <string name="slow_mode">Slow Mode</string>
     <string name="slow_mode_desc">Ограничение частоты сообщений</string>
     <string name="slow_mode_delay_format">Задержка между сообщениями: %s</string>
@@ -1793,7 +1793,7 @@
     <string name="slow_mode_15m">15 минут</string>
     <string name="slow_mode_1h">1 час</string>
 
-    
+
     <string name="anti_spam">Анти-спам защита</string>
     <string name="anti_spam_desc">Автоматическая защита от спама</string>
     <string name="messages_per_minute">Сообщений/минуту</string>
@@ -1804,7 +1804,7 @@
     <string name="restriction_period">Период ограничения</string>
     <string name="restriction_hours_format">%d ч.</string>
 
-    
+
     <string name="join_by_request">Вступление только по запросу</string>
     <string name="anyone_can_join">Любой может присоединиться</string>
     <string name="history_for_new_members">История для новых участников</string>
@@ -1812,7 +1812,7 @@
     <string name="show_history_desc">Новые участники видят предыдущие сообщения</string>
     <string name="history_messages_count_format">Количество сообщений: %d</string>
 
-    
+
     <string name="member_permissions">Права участников</string>
     <string name="content_section">Контент</string>
     <string name="media_types_desc">Фото, видео, аудио</string>
@@ -1825,20 +1825,20 @@
     <string name="pinning_desc">Закреплять сообщения</string>
     <string name="deleting_desc">Удалять сообщения</string>
 
-    
+
     <string name="join_requests">Запросы на вступление</string>
     <string name="reject_request_cd">Отклонить</string>
     <string name="approve_request_cd">Принять</string>
 
-    
+
     <string name="change_role">Изменить роль</string>
     <string name="select_role_for_format">Выберите роль для %s:</string>
 
-    
+
     <string name="detailed_statistics">Детальная статистика</string>
     <string name="group_management">Управление группой</string>
 
-    
+
     <string name="new_scheduled_post_title">Новый запланированный пост</string>
     <string name="edit_post_title">Редактировать пост</string>
     <string name="publish_now">Опубликовать сейчас</string>
@@ -1848,7 +1848,7 @@
     <string name="close_cd">Закрыть</string>
     <string name="publish_cd">Опубликовать</string>
 
-    
+
     <string name="create_topic">Новая тема</string>
     <string name="topic_name_label">Название темы</string>
     <string name="topic_name_hint">напр., Общее обсуждение</string>
@@ -1874,7 +1874,7 @@
     <string name="add_member_title">Добавить участника</string>
     <string name="all_users_in_group">Все пользователи уже в группе</string>
 
-    
+
     <string name="no_new_requests">Нет новых запросов</string>
     <string name="and_more_requests">... и ещё %d запросов</string>
     <string name="member_roles">Роли участников</string>
@@ -1888,11 +1888,11 @@
     <string name="role_moderator">Модератор</string>
     <string name="role_member">Участник</string>
 
-    
+
     <string name="stat_active_label">Активных</string>
     <string name="group_created_date">Создана: %s</string>
 
-    
+
     <string name="optional_label"> (необязательно)</string>
     <string name="new_channel">Новый канал</string>
     <string name="channel_step_type">Выберите тип канала</string>
@@ -1924,7 +1924,7 @@
     <string name="creating_channel">Создание канала…</string>
     <string name="channel_created_format">Канал «%s» создан!</string>
 
-    
+
     <string name="channel_management">Управление каналом</string>
     <string name="channel_edit_info_subtitle">Название, описание, username</string>
     <string name="channel_settings_subtitle">Комментарии, реакции, медленный режим</string>
@@ -1934,14 +1934,14 @@
     <string name="message_formatting_subtitle">Разрешения форматирования текста</string>
     <string name="admin_panel_subtitle">Полная панель управления</string>
 
-    
+
     <string name="free_account">Бесплатный аккаунт</string>
     <string name="story_max_video_format">• Макс. видео: %d сек</string>
     <string name="story_duration_format">• Длительность: %d ч</string>
     <string name="story_available_format">• Доступно: %d историй</string>
     <string name="story_pro_upgrade">💎 Оформите PRO для 15 историй и видео до 45 сек!</string>
 
-    
+
     <string name="tag_work">Работа</string>
     <string name="tag_family">Семья</string>
     <string name="tag_friends">Друзья</string>
@@ -1951,14 +1951,14 @@
     <string name="tag_projects">Проекты</string>
     <string name="tag_travel">Путешествия</string>
 
-    
+
     <string name="folder_all">Все</string>
     <string name="folder_personal">Личные</string>
     <string name="folder_channels">Каналы</string>
     <string name="folder_groups">Группы</string>
     <string name="folder_unread">Непрочитанные</string>
 
-    
+
     <string name="stars_title">WorldStars</string>
     <string name="stars_balance_label">звёзд на балансе</string>
     <string name="stars_unit">звёзд</string>
@@ -1990,7 +1990,7 @@
     <string name="stars_transactions_error">Ошибка загрузки транзакций</string>
     <string name="stars_packs_error">Ошибка загрузки пакетов</string>
 
-    
+
     <string name="premium_screen_title">WorldMates PRO</string>
     <string name="premium_tagline">Больше свободы. Больше возможностей.</string>
     <string name="premium_monthly_label">Месяц</string>
@@ -2006,12 +2006,12 @@
     <string name="premium_manage">Управление подпиской</string>
     <string name="premium_get_pro_title">Получите больше с PRO</string>
     <string name="premium_get_pro_subtitle">Нажмите, чтобы узнать больше</string>
-    
+
     <string name="premium_hint_stories">%1$d/%2$d stories. С PRO — до %3$d</string>
     <string name="premium_hint_folders">Лимит папок %1$d/%2$d. PRO: до 50</string>
     <string name="premium_hint_accounts">PRO: до %d аккаунтов →</string>
     <string name="premium_hint_file_size">Файл больше 250 МБ. С PRO — до 2 ГБ</string>
-    
+
     <string name="premium_feature_accounts">До 10 аккаунтов (сейчас 5)</string>
     <string name="premium_feature_stories">25 stories, 60сек видео, 48ч хранение</string>
     <string name="premium_feature_folders">До 50 папок (сейчас 10)</string>
@@ -2021,7 +2021,7 @@
     <string name="premium_feature_analytics">Полная аналитика каналов</string>
     <string name="premium_feature_badge">Золотой PRO-бейдж в профиле</string>
 
-    
+
     <string name="multi_account_title">Аккаунты</string>
     <string name="multi_account_subtitle">%1$d / %2$d</string>
     <string name="multi_account_subtitle_pro">(Pro)</string>
@@ -2044,7 +2044,7 @@
     <string name="secret_timer_set">Установить</string>
     <string name="secret_timer_disable">Выключить</string>
 
-    
+
     <string name="timer_off">Выключено</string>
     <string name="timer_1s">1 секунда</string>
     <string name="timer_5s">5 секунд</string>
@@ -2056,7 +2056,7 @@
     <string name="timer_1w">1 неделя</string>
     <string name="timer_custom_s">%dс</string>
 
-    
+
     <string name="timer_off_short">Выкл.</string>
     <string name="timer_1s_short">1с</string>
     <string name="timer_5s_short">5с</string>
@@ -2067,7 +2067,7 @@
     <string name="timer_1d_short">1д</string>
     <string name="timer_1w_short">1н</string>
 
-    
+
     <string name="export_chat_title">Экспорт чата</string>
     <string name="export_chat_subtitle">Экспортировать переписку с %1$s</string>
     <string name="export_format_json">JSON</string>
@@ -2077,7 +2077,7 @@
     <string name="export_success">Экспорт завершён</string>
     <string name="export_menu_item">Экспортировать чат</string>
 
-    
+
     <string name="topics_title">Темы</string>
     <string name="topics_create">Новая тема</string>
     <string name="topic_create_button">Создать</string>
@@ -2090,13 +2090,13 @@
     <string name="topic_delete_confirm">Удалить эту тему?</string>
     <string name="topic_general">Общее</string>
 
-    
+
     <string name="anonymous_admin_title">Анонимный администратор</string>
     <string name="anonymous_admin_description">Отправлять сообщения от имени группы</string>
     <string name="anonymous_admin_enabled">Анонимный режим включён</string>
     <string name="anonymous_admin_disabled">Анонимный режим отключён</string>
 
-    
+
     <string name="poll_label">Опрос</string>
     <string name="poll_closed">Завершён</string>
     <string name="poll_anonymous">Анонимный</string>
@@ -2116,7 +2116,7 @@
     <string name="poll_closed_message">Голосование завершено</string>
     <string name="poll_menu_item">Опрос</string>
 
-    
+
     <string name="instant_view_title">Просмотр статьи</string>
     <string name="instant_view_reading_time">%1$d мин чтения</string>
     <string name="instant_view_error">Не удалось загрузить статью</string>
@@ -2124,7 +2124,7 @@
     <string name="open_in_browser">Открыть в браузере</string>
     <string name="instant_view_loading">Загрузка статьи…</string>
 
-    
+
     <string name="geo_nearby_subtitle">В радиусе %d км</string>
     <string name="geo_permission_needed_title">Требуется доступ к геолокации</string>
     <string name="geo_permission_needed_desc">Разрешите доступ к геолокации, чтобы находить людей рядом</string>
@@ -2147,13 +2147,13 @@
     <string name="geo_distance_meters">%d м</string>
     <string name="geo_distance_km">%.1f км</string>
 
-    
+
     <string name="video_streaming_label">Потоковое видео</string>
     <string name="video_buffering">Буферизация…</string>
     <string name="video_stream_hls">HLS поток</string>
     <string name="video_stream_dash">DASH поток</string>
 
-    
+
     <string name="group_online_members">%d участников онлайн</string>
     <string name="group_one_online_member">1 участник онлайн</string>
     <string name="group_member_online">Онлайн</string>
@@ -2161,7 +2161,7 @@
     <string name="group_member_last_seen">Был(а) в %s</string>
     <string name="group_online_status_updated">Статус участников обновлён</string>
 
-    
+
     <string name="screen_sharing_start">Демонстрация экрана</string>
     <string name="screen_sharing_stop">Остановить трансляцию</string>
     <string name="screen_sharing_active">Вы транслируете экран</string>
@@ -2171,7 +2171,7 @@
     <string name="screen_sharing_error">Не удалось начать трансляцию экрана</string>
     <string name="screen_sharing_stopped">Трансляция остановлена</string>
 
-    
+
     <string name="story_reaction_like">Нравится</string>
     <string name="story_reaction_love">Любовь</string>
     <string name="story_reaction_haha">Ха-ха</string>
@@ -2247,7 +2247,7 @@
     <string name="inline_bot_switch_pm">Перейти к боту</string>
     <string name="inline_bot_error">Ошибка запроса к боту</string>
 
-    
+
     <string name="bot_webhook_set">Вебхук установлен</string>
     <string name="bot_webhook_deleted">Вебхук удалён</string>
     <string name="bot_webhook_error">Ошибка вебхука</string>
@@ -2255,19 +2255,19 @@
     <string name="bot_webhook_secret_hint">Секретный ключ (необязательно)</string>
     <string name="bot_webhook_pending">%d ожидающих обновлений</string>
 
-    
+
     <string name="call_you">Вы</string>
     <string name="call_participant_limit_title">Лимит участников</string>
     <string name="call_participant_limit_message_regular">Групповой звонок поддерживает до 5 участников. Оформите Premium для увеличения до 25.</string>
     <string name="call_participant_limit_message_pro">Групповой звонок поддерживает до 25 участников.</string>
     <string name="call_get_premium">Получить Premium</string>
 
-    
+
     <string name="channel_livestream_section">Прямая трансляция</string>
     <string name="channel_go_live">Начать трансляцию</string>
     <string name="channel_premium_label">Channel Premium</string>
 
-    
+
     <string name="livestream_title">Начать трансляцию</string>
     <string name="livestream_badge_live">● В ЭФИРЕ</string>
     <string name="livestream_quality_pro_badge">PRO</string>
@@ -2301,7 +2301,7 @@
     <string name="quality_1080p">1080p — Full HD (1920×1080)</string>
     <string name="quality_1080p60">1080p 60 кадров/с — Премиум Full HD</string>
 
-    
+
     <string name="channel_premium_title">Channel Premium</string>
     <string name="channel_premium_subtitle">Раскройте весь потенциал «%s»</string>
     <string name="channel_premium_retry">Повторить</string>
@@ -2330,7 +2330,7 @@
     <string name="plan_discount_annual">Скидка 25%</string>
     <string name="plan_price_per_month">%s/мес</string>
 
-    
+
     <string name="channel_info_name_label">Название канала</string>
     <string name="channel_info_username_label">Имя пользователя (@)</string>
     <string name="channel_info_description_label">Описание</string>
@@ -2343,7 +2343,7 @@
     <string name="channel_delete_cancel">Отмена</string>
     <string name="channel_deleted_toast">Канал удалён</string>
 
-    
+
     <string name="channel_settings_content_title">Настройки контента</string>
     <string name="channel_settings_allow_comments">Разрешить комментарии</string>
     <string name="channel_settings_allow_comments_desc">Подписчики могут комментировать публикации</string>
@@ -2366,11 +2366,11 @@
     <string name="channel_settings_save">Сохранить настройки</string>
     <string name="channel_settings_saved_toast">Настройки сохранены!</string>
 
-    
+
     <string name="channel_admins_header">Администраторы (%d)</string>
     <string name="channel_admins_add">Добавить</string>
 
-    
+
     <string name="channel_no_subscribers">Подписчиков ещё нет</string>
     <string name="channel_make_admin">Сделать администратором</string>
     <string name="channel_kick_member">Исключить</string>
@@ -2392,12 +2392,12 @@
     <string name="channel_ban_expired">Срок истёк</string>
     <string name="channel_ban_reason_label">Причина: %s</string>
 
-    
+
     <string name="channel_stats_media_post">[Медиа-пост]</string>
     <string name="channel_stats_empty_post">[Пост без текста]</string>
     <string name="channel_stats_poll_post">📊 %s</string>
 
-    
+
     <string name="group_call_badge">ГРУППОВОЙ ЗВОНОК</string>
     <string name="group_call_badge_short">ГРУППА</string>
     <string name="group_call_pro_up_to">PRO · до %d</string>
@@ -2428,7 +2428,7 @@
     <string name="group_call_link_copied">Ссылка скопирована</string>
     <string name="group_call_up_to_n">до %d участников</string>
 
-    
+
     <string name="call_quality_low">Низкое качество (240p)</string>
     <string name="call_quality_medium">Среднее качество (480p)</string>
     <string name="call_quality_high">Высокое качество (720p)</string>
@@ -2437,22 +2437,22 @@
     <string name="call_quality_poor_network">Слабое соединение — качество снижено</string>
     <string name="call_quality_good_network">Соединение стабилизировалось</string>
 
-    
+
     <string name="chats_loading_more">Загрузка чатов…</string>
     <string name="chats_all_loaded">Все чаты загружены</string>
 
-    
+
     <string name="upload_progress_label">Загрузка: %d%%</string>
     <string name="upload_preparing">Подготовка файла…</string>
     <string name="upload_done">Файл отправлен</string>
     <string name="upload_failed">Ошибка загрузки</string>
 
-    
+
     <string name="message_queued_offline">Нет соединения — сообщение будет отправлено при восстановлении</string>
     <string name="message_pending_indicator">Отправляется…</string>
     <string name="connection_lost">Потеряно соединение с сервером</string>
 
-    
+
     <string name="channel_live_now">🔴 В ЭФИРЕ</string>
     <string name="channel_live_watch">Смотреть</string>
     <string name="channel_live_hosting">Вы ведёте эфир</string>
@@ -2461,7 +2461,7 @@
     <string name="recording_upload_done">Запись сохранена в архиве</string>
     <string name="recording_upload_error">Ошибка сохранения записи</string>
 
-    
+
     <string name="scheduled_messages">Запланированные сообщения</string>
     <string name="schedule_message">Запланировать сообщение</string>
     <string name="scheduled_at">Запланировано на %s</string>
@@ -2501,7 +2501,7 @@
     <string name="tomorrow_label">Завтра</string>
     <string name="media_type_label">Медиа</string>
 
-    
+
     <string name="thread_open">Открыть ветку</string>
     <string name="thread_reply">Ответить в ветке</string>
     <string name="thread_replies_count">%d ответов</string>
@@ -2515,7 +2515,7 @@
     <string name="thread_delete_confirm">Удалить сообщение из ветки?</string>
     <string name="thread_loading">Загрузка ветки…</string>
 
-    
+
     <string name="folder_create">Новая папка</string>
     <string name="folder_edit">Редактировать папку</string>
     <string name="folder_delete_confirm">Удалить папку «%s»?</string>
@@ -2540,7 +2540,7 @@
     <string name="folder_join_title">Присоединиться к папке</string>
     <string name="folder_join_description">Вам предложено присоединиться к совместной папке чатов</string>
 
-    
+
     <string name="active_sessions">Активные сессии</string>
     <string name="active_sessions_subtitle">Устройства, подключённые к вашему аккаунту</string>
     <string name="no_active_sessions">Нет активных сессий</string>
@@ -2548,7 +2548,7 @@
     <string name="current_session">• текущая</string>
     <string name="session_unknown_device">—</string>
 
-    
+
     <string name="key_backup">Резервная копия ключей шифрования</string>
     <string name="key_backup_subtitle">Защищённый облачный бэкап E2EE ключей</string>
     <string name="key_backup_title">Резервная копия ключей</string>
@@ -2575,7 +2575,7 @@
     <string name="key_backup_section_setup">Настроить резервную копию</string>
     <string name="key_backup_section_restore">Восстановить на этом устройстве</string>
 
-    
+
     <string name="delete_account">Удалить аккаунт</string>
     <string name="delete_account_warning_title">Удаление аккаунта</string>
     <string name="delete_account_consequence_1">Все ваши сообщения и данные будут удалены навсегда</string>
@@ -2586,28 +2586,28 @@
     <string name="delete_account_confirm_message">Аккаунт будет удалён навсегда. Это действие невозможно отменить.</string>
     <string name="password_hint">Пароль</string>
 
-    
+
     <string name="report_sent">Жалоба отправлена</string>
 
-    
 
-    
+
+
     <string name="profile_action_customize">Оформление</string>
 
-    
+
     <string name="rating_total_votes">%d оценок</string>
 
-    
+
     <string name="qr_scan_hint">Отсканируйте, чтобы найти мой профиль</string>
     <string name="qr_share_text">Найди меня в WorldMates: %s</string>
 
-    
+
     <string name="tab_media">Медиа</string>
     <string name="tab_archive">Архив</string>
     <string name="tab_media_personal">Личные</string>
     <string name="tab_media_received">Полученные</string>
 
-    
+
     <string name="media_personal_empty_title">Нет личных медиа</string>
     <string name="media_personal_empty_subtitle">Здесь будут фото и видео,\nкоторые вы отправляли</string>
     <string name="media_received_empty_title">Нет полученных медиа</string>
@@ -2615,7 +2615,7 @@
     <string name="archive_empty_title">Архив пуст</string>
     <string name="archive_empty_subtitle">Созданные истории хранятся\nздесь до 12 месяцев</string>
 
-    
+
     <string name="profile_customize_title">Оформление профиля</string>
     <string name="profile_accent_color">Цвет акцента</string>
     <string name="profile_header_style_label">Стиль заголовка</string>
@@ -2624,13 +2624,13 @@
     <string name="header_style_minimal">Минималист</string>
     <string name="header_style_pattern">Узор</string>
 
-    
+
     <string name="encrypted_message">🔒 Зашифрованное сообщение</string>
 
-    
+
     <string name="qr_scanner_title">Сканер QR-кода</string>
 
-    
+
     <string name="stat_total_messages">Всего сообщений</string>
     <string name="stat_sent">Отправлено</string>
     <string name="stat_received">Получено</string>
@@ -2638,7 +2638,7 @@
     <string name="stat_media_size">Размер медиа</string>
     <string name="stat_total_size">Общий размер</string>
 
-    
+
     <string name="biz_section_title">Бизнес</string>
     <string name="biz_mode_title">Бизнес-режим</string>
     <string name="biz_mode_subtitle">Инструменты для бизнеса и коммуникаций</string>
@@ -2647,18 +2647,18 @@
     <string name="biz_on">Вкл.</string>
     <string name="biz_configured">Настроен</string>
 
-    
+
     <string name="biz_status_active">Бизнес-режим активен</string>
     <string name="biz_status_inactive">Бизнес-режим выключен</string>
     <string name="biz_no_name">Без названия</string>
     <string name="biz_configure_hint">Настройте бизнес-профиль</string>
 
-    
+
     <string name="biz_section_profile">Профиль и расписание</string>
     <string name="biz_section_messages">Сообщения</string>
     <string name="biz_section_tools">Инструменты</string>
 
-    
+
     <string name="biz_profile_title">Бизнес-профиль</string>
     <string name="biz_profile_subtitle">Название, категория, адрес, контакты</string>
     <string name="biz_field_name">Название бизнеса</string>
@@ -2671,7 +2671,7 @@
     <string name="biz_badge_title">Бейдж бизнеса в профиле</string>
     <string name="biz_badge_subtitle">Показывать значок бизнес-аккаунта</string>
 
-    
+
     <string name="biz_hours_title">Расписание работы</string>
     <string name="biz_hours_subtitle">Установите рабочие часы для каждого дня</string>
     <string name="biz_hours_open">Открытие</string>
@@ -2684,7 +2684,7 @@
     <string name="biz_weekday_fri">Пятница</string>
     <string name="biz_weekday_sat">Суббота</string>
 
-    
+
     <string name="biz_auto_reply_title">Авто-ответ</string>
     <string name="biz_auto_reply_subtitle">Отвечать автоматически, когда вы недоступны</string>
     <string name="biz_auto_reply_enable">Включить авто-ответ</string>
@@ -2694,12 +2694,12 @@
     <string name="biz_mode_always">Отвечать всегда</string>
     <string name="biz_mode_outside_hours">Вне рабочих часов</string>
 
-    
+
     <string name="biz_away_enable">Сообщение об отсутствии</string>
     <string name="biz_away_desc">Отправлять, когда вы отмечены как отсутствующий</string>
     <string name="biz_away_text_hint">Текст сообщения об отсутствии</string>
 
-    
+
     <string name="biz_greeting_title">Приветственное сообщение</string>
     <string name="biz_greeting_subtitle">Первое сообщение для новых контактов</string>
     <string name="biz_greeting_enable">Включить приветствие</string>
@@ -2707,7 +2707,7 @@
     <string name="biz_greeting_text_hint">Текст приветствия</string>
     <string name="biz_greeting_info">Это сообщение отправляется один раз — при первом обращении нового контакта.</string>
 
-    
+
     <string name="biz_quick_replies_title">Быстрые ответы</string>
     <string name="biz_quick_replies_count">%d шаблонов</string>
     <string name="biz_no_quick_replies">Нет быстрых ответов</string>
@@ -2716,7 +2716,7 @@
     <string name="biz_qr_shortcut_hint">Ключевое слово (без /)</string>
     <string name="biz_qr_text_hint">Текст ответа</string>
 
-    
+
     <string name="biz_links_title">Бизнес-ссылки</string>
     <string name="biz_links_count">%d ссылок</string>
     <string name="biz_no_links">Нет ссылок</string>
@@ -2728,9 +2728,9 @@
     <string name="biz_copy_link">Копировать</string>
     <string name="biz_link_copied">Ссылка скопирована</string>
 
-    
+
     <string name="biz_section_creator">Creator</string>
-    
+
     <string name="biz_stats_title">Статистика охвата</string>
     <string name="biz_stats_subtitle">Просмотры, сообщения, клики</string>
     <string name="biz_stats_days">%d дней</string>
@@ -2739,7 +2739,7 @@
     <string name="biz_stats_link_clicks">Клики</string>
     <string name="biz_stats_by_day">По дням</string>
     <string name="biz_stats_empty">Данных за этот период пока нет</string>
-    
+
     <string name="biz_verified_title">Верификация ✅</string>
     <string name="biz_verified_subtitle">Подтверждённый значок в профиле</string>
     <string name="biz_verified_what_gives">Что даёт верификация?</string>
@@ -2756,7 +2756,7 @@
     <string name="biz_verified_status_pending">Заявка на рассмотрении</string>
     <string name="biz_verified_status_approved">Верифицирован ✅</string>
     <string name="biz_verified_status_rejected">Заявка отклонена</string>
-    
+
     <string name="biz_api_title">API доступ</string>
     <string name="biz_api_subtitle">Ключ для получения ваших данных</string>
     <string name="biz_api_active">Активен</string>
@@ -2774,12 +2774,12 @@
     <string name="biz_api_no_key">Ключ ещё не сгенерирован</string>
     <string name="biz_api_generate_btn">Сгенерировать ключ</string>
 
-    
+
     <string name="biz_delete_confirm_title">Удалить?</string>
     <string name="biz_delete_qr_message">Удалить шаблон /%s?</string>
     <string name="biz_delete_link_message">Удалить ссылку «%s»?</string>
 
-    
+
     <string name="call_choose_reaction">Выберите реакцию</string>
     <string name="call_reaction_heart">Сердечко</string>
     <string name="call_reaction_like">Лайк</string>
@@ -2794,12 +2794,12 @@
     <string name="call_chat_empty">Сообщения появятся здесь…</string>
     <string name="call_chat_placeholder">Напишите сообщение…</string>
 
-    
+
     <string name="media_download_success">Файл сохранён</string>
     <string name="media_download_error">Ошибка загрузки</string>
     <string name="media_downloading">Загрузка…</string>
 
-    
+
     <string name="global_search_title">Поиск</string>
     <!-- ── Global Search ────────────────────────────────────────────────────── -->
     <!-- Основные элементы интерфейса поиска -->
@@ -2849,15 +2849,15 @@
     <!-- Кнопка «Применить» в шторке -->
     <string name="search_filter_apply">Применить</string>
 
-    
+
     <string name="backup_provider_local_server">Личный сервер</string>
 
-    
+
     <string name="story_video_duration_badge">%d сек</string>
     <string name="story_video_too_long">⚠️ Видео %d сек — превышает лимит %d сек</string>
     <string name="story_video_too_long_pro_hint">💎 PRO: до %d сек видео</string>
 
-    
+
     <string name="stage_call_creator_label">Организатор</string>
     <string name="stage_call_speakers_section">Говорят</string>
     <string name="stage_call_listeners_section">Слушатели</string>
@@ -2868,14 +2868,14 @@
     <string name="stage_call_pro_limit">до 35 участников (PRO)</string>
     <string name="stage_call_limit_reached">Достигнут лимит участников</string>
 
-    
+
     <string name="notes_title">Заметки</string>
     <string name="notes_hint">Написать заметку…</string>
     <string name="notes_empty">Здесь будут храниться ваши заметки</string>
     <string name="delete_note_title">Удалить заметку?</string>
     <string name="delete_note_body">Эта заметка будет удалена безвозвратно.</string>
 
-    
+
     <string name="bot_status_active">Активный</string>
     <string name="bot_status_inactive">Неактивный</string>
     <string name="create_bot_cd">Создать бота</string>
@@ -2926,7 +2926,7 @@
     <string name="photo_filter_blur">Размытие</string>
     <string name="photo_filter_sharpen">Резкость</string>
 
-    
+
     <string name="business_directory">Бизнес-каталог</string>
     <string name="business_directory_search_hint">Поиск бизнесов…</string>
     <string name="business_directory_all_categories">Все</string>
@@ -2935,7 +2935,7 @@
     <string name="business_directory_empty">Бизнесы не найдены</string>
     <string name="business_directory_loading">Загрузка…</string>
 
-    
+
     <string name="media_album_more">+%d ещё</string>
     <string name="media_album_photo_count">%d фото</string>
     <string name="media_album_video">Видео</string>
@@ -2945,7 +2945,7 @@
     <!-- Количество медиафайлов в коллекции поста (аргумент: целое число) -->
     <string name="post_collection_count">%d файлов</string>
 
-    
+
     <string name="media_auto_delete_hint_1day">~1 день</string>
     <string name="media_auto_delete_hint_3days">~3 дня</string>
     <string name="media_auto_delete_hint_1week">~1 нед.</string>
@@ -2962,7 +2962,7 @@
     <string name="media_auto_delete_1month">1 месяц</string>
     <string name="media_deleted_placeholder">Медиафайл удалён</string>
 
-    
+
     <string name="admin_log_add_member">добавил участника</string>
     <string name="admin_log_remove_member">удалил участника</string>
     <string name="admin_log_ban_user">заблокировал пользователя</string>
@@ -2985,19 +2985,19 @@
     <string name="admin_logs_pinned_message">закрепил сообщение</string>
     <string name="admin_logs_changed_settings">изменил настройки</string>
 
-    
+
     <string name="time_just_now">только что</string>
     <string name="time_minutes_ago">%d мин. назад</string>
     <string name="time_hours_ago">%d ч. назад</string>
     <string name="time_yesterday">вчера</string>
     <string name="time_days_ago">%d дн. назад</string>
 
-    
+
     <string name="type_label">Тип</string>
     <string name="role_label">Роль</string>
     <string name="actions_section">Действия</string>
 
-    
+
     <string name="cd_play">Воспроизвести</string>
     <string name="cd_pause">Пауза</string>
     <string name="cd_download">Скачать</string>
@@ -3009,14 +3009,14 @@
     <string name="cd_video_thumbnail">Превью видео</string>
     <string name="cd_album_image">Изображение альбома</string>
 
-    
+
     <string name="format_short">Формат</string>
     <string name="no_join_requests_title">Нет запросов на вступление</string>
     <string name="no_join_requests_desc">Когда кто-то захочет вступить в приватную группу,\nзапрос появится здесь</string>
     <string name="join_requests_count">%d запросов</string>
     <string name="scheduled_posts_count">%d постов</string>
 
-    
+
     <string name="channel_subgroups_title">Закрытые группы канала</string>
     <string name="channel_subgroups_subtitle">Группы только для подписчиков (до 5)</string>
     <string name="channel_subgroups_empty">Нет подключённых групп. Добавьте первую!</string>
@@ -3024,7 +3024,7 @@
     <string name="channel_subgroup_detach">Отсоединить группу</string>
     <string name="channel_subgroup_created">Группа создана и подключена к каналу</string>
 
-    
+
     <string name="mini_app_default_title">Mini App</string>
     <string name="mini_app_loading">Загрузка…</string>
     <string name="mini_app_error">Не удалось открыть приложение</string>
@@ -3036,12 +3036,12 @@
     <string name="mini_app_alert_ok">ОК</string>
     <string name="mini_app_confirm_ok">ОК</string>
     <string name="mini_app_confirm_cancel">Отмена</string>
-    
+
     <string name="mini_app_close_confirm_title">Закрыть Mini App?</string>
     <string name="mini_app_close_confirm_msg">Вы уверены, что хотите закрыть это приложение? Несохранённые данные будут потеряны.</string>
     <string name="mini_app_close_confirm_ok">Закрыть</string>
     <string name="mini_app_close_confirm_stay">Остаться</string>
-    
+
     <string name="mini_app_set_url_title">Настройка Mini App</string>
     <string name="mini_app_set_url_desc">Укажите HTTPS-адрес вашего веб-приложения. Оставьте пустым, чтобы удалить.</string>
     <string name="mini_app_set_url_label">URL веб-приложения</string>
@@ -3049,13 +3049,13 @@
     <string name="mini_app_add">Mini App</string>
     <string name="mini_app_remove">Удалить Mini App</string>
 
-    
+
     <string name="service_channel_name">Фоновое подключение</string>
     <string name="service_channel_desc">Тихое уведомление для поддержания связи с сервером</string>
     <string name="service_notif_title">WorldMates</string>
     <string name="service_notif_text">На связи</string>
 
-    
+
     <string name="post_new_title">Новый пост</string>
     <string name="post_placeholder">Что у вас нового?</string>
     <string name="post_gallery">Галерея</string>
@@ -3069,7 +3069,7 @@
     <string name="post_remove_media">Удалить</string>
     <string name="post_media_count">%1$d / %2$d</string>
 
-    
+
     <string name="ch_live">LIVE</string>
     <string name="ch_verified">Верифицирован</string>
     <string name="ch_private">Приватный</string>
@@ -3095,7 +3095,7 @@
     <string name="ch_no_posts">Постов пока нет</string>
     <string name="ch_share_post">Поделиться постом</string>
 
-    
+
     <string name="ch_comments">Комментарии</string>
     <string name="ch_no_comments">Комментариев пока нет</string>
     <string name="ch_no_comments_sub">Будьте первым!</string>
@@ -3120,7 +3120,7 @@
     <string name="ch_post_created">Пост опубликован!</string>
     <string name="ch_error_prefix">Ошибка: %1$s</string>
 
-    
+
     <string name="ch_create_poll">Создать опрос</string>
     <string name="ch_poll_question">Вопрос опроса</string>
     <string name="ch_poll_question_label">Вопрос</string>
@@ -3128,13 +3128,13 @@
     <string name="ch_poll_add_option">Добавить вариант</string>
     <string name="ch_poll_created">Опрос создан!</string>
 
-    
+
     <string name="ch_statistics_title">Статистика канала</string>
     <string name="ch_this_week">На этой неделе</string>
     <string name="ch_active_24h">Активных 24ч</string>
     <string name="ch_top_posts">Топ посты</string>
 
-    
+
     <string name="ch_administrators">Администраторы</string>
     <string name="ch_role_owner">Владелец</string>
     <string name="ch_role_admin">Администратор</string>
@@ -3145,7 +3145,7 @@
     <string name="ch_user_hint">ID, @ник или имя…</string>
     <string name="ch_role_label">Роль</string>
 
-    
+
     <string name="ch_edit_channel">Редактировать канал</string>
     <string name="ch_channel_name">Название канала</string>
     <string name="ch_channel_about">Расскажите о канале…</string>
@@ -3243,7 +3243,7 @@
     <string name="stat_posts_per_week_fmt">+%d за нед.</string>
     <string name="stat_active_24h">Активные (24ч)</string>
     <string name="stat_compact_title">Статистика</string>
-    
+
     <string name="ch_subscribers_count_fmt">Подписчики • %d</string>
     <string name="muted_notifications">Уведомления отключены</string>
     <string name="users_not_found">Пользователи не найдены</string>
@@ -3252,7 +3252,7 @@
     <string name="stat_members_count_fmt">Участники (%d)</string>
     <string name="stat_media_post_preview">[Медиа]</string>
     <string name="stat_empty_post_preview">[Пост]</string>
-    
+
     <string name="day_mon">Пн</string>
     <string name="day_tue">Вт</string>
     <string name="day_wed">Ср</string>
@@ -3260,13 +3260,13 @@
     <string name="day_fri">Пт</string>
     <string name="day_sat">Сб</string>
     <string name="day_sun">Вс</string>
-    
+
     <string name="poll_anonymous_toggle">Анонимное голосование</string>
     <string name="poll_multiple_toggle">Несколько ответов</string>
-    
+
     <string name="stat_active_members_title">Самые активные участники</string>
     <string name="stat_top_comments_title">Самые лайкнутые комментарии</string>
-    
+
     <string name="giveaway_title">Розыгрыш среди подписчиков</string>
     <string name="giveaway_subtitle">Выберите условия участия и количество победителей</string>
     <string name="giveaway_period_label">Период активности</string>
@@ -3592,7 +3592,6 @@
     <string name="sticker_standard_pack_name">Стандартный пак</string>
     <string name="sticker_standard_pack_desc">Базовые стикеры для общения</string>
     <string name="sticker_pack_no_available">Нет доступных паков</string>
-    <string name="sticker_pack_count">%d стикеров</string>
     <string name="sticker_pack_animated_badge">Анимированный</string>
     <string name="gif_loading">Загрузка GIF…</string>
     <string name="gif_empty_title">Ничего не найдено</string>
