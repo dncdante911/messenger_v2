@@ -39,6 +39,7 @@ import java.util.*
 fun ModernChatCard(
     chat: Chat,
     nickname: String? = null,
+    isOnline: Boolean = false,
     onClick: () -> Unit,
     onLongPress: () -> Unit = {}
 ) {
@@ -113,8 +114,8 @@ fun ModernChatCard(
                     contentScale = ContentScale.Crop
                 )
 
-                // Online індикатор
-                if (chat.lastActivity != null && isOnline(chat.lastActivity!!)) {
+                // Online indicator: server-provided flag OR PresenceTracker real-time OR lastActivity heuristic
+                if (isOnline || chat.isOnline || (chat.lastActivity != null && isOnline(chat.lastActivity!!))) {
                     Box(
                         modifier = Modifier
                             .size(18.dp)

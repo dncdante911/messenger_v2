@@ -180,6 +180,43 @@ async function sendThreadMessage(ctx, io, req, res) {
             io.to(`channel_${channelId}`).emit('channel_thread_message', message);
         }
 
+        // Notify original comment author about the reply
+        if (replyToId && io) {
+            try {
+                const [[origMsg]] = await ctx.sequelize.query(
+                    'SELECT user_id, text FROM wo_channel_comments WHERE id = :replyToId',
+                    { replacements: { replyToId }, type: ctx.sequelize.QueryTypes.SELECT }
+                ).catch(() => [[null]]);
+
+                if (origMsg && origMsg.user_id !== userId) {
+                    const [[channel]] = await ctx.sequelize.query(
+                        'SELECT page_title, avatar FROM wo_pages WHERE page_id = :channelId',
+                        { replacements: { channelId }, type: ctx.sequelize.QueryTypes.SELECT }
+                    ).catch(() => [[null]]);
+
+                    const siteUrl = (ctx.globalconfig?.site_url || '').replace(/\/$/, '');
+                    let chAvatar = channel?.avatar || '';
+                    if (chAvatar && !chAvatar.startsWith('http')) chAvatar = `${siteUrl}/${chAvatar}`;
+
+                    io.to(origMsg.user_id.toString()).emit('channel_reply_received', {
+                        id:                    commentId,
+                        post_id:               postId,
+                        channel_id:            channelId,
+                        channel_name:          channel?.page_title || '',
+                        channel_avatar:        chAvatar,
+                        original_comment_id:   replyToId,
+                        original_comment_text: origMsg.text || '',
+                        sender_user_id:        userId,
+                        sender_username:       author?.username || '',
+                        sender_name:           author?.name || '',
+                        sender_avatar:         author?.avatar || '',
+                        text,
+                        time:                  now,
+                    });
+                }
+            } catch (_) { /* non-critical */ }
+        }
+
         res.json({ api_status: 200, message });
     } catch (err) {
         console.error('[Thread/send]', err.message);
@@ -250,6 +287,85 @@ async function batchCounts(ctx, req, res) {
     }
 }
 
+// ─── Reply Inbox: all replies to current user's thread messages ───────────────
+// GET /api/node/channel/reply-inbox
+
+async function getReplyInbox(ctx, req, res) {
+    try {
+        const userId  = req.userId;
+        const limit   = Math.min(parseInt(req.query.limit  || req.body?.limit)  || 50, 100);
+        const offset  = parseInt(req.query.offset || req.body?.offset) || 0;
+        const siteUrl = (ctx.globalconfig?.site_url || '').replace(/\/$/, '');
+
+        const rows = await ctx.sequelize.query(`
+            SELECT
+                cc.id,
+                cc.post_id,
+                cc.text,
+                cc.time,
+                cc.reply_to_id,
+                cc_orig.text        AS original_text,
+                wcp.page_id         AS channel_id,
+                SUBSTRING(wcp.postText, 1, 200) AS post_text,
+                wp.page_title       AS channel_name,
+                wp.avatar           AS channel_avatar,
+                sender.user_id      AS sender_user_id,
+                sender.username     AS sender_username,
+                sender.first_name   AS sender_first_name,
+                sender.last_name    AS sender_last_name,
+                sender.avatar       AS sender_avatar
+            FROM wo_channel_comments cc
+            JOIN wo_channel_comments cc_orig ON cc.reply_to_id = cc_orig.id
+            JOIN wo_channel_posts    wcp     ON cc.post_id = wcp.id
+            JOIN wo_pages            wp      ON wcp.page_id = wp.page_id
+            JOIN wo_users            sender  ON cc.user_id = sender.user_id
+            WHERE cc_orig.user_id = :userId
+              AND cc.user_id      != :userId
+            ORDER BY cc.time DESC
+            LIMIT :limit OFFSET :offset
+        `, { replacements: { userId, limit, offset }, type: ctx.sequelize.QueryTypes.SELECT });
+
+        const [[{ total }]] = await ctx.sequelize.query(`
+            SELECT COUNT(*) AS total
+            FROM wo_channel_comments cc
+            JOIN wo_channel_comments cc_orig ON cc.reply_to_id = cc_orig.id
+            WHERE cc_orig.user_id = :userId AND cc.user_id != :userId
+        `, { replacements: { userId }, type: ctx.sequelize.QueryTypes.SELECT });
+
+        const replies = rows.map(r => {
+            let channelAvatar = r.channel_avatar || '';
+            if (channelAvatar && !channelAvatar.startsWith('http'))
+                channelAvatar = `${siteUrl}/${channelAvatar}`;
+            let senderAvatar = r.sender_avatar || '';
+            if (senderAvatar && !senderAvatar.startsWith('http'))
+                senderAvatar = `${siteUrl}/${senderAvatar}`;
+            const senderName = [r.sender_first_name, r.sender_last_name].filter(Boolean).join(' ')
+                             || r.sender_username || '';
+            return {
+                id:                    r.id,
+                post_id:               r.post_id,
+                channel_id:            r.channel_id,
+                channel_name:          r.channel_name || '',
+                channel_avatar:        channelAvatar,
+                post_text:             r.post_text || '',
+                original_comment_id:   r.reply_to_id,
+                original_comment_text: r.original_text || '',
+                sender_user_id:        r.sender_user_id,
+                sender_username:       r.sender_username || '',
+                sender_name:           senderName,
+                sender_avatar:         senderAvatar,
+                text:                  r.text || '',
+                time:                  r.time || 0,
+            };
+        });
+
+        res.json({ api_status: 200, replies, total: Number(total || 0) });
+    } catch (err) {
+        console.error('[Thread/replyInbox]', err.message);
+        res.status(500).json({ api_status: 500, error_message: err.message });
+    }
+}
+
 // ─── Export handlers ──────────────────────────────────────────────────────────
 
 module.exports = {
@@ -258,4 +374,5 @@ module.exports = {
     sendThreadMessage,
     deleteThreadMessage,
     batchCounts,
+    getReplyInbox,
 };

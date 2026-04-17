@@ -1590,6 +1590,7 @@ class MessagesViewModel(application: Application) :
     }
 
     override fun onUserOnline(userId: Long) {
+        com.worldmates.messenger.network.PresenceTracker.setOnline(userId)
         if (userId == recipientId) {
             presenceIsOnline = true
             // Only update if not in a transient action state
@@ -1602,6 +1603,7 @@ class MessagesViewModel(application: Application) :
     }
 
     override fun onUserOffline(userId: Long) {
+        com.worldmates.messenger.network.PresenceTracker.setOffline(userId)
         if (userId == recipientId) {
             presenceIsOnline = false
             // Stamp the current time so formatLastSeen shows "just now" / "5 min ago"

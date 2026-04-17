@@ -293,6 +293,10 @@ function registerChannelRoutes(app, ctx, io) {
     app.get ('/api/node/channel/post/:postId/thread/count', auth, (req, res) => threads.getThreadCount(ctx, req, res));
     app.post('/api/node/channel/threads/counts',            auth, (req, res) => threads.batchCounts(ctx, req, res));
 
+    // ── Channel Reply Inbox ──────────────────────────────────────────────────
+    app.get ('/api/node/channel/reply-inbox',  auth, (req, res) => threads.getReplyInbox(ctx, req, res));
+    app.post('/api/node/channel/reply-inbox',  auth, (req, res) => threads.getReplyInbox(ctx, req, res));
+
     // ── Channel Sub-Groups ───────────────────────────────────────────────────
     app.post('/api/node/channel/groups/list',   auth, channelGroups.listGroups(ctx));
     app.post('/api/node/channel/groups/create', auth, channelGroups.createGroup(ctx, io));

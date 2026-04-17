@@ -3608,4 +3608,14 @@
     <string name="no_results">Нет результатов</string>
     <string name="contact_load_error">Ошибка загрузки контактов</string>
     <string name="draft_saving">💾 Сохраняется…</string>
+
+    <!-- ===== CHANNEL REPLIES INBOX ===== -->
+    <string name="channel_replies_title">Ответы</string>
+    <string name="channel_replies_empty">Ответов на ваши комментарии пока нет</string>
+    <string name="channel_replies_your_comment">Ваш комментарий</string>
+    <string name="channel_replies_reply">Ответить</string>
+    <string name="channel_replies_open_channel">Открыть канал</string>
+    <string name="channel_replies_type_hint">Написать ответ…</string>
+    <string name="channel_replies_replying_to">Ответ пользователю %s</string>
+    <string name="channel_replies_unknown_channel">Канал</string>
 </resources>

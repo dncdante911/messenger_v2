@@ -3,6 +3,7 @@ package com.worldmates.messenger.ui.chats
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -37,6 +38,7 @@ import java.util.*
 fun TelegramChatItem(
     chat: Chat,
     nickname: String? = null,
+    isOnline: Boolean = false,
     onClick: () -> Unit,
     onLongPress: () -> Unit = {}
 ) {
@@ -51,15 +53,27 @@ fun TelegramChatItem(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Аватарка (маленька, як в Telegram)
-        AsyncImage(
-            model = chat.avatarUrl,
-            contentDescription = chat.username,
-            modifier = Modifier
-                .size(52.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
+        // Avatar with online indicator
+        Box {
+            AsyncImage(
+                model = chat.avatarUrl,
+                contentDescription = chat.username,
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+            if (isOnline) {
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .align(Alignment.BottomEnd)
+                        .clip(CircleShape)
+                        .background(androidx.compose.ui.graphics.Color(0xFF4CAF50))
+                        .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(12.dp))
 
