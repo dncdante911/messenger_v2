@@ -412,7 +412,7 @@ interface NodeChannelApi {
         @Path("postId")       postId: Long,
         @Field("reply_to_id") replyToId: Long,
         @Field("text")        text: String
-    ): com.worldmates.messenger.network.SharedApiModels.SubscribeChannelResponse
+    ): com.worldmates.messenger.data.model.ChannelReplyInboxResponse
 }
 
 /** QR code response. */
