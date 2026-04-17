@@ -176,6 +176,20 @@ fun MessagesScreen(
     val isMutedPrivate by viewModel.isMutedPrivate.collectAsState()
     val mediaAutoDeleteOptionState by viewModel.mediaAutoDeleteOption.collectAsState()
 
+    // 🤖 Bot chat: detect from intent flag OR from messages that carry bot_id.
+    // This way the START button appears even when opened from Chats/Search, not just Bot Store.
+    val hasMessagesWithBotId = messages.any { it.botId != null }
+    val effectiveIsBotChat = isBotChat || hasMessagesWithBotId
+
+    // Track whether the user has already started the bot (any messages loaded → yes).
+    // Local state: starts false, becomes true once messages load or START is pressed.
+    var botStarted by remember { mutableStateOf(false) }
+    LaunchedEffect(messages, isLoading) {
+        if (!isLoading && messages.isNotEmpty()) botStarted = true
+    }
+    // Show the bottom START bar when: bot chat + not yet started + not in selection mode
+    val showBotStart = effectiveIsBotChat && !botStarted
+
     // 📝 Draft state
     val currentDraft by viewModel.currentDraft.collectAsState()
     val isDraftSaving by viewModel.isDraftSaving.collectAsState()
@@ -1511,13 +1525,13 @@ fun MessagesScreen(
                 }
             }  // LazyColumn
 
-            // 🚀 Bot START overlay — shown when bot chat has no messages yet
-            if (isBotChat && messages.isEmpty() && !isLoading) {
+            // 🤖 Bot info card — shown in the message area when chat is empty and not yet started
+            if (showBotStart && messages.isEmpty() && !isLoading) {
                 com.worldmates.messenger.ui.bots.BotStartOverlay(
                     botName = recipientName,
                     botDescription = botDescription,
                     botAvatar = recipientAvatar.ifEmpty { null },
-                    onStartClick = { viewModel.sendMessage("/start") },
+                    onStartClick = {},  // START action is in BotStartBar at the bottom
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -1933,8 +1947,19 @@ fun MessagesScreen(
                 )
             }
 
-            // Message Input (ховається в режимі вибору)
-            if (!isSelectionMode) {
+            // 🤖 Bot START bar — bottom CTA replacing input until user starts the bot
+            if (showBotStart && !isSelectionMode) {
+                com.worldmates.messenger.ui.bots.BotStartBar(
+                    botName = recipientName,
+                    onStartClick = {
+                        botStarted = true
+                        viewModel.sendMessage("/start")
+                    }
+                )
+            }
+
+            // Message Input (hidden in selection mode, hidden when showing bot start bar)
+            if (!isSelectionMode && !showBotStart) {
                 MessageInputBar(
                     currentInputMode = currentInputMode,
                     onInputModeChange = { newMode ->

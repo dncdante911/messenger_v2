@@ -47,14 +47,15 @@ import com.worldmates.messenger.data.model.BotReplyMarkup
  */
 
 // ==================== BOT START OVERLAY ====================
-// Как в TG: при первом входе в чат с ботом - большая кнопка START
+// Показывается в области сообщений когда чат пустой.
+// Только инфо-карточка бота — без кнопки (кнопка START внизу в BotStartBar).
 
 @Composable
 fun BotStartOverlay(
     botName: String,
     botDescription: String?,
     botAvatar: String?,
-    onStartClick: () -> Unit,
+    onStartClick: () -> Unit, // kept for API compat, unused here
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -67,7 +68,7 @@ fun BotStartOverlay(
         // Bot avatar
         Box(
             modifier = Modifier
-                .size(120.dp)
+                .size(100.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
@@ -83,7 +84,7 @@ fun BotStartOverlay(
                 Icon(
                     Icons.Default.SmartToy,
                     contentDescription = null,
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -102,7 +103,7 @@ fun BotStartOverlay(
         // Bot badge
         Surface(
             shape = RoundedCornerShape(4.dp),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
             modifier = Modifier.padding(top = 4.dp)
         ) {
             Text(
@@ -125,19 +126,50 @@ fun BotStartOverlay(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "↓  ${stringResource(R.string.bot_start_button)}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+            letterSpacing = 0.5.sp
+        )
+    }
+}
 
-        // START button (like Telegram)
+// ==================== BOT START BAR ====================
+// Показывается ВНИЗУ экрана вместо поля ввода — как в Telegram.
+// Исчезает после нажатия (onStartClick посылает /start и скрывает бар).
+
+@Composable
+fun BotStartBar(
+    botName: String,
+    onStartClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 8.dp,
+        tonalElevation = 2.dp
+    ) {
         Button(
             onClick = onStartClick,
             modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .height(48.dp),
-            shape = RoundedCornerShape(24.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .height(52.dp),
+            shape = RoundedCornerShape(26.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
-            )
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = stringResource(R.string.bot_start_button),
                 style = MaterialTheme.typography.titleMedium,
