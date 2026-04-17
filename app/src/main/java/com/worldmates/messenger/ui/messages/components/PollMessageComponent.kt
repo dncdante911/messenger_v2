@@ -151,42 +151,46 @@ private fun PollOptionRow(
         label = "poll_bar"
     )
 
-    val barColor = if (option.isVoted)
-        MaterialTheme.colorScheme.primary
+    // Fill alpha is kept low so text remains readable at any fill width
+    val fillAlpha = if (option.isVoted) 0.18f else 0.10f
+    val fillColor = MaterialTheme.colorScheme.primary.copy(alpha = fillAlpha)
+    val borderColor = if (option.isVoted)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
     else
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        contentColor.copy(alpha = 0.18f)
+    val accentColor = MaterialTheme.colorScheme.primary
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+            .background(contentColor.copy(alpha = 0.06f))
             .then(
                 if (!showResults && !isClosed)
                     Modifier.clickable(onClick = onVote)
                 else Modifier
             )
             .border(
-                width = if (option.isVoted) 1.5.dp else 0.dp,
-                color = if (option.isVoted) MaterialTheme.colorScheme.primary else Color.Transparent,
+                width = if (option.isVoted) 1.5.dp else 1.dp,
+                color = borderColor,
                 shape = RoundedCornerShape(8.dp)
             )
     ) {
-        // Progress bar background
+        // Transparent progress fill — never obscures text
         if (showResults && animatedPercent > 0f) {
             Box(
                 modifier = Modifier
+                    .fillMaxHeight()
                     .fillMaxWidth(animatedPercent)
-                    .matchParentSize()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(barColor)
+                    .background(fillColor)
             )
         }
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 9.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -199,14 +203,15 @@ private fun PollOptionRow(
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
+                        tint = accentColor,
+                        modifier = Modifier.size(15.dp)
                     )
                 }
                 Text(
                     text = option.text,
                     style = MaterialTheme.typography.bodySmall,
-                    color = contentColor,
+                    color = if (option.isVoted) accentColor else contentColor,
+                    fontWeight = if (option.isVoted) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -214,8 +219,9 @@ private fun PollOptionRow(
             if (showResults) {
                 Text(
                     text = "${option.percent}%",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = contentColor,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (option.isVoted) FontWeight.Bold else FontWeight.Medium,
+                    color = if (option.isVoted) accentColor else contentColor.copy(alpha = 0.75f),
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }

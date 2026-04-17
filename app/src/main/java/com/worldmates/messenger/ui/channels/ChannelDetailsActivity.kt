@@ -1,10 +1,12 @@
 package com.worldmates.messenger.ui.channels
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -283,6 +285,14 @@ fun ChannelDetailsScreen(
                 }
             )
         }
+    }
+
+    // Permission launcher for the avatar camera
+    val requestAvatarCameraPermission = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) cameraUri?.let { cameraLauncher.launch(it) }
+        else Toast.makeText(context, context.getString(R.string.camera_permission_required), Toast.LENGTH_SHORT).show()
     }
 
     // Показуємо помилки через Toast
@@ -1323,7 +1333,12 @@ fun ChannelDetailsScreen(
             ChannelAvatarDialog(
                 onDismiss = { showChangeAvatarDialog = false },
                 onCameraClick = {
-                    cameraUri?.let { cameraLauncher.launch(it) }
+                    if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA)
+                            == PackageManager.PERMISSION_GRANTED) {
+                        cameraUri?.let { cameraLauncher.launch(it) }
+                    } else {
+                        requestAvatarCameraPermission.launch(android.Manifest.permission.CAMERA)
+                    }
                 },
                 onGalleryClick = {
                     galleryLauncher.launch(
@@ -1696,6 +1711,13 @@ fun CreatePostDialog(
         }
     }
 
+    val requestPostCameraPermission = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) cameraUri?.let { cameraLauncher.launch(it) }
+        else Toast.makeText(context, context.getString(R.string.camera_permission_required), Toast.LENGTH_SHORT).show()
+    }
+
     Dialog(
         onDismissRequest = { if (!isUploadingMedia) onDismiss() },
         properties = DialogProperties(
@@ -1912,7 +1934,14 @@ fun CreatePostDialog(
                         }
 
                         OutlinedButton(
-                            onClick = { cameraUri?.let { cameraLauncher.launch(it) } },
+                            onClick = {
+                                if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA)
+                                        == PackageManager.PERMISSION_GRANTED) {
+                                    cameraUri?.let { cameraLauncher.launch(it) }
+                                } else {
+                                    requestPostCameraPermission.launch(android.Manifest.permission.CAMERA)
+                                }
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(44.dp),
