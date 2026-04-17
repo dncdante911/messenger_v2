@@ -5,10 +5,6 @@ import android.os.Build
 import android.util.Log
 import com.worldmates.messenger.BuildConfig
 import com.worldmates.messenger.data.UserSession
-import com.worldmates.messenger.network.NodeRetrofitClient
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -24,10 +20,10 @@ import java.util.Locale
  */
 object CrashReporter : Thread.UncaughtExceptionHandler {
 
-    private const val TAG          = "CrashReporter"
-    private const val CRASH_DIR    = "crash_reports"
-    // Простий секрет щоб не спамили ендпоінт зовні
-    internal const val CRASH_SECRET = "wm_crash_rpt_2025"
+    private const val TAG             = "CrashReporter"
+    private const val CRASH_DIR       = "crash_reports"
+    private const val MAX_REPORT_BYTES = 200_000   // 200 KB — stay under Express body limit
+    internal const val CRASH_SECRET   = "wm_crash_rpt_2025"
 
     private var defaultHandler: Thread.UncaughtExceptionHandler? = null
     private lateinit var appContext: Context
@@ -46,22 +42,16 @@ object CrashReporter : Thread.UncaughtExceptionHandler {
     }
 
     /**
-     * Перевіряє наявність збережених звітів і відправляє їх на сервер
-     * у фоновому потоці. Видаляє файл після успішної відправки.
+     * Schedules a WorkManager job to deliver all pending crash reports.
+     * WorkManager guarantees execution once the device is online, with
+     * automatic retry — even if the app process is killed before the
+     * first attempt completes.
      */
     fun sendPendingReports() {
         val crashDir = File(appContext.filesDir, CRASH_DIR)
         if (!crashDir.exists()) return
-        val files = crashDir.listFiles { f -> f.name.endsWith(".log") }
-            ?.takeIf { it.isNotEmpty() } ?: return
-
-        Log.d(TAG, "Found ${files.size} pending crash report(s)")
-
-        CoroutineScope(Dispatchers.IO).launch {
-            for (file in files) {
-                trySendReport(file)
-            }
-        }
+        if (crashDir.listFiles { f -> f.name.endsWith(".log") }.isNullOrEmpty()) return
+        CrashReportWorker.schedule(appContext)
     }
 
     // ─── UncaughtExceptionHandler ────────────────────────────────────────────
@@ -110,28 +100,17 @@ object CrashReporter : Thread.UncaughtExceptionHandler {
         val crashDir = File(appContext.filesDir, CRASH_DIR)
         crashDir.mkdirs()
 
-        val filename = "crash_${userId}_$dateFmt.log"
-        File(crashDir, filename).writeText(report, Charsets.UTF_8)
-        Log.d(TAG, "Crash report saved: $filename")
-    }
-
-    private suspend fun trySendReport(file: File) {
-        try {
-            val content  = file.readText(Charsets.UTF_8)
-            val response = NodeRetrofitClient.api.sendCrashReport(
-                report   = content,
-                filename = file.name,
-                secret   = CRASH_SECRET
-            )
-            if (response.apiStatus == 200) {
-                file.delete()
-                Log.d(TAG, "Crash report sent & deleted: ${file.name}")
-            } else {
-                Log.w(TAG, "Server returned ${response.apiStatus} for ${file.name}")
-            }
-        } catch (e: Exception) {
-            // Не вдалося відправити — залишимо файл, спробуємо при наступному запуску
-            Log.e(TAG, "Failed to send ${file.name}: ${e.message}")
+        val bytes = report.toByteArray(Charsets.UTF_8)
+        val finalReport = if (bytes.size > MAX_REPORT_BYTES) {
+            // Truncate from the end to stay under the server body limit
+            String(bytes, 0, MAX_REPORT_BYTES, Charsets.UTF_8) +
+                "\n\n[TRUNCATED — original size: ${bytes.size} bytes]"
+        } else {
+            report
         }
+
+        val filename = "crash_${userId}_$dateFmt.log"
+        File(crashDir, filename).writeText(finalReport, Charsets.UTF_8)
+        Log.d(TAG, "Crash report saved: $filename (${finalReport.length} chars)")
     }
 }
