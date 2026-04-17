@@ -2090,8 +2090,23 @@
     <string name="topic_messages_count">%1$d сообщений</string>
     <string name="topic_delete_confirm">Удалить эту тему?</string>
     <string name="topic_general">Общее</string>
+    <string name="topics_empty_title">Нет тем</string>
+    <string name="topics_empty_desc">Темы помогают разделить обсуждение группы на отдельные разделы</string>
+    <string name="topic_members">Участники</string>
+    <string name="topic_messages">Сообщения</string>
 
-    
+    <!-- ===== GROUP ACTIONS ===== -->
+    <string name="group_avatar_uploaded">Аватар загружен!</string>
+    <string name="group_avatar_upload_error">Ошибка обработки изображения: %s</string>
+    <string name="group_members_invited">Приглашено %d участник(ов)</string>
+    <string name="group_share_subject">Присоединяйтесь к группе %s</string>
+    <string name="group_share_text">Присоединяйтесь к «%s» в WorldMates!</string>
+    <string name="group_share_dialog_title">Поделиться группой</string>
+    <string name="group_notifications_on">Уведомления включены</string>
+    <string name="group_notifications_off">Уведомления выключены</string>
+    <string name="group_invite_link_text">Присоединяйтесь к группе «%s»:</string>
+    <string name="group_invite_link_share_title">Поделиться ссылкой</string>
+
     <string name="anonymous_admin_title">Анонимный администратор</string>
     <string name="anonymous_admin_description">Отправлять сообщения от имени группы</string>
     <string name="anonymous_admin_enabled">Анонимный режим включён</string>

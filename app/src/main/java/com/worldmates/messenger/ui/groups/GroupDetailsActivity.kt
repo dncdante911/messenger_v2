@@ -189,10 +189,9 @@ fun GroupDetailsScreen(
                     onSuccess = { avatarUrl ->
                         android.widget.Toast.makeText(
                             context,
-                            "Аватар успішно завантажено!",
+                            context.getString(R.string.group_avatar_uploaded),
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
-                        // Видаляємо тимчасовий файл
                         file.delete()
                     },
                     onError = { error ->
@@ -207,7 +206,7 @@ fun GroupDetailsScreen(
             } catch (e: Exception) {
                 android.widget.Toast.makeText(
                     context,
-                    "Помилка обробки зображення: ${e.message}",
+                    context.getString(R.string.group_avatar_upload_error, e.message),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
             }
@@ -232,11 +231,16 @@ fun GroupDetailsScreen(
         }
     }
 
-    // Load group members when screen opens
+    // Always load topics — doesn't depend on the group object being ready yet
     LaunchedEffect(groupId) {
-        viewModel.selectGroup(group ?: return@LaunchedEffect)
-        viewModel.loadAvailableUsers()
         viewModel.loadSubgroups(groupId)
+    }
+
+    // Load member-dependent data once the group object is available
+    LaunchedEffect(group) {
+        group ?: return@LaunchedEffect
+        viewModel.selectGroup(group)
+        viewModel.loadAvailableUsers()
     }
 
     // Показуємо результат завантаження аватара
@@ -347,7 +351,8 @@ fun GroupDetailsScreen(
                         viewModel.saveNotificationSettings(groupId, notificationsEnabled) {
                             android.widget.Toast.makeText(
                                 context,
-                                if (notificationsEnabled) "Сповіщення увімкнено" else "Сповіщення вимкнено",
+                                if (notificationsEnabled) context.getString(R.string.group_notifications_on)
+                                else context.getString(R.string.group_notifications_off),
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -357,10 +362,10 @@ fun GroupDetailsScreen(
                         val shareIntent = Intent().apply {
                             action = Intent.ACTION_SEND
                             type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, "Приєднуйтесь до групи ${group.name}")
-                            putExtra(Intent.EXTRA_TEXT, "Приєднуйтесь до групи \"${group.name}\" в WorldMates!\n\n${groupJoinUrl ?: "worldmates://group/${group.id}"}")
+                            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.group_share_subject, group.name))
+                            putExtra(Intent.EXTRA_TEXT, context.getString(R.string.group_share_text, group.name) + "\n\n${groupJoinUrl ?: "worldmates://group/${group.id}"}")
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Поділитися групою"))
+                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.group_share_dialog_title)))
                     }
                 )
             }
@@ -550,13 +555,12 @@ fun GroupDetailsScreen(
                 existingMemberIds = members.map { it.userId },
                 onDismiss = { showAddMemberDialog = false },
                 onInviteUsers = { userIds ->
-                    // Add each selected user to the group
                     userIds.forEach { userId ->
                         viewModel.addGroupMember(group.id, userId)
                     }
                     android.widget.Toast.makeText(
                         context,
-                        "Invited ${userIds.size} user(s) to the group",
+                        context.getString(R.string.group_members_invited, userIds.size),
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 },
@@ -569,9 +573,9 @@ fun GroupDetailsScreen(
                 onShareLink = { url ->
                     val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, "Join \"${group.name}\" group:\n$url")
+                        putExtra(android.content.Intent.EXTRA_TEXT, context.getString(R.string.group_invite_link_text, group.name) + "\n$url")
                     }
-                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share invite link"))
+                    context.startActivity(android.content.Intent.createChooser(shareIntent, context.getString(R.string.group_invite_link_share_title)))
                 },
                 onGenerateQr = {
                     viewModel.generateGroupQr(

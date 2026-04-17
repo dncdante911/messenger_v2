@@ -302,6 +302,7 @@ function getMessages(ctx, io) {
             const afterMessageId  = parseInt(req.body.after_message_id)  || 0;
             const beforeMessageId = parseInt(req.body.before_message_id) || 0;
             const messageId       = parseInt(req.body.message_id)        || 0;
+            const topicId         = parseInt(req.body.topic_id)          || 0;
 
             // Per-user clear-history timestamp: skip messages sent before the user cleared
             const group    = await ctx.wo_groupchat.findOne({ where: { group_id: groupId }, raw: true });
@@ -309,7 +310,8 @@ function getMessages(ctx, io) {
             const clearTs  = settings.clear_history?.[String(userId)] || 0;
 
             const where = { group_id: groupId, page_id: 0 };
-            if (clearTs > 0) where.time = { [Op.gt]: clearTs };
+            if (clearTs > 0)  where.time     = { [Op.gt]: clearTs };
+            if (topicId > 0)  where.topic_id = topicId;
 
             if (messageId > 0)            where.id = messageId;
             else if (afterMessageId  > 0) where.id = { [Op.gt]: afterMessageId };
@@ -363,6 +365,7 @@ function sendMessage(ctx, io) {
             const lat           = req.body.lat      || '0';
             const lng           = req.body.lng      || '0';
             const contact       = req.body.contact  || '';
+            const topicId       = parseInt(req.body.topic_id) || 0;
             const clientVersion = parseInt(req.body.cipher_version) || 0;
             const isSignal      = clientVersion === 3;
 
@@ -450,6 +453,7 @@ function sendMessage(ctx, io) {
                 lat,
                 lng,
                 type_two:       contact ? 'contact' : '',
+                topic_id:       topicId > 0 ? topicId : null,
                 forward:        0,
                 edited:         0,
             });

@@ -1360,7 +1360,9 @@ class GroupsViewModel : ViewModel() {
                             id            = topic.id,
                             parentGroupId = groupId,
                             name          = topic.name,
-                            description   = null,
+                            description   = topic.description,
+                            color         = topic.color.ifEmpty { "#0088CC" },
+                            isPrivate     = topic.isPrivate,
                             messagesCount = topic.messageCount,
                             isClosed      = topic.isArchived,
                             createdBy     = topic.createdBy,
@@ -1395,8 +1397,11 @@ class GroupsViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val response = NodeRetrofitClient.groupApi.createTopic(
-                    groupId = groupId,
-                    name    = name
+                    groupId     = groupId,
+                    name        = name,
+                    description = description,
+                    color       = color,
+                    isPrivate   = if (isPrivate) 1 else 0
                 )
 
                 if (response.apiStatus == 200 && response.topic != null) {
@@ -1404,12 +1409,13 @@ class GroupsViewModel : ViewModel() {
                         id            = response.topic.id,
                         parentGroupId = groupId,
                         name          = response.topic.name,
-                        description   = description,
-                        isPrivate     = isPrivate,
-                        color         = color,
+                        description   = response.topic.description ?: description,
+                        color         = response.topic.color.ifEmpty { color },
+                        isPrivate     = response.topic.isPrivate == 1,
                         messagesCount = 0,
                         createdBy     = 0L,
-                        createdTime   = System.currentTimeMillis() / 1000
+                        createdTime   = response.topic.createdAt.toLongOrNull()
+                                            ?: (System.currentTimeMillis() / 1000)
                     )
                     _subgroups.value = _subgroups.value + newSubgroup
                     onSuccess()

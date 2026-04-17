@@ -170,7 +170,8 @@ interface NodeGroupApi {
         @Field("group_id")          groupId: Long,
         @Field("limit")             limit: Int = 30,
         @Field("after_message_id")  afterMessageId: Long = 0,
-        @Field("before_message_id") beforeMessageId: Long = 0
+        @Field("before_message_id") beforeMessageId: Long = 0,
+        @Field("topic_id")          topicId: Long = 0
     ): GroupMessageListResponse
 
     /**
@@ -193,6 +194,7 @@ interface NodeGroupApi {
         @Field("reply_to_text")  replyToText:   String? = null,
         @Field("reply_to_name")  replyToName:   String? = null,
         @Field("stickers")       stickers:      String? = null,
+        @Field("topic_id")       topicId:       Long    = 0,
         // ── Signal Sender Key fields (cipher_version=3 only) ─────────────────
         @Field("iv")             iv:            String? = null,
         @Field("tag")            tag:           String? = null,
@@ -205,7 +207,8 @@ interface NodeGroupApi {
     suspend fun loadMoreGroupMessages(
         @Field("group_id")          groupId: Long,
         @Field("before_message_id") beforeMessageId: Long,
-        @Field("limit")             limit: Int = 15
+        @Field("limit")             limit: Int = 15,
+        @Field("topic_id")          topicId: Long = 0
     ): GroupMessageListResponse
 
     @FormUrlEncoded
