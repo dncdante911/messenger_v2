@@ -112,9 +112,20 @@ function createTopic(ctx, io) {
             const settings = parseSettings(group);
             if (!Array.isArray(settings.topics)) settings.topics = [];
 
+            if (settings.topics.length >= 30)
+                return res.json({ api_status: 400, error_message: 'Maximum 30 topics per group' });
+
+            const description = (req.body.description || '').trim() || null;
+            const color       = (req.body.color || '#0088CC').trim();
+            const isPrivate   = req.body.is_private === 'true' || req.body.is_private === '1'
+                             || req.body.is_private === true   || req.body.is_private === 1;
+
             const newTopic = {
                 id:          Date.now(),
                 name,
+                description,
+                color,
+                is_private:  isPrivate,
                 created_at:  Math.floor(Date.now() / 1000),
                 created_by:  userId,
                 is_pinned:   false,
@@ -166,6 +177,9 @@ function updateTopic(ctx, io) {
             if (idx === -1) return res.json({ api_status: 404, error_message: 'Topic not found' });
 
             if (req.body.name        !== undefined) settings.topics[idx].name        = String(req.body.name).trim().substring(0, 128);
+            if (req.body.description !== undefined) settings.topics[idx].description = String(req.body.description).trim() || null;
+            if (req.body.color       !== undefined) settings.topics[idx].color       = String(req.body.color).trim();
+            if (req.body.is_private  !== undefined) settings.topics[idx].is_private  = req.body.is_private === 'true' || req.body.is_private === '1' || !!req.body.is_private;
             if (req.body.is_pinned   !== undefined) settings.topics[idx].is_pinned   = !!req.body.is_pinned;
             if (req.body.is_archived !== undefined) settings.topics[idx].is_archived = !!req.body.is_archived;
 

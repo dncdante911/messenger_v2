@@ -415,7 +415,8 @@ class MessagesViewModel(application: Application) :
                 val response = groupApi.getGroupMessages(
                     groupId         = groupId,
                     limit           = Constants.MESSAGES_PAGE_SIZE,
-                    beforeMessageId = beforeMessageId
+                    beforeMessageId = beforeMessageId,
+                    topicId         = topicId
                 )
 
                 if (response.apiStatus == 200 && response.messages != null) {
@@ -566,6 +567,7 @@ class MessagesViewModel(application: Application) :
                         replyId       = replyToId ?: 0L,
                         replyToText   = replyToText,
                         replyToName   = replyToName,
+                        topicId       = topicId,
                         iv            = groupSignalPayload.iv,
                         tag           = groupSignalPayload.tag,
                         signalHeader  = groupSignalPayload.signalHeader,
@@ -579,7 +581,8 @@ class MessagesViewModel(application: Application) :
                         text        = text,
                         replyId     = replyToId ?: 0L,
                         replyToText = replyToText,
-                        replyToName = replyToName
+                        replyToName = replyToName,
+                        topicId     = topicId
                     )
                 }
 
@@ -769,13 +772,14 @@ class MessagesViewModel(application: Application) :
                 groupApi.sendGroupMessage(
                     groupId       = groupId,
                     text          = groupPayload.ciphertext,
+                    topicId       = topicId,
                     iv            = groupPayload.iv,
                     tag           = groupPayload.tag,
                     signalHeader  = groupPayload.signalHeader,
                     cipherVersion = SignalGroupEncryptionService.CIPHER_VERSION_SIGNAL
                 )
             } else {
-                groupApi.sendGroupMessage(groupId = groupId, text = text)
+                groupApi.sendGroupMessage(groupId = groupId, text = text, topicId = topicId)
             }
             if (resp.apiStatus == 200) {
                 db.messageDao().hardDeleteMessage(queued.id)
@@ -999,7 +1003,7 @@ class MessagesViewModel(application: Application) :
         viewModelScope.launch {
             try {
                 val (apiStatus, errorMessage) = if (groupId != 0L) {
-                    val r = groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = stickerUrl)
+                    val r = groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = stickerUrl, topicId = topicId)
                     r.apiStatus to r.errorMessage
                 } else {
                     val r = nodeApi.sendMessage(recipientId = recipientId, text = "", stickers = stickerUrl, isBusinessChat = if (isBusinessChat) 1 else 0)
@@ -1037,7 +1041,7 @@ class MessagesViewModel(application: Application) :
             viewModelScope.launch {
                 try {
                     // Send via stickers field (same as private chats) so the server sets type="gif"
-                    val resp = groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = gifUrl)
+                    val resp = groupApi.sendGroupMessage(groupId = groupId, text = "", stickers = gifUrl, topicId = topicId)
                     if (resp.apiStatus == 200) {
                         fetchGroupMessages()
                     } else {
@@ -1076,7 +1080,7 @@ class MessagesViewModel(application: Application) :
             viewModelScope.launch {
                 try {
                     val locationText = "📍 ${locationData.address}\n${locationData.latLng.latitude},${locationData.latLng.longitude}"
-                    groupApi.sendGroupMessage(groupId = groupId, text = locationText)
+                    groupApi.sendGroupMessage(groupId = groupId, text = locationText, topicId = topicId)
                     fetchGroupMessages()
                 } catch (e: Exception) {
                     _error.value = "Помилка: ${e.localizedMessage}"
@@ -1114,7 +1118,7 @@ class MessagesViewModel(application: Application) :
         if (groupId != 0L) {
             viewModelScope.launch {
                 try {
-                    groupApi.sendGroupMessage(groupId = groupId, text = "📇 VCARD\n$vCardString")
+                    groupApi.sendGroupMessage(groupId = groupId, text = "📇 VCARD\n$vCardString", topicId = topicId)
                     fetchGroupMessages()
                 } catch (e: Exception) {
                     _error.value = "Помилка: ${e.localizedMessage}"

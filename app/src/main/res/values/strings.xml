@@ -2176,6 +2176,22 @@
     <string name="topic_messages_count">%1$d повідомлень</string>
     <string name="topic_delete_confirm">Видалити цю тему?</string>
     <string name="topic_general">Загальне</string>
+    <string name="topics_empty_title">Немає тем</string>
+    <string name="topics_empty_desc">Теми допомагають розділити обговорення групи на окремі розділи</string>
+    <string name="topic_members">Учасники</string>
+    <string name="topic_messages">Повідомлення</string>
+
+    <!-- ===== GROUP ACTIONS ===== -->
+    <string name="group_avatar_uploaded">Аватар завантажено!</string>
+    <string name="group_avatar_upload_error">Помилка обробки зображення: %s</string>
+    <string name="group_members_invited">Запрошено %d учасник(ів)</string>
+    <string name="group_share_subject">Приєднайтесь до групи %s</string>
+    <string name="group_share_text">Приєднуйтесь до «%s» у WorldMates!</string>
+    <string name="group_share_dialog_title">Поділитися групою</string>
+    <string name="group_notifications_on">Сповіщення увімкнено</string>
+    <string name="group_notifications_off">Сповіщення вимкнено</string>
+    <string name="group_invite_link_text">Приєднуйтесь до групи «%s»:</string>
+    <string name="group_invite_link_share_title">Поділитися посиланням</string>
 
     <!-- ===== ANONYMOUS ADMIN ===== -->
     <string name="anonymous_admin_title">Анонімний адмін</string>

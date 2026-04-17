@@ -337,7 +337,7 @@ fun EmptySubgroupsState(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "No topics yet",
+            text = stringResource(R.string.topics_empty_title),
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
             color = textPrimary
@@ -346,7 +346,7 @@ fun EmptySubgroupsState(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Topics help organize discussions\ninto separate threads",
+            text = stringResource(R.string.topics_empty_desc),
             fontSize = 14.sp,
             color = textSecondary,
             textAlign = TextAlign.Center
@@ -789,7 +789,7 @@ fun SubgroupDetailsHeader(
                         color = textPrimary
                     )
                     Text(
-                        text = "Members",
+                        text = stringResource(R.string.topic_members),
                         fontSize = 13.sp,
                         color = textSecondary
                     )
@@ -802,7 +802,7 @@ fun SubgroupDetailsHeader(
                         color = textPrimary
                     )
                     Text(
-                        text = "Messages",
+                        text = stringResource(R.string.topic_messages),
                         fontSize = 13.sp,
                         color = textSecondary
                     )

@@ -554,6 +554,9 @@ data class GroupSimpleResponse(
 data class GroupTopicData(
     @SerializedName("id")            val id: Long = 0,
     @SerializedName("name")          val name: String = "",
+    @SerializedName("description")   val description: String? = null,
+    @SerializedName("color")         val color: String = "#0088CC",
+    @SerializedName("is_private")    val isPrivate: Boolean = false,
     @SerializedName("created_at")    val createdAt: Long = 0,
     @SerializedName("created_by")    val createdBy: Long = 0,
     @SerializedName("is_pinned")     val isPinned: Boolean = false,
