@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.data.model.ChannelReply
 import com.worldmates.messenger.data.model.Chat
 import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.SocketManager
@@ -53,6 +54,13 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
     private val _hiddenChatsCount = MutableStateFlow(0)
     val hiddenChatsCount: StateFlow<Int> = _hiddenChatsCount
 
+    // ─── Channel Reply Inbox ──────────────────────────────────────────────────
+    private val _replyInboxTotal = MutableStateFlow(0)
+    val replyInboxTotal: StateFlow<Int> = _replyInboxTotal
+
+    private val _latestChannelReply = MutableStateFlow<ChannelReply?>(null)
+    val latestChannelReply: StateFlow<ChannelReply?> = _latestChannelReply
+
     private var socketManager: SocketManager? = null
     private var authErrorCount = 0
 
@@ -61,8 +69,23 @@ class ChatsViewModel(private val context: Context) : ViewModel(), SocketManager.
             kotlinx.coroutines.delay(2000)
             fetchChats()
             fetchHiddenChatsCount()
+            loadReplyInboxPreview()
         }
         setupSocket()
+    }
+
+    fun loadReplyInboxPreview() {
+        viewModelScope.launch {
+            try {
+                val resp = NodeRetrofitClient.channelApi.getReplyInbox(limit = 1)
+                if (resp.apiStatus == 200) {
+                    _replyInboxTotal.value = resp.total
+                    _latestChannelReply.value = resp.replies?.firstOrNull()
+                }
+            } catch (e: Exception) {
+                Log.w("ChatsViewModel", "loadReplyInboxPreview: ${e.message}")
+            }
+        }
     }
 
     /**

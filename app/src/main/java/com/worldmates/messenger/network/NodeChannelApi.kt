@@ -397,6 +397,22 @@ interface NodeChannelApi {
         @Field("channel_id") channelId: Long,
         @Field("group_id") groupId: Long
     ): ChannelGroupCreateResponse
+
+    // ── Reply Inbox ─────────────────────────────────────────────────────────────
+
+    @GET("api/node/channel/reply-inbox")
+    suspend fun getReplyInbox(
+        @retrofit2.http.Query("limit")  limit: Int = 50,
+        @retrofit2.http.Query("offset") offset: Int = 0
+    ): com.worldmates.messenger.data.model.ChannelReplyInboxResponse
+
+    @FormUrlEncoded
+    @POST("api/node/channel/post/{postId}/thread/reply")
+    suspend fun sendThreadReply(
+        @Path("postId")       postId: Long,
+        @Field("reply_to_id") replyToId: Long,
+        @Field("text")        text: String
+    ): com.worldmates.messenger.network.SharedApiModels.SubscribeChannelResponse
 }
 
 /** QR code response. */

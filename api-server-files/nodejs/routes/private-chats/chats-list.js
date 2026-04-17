@@ -221,6 +221,7 @@ function getChats(ctx, io) {
                     avatarUrl += '?cache=' + partner.last_avatar_mod;
                 }
 
+                const isOnline = !!(ctx.userIdSocket?.[partnerId] && ctx.userIdSocket[partnerId].length > 0);
                 result.push({
                     id:            chat.id,
                     chat_id:       chat.id,
@@ -234,6 +235,8 @@ function getChats(ctx, io) {
                     user_data:     partner,
                     last_message:  lastMsg,
                     message_count: unread,
+                    is_online:     isOnline,
+                    last_activity: partner.lastseen || null,
                 });
             }
 

@@ -101,6 +101,8 @@ fun ChatsScreenModern(
 
     val businessChats by viewModel.businessChatList.collectAsState()
     val isLoadingBusiness by viewModel.isLoadingBusiness.collectAsState()
+    val replyInboxTotal by viewModel.replyInboxTotal.collectAsState()
+    val latestChannelReply by viewModel.latestChannelReply.collectAsState()
 
     val uiStyle = rememberUIStyle()
     val themeState = rememberThemeState()
@@ -374,7 +376,14 @@ fun ChatsScreenModern(
                                 },
                                 isLoadingMore = isLoadingMore,
                                 hasMoreChats  = hasMoreChats,
-                                onLoadMore    = { viewModel.loadMoreChats() }
+                                onLoadMore    = { viewModel.loadMoreChats() },
+                                replyInboxTotal = replyInboxTotal,
+                                latestChannelReply = latestChannelReply,
+                                onRepliesClick = {
+                                    context.startActivity(
+                                        android.content.Intent(context, ChannelRepliesActivity::class.java)
+                                    )
+                                }
                             )
                         }
                     }
@@ -1268,7 +1277,10 @@ fun ChatListTabWithStories(
     onCreateStoryClick: () -> Unit = {},
     isLoadingMore: Boolean = false,
     hasMoreChats: Boolean = false,
-    onLoadMore: () -> Unit = {}
+    onLoadMore: () -> Unit = {},
+    replyInboxTotal: Int = 0,
+    latestChannelReply: com.worldmates.messenger.data.model.ChannelReply? = null,
+    onRepliesClick: () -> Unit = {}
 ) {
     val refreshing by remember { mutableStateOf(false) }
     val pullRefreshState = rememberPullRefreshState(
@@ -1278,6 +1290,7 @@ fun ChatListTabWithStories(
     val context = LocalContext.current
     val nicknameRepository = remember { ContactNicknameRepository(context) }
     val listState = rememberLazyListState()
+    val presenceOnlineUsers by com.worldmates.messenger.network.PresenceTracker.onlineUsers.collectAsState()
 
     // Infinite scroll: коли останній видимий елемент — передостанній у списку — завантажуємо ще
     val shouldLoadMore = remember {
@@ -1313,9 +1326,22 @@ fun ChatListTabWithStories(
                 )
             }
 
+            // Channel Replies inbox item (shown when user has replies to their comments)
+            if (replyInboxTotal > 0 || latestChannelReply != null) {
+                item(key = "channel_replies_inbox") {
+                    ChannelRepliesInboxItem(
+                        total = replyInboxTotal,
+                        latestReply = latestChannelReply,
+                        uiStyle = uiStyle,
+                        onClick = onRepliesClick
+                    )
+                }
+            }
+
             // Чати
             items(chats, key = { it.userId }) { chat ->
                 val nickname by nicknameRepository.getNickname(chat.userId).collectAsState(initial = null)
+                val effectiveOnline = chat.isOnline || presenceOnlineUsers.contains(chat.userId)
 
                 Column(
                     modifier = Modifier.animateContentSize(
@@ -1330,6 +1356,7 @@ fun ChatListTabWithStories(
                             ModernChatCard(
                                 chat = chat,
                                 nickname = nickname,
+                                isOnline = effectiveOnline,
                                 onClick = { onChatClick(chat) },
                                 onLongPress = { onChatLongPress(chat) }
                             )
@@ -1338,6 +1365,7 @@ fun ChatListTabWithStories(
                             TelegramChatItem(
                                 chat = chat,
                                 nickname = nickname,
+                                isOnline = effectiveOnline,
                                 onClick = { onChatClick(chat) },
                                 onLongPress = { onChatLongPress(chat) }
                             )
@@ -1605,3 +1633,130 @@ fun BusinessChatListTab(
         )
     }
 }
+
+// ── Channel Replies Inbox item in the chats list ──────────────────────────────
+
+@Composable
+fun ChannelRepliesInboxItem(
+    total: Int,
+    latestReply: com.worldmates.messenger.data.model.ChannelReply?,
+    uiStyle: UIStyle,
+    onClick: () -> Unit
+) {
+    if (uiStyle == UIStyle.TELEGRAM) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("💬", fontSize = 24.sp)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.channel_replies_title),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                        fontSize = 16.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                latestReply?.let { reply ->
+                    Text(
+                        text = "${reply.senderName.ifBlank { reply.senderUsername }}: ${reply.text}",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (total > 0) {
+                Surface(
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = Color(0xFF3390EC),
+                    modifier = Modifier.size(22.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = if (total > 99) "99+" else total.toString(),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 12.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        Divider(
+            modifier = Modifier.padding(start = 76.dp),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+            thickness = 0.5.dp
+        )
+    } else {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("💬", fontSize = 26.sp)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.channel_replies_title),
+                        fontSize = 17.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1
+                    )
+                    latestReply?.let { reply ->
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = "${reply.senderName.ifBlank { reply.senderUsername }}: ${reply.text}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (total > 0) {
+                    AnimatedUnreadBadge(count = total)
+                }
+            }
+        }
+    }
+}
+

@@ -3464,4 +3464,14 @@
     <string name="no_results">Немає результатів</string>
     <string name="contact_load_error">Помилка завантаження контактів</string>
     <string name="draft_saving">💾 Зберігається…</string>
+
+    <!-- ===== CHANNEL REPLIES INBOX ===== -->
+    <string name="channel_replies_title">Відповіді</string>
+    <string name="channel_replies_empty">Ще немає відповідей на ваші коментарі</string>
+    <string name="channel_replies_your_comment">Ваш коментар</string>
+    <string name="channel_replies_reply">Відповісти</string>
+    <string name="channel_replies_open_channel">Відкрити канал</string>
+    <string name="channel_replies_type_hint">Написати відповідь…</string>
+    <string name="channel_replies_replying_to">Відповідь для %s</string>
+    <string name="channel_replies_unknown_channel">Канал</string>
 </resources>

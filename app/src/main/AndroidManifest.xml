@@ -285,6 +285,14 @@
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
             android:parentActivityName=".ui.groups.GroupAdminPanelActivity" />
 
+        <!-- Channel Replies Inbox Activity -->
+        <activity
+            android:name=".ui.chats.ChannelRepliesActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
+            android:parentActivityName=".ui.chats.ChatsActivity" />
+
         <!-- Channel Details Activity -->
         <activity
             android:name=".ui.channels.ChannelDetailsActivity"
