@@ -17,9 +17,17 @@ const fs   = require('fs');
 const CRASH_SECRET = 'wm_crash_rpt_2025';
 const CRASH_DIR    = path.join(__dirname, '..', 'crash_logs');
 
+// Per-route body parser with a generous limit — crash logs can be large.
+// Express's global default is 100 KB which a full Android stack trace can exceed.
+const express = require('express');
+const crashBodyParser = [
+    express.urlencoded({ extended: true, limit: '5mb' }),
+    express.json({ limit: '5mb' }),
+];
+
 function registerCrashReportRoutes(app) {
 
-    app.post('/api/node/crash-report', (req, res) => {
+    app.post('/api/node/crash-report', crashBodyParser, (req, res) => {
         const { report, filename, secret } = req.body || {};
 
         // ── Перевірка секрету ───────────────────────────────────────────────
