@@ -1,9 +1,11 @@
 
 package com.worldmates.messenger.ui.channels
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.Channel
 import com.worldmates.messenger.data.model.CreateChannelRequest
@@ -34,7 +36,8 @@ object LiveChannelTracker {
     fun isLive(channelId: Long) = channelId in _liveChannelIds.value
 }
 
-class ChannelsViewModel : ViewModel() {
+class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
+    private fun str(id: Int) = getApplication<Application>().getString(id)
 
     private val _channelList = MutableStateFlow<List<Channel>>(emptyList())
     val channelList: StateFlow<List<Channel>> = _channelList
@@ -196,12 +199,12 @@ class ChannelsViewModel : ViewModel() {
         onError: (String) -> Unit
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
         if (name.isBlank()) {
-            onError("Введіть назву каналу")
+            onError(str(R.string.error_enter_channel_name))
             return
         }
 

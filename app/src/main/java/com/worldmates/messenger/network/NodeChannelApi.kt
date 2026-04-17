@@ -142,7 +142,8 @@ interface NodeChannelApi {
     suspend fun addChannelComment(
         @Field("post_id") postId: Long,
         @Field("text") text: String,
-        @Field("reply_to_id") replyToId: Long? = null
+        @Field("reply_to_id") replyToId: Long? = null,
+        @Field("write_as") writeAs: String = "user"
     ): CreatePostResponse
 
     @FormUrlEncoded

@@ -98,7 +98,7 @@ class ChannelDetailsActivity : AppCompatActivity() {
         // Отримуємо channelId з Intent
         channelId = intent.getLongExtra("channel_id", 0)
         if (channelId == 0L) {
-            Toast.makeText(this, "Помилка: канал не знайдено", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_channel_not_found), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -240,7 +240,7 @@ fun ChannelDetailsScreen(
                 imageUri = it,
                 context = context,
                 onSuccess = {
-                    Toast.makeText(context, "Аватар успішно оновлено", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.avatar_updated), Toast.LENGTH_SHORT).show()
                     showChangeAvatarDialog = false
                     // Refresh channel details to pick up new avatar
                     detailsViewModel.loadChannelDetails(channelId)
@@ -275,7 +275,7 @@ fun ChannelDetailsScreen(
                 imageUri = cameraUri,
                 context = context,
                 onSuccess = {
-                    Toast.makeText(context, "Аватар успішно оновлено", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.avatar_updated), Toast.LENGTH_SHORT).show()
                     showChangeAvatarDialog = false
                     // Refresh channel details to pick up new avatar
                     detailsViewModel.loadChannelDetails(channelId)
@@ -363,14 +363,14 @@ fun ChannelDetailsScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "Канал не знайдено",
+                            text = stringResource(R.string.error_channel_not_found),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = onBackPressed) {
-                            Text("Повернутися")
+                            Text(stringResource(R.string.back))
                         }
                     }
                 } else if (channel == null && isLoadingPosts) {
@@ -447,20 +447,20 @@ fun ChannelDetailsScreen(
                                             channelsViewModel.unsubscribeChannel(
                                                 channelId = channelId,
                                                 onSuccess = {
-                                                    Toast.makeText(context, "Ви відписалися від каналу", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, context.getString(R.string.unsubscribe_success), Toast.LENGTH_SHORT).show()
                                                 },
                                                 onError = { error ->
-                                                    Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                                                 }
                                             )
                                         } else {
                                             channelsViewModel.subscribeChannel(
                                                 channelId = channelId,
                                                 onSuccess = {
-                                                    Toast.makeText(context, "Ви підписалися на канал!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, context.getString(R.string.subscribe_success), Toast.LENGTH_SHORT).show()
                                                 },
                                                 onError = { error ->
-                                                    Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                                                 }
                                             )
                                         }
@@ -587,7 +587,10 @@ fun ChannelDetailsScreen(
                             }
                         } else {
                             items(
-                                items = posts.sortedByDescending { it.createdTime },
+                                items = posts.sortedWith(
+                                    compareByDescending<ChannelPost> { it.isPinned }
+                                        .thenByDescending { it.createdTime }
+                                ),
                                 key = { it.id }
                             ) { post ->
                                 val onPostClickHandler: () -> Unit = {
@@ -617,16 +620,10 @@ fun ChannelDetailsScreen(
                                     showCommentsSheet = true
                                 }
                                 val onShareClickHandler: () -> Unit = {
-                                    val shareText = buildString {
-                                        append(post.text)
-                                        append("\n\n")
-                                        append("By: ${post.authorName ?: post.authorUsername ?: "User #${post.authorId}"}")
-                                        append("\n")
-                                        append("Channel: ${channel?.name ?: "WorldMates Channel"}")
-                                    }
+                                    val shareUrl = "https://worldmates.club:449/share/channel/${channelId}/post/${post.id}"
                                     val sendIntent = android.content.Intent().apply {
                                         action = android.content.Intent.ACTION_SEND
-                                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                        putExtra(android.content.Intent.EXTRA_TEXT, shareUrl)
                                         type = "text/plain"
                                     }
                                     val shareIntent = android.content.Intent.createChooser(sendIntent, context.getString(R.string.ch_share_post))
@@ -837,10 +834,10 @@ fun ChannelDetailsScreen(
                             postId = post.id,
                             text = text,
                             onSuccess = {
-                                Toast.makeText(context, "Коментар додано!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
                             },
                             onError = { error ->
-                                Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -852,10 +849,10 @@ fun ChannelDetailsScreen(
                             text = text,
                             replyToId = replyToId,
                             onSuccess = {
-                                Toast.makeText(context, "Коментар додано!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
                             },
                             onError = { error ->
-                                Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -866,10 +863,10 @@ fun ChannelDetailsScreen(
                             commentId = commentId,
                             postId = post.id,
                             onSuccess = {
-                                Toast.makeText(context, "Коментар видалено", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.comment_deleted), Toast.LENGTH_SHORT).show()
                             },
                             onError = { error ->
-                                Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -879,10 +876,10 @@ fun ChannelDetailsScreen(
                         commentId = commentId,
                         emoji = emoji,
                         onSuccess = {
-                            Toast.makeText(context, "Реакцію додано!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.reaction_added), Toast.LENGTH_SHORT).show()
                         },
                         onError = { error ->
-                            Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -904,11 +901,11 @@ fun ChannelDetailsScreen(
                             postId = post.id,
                             emoji = emoji,
                             onSuccess = {
-                                Toast.makeText(context, "Реакцію додано!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.reaction_added), Toast.LENGTH_SHORT).show()
                                 detailsViewModel.loadChannelPosts(channelId)
                             },
                             onError = { error ->
-                                Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -919,11 +916,11 @@ fun ChannelDetailsScreen(
                             postId = post.id,
                             text = text,
                             onSuccess = {
-                                Toast.makeText(context, "Коментар додано!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
                                 detailsViewModel.loadComments(post.id)
                             },
                             onError = { error ->
-                                Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -935,11 +932,11 @@ fun ChannelDetailsScreen(
                             text = text,
                             replyToId = replyToId,
                             onSuccess = {
-                                Toast.makeText(context, "Коментар додано!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
                                 detailsViewModel.loadComments(post.id)
                             },
                             onError = { error ->
-                                Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -950,11 +947,11 @@ fun ChannelDetailsScreen(
                             commentId = commentId,
                             postId = post.id,
                             onSuccess = {
-                                Toast.makeText(context, "Коментар видалено", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.comment_deleted), Toast.LENGTH_SHORT).show()
                                 detailsViewModel.loadComments(post.id)
                             },
                             onError = { error ->
-                                Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -964,10 +961,10 @@ fun ChannelDetailsScreen(
                         commentId = commentId,
                         emoji = emoji,
                         onSuccess = {
-                            Toast.makeText(context, "Реакцію додано!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.reaction_added), Toast.LENGTH_SHORT).show()
                         },
                         onError = { error ->
-                            Toast.makeText(context, "Помилка: $error", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -1294,12 +1291,12 @@ fun ChannelDetailsScreen(
                         description = description,
                         username = username,
                         onSuccess = { updatedChannel ->
-                            Toast.makeText(context, "Канал оновлено!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
                             showEditChannelDialog = false
                             detailsViewModel.loadChannelDetails(channelId)
                         },
                         onError = { error ->
-                            Toast.makeText(context, "Помилка: $error", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_LONG).show()
                         }
                     )
                 }
@@ -1316,12 +1313,12 @@ fun ChannelDetailsScreen(
                         channelId = channelId,
                         settings = settings,
                         onSuccess = {
-                            Toast.makeText(context, "Налаштування збережено!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
                             showChannelSettingsDialog = false
                             detailsViewModel.loadChannelDetails(channelId)
                         },
                         onError = { error ->
-                            Toast.makeText(context, "Помилка: $error", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_LONG).show()
                         }
                     )
                 }
@@ -1361,14 +1358,14 @@ fun ChannelDetailsScreen(
                         onSuccess = {
                             Toast.makeText(
                                 context,
-                                "Налаштування форматування збережено",
+                                context.getString(R.string.formatting_settings_saved),
                                 Toast.LENGTH_SHORT
                             ).show()
                         },
                         onError = { error ->
                             Toast.makeText(
                                 context,
-                                "Помилка збереження: $error",
+                                context.getString(R.string.error_save_msg, error),
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
