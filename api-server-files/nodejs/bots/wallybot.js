@@ -264,6 +264,10 @@ const STATES = {
     TEMPLATE_SELECT:    'template_select',
     TEMPLATE_NAME:      'template_name',
     TEMPLATE_USERNAME:  'template_username',
+    CHECKBOT_SELECT:    'checkbot_select',
+    RSS_SELECT_BOT:     'rss_select_bot',
+    RSS_ADD_URL:        'rss_add_url',
+    RSS_ADD_NAME:       'rss_add_name',
 };
 
 // ─── Шаблоны ботов ────────────────────────────────────────────────────────────
@@ -660,6 +664,118 @@ async function ensureMessengerKnowledgeBase(ctx) {
     }
 }
 
+// ─── Создание Wo_Users записи для бота ───────────────────────────────────────
+// Нужна чтобы бот появлялся в поиске и мог отправлять private_message (с кнопками)
+
+async function createBotUser(ctx, botId, username, displayName) {
+    try {
+        const now = Math.floor(Date.now() / 1000);
+        const [botUser] = await ctx.wo_users.findOrCreate({
+            where: { username: username.toLowerCase() },
+            defaults: {
+                email:           `${username.toLowerCase()}@bots.internal`,
+                password:        crypto.randomBytes(20).toString('hex'),
+                first_name:      displayName,
+                last_name:       '',
+                about:           '',
+                type:            'bot',
+                active:          '1',
+                verified:        '0',
+                lastseen:        now,
+                registered:      new Date().toLocaleDateString('en-US'),
+                joined:          now,
+                message_privacy: '0'
+            }
+        });
+        // Sync linked_user_id so PrivateMessageController can find the bot
+        await ctx.wo_bots.update(
+            { linked_user_id: botUser.user_id },
+            { where: { bot_id: botId } }
+        );
+        console.log(`[WallyBot] Bot @${username} linked to Wo_Users.user_id=${botUser.user_id}`);
+        return botUser.user_id;
+    } catch (e) {
+        console.warn('[WallyBot] createBotUser failed:', e.message);
+        return null;
+    }
+}
+
+// ─── Отправка сообщения от произвольного бота пользователю ───────────────────
+// Используется дефолтным шеллом. Отправляет через private_message (так же как WallyBot)
+// чтобы reply_markup отображался в Android.
+
+async function sendFromBot(ctx, io, botLinkedUserId, botId, botName, targetUserId, text, replyMarkup) {
+    try {
+        const now = Math.floor(Date.now() / 1000);
+
+        // Сохранить в Wo_Bot_Messages
+        const botMsg = await ctx.wo_bot_messages.create({
+            bot_id:       botId,
+            chat_id:      String(targetUserId),
+            chat_type:    'private',
+            direction:    'outgoing',
+            text,
+            reply_markup: replyMarkup ? JSON.stringify(replyMarkup) : null,
+            processed:    1,
+            processed_at: new Date()
+        });
+
+        // Если есть Wo_Users запись — отправляем через private_message (Android отобразит кнопки)
+        if (botLinkedUserId && io) {
+            try {
+                const woMsg = await ctx.wo_messages.create({
+                    from_id: botLinkedUserId,
+                    to_id:   targetUserId,
+                    text:    text,
+                    seen:    0,
+                    time:    now
+                });
+                io.to(String(targetUserId)).emit('private_message', {
+                    status:            200,
+                    id:                woMsg.id,
+                    from_id:           botLinkedUserId,
+                    to_id:             targetUserId,
+                    text,
+                    message:           text,
+                    message_id:        woMsg.id,
+                    time:              now,
+                    time_api:          now,
+                    messages_html:     '',
+                    message_page_html: '',
+                    username:          botName,
+                    avatar:            'upload/photos/d-avatar.jpg',
+                    receiver:          targetUserId,
+                    sender:            botLinkedUserId,
+                    cipher_version:    1,
+                    media:             '',
+                    isMedia:           false,
+                    isRecord:          false,
+                    reply_markup:      replyMarkup || null,
+                    bot_id:            botId
+                });
+            } catch (msgErr) {
+                console.warn('[BotShell/Wo_Messages]', msgErr.message);
+            }
+        }
+
+        // Также emit bot_message для совместимости
+        if (io) {
+            io.to(String(targetUserId)).emit('bot_message', {
+                event:        'bot_message',
+                bot_id:       botId,
+                message_id:   botMsg.id,
+                text,
+                reply_markup: replyMarkup || null,
+                timestamp:    Date.now()
+            });
+        }
+
+        await ctx.wo_bots.increment('messages_sent', { where: { bot_id: botId } });
+    } catch (e) {
+        console.error('[BotShell/send]', e.message);
+    }
+}
+
 // ─── Вспомогательные функции управления ботами ───────────────────────────────
 
 async function getUserBots(ctx, userId) {
@@ -735,6 +851,8 @@ async function handleStart(ctx, io, userId, userName) {
         btn('🛠 Создать бота',        'cmd_newbot'),
         btn('📋 Шаблоны',            'cmd_templates'),
         btn('📦 Мои боты',           'cmd_mybots'),
+        btn('🔍 Диагностика',        'cmd_checkbot'),
+        btn('📰 RSS-ленты',          'cmd_rss'),
         btn('🧠 Обучить меня',       'cmd_learn'),
         btn('❓ Спросить WallyBot',  'cmd_ask'),
         btn('📊 Статистика',         'cmd_stats'),
@@ -761,9 +879,17 @@ async function handleHelp(ctx, io, userId) {
         `/forget — забыть ответ\n` +
         `/ask — задать вопрос\n` +
         `/messenger — справка по мессенджеру\n\n` +
-        `📊 /stats — статистика ботов\n\n` +
+        `📊 /stats — статистика ботов\n` +
+        `/checkbot — диагностика бота (@username или выбор из списка)\n` +
+        `/rss — управление RSS-лентами\n\n` +
         `💬 Просто напиши вопрос — постараюсь ответить!`;
-    await sendToUser(ctx, io, userId, text);
+    await sendToUser(ctx, io, userId, text, inlineKeyboard([
+        btn('🛠 Создать бота',    'cmd_newbot'),
+        btn('📦 Мои боты',        'cmd_mybots'),
+        btn('🔍 Диагностика',     'cmd_checkbot'),
+        btn('📰 RSS',             'cmd_rss'),
+        btn('📖 Главное меню',   'cmd_start')
+    ], 2));
 }
 
 async function handleNewBot(ctx, io, userId) {
@@ -1083,6 +1209,9 @@ async function applyTemplate(ctx, io, userId, templateId, displayName, username)
         });
     }
 
+    // Создаём Wo_Users запись для бота
+    await createBotUser(ctx, botId, username, displayName);
+
     clearState(userId);
     console.log(`[WallyBot] Created bot @${username} from template "${tpl.id}" for user ${userId}`);
 
@@ -1096,10 +1225,12 @@ async function applyTemplate(ctx, io, userId, templateId, displayName, username)
         `Используй /learn чтобы добавить свои ответы.`;
 
     return sendToUser(ctx, io, userId, responseText, inlineKeyboard([
-        btn('Все мои боты',  'cmd_mybots'),
-        btn('Добавить знания', 'cmd_learn'),
-        btn('Создать ещё',   'cmd_newbot')
-    ]));
+        btn('📋 Мои боты',           'cmd_mybots'),
+        btn('🔍 Диагностика',        `checkbot_${botId}`),
+        btn('📰 RSS-лента',          `rss_${botId}`),
+        btn('🧠 Добавить знания',    'cmd_learn'),
+        btn('➕ Создать ещё',        'cmd_newbot')
+    ], 2));
 }
 
 // ─── /setinline — перемикання inline-режиму бота ──────────────────────────────
@@ -1294,6 +1425,10 @@ async function processState(ctx, io, userId, text, currentState) {
 
         await registerDefaultCommands(ctx, botId);
 
+        // Создаём Wo_Users запись для бота — нужна чтобы бот появлялся в поиске
+        // и мог отправлять сообщения с inline-кнопками через private_message.
+        await createBotUser(ctx, botId, data.username, data.display_name);
+
         clearState(userId);
 
         const responseText =
@@ -1307,9 +1442,13 @@ async function processState(ctx, io, userId, text, currentState) {
             `Документация: /help`;
 
         const kb = inlineKeyboard([
-            btn('Все мои боты', 'cmd_mybots'),
-            btn('Создать ещё',  'cmd_newbot')
-        ]);
+            btn('📋 Мои боты',           'cmd_mybots'),
+            btn('🔍 Диагностика',        `checkbot_${botId}`),
+            btn('⚙️ Установить команды', `setcmd_${botId}`),
+            btn('📝 Описание',           `setdesc_${botId}`),
+            btn('📰 RSS-лента',          `rss_${botId}`),
+            btn('➕ Создать ещё',        'cmd_newbot')
+        ], 2);
 
         await ctx.wo_bots.increment('total_users', { where: { bot_id: WALLYBOT_ID } });
         console.log(`[WallyBot] Created bot @${data.username} (${botId}) for user ${userId}`);
@@ -1350,8 +1489,14 @@ async function processState(ctx, io, userId, text, currentState) {
 
         clearState(userId);
         return sendToUser(ctx, io, userId,
-            `*Команды установлены!*\n\n` +
-            commands.map(c => `/${c.command} — ${c.description}`).join('\n')
+            `✅ *Команды установлены!*\n\n` +
+            commands.map(c => `/${c.command} — ${c.description}`).join('\n'),
+            inlineKeyboard([
+                btn('🔍 Диагностика', `checkbot_${targetBotId}`),
+                btn('📝 Описание',    `setdesc_${targetBotId}`),
+                btn('📰 RSS-лента',   `rss_${targetBotId}`),
+                btn('📦 Мои боты',    'cmd_mybots')
+            ], 2)
         );
     }
 
@@ -1366,7 +1511,14 @@ async function processState(ctx, io, userId, text, currentState) {
         );
 
         clearState(userId);
-        return sendToUser(ctx, io, userId, `Описание обновлено!`);
+        return sendToUser(ctx, io, userId,
+            `✅ Описание обновлено!`,
+            inlineKeyboard([
+                btn('🔍 Диагностика', `checkbot_${targetBotId}`),
+                btn('⚙️ Команды',    `setcmd_${targetBotId}`),
+                btn('📦 Мои боты',   'cmd_mybots')
+            ], 2)
+        );
     }
 
     // EDITBOT: ввод нового значения поля
@@ -1501,7 +1653,299 @@ async function processState(ctx, io, userId, text, currentState) {
         return applyTemplate(ctx, io, userId, data.tplId, data.display_name, username);
     }
 
+    // RSS: ввод URL ленты
+    if (state === STATES.RSS_ADD_URL) {
+        const { bot_id: targetBotId } = data;
+        const feedUrl = text.trim();
+
+        if (!feedUrl.startsWith('http')) {
+            return sendToUser(ctx, io, userId,
+                '⚠️ Введи корректный URL RSS-ленты (должен начинаться с http:// или https://).\n\nПопробуй снова:'
+            );
+        }
+
+        setState(userId, STATES.RSS_ADD_NAME, { ...data, feed_url: feedUrl });
+        return sendToUser(ctx, io, userId,
+            `URL принят!\n\nТеперь введи название ленты (например: "Хабр", "BBC News"),\nили /skip чтобы использовать URL как название:`
+        );
+    }
+
+    // RSS: ввод имени ленты
+    if (state === STATES.RSS_ADD_NAME) {
+        const { bot_id: targetBotId, feed_url } = data;
+        const feedName = (text === '/skip' || !text.trim())
+            ? null
+            : text.trim().substring(0, 60);
+
+        const rssModel = ctx.wo_bot_rss_feeds;
+        if (!rssModel) {
+            clearState(userId);
+            return sendToUser(ctx, io, userId, '⚠️ RSS не поддерживается на сервере.');
+        }
+
+        try {
+            await rssModel.create({
+                bot_id:                 targetBotId,
+                chat_id:                String(userId),
+                feed_url:               feed_url,
+                feed_name:              feedName,
+                is_active:              1,
+                feed_language:          'ru',
+                check_interval_minutes: 30,
+                max_items_per_check:    5,
+                include_image:          1,
+                include_description:    1,
+                items_posted:           0,
+                created_at:             new Date()
+            });
+        } catch (e) {
+            clearState(userId);
+            console.error('[WallyBot/RSS add]', e.message);
+            return sendToUser(ctx, io, userId,
+                '❌ Не удалось добавить ленту. Проверь URL и попробуй снова.'
+            );
+        }
+
+        clearState(userId);
+        const displayName = feedName || feed_url.replace(/https?:\/\//, '').substring(0, 40);
+        return sendToUser(ctx, io, userId,
+            `✅ *RSS-лента добавлена!*\n\n📰 ${displayName}\n🔗 ${feed_url}\n\nПроверка будет происходить каждые 30 минут.`,
+            inlineKeyboard([
+                btn('📋 Все ленты',    `rss_${targetBotId}`),
+                btn('📦 Мои боты',     'cmd_mybots')
+            ])
+        );
+    }
+
     return null; // состояние не обработано
+}
+
+// ─── Default Bot Shell ───────────────────────────────────────────────────────
+// Отвечает пользователю от имени бота без webhook/socket (auto-reply).
+// Даёт базовую навигацию с inline-кнопками команд до тех пор, пока владелец
+// не подключит webhook или свой сокет.
+
+async function handleDefaultBot(ctx, io, bot, userId, text, isCommand, cmdParts) {
+    const botName     = bot.display_name || bot.username;
+    const botUserId   = bot.linked_user_id || null;
+
+    // Загружаем команды бота
+    const commands = await ctx.wo_bot_commands.findAll({
+        where:   { bot_id: bot.bot_id },
+        order:   [['sort_order', 'ASC']],
+        limit:   20,
+        raw:     true
+    });
+
+    // Строим inline-клавиатуру из команд бота
+    // callback_data: shell_cmd_<command> — обрабатывается BotCallbackQueryController
+    const cmdButtons = commands
+        .filter(c => c.command !== 'cancel')
+        .map(c => btn(`/${c.command}`, `shell_cmd_${c.command}`));
+
+    const mainKb = cmdButtons.length ? inlineKeyboard(cmdButtons, 2) : null;
+
+    async function reply(msg, markup) {
+        return sendFromBot(ctx, io, botUserId, bot.bot_id, botName, userId, msg, markup);
+    }
+
+    if (isCommand) {
+        const cmd = (cmdParts[0] || '').toLowerCase();
+
+        if (cmd === 'start') {
+            const desc     = bot.description ? `\n\n${bot.description}` : '';
+            const cmdList  = commands.length
+                ? '\n\n*Команды:*\n' + commands.map(c => `/${c.command} — ${c.description}`).join('\n')
+                : '';
+            return reply(`👋 Привет! Я *${botName}*.${desc}${cmdList}`, mainKb);
+        }
+
+        if (cmd === 'help') {
+            const desc    = bot.description ? `${bot.description}\n\n` : '';
+            const cmdList = commands.length
+                ? '*Команды:*\n' + commands.map(c => `/${c.command} — ${c.description}`).join('\n')
+                : 'Команды ещё не настроены.';
+            return reply(`ℹ️ *${botName}*\n\n${desc}${cmdList}`, mainKb);
+        }
+
+        // Известная команда — откликаемся её описанием
+        const knownCmd = commands.find(c => c.command === cmd);
+        if (knownCmd) {
+            return reply(`*/${knownCmd.command}*\n${knownCmd.description}`, mainKb);
+        }
+
+        return reply(`Команда /${cmd} не поддерживается.\n\nВведи /help для списка команд.`, mainKb);
+    }
+
+    // Текстовое сообщение без команды
+    return reply(
+        `💬 Бот *${botName}* работает в автономном режиме.\n\nДля навигации используй /start или /help.`,
+        mainKb
+    );
+}
+
+// ─── /checkbot — диагностика бота ────────────────────────────────────────────
+
+async function sendBotDiagnosis(ctx, io, userId, bot) {
+    const rssModel = ctx.wo_bot_rss_feeds;
+    const [cmdsCount, usersCount, messagesIn, messagesOut, rssCount] = await Promise.all([
+        ctx.wo_bot_commands.count({ where: { bot_id: bot.bot_id } }),
+        ctx.wo_bot_users.count({ where: { bot_id: bot.bot_id } }),
+        ctx.wo_bot_messages.count({ where: { bot_id: bot.bot_id, direction: 'incoming' } }),
+        ctx.wo_bot_messages.count({ where: { bot_id: bot.bot_id, direction: 'outgoing' } }),
+        rssModel
+            ? rssModel.count({ where: { bot_id: bot.bot_id, is_active: 1 } })
+            : Promise.resolve(0),
+    ]);
+
+    const statusOk  = bot.status === 'active';
+    const hasDesc   = !!bot.description;
+    const hasCmds   = cmdsCount >= 2;
+    const hasUsers  = usersCount > 0;
+    const healthScore = [statusOk, hasDesc, hasCmds, hasUsers].filter(Boolean).length;
+    const healthEmoji = healthScore >= 4 ? '🟢' : healthScore >= 2 ? '🟡' : '🔴';
+
+    const statusIcon = statusOk ? '🟢' : '🔴';
+    const descIcon   = hasDesc  ? '✅' : '⚠️';
+    const cmdsIcon   = hasCmds  ? '✅' : '⚠️';
+    const hookIcon   = bot.webhook_enabled ? '✅' : '⚪';
+
+    const issues = [];
+    if (!hasDesc)              issues.push('• Нет описания — добавь через /setdesc или кнопку ниже');
+    if (!hasCmds)              issues.push('• Мало команд — добавь через /setcommands или кнопку ниже');
+    if (!bot.webhook_enabled)  issues.push('• Webhook не настроен — бот не будет получать сообщения без webhook или Socket.IO интеграции');
+    if (!hasUsers)             issues.push('• Пока нет пользователей — поделись ссылкой @' + bot.username);
+
+    const shortDesc = bot.description
+        ? (bot.description.length > 60 ? bot.description.substring(0, 60) + '…' : bot.description)
+        : '_не задано_';
+
+    const text =
+        `🔍 *Диагностика @${bot.username}*\n\n` +
+        `${healthEmoji} Здоровье: ${healthScore}/4 — ${['критично', 'плохо', 'неплохо', 'хорошо', 'отлично'][healthScore]}\n\n` +
+        `${statusIcon} Статус: *${bot.status}*\n` +
+        `${descIcon} Описание: ${shortDesc}\n` +
+        `${cmdsIcon} Команд: *${cmdsCount}*\n` +
+        `${hookIcon} Webhook: ${bot.webhook_enabled ? '✅ активен' : '⚪ не настроен'}\n` +
+        `👥 Пользователей: *${usersCount}*\n` +
+        `📥 Получено: *${messagesIn}* / 📤 Отправлено: *${messagesOut}*\n` +
+        `📰 RSS-лент активных: *${rssCount}*\n\n` +
+        (issues.length
+            ? `*⚠️ Рекомендации:*\n${issues.join('\n')}`
+            : `✅ Всё настроено хорошо!`);
+
+    const buttons = [btn('📦 Мои боты', 'cmd_mybots')];
+    if (!hasDesc)  buttons.push(btn('📝 Описание',  `setdesc_${bot.bot_id}`));
+    if (!hasCmds)  buttons.push(btn('⚙️ Команды',  `setcmd_${bot.bot_id}`));
+    buttons.push(btn('📰 RSS-ленты', `rss_${bot.bot_id}`));
+    buttons.push(btn('🔄 Обновить',  `checkbot_${bot.bot_id}`));
+
+    return sendToUser(ctx, io, userId, text, inlineKeyboard(buttons, 2));
+}
+
+async function handleCheckBot(ctx, io, userId, botUsername) {
+    clearState(userId);
+    if (botUsername) {
+        const bot = await ctx.wo_bots.findOne({
+            where: { username: botUsername.replace(/^@/, ''), owner_id: userId },
+            raw: true
+        });
+        if (!bot) {
+            return sendToUser(ctx, io, userId,
+                `Бот @${botUsername} не найден или не является твоим.`,
+                inlineKeyboard([btn('Мои боты', 'cmd_mybots')])
+            );
+        }
+        return sendBotDiagnosis(ctx, io, userId, bot);
+    }
+
+    const bots = await getUserBots(ctx, userId);
+    if (!bots.length) {
+        return sendToUser(ctx, io, userId,
+            'У тебя нет ботов для диагностики.',
+            inlineKeyboard([btn('Создать бота', 'cmd_newbot')])
+        );
+    }
+    if (bots.length === 1) {
+        const bot = await ctx.wo_bots.findOne({ where: { bot_id: bots[0].bot_id }, raw: true });
+        return sendBotDiagnosis(ctx, io, userId, bot);
+    }
+
+    const buttons = bots.map(b => btn(`@${b.username}`, `checkbot_${b.bot_id}`));
+    buttons.push(btn('Отмена', 'cmd_cancel'));
+    return sendToUser(ctx, io, userId,
+        '🔍 *Диагностика бота*\n\nВыбери бота для проверки:',
+        inlineKeyboard(buttons, 1)
+    );
+}
+
+// ─── /rss — управление RSS-лентами ───────────────────────────────────────────
+
+async function showRssForBot(ctx, io, userId, botId) {
+    clearState(userId);
+    const bot = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId }, raw: true });
+    if (!bot) return sendToUser(ctx, io, userId, 'Бот не найден.');
+
+    const rssModel = ctx.wo_bot_rss_feeds;
+    if (!rssModel) {
+        return sendToUser(ctx, io, userId,
+            '⚠️ RSS-ленты не поддерживаются на этом сервере.',
+            inlineKeyboard([btn('Мои боты', 'cmd_mybots')])
+        );
+    }
+
+    const feeds = await rssModel.findAll({ where: { bot_id: botId }, raw: true, limit: 10 });
+
+    let text = `📰 *RSS-ленты @${bot.username}*\n\n`;
+    const buttons = [];
+
+    if (!feeds.length) {
+        text += `Лент пока нет.\n\nДобавь RSS-ленту — бот будет автоматически публиковать новые материалы!`;
+    } else {
+        for (const feed of feeds) {
+            const icon = feed.is_active ? '🟢' : '⏸';
+            const name = (feed.feed_name || feed.feed_url.replace(/https?:\/\//, '')).substring(0, 35);
+            text += `${icon} *${name}*\n   Опубликовано: ${feed.items_posted} шт.\n\n`;
+            buttons.push(btn(`${icon} ${name.substring(0, 22)}`, `rss_toggle_${feed.id}`));
+            buttons.push(btn(`🗑 Удалить`, `rss_delete_${feed.id}`));
+        }
+    }
+
+    buttons.push(btn('➕ Добавить ленту', `rss_add_${botId}`));
+    buttons.push(btn('🔍 Диагностика',   `checkbot_${botId}`));
+    buttons.push(btn('◀ Назад',          'cmd_mybots'));
+
+    return sendToUser(ctx, io, userId, text, inlineKeyboard(buttons, 2));
+}
+
+async function handleRss(ctx, io, userId) {
+    clearState(userId);
+
+    if (!ctx.wo_bot_rss_feeds) {
+        return sendToUser(ctx, io, userId,
+            '⚠️ RSS-ленты не поддерживаются на этом сервере.',
+            inlineKeyboard([btn('Мои боты', 'cmd_mybots')])
+        );
+    }
+
+    const bots = await getUserBots(ctx, userId);
+    if (!bots.length) {
+        return sendToUser(ctx, io, userId,
+            '📰 *RSS-рассылка*\n\nСначала создай бота, которому можно подключить RSS-ленту.',
+            inlineKeyboard([btn('Создать бота', 'cmd_newbot')])
+        );
+    }
+    if (bots.length === 1) {
+        return showRssForBot(ctx, io, userId, bots[0].bot_id);
+    }
+
+    setState(userId, STATES.RSS_SELECT_BOT, {});
+    const buttons = bots.map(b => btn(`@${b.username}`, `rss_${b.bot_id}`));
+    buttons.push(btn('Отмена', 'cmd_cancel'));
+    return sendToUser(ctx, io, userId,
+        '📰 *RSS-рассылка*\n\nВыбери бота для управления RSS-лентами:',
+        inlineKeyboard(buttons, 1)
+    );
 }
 
 // ─── ОБРАБОТКА CALLBACK QUERY ────────────────────────────────────────────────
@@ -1584,11 +2028,13 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
             `Создан: ${new Date(bot.created_at).toLocaleDateString('ru-RU')}`;
 
         const kb = inlineKeyboard([
-            btn('Изменить', `editselect_${botId}`),
-            btn('Токен',    `tokenshow_${botId}`),
-            btn('Команды',  `setcmd_${botId}`),
-            btn('Удалить',  `deleteconfirm_${botId}`),
-            btn('Назад',    'cmd_mybots')
+            btn('✏️ Изменить',    `editselect_${botId}`),
+            btn('🔑 Токен',       `tokenshow_${botId}`),
+            btn('⚙️ Команды',    `setcmd_${botId}`),
+            btn('🔍 Диагностика', `checkbot_${botId}`),
+            btn('📰 RSS-ленты',   `rss_${botId}`),
+            btn('🗑 Удалить',     `deleteconfirm_${botId}`),
+            btn('◀ Назад',        'cmd_mybots')
         ], 2);
 
         return sendToUser(ctx, io, userId, text, kb);
@@ -1858,6 +2304,59 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
             inlineKeyboard([btn('Мои боты', 'cmd_mybots'), btn('Ещё рассылка', 'cmd_broadcast')])
         );
     }
+
+    // ── Диагностика бота (/checkbot) ─────────────────────────────────────────
+    if (callbackData === 'cmd_checkbot') return handleCheckBot(ctx, io, userId, '');
+
+    if (callbackData.startsWith('checkbot_')) {
+        const botId = callbackData.replace('checkbot_', '');
+        const bot   = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId }, raw: true });
+        if (!bot) return sendToUser(ctx, io, userId, 'Бот не найден.', inlineKeyboard([btn('Мои боты', 'cmd_mybots')]));
+        return sendBotDiagnosis(ctx, io, userId, bot);
+    }
+
+    // ── RSS-ленты (/rss) ─────────────────────────────────────────────────────
+    if (callbackData === 'cmd_rss') return handleRss(ctx, io, userId);
+
+    // rss_<botId> — показать ленты для бота (НЕ пересекается с rss_toggle/delete/add)
+    if (callbackData.startsWith('rss_') &&
+        !callbackData.startsWith('rss_toggle_') &&
+        !callbackData.startsWith('rss_delete_') &&
+        !callbackData.startsWith('rss_add_')) {
+        const botId = callbackData.replace('rss_', '');
+        return showRssForBot(ctx, io, userId, botId);
+    }
+
+    if (callbackData.startsWith('rss_add_')) {
+        const botId = callbackData.replace('rss_add_', '');
+        const bot   = await ctx.wo_bots.findOne({ where: { bot_id: botId, owner_id: userId }, raw: true });
+        if (!bot) return sendToUser(ctx, io, userId, 'Бот не найден.');
+        setState(userId, STATES.RSS_ADD_URL, { bot_id: botId });
+        return sendToUser(ctx, io, userId,
+            `📰 *Добавление RSS-ленты для @${bot.username}*\n\nВведи URL RSS-ленты:\n_(например: https://habr.com/ru/rss/all/all/ или https://feeds.bbci.co.uk/news/rss.xml)_`
+        );
+    }
+
+    if (callbackData.startsWith('rss_toggle_')) {
+        const feedId = parseInt(callbackData.replace('rss_toggle_', ''), 10);
+        const rssModel = ctx.wo_bot_rss_feeds;
+        if (!rssModel) return sendToUser(ctx, io, userId, '⚠️ RSS не поддерживается.');
+        const feed = await rssModel.findOne({ where: { id: feedId }, raw: true });
+        if (!feed) return sendToUser(ctx, io, userId, 'Лента не найдена.');
+        await rssModel.update({ is_active: feed.is_active ? 0 : 1 }, { where: { id: feedId } });
+        return showRssForBot(ctx, io, userId, feed.bot_id);
+    }
+
+    if (callbackData.startsWith('rss_delete_')) {
+        const feedId = parseInt(callbackData.replace('rss_delete_', ''), 10);
+        const rssModel = ctx.wo_bot_rss_feeds;
+        if (!rssModel) return sendToUser(ctx, io, userId, '⚠️ RSS не поддерживается.');
+        const feed = await rssModel.findOne({ where: { id: feedId }, raw: true });
+        if (!feed) return sendToUser(ctx, io, userId, 'Лента не найдена.');
+        const botId = feed.bot_id;
+        await rssModel.destroy({ where: { id: feedId } });
+        return showRssForBot(ctx, io, userId, botId);
+    }
 }
 
 // ─── ГЛАВНЫЙ ДИСПЕТЧЕР СООБЩЕНИЙ ─────────────────────────────────────────────
@@ -1917,6 +2416,11 @@ async function handleMessage(ctx, io, data) {
             who:         () => handleWho(ctx, io, userId),
             tour:        () => handleTour(ctx, io, userId, 1),
             templates:   () => handleTemplates(ctx, io, userId),
+            checkbot:    () => {
+                const rawArg = (command_args || text.split(' ').slice(1).join(' ')).trim();
+                return handleCheckBot(ctx, io, userId, rawArg);
+            },
+            rss:         () => handleRss(ctx, io, userId),
         };
 
         const handler = cmdHandlers[cmd];
@@ -2076,7 +2580,9 @@ async function initializeWallyBot(ctx, io) {
             { command: 'learn',       description: 'Обучить WallyBot новому ответу',               sort_order: 17 },
             { command: 'forget',      description: 'Удалить ответ из базы знаний',                 sort_order: 18 },
             { command: 'ask',         description: 'Задать вопрос WallyBot',                       sort_order: 19 },
-            { command: 'messenger',   description: 'Справка по функциям мессенджера',              sort_order: 20 }
+            { command: 'messenger',   description: 'Справка по функциям мессенджера',              sort_order: 20 },
+            { command: 'checkbot',    description: 'Диагностика бота (@username)',                 sort_order: 21 },
+            { command: 'rss',         description: 'Управление RSS-лентами бота',                  sort_order: 22 }
         ];
 
         for (const cmd of extraCommands) {
@@ -2112,6 +2618,13 @@ async function initializeWallyBot(ctx, io) {
                 }
             });
         }
+
+        // ── 5. Регистрируем дефолтный шелл для ботов без вебхука ─────────────
+        // PrivateMessageController вызывает ctx.defaultBotShell когда бот не имеет
+        // webhook и не зарегистрирован в ctx.botSockets.
+        ctx.defaultBotShell = (bot, userId, text, isCommand, cmdParts) =>
+            handleDefaultBot(ctx, io, bot, userId, text, isCommand, cmdParts)
+                .catch(e => console.error('[BotShell]', e.message));
 
         console.log(`[WallyBot] Ready! Bot ID: ${WALLYBOT_ID}, Wo_Users ID: ${WALLYBOT_USER_ID}`);
         console.log(`[WallyBot] Users can find WallyBot by searching "@wallybot" in the app`);

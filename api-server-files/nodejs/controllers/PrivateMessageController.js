@@ -103,6 +103,9 @@ const PrivateMessageController = async (ctx, data, io, socket, callback) => {
                       command_args: isCommand && cmdParts.length > 1 ? cmdParts.slice(1).join(' ') : null,
                       callback_data: null, timestamp: Date.now()
                   });
+              } else if (!bot.webhook_enabled && !bot.webhook_url && ctx.defaultBotShell) {
+                  // Дефолтный шелл: отвечаем за ботов без вебхука/сокета (команды + inline-кнопки)
+                  ctx.defaultBotShell(bot, fromUserId, text, isCommand, cmdParts);
               }
               console.log(`[Bot] DM → @${bot.username} from user ${fromUserId}: ${text.substring(0, 60)}`);
           }
