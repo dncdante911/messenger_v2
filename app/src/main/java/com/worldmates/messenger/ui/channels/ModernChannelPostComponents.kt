@@ -600,13 +600,22 @@ fun ChannelPostCard(
                     )
                     Spacer(Modifier.width(5.dp))
                     Text(
-                        text = if (post.commentsCount > 0) formatCount(post.commentsCount)
-                               else stringResource(R.string.ch_comments),
+                        text = stringResource(R.string.ch_comments),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
+                    if (post.commentsCount > 0) {
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = formatCount(post.commentsCount),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1
+                        )
+                    }
                 }
 
                 VerticalDivider(
@@ -913,7 +922,7 @@ fun CommentCard(
                             contentPadding = PaddingValues(0.dp)
                         ) {
                             Text(
-                                "Реакція",
+                                stringResource(R.string.ch_reaction_action),
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -923,7 +932,7 @@ fun CommentCard(
                             contentPadding = PaddingValues(0.dp)
                         ) {
                             Text(
-                                "Відповісти",
+                                stringResource(R.string.ch_reply_action),
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -1709,11 +1718,37 @@ fun PremiumCommentItem(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
+                if (comment.writtenAsChannel) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ch_identity_as_channel_badge),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = formatPostTime(comment.time),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
+            // Channel signature for user_with_signature mode
+            if (!comment.writtenAsChannel && !comment.channelName.isNullOrEmpty()) {
+                Text(
+                    text = comment.channelName,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -2738,6 +2773,7 @@ fun ChannelSettingsDialog(
     var signatureEnabled by remember { mutableStateOf(defaultSettings.signatureEnabled) }
     var commentsModeration by remember { mutableStateOf(defaultSettings.commentsModeration) }
     var slowModeSeconds by remember { mutableStateOf(defaultSettings.slowModeSeconds?.toString() ?: "") }
+    var commentIdentity by remember { mutableStateOf(defaultSettings.commentIdentity) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2962,6 +2998,43 @@ fun ChannelSettingsDialog(
                         onCheckedChange = { showStatistics = it }
                     )
                 }
+
+                Divider()
+
+                // Comment identity selector
+                Text(
+                    text = stringResource(R.string.ch_comment_identity_title),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = stringResource(R.string.ch_comment_identity_sub),
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+                Spacer(Modifier.height(4.dp))
+                listOf(
+                    "user"               to R.string.ch_identity_as_user,
+                    "channel"            to R.string.ch_identity_as_channel,
+                    "user_with_signature" to R.string.ch_identity_as_user_signed
+                ).forEach { (key, labelRes) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { commentIdentity = key }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = commentIdentity == key,
+                            onClick = { commentIdentity = key }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(labelRes), fontSize = 14.sp)
+                    }
+                }
             }
         },
         confirmButton = {
@@ -2985,7 +3058,8 @@ fun ChannelSettingsDialog(
                         signatureEnabled = signatureEnabled,
                         commentsModeration = commentsModeration,
                         allowForwarding = defaultSettings.allowForwarding,
-                        slowModeSeconds = validSlowMode
+                        slowModeSeconds = validSlowMode,
+                        commentIdentity = commentIdentity
                     )
                     onSave(updatedSettings)
                 },

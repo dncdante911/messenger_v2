@@ -42,22 +42,45 @@ async function formatComment(ctx, comment) {
         ? (user.first_name ? (user.first_name + (user.last_name ? ' ' + user.last_name : '')) : user.username)
         : 'Unknown';
 
-    // Count reactions on this comment
     const reactionsCount = await ctx.wo_reactions.count({
         where: { comment_id: comment.id }
     });
+
+    const writtenAsChannel = comment.written_as_channel == 1 || comment.written_as_channel === true;
+
+    let channelName = null;
+    let channelAvatar = null;
+    if (writtenAsChannel && comment.page_id) {
+        const page = await ctx.wo_pages.findOne({
+            where: { page_id: comment.page_id },
+            attributes: ['page_title', 'page_picture'],
+            raw: true
+        });
+        if (page) {
+            channelName = page.page_title || null;
+            channelAvatar = page.page_picture
+                ? await funcs.Wo_GetMedia(ctx, page.page_picture)
+                : null;
+        }
+    }
+
+    // For user_with_signature: keep user identity but add channel_name as signature
+    const writtenAsUserSigned = comment.write_as_mode === 'user_with_signature';
 
     return {
         id: comment.id,
         user_id: comment.user_id,
         username: user ? user.username : null,
-        user_name: userName,
-        user_avatar: userAvatar,
+        user_name: writtenAsChannel ? (channelName || userName) : userName,
+        user_avatar: writtenAsChannel ? (channelAvatar || userAvatar) : userAvatar,
         text: comment.text || '',
         time: comment.time || 0,
         edited_time: null,
         reply_to_comment_id: null,
-        reactions_count: reactionsCount
+        reactions_count: reactionsCount,
+        written_as_channel: writtenAsChannel,
+        channel_name: writtenAsUserSigned ? channelName : null,
+        channel_avatar: writtenAsUserSigned ? channelAvatar : null
     };
 }
 
@@ -150,14 +173,28 @@ function addComment(ctx, io) {
 
             const now = Math.floor(Date.now() / 1000);
             const sanitizedText = await funcs.sanitizeJS(text);
+            const writeAs = (req.body.write_as || 'user').trim();
 
-            const newComment = await ctx.wo_comments.create({
+            // Only admins can write as channel
+            const isAdmin = await isChannelAdmin(ctx, post.page_id, userId);
+            const effectiveWriteAs = isAdmin ? writeAs : 'user';
+            const writtenAsChannel = effectiveWriteAs === 'channel' ? 1 : 0;
+            const writeAsMode = effectiveWriteAs; // 'user' | 'channel' | 'user_with_signature'
+
+            const commentData = {
                 user_id: userId,
                 page_id: post.page_id || 0,
                 post_id: postId,
                 text: sanitizedText,
                 time: now
-            });
+            };
+            // Store write_as metadata if admin chose non-default identity
+            if (effectiveWriteAs !== 'user') {
+                commentData.written_as_channel = writtenAsChannel;
+                commentData.write_as_mode = writeAsMode;
+            }
+
+            const newComment = await ctx.wo_comments.create(commentData);
 
             const formatted = await formatComment(ctx, newComment);
 

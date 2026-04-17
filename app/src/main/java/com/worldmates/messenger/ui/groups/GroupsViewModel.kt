@@ -4,9 +4,11 @@
 
 package com.worldmates.messenger.ui.groups
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.CreateGroupRequest
 import com.worldmates.messenger.data.model.Group
@@ -19,7 +21,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 
-class GroupsViewModel : ViewModel() {
+class GroupsViewModel(app: Application) : AndroidViewModel(app) {
+    private fun str(id: Int) = getApplication<Application>().getString(id)
+    private fun str(id: Int, vararg args: Any) = getApplication<Application>().getString(id, *args)
 
     private val _groupList = MutableStateFlow<List<Group>>(emptyList())
     val groupList: StateFlow<List<Group>> = _groupList
@@ -49,7 +53,7 @@ class GroupsViewModel : ViewModel() {
 
     fun fetchGroups() {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -65,12 +69,12 @@ class GroupsViewModel : ViewModel() {
                     _error.value = null
                     Log.d("GroupsViewModel", "Завантажено ${response.groups!!.size} груп")
                 } else {
-                    _error.value = response.errorMessage ?: "Помилка завантаження груп"
+                    _error.value = response.errorMessage ?: str(R.string.error_load_groups)
                 }
 
                 _isLoading.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _isLoading.value = false
                 Log.e("GroupsViewModel", "Помилка завантаження груп", e)
             }
@@ -84,7 +88,7 @@ class GroupsViewModel : ViewModel() {
 
     fun fetchGroupMembers(groupId: Long) {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -97,10 +101,10 @@ class GroupsViewModel : ViewModel() {
                     _groupMembers.value = response.members!!
                     Log.d("GroupsViewModel", "Завантажено ${response.members!!.size} членів групи")
                 } else {
-                    _error.value = "Не вдалося завантажити членів групи"
+                    _error.value = str(R.string.error_load_members)
                 }
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 Log.e("GroupsViewModel", "Помилка завантаження членів групи", e)
             }
         }
@@ -115,7 +119,7 @@ class GroupsViewModel : ViewModel() {
      */
     fun searchUsers(query: String) {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -158,7 +162,7 @@ class GroupsViewModel : ViewModel() {
         onSuccess: () -> Unit
     ) {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -186,7 +190,7 @@ class GroupsViewModel : ViewModel() {
                 Log.d("GroupsViewModel", "Response: $response")
 
                 if (response == null) {
-                    _error.value = "Сервер повернув порожню відповідь"
+                    _error.value = str(R.string.error_create_group)
                     Log.e("GroupsViewModel", "Response is null!")
                 } else if (response.apiStatus == 200) {
                     _error.value = null
@@ -202,13 +206,13 @@ class GroupsViewModel : ViewModel() {
                     onSuccess()
                     Log.d("GroupsViewModel", "Група створена успішно, id=$groupId")
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося створити групу (код: ${response.apiStatus})"
+                    _error.value = response.errorMessage ?: str(R.string.error_create_group)
                     Log.e("GroupsViewModel", "API error: ${response.errorMessage}, code: ${response.apiStatus}")
                 }
 
                 _isCreatingGroup.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _isCreatingGroup.value = false
                 Log.e("GroupsViewModel", "Помилка створення групи", e)
             }
@@ -221,7 +225,7 @@ class GroupsViewModel : ViewModel() {
         onSuccess: () -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -241,12 +245,12 @@ class GroupsViewModel : ViewModel() {
                     Log.d("GroupsViewModel", "Група оновлена успішно")
                     onSuccess()
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося оновити групу"
+                    _error.value = response.errorMessage ?: str(R.string.error_update_group)
                 }
 
                 _isLoading.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _isLoading.value = false
                 Log.e("GroupsViewModel", "Помилка оновлення групи", e)
             }
@@ -258,7 +262,7 @@ class GroupsViewModel : ViewModel() {
         onSuccess: () -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -276,12 +280,12 @@ class GroupsViewModel : ViewModel() {
                     Log.d("GroupsViewModel", "Група видалена успішно")
                     onSuccess()
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося видалити групу"
+                    _error.value = response.errorMessage ?: str(R.string.error_delete_group)
                 }
 
                 _isLoading.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _isLoading.value = false
                 Log.e("GroupsViewModel", "Помилка видалення групи", e)
             }
@@ -290,7 +294,7 @@ class GroupsViewModel : ViewModel() {
 
     fun addGroupMember(groupId: Long, userId: Long) {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -307,10 +311,10 @@ class GroupsViewModel : ViewModel() {
                     fetchGroupMembers(groupId)
                     Log.d("GroupsViewModel", "Члена групи додано успішно")
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося додати члена групи"
+                    _error.value = response.errorMessage ?: str(R.string.error_add_member)
                 }
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 Log.e("GroupsViewModel", "Помилка додавання члена групи", e)
             }
         }
@@ -318,7 +322,7 @@ class GroupsViewModel : ViewModel() {
 
     fun removeGroupMember(groupId: Long, userId: Long) {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -335,10 +339,10 @@ class GroupsViewModel : ViewModel() {
                     fetchGroupMembers(groupId)
                     Log.d("GroupsViewModel", "Члена групи видалено успішно")
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося видалити члена групи"
+                    _error.value = response.errorMessage ?: str(R.string.error_remove_member)
                 }
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 Log.e("GroupsViewModel", "Помилка видалення члена групи", e)
             }
         }
@@ -347,7 +351,7 @@ class GroupsViewModel : ViewModel() {
     fun setGroupRole(groupId: Long, userId: Long, role: String, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
         if (UserSession.accessToken == null) {
             _error.value = "Користувач не авторизований"
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -366,7 +370,7 @@ class GroupsViewModel : ViewModel() {
                     onSuccess()
                     Log.d("GroupsViewModel", "Роль оновлена успішно")
                 } else {
-                    val msg = response.errorMessage ?: "Не вдалося оновити роль"
+                    val msg = response.errorMessage ?: str(R.string.error_update_role)
                     _error.value = msg
                     onError(msg)
                 }
@@ -384,7 +388,7 @@ class GroupsViewModel : ViewModel() {
         onSuccess: () -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -402,12 +406,12 @@ class GroupsViewModel : ViewModel() {
                     Log.d("GroupsViewModel", "Групу вийшли успішно")
                     onSuccess()
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося вийти з групи"
+                    _error.value = response.errorMessage ?: str(R.string.error_leave_group)
                 }
 
                 _isLoading.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _isLoading.value = false
                 Log.e("GroupsViewModel", "Помилка виходу з групи", e)
             }
@@ -419,7 +423,7 @@ class GroupsViewModel : ViewModel() {
      */
     fun uploadGroupAvatar(groupId: Long, imageUri: android.net.Uri, context: android.content.Context) {
         if (UserSession.accessToken == null) {
-            _error.value = "Користувач не авторизований"
+            _error.value = str(R.string.error_not_authorized)
             return
         }
 
@@ -450,14 +454,14 @@ class GroupsViewModel : ViewModel() {
                     fetchGroupDetails(groupId)
                     Log.d("GroupsViewModel", "📸 Аватарка групи $groupId успішно завантажена: ${response.url}")
                 } else {
-                    _error.value = response.errorMessage ?: "Не вдалося завантажити аватарку"
+                    _error.value = response.errorMessage ?: str(R.string.error_load_avatar)
                     Log.e("GroupsViewModel", "❌ Помилка завантаження аватарки: ${response.errorMessage}")
                 }
 
                 file.delete()
                 _isLoading.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _isLoading.value = false
                 Log.e("GroupsViewModel", "❌ Помилка завантаження аватарки", e)
             }
@@ -477,7 +481,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -495,13 +499,13 @@ class GroupsViewModel : ViewModel() {
                     onSuccess()
                     Log.d("GroupsViewModel", "📌 Message $messageId pinned in group $groupId")
                 } else {
-                    val errorMsg = response.errorMessage ?: "Не вдалося закріпити повідомлення"
+                    val errorMsg = response.errorMessage ?: str(R.string.error_pin_message)
                     _error.value = errorMsg
                     onError(errorMsg)
                     Log.e("GroupsViewModel", "❌ Failed to pin message: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error pinning message", e)
@@ -515,7 +519,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -530,13 +534,13 @@ class GroupsViewModel : ViewModel() {
                     onSuccess()
                     Log.d("GroupsViewModel", "📌 Message unpinned in group $groupId")
                 } else {
-                    val errorMsg = response.errorMessage ?: "Не вдалося відкріпити повідомлення"
+                    val errorMsg = response.errorMessage ?: str(R.string.error_unpin_message)
                     _error.value = errorMsg
                     onError(errorMsg)
                     Log.e("GroupsViewModel", "❌ Failed to unpin message: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error unpinning message", e)
@@ -575,7 +579,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -600,13 +604,13 @@ class GroupsViewModel : ViewModel() {
                     onSuccess(response.url)
                     Log.d("GroupsViewModel", "📸 Аватарка групи $groupId завантажена: ${response.url}")
                 } else {
-                    val errorMsg = response.errorMessage ?: "Не вдалося завантажити аватар"
+                    val errorMsg = response.errorMessage ?: str(R.string.error_load_avatar)
                     _error.value = errorMsg
                     onError(errorMsg)
                     Log.e("GroupsViewModel", "❌ Помилка завантаження аватара: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Помилка завантаження аватара", e)
@@ -625,7 +629,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -647,7 +651,7 @@ class GroupsViewModel : ViewModel() {
                     Log.e("GroupsViewModel", "❌ Failed to generate QR: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error generating QR", e)
@@ -666,7 +670,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -689,7 +693,7 @@ class GroupsViewModel : ViewModel() {
                     Log.e("GroupsViewModel", "❌ Failed to join by QR: ${response.errorMessage}")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error joining by QR", e)
@@ -710,7 +714,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -736,7 +740,7 @@ class GroupsViewModel : ViewModel() {
 
                 onSuccess()
             } catch (e: Exception) {
-                val errorMsg = "Помилка збереження: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_save_msg, e.localizedMessage ?: "")
                 Log.e("GroupsViewModel", "❌ Error saving formatting permissions", e)
                 // Still call onSuccess — local save succeeded
                 onSuccess()
@@ -935,7 +939,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Не авторизовано")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -956,7 +960,7 @@ class GroupsViewModel : ViewModel() {
                     onError(response.errorMessage ?: "Помилка підтвердження запиту")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error approving join request", e)
             }
@@ -969,7 +973,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Не авторизовано")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -989,7 +993,7 @@ class GroupsViewModel : ViewModel() {
                     onError(response.errorMessage ?: "Помилка відхилення запиту")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error rejecting join request", e)
             }
@@ -1128,7 +1132,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -1160,7 +1164,7 @@ class GroupsViewModel : ViewModel() {
                     Log.e("GroupsViewModel", "❌ API error updating settings: $errorMsg")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error updating group settings", e)
             }
@@ -1174,7 +1178,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -1196,7 +1200,7 @@ class GroupsViewModel : ViewModel() {
                     Log.e("GroupsViewModel", "❌ API error updating privacy: $errorMsg")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error updating group privacy", e)
             }
@@ -1211,7 +1215,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -1237,7 +1241,7 @@ class GroupsViewModel : ViewModel() {
                     Log.e("GroupsViewModel", "❌ API error updating role: $errorMsg")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Error updating member role", e)
             }
@@ -1390,7 +1394,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -1426,7 +1430,7 @@ class GroupsViewModel : ViewModel() {
                     Log.e("GroupsViewModel", "❌ Помилка API при створенні топіку: $errorMsg")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Помилка створення топіку", e)
             }
@@ -1440,7 +1444,7 @@ class GroupsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
@@ -1461,7 +1465,7 @@ class GroupsViewModel : ViewModel() {
                     Log.e("GroupsViewModel", "❌ Помилка API при видаленні топіку: $errorMsg")
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 onError(errorMsg)
                 Log.e("GroupsViewModel", "❌ Помилка видалення топіку", e)
             }

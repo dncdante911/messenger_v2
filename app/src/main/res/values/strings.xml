@@ -3631,4 +3631,51 @@
     <string name="channel_replies_type_hint">Type a reply…</string>
     <string name="channel_replies_replying_to">Replying to %s</string>
     <string name="channel_replies_unknown_channel">Channel</string>
+
+    <!-- ===== LOCALIZED REPLACEMENTS FOR HARDCODED STRINGS ===== -->
+    <!-- Comment actions -->
+    <string name="ch_reaction_action">React</string>
+    <string name="ch_reply_action">Reply</string>
+    <string name="comment_added">Comment added!</string>
+    <string name="comment_deleted">Comment deleted</string>
+    <string name="reaction_added">Reaction added!</string>
+    <!-- Channel actions / toasts -->
+    <string name="error_channel_not_found">Channel not found</string>
+    <string name="avatar_updated">Avatar updated</string>
+    <string name="subscribe_success">Subscribed to channel!</string>
+    <string name="unsubscribe_success">Unsubscribed from channel</string>
+    <string name="settings_saved">Settings saved!</string>
+    <string name="formatting_settings_saved">Formatting settings saved</string>
+    <string name="error_generic_msg">Error: %s</string>
+    <string name="error_save_msg">Save error: %s</string>
+    <!-- Validation errors -->
+    <string name="error_not_authorized">Not authorized</string>
+    <string name="error_enter_text_or_media">Enter text or add media</string>
+    <string name="error_enter_comment">Enter comment text</string>
+    <string name="error_enter_channel_name">Enter channel name</string>
+    <!-- Groups errors -->
+    <string name="error_load_groups">Failed to load groups</string>
+    <string name="error_load_members">Failed to load members</string>
+    <string name="error_create_group">Failed to create group</string>
+    <string name="error_update_group">Failed to update group</string>
+    <string name="error_delete_group">Failed to delete group</string>
+    <string name="error_add_member">Failed to add member</string>
+    <string name="error_remove_member">Failed to remove member</string>
+    <string name="error_update_role">Failed to update role</string>
+    <string name="error_leave_group">Failed to leave group</string>
+    <string name="error_load_avatar">Failed to load avatar</string>
+    <string name="error_pin_message">Failed to pin message</string>
+    <string name="error_unpin_message">Failed to unpin message</string>
+    <!-- Write-as-channel feature -->
+    <string name="ch_comment_identity_title">Comment identity</string>
+    <string name="ch_comment_identity_sub">Choose who you appear as when commenting</string>
+    <string name="ch_identity_as_user">As yourself</string>
+    <string name="ch_identity_as_channel">As channel</string>
+    <string name="ch_identity_as_channel_badge">channel</string>
+    <string name="ch_identity_as_user_signed">As yourself + channel signature</string>
+    <string name="ch_identity_label">Channel admin</string>
+    <!-- Pinned post badge -->
+    <string name="ch_pinned_post">Pinned</string>
+    <!-- Share -->
+    <string name="ch_share_link_copied">Link copied!</string>
 </resources>

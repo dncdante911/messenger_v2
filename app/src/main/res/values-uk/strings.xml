@@ -3490,4 +3490,44 @@
     <string name="channel_replies_type_hint">Написати відповідь…</string>
     <string name="channel_replies_replying_to">Відповідь для %s</string>
     <string name="channel_replies_unknown_channel">Канал</string>
+
+    <!-- ===== ЛОКАЛІЗОВАНІ ЗАМІННИКИ ХАРДКОДУ ===== -->
+    <string name="ch_reaction_action">Реакція</string>
+    <string name="ch_reply_action">Відповісти</string>
+    <string name="comment_added">Коментар додано!</string>
+    <string name="comment_deleted">Коментар видалено</string>
+    <string name="reaction_added">Реакцію додано!</string>
+    <string name="error_channel_not_found">Канал не знайдено</string>
+    <string name="avatar_updated">Аватар оновлено</string>
+    <string name="subscribe_success">Ви підписалися на канал!</string>
+    <string name="unsubscribe_success">Ви відписалися від каналу</string>
+    <string name="settings_saved">Налаштування збережено!</string>
+    <string name="formatting_settings_saved">Налаштування форматування збережено</string>
+    <string name="error_generic_msg">Помилка: %s</string>
+    <string name="error_save_msg">Помилка збереження: %s</string>
+    <string name="error_not_authorized">Користувач не авторизований</string>
+    <string name="error_enter_text_or_media">Введіть текст або додайте медіа</string>
+    <string name="error_enter_comment">Введіть текст коментаря</string>
+    <string name="error_enter_channel_name">Введіть назву каналу</string>
+    <string name="error_load_groups">Помилка завантаження груп</string>
+    <string name="error_load_members">Не вдалося завантажити членів групи</string>
+    <string name="error_create_group">Помилка створення групи</string>
+    <string name="error_update_group">Помилка оновлення групи</string>
+    <string name="error_delete_group">Помилка видалення групи</string>
+    <string name="error_add_member">Помилка додавання члена групи</string>
+    <string name="error_remove_member">Помилка видалення члена групи</string>
+    <string name="error_update_role">Помилка оновлення ролі</string>
+    <string name="error_leave_group">Не вдалося вийти з групи</string>
+    <string name="error_load_avatar">Не вдалося завантажити аватарку</string>
+    <string name="error_pin_message">Не вдалося закріпити повідомлення</string>
+    <string name="error_unpin_message">Не вдалося відкріпити повідомлення</string>
+    <string name="ch_comment_identity_title">Ім\'я при коментуванні</string>
+    <string name="ch_comment_identity_sub">Виберіть як ви відображаєтесь при коментуванні</string>
+    <string name="ch_identity_as_user">Від свого імені</string>
+    <string name="ch_identity_as_channel">Від імені каналу</string>
+    <string name="ch_identity_as_channel_badge">канал</string>
+    <string name="ch_identity_as_user_signed">Від свого імені + підпис каналу</string>
+    <string name="ch_identity_label">Адмін каналу</string>
+    <string name="ch_pinned_post">Закріплено</string>
+    <string name="ch_share_link_copied">Посилання скопійовано!</string>
 </resources>

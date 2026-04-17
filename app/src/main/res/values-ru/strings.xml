@@ -3632,4 +3632,44 @@
     <string name="channel_replies_type_hint">Написать ответ…</string>
     <string name="channel_replies_replying_to">Ответ пользователю %s</string>
     <string name="channel_replies_unknown_channel">Канал</string>
+
+    <!-- ===== ЛОКАЛИЗОВАННЫЕ ЗАМЕНЫ ХАРДКОДА ===== -->
+    <string name="ch_reaction_action">Реакция</string>
+    <string name="ch_reply_action">Ответить</string>
+    <string name="comment_added">Комментарий добавлен!</string>
+    <string name="comment_deleted">Комментарий удалён</string>
+    <string name="reaction_added">Реакция добавлена!</string>
+    <string name="error_channel_not_found">Канал не найден</string>
+    <string name="avatar_updated">Аватар обновлён</string>
+    <string name="subscribe_success">Вы подписались на канал!</string>
+    <string name="unsubscribe_success">Вы отписались от канала</string>
+    <string name="settings_saved">Настройки сохранены!</string>
+    <string name="formatting_settings_saved">Настройки форматирования сохранены</string>
+    <string name="error_generic_msg">Ошибка: %s</string>
+    <string name="error_save_msg">Ошибка сохранения: %s</string>
+    <string name="error_not_authorized">Пользователь не авторизован</string>
+    <string name="error_enter_text_or_media">Введите текст или добавьте медиа</string>
+    <string name="error_enter_comment">Введите текст комментария</string>
+    <string name="error_enter_channel_name">Введите название канала</string>
+    <string name="error_load_groups">Ошибка загрузки групп</string>
+    <string name="error_load_members">Не удалось загрузить участников</string>
+    <string name="error_create_group">Ошибка создания группы</string>
+    <string name="error_update_group">Ошибка обновления группы</string>
+    <string name="error_delete_group">Ошибка удаления группы</string>
+    <string name="error_add_member">Ошибка добавления участника</string>
+    <string name="error_remove_member">Ошибка удаления участника</string>
+    <string name="error_update_role">Ошибка обновления роли</string>
+    <string name="error_leave_group">Не удалось выйти из группы</string>
+    <string name="error_load_avatar">Не удалось загрузить аватар</string>
+    <string name="error_pin_message">Не удалось закрепить сообщение</string>
+    <string name="error_unpin_message">Не удалось открепить сообщение</string>
+    <string name="ch_comment_identity_title">Имя при комментировании</string>
+    <string name="ch_comment_identity_sub">Выберите как вы отображаетесь при комментировании</string>
+    <string name="ch_identity_as_user">От своего имени</string>
+    <string name="ch_identity_as_channel">От имени канала</string>
+    <string name="ch_identity_as_channel_badge">канал</string>
+    <string name="ch_identity_as_user_signed">От своего имени + подпись канала</string>
+    <string name="ch_identity_label">Администратор канала</string>
+    <string name="ch_pinned_post">Закреплено</string>
+    <string name="ch_share_link_copied">Ссылка скопирована!</string>
 </resources>

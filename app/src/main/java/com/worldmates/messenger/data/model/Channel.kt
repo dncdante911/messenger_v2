@@ -88,7 +88,11 @@ data class ChannelComment(
     @SerializedName("time") val time: Long,
     @SerializedName("edited_time") val editedTime: Long? = null,
     @SerializedName("reply_to_comment_id") val replyToCommentId: Long? = null,
-    @SerializedName("reactions_count") val reactionsCount: Int = 0
+    @SerializedName("reactions_count") val reactionsCount: Int = 0,
+    // write-as-channel fields
+    @SerializedName("written_as_channel") val writtenAsChannel: Boolean = false,
+    @SerializedName("channel_name") val channelName: String? = null,
+    @SerializedName("channel_avatar") val channelAvatar: String? = null
 )
 
 /**
@@ -155,14 +159,16 @@ data class ChannelSettings(
     @SerializedName("allow_comments") val allowComments: Boolean = true,
     @SerializedName("allow_reactions") val allowReactions: Boolean = true,
     @SerializedName("allow_shares") val allowShares: Boolean = true,
-    @SerializedName("show_statistics") val showStatistics: Boolean = true, // Показувати статистику підписникам
+    @SerializedName("show_statistics") val showStatistics: Boolean = true,
     @SerializedName("show_views_count") val showViewsCount: Boolean = true,
     @SerializedName("notify_subscribers_new_post") val notifySubscribersNewPost: Boolean = true,
-    @SerializedName("auto_delete_posts_days") val autoDeletePostsDays: Int? = null, // Автовидалення старих постів
-    @SerializedName("signature_enabled") val signatureEnabled: Boolean = false, // Підпис автора поста
-    @SerializedName("comments_moderation") val commentsModeration: Boolean = false, // Модерація коментарів
+    @SerializedName("auto_delete_posts_days") val autoDeletePostsDays: Int? = null,
+    @SerializedName("signature_enabled") val signatureEnabled: Boolean = false,
+    @SerializedName("comments_moderation") val commentsModeration: Boolean = false,
     @SerializedName("allow_forwarding") val allowForwarding: Boolean = true,
-    @SerializedName("slow_mode_seconds") val slowModeSeconds: Int? = null // Затримка між коментарями
+    @SerializedName("slow_mode_seconds") val slowModeSeconds: Int? = null,
+    // "user" | "channel" | "user_with_signature"
+    @SerializedName("comment_identity") val commentIdentity: String = "user"
 )
 
 /**

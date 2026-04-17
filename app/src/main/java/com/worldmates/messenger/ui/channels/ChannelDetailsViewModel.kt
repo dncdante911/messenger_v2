@@ -2,9 +2,10 @@
 
 package com.worldmates.messenger.ui.channels
 
+import android.app.Application
 import android.content.Context
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.data.model.*
@@ -13,9 +14,12 @@ import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import com.worldmates.messenger.R
 import retrofit2.http.GET
 
-class ChannelDetailsViewModel : ViewModel() {
+class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
+    private fun str(id: Int) = getApplication<Application>().getString(id)
+    private fun str(id: Int, vararg args: Any) = getApplication<Application>().getString(id, *args)
 
     // Socket.IO handler for real-time updates
     private var socketHandler: ChannelSocketHandler? = null
@@ -115,7 +119,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
                 _isLoading.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _isLoading.value = false
                 Log.e("ChannelDetailsVM", "Помилка завантаження каналу", e)
             }
@@ -157,7 +161,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
                 _isLoadingPosts.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _isLoadingPosts.value = false
                 Log.e("ChannelDetailsVM", "Помилка завантаження постів", e)
             }
@@ -177,12 +181,12 @@ class ChannelDetailsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
         if (text.isBlank() && media.isNullOrEmpty()) {
-            onError("Введіть текст або додайте медіа")
+            onError(str(R.string.error_enter_text_or_media))
             return
         }
 
@@ -222,7 +226,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка створення поста", e)
                 onError(errorMsg)
@@ -271,7 +275,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка оновлення поста", e)
                 onError(errorMsg)
@@ -316,7 +320,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка видалення поста", e)
                 onError(errorMsg)
@@ -364,7 +368,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка зміни закріплення", e)
                 onError(errorMsg)
@@ -401,7 +405,7 @@ class ChannelDetailsViewModel : ViewModel() {
 
                 _isLoadingComments.value = false
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _isLoadingComments.value = false
                 Log.e("ChannelDetailsVM", "Помилка завантаження коментарів", e)
             }
@@ -419,21 +423,24 @@ class ChannelDetailsViewModel : ViewModel() {
         onError: (String) -> Unit = {}
     ) {
         if (UserSession.accessToken == null) {
-            onError("Користувач не авторизований")
+            onError(str(R.string.error_not_authorized))
             return
         }
 
         if (text.isBlank()) {
-            onError("Введіть текст коментаря")
+            onError(str(R.string.error_enter_comment))
             return
         }
+
+        val writeAs = _channel.value?.settings?.commentIdentity ?: "user"
 
         viewModelScope.launch {
             try {
                 val response = NodeRetrofitClient.channelApi.addChannelComment(
                     postId = postId,
                     text = text,
-                    replyToId = replyToId
+                    replyToId = replyToId,
+                    writeAs = writeAs
                 )
 
                 if (response.apiStatus == 200) {
@@ -458,7 +465,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка додавання коментаря", e)
                 onError(errorMsg)
@@ -503,7 +510,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка видалення коментаря", e)
                 onError(errorMsg)
@@ -546,7 +553,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка додавання реакції", e)
                 onError(errorMsg)
@@ -589,7 +596,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка видалення реакції", e)
                 onError(errorMsg)
@@ -620,7 +627,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     _error.value = response.errorMessage ?: "Помилка завантаження статистики"
                 }
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 Log.e("ChannelDetailsVM", "Помилка завантаження статистики", e)
             }
         }
@@ -730,7 +737,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     _error.value = response.errorMessage ?: "Помилка завантаження підписників"
                 }
             } catch (e: Exception) {
-                _error.value = "Помилка: ${e.localizedMessage}"
+                _error.value = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 Log.e("ChannelDetailsVM", "Помилка завантаження підписників", e)
             }
         }
@@ -790,7 +797,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка додавання реакції на коментар", e)
                 onError(errorMsg)
@@ -832,7 +839,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка додавання адміністратора", e)
                 onError(errorMsg)
@@ -871,7 +878,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка видалення адміністратора", e)
                 onError(errorMsg)
@@ -915,7 +922,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка оновлення каналу", e)
                 onError(errorMsg)
@@ -957,7 +964,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка оновлення налаштувань", e)
                 onError(errorMsg)
@@ -993,7 +1000,7 @@ class ChannelDetailsViewModel : ViewModel() {
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
-                val errorMsg = "Помилка: ${e.localizedMessage}"
+                val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 Log.e("ChannelDetailsVM", "Помилка реєстрації перегляду", e)
                 onError(errorMsg)
             }
