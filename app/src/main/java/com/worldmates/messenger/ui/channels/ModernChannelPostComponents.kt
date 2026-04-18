@@ -592,10 +592,15 @@ fun ChannelPostCard(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val hasComments = post.commentsCount > 0
+                    val iconTint = if (hasComments)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
                     Icon(
                         imageVector = Icons.Outlined.ChatBubbleOutline,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = iconTint,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(5.dp))
@@ -606,15 +611,20 @@ fun ChannelPostCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
-                    if (post.commentsCount > 0) {
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = formatCount(post.commentsCount),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1
-                        )
+                    if (hasComments) {
+                        Spacer(Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
+                        ) {
+                            Text(
+                                text = formatCount(post.commentsCount),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
 

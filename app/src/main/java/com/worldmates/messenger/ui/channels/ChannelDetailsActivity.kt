@@ -95,8 +95,22 @@ class ChannelDetailsActivity : AppCompatActivity() {
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Отримуємо channelId з Intent
+        // Отримуємо channelId — з Intent extras або з deep link URI
+        // Deep link: worldmates://channel/{channelId}  or  worldmates://channel/{channelId}/post/{postId}
         channelId = intent.getLongExtra("channel_id", 0)
+        if (channelId == 0L) {
+            val uri = intent.data
+            if (uri != null && uri.scheme == "worldmates" && uri.host == "channel") {
+                val segments = uri.pathSegments  // [] for channel/{id}, or ["post", "{postId}"]
+                channelId = uri.lastPathSegment?.toLongOrNull() ?: 0L
+                // If path is /post/{postId}, channel id is the host path — handled via pathSegments
+                // URI: worldmates://channel/42/post/99 → host="channel", path="/42/post/99"
+                // So segments[0] is channelId, segments[2] is postId (if present)
+                if (segments.isNotEmpty()) {
+                    channelId = segments[0].toLongOrNull() ?: 0L
+                }
+            }
+        }
         if (channelId == 0L) {
             Toast.makeText(this, getString(R.string.error_channel_not_found), Toast.LENGTH_SHORT).show()
             finish()
@@ -621,9 +635,27 @@ fun ChannelDetailsScreen(
                                 }
                                 val onShareClickHandler: () -> Unit = {
                                     val shareUrl = "https://worldmates.club:449/share/channel/${channelId}/post/${post.id}"
+                                    val channelTitle = channel?.name ?: ""
+                                    val postPreview = post.text
+                                        .replace(Regex("<[^>]+>"), "")
+                                        .trim()
+                                        .let { if (it.length > 120) it.take(117) + "…" else it }
+                                    val shareText = buildString {
+                                        if (channelTitle.isNotEmpty()) {
+                                            append("📢 ")
+                                            append(channelTitle)
+                                            append("\n")
+                                        }
+                                        if (postPreview.isNotEmpty()) {
+                                            append(postPreview)
+                                            append("\n")
+                                        }
+                                        append("\n")
+                                        append(shareUrl)
+                                    }
                                     val sendIntent = android.content.Intent().apply {
                                         action = android.content.Intent.ACTION_SEND
-                                        putExtra(android.content.Intent.EXTRA_TEXT, shareUrl)
+                                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
                                         type = "text/plain"
                                     }
                                     val shareIntent = android.content.Intent.createChooser(sendIntent, context.getString(R.string.ch_share_post))

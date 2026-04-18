@@ -439,6 +439,7 @@ private fun SettingsTab(
     var signature by remember(currentSettings) { mutableStateOf(currentSettings.signatureEnabled) }
     var moderation by remember(currentSettings) { mutableStateOf(currentSettings.commentsModeration) }
     var allowForwarding by remember(currentSettings) { mutableStateOf(currentSettings.allowForwarding) }
+    var commentIdentity by remember(currentSettings) { mutableStateOf(currentSettings.commentIdentity) }
     var isSaving by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -474,6 +475,44 @@ private fun SettingsTab(
         item { SettingToggle(stringResource(R.string.channel_settings_show_statistics), stringResource(R.string.channel_settings_show_statistics_desc), showStats) { showStats = it } }
 
         item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.ch_comment_identity_title),
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            Text(
+                stringResource(R.string.ch_comment_identity_sub),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            val identityOptions = listOf(
+                "user"                to R.string.ch_identity_as_user,
+                "channel"             to R.string.ch_identity_as_channel,
+                "user_with_signature" to R.string.ch_identity_as_user_signed
+            )
+            identityOptions.forEach { (key, labelRes) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { commentIdentity = key }
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = commentIdentity == key,
+                        onClick = { commentIdentity = key }
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(labelRes), fontSize = 14.sp)
+                }
+            }
+        }
+
+        item {
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = {
@@ -486,7 +525,8 @@ private fun SettingsTab(
                         notifySubscribersNewPost = notifyNew,
                         signatureEnabled = signature,
                         commentsModeration = moderation,
-                        allowForwarding = allowForwarding
+                        allowForwarding = allowForwarding,
+                        commentIdentity = commentIdentity
                     )
                     viewModel.updateChannelSettings(
                         channelId = channelId,

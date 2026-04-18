@@ -55,7 +55,13 @@ async function formatChannel(ctx, page, userId) {
         is_subscribed: isSubscribed,
         created_time: parseInt(page.registered) || 0,
         category: page.page_category ? String(page.page_category) : null,
-        settings: null
+        settings: (() => {
+            try {
+                return page.address ? JSON.parse(page.address) : null;
+            } catch (_) {
+                return null;
+            }
+        })()
     };
 }
 
