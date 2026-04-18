@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,197 +28,159 @@ import com.worldmates.messenger.data.model.CustomEmoji
 import com.worldmates.messenger.data.repository.EmojiRepository
 import kotlinx.coroutines.launch
 
-/**
- * 😊 Emoji Picker - Повноцінна клавіатура емоджі
- *
- * Використання:
- * ```
- * var showEmojiPicker by remember { mutableStateOf(false) }
- *
- * if (showEmojiPicker) {
- *     EmojiPicker(
- *         onEmojiSelected = { emoji ->
- *             messageText += emoji
- *         },
- *         onDismiss = { showEmojiPicker = false }
- *     )
- * }
- * ```
- */
 @Composable
 fun EmojiPicker(
     onEmojiSelected: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedCategory by remember { mutableStateOf(EmojiCategory.SMILEYS) }
-    val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val emojiRepository = remember { EmojiRepository.getInstance(context) }
 
-    // Завантажуємо кастомні емоджі з API
     val customEmojis by emojiRepository.customEmojis.collectAsState()
+    val recentEmojis by emojiRepository.recentEmojis.collectAsState()
 
     LaunchedEffect(Unit) {
-        scope.launch {
-            emojiRepository.fetchEmojiPacks()
+        scope.launch { emojiRepository.fetchEmojiPacks() }
+    }
+
+    // All categories: RECENT first (only when non-empty), then standard, then CUSTOM
+    val categories = remember(recentEmojis) {
+        buildList {
+            if (recentEmojis.isNotEmpty()) add(EmojiCategory.RECENT)
+            addAll(listOf(
+                EmojiCategory.SMILEYS, EmojiCategory.GESTURES, EmojiCategory.ANIMALS,
+                EmojiCategory.FOOD, EmojiCategory.ACTIVITIES, EmojiCategory.TRAVEL,
+                EmojiCategory.OBJECTS, EmojiCategory.SYMBOLS, EmojiCategory.CUSTOM
+            ))
         }
+    }
+
+    val pagerState = rememberPagerState(initialPage = 0) { categories.size }
+
+    fun onEmoji(emoji: String) {
+        emojiRepository.trackEmojiUsage(emoji)
+        onEmojiSelected(emoji)
     }
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(350.dp),
-        color = colorScheme.surface,
+            .height(320.dp),
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 8.dp
     ) {
         Column {
-            // Заголовок
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Category tabs (scrollable icon row)
+            ScrollableTabRow(
+                selectedTabIndex = pagerState.currentPage,
+                edgePadding = 4.dp,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                divider = {}
             ) {
-                Text(
-                    text = stringResource(R.string.emoji_label),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                categories.forEachIndexed { index, category ->
+                    Tab(
+                        selected = pagerState.currentPage == index,
+                        onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = category.icon,
+                            contentDescription = stringResource(category.titleRes),
+                            modifier = Modifier.size(22.dp),
+                            tint = if (pagerState.currentPage == index)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                        )
+                    }
                 }
             }
 
-            Divider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-            // Сітка емоджі
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(8),
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(8.dp),
-                contentPadding = PaddingValues(4.dp)
-            ) {
-                if (selectedCategory == EmojiCategory.CUSTOM) {
-                    // Показуємо кастомні емоджі
-                    items(customEmojis) { customEmoji ->
-                        CustomEmojiItem(
-                            customEmoji = customEmoji,
-                            onClick = { onEmojiSelected(customEmoji.code) }
-                        )
+            // Swipeable emoji grid
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f)
+            ) { pageIndex ->
+                val category = categories[pageIndex]
+                val emojis = when (category) {
+                    EmojiCategory.RECENT -> recentEmojis
+                    EmojiCategory.CUSTOM -> customEmojis.map { it.code }
+                    else -> category.emojis
+                }
+
+                if (category == EmojiCategory.CUSTOM) {
+                    // Custom emojis with image rendering
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(8),
+                        modifier = Modifier.fillMaxSize().padding(4.dp),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        items(customEmojis) { customEmoji ->
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clickable { onEmoji(customEmoji.code) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AsyncImage(
+                                    model = customEmoji.url,
+                                    contentDescription = customEmoji.name ?: customEmoji.code,
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+                        }
+                    }
+                } else if (emojis.isEmpty() && category == EmojiCategory.RECENT) {
+                    // Empty recent state
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("🙂", fontSize = 32.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.emoji_no_recent),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 } else {
-                    // Показуємо стандартні емоджі
-                    items(selectedCategory.emojis) { emoji ->
-                        EmojiItem(
-                            emoji = emoji,
-                            onClick = { onEmojiSelected(emoji) }
-                        )
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(8),
+                        modifier = Modifier.fillMaxSize().padding(4.dp),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        items(emojis) { emoji ->
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clickable { onEmoji(emoji) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = emoji, fontSize = 26.sp, textAlign = TextAlign.Center)
+                            }
+                        }
                     }
-                }
-            }
-
-            Divider()
-
-            // Категорії
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colorScheme.surfaceVariant)
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                EmojiCategory.values().forEach { category ->
-                    CategoryTab(
-                        category = category,
-                        isSelected = selectedCategory == category,
-                        onClick = { selectedCategory = category }
-                    )
                 }
             }
         }
     }
 }
 
-/**
- * Елемент емоджі в сітці
- */
-@Composable
-private fun EmojiItem(
-    emoji: String,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(44.dp)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = emoji,
-            fontSize = 28.sp,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-/**
- * Елемент кастомного емоджі в сітці (зображення)
- */
-@Composable
-private fun CustomEmojiItem(
-    customEmoji: CustomEmoji,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(44.dp)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        AsyncImage(
-            model = customEmoji.url,
-            contentDescription = customEmoji.name ?: customEmoji.code,
-            modifier = Modifier.size(32.dp)
-        )
-    }
-}
-
-/**
- * Вкладка категорії
- */
-@Composable
-private fun CategoryTab(
-    category: EmojiCategory,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(48.dp)
-    ) {
-        Icon(
-            imageVector = category.icon,
-            contentDescription = stringResource(category.titleRes),
-            tint = if (isSelected) colorScheme.primary else colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-    }
-}
-
-/**
- * Категорії емоджі
- */
 enum class EmojiCategory(
     @StringRes val titleRes: Int,
     val icon: ImageVector,
-    val emojis: List<String>
+    val emojis: List<String> = emptyList()
 ) {
+    RECENT(
+        titleRes = R.string.emoji_recent,
+        icon = Icons.Default.History
+    ),
     SMILEYS(
         titleRes = R.string.emoji_smileys,
         icon = Icons.Default.Face,
@@ -228,8 +191,8 @@ enum class EmojiCategory(
             "🤪", "😝", "🤑", "🤗", "🤭", "🤫", "🤔", "🤐",
             "🤨", "😐", "😑", "😶", "😏", "😒", "🙄", "😬",
             "🤥", "😌", "😔", "😪", "🤤", "😴", "😷", "🤒",
-            "🤕", "🤢", "🤮", "🤧", "🥵", "🥶", "😶‍🌫️", "🥴",
-            "😵", "😵‍💫", "🤯", "🤠", "🥳", "🥸", "😎", "🤓"
+            "🤕", "🤢", "🤮", "🤧", "🥵", "🥶", "🥴", "😵",
+            "🤯", "🤠", "🥳", "🥸", "😎", "🤓", "🧐", "😕"
         )
     ),
     GESTURES(
@@ -318,7 +281,6 @@ enum class EmojiCategory(
     ),
     CUSTOM(
         titleRes = R.string.emoji_custom,
-        icon = Icons.Default.AddCircle,
-        emojis = emptyList()  // Кастомні емоджі завантажуються з API
+        icon = Icons.Default.AddCircle
     )
 }

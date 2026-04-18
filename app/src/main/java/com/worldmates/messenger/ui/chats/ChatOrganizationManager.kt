@@ -125,8 +125,7 @@ object ChatOrganizationManager {
         ChatFolder("all", "Усі", "💬", 0, contentType = ContentType.ALL),
         ChatFolder("personal", "Особисті", "👤", 1, contentType = ContentType.CHATS),
         ChatFolder("channels", "Канали", "📢", 2, contentType = ContentType.CHANNELS),
-        ChatFolder("groups", "Групи", "👥", 3, contentType = ContentType.GROUPS),
-        ChatFolder("unread", "Непрочитані", "🔴", 4, contentType = ContentType.ALL)
+        ChatFolder("groups", "Групи", "👥", 3, contentType = ContentType.GROUPS)
     )
 
     fun addFolder(name: String, emoji: String): Boolean {
