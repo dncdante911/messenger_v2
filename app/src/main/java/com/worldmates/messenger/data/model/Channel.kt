@@ -25,7 +25,14 @@ data class Channel(
     @SerializedName("created_time") val createdTime: Long = 0,
     @SerializedName("settings") val settings: ChannelSettings? = null,
     @SerializedName("category") val category: String? = null, // Категорія каналу
-    @SerializedName("formatting_permissions") val formattingPermissions: String? = null
+    @SerializedName("formatting_permissions") val formattingPermissions: String? = null,
+    // ── Premium extensions (Phase 3 — backend may return null until Phase 5) ──
+    @SerializedName("is_premium_active") val isPremiumActive: Boolean = false,
+    @SerializedName("premium_customization") val premiumCustomization: ChannelPremiumCustomization? = null,
+    @SerializedName("emoji_status") val emojiStatus: String? = null,
+    @SerializedName("animated_avatar_url") val animatedAvatarUrl: String? = null,
+    @SerializedName("channel_level") val channelLevel: Int = 0,
+    @SerializedName("channel_level_progress") val channelLevelProgress: Float = 0f,
 )
 
 /**
