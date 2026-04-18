@@ -3642,7 +3642,6 @@
     <string name="comment_deleted">Комментарий удалён</string>
     <string name="reaction_added">Реакция добавлена!</string>
     <string name="error_channel_not_found">Канал не найден</string>
-    <string name="avatar_updated">Аватар обновлён</string>
     <string name="subscribe_success">Вы подписались на канал!</string>
     <string name="unsubscribe_success">Вы отписались от канала</string>
     <string name="settings_saved">Настройки сохранены!</string>
