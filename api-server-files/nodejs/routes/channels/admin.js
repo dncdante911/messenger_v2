@@ -246,11 +246,10 @@ function updateSettings(ctx, io) {
                 return res.json({ api_status: 400, error_code: 400, error_message: 'Invalid settings JSON' });
             }
 
-            const updateData = {};
-            // Store settings in dedicated TEXT column added via migration.
-            updateData.settings_json = JSON.stringify(settings);
-
-            await ctx.wo_pages.update(updateData, { where: { page_id: channelId } });
+            await ctx.wo_pages.update(
+                { settings_json: JSON.stringify(settings) },
+                { where: { page_id: channelId } }
+            );
 
             console.log(`[Channels] Settings updated for channel ${channelId}`);
 
