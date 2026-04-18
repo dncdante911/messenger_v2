@@ -1045,6 +1045,8 @@
     <string name="emoji_objects">Объекты</string>
     <string name="emoji_symbols">Символы</string>
     <string name="emoji_custom">Кастомные</string>
+    <string name="emoji_recent">Недавние</string>
+    <string name="emoji_no_recent">Здесь появятся часто используемые эмодзи</string>
     <string name="emoji_all">Все</string>
     <string name="emoji_stickers">Стикеры</string>
     <string name="emoji_label">Эмодзи</string>

@@ -1068,6 +1068,8 @@
     <string name="emoji_objects">Об\'єкти</string>
     <string name="emoji_symbols">Символи</string>
     <string name="emoji_custom">Кастомні</string>
+    <string name="emoji_recent">Недавні</string>
+    <string name="emoji_no_recent">Тут зʼявляться часто вживані емодзі</string>
     <string name="emoji_all">Усі</string>
     <string name="emoji_stickers">Стікери</string>
     <string name="emoji_label">Емодзі</string>

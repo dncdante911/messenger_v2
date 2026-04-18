@@ -340,11 +340,21 @@ fun ChatsScreenModern(
                 hiddenChatsCount  = hiddenChatsCount
             )
 
-            // HorizontalPager з вкладками
+            // Sync folder selection when user swipes between pages
+            LaunchedEffect(pagerState.currentPage) {
+                val newFolder = when (pagerState.currentPage) {
+                    1 -> "channels"
+                    2 -> "groups"
+                    else -> if (selectedFolderId in listOf("channels", "groups")) "all" else selectedFolderId
+                }
+                if (newFolder != selectedFolderId) selectedFolderId = newFolder
+            }
+
+            // HorizontalPager з вкладками — swipe enabled
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = false // Контролюється папками
+                userScrollEnabled = true
             ) { page ->
                 when (page) {
                     0 -> {
