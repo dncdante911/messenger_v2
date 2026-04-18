@@ -1554,8 +1554,9 @@ fun CommentContent(text: String) {
 }
 
 /**
- * Modern comment item — clean card row with avatar, name, time, text, reactions.
- * Swipe right to reply. Tap to reveal quick actions.
+ * Telegram-style chat bubble comment item.
+ * Avatar left, per-user colored name, bubble with reply quote, tap for action menu.
+ * Swipe right to reply.
  */
 @Composable
 fun PremiumCommentItem(
@@ -1568,24 +1569,34 @@ fun PremiumCommentItem(
     replyToComment: ChannelComment? = null,
     modifier: Modifier = Modifier
 ) {
-    var showActions by remember { mutableStateOf(false) }
-    var offsetX by remember { mutableStateOf(0f) }
-    val maxSwipe = 72f
     val cs = MaterialTheme.colorScheme
     val context = LocalContext.current
     val displayName = comment.userName ?: comment.username ?: "User #${comment.userId}"
+    var showActionMenu by remember { mutableStateOf(false) }
+    var offsetX by remember { mutableStateOf(0f) }
+    val maxSwipe = 64f
+
+    // Stable per-user accent color (same logic Telegram uses)
+    val nameColor = remember(comment.userId) {
+        val palette = listOf(
+            Color(0xFF1E88E5), Color(0xFF43A047), Color(0xFFE53935),
+            Color(0xFF8E24AA), Color(0xFF00ACC1), Color(0xFFF4511E),
+            Color(0xFF3949AB), Color(0xFF00897B)
+        )
+        palette[(comment.userId % palette.size).toInt().coerceAtLeast(0)]
+    }
 
     Box(modifier = modifier.fillMaxWidth()) {
-        // Swipe-to-reply arrow
-        if (offsetX > 12f) {
+        // Swipe-right arrow hint
+        if (offsetX > 10f) {
             Icon(
                 imageVector = Icons.Default.Reply,
                 contentDescription = null,
-                tint = cs.primary.copy(alpha = (offsetX / maxSwipe).coerceIn(0f, 1f)),
+                tint = cs.primary.copy(alpha = (offsetX / maxSwipe).coerceIn(0.15f, 0.9f)),
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 10.dp)
-                    .size(18.dp)
+                    .padding(end = 14.dp)
+                    .size(20.dp)
             )
         }
 
@@ -1604,188 +1615,286 @@ fun PremiumCommentItem(
                         }
                     )
                 }
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = true)
-                ) { showActions = !showActions }
-                .padding(horizontal = 12.dp, vertical = 7.dp),
+                .padding(start = 10.dp, end = 10.dp, top = 3.dp, bottom = 3.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // ── Avatar 36 dp ──
+            // Avatar — 34 dp circle
             if (!comment.userAvatar.isNullOrEmpty()) {
                 AsyncImage(
                     model = comment.userAvatar.toFullMediaUrl(),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(cs.surfaceVariant),
+                        .size(34.dp)
+                        .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(listOf(cs.primary, cs.tertiary))
-                        ),
+                        .background(nameColor.copy(alpha = 0.18f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = displayName.take(1).uppercase(),
-                        color = Color.White,
+                        color = nameColor,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-
-                // ── Header row: name · channel badge · spacer · time ──
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = displayName,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = cs.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    if (comment.writtenAsChannel) {
-                        Spacer(Modifier.width(4.dp))
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = cs.primary.copy(alpha = 0.12f)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.ch_identity_as_channel_badge),
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = cs.primary,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        text = formatPostTime(comment.time, context),
-                        fontSize = 11.sp,
-                        color = cs.onSurface.copy(alpha = 0.4f)
-                    )
-                }
-
-                // Channel signature (user_with_signature mode)
-                if (!comment.writtenAsChannel && !comment.channelName.isNullOrEmpty()) {
-                    Text(
-                        text = "@ ${comment.channelName}",
-                        fontSize = 11.sp,
-                        color = cs.primary.copy(alpha = 0.6f),
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(Modifier.height(3.dp))
-
-                // Reply quote
-                if (replyToComment != null) {
-                    com.worldmates.messenger.ui.components.CommentReplyQuote(
-                        replyToUsername = replyToComment.userName
-                            ?: replyToComment.username
-                            ?: stringResource(R.string.ch_user_fallback),
-                        replyToText = replyToComment.text,
-                        modifier = Modifier.padding(bottom = 5.dp)
-                    )
-                }
-
-                // Comment text
-                CommentContent(text = comment.text)
-
-                // ── Reactions row ──
-                AnimatedVisibility(
-                    visible = comment.reactionsCount > 0 || showActions,
-                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
-                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically()
+            // Bubble + reactions
+            Column(
+                modifier = Modifier.widthIn(max = 290.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                // Chat bubble
+                Surface(
+                    modifier = Modifier
+                        .wrapContentWidth(Alignment.Start)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = true)
+                        ) { showActionMenu = true },
+                    shape = RoundedCornerShape(
+                        topStart = 16.dp, topEnd = 16.dp,
+                        bottomStart = 4.dp,  bottomEnd = 16.dp
+                    ),
+                    color = cs.surfaceVariant.copy(alpha = 0.5f)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(top = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(
+                            start = 12.dp, end = 12.dp,
+                            top = 8.dp,   bottom = 8.dp
+                        )
                     ) {
-                        listOf("👍", "❤️", "🔥", "😂").forEach { emoji ->
+                        // Sender name (accent color)
+                        Text(
+                            text = displayName,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = nameColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        // "Channel" badge (written_as_channel)
+                        if (comment.writtenAsChannel) {
+                            Spacer(Modifier.height(2.dp))
                             Surface(
-                                onClick = { onReactionClick(emoji) },
-                                shape = RoundedCornerShape(50),
-                                color = cs.surfaceVariant.copy(alpha = 0.7f),
-                                modifier = Modifier.height(28.dp)
-                            ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(horizontal = 9.dp)
-                                ) { Text(text = emoji, fontSize = 14.sp) }
-                            }
-                        }
-                        if (comment.reactionsCount > 0) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = cs.primary.copy(alpha = 0.10f)
+                                shape = RoundedCornerShape(4.dp),
+                                color = nameColor.copy(alpha = 0.13f)
                             ) {
                                 Text(
-                                    text = "${comment.reactionsCount}",
-                                    fontSize = 11.sp,
-                                    color = cs.primary,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    text = stringResource(R.string.ch_identity_as_channel_badge),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = nameColor,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                                 )
                             }
                         }
-                    }
-                }
-            }
 
-            // ── Quick actions (delete + more) ──
-            AnimatedVisibility(
-                visible = showActions,
-                enter = androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.fadeOut()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 4.dp)
-                ) {
-                    if (canDelete) {
-                        IconButton(
-                            onClick = onDeleteClick,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Outlined.DeleteOutline,
-                                contentDescription = stringResource(R.string.action_delete),
-                                tint = cs.error.copy(alpha = 0.7f),
-                                modifier = Modifier.size(18.dp)
+                        // Channel signature (user_with_signature mode)
+                        if (!comment.writtenAsChannel && !comment.channelName.isNullOrEmpty()) {
+                            Text(
+                                text = "@ ${comment.channelName}",
+                                fontSize = 11.sp,
+                                color = cs.primary.copy(alpha = 0.6f),
+                                fontWeight = FontWeight.Medium
                             )
                         }
-                    }
-                    IconButton(
-                        onClick = { onUserMenu?.invoke(comment) },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = null,
-                            tint = cs.onSurfaceVariant.copy(alpha = 0.55f),
-                            modifier = Modifier.size(18.dp)
+
+                        // Reply-to quote block
+                        if (replyToComment != null) {
+                            val replyName = replyToComment.userName
+                                ?: replyToComment.username
+                                ?: stringResource(R.string.ch_user_fallback)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp, bottom = 2.dp)
+                                    .height(IntrinsicSize.Min)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(cs.surface.copy(alpha = 0.45f))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .fillMaxHeight()
+                                        .background(cs.primary)
+                                )
+                                Column(
+                                    modifier = Modifier.padding(
+                                        start = 8.dp, end = 8.dp,
+                                        top = 4.dp, bottom = 4.dp
+                                    )
+                                ) {
+                                    Text(
+                                        text = replyName,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = cs.primary
+                                    )
+                                    Text(
+                                        text = replyToComment.text,
+                                        fontSize = 11.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = cs.onSurface.copy(alpha = 0.55f)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Comment body
+                        Text(
+                            text = comment.text,
+                            fontSize = 14.sp,
+                            color = cs.onSurface,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
+
+                        // Timestamp — trailing bottom right
+                        Text(
+                            text = formatPostTime(comment.time, context),
+                            fontSize = 10.sp,
+                            color = cs.onSurface.copy(alpha = 0.38f),
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .padding(top = 4.dp)
+                        )
+                    }
+                }
+
+                // Reaction count pill (below bubble)
+                if (comment.reactionsCount > 0) {
+                    Spacer(Modifier.height(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = cs.primary.copy(alpha = 0.10f),
+                        onClick = { onReactionClick("❤️") }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Text(text = "❤️", fontSize = 12.sp)
+                            Text(
+                                text = "${comment.reactionsCount}",
+                                fontSize = 11.sp,
+                                color = cs.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+
+    // Context menu dialog — emoji reactions + actions
+    if (showActionMenu) {
+        AlertDialog(
+            onDismissRequest = { showActionMenu = false },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = cs.surface,
+            title = null,
+            text = {
+                Column {
+                    // Quick emoji row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        listOf("👍", "❤️", "🔥", "😂", "😮", "😢").forEach { emoji ->
+                            Surface(
+                                onClick = { onReactionClick(emoji); showActionMenu = false },
+                                shape = CircleShape,
+                                color = cs.surfaceVariant.copy(alpha = 0.55f),
+                                modifier = Modifier.size(44.dp)
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.fillMaxSize()
+                                ) { Text(emoji, fontSize = 22.sp) }
+                            }
+                        }
+                    }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = cs.outlineVariant.copy(alpha = 0.3f)
+                    )
+                    // Reply
+                    TextButton(
+                        onClick = { onReply?.invoke(comment); showActionMenu = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Reply, null,
+                                modifier = Modifier.size(18.dp),
+                                tint = cs.onSurface.copy(alpha = 0.7f)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(stringResource(R.string.action_reply), color = cs.onSurface)
+                        }
+                    }
+                    // User info
+                    if (onUserMenu != null) {
+                        TextButton(
+                            onClick = { onUserMenu.invoke(comment); showActionMenu = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Person, null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = cs.onSurface.copy(alpha = 0.7f)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(displayName, color = cs.onSurface)
+                            }
+                        }
+                    }
+                    // Delete
+                    if (canDelete) {
+                        TextButton(
+                            onClick = { onDeleteClick(); showActionMenu = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Outlined.DeleteOutline, null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = cs.error
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(stringResource(R.string.action_delete), color = cs.error)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
     }
 }
 

@@ -53,13 +53,13 @@ async function formatComment(ctx, comment) {
     if (writtenAsChannel && comment.page_id) {
         const page = await ctx.wo_pages.findOne({
             where: { page_id: comment.page_id },
-            attributes: ['page_title', 'page_picture'],
+            attributes: ['page_title', 'avatar'],
             raw: true
         });
         if (page) {
             channelName = page.page_title || null;
-            channelAvatar = page.page_picture
-                ? await funcs.Wo_GetMedia(ctx, page.page_picture)
+            channelAvatar = page.avatar
+                ? await funcs.Wo_GetMedia(ctx, page.avatar)
                 : null;
         }
     }
