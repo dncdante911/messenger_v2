@@ -147,6 +147,11 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.ENUM('0','1'),
       allowNull: false,
       defaultValue: "0"
+    },
+    settings_json: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null
     }
   }, {
     sequelize,
