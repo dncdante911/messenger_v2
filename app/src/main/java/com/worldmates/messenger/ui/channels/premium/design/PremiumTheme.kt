@@ -8,6 +8,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 
 /**
  * Premium design bundle — colors, typography, shapes, motion.
@@ -24,6 +26,7 @@ data class PremiumDesign(
 ) {
     companion object {
         val Default = PremiumDesign()
+        val Light = PremiumDesign(colors = PremiumColorScheme.Light)
     }
 }
 
@@ -60,6 +63,11 @@ data class PremiumColorScheme(
     val reactionSelectedFill: androidx.compose.ui.graphics.Color,
     val reactionIdleFill: androidx.compose.ui.graphics.Color,
 ) {
+    /** Vertical background gradient matching the current scheme. */
+    fun backgroundBrush(): Brush = Brush.verticalGradient(
+        colors = listOf(backgroundElevated, background),
+    )
+
     companion object {
         val Default = PremiumColorScheme(
             background = PremiumTokens.ObsidianBlack,
@@ -88,6 +96,40 @@ data class PremiumColorScheme(
             reactionSelectedFill = PremiumTokens.ReactionSelectedFill,
             reactionIdleFill = PremiumTokens.ReactionIdleFill,
         )
+
+        /**
+         * Ivory Gold — light-mode twin of the Obsidian scheme. Keeps the
+         * matte-gold accent but swaps surfaces to warm ivory and text to
+         * deep ink so premium channels read correctly under a light app
+         * theme.
+         */
+        val Light = PremiumColorScheme(
+            background = PremiumTokens.IvoryCream,
+            backgroundElevated = PremiumTokens.IvoryElevated,
+            surface = PremiumTokens.IvorySurface,
+            surfaceHigh = PremiumTokens.IvorySurfaceHigh,
+            outline = PremiumTokens.IvoryOutline,
+            accent = PremiumTokens.MatteGold,
+            accentSoft = PremiumTokens.MatteGoldSoft,
+            accentDeep = PremiumTokens.MatteGoldDeep,
+            onAccent = PremiumTokens.OnIvoryPrimary,
+            secondary = PremiumTokens.RoseGold,
+            secondarySoft = PremiumTokens.RoseGoldSoft,
+            onPrimary = PremiumTokens.OnIvoryPrimary,
+            onSecondary = PremiumTokens.OnIvorySecondary,
+            onMuted = PremiumTokens.OnIvoryMuted,
+            onDisabled = PremiumTokens.OnIvoryDisabled,
+            glassStroke = PremiumTokens.GlassStrokeLight,
+            glassFill = PremiumTokens.GlassFillLight,
+            glassFillStrong = PremiumTokens.GlassFillLightStrong,
+            scrim = PremiumTokens.GlassScrimLight,
+            success = PremiumTokens.Success,
+            warning = PremiumTokens.Warning,
+            danger = PremiumTokens.Danger,
+            info = PremiumTokens.Info,
+            reactionSelectedFill = PremiumTokens.ReactionSelectedFillLight,
+            reactionIdleFill = PremiumTokens.ReactionIdleFillLight,
+        )
     }
 }
 
@@ -97,22 +139,67 @@ private val LocalPremiumDesign = staticCompositionLocalOf { PremiumDesign.Defaul
  * Call site for premium UI. Wrap any premium-channel screen/composable
  * with this to make `PremiumDesign.current` resolve correctly.
  *
- * The `isDark` parameter is kept for future-proofing — a light-mode
- * premium skin would require a separate `PremiumColorScheme`. Today the
- * premium UI is always dark (Obsidian), so the flag is ignored.
+ * Defaults to following the app's theme state via
+ * `com.worldmates.messenger.ui.theme.rememberThemeState()` so the Obsidian
+ * Gold (dark) and Ivory Gold (light) skins swap in lock-step with the
+ * rest of the app. Callers may still force a specific scheme by passing
+ * an explicit `design`.
  */
 @Composable
 fun PremiumTheme(
-    @Suppress("UNUSED_PARAMETER") isDark: Boolean = isSystemInDarkTheme(),
-    design: PremiumDesign = PremiumDesign.Default,
+    isDark: Boolean = premiumIsAppDark(),
+    appearance: ResolvedChannelAppearance = ChannelAppearance.current,
+    design: PremiumDesign = rememberPremiumDesign(isDark, appearance),
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
         LocalPremiumDesign provides design,
+        LocalChannelAppearance provides appearance,
         LocalContentColor provides design.colors.onPrimary,
         LocalTextStyle provides design.typography.body.copy(color = design.colors.onPrimary),
         content = content,
     )
+}
+
+/**
+ * Blend the base (theme-adaptive) Obsidian / Ivory palette with the
+ * channel's customization: accent triad, title weight, post-card corner
+ * radius. Surface tokens stay untouched so every premium channel still
+ * reads as part of the same product.
+ */
+@Composable
+private fun rememberPremiumDesign(
+    isDark: Boolean,
+    appearance: ResolvedChannelAppearance,
+): PremiumDesign {
+    val base = if (isDark) PremiumDesign.Default else PremiumDesign.Light
+    val accent = appearance.accent
+    val colors = base.colors.copy(
+        accent = accent.base,
+        accentSoft = accent.soft,
+        accentDeep = accent.deep,
+        onAccent = accent.onAccent(isDark),
+    )
+    val typography = base.typography.copy(
+        display = base.typography.display.copy(fontWeight = appearance.fontWeight.title),
+        title = base.typography.title.copy(fontWeight = appearance.fontWeight.title),
+        titleSmall = base.typography.titleSmall.copy(fontWeight = appearance.fontWeight.title),
+    )
+    val shapes = base.shapes.copy(cornerMedium = appearance.cornerRadius.value)
+    return PremiumDesign(colors = colors, typography = typography, shapes = shapes)
+}
+
+/**
+ * Resolve whether the app is currently rendering dark. Reads the app's
+ * own theme state first (so the user's manual toggle wins), falling back
+ * to `isSystemInDarkTheme()` if the theme layer is unavailable (previews,
+ * tests).
+ */
+@Composable
+private fun premiumIsAppDark(): Boolean = try {
+    com.worldmates.messenger.ui.theme.rememberThemeState().isDark
+} catch (t: Throwable) {
+    isSystemInDarkTheme()
 }
 
 /** Short accessor — `PremiumDesign.current` inside composables. */

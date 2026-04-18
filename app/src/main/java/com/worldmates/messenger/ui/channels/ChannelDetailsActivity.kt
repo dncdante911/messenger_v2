@@ -719,6 +719,7 @@ fun ChannelDetailsScreen(
                                             post = post,
                                             channelName = channel.name,
                                             channelAvatarUrl = channel.avatarUrl,
+                                            channelCustomization = channel.premiumCustomization,
                                             onPostClick = onPostClickHandler,
                                             onReactionClick = onReactionClickHandler,
                                             onCommentsClick = onCommentsClickHandler,
@@ -1261,6 +1262,28 @@ fun ChannelDetailsScreen(
                                     showFormattingSettings = true
                                 }
                             )
+
+                            // Appearance (premium only)
+                            if (channel.isPremiumActive) {
+                                PremiumMenuItem(
+                                    icon = Icons.Outlined.Palette,
+                                    title = stringResource(R.string.channel_appearance_menu_title),
+                                    subtitle = stringResource(R.string.channel_appearance_menu_subtitle),
+                                    iconTint = Color(0xFFD4AF37),
+                                    onClick = {
+                                        showChannelMenuDialog = false
+                                        context.startActivity(
+                                            com.worldmates.messenger.ui.channels.premium.appearance.ChannelAppearanceActivity
+                                                .createIntent(
+                                                    context,
+                                                    channelId,
+                                                    channel.name,
+                                                    channel.avatarUrl,
+                                                )
+                                        )
+                                    }
+                                )
+                            }
 
                             // Admin Panel
                             PremiumMenuItem(

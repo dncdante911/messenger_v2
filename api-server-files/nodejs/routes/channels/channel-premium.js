@@ -447,4 +447,142 @@ module.exports = function registerChannelPremiumRoutes(app, ctx) {
             return res.status(500).end();
         }
     });
+
+    // ─── Customization (premium-only appearance presets) ─────────────────────
+    //
+    // The client sends short preset ids ("gold", "rose_gold", "aurora_veil",
+    // etc.) — never raw hex colors. The server validates every field
+    // against a fixed whitelist so a crafted request can't inject
+    // arbitrary strings into the UI layer. Unknown or missing ids are
+    // simply persisted as NULL and the client falls back to its default.
+
+    const PRESETS = {
+        accent_color_id:    ['gold', 'rose_gold', 'emerald', 'sapphire', 'amethyst', 'crimson'],
+        banner_pattern_id:  ['none', 'dots', 'diagonal', 'diamond', 'hex', 'aurora_veil'],
+        emoji_pack_id:      ['classic', 'celebration', 'nature', 'finance', 'cosmos'],
+        font_weight:        ['editorial', 'classic', 'display'],
+        avatar_frame:       ['none', 'gold_ring', 'gold_double', 'rose_gold_halo', 'aurora_gradient', 'engraved_notch', 'crystal_edge'],
+    };
+    const CORNER_RADIUS_MIN = 6;
+    const CORNER_RADIUS_MAX = 32;
+
+    function sanitizePreset(field, value) {
+        if (value == null) return null;
+        const list = PRESETS[field];
+        if (!list) return null;
+        const v = String(value).toLowerCase();
+        return list.includes(v) ? v : null;
+    }
+
+    async function isPremiumActive(channelId) {
+        if (!ctx.wm_channel_subscriptions) return false;
+        const sub = await ctx.wm_channel_subscriptions.findOne({
+            where: { channel_id: channelId }, raw: true
+        });
+        if (!sub || !sub.is_active) return false;
+        if (sub.expires_at && new Date(sub.expires_at) <= new Date()) return false;
+        return true;
+    }
+
+    // GET — public; any authed user can read a channel's appearance so the
+    //       feed can render it without a second permission check.
+    app.get('/api/node/channels/:channel_id/premium/customization',
+        (req, res, next) => authMiddleware(ctx, req, res, next),
+        async (req, res) => {
+            const channelId = parseInt(req.params.channel_id);
+            try {
+                if (!ctx.wm_channel_premium_customization) {
+                    return res.json({ api_status: 200, customization: null });
+                }
+                const row = await ctx.wm_channel_premium_customization.findOne({
+                    where: { channel_id: channelId }, raw: true
+                });
+                if (!row) return res.json({ api_status: 200, customization: null });
+                return res.json({
+                    api_status: 200,
+                    customization: {
+                        accent_color_id:        row.accent_color_id,
+                        banner_pattern_id:      row.banner_pattern_id,
+                        emoji_pack_id:          row.emoji_pack_id,
+                        font_weight:            row.font_weight,
+                        post_corner_radius:     row.post_corner_radius,
+                        avatar_frame:           row.avatar_frame,
+                        posts_backdrop_enabled: !!row.posts_backdrop_enabled
+                    }
+                });
+            } catch (e) {
+                console.error('[ChannelPremium] customization GET error:', e);
+                return res.status(500).json({ api_status: 500, error_message: e.message });
+            }
+        }
+    );
+
+    // PUT — owner-only; requires an active premium subscription on the
+    //       channel so the API can't be abused to leak gated customization
+    //       to non-premium channels.
+    app.put('/api/node/channels/:channel_id/premium/customization',
+        (req, res, next) => authMiddleware(ctx, req, res, next),
+        async (req, res) => {
+            const channelId = parseInt(req.params.channel_id);
+            const userId = req.userId;
+            try {
+                if (!await isChannelOwner(ctx, channelId, userId)) {
+                    return res.status(403).json({ api_status: 403, error_message: 'Only channel owner can edit appearance' });
+                }
+                if (!await isPremiumActive(channelId)) {
+                    return res.status(402).json({ api_status: 402, error_message: 'Channel premium subscription required' });
+                }
+                if (!ctx.wm_channel_premium_customization) {
+                    return res.status(500).json({ api_status: 500, error_message: 'Customization model not available' });
+                }
+
+                const body = req.body || {};
+                const cornerRaw = body.post_corner_radius;
+                let cornerRadius = null;
+                if (cornerRaw != null) {
+                    const n = parseInt(cornerRaw, 10);
+                    if (Number.isFinite(n) && n >= CORNER_RADIUS_MIN && n <= CORNER_RADIUS_MAX) {
+                        cornerRadius = n;
+                    }
+                }
+
+                const payload = {
+                    channel_id:             channelId,
+                    accent_color_id:        sanitizePreset('accent_color_id',   body.accent_color_id),
+                    banner_pattern_id:      sanitizePreset('banner_pattern_id', body.banner_pattern_id),
+                    emoji_pack_id:          sanitizePreset('emoji_pack_id',     body.emoji_pack_id),
+                    font_weight:            sanitizePreset('font_weight',       body.font_weight),
+                    post_corner_radius:     cornerRadius,
+                    avatar_frame:           sanitizePreset('avatar_frame',      body.avatar_frame),
+                    posts_backdrop_enabled: body.posts_backdrop_enabled ? 1 : 0,
+                    updated_at:             Math.floor(Date.now() / 1000)
+                };
+
+                const existing = await ctx.wm_channel_premium_customization.findOne({
+                    where: { channel_id: channelId }
+                });
+                if (existing) {
+                    await ctx.wm_channel_premium_customization.update(payload, { where: { channel_id: channelId } });
+                } else {
+                    await ctx.wm_channel_premium_customization.create(payload);
+                }
+
+                return res.json({
+                    api_status: 200,
+                    customization: {
+                        accent_color_id:        payload.accent_color_id,
+                        banner_pattern_id:      payload.banner_pattern_id,
+                        emoji_pack_id:          payload.emoji_pack_id,
+                        font_weight:            payload.font_weight,
+                        post_corner_radius:     payload.post_corner_radius,
+                        avatar_frame:           payload.avatar_frame,
+                        posts_backdrop_enabled: !!payload.posts_backdrop_enabled
+                    }
+                });
+            } catch (e) {
+                console.error('[ChannelPremium] customization PUT error:', e);
+                return res.status(500).json({ api_status: 500, error_message: e.message });
+            }
+        }
+    );
 };

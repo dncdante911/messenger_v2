@@ -264,6 +264,7 @@ async function init() {
   ctx.wm_channel_livestreams             = require("./models/wm_channel_livestreams")(sequelize, DataTypes)
   ctx.wm_channel_subscriptions           = require("./models/wm_channel_subscriptions")(sequelize, DataTypes)
   ctx.wm_channel_subscription_payments   = require("./models/wm_channel_subscription_payments")(sequelize, DataTypes)
+  ctx.wm_channel_premium_customization   = require("./models/wm_channel_premium_customization")(sequelize, DataTypes)
 
   // ==================== Notes + User Storage Models ====================
   ctx.wm_notes        = require("./models/wm_notes")(sequelize, DataTypes)

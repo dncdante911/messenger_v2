@@ -159,7 +159,7 @@ private fun ChannelPremiumScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PremiumBrushes.obsidianVertical()),
+            .background(design.colors.backgroundBrush()),
     ) {
         Column(
             modifier = Modifier
