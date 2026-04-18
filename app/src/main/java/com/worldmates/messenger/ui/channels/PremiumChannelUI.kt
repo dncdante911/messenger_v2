@@ -77,20 +77,24 @@ fun PremiumChannelHeader(
 ) {
     val appearance = com.worldmates.messenger.ui.channels.premium.design.PremiumCustomizationResolver
         .resolveForChannel(channel)
-    com.worldmates.messenger.ui.channels.premium.screens.PremiumChannelHeroHeader(
-        channel = channel,
-        isOwner = channel.isAdmin,
-        channelLevel = channel.channelLevel,
-        channelLevelProgress = channel.channelLevelProgress,
-        emojiStatus = channel.emojiStatus,
-        animatedAvatarUrl = channel.animatedAvatarUrl,
-        avatarFrame = appearance.avatarFrame,
-        onBack = onBackClick,
-        onSettings = onSettingsClick ?: {},
-        onAddMembers = onAddMembersClick ?: {},
-        onAvatarClick = onAvatarClick ?: {},
-        modifier = modifier,
-    )
+    CompositionLocalProvider(
+        com.worldmates.messenger.ui.channels.premium.design.LocalChannelAppearance provides appearance,
+    ) {
+        com.worldmates.messenger.ui.channels.premium.screens.PremiumChannelHeroHeader(
+            channel = channel,
+            isOwner = channel.isAdmin,
+            channelLevel = channel.channelLevel,
+            channelLevelProgress = channel.channelLevelProgress,
+            emojiStatus = channel.emojiStatus,
+            animatedAvatarUrl = channel.animatedAvatarUrl,
+            avatarFrame = appearance.avatarFrameStyle,
+            onBack = onBackClick,
+            onSettings = onSettingsClick ?: {},
+            onAddMembers = onAddMembersClick ?: {},
+            onAvatarClick = onAvatarClick ?: {},
+            modifier = modifier,
+        )
+    }
     @Suppress("UNUSED_VARIABLE") val _unusedSubs = onSubscribersClick
 }
 
@@ -106,6 +110,7 @@ fun PremiumPostCard(
     post: ChannelPost,
     channelName: String = "",
     channelAvatarUrl: String? = null,
+    channelCustomization: com.worldmates.messenger.data.model.ChannelPremiumCustomization? = null,
     onPostClick: () -> Unit,
     onReactionClick: (String) -> Unit,
     onCommentsClick: () -> Unit,
@@ -117,24 +122,28 @@ fun PremiumPostCard(
     onInlineButtonClick: ((InlinePostButton) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    // Obsidian Gold post card (Phase 4). Body lives under
-    // ui/channels/premium/screens/PremiumPostCardHero.kt; this wrapper
-    // preserves the old signature so existing feeds stay untouched.
-    com.worldmates.messenger.ui.channels.premium.screens.PremiumPostCardHero(
-        post = post,
-        channelName = channelName,
-        channelAvatarUrl = channelAvatarUrl,
-        onPostClick = onPostClick,
-        onReactionClick = onReactionClick,
-        onCommentsClick = onCommentsClick,
-        onShareClick = onShareClick,
-        onMoreClick = onMoreClick,
-        onMediaClick = onMediaClick,
-        onPollVote = onPollVote,
-        canEdit = canEdit,
-        onInlineButtonClick = onInlineButtonClick,
-        modifier = modifier,
-    )
+    val appearance = com.worldmates.messenger.ui.channels.premium.design.PremiumCustomizationResolver
+        .resolve(channelCustomization)
+    CompositionLocalProvider(
+        com.worldmates.messenger.ui.channels.premium.design.LocalChannelAppearance provides appearance,
+    ) {
+        com.worldmates.messenger.ui.channels.premium.screens.PremiumPostCardHero(
+            post = post,
+            channelName = channelName,
+            channelAvatarUrl = channelAvatarUrl,
+            onPostClick = onPostClick,
+            onReactionClick = onReactionClick,
+            onCommentsClick = onCommentsClick,
+            onShareClick = onShareClick,
+            onMoreClick = onMoreClick,
+            onMediaClick = onMediaClick,
+            onPollVote = onPollVote,
+            canEdit = canEdit,
+            onInlineButtonClick = onInlineButtonClick,
+            avatarFrame = appearance.avatarFrameStyle,
+            modifier = modifier,
+        )
+    }
 }
 
 // ==================== PREMIUM SMALL AVATAR ====================

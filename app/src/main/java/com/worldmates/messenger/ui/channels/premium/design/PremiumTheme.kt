@@ -148,15 +148,45 @@ private val LocalPremiumDesign = staticCompositionLocalOf { PremiumDesign.Defaul
 @Composable
 fun PremiumTheme(
     isDark: Boolean = premiumIsAppDark(),
-    design: PremiumDesign = if (isDark) PremiumDesign.Default else PremiumDesign.Light,
+    appearance: ResolvedChannelAppearance = ChannelAppearance.current,
+    design: PremiumDesign = rememberPremiumDesign(isDark, appearance),
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
         LocalPremiumDesign provides design,
+        LocalChannelAppearance provides appearance,
         LocalContentColor provides design.colors.onPrimary,
         LocalTextStyle provides design.typography.body.copy(color = design.colors.onPrimary),
         content = content,
     )
+}
+
+/**
+ * Blend the base (theme-adaptive) Obsidian / Ivory palette with the
+ * channel's customization: accent triad, title weight, post-card corner
+ * radius. Surface tokens stay untouched so every premium channel still
+ * reads as part of the same product.
+ */
+@Composable
+private fun rememberPremiumDesign(
+    isDark: Boolean,
+    appearance: ResolvedChannelAppearance,
+): PremiumDesign {
+    val base = if (isDark) PremiumDesign.Default else PremiumDesign.Light
+    val accent = appearance.accent
+    val colors = base.colors.copy(
+        accent = accent.base,
+        accentSoft = accent.soft,
+        accentDeep = accent.deep,
+        onAccent = accent.onAccent(isDark),
+    )
+    val typography = base.typography.copy(
+        display = base.typography.display.copy(fontWeight = appearance.fontWeight.title),
+        title = base.typography.title.copy(fontWeight = appearance.fontWeight.title),
+        titleSmall = base.typography.titleSmall.copy(fontWeight = appearance.fontWeight.title),
+    )
+    val shapes = base.shapes.copy(cornerMedium = appearance.cornerRadius.value)
+    return PremiumDesign(colors = colors, typography = typography, shapes = shapes)
 }
 
 /**

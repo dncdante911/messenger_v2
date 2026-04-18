@@ -35,6 +35,8 @@ import com.worldmates.messenger.ui.channels.premium.components.PremiumGlassIconB
 import com.worldmates.messenger.ui.channels.premium.components.PremiumLevelIndicatorMicro
 import com.worldmates.messenger.ui.channels.premium.components.PremiumLockMark
 import com.worldmates.messenger.ui.channels.premium.components.PremiumVerifiedMark
+import com.worldmates.messenger.ui.channels.premium.components.PremiumBannerPattern
+import com.worldmates.messenger.ui.channels.premium.design.ChannelAppearance
 import com.worldmates.messenger.ui.channels.premium.design.PremiumDesign
 import com.worldmates.messenger.ui.channels.premium.design.PremiumTheme
 import com.worldmates.messenger.ui.channels.premium.design.current
@@ -77,14 +79,22 @@ fun PremiumChannelHeroHeader(
 ) {
     PremiumTheme {
         val design = PremiumDesign.current
+        val appearance = ChannelAppearance.current
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .background(design.colors.backgroundBrush())
-                .padding(horizontal = 18.dp)
-                .padding(top = 14.dp, bottom = 16.dp),
+                .background(design.colors.backgroundBrush()),
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            PremiumBannerPattern(
+                banner = appearance.banner,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp)
+                    .padding(top = 14.dp, bottom = 16.dp),
+            ) {
 
                 // ── Top bar ───────────────────────────────────────────────
                 Row(

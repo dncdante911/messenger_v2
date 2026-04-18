@@ -687,6 +687,7 @@ fun ChannelDetailsScreen(
                                             post = post,
                                             channelName = channel.name,
                                             channelAvatarUrl = channel.avatarUrl,
+                                            channelCustomization = channel.premiumCustomization,
                                             onPostClick = onPostClickHandler,
                                             onReactionClick = onReactionClickHandler,
                                             onCommentsClick = onCommentsClickHandler,
