@@ -3643,7 +3643,6 @@
     <string name="reaction_added">Reaction added!</string>
     <!-- Channel actions / toasts -->
     <string name="error_channel_not_found">Channel not found</string>
-    <string name="avatar_updated">Avatar updated</string>
     <string name="subscribe_success">Subscribed to channel!</string>
     <string name="unsubscribe_success">Unsubscribed from channel</string>
     <string name="settings_saved">Settings saved!</string>
@@ -3656,35 +3655,35 @@
     <string name="error_enter_comment">Enter comment text</string>
     <string name="error_enter_channel_name">Enter channel name</string>
     <!-- Groups errors -->
-    <string name="error_load_groups">Failed to load groups</string>
-    <string name="error_load_members">Failed to load members</string>
-    <string name="error_create_group">Failed to create group</string>
-    <string name="error_update_group">Failed to update group</string>
-    <string name="error_delete_group">Failed to delete group</string>
-    <string name="error_add_member">Failed to add member</string>
-    <string name="error_remove_member">Failed to remove member</string>
-    <string name="error_update_role">Failed to update role</string>
-    <string name="error_leave_group">Failed to leave group</string>
-    <string name="error_load_avatar">Failed to load avatar</string>
-    <string name="error_pin_message">Failed to pin message</string>
-    <string name="error_unpin_message">Failed to unpin message</string>
+    <string name="error_load_groups">Не вдалося завантажити групи</string>
+    <string name="error_load_members">Не вдалося завантажити учасників</string>
+    <string name="error_create_group">Не вдалося створити групу</string>
+    <string name="error_update_group">Не вдалося оновити групу</string>
+    <string name="error_delete_group">Не вдалося видалити групу</string>
+    <string name="error_add_member">Не вдалося додати учасника</string>
+    <string name="error_remove_member">Не вдалося видалити учасника</string>
+    <string name="error_update_role">Не вдалося оновити роль</string>
+    <string name="error_leave_group">Не вдалося вийти з групи</string>
+    <string name="error_load_avatar">Не вдалося завантажити аватар</string>
+    <string name="error_pin_message">Не вдалося закріпити повідомлення</string>
+    <string name="error_unpin_message">Не вдалося відкріпити повідомлення</string>
     <!-- Write-as-channel feature -->
-    <string name="ch_comment_identity_title">Comment identity</string>
-    <string name="ch_comment_identity_sub">Choose who you appear as when commenting</string>
-    <string name="ch_identity_as_user">As yourself</string>
-    <string name="ch_identity_as_channel">As channel</string>
-    <string name="ch_identity_as_channel_badge">channel</string>
-    <string name="ch_identity_as_user_signed">As yourself + channel signature</string>
-    <string name="ch_identity_label">Channel admin</string>
+    <string name="ch_comment_identity_title">Ідентифікатор коментаря</string>
+    <string name="ch_comment_identity_sub">Виберіть, ким ви будете відображатися під час коментуванняg</string>
+    <string name="ch_identity_as_user">Від себе</string>
+    <string name="ch_identity_as_channel">Від каналу</string>
+    <string name="ch_identity_as_channel_badge">Канал</string>
+    <string name="ch_identity_as_user_signed">Як ви + підпис каналу</string>
+    <string name="ch_identity_label">Адмін каналу</string>
     <!-- Pinned post badge -->
-    <string name="ch_pinned_post">Pinned</string>
+    <string name="ch_pinned_post">Закріпленно</string>
     <!-- Share -->
-    <string name="ch_share_link_copied">Link copied!</string>
+    <string name="ch_share_link_copied">Посилання скопійовано!</string>
     <!-- Actions (used as contentDescription) -->
-    <string name="action_close">Close</string>
-    <string name="action_send">Send</string>
-    <string name="action_delete">Delete</string>
-    <string name="action_reply">Reply</string>
+    <string name="action_close">Закрити</string>
+    <string name="action_send">Відправити</string>
+    <string name="action_delete">Видалдити</string>
+    <string name="action_reply">Повторити</string>
     <!-- Comment user fallback -->
-    <string name="ch_user_fallback">User</string>
+    <string name="ch_user_fallback">Користувач</string>
 </resources>
