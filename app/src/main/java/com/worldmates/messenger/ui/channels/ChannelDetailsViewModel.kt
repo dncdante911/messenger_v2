@@ -955,6 +955,7 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
                 )
 
                 if (response.apiStatus == 200) {
+                    response.channel?.let { _channel.value = it }
                     _error.value = null
                     Log.d("ChannelDetailsVM", "Налаштування оновлено")
                     onSuccess()
