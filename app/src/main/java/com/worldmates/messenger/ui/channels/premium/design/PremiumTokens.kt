@@ -57,4 +57,27 @@ object PremiumTokens {
     // ── Reaction chip fill (pressed) ─────────────────────────────────────────
     val ReactionSelectedFill = Color(0x33D4AF37)
     val ReactionIdleFill = Color(0x0DFFFFFF)
+
+    // ── Ivory surfaces (light-mode premium) ──────────────────────────────────
+    val IvoryCream = Color(0xFFFAF7F0)        // background
+    val IvoryElevated = Color(0xFFFFFDF8)     // elevated
+    val IvorySurface = Color(0xFFFFFFFF)      // surface
+    val IvorySurfaceHigh = Color(0xFFF3ECD8)  // raised
+    val IvoryOutline = Color(0xFFE8DEC5)
+
+    // ── Foreground on ivory ──────────────────────────────────────────────────
+    val OnIvoryPrimary = Color(0xFF1A1611)
+    val OnIvorySecondary = Color(0xB21A1611)    // 70%
+    val OnIvoryMuted = Color(0x801A1611)        // 50%
+    val OnIvoryDisabled = Color(0x4D1A1611)     // 30%
+
+    // ── Glass layer on ivory ─────────────────────────────────────────────────
+    val GlassStrokeLight = Color(0x40B48A1F)       // deep-gold hairline 25%
+    val GlassStrokeLightStrong = Color(0x80B48A1F) // deep-gold hairline 50%
+    val GlassFillLight = Color(0x141A1611)         // 8% ink
+    val GlassFillLightStrong = Color(0x261A1611)   // 15% ink
+    val GlassScrimLight = Color(0xB3FFFDF8)        // cream scrim 70%
+
+    val ReactionSelectedFillLight = Color(0x33D4AF37)
+    val ReactionIdleFillLight = Color(0x0D1A1611)
 }

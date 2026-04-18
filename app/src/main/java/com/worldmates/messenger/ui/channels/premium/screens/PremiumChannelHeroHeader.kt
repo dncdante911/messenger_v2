@@ -35,7 +35,6 @@ import com.worldmates.messenger.ui.channels.premium.components.PremiumGlassIconB
 import com.worldmates.messenger.ui.channels.premium.components.PremiumLevelIndicatorMicro
 import com.worldmates.messenger.ui.channels.premium.components.PremiumLockMark
 import com.worldmates.messenger.ui.channels.premium.components.PremiumVerifiedMark
-import com.worldmates.messenger.ui.channels.premium.design.PremiumBrushes
 import com.worldmates.messenger.ui.channels.premium.design.PremiumDesign
 import com.worldmates.messenger.ui.channels.premium.design.PremiumTheme
 import com.worldmates.messenger.ui.channels.premium.design.current
@@ -81,7 +80,7 @@ fun PremiumChannelHeroHeader(
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .background(PremiumBrushes.obsidianVertical())
+                .background(design.colors.backgroundBrush())
                 .padding(horizontal = 18.dp)
                 .padding(top = 14.dp, bottom = 16.dp),
         ) {
