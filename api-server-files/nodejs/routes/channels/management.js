@@ -57,7 +57,7 @@ async function formatChannel(ctx, page, userId) {
         category: page.page_category ? String(page.page_category) : null,
         settings: (() => {
             try {
-                return page.address ? JSON.parse(page.address) : null;
+                return page.settings_json ? JSON.parse(page.settings_json) : null;
             } catch (_) {
                 return null;
             }

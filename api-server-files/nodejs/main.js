@@ -405,6 +405,16 @@ async function init() {
       }
     }
   }
+  // settings_json — channel settings storage (migration 005)
+  try {
+    await ctx.sequelize.query(
+      `ALTER TABLE Wo_Pages ADD COLUMN IF NOT EXISTS settings_json TEXT NULL DEFAULT NULL`
+    );
+  } catch (e) {
+    if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+      console.warn('[Init] Wo_Pages settings_json migration warning:', e.message);
+    }
+  }
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Migrations are deferred: runMigrations(ctx) is called from server.listen()
