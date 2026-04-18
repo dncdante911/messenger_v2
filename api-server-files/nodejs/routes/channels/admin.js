@@ -247,9 +247,8 @@ function updateSettings(ctx, io) {
             }
 
             const updateData = {};
-            // Store full settings JSON in the address field (unused for channels).
-            // No length truncation — address is VARCHAR(255) and settings JSON fits comfortably.
-            updateData.address = JSON.stringify(settings);
+            // Store settings in dedicated TEXT column added via migration.
+            updateData.settings_json = JSON.stringify(settings);
 
             await ctx.wo_pages.update(updateData, { where: { page_id: channelId } });
 
