@@ -2461,6 +2461,19 @@
     <string name="plan_discount_annual">Знижка 25%</string>
     <string name="plan_price_per_month">%s/міс</string>
 
+    <!-- ── Channel Appearance (premium customization) ─────────────────── -->
+    <string name="channel_appearance_title">Вигляд каналу</string>
+    <string name="channel_appearance_menu_title">Оформлення</string>
+    <string name="channel_appearance_menu_subtitle">Колір, рамка, шрифт, банер</string>
+    <string name="channel_appearance_save">Зберегти оформлення</string>
+    <string name="channel_appearance_preview_subtitle">Преміум-канал · %s</string>
+    <string name="channel_appearance_section_accent">АКЦЕНТНИЙ КОЛІР</string>
+    <string name="channel_appearance_section_frame">РАМКА АВАТАРА</string>
+    <string name="channel_appearance_section_corners">КУТИ ДОПИСУ</string>
+    <string name="channel_appearance_section_weight">ТОВЩИНА ЗАГОЛОВКА</string>
+    <string name="channel_appearance_section_banner">ВІЗЕРУНОК ШАПКИ</string>
+    <string name="channel_appearance_section_emoji">ЕМОДЗІ-ПАК</string>
+
     <!-- ── Channel Admin Panel - Info tab ──────────────────────────────── -->
     <string name="channel_info_name_label">Назва каналу</string>
     <string name="channel_info_username_label">Ім\'я користувача (@)</string>

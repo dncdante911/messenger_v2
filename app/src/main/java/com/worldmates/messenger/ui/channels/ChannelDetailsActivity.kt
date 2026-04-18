@@ -1231,6 +1231,28 @@ fun ChannelDetailsScreen(
                                 }
                             )
 
+                            // Appearance (premium only)
+                            if (channel.isPremiumActive) {
+                                PremiumMenuItem(
+                                    icon = Icons.Outlined.Palette,
+                                    title = stringResource(R.string.channel_appearance_menu_title),
+                                    subtitle = stringResource(R.string.channel_appearance_menu_subtitle),
+                                    iconTint = Color(0xFFD4AF37),
+                                    onClick = {
+                                        showChannelMenuDialog = false
+                                        context.startActivity(
+                                            com.worldmates.messenger.ui.channels.premium.appearance.ChannelAppearanceActivity
+                                                .createIntent(
+                                                    context,
+                                                    channelId,
+                                                    channel.name,
+                                                    channel.avatarUrl,
+                                                )
+                                        )
+                                    }
+                                )
+                            }
+
                             // Admin Panel
                             PremiumMenuItem(
                                 icon = Icons.Outlined.Dashboard,
