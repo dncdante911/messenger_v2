@@ -41,6 +41,16 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
+    },
+    written_as_channel: {
+      type: DataTypes.TINYINT,
+      allowNull: false,
+      defaultValue: 0
+    },
+    write_as_mode: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
+      defaultValue: null
     }
   }, {
     sequelize,

@@ -3678,4 +3678,11 @@
     <string name="ch_pinned_post">Pinned</string>
     <!-- Share -->
     <string name="ch_share_link_copied">Link copied!</string>
+    <!-- Actions (used as contentDescription) -->
+    <string name="action_close">Close</string>
+    <string name="action_send">Send</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_reply">Reply</string>
+    <!-- Comment user fallback -->
+    <string name="ch_user_fallback">User</string>
 </resources>

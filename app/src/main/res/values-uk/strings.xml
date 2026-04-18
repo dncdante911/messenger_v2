@@ -3530,4 +3530,9 @@
     <string name="ch_identity_label">Адмін каналу</string>
     <string name="ch_pinned_post">Закріплено</string>
     <string name="ch_share_link_copied">Посилання скопійовано!</string>
+    <string name="action_close">Закрити</string>
+    <string name="action_send">Надіслати</string>
+    <string name="action_delete">Видалити</string>
+    <string name="action_reply">Відповісти</string>
+    <string name="ch_user_fallback">Користувач</string>
 </resources>

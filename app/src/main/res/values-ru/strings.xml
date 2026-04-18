@@ -3672,4 +3672,9 @@
     <string name="ch_identity_label">Администратор канала</string>
     <string name="ch_pinned_post">Закреплено</string>
     <string name="ch_share_link_copied">Ссылка скопирована!</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_send">Отправить</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_reply">Ответить</string>
+    <string name="ch_user_fallback">Пользователь</string>
 </resources>
