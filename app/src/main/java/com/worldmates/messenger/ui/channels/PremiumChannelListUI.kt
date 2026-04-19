@@ -57,7 +57,7 @@ fun PremiumChannelListItem(
         channelLevelProgress = channel.channelLevelProgress,
         emojiStatus = channel.emojiStatus,
         animatedAvatarUrl = channel.animatedAvatarUrl,
-        avatarFrame = appearance.avatarFrame,
+        avatarFrame = appearance.avatarFrameStyle,
         onClick = onClick,
         onSubscribeToggle = onSubscribeToggle?.let { cb -> { cb(!channel.isSubscribed) } },
         modifier = modifier,
