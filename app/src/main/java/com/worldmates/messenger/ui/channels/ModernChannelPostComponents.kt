@@ -814,7 +814,826 @@ fun ReactionChip(
     }
 }
 
+// ==================== COMMENT CARD ====================
+
+@Composable
+fun CommentCard(
+    comment: ChannelComment,
+    onReactionClick: (String) -> Unit = {},
+    onReplyClick: () -> Unit = {},
+    onDeleteClick: () -> Unit = {},
+    canDelete: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Author Avatar
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.secondary
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "U",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    // Author name and time
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "User",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = formatPostTime(comment.time),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+
+                    // Comment text
+                    Text(
+                        text = comment.text,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+
+                    // Actions
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        TextButton(
+                            onClick = { onReactionClick("") },
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.ch_reaction_action),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        TextButton(
+                            onClick = onReplyClick,
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.ch_reply_action),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (canDelete) {
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SmallReactionChip(
+    emoji: String,
+    count: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(text = emoji, fontSize = 12.sp)
+            Text(
+                text = count.toString(),
+                fontSize = 11.sp,
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 // ==================== ACTION BUTTON ====================
+
+@Composable
+fun ActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    TextButton(onClick = onClick) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+    }
+}
+
+// ==================== UTILITY FUNCTIONS ====================
+
+fun formatPostTime(timestamp: Long, context: Context? = null): String {
+    val timestampMs = if (timestamp < 10000000000L) timestamp * 1000 else timestamp
+    val now = System.currentTimeMillis()
+    val diff = now - timestampMs
+
+    return when {
+        diff < 60_000 -> context?.getString(R.string.time_just_now) ?: "щойно"
+        diff < 3_600_000 -> context?.getString(R.string.time_min_short, diff / 60_000) ?: "${diff / 60_000} хв"
+        diff < 86_400_000 -> context?.getString(R.string.time_hours_short, diff / 3_600_000) ?: "${diff / 3_600_000} год"
+        diff < 604_800_000 -> context?.getString(R.string.time_days_short, diff / 86_400_000) ?: "${diff / 86_400_000} д"
+        else -> {
+            val sdf = SimpleDateFormat("dd MMM", Locale.getDefault())
+            sdf.format(Date(timestampMs))
+        }
+    }
+}
+
+fun formatDuration(seconds: Long): String {
+    val minutes = seconds / 60
+    val secs = seconds % 60
+    return String.format("%d:%02d", minutes, secs)
+}
+
+// ==================== COMMENTS COMPONENTS ====================
+
+/**
+ * Bottom sheet для відображення коментарів
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CommentsBottomSheet(
+    post: ChannelPost?,
+    comments: List<ChannelComment>,
+    isLoading: Boolean,
+    currentUserId: Long,
+    isAdmin: Boolean,
+    onDismiss: () -> Unit,
+    onAddComment: (String) -> Unit,
+    onAddCommentWithReply: ((String, Long?) -> Unit)? = null,
+    onDeleteComment: (Long) -> Unit,
+    onCommentReaction: (commentId: Long, emoji: String) -> Unit = { _, _ -> },
+    modifier: Modifier = Modifier
+) {
+    var commentText by remember { mutableStateOf("") }
+    var showEmojiPicker by remember { mutableStateOf(false) }
+    var showGifPicker by remember { mutableStateOf(false) }
+    var showStrapiPicker by remember { mutableStateOf(false) }
+    var showAttachMenu by remember { mutableStateOf(false) }
+    var replyingToComment by remember { mutableStateOf<ChannelComment?>(null) }
+    var userActionsComment by remember { mutableStateOf<ChannelComment?>(null) }
+
+    // Always open full-height — keeps the composer reachable above the keyboard
+    // and prevents the input row from getting crushed into the partial peek.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {
+            // Compact drag handle
+            Box(
+                modifier = Modifier
+                    .padding(top = 8.dp, bottom = 4.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .navigationBarsPadding()
+        ) {
+            // Compact header with gradient accent
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.ch_comments),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (comments.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "${comments.size}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            // Comments list
+            if (isLoading) {
+                // Shimmer loading
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    repeat(3) {
+                        Row {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                            .copy(alpha = 0.6f)
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Box(
+                                    modifier = Modifier
+                                        .width(100.dp)
+                                        .height(12.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                                .copy(alpha = 0.6f)
+                                        )
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.8f)
+                                        .height(10.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                                .copy(alpha = 0.4f)
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+            } else if (comments.isEmpty()) {
+                // Empty state
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Outlined.ChatBubbleOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.ch_no_comments),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(R.string.ch_no_comments_sub),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+            } else {
+                // Fills remaining space so the composer stays pinned at the bottom
+                // regardless of comment count or keyboard state.
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(comments) { comment ->
+                        PremiumCommentItem(
+                            comment = comment,
+                            canDelete = isAdmin || comment.userId == currentUserId,
+                            onDeleteClick = { onDeleteComment(comment.id) },
+                            onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) },
+                            onReply = { replyingToComment = it },
+                            onUserMenu = { userActionsComment = it },
+                            replyToComment = comment.replyToCommentId?.let { rid ->
+                                comments.find { it.id == rid }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Reply banner
+            androidx.compose.animation.AnimatedVisibility(
+                visible = replyingToComment != null,
+                enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+            ) {
+                replyingToComment?.let { replying ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Reply,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = replying.userName ?: replying.username ?: "",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = replying.text,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(
+                            onClick = { replyingToComment = null },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.Close,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Telegram-style composer ─────────────────────────────────────
+            // Single pinned row: [attach +] [pill text field w/ emoji trailing] [send]
+            // Always visible above the IME / nav bar; attachments live behind the
+            // + button so the input row stays uncluttered and easy to tap.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                val sendEnabled = commentText.isNotBlank()
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    // Attach (+) button — opens sticker / gif / file sheet
+                    Surface(
+                        onClick = { showAttachMenu = true },
+                        modifier = Modifier.size(44.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = stringResource(R.string.ch_stickers),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Text field pill + inline emoji trailing icon
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 44.dp, max = 132.dp),
+                        shape = RoundedCornerShape(22.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                if (commentText.isEmpty()) {
+                                    Text(
+                                        text = stringResource(R.string.ch_comment_placeholder),
+                                        style = LocalTextStyle.current.copy(
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        ),
+                                    )
+                                }
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = commentText,
+                                    onValueChange = { commentText = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    maxLines = 5,
+                                    textStyle = LocalTextStyle.current.copy(
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    ),
+                                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    showEmojiPicker = !showEmojiPicker
+                                    if (showEmojiPicker) { showGifPicker = false; showStrapiPicker = false }
+                                },
+                                modifier = Modifier.size(40.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Mood,
+                                    contentDescription = stringResource(R.string.ch_emoji),
+                                    tint = if (showEmojiPicker)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Send button (disabled when empty)
+                    Surface(
+                        onClick = {
+                            if (sendEnabled) {
+                                if (onAddCommentWithReply != null) {
+                                    onAddCommentWithReply(commentText, replyingToComment?.id)
+                                } else {
+                                    onAddComment(commentText)
+                                }
+                                commentText = ""
+                                replyingToComment = null
+                            }
+                        },
+                        enabled = sendEnabled,
+                        modifier = Modifier.size(44.dp),
+                        shape = CircleShape,
+                        color = if (sendEnabled)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Send",
+                                tint = if (sendEnabled)
+                                    Color.White
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+
+                // Pickers appear below the input row when their toggle is active.
+                AnimatedVisibility(visible = showEmojiPicker) {
+                    com.worldmates.messenger.ui.components.EmojiPicker(
+                        onEmojiSelected = { emoji -> commentText += emoji },
+                        onDismiss = { showEmojiPicker = false }
+                    )
+                }
+
+                AnimatedVisibility(visible = showGifPicker) {
+                    com.worldmates.messenger.ui.components.GifPicker(
+                        onGifSelected = { gifUrl ->
+                            commentText += "\n[GIF]($gifUrl)"
+                            showGifPicker = false
+                        },
+                        onDismiss = { showGifPicker = false }
+                    )
+                }
+
+                AnimatedVisibility(visible = showStrapiPicker) {
+                    com.worldmates.messenger.ui.strapi.StrapiContentPicker(
+                        onItemSelected = { contentUrl ->
+                            commentText += "\n[Sticker]($contentUrl)"
+                            showStrapiPicker = false
+                        },
+                        onDismiss = { showStrapiPicker = false }
+                    )
+                }
+            }
+        }
+    }
+
+    // Attachment menu (stickers / gifs)
+    if (showAttachMenu) {
+        CommentAttachMenu(
+            onDismiss = { showAttachMenu = false },
+            onPickStickers = {
+                showAttachMenu = false
+                showStrapiPicker = true
+                showEmojiPicker = false
+                showGifPicker = false
+            },
+            onPickGif = {
+                showAttachMenu = false
+                showGifPicker = true
+                showEmojiPicker = false
+                showStrapiPicker = false
+            },
+        )
+    }
+
+    // User actions sheet for comment author
+    userActionsComment?.let { target ->
+        com.worldmates.messenger.ui.components.CommentUserActionsSheet(
+            userId = target.userId,
+            username = target.userName ?: target.username ?: "User",
+            avatar = target.userAvatar,
+            isOwnComment = target.userId == currentUserId,
+            isAdmin = isAdmin,
+            context = "channel",
+            commentText = target.text,
+            onDismiss = { userActionsComment = null },
+            onAction = { action ->
+                when (action) {
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Reply ->
+                        replyingToComment = target
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Mention ->
+                        commentText = "@${target.username ?: ""} $commentText"
+                    else -> { /* caller handles ViewProfile, Follow, Block, Ban etc. */ }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun ReactionChip(
+    emoji: String,
+    count: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surfaceVariant,
+        border = if (isSelected)
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        else
+            null
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = emoji,
+                fontSize = 16.sp
+            )
+            Text(
+                text = count.toString(),
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * Compact Telegram-style attach sheet for the comments composer — lets the user
+ * pick between stickers and GIFs without crowding the input row with toggle chips.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CommentAttachMenu(
+    onDismiss: () -> Unit,
+    onPickStickers: () -> Unit,
+    onPickGif: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.ch_attach),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+            )
+            AttachOptionRow(
+                icon = Icons.Outlined.EmojiEmotions,
+                title = stringResource(R.string.ch_stickers),
+                subtitle = stringResource(R.string.ch_stickers_sub),
+                onClick = onPickStickers,
+            )
+            AttachOptionRow(
+                icon = Icons.Outlined.Gif,
+                title = stringResource(R.string.ch_gifs),
+                subtitle = stringResource(R.string.ch_gifs_sub),
+                onClick = onPickGif,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttachOptionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Компонент для відображення контенту коментаря (текст, стікери, GIF)
+ */
+@Composable
+fun CommentContent(text: String) {
+    // Парсимо markdown формат [Текст](URL)
+    val markdownRegex = """\[(.*?)\]\((.*?)\)""".toRegex()
+    val matches = markdownRegex.findAll(text).toList()
 
 @Composable
 fun ActionButton(

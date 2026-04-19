@@ -1,13 +1,11 @@
 package com.worldmates.messenger.ui.channels.premium.components
 
-import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -19,9 +17,11 @@ import com.worldmates.messenger.ui.channels.premium.design.PremiumDesign
 import com.worldmates.messenger.ui.channels.premium.design.current
 
 /**
- * Frosted glass container. On API 31+ blurs the underlying content; on
- * API 30 falls back to a static translucent fill so the layout never
- * looks broken. Always renders a gold hairline border.
+ * Frosted-glass container. Uses a translucent fill + gold hairline border
+ * to suggest depth without blurring the contained content (a real backdrop
+ * blur would require a two-pass render into the parent brush, which is
+ * beyond what [Modifier.blur] offers — it blurs the subtree including
+ * our own text, which makes the panel look broken).
  *
  * Use for FAB, picker sheets, floating action chips on top of media.
  */
@@ -30,7 +30,6 @@ fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(14.dp),
     strong: Boolean = false,
-    blurRadius: Dp = 18.dp,
     borderBrush: Brush = PremiumBrushes.goldHairline(),
     content: @Composable () -> Unit,
 ) {
@@ -39,13 +38,6 @@ fun GlassSurface(
 
     val glassModifier = modifier
         .clip(shape)
-        .then(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                Modifier.blur(blurRadius)
-            } else {
-                Modifier
-            }
-        )
         .background(fill, shape)
         .border(width = 0.6.dp, brush = borderBrush, shape = shape)
 

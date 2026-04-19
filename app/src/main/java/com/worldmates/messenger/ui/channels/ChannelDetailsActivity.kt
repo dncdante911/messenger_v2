@@ -193,6 +193,7 @@ fun ChannelDetailsScreen(
     var videoPlayerUrl by remember { mutableStateOf("") }
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var showCreatePollDialog by remember { mutableStateOf(false) }
+    var showComposeMenu by remember { mutableStateOf(false) }
     var showChangeAvatarDialog by remember { mutableStateOf(false) }
     var showSubscribersDialog by remember { mutableStateOf(false) }
     var showAddMembersDialog by remember { mutableStateOf(false) }
@@ -341,18 +342,13 @@ fun ChannelDetailsScreen(
             floatingActionButton = {
                 if (channel?.isAdmin == true) {
                     if (channelViewStyle == ChannelViewStyle.PREMIUM) {
-                        // Premium keeps its own separate FABs
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        PremiumFAB(onClick = { showComposeMenu = true })
+                    } else {
+                        FloatingActionButton(
+                            onClick = { showComposeMenu = true },
+                            containerColor = MaterialTheme.colorScheme.primary
                         ) {
-                            SmallFloatingActionButton(
-                                onClick = { showCreatePollDialog = true },
-                                containerColor = MaterialTheme.colorScheme.secondary
-                            ) {
-                                Icon(Icons.Default.HowToVote, contentDescription = "Create Poll")
-                            }
-                            PremiumFAB(onClick = { showCreatePostDialog = true })
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.ch_compose))
                         }
                     } else {
                         // WorldMates: single expandable FAB
@@ -783,6 +779,21 @@ fun ChannelDetailsScreen(
                     )
                 }
             }
+        }
+
+        // Compose menu — gates "New post" and "Create poll" behind a single + FAB
+        if (showComposeMenu && channel?.isAdmin == true) {
+            ComposeActionSheet(
+                onDismiss = { showComposeMenu = false },
+                onNewPost = {
+                    showComposeMenu = false
+                    showCreatePostDialog = true
+                },
+                onNewPoll = {
+                    showComposeMenu = false
+                    showCreatePollDialog = true
+                },
+            )
         }
 
         // Діалог створення поста (для адмінів)
@@ -1834,355 +1845,457 @@ fun CreatePostDialog(
         else Toast.makeText(context, context.getString(R.string.camera_permission_required), Toast.LENGTH_SHORT).show()
     }
 
-    Dialog(
-        onDismissRequest = { if (!isUploadingMedia) onDismiss() },
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = !isUploadingMedia,
-            dismissOnClickOutside = false
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 24.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 3.dp
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val canPublish = (text.isNotBlank() || selectedMediaUris.isNotEmpty()) && !isUploadingMedia
 
-                // ── Top bar ──────────────────────────────────────────────────
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+    fun publish() {
+        if (!canPublish) return
+        if (selectedMediaUris.isNotEmpty()) {
+            isUploadingMedia = true
+            uploadTotal = selectedMediaUris.size
+            uploadProgress = 0
+            val uploadedMedia = mutableListOf<com.worldmates.messenger.data.model.PostMedia>()
+            fun uploadNext(index: Int) {
+                if (index >= selectedMediaUris.size) {
+                    isUploadingMedia = false
+                    onCreate(text.trim(), uploadedMedia)
+                    return
+                }
+                uploadMediaFile(
+                    context = context,
+                    uri = selectedMediaUris[index],
+                    onSuccess = { url ->
+                        val mimeType = context.contentResolver.getType(selectedMediaUris[index])
+                        val mediaType = if (mimeType?.startsWith("video/") == true) "video" else "image"
+                        uploadedMedia.add(
+                            com.worldmates.messenger.data.model.PostMedia(
+                                url = url,
+                                type = mediaType,
+                                filename = null,
+                            )
+                        )
+                        uploadProgress = index + 1
+                        uploadNext(index + 1)
+                    },
+                    onError = { error ->
+                        isUploadingMedia = false
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.post_upload_error, error),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    },
+                )
+            }
+            uploadNext(0)
+        } else {
+            onCreate(text.trim(), null)
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = { if (!isUploadingMedia) onDismiss() },
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = null,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .navigationBarsPadding(),
+        ) {
+            // Top bar — close, title, publish (pinned)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = { if (!isUploadingMedia) onDismiss() },
+                    enabled = !isUploadingMedia,
                 ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(R.string.post_cancel),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.post_new_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                     )
                     if (selectedMediaUris.isNotEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Text(
-                                stringResource(R.string.post_media_count, selectedMediaUris.size, maxMedia),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-                    IconButton(
-                        onClick = { if (!isUploadingMedia) onDismiss() },
-                        enabled = !isUploadingMedia
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.post_cancel))
+                        Text(
+                            text = stringResource(
+                                R.string.post_media_count,
+                                selectedMediaUris.size,
+                                maxMedia,
+                            ),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                // ── Body ─────────────────────────────────────────────────────
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                Button(
+                    onClick = { publish() },
+                    enabled = canPublish,
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    modifier = Modifier.padding(end = 8.dp),
                 ) {
+                    Icon(
+                        Icons.Outlined.Send,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        stringResource(R.string.post_publish),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
 
-                    // Text input
-                    OutlinedTextField(
-                        value = text,
-                        onValueChange = { text = it },
-                        placeholder = {
-                            Text(
-                                stringResource(R.string.post_placeholder),
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
-                        },
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+            // Body — scrollable area with large text field + media preview
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // Media preview grid
+                if (selectedMediaUris.isNotEmpty()) {
+                    val itemSize = if (selectedMediaUris.size == 1) 220.dp else 150.dp
+                    LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 120.dp),
-                        maxLines = 8,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                            cursorColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-
-                    // Media preview grid
-                    if (selectedMediaUris.isNotEmpty()) {
-                        val pagerItemSize = if (selectedMediaUris.size == 1) 200.dp else 160.dp
-
-                        androidx.compose.foundation.lazy.LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(pagerItemSize),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(selectedMediaUris.size) { index ->
-                                Box(
+                            .height(itemSize),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(selectedMediaUris.size) { index ->
+                            Box(
+                                modifier = Modifier
+                                    .size(itemSize)
+                                    .clip(RoundedCornerShape(16.dp)),
+                            ) {
+                                AsyncImage(
+                                    model = selectedMediaUris[index],
+                                    contentDescription = "Media ${index + 1}",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop,
+                                )
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.Black.copy(alpha = 0.55f),
                                     modifier = Modifier
-                                        .size(pagerItemSize)
-                                        .clip(RoundedCornerShape(14.dp))
+                                        .align(Alignment.TopStart)
+                                        .padding(6.dp)
+                                        .size(24.dp),
                                 ) {
-                                    AsyncImage(
-                                        model = selectedMediaUris[index],
-                                        contentDescription = "Media ${index + 1}",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            "${index + 1}",
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        selectedMediaUris = selectedMediaUris
+                                            .toMutableList()
+                                            .apply { removeAt(index) }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .size(28.dp)
+                                        .background(Color.Black.copy(alpha = 0.55f), CircleShape),
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.post_remove_media),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp),
                                     )
-
-                                    // Index badge
+                                }
+                                val mimeType = context.contentResolver.getType(selectedMediaUris[index])
+                                if (mimeType?.startsWith("video/") == true) {
                                     Surface(
-                                        shape = CircleShape,
+                                        shape = RoundedCornerShape(6.dp),
                                         color = Color.Black.copy(alpha = 0.55f),
                                         modifier = Modifier
-                                            .align(Alignment.TopStart)
-                                            .padding(6.dp)
-                                            .size(26.dp)
+                                            .align(Alignment.BottomStart)
+                                            .padding(6.dp),
                                     ) {
-                                        Box(contentAlignment = Alignment.Center) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.Videocam,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(3.dp))
                                             Text(
-                                                "${index + 1}",
+                                                stringResource(R.string.post_video_label),
                                                 color = Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
+                                                fontSize = 10.sp,
                                             )
                                         }
                                     }
-
-                                    // Remove button
-                                    IconButton(
-                                        onClick = {
-                                            selectedMediaUris = selectedMediaUris
-                                                .toMutableList()
-                                                .apply { removeAt(index) }
-                                        },
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(4.dp)
-                                            .size(30.dp)
-                                            .background(Color.Black.copy(alpha = 0.55f), CircleShape)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = stringResource(R.string.post_remove_media),
-                                            tint = Color.White,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-
-                                    // Video indicator
-                                    val mimeType = context.contentResolver.getType(selectedMediaUris[index])
-                                    if (mimeType?.startsWith("video/") == true) {
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = Color.Black.copy(alpha = 0.55f),
-                                            modifier = Modifier
-                                                .align(Alignment.BottomStart)
-                                                .padding(6.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    Icons.Outlined.Videocam,
-                                                    contentDescription = null,
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(3.dp))
-                                                Text(
-                                                    stringResource(R.string.post_video_label),
-                                                    color = Color.White,
-                                                    fontSize = 10.sp
-                                                )
-                                            }
-                                        }
-                                    }
                                 }
                             }
                         }
                     }
+                }
 
-                    // Gallery / Camera buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                multiMediaPicker.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                // Borderless multiline text area — feels like writing, not filling a form
+                androidx.compose.foundation.text.BasicTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 160.dp),
+                    textStyle = LocalTextStyle.current.copy(
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 22.sp,
+                    ),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                    decorationBox = { inner ->
+                        Box {
+                            if (text.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.post_placeholder),
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                                 )
+                            }
+                            inner()
+                        }
+                    },
+                )
+
+                if (isUploadingMedia) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        LinearProgressIndicator(
+                            progress = {
+                                if (uploadTotal > 0) uploadProgress.toFloat() / uploadTotal else 0f
                             },
                             modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp),
-                            enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant
-                            )
-                        ) {
-                            Icon(
-                                Icons.Outlined.PhotoLibrary,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.post_gallery), fontSize = 13.sp)
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA)
-                                        == PackageManager.PERMISSION_GRANTED) {
-                                    cameraUri?.let { cameraLauncher.launch(it) }
-                                } else {
-                                    requestPostCameraPermission.launch(android.Manifest.permission.CAMERA)
-                                }
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp),
-                            enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant
-                            )
-                        ) {
-                            Icon(
-                                Icons.Outlined.CameraAlt,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.post_camera), fontSize = 13.sp)
-                        }
-                    }
-
-                    // Upload progress
-                    if (isUploadingMedia) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            LinearProgressIndicator(
-                                progress = { if (uploadTotal > 0) uploadProgress.toFloat() / uploadTotal else 0f },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(4.dp)
-                                    .clip(RoundedCornerShape(2.dp)),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                stringResource(R.string.post_uploading, uploadProgress, uploadTotal),
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    // Max files warning
-                    if (selectedMediaUris.size >= maxMedia) {
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = stringResource(R.string.post_max_files, maxMedia),
+                            stringResource(R.string.post_uploading, uploadProgress, uploadTotal),
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                // ── Action buttons ────────────────────────────────────────────
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        enabled = !isUploadingMedia
-                    ) {
-                        Text(stringResource(R.string.post_cancel))
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (text.isNotBlank() || selectedMediaUris.isNotEmpty()) {
-                                if (selectedMediaUris.isNotEmpty()) {
-                                    isUploadingMedia = true
-                                    uploadTotal = selectedMediaUris.size
-                                    uploadProgress = 0
-                                    val uploadedMedia = mutableListOf<com.worldmates.messenger.data.model.PostMedia>()
-
-                                    fun uploadNext(index: Int) {
-                                        if (index >= selectedMediaUris.size) {
-                                            isUploadingMedia = false
-                                            onCreate(text.trim(), uploadedMedia)
-                                            return
-                                        }
-                                        uploadMediaFile(
-                                            context = context,
-                                            uri = selectedMediaUris[index],
-                                            onSuccess = { url ->
-                                                val mimeType = context.contentResolver.getType(selectedMediaUris[index])
-                                                val mediaType = when {
-                                                    mimeType?.startsWith("video/") == true -> "video"
-                                                    else -> "image"
-                                                }
-                                                uploadedMedia.add(
-                                                    com.worldmates.messenger.data.model.PostMedia(
-                                                        url = url,
-                                                        type = mediaType,
-                                                        filename = null
-                                                    )
-                                                )
-                                                uploadProgress = index + 1
-                                                uploadNext(index + 1)
-                                            },
-                                            onError = { error ->
-                                                isUploadingMedia = false
-                                                Toast.makeText(context, context.getString(R.string.post_upload_error, error), Toast.LENGTH_SHORT).show()
-                                            }
-                                        )
-                                    }
-                                    uploadNext(0)
-                                } else {
-                                    onCreate(text.trim(), null)
-                                }
-                            }
-                        },
-                        enabled = (text.isNotBlank() || selectedMediaUris.isNotEmpty()) && !isUploadingMedia,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Icon(Icons.Outlined.Send, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.post_publish))
-                    }
+                if (selectedMediaUris.size >= maxMedia) {
+                    Text(
+                        text = stringResource(R.string.post_max_files, maxMedia),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
+            }
+
+            // Bottom attach bar — pinned above the IME via imePadding()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                ComposeAttachIconButton(
+                    icon = Icons.Outlined.PhotoLibrary,
+                    label = stringResource(R.string.post_gallery),
+                    enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
+                    onClick = {
+                        multiMediaPicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                        )
+                    },
+                )
+                ComposeAttachIconButton(
+                    icon = Icons.Outlined.CameraAlt,
+                    label = stringResource(R.string.post_camera),
+                    enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
+                    onClick = {
+                        if (ContextCompat.checkSelfPermission(
+                                context,
+                                android.Manifest.permission.CAMERA,
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            cameraUri?.let { cameraLauncher.launch(it) }
+                        } else {
+                            requestPostCameraPermission.launch(android.Manifest.permission.CAMERA)
+                        }
+                    },
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "${text.length}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 12.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ComposeAttachIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(14.dp),
+        color = Color.Transparent,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (enabled) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+            )
+        }
+    }
+}
+
+/**
+ * Bottom-sheet menu that replaces the dual FAB — admins pick between a text/media
+ * post and a poll without two FABs stealing screen real estate from the feed.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ComposeActionSheet(
+    onDismiss: () -> Unit,
+    onNewPost: () -> Unit,
+    onNewPoll: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.ch_compose),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+            )
+            ComposeActionRow(
+                icon = Icons.Outlined.Edit,
+                title = stringResource(R.string.ch_compose_post),
+                subtitle = stringResource(R.string.ch_compose_post_sub),
+                onClick = onNewPost,
+            )
+            ComposeActionRow(
+                icon = Icons.Outlined.Poll,
+                title = stringResource(R.string.ch_compose_poll),
+                subtitle = stringResource(R.string.ch_compose_poll_sub),
+                onClick = onNewPoll,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ComposeActionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
