@@ -2013,7 +2013,7 @@
     <string name="story_available_format">• Доступно: %d stories</string>
     <string name="story_pro_upgrade">💎 Оформіть PRO для 15 stories та відео до 45 сек!</string>
     <string name="story_video_duration_badge">%d сек</string>
-    <string name="story_video_too_long">⚠️ Відео %d сек — перевищує ліміт %d сек</string>
+    <string name="story_video_too_long">⚠️ Відео %1$d сек — перевищує ліміт %2$d сек</string>
     <string name="story_video_too_long_pro_hint">💎 PRO: до %d сек відео</string>
 
     <!-- ===== CHAT TAGS ===== -->

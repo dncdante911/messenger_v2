@@ -2870,7 +2870,7 @@
 
 
     <string name="story_video_duration_badge">%d сек</string>
-    <string name="story_video_too_long">⚠️ Видео %d сек — превышает лимит %d сек</string>
+    <string name="story_video_too_long">⚠️ Видео %1$d сек — превышает лимит %2$d сек</string>
     <string name="story_video_too_long_pro_hint">💎 PRO: до %d сек видео</string>
 
 
