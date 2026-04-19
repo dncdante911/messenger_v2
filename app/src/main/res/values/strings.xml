@@ -3413,85 +3413,85 @@
 
     <!-- ===== VIDEO FILTERS (real-time camera filters during calls, like FaceTime effects) ===== -->
     <!-- Panel title and controls -->
-    <string name="video_filters_title">Video Filters</string>
-    <string name="video_filters_none">None</string>
-    <string name="video_filters_beauty">Beauty</string>
-    <string name="video_filters_warm">Warm</string>
-    <string name="video_filters_cool">Cool</string>
+    <string name="video_filters_title">Відео фільтри</string>
+    <string name="video_filters_none">Нічого</string>
+    <string name="video_filters_beauty">Чудовий</string>
+    <string name="video_filters_warm">Теплий</string>
+    <string name="video_filters_cool">Гарний</string>
     <string name="video_filters_bw">B&amp;W</string>
-    <string name="video_filters_vintage">Vintage</string>
-    <string name="video_filters_vivid">Vivid</string>
-    <string name="video_filters_sepia">Sepia</string>
+    <string name="video_filters_vintage">Вінтажний</string>
+    <string name="video_filters_vivid">Яскравий</string>
+    <string name="video_filters_sepia">Сепія</string>
     <!-- Accessibility / buttons -->
-    <string name="video_filters_btn_label">Filters</string>
-    <string name="video_filters_applied">Filter applied: %s</string>
-    <string name="video_filters_error">Failed to apply filter</string>
+    <string name="video_filters_btn_label">Фільтри</string>
+    <string name="video_filters_applied">Фільтр застосован: %s</string>
+    <string name="video_filters_error">Не вдалося застосувати фільтр</string>
     <!-- Filter intensity slider -->
-    <string name="video_filters_intensity">Intensity</string>
+    <string name="video_filters_intensity">Інтенсивність</string>
 
     <!-- ===== VIRTUAL BACKGROUNDS (background blur and replacement during video calls) ===== -->
     <!-- Panel title -->
-    <string name="virtual_bg_title">Background</string>
+    <string name="virtual_bg_title">Фон</string>
     <!-- Modes -->
-    <string name="virtual_bg_none">None</string>
+    <string name="virtual_bg_none">Нічого</string>
     <string name="virtual_bg_blur">Blur</string>
-    <string name="virtual_bg_blur_light">Light Blur</string>
-    <string name="virtual_bg_blur_strong">Strong Blur</string>
-    <string name="virtual_bg_color">Color</string>
-    <string name="virtual_bg_image">Image</string>
+    <string name="virtual_bg_blur_light">Легкий блюр</string>
+    <string name="virtual_bg_blur_strong">Сильний блюр</string>
+    <string name="virtual_bg_color">Колір</string>
+    <string name="virtual_bg_image">Зображення</string>
     <!-- Button label and states -->
-    <string name="virtual_bg_btn_label">Background</string>
-    <string name="virtual_bg_select_image">Choose from gallery</string>
-    <string name="virtual_bg_processing">Applying backgroundâ¦</string>
-    <string name="virtual_bg_applied">Background applied</string>
-    <string name="virtual_bg_error">Failed to apply background</string>
+    <string name="virtual_bg_btn_label">Фон</string>
+    <string name="virtual_bg_select_image">Вибрати із галереї</string>
+    <string name="virtual_bg_processing">Застосування фону</string>
+    <string name="virtual_bg_applied">Фон застосован</string>
+    <string name="virtual_bg_error">Не вдалося застосувати фон</string>
     <!-- Segmentation info -->
-    <string name="virtual_bg_segmentation_hint">Works best in good lighting</string>
+    <string name="virtual_bg_segmentation_hint">Найкраще працює при хорошому освітленні</string>
     <!-- Color presets shown as swatches -->
-    <string name="virtual_bg_color_office">Office</string>
-    <string name="virtual_bg_color_nature">Nature</string>
-    <string name="virtual_bg_color_gradient">Gradient</string>
+    <string name="virtual_bg_color_office">Офіс</string>
+    <string name="virtual_bg_color_nature">Природа</string>
+    <string name="virtual_bg_color_gradient">Градіент</string>
 
     <!-- ===== CALL TRANSFER (transfer an active call to another user) ===== -->
     <!-- UI controls -->
-    <string name="call_transfer_btn_label">Transfer</string>
-    <string name="call_transfer_title">Transfer Call</string>
-    <string name="call_transfer_subtitle">Select a contact to transfer the call to</string>
-    <string name="call_transfer_search_hint">Search contactsâ¦</string>
-    <string name="call_transfer_confirm_title">Transfer to %s?</string>
-    <string name="call_transfer_confirm_message">The call will be transferred. You will be disconnected.</string>
-    <string name="call_transfer_confirm_btn">Transfer</string>
-    <string name="call_transfer_cancel">Cancel</string>
+    <string name="call_transfer_btn_label">Переадресація</string>
+    <string name="call_transfer_title">Переадресація виклику</string>
+    <string name="call_transfer_subtitle">Виберіть контакт, якому потрібно переадресувати виклик</string>
+    <string name="call_transfer_search_hint">Пошук контактів</string>
+    <string name="call_transfer_confirm_title">Перевести до %s?</string>
+    <string name="call_transfer_confirm_message">Виклик буде переадресовано. Вас буде роз’єднано.</string>
+    <string name="call_transfer_confirm_btn">Переадресація</string>
+    <string name="call_transfer_cancel">Відміна</string>
     <!-- States and feedback -->
-    <string name="call_transfer_initiating">Transferring callâ¦</string>
-    <string name="call_transfer_success">Call transferred to %s</string>
-    <string name="call_transfer_failed">Transfer failed. Please try again.</string>
-    <string name="call_transfer_rejected">%s declined the transfer</string>
-    <string name="call_transfer_no_answer">%s did not answer</string>
+    <string name="call_transfer_initiating">Переадресація виклику</string>
+    <string name="call_transfer_success">Виклик перенаправлено на %s</string>
+    <string name="call_transfer_failed">Переадресація не вдалася. Спробуйте ще раз.</string>
+    <string name="call_transfer_rejected">%s відхилив переадресацію</string>
+    <string name="call_transfer_no_answer">%s не відповів</string>
     <!-- Incoming transfer notification -->
-    <string name="call_transfer_incoming_title">Transferred call</string>
-    <string name="call_transfer_incoming_from">Transferred by %s</string>
+    <string name="call_transfer_incoming_title">Переадресований виклик</string>
+    <string name="call_transfer_incoming_from">Переадресованний %s</string>
 
     <!-- ===== CONFERENCE MODE OPTIMIZATION (group/multi-party call quality settings) ===== -->
     <!-- Quality indicator labels shown in group call UI -->
-    <string name="conf_quality_label">Connection</string>
-    <string name="conf_quality_excellent">Excellent</string>
-    <string name="conf_quality_good">Good</string>
-    <string name="conf_quality_fair">Fair</string>
-    <string name="conf_quality_poor">Poor</string>
+    <string name="conf_quality_label">З\'єднання</string>
+    <string name="conf_quality_excellent">Відмінна</string>
+    <string name="conf_quality_good">Добра</string>
+    <string name="conf_quality_fair">Нормальна</string>
+    <string name="conf_quality_poor">Погана</string>
     <!-- Bandwidth and layout mode controls -->
-    <string name="conf_bandwidth_mode_title">Bandwidth mode</string>
-    <string name="conf_bandwidth_auto">Auto</string>
-    <string name="conf_bandwidth_save">Data saver</string>
-    <string name="conf_bandwidth_high">High quality</string>
+    <string name="conf_bandwidth_mode_title">Режим пропускної здатності</string>
+    <string name="conf_bandwidth_auto">Авто</string>
+    <string name="conf_bandwidth_save">Економія трафіку</string>
+    <string name="conf_bandwidth_high">Висока якість</string>
     <!-- Speaker detection / stage layout -->
-    <string name="conf_dominant_speaker">Speaking</string>
-    <string name="conf_muted_video_hint">Video paused to save bandwidth</string>
-    <string name="conf_participants_off_screen">%d more</string>
+    <string name="conf_dominant_speaker">Виступаючи</string>
+    <string name="conf_muted_video_hint">Відео призупинено для економії пропускної здатності</string>
+    <string name="conf_participants_off_screen">%d більше</string>
     <!-- Optimization toasts -->
-    <string name="conf_bandwidth_reduced">Bandwidth reduced for %d participants</string>
-    <string name="conf_quality_degraded">Quality reduced due to network conditions</string>
-    <string name="conf_quality_restored">Quality restored</string>
+    <string name="conf_bandwidth_reduced">Пропускну здатність зменшено для %d учасників</string>
+    <string name="conf_quality_degraded">Якість знижена через стан мережі</string>
+    <string name="conf_quality_restored">Якість відновлена</string>
 
     <!-- ===== NOTIFICATION CHAINS & PRIORITY SETTINGS ===== -->
     <!-- Summary notification shown when 2+ chats have unread messages -->
@@ -3638,35 +3638,35 @@
     <string name="draft_saving">💾 Зберігається…</string>
 
     <!-- ===== CHANNEL REPLIES INBOX ===== -->
-    <string name="channel_replies_title">Replies</string>
-    <string name="channel_replies_empty">No replies to your comments yet</string>
-    <string name="channel_replies_your_comment">Your comment</string>
-    <string name="channel_replies_reply">Reply</string>
-    <string name="channel_replies_open_channel">Open channel</string>
-    <string name="channel_replies_type_hint">Type a reply…</string>
-    <string name="channel_replies_replying_to">Replying to %s</string>
-    <string name="channel_replies_unknown_channel">Channel</string>
+    <string name="channel_replies_title">Відповіді</string>
+    <string name="channel_replies_empty">Поки що немає відповідей на ваші коментарі</string>
+    <string name="channel_replies_your_comment">Ваш коментар</string>
+    <string name="channel_replies_reply">Повторити</string>
+    <string name="channel_replies_open_channel">Відкритий канал</string>
+    <string name="channel_replies_type_hint">Введіть відповідь…</string>
+    <string name="channel_replies_replying_to">Відповідь на %s</string>
+    <string name="channel_replies_unknown_channel">Канал</string>
 
     <!-- ===== LOCALIZED REPLACEMENTS FOR HARDCODED STRINGS ===== -->
     <!-- Comment actions -->
-    <string name="ch_reaction_action">React</string>
-    <string name="ch_reply_action">Reply</string>
-    <string name="comment_added">Comment added!</string>
-    <string name="comment_deleted">Comment deleted</string>
-    <string name="reaction_added">Reaction added!</string>
+    <string name="ch_reaction_action">Реакція</string>
+    <string name="ch_reply_action">Повторити</string>
+    <string name="comment_added">Коментар додан!</string>
+    <string name="comment_deleted">Коментар видален</string>
+    <string name="reaction_added">Реакцію додано!</string>
     <!-- Channel actions / toasts -->
-    <string name="error_channel_not_found">Channel not found</string>
-    <string name="subscribe_success">Subscribed to channel!</string>
-    <string name="unsubscribe_success">Unsubscribed from channel</string>
-    <string name="settings_saved">Settings saved!</string>
-    <string name="formatting_settings_saved">Formatting settings saved</string>
-    <string name="error_generic_msg">Error: %s</string>
-    <string name="error_save_msg">Save error: %s</string>
+    <string name="error_channel_not_found">Канал не знайдено</string>
+    <string name="subscribe_success">Підписався на канал!</string>
+    <string name="unsubscribe_success">Скасовано підписку на канал</string>
+    <string name="settings_saved">Налаштування збережено!</string>
+    <string name="formatting_settings_saved">Налаштування форматування збережено</string>
+    <string name="error_generic_msg">Помилка: %s</string>
+    <string name="error_save_msg">Зберегти помилку: %s</string>
     <!-- Validation errors -->
-    <string name="error_not_authorized">Not authorized</string>
-    <string name="error_enter_text_or_media">Enter text or add media</string>
-    <string name="error_enter_comment">Enter comment text</string>
-    <string name="error_enter_channel_name">Enter channel name</string>
+    <string name="error_not_authorized">Не авторизовано</string>
+    <string name="error_enter_text_or_media">Введіть текст або додайте медіафайл</string>
+    <string name="error_enter_comment">Введіть текст коментаря</string>
+    <string name="error_enter_channel_name">Введіть назву каналу</string>
     <!-- Groups errors -->
     <string name="error_load_groups">Не вдалося завантажити групи</string>
     <string name="error_load_members">Не вдалося завантажити учасників</string>
