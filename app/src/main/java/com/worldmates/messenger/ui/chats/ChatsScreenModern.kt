@@ -31,6 +31,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -339,11 +340,21 @@ fun ChatsScreenModern(
                 hiddenChatsCount  = hiddenChatsCount
             )
 
-            // HorizontalPager з вкладками
+            // Sync folder selection when user swipes between pages
+            LaunchedEffect(pagerState.currentPage) {
+                val newFolder = when (pagerState.currentPage) {
+                    1 -> "channels"
+                    2 -> "groups"
+                    else -> if (selectedFolderId in listOf("channels", "groups")) "all" else selectedFolderId
+                }
+                if (newFolder != selectedFolderId) selectedFolderId = newFolder
+            }
+
+            // HorizontalPager з вкладками — swipe enabled
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = false // Контролюється папками
+                userScrollEnabled = true
             ) { page ->
                 when (page) {
                     0 -> {

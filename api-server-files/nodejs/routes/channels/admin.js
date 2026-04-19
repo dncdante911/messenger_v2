@@ -246,19 +246,10 @@ function updateSettings(ctx, io) {
                 return res.json({ api_status: 400, error_code: 400, error_message: 'Invalid settings JSON' });
             }
 
-            // Store settings as page_description suffix (JSON encoded) or in a separate mechanism
-            // For now, we update the users_post field to control posting permissions
-            const updateData = {};
-            if (settings.allow_comments !== undefined) {
-                // This would be applied per-post, stored as metadata
-            }
-
-            // We store channel settings in the page_description or a custom field
-            // Since Wo_Pages doesn't have a dedicated settings column, we use
-            // the address field (which isn't used for channels) as JSON storage
-            updateData.address = JSON.stringify(settings).substring(0, 100);
-
-            await ctx.wo_pages.update(updateData, { where: { page_id: channelId } });
+            await ctx.wo_pages.update(
+                { settings_json: JSON.stringify(settings) },
+                { where: { page_id: channelId } }
+            );
 
             console.log(`[Channels] Settings updated for channel ${channelId}`);
 

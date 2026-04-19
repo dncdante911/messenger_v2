@@ -296,10 +296,18 @@
         <!-- Channel Details Activity -->
         <activity
             android:name=".ui.channels.ChannelDetailsActivity"
-            android:exported="false"
+            android:exported="true"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.WorldMatesMessenger.NoActionBar"
-            android:parentActivityName=".ui.chats.ChatsActivity" />
+            android:parentActivityName=".ui.chats.ChatsActivity">
+            <!-- Deep link: worldmates://channel/{id}  OR  worldmates://channel/{id}/post/{postId} -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="worldmates" android:host="channel" />
+            </intent-filter>
+        </activity>
 
         <!-- Channel Admin Panel Activity -->
         <activity

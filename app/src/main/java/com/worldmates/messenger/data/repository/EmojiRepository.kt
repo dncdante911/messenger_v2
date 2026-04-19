@@ -173,6 +173,37 @@ class EmojiRepository(context: Context) {
         }
     }
 
+    // ==================== RECENT / FREQUENT EMOJIS ====================
+
+    private val _recentEmojis = MutableStateFlow<List<String>>(emptyList())
+    val recentEmojis: StateFlow<List<String>> = _recentEmojis
+
+    init {
+        loadRecentEmojis()
+    }
+
+    fun trackEmojiUsage(emoji: String) {
+        val countKey = "freq_$emoji"
+        val current = prefs.getInt(countKey, 0)
+        prefs.edit().putInt(countKey, current + 1).apply()
+
+        // Rebuild sorted list: keep up to 48 most used
+        val allKeys = prefs.all.keys.filter { it.startsWith("freq_") }
+        val sorted = allKeys
+            .map { it.removePrefix("freq_") to prefs.getInt(it, 0) }
+            .sortedByDescending { it.second }
+            .take(48)
+            .map { it.first }
+        _recentEmojis.value = sorted
+        prefs.edit().putString("recent_emojis_list", sorted.joinToString(",")).apply()
+    }
+
+    private fun loadRecentEmojis() {
+        val stored = prefs.getString("recent_emojis_list", null)
+        _recentEmojis.value = if (stored.isNullOrEmpty()) emptyList()
+                              else stored.split(",").filter { it.isNotEmpty() }
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: EmojiRepository? = null
