@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +32,7 @@ import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import com.worldmates.messenger.ui.channels.components.ChannelStatisticsCompactCard
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
@@ -99,13 +101,14 @@ fun ChannelAdminPanelScreen(
     val error by viewModel.error.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
+    data class AdminTab(val labelRes: Int, val icon: ImageVector, val activeIcon: ImageVector)
     val tabs = listOf(
-        stringResource(R.string.channel_tab_info),
-        stringResource(R.string.channel_tab_settings),
-        stringResource(R.string.channel_tab_stats),
-        stringResource(R.string.channel_tab_admins),
-        stringResource(R.string.channel_tab_members),
-        stringResource(R.string.channel_tab_banned)
+        AdminTab(R.string.channel_tab_info, Icons.Outlined.Info, Icons.Default.Info),
+        AdminTab(R.string.channel_tab_settings, Icons.Outlined.Settings, Icons.Default.Settings),
+        AdminTab(R.string.channel_tab_stats, Icons.Outlined.BarChart, Icons.Default.BarChart),
+        AdminTab(R.string.channel_tab_admins, Icons.Outlined.AdminPanelSettings, Icons.Default.AdminPanelSettings),
+        AdminTab(R.string.channel_tab_members, Icons.Outlined.Group, Icons.Default.Group),
+        AdminTab(R.string.channel_tab_banned, Icons.Outlined.Block, Icons.Default.Block)
     )
 
     LaunchedEffect(error) {
@@ -144,20 +147,50 @@ fun ChannelAdminPanelScreen(
             ScrollableTabRow(
                 selectedTabIndex = selectedTab,
                 edgePadding = 8.dp,
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surface,
+                indicator = { tabPositions ->
+                    if (selectedTab < tabPositions.size) {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             ) {
-                tabs.forEachIndexed { index, title ->
+                tabs.forEachIndexed { index, tab ->
+                    val selected = selectedTab == index
                     Tab(
-                        selected = selectedTab == index,
+                        selected = selected,
                         onClick = { selectedTab = index },
-                        text = {
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                        icon = {
                             if (index == 5 && bannedMembers.isNotEmpty()) {
-                                BadgedBox(badge = { Badge { Text("${bannedMembers.size}") } }) {
-                                    Text(title, fontSize = 13.sp)
+                                BadgedBox(badge = {
+                                    Badge(containerColor = MaterialTheme.colorScheme.error) {
+                                        Text("${bannedMembers.size}")
+                                    }
+                                }) {
+                                    Icon(
+                                        if (selected) tab.activeIcon else tab.icon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             } else {
-                                Text(title, fontSize = 13.sp)
+                                Icon(
+                                    if (selected) tab.activeIcon else tab.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
+                        },
+                        text = {
+                            Text(
+                                stringResource(tab.labelRes),
+                                fontSize = 12.sp,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                            )
                         }
                     )
                 }
@@ -197,34 +230,93 @@ private fun InfoTab(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            // Channel info card
+            val cs = MaterialTheme.colorScheme
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = cs.primaryContainer.copy(alpha = 0.2f),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                AsyncImage(
-                    model = channel?.avatarUrl?.toFullMediaUrl(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                )
-                Column {
-                    Text(
-                        text = channel?.name ?: "",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${channel?.subscribersCount ?: 0} subscribers",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    Text(
-                        text = "${channel?.postsCount ?: 0} posts",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(cs.surfaceVariant)
+                    ) {
+                        AsyncImage(
+                            model = channel?.avatarUrl?.toFullMediaUrl(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                        if (channel?.avatarUrl.isNullOrBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        androidx.compose.ui.graphics.Brush.linearGradient(
+                                            listOf(cs.primary, cs.tertiary)
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    (channel?.name?.take(2) ?: "Ch").uppercase(),
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = channel?.name ?: "",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = cs.onSurface
+                        )
+                        if (channel?.username != null) {
+                            Text(
+                                "@${channel.username}",
+                                fontSize = 13.sp,
+                                color = cs.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.People, null, tint = cs.primary, modifier = Modifier.size(14.dp))
+                                Text(
+                                    "${channel?.subscribersCount ?: 0}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = cs.onSurface
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.Article, null, tint = cs.tertiary, modifier = Modifier.size(14.dp))
+                                Text(
+                                    "${channel?.postsCount ?: 0}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = cs.onSurface
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -439,6 +531,7 @@ private fun SettingsTab(
     var signature by remember(currentSettings) { mutableStateOf(currentSettings.signatureEnabled) }
     var moderation by remember(currentSettings) { mutableStateOf(currentSettings.commentsModeration) }
     var allowForwarding by remember(currentSettings) { mutableStateOf(currentSettings.allowForwarding) }
+    var commentIdentity by remember(currentSettings) { mutableStateOf(currentSettings.commentIdentity) }
     var isSaving by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -447,31 +540,73 @@ private fun SettingsTab(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         item {
+            AdminSectionHeader(
+                title = stringResource(R.string.channel_settings_content_title),
+                icon = Icons.Outlined.Article
+            )
+        }
+        item { SettingToggle(stringResource(R.string.channel_settings_allow_comments), stringResource(R.string.channel_settings_allow_comments_desc), allowComments, { allowComments = it }, Icons.Outlined.ChatBubbleOutline) }
+        item { SettingToggle(stringResource(R.string.channel_settings_allow_reactions), stringResource(R.string.channel_settings_allow_reactions_desc), allowReactions, { allowReactions = it }, Icons.Default.FavoriteBorder) }
+        item { SettingToggle(stringResource(R.string.channel_settings_allow_shares), stringResource(R.string.channel_settings_allow_shares_desc), allowShares, { allowShares = it }, Icons.Default.Share) }
+        item { SettingToggle(stringResource(R.string.channel_settings_allow_forwarding), stringResource(R.string.channel_settings_allow_forwarding_desc), allowForwarding, { allowForwarding = it }, Icons.Default.Forward) }
+
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            AdminSectionHeader(
+                title = stringResource(R.string.channel_settings_moderation),
+                icon = Icons.Default.Shield
+            )
+        }
+        item { SettingToggle(stringResource(R.string.channel_settings_comment_moderation), stringResource(R.string.channel_settings_comment_moderation_desc), moderation, { moderation = it }, Icons.Default.Security, Color(0xFFF4511E)) }
+        item { SettingToggle(stringResource(R.string.channel_settings_author_signature), stringResource(R.string.channel_settings_author_signature_desc), signature, { signature = it }, Icons.Default.Edit) }
+
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            AdminSectionHeader(
+                title = stringResource(R.string.channel_settings_notifications),
+                icon = Icons.Outlined.Notifications
+            )
+        }
+        item { SettingToggle(stringResource(R.string.channel_settings_notify_new_post), stringResource(R.string.channel_settings_notify_new_post_desc), notifyNew, { notifyNew = it }, Icons.Default.NotificationsActive) }
+        item { SettingToggle(stringResource(R.string.channel_settings_show_statistics), stringResource(R.string.channel_settings_show_statistics_desc), showStats, { showStats = it }, Icons.Default.BarChart) }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                stringResource(R.string.channel_settings_content_title),
+                stringResource(R.string.ch_comment_identity_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
+            Text(
+                stringResource(R.string.ch_comment_identity_sub),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            val identityOptions = listOf(
+                "user"                to R.string.ch_identity_as_user,
+                "channel"             to R.string.ch_identity_as_channel,
+                "user_with_signature" to R.string.ch_identity_as_user_signed
+            )
+            identityOptions.forEach { (key, labelRes) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { commentIdentity = key }
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = commentIdentity == key,
+                        onClick = { commentIdentity = key }
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(labelRes), fontSize = 14.sp)
+                }
+            }
         }
-        item { SettingToggle(stringResource(R.string.channel_settings_allow_comments), stringResource(R.string.channel_settings_allow_comments_desc), allowComments) { allowComments = it } }
-        item { SettingToggle(stringResource(R.string.channel_settings_allow_reactions), stringResource(R.string.channel_settings_allow_reactions_desc), allowReactions) { allowReactions = it } }
-        item { SettingToggle(stringResource(R.string.channel_settings_allow_shares), stringResource(R.string.channel_settings_allow_shares_desc), allowShares) { allowShares = it } }
-        item { SettingToggle(stringResource(R.string.channel_settings_allow_forwarding), stringResource(R.string.channel_settings_allow_forwarding_desc), allowForwarding) { allowForwarding = it } }
-
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.channel_settings_moderation), fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 8.dp))
-        }
-        item { SettingToggle(stringResource(R.string.channel_settings_comment_moderation), stringResource(R.string.channel_settings_comment_moderation_desc), moderation) { moderation = it } }
-        item { SettingToggle(stringResource(R.string.channel_settings_author_signature), stringResource(R.string.channel_settings_author_signature_desc), signature) { signature = it } }
-
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.channel_settings_notifications), fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(vertical = 8.dp))
-        }
-        item { SettingToggle(stringResource(R.string.channel_settings_notify_new_post), stringResource(R.string.channel_settings_notify_new_post_desc), notifyNew) { notifyNew = it } }
-        item { SettingToggle(stringResource(R.string.channel_settings_show_statistics), stringResource(R.string.channel_settings_show_statistics_desc), showStats) { showStats = it } }
 
         item {
             Spacer(modifier = Modifier.height(16.dp))
@@ -486,7 +621,8 @@ private fun SettingsTab(
                         notifySubscribersNewPost = notifyNew,
                         signatureEnabled = signature,
                         commentsModeration = moderation,
-                        allowForwarding = allowForwarding
+                        allowForwarding = allowForwarding,
+                        commentIdentity = commentIdentity
                     )
                     viewModel.updateChannelSettings(
                         channelId = channelId,
@@ -516,25 +652,93 @@ private fun SettingsTab(
 }
 
 @Composable
+private fun AdminSectionHeader(
+    title: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier
+) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = cs.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            title,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            color = cs.onSurface
+        )
+    }
+}
+
+@Composable
 private fun SettingToggle(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    icon: ImageVector? = null,
+    iconTint: Color? = null
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 4.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+    val cs = MaterialTheme.colorScheme
+    val tint = iconTint ?: cs.primary
+    Surface(
+        color = cs.surfaceVariant.copy(alpha = 0.35f),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Medium, fontSize = 15.sp)
-            Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onCheckedChange(!checked) }
+                .padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = tint.copy(alpha = if (checked) 0.18f else 0.09f),
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            tint = if (checked) tint else tint.copy(alpha = 0.6f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(14.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text(
+                    subtitle,
+                    fontSize = 12.sp,
+                    color = cs.onSurface.copy(alpha = 0.5f),
+                    lineHeight = 16.sp
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = cs.onPrimary,
+                    checkedTrackColor = tint
+                )
+            )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

@@ -573,14 +573,15 @@ fun ChannelPostCard(
                 thickness = 1.dp
             )
 
-            // Action Buttons — flat modern bar (no colored backgrounds)
+            // Action bar — Telegram-style: comments row (full width) + share + bookmark icons
+            val cs2 = MaterialTheme.colorScheme
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp),
+                    .height(44.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Comments
+                // Comments — tappable row: icon + count + label + chevron
                 Row(
                     modifier = Modifier
                         .weight(1f)
@@ -588,91 +589,69 @@ fun ChannelPostCard(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(bounded = true)
-                        ) { onCommentsClick() },
-                    horizontalArrangement = Arrangement.Center,
+                        ) { onCommentsClick() }
+                        .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.ChatBubbleOutline,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        tint = if (post.commentsCount > 0) cs2.primary
+                               else cs2.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(17.dp)
                     )
-                    Spacer(Modifier.width(5.dp))
+                    Spacer(Modifier.width(6.dp))
+                    if (post.commentsCount > 0) {
+                        Text(
+                            text = formatCount(post.commentsCount),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = cs2.primary
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
                     Text(
                         text = stringResource(R.string.ch_comments),
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = cs2.onSurfaceVariant.copy(alpha = 0.75f),
                         maxLines = 1
                     )
-                    if (post.commentsCount > 0) {
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = formatCount(post.commentsCount),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1
-                        )
-                    }
-                }
-
-                VerticalDivider(
-                    modifier = Modifier.height(20.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-
-                // Share
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = true)
-                        ) { onShareClick() },
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                    Spacer(Modifier.weight(1f))
                     Icon(
-                        imageVector = Icons.Default.Share,
+                        imageVector = Icons.Default.ChevronRight,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = cs2.onSurfaceVariant.copy(alpha = 0.4f),
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(Modifier.width(5.dp))
-                    Text(
-                        text = stringResource(R.string.ch_share),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
+                }
+
+                // Share — small forward arrow
+                IconButton(
+                    onClick = onShareClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Reply,
+                        contentDescription = stringResource(R.string.ch_share),
+                        tint = cs2.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .size(20.dp)
+                            .graphicsLayer(scaleX = -1f)
                     )
                 }
 
-                VerticalDivider(
-                    modifier = Modifier.height(20.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-
                 // Bookmark
-                Box(
-                    modifier = Modifier
-                        .width(52.dp)
-                        .fillMaxHeight()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = true)
-                        ) { onSaveClick() },
-                    contentAlignment = Alignment.Center
+                IconButton(
+                    onClick = onSaveClick,
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                        imageVector = if (isSaved) Icons.Default.Bookmark
+                                      else Icons.Default.BookmarkBorder,
                         contentDescription = if (isSaved) stringResource(R.string.unsave_post)
-                                            else stringResource(R.string.save_post),
-                        tint = if (isSaved) MaterialTheme.colorScheme.primary
-                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                                             else stringResource(R.string.save_post),
+                        tint = if (isSaved) cs2.primary
+                               else cs2.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -1512,38 +1491,41 @@ fun CommentsBottomSheet(
 }
 
 @Composable
-private fun CommentPickerChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    isActive: Boolean,
+fun ReactionChip(
+    emoji: String,
+    count: Int,
+    isSelected: Boolean,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = if (isActive)
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        color = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
         else
-            Color.Transparent
+            MaterialTheme.colorScheme.surfaceVariant,
+        border = if (isSelected)
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        else
+            null
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isActive) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = label,
-                fontSize = 11.sp,
-                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isActive) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant
+                text = emoji,
+                fontSize = 16.sp
+            )
+            Text(
+                text = count.toString(),
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -1653,333 +1635,51 @@ fun CommentContent(text: String) {
     val markdownRegex = """\[(.*?)\]\((.*?)\)""".toRegex()
     val matches = markdownRegex.findAll(text).toList()
 
-    if (matches.isEmpty()) {
-        // Звичайний текст без markdown
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium
+@Composable
+fun ActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    TextButton(onClick = onClick) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            modifier = Modifier.size(20.dp)
         )
-    } else {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            var lastIndex = 0
-            matches.forEach { match ->
-                // Текст перед markdown
-                if (match.range.first > lastIndex) {
-                    val beforeText = text.substring(lastIndex, match.range.first)
-                    if (beforeText.isNotBlank()) {
-                        Text(
-                            text = beforeText,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+    }
+}
 
-                // Відображаємо стікер/GIF/Lottie анімацію
-                val label = match.groupValues[1]
-                val url = match.groupValues[2]
+// ==================== UTILITY FUNCTIONS ====================
 
-                when {
-                    // Telegram stickers (.tgs - Lottie animations)
-                    url.matches(""".*\.tgs$""".toRegex(RegexOption.IGNORE_CASE)) -> {
-                        com.airbnb.lottie.compose.LottieAnimation(
-                            composition = com.airbnb.lottie.compose.rememberLottieComposition(
-                                com.airbnb.lottie.compose.LottieCompositionSpec.Url(url)
-                            ).value,
-                            iterations = com.airbnb.lottie.compose.LottieConstants.IterateForever,
-                            modifier = Modifier
-                                .size(150.dp)
-                        )
-                    }
-                    // Звичайні зображення (GIF, PNG, JPG, WEBP, SVG)
-                    url.matches(""".*\.(gif|jpg|jpeg|png|webp|svg)$""".toRegex(RegexOption.IGNORE_CASE)) -> {
-                        AsyncImage(
-                            model = url,
-                            contentDescription = label,
-                            modifier = Modifier
-                                .heightIn(max = 200.dp)
-                                .widthIn(max = 200.dp)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-                    // WebM відео — відтворюємо через ExoPlayer (підтримує WebM/VP8/VP9)
-                    url.matches(""".*\.webm$""".toRegex(RegexOption.IGNORE_CASE)) -> {
-                        com.worldmates.messenger.ui.media.InlineVideoPlayer(
-                            videoUrl = url,
-                            modifier = Modifier
-                                .heightIn(max = 200.dp)
-                                .widthIn(max = 300.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        )
-                    }
-                    else -> {
-                        // Якщо не медіа, показуємо як текст-посилання
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            textDecoration = TextDecoration.Underline
-                        )
-                    }
-                }
+fun formatPostTime(timestamp: Long, context: Context? = null): String {
+    val timestampMs = if (timestamp < 10000000000L) timestamp * 1000 else timestamp
+    val now = System.currentTimeMillis()
+    val diff = now - timestampMs
 
-                lastIndex = match.range.last + 1
-            }
-
-            // Текст після останнього markdown
-            if (lastIndex < text.length) {
-                val afterText = text.substring(lastIndex)
-                if (afterText.isNotBlank()) {
-                    Text(
-                        text = afterText,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+    return when {
+        diff < 60_000 -> context?.getString(R.string.time_just_now) ?: "щойно"
+        diff < 3_600_000 -> context?.getString(R.string.time_min_short, diff / 60_000) ?: "${diff / 60_000} хв"
+        diff < 86_400_000 -> context?.getString(R.string.time_hours_short, diff / 3_600_000) ?: "${diff / 3_600_000} год"
+        diff < 604_800_000 -> context?.getString(R.string.time_days_short, diff / 86_400_000) ?: "${diff / 86_400_000} д"
+        else -> {
+            val sdf = SimpleDateFormat("dd MMM", Locale.getDefault())
+            sdf.format(Date(timestampMs))
         }
     }
 }
 
-/**
- * Premium comment item with bubble style and compact reactions
- */
-@Composable
-fun PremiumCommentItem(
-    comment: ChannelComment,
-    canDelete: Boolean,
-    onDeleteClick: () -> Unit,
-    onReactionClick: (String) -> Unit = {},
-    onReply: ((ChannelComment) -> Unit)? = null,
-    onUserMenu: ((ChannelComment) -> Unit)? = null,
-    replyToComment: ChannelComment? = null,
-    modifier: Modifier = Modifier
-) {
-    var showActions by remember { mutableStateOf(false) }
-    var offsetX by remember { mutableStateOf(0f) }
-    val maxSwipe = 80f
-    val colorScheme = MaterialTheme.colorScheme
-
-    Box(modifier = modifier.fillMaxWidth()) {
-        if (offsetX > 14f) {
-            Icon(
-                imageVector = Icons.Default.Reply,
-                contentDescription = null,
-                tint = colorScheme.primary.copy(alpha = (offsetX / maxSwipe).coerceIn(0f, 1f)),
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 8.dp)
-                    .size(18.dp)
-            )
-        }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .offset { IntOffset(offsetX.roundToInt(), 0) }
-            .pointerInput(comment.id) {
-                detectHorizontalDragGestures(
-                    onDragEnd = {
-                        if (offsetX > maxSwipe / 2) onReply?.invoke(comment)
-                        offsetX = 0f
-                    },
-                    onHorizontalDrag = { _, drag ->
-                        offsetX = (offsetX + drag).coerceIn(0f, maxSwipe)
-                    }
-                )
-            }
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { showActions = !showActions }
-            .padding(horizontal = 4.dp, vertical = 6.dp)
-    ) {
-        // Compact avatar
-        if (!comment.userAvatar.isNullOrEmpty()) {
-            AsyncImage(
-                model = comment.userAvatar.toFullMediaUrl(),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.tertiary
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = (comment.userName ?: comment.username ?: "U")
-                        .take(1).uppercase(),
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(10.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            // Name + time row
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = comment.userName ?: comment.username ?: "User #${comment.userId}",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                if (comment.writtenAsChannel) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.ch_identity_as_channel_badge),
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = formatPostTime(comment.time),
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-            // Channel signature for user_with_signature mode
-            if (!comment.writtenAsChannel && !comment.channelName.isNullOrEmpty()) {
-                Text(
-                    text = comment.channelName,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Reply quote (if this is a reply)
-            if (replyToComment != null) {
-                com.worldmates.messenger.ui.components.CommentReplyQuote(
-                    replyToUsername = replyToComment.userName
-                        ?: replyToComment.username
-                        ?: "User",
-                    replyToText = replyToComment.text,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-            }
-
-            // Comment text
-            CommentContent(text = comment.text)
-
-            // Compact reactions row
-            if (comment.reactionsCount > 0 || showActions) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    listOf("👍", "❤️", "😂").forEach { emoji ->
-                        Surface(
-                            onClick = { onReactionClick(emoji) },
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.height(26.dp)
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            ) {
-                                Text(text = emoji, fontSize = 13.sp)
-                            }
-                        }
-                    }
-                    if (comment.reactionsCount > 0) {
-                        Text(
-                            text = "${comment.reactionsCount}",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-        }
-
-        // Actions: 3-dot menu + delete (only when showActions)
-        if (showActions) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (canDelete) {
-                    IconButton(
-                        onClick = onDeleteClick,
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(
-                            Icons.Outlined.DeleteOutline,
-                            contentDescription = "Delete",
-                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                IconButton(
-                    onClick = { onUserMenu?.invoke(comment) },
-                    modifier = Modifier.size(30.dp)
-                ) {
-                    Icon(
-                        Icons.Default.MoreVert,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-    }
-    } // Box
-}
-
-// Keep backward compatibility alias
-@Composable
-fun CommentItem(
-    comment: ChannelComment,
-    canDelete: Boolean,
-    onDeleteClick: () -> Unit,
-    onReactionClick: (String) -> Unit = {},
-    onReply: ((ChannelComment) -> Unit)? = null,
-    onUserMenu: ((ChannelComment) -> Unit)? = null,
-    modifier: Modifier = Modifier
-) {
-    PremiumCommentItem(
-        comment = comment,
-        canDelete = canDelete,
-        onDeleteClick = onDeleteClick,
-        onReactionClick = onReactionClick,
-        onReply = onReply,
-        onUserMenu = onUserMenu,
-        modifier = modifier
-    )
+fun formatDuration(seconds: Long): String {
+    val minutes = seconds / 60
+    val secs = seconds % 60
+    return String.format("%d:%02d", minutes, secs)
 }
 
 // ==================== POST OPTIONS COMPONENTS ====================
@@ -3203,6 +2903,45 @@ fun ChannelSettingsDialog(
 /**
  * Діалог детального перегляду поста — повноекранний, з медіа-переглядачами та Telegram-style коментарями
  */
+
+@Composable
+private fun CommentPickerChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (isActive)
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        else
+            Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isActive) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (isActive) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDetailDialog(

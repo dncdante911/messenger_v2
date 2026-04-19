@@ -49,6 +49,7 @@ import com.worldmates.messenger.update.AppUpdateManager
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.worldmates.messenger.ui.language.LanguageSelectionScreen
 import com.worldmates.messenger.utils.LanguageManager
+import androidx.activity.compose.BackHandler
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -82,6 +83,15 @@ class SettingsActivity : AppCompatActivity() {
                         else -> SettingsScreen.Main
                     }
                 )
+            }
+
+            // Intercept hardware back to pop settings screen stack instead of finishing the activity
+            BackHandler(enabled = currentScreen != SettingsScreen.Main) {
+                currentScreen = when (currentScreen) {
+                    SettingsScreen.CallFrameStyle,
+                    SettingsScreen.VideoMessageFrameStyle -> SettingsScreen.Theme
+                    else -> SettingsScreen.Main
+                }
             }
 
             WorldMatesThemedApp {

@@ -406,6 +406,29 @@ async function init() {
       }
     }
   }
+  // settings_json — channel settings storage (migration 005)
+  try {
+    await ctx.sequelize.query(
+      `ALTER TABLE Wo_Pages ADD COLUMN IF NOT EXISTS settings_json TEXT NULL DEFAULT NULL`
+    );
+  } catch (e) {
+    if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+      console.warn('[Init] Wo_Pages settings_json migration warning:', e.message);
+    }
+  }
+  // written_as_channel + write_as_mode — comment identity (migration 006)
+  for (const sql of [
+    `ALTER TABLE Wo_Comments ADD COLUMN IF NOT EXISTS written_as_channel TINYINT NOT NULL DEFAULT 0`,
+    `ALTER TABLE Wo_Comments ADD COLUMN IF NOT EXISTS write_as_mode VARCHAR(30) NULL DEFAULT NULL`,
+  ]) {
+    try {
+      await ctx.sequelize.query(sql);
+    } catch (e) {
+      if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+        console.warn('[Init] Wo_Comments write_as migration warning:', e.message);
+      }
+    }
+  }
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Migrations are deferred: runMigrations(ctx) is called from server.listen()

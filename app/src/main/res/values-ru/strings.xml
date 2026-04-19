@@ -1045,6 +1045,8 @@
     <string name="emoji_objects">Объекты</string>
     <string name="emoji_symbols">Символы</string>
     <string name="emoji_custom">Кастомные</string>
+    <string name="emoji_recent">Недавние</string>
+    <string name="emoji_no_recent">Здесь появятся часто используемые эмодзи</string>
     <string name="emoji_all">Все</string>
     <string name="emoji_stickers">Стикеры</string>
     <string name="emoji_label">Эмодзи</string>
@@ -3690,7 +3692,6 @@
     <string name="comment_deleted">Комментарий удалён</string>
     <string name="reaction_added">Реакция добавлена!</string>
     <string name="error_channel_not_found">Канал не найден</string>
-    <string name="avatar_updated">Аватар обновлён</string>
     <string name="subscribe_success">Вы подписались на канал!</string>
     <string name="unsubscribe_success">Вы отписались от канала</string>
     <string name="settings_saved">Настройки сохранены!</string>
@@ -3722,4 +3723,9 @@
     <string name="ch_identity_label">Администратор канала</string>
     <string name="ch_pinned_post">Закреплено</string>
     <string name="ch_share_link_copied">Ссылка скопирована!</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_send">Отправить</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_reply">Ответить</string>
+    <string name="ch_user_fallback">Пользователь</string>
 </resources>
