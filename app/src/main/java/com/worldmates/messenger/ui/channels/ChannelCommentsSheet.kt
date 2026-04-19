@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.R
@@ -846,4 +848,833 @@ fun CommentItem(
         onUserMenu = onUserMenu,
         modifier = modifier
     )
+}
+
+// ==================== WM COMMENTS — WORLDMATES THEME (TELEGRAM-LIKE) ====================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WMCommentsBottomSheet(
+    post: ChannelPost?,
+    comments: List<ChannelComment>,
+    isLoading: Boolean,
+    currentUserId: Long,
+    isAdmin: Boolean,
+    onDismiss: () -> Unit,
+    onAddComment: (String) -> Unit,
+    onAddCommentWithReply: ((String, Long?) -> Unit)? = null,
+    onDeleteComment: (Long) -> Unit,
+    onCommentReaction: (commentId: Long, emoji: String) -> Unit = { _, _ -> },
+    modifier: Modifier = Modifier
+) {
+    var commentText by remember { mutableStateOf("") }
+    var showEmojiPicker by remember { mutableStateOf(false) }
+    var replyingToComment by remember { mutableStateOf<ChannelComment?>(null) }
+    var userActionsComment by remember { mutableStateOf<ChannelComment?>(null) }
+    val cs = MaterialTheme.colorScheme
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(comments.size) {
+        if (comments.isNotEmpty()) {
+            coroutineScope.launch {
+                listState.animateScrollToItem(comments.size - 1)
+            }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = modifier,
+        containerColor = cs.surface,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 4.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(cs.onSurfaceVariant.copy(alpha = 0.2f))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.94f)
+                .navigationBarsPadding()
+        ) {
+            // ── Header ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 8.dp, top = 2.dp, bottom = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = stringResource(R.string.ch_comments),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = cs.onSurface
+                    )
+                    if (comments.isNotEmpty()) {
+                        Text(
+                            text = "${comments.size}",
+                            fontSize = 12.sp,
+                            color = cs.onSurface.copy(alpha = 0.45f)
+                        )
+                    }
+                }
+                IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = null,
+                        tint = cs.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.3f))
+
+            // ── Messages list ──
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    isLoading -> WMCommentsLoadingState()
+                    comments.isEmpty() -> WMCommentsEmptyState()
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            items(comments, key = { it.id }) { comment ->
+                                val isOwn = comment.userId == currentUserId
+                                val replyTo = comment.replyToCommentId?.let { rid ->
+                                    comments.find { it.id == rid }
+                                }
+                                WMCommentBubble(
+                                    comment = comment,
+                                    isOwn = isOwn,
+                                    canDelete = isAdmin || isOwn,
+                                    replyToComment = replyTo,
+                                    onReply = { replyingToComment = it },
+                                    onDelete = { onDeleteComment(comment.id) },
+                                    onReaction = { emoji -> onCommentReaction(comment.id, emoji) },
+                                    onUserMenu = { userActionsComment = comment }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Reply preview banner ──
+            AnimatedVisibility(
+                visible = replyingToComment != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                replyingToComment?.let { replying ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(cs.primaryContainer.copy(alpha = 0.18f))
+                            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height(36.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(cs.primary)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = replying.userName ?: replying.username ?: "",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = cs.primary
+                            )
+                            Text(
+                                text = replying.text,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = cs.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                        IconButton(onClick = { replyingToComment = null }, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                Icons.Default.Close,
+                                null,
+                                tint = cs.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Emoji picker ──
+            AnimatedVisibility(
+                visible = showEmojiPicker,
+                enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
+            ) {
+                com.worldmates.messenger.ui.components.EmojiPicker(
+                    onEmojiSelected = { emoji -> commentText += emoji },
+                    onDismiss = { showEmojiPicker = false }
+                )
+            }
+
+            // ── Input bar ──
+            HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.2f))
+            WMCommentInputBar(
+                text = commentText,
+                onTextChange = { commentText = it },
+                showEmojiPicker = showEmojiPicker,
+                onEmojiToggle = { showEmojiPicker = !showEmojiPicker },
+                onSend = {
+                    if (commentText.isNotBlank()) {
+                        if (onAddCommentWithReply != null) {
+                            onAddCommentWithReply(commentText, replyingToComment?.id)
+                        } else {
+                            onAddComment(commentText)
+                        }
+                        commentText = ""
+                        replyingToComment = null
+                        showEmojiPicker = false
+                    }
+                }
+            )
+        }
+    }
+
+    userActionsComment?.let { target ->
+        com.worldmates.messenger.ui.components.CommentUserActionsSheet(
+            userId = target.userId,
+            username = target.userName ?: target.username ?: "User",
+            avatar = target.userAvatar,
+            isOwnComment = target.userId == currentUserId,
+            isAdmin = isAdmin,
+            context = "channel",
+            commentText = target.text,
+            onDismiss = { userActionsComment = null },
+            onAction = { action ->
+                when (action) {
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Reply ->
+                        replyingToComment = target
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Mention ->
+                        commentText = "@${target.username ?: ""} $commentText"
+                    else -> {}
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WMCommentBubble(
+    comment: ChannelComment,
+    isOwn: Boolean,
+    canDelete: Boolean,
+    replyToComment: ChannelComment?,
+    onReply: (ChannelComment) -> Unit,
+    onDelete: () -> Unit,
+    onReaction: (String) -> Unit,
+    onUserMenu: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val cs = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val displayName = comment.userName ?: comment.username ?: "User #${comment.userId}"
+    var showActions by remember { mutableStateOf(false) }
+    var offsetX by remember { mutableStateOf(0f) }
+    val maxSwipe = 60f
+
+    val nameColor = remember(comment.userId) {
+        val palette = listOf(
+            Color(0xFF1E88E5), Color(0xFF43A047), Color(0xFFE53935),
+            Color(0xFF8E24AA), Color(0xFF00ACC1), Color(0xFFF4511E),
+            Color(0xFF3949AB), Color(0xFF00897B)
+        )
+        palette[(comment.userId % palette.size).toInt().coerceAtLeast(0)]
+    }
+
+    val bubbleBg = if (isOwn) cs.primary else cs.surfaceVariant.copy(alpha = 0.7f)
+    val textColor = if (isOwn) cs.onPrimary else cs.onSurface
+    val timeColor = if (isOwn) cs.onPrimary.copy(alpha = 0.6f) else cs.onSurface.copy(alpha = 0.42f)
+
+    Box(modifier = modifier.fillMaxWidth()) {
+        // Swipe reply hint icon
+        if (offsetX > 8f) {
+            Icon(
+                imageVector = Icons.Default.Reply,
+                contentDescription = null,
+                tint = cs.primary.copy(alpha = (offsetX / maxSwipe).coerceIn(0.2f, 0.85f)),
+                modifier = Modifier
+                    .align(if (isOwn) Alignment.CenterStart else Alignment.CenterEnd)
+                    .padding(horizontal = 10.dp)
+                    .size(20.dp)
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(if (isOwn) -offsetX.roundToInt() else offsetX.roundToInt(), 0) }
+                .pointerInput(comment.id) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (offsetX > maxSwipe * 0.5f) onReply(comment)
+                            offsetX = 0f
+                        },
+                        onHorizontalDrag = { _, drag ->
+                            offsetX = (offsetX + if (isOwn) -drag else drag).coerceIn(0f, maxSwipe)
+                        }
+                    )
+                }
+                .padding(vertical = 2.dp),
+            horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            // Avatar — shown only for others
+            if (!isOwn) {
+                if (!comment.userAvatar.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = comment.userAvatar.toFullMediaUrl(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(nameColor.copy(alpha = 0.18f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            displayName.take(1).uppercase(),
+                            color = nameColor,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Spacer(Modifier.width(7.dp))
+            }
+
+            Column(
+                horizontalAlignment = if (isOwn) Alignment.End else Alignment.Start,
+                modifier = Modifier.widthIn(max = 288.dp)
+            ) {
+                Surface(
+                    onClick = { showActions = true },
+                    shape = RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isOwn) 16.dp else 4.dp,
+                        bottomEnd = if (isOwn) 4.dp else 16.dp
+                    ),
+                    color = bubbleBg,
+                    shadowElevation = 1.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(
+                            start = 11.dp, end = 11.dp, top = 7.dp, bottom = 6.dp
+                        )
+                    ) {
+                        // Sender name (others only)
+                        if (!isOwn) {
+                            Text(
+                                text = displayName,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = nameColor,
+                                modifier = Modifier.padding(bottom = 1.dp)
+                            )
+                        }
+
+                        // Reply quote
+                        if (replyToComment != null) {
+                            val replyName = replyToComment.userName
+                                ?: replyToComment.username ?: "User"
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 5.dp)
+                                    .height(IntrinsicSize.Min)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(
+                                        if (isOwn) Color.White.copy(alpha = 0.12f)
+                                        else cs.surface.copy(alpha = 0.5f)
+                                    )
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .fillMaxHeight()
+                                        .background(
+                                            if (isOwn) Color.White.copy(alpha = 0.8f) else cs.primary
+                                        )
+                                )
+                                Column(
+                                    modifier = Modifier.padding(
+                                        start = 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp
+                                    )
+                                ) {
+                                    Text(
+                                        text = replyName,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isOwn) Color.White.copy(alpha = 0.9f) else cs.primary
+                                    )
+                                    Text(
+                                        text = replyToComment.text,
+                                        fontSize = 11.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = if (isOwn) Color.White.copy(alpha = 0.6f)
+                                               else cs.onSurface.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Text + timestamp in same row (Telegram style)
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = comment.text,
+                                fontSize = 14.sp,
+                                color = textColor,
+                                lineHeight = 20.sp,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Text(
+                                text = formatPostTime(comment.time, context),
+                                fontSize = 10.sp,
+                                color = timeColor,
+                                modifier = Modifier.padding(bottom = 1.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Reaction chip below bubble
+                if (comment.reactionsCount > 0) {
+                    Spacer(Modifier.height(3.dp))
+                    Surface(
+                        onClick = { onReaction("❤️") },
+                        shape = RoundedCornerShape(50),
+                        color = cs.primary.copy(alpha = 0.10f),
+                        modifier = Modifier.padding(
+                            start = if (isOwn) 0.dp else 4.dp,
+                            end = if (isOwn) 4.dp else 0.dp
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text("❤️", fontSize = 12.sp)
+                            Text(
+                                "${comment.reactionsCount}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = cs.primary
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (isOwn) Spacer(Modifier.width(7.dp))
+        }
+    }
+
+    // Action bottom sheet
+    if (showActions) {
+        val actionsSheetState = rememberModalBottomSheetState()
+        ModalBottomSheet(
+            onDismissRequest = { showActions = false },
+            sheetState = actionsSheetState,
+            containerColor = cs.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = 12.dp)
+            ) {
+                // Quick emoji reactions
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    listOf("👍", "❤️", "🔥", "😂", "😮", "😢").forEach { emoji ->
+                        Surface(
+                            onClick = { onReaction(emoji); showActions = false },
+                            shape = CircleShape,
+                            color = cs.surfaceVariant,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Text(emoji, fontSize = 24.sp)
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = cs.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.action_reply)) },
+                    leadingContent = {
+                        Icon(
+                            Icons.Default.Reply,
+                            null,
+                            tint = cs.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    modifier = Modifier.clickable { onReply(comment); showActions = false }
+                )
+
+                if (!isOwn) {
+                    ListItem(
+                        headlineContent = { Text(displayName) },
+                        leadingContent = {
+                            Icon(
+                                Icons.Outlined.Person,
+                                null,
+                                tint = cs.onSurface.copy(alpha = 0.65f),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        },
+                        modifier = Modifier.clickable { onUserMenu(); showActions = false }
+                    )
+                }
+
+                if (canDelete) {
+                    ListItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.action_delete), color = cs.error)
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Outlined.DeleteOutline,
+                                null,
+                                tint = cs.error,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        },
+                        modifier = Modifier.clickable { onDelete(); showActions = false }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WMCommentInputBar(
+    text: String,
+    onTextChange: (String) -> Unit,
+    showEmojiPicker: Boolean,
+    onEmojiToggle: () -> Unit,
+    onSend: () -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val hasText = text.isNotBlank()
+    val sendBg by animateColorAsState(
+        targetValue = if (hasText) cs.primary else Color.Transparent,
+        label = "sendBg"
+    )
+    val sendIconTint by animateColorAsState(
+        targetValue = if (hasText) cs.onPrimary else cs.primary,
+        label = "sendTint"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(cs.surface)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Emoji button — full primary color, no alpha fade
+        IconButton(
+            onClick = onEmojiToggle,
+            modifier = Modifier.size(44.dp)
+        ) {
+            Icon(
+                imageVector = if (showEmojiPicker) Icons.Default.Keyboard
+                              else Icons.Outlined.EmojiEmotions,
+                contentDescription = null,
+                tint = if (showEmojiPicker) cs.primary else cs.primary.copy(alpha = 0.8f),
+                modifier = Modifier.size(26.dp)
+            )
+        }
+
+        // Text input field
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 42.dp, max = 130.dp)
+                .clip(RoundedCornerShape(21.dp))
+                .background(cs.surfaceVariant.copy(alpha = 0.55f))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            if (text.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.ch_comment_placeholder),
+                    fontSize = 15.sp,
+                    color = cs.onSurface.copy(alpha = 0.38f)
+                )
+            }
+            androidx.compose.foundation.text.BasicTextField(
+                value = text,
+                onValueChange = onTextChange,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 15.sp,
+                    color = cs.onSurface
+                ),
+                maxLines = 5
+            )
+        }
+
+        Spacer(Modifier.width(8.dp))
+
+        // Send / Mic button with animation
+        Surface(
+            onClick = onSend,
+            modifier = Modifier.size(44.dp),
+            shape = CircleShape,
+            color = sendBg,
+            border = if (!hasText) androidx.compose.foundation.BorderStroke(
+                1.5.dp, cs.primary.copy(alpha = 0.35f)
+            ) else null
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                AnimatedContent(
+                    targetState = hasText,
+                    transitionSpec = {
+                        (fadeIn() + scaleIn(initialScale = 0.75f)) togetherWith
+                                (fadeOut() + scaleOut(targetScale = 0.75f))
+                    },
+                    label = "sendMicSwitch"
+                ) { textPresent ->
+                    Icon(
+                        imageVector = if (textPresent) Icons.Default.Send else Icons.Default.Mic,
+                        contentDescription = null,
+                        tint = sendIconTint,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WMCommentsLoadingState() {
+    val cs = MaterialTheme.colorScheme
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        repeat(5) { i ->
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = if (i % 2 == 0) Arrangement.Start else Arrangement.End,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (i % 2 == 0) {
+                    Box(
+                        Modifier.size(32.dp).clip(CircleShape)
+                            .background(cs.surfaceVariant.copy(alpha = 0.5f))
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                Box(
+                    Modifier
+                        .width((120 + (i * 22)).dp)
+                        .height(46.dp)
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = 14.dp, topEnd = 14.dp,
+                                bottomStart = if (i % 2 == 0) 4.dp else 14.dp,
+                                bottomEnd = if (i % 2 == 0) 14.dp else 4.dp
+                            )
+                        )
+                        .background(cs.surfaceVariant.copy(alpha = 0.4f))
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WMCommentsEmptyState() {
+    val cs = MaterialTheme.colorScheme
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(CircleShape)
+                .background(cs.primary.copy(alpha = 0.08f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Outlined.ChatBubbleOutline,
+                contentDescription = null,
+                modifier = Modifier.size(36.dp),
+                tint = cs.primary.copy(alpha = 0.5f)
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.ch_no_comments),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = cs.onSurface.copy(alpha = 0.55f)
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.ch_no_comments_sub),
+            style = MaterialTheme.typography.bodySmall,
+            color = cs.onSurface.copy(alpha = 0.35f)
+        )
+    }
+}
+
+// ==================== WM EXPANDABLE FAB ====================
+
+@Composable
+fun WMExpandableFab(
+    onCreatePost: () -> Unit,
+    onCreatePoll: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val cs = MaterialTheme.colorScheme
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 45f else 0f,
+        animationSpec = tween(250),
+        label = "fab_rot"
+    )
+
+    Column(
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(tween(200)) + slideInVertically(tween(200)) { it / 2 },
+            exit = fadeOut(tween(150)) + slideOutVertically(tween(150)) { it / 2 }
+        ) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Create Post option
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = cs.surface,
+                        shadowElevation = 4.dp
+                    ) {
+                        Text(
+                            text = stringResource(R.string.create_post),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = cs.onSurface
+                        )
+                    }
+                    SmallFloatingActionButton(
+                        onClick = { expanded = false; onCreatePost() },
+                        containerColor = cs.primaryContainer,
+                        contentColor = cs.onPrimaryContainer
+                    ) {
+                        Icon(Icons.Outlined.Article, contentDescription = null, modifier = Modifier.size(20.dp))
+                    }
+                }
+
+                // Create Poll option
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = cs.surface,
+                        shadowElevation = 4.dp
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ch_create_poll),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = cs.onSurface
+                        )
+                    }
+                    SmallFloatingActionButton(
+                        onClick = { expanded = false; onCreatePoll() },
+                        containerColor = cs.secondaryContainer,
+                        contentColor = cs.onSecondaryContainer
+                    ) {
+                        Icon(Icons.Default.HowToVote, contentDescription = null, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+        }
+
+        // Main FAB — rotates to X when expanded
+        FloatingActionButton(
+            onClick = { expanded = !expanded },
+            containerColor = cs.primary,
+            contentColor = cs.onPrimary
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(26.dp)
+                    .graphicsLayer { rotationZ = rotation }
+            )
+        }
+    }
 }
