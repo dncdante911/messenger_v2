@@ -6,15 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -72,21 +70,30 @@ fun PremiumReactionsPicker(
 
         Spacer(Modifier.height(12.dp))
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            contentPadding = PaddingValues(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            items(pack.reactions) { emoji ->
-                PremiumReactionCell(
-                    emoji = emoji,
-                    selected = emoji == currentReaction,
-                    onClick = { onReactionPick(emoji) },
-                )
+        // Non-lazy chunked grid — emoji sets are tiny (≤ ~30) so laziness is
+        // unnecessary, and a LazyVerticalGrid inside a non-sized parent (like
+        // a ModalBottomSheet content or another Column) throws "measured with
+        // infinity maximum height".
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            pack.reactions.chunked(columns).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                    row.forEach { emoji ->
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            PremiumReactionCell(
+                                emoji = emoji,
+                                selected = emoji == currentReaction,
+                                onClick = { onReactionPick(emoji) },
+                            )
+                        }
+                    }
+                    // Pad the last row so cells in a short row stay the same size as full rows.
+                    repeat(columns - row.size) {
+                        Box(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
+        Spacer(Modifier.height(12.dp))
     }
 }
 

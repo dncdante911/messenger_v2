@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,8 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.channels.premium.design.ChannelAppearance
 import com.worldmates.messenger.ui.channels.premium.design.PremiumDesign
 import com.worldmates.messenger.ui.channels.premium.design.current
@@ -78,18 +78,23 @@ fun PremiumEmojiStatusPicker(
 
         Spacer(Modifier.height(12.dp))
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(6),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            items(merged) { emoji ->
-                EmojiStatusCell(
-                    emoji = emoji,
-                    selected = emoji == current,
-                    onClick = { onPick(emoji) },
-                )
+        // Non-lazy grid — see PremiumReactionsPicker for why we avoid
+        // LazyVerticalGrid here.
+        val columns = 6
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            merged.chunked(columns).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    row.forEach { emoji ->
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            EmojiStatusCell(
+                                emoji = emoji,
+                                selected = emoji == current,
+                                onClick = { onPick(emoji) },
+                            )
+                        }
+                    }
+                    repeat(columns - row.size) { Box(modifier = Modifier.weight(1f)) }
+                }
             }
         }
 
@@ -113,7 +118,7 @@ fun PremiumEmojiStatusPicker(
             )
             Spacer(Modifier.size(8.dp))
             Text(
-                text = "Clear status",
+                text = stringResource(R.string.premium_theme_clear_status),
                 style = design.typography.button.copy(color = design.colors.onPrimary),
             )
         }

@@ -1061,13 +1061,18 @@ fun CommentsBottomSheet(
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showGifPicker by remember { mutableStateOf(false) }
     var showStrapiPicker by remember { mutableStateOf(false) }
-    var activePickerTab by remember { mutableStateOf<String?>(null) }
+    var showAttachMenu by remember { mutableStateOf(false) }
     var replyingToComment by remember { mutableStateOf<ChannelComment?>(null) }
     var userActionsComment by remember { mutableStateOf<ChannelComment?>(null) }
+
+    // Always open full-height — keeps the composer reachable above the keyboard
+    // and prevents the input row from getting crushed into the partial peek.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = {
             // Compact drag handle
@@ -1083,7 +1088,8 @@ fun CommentsBottomSheet(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
+                .imePadding()
                 .navigationBarsPadding()
         ) {
             // Compact header with gradient accent
@@ -1135,8 +1141,8 @@ fun CommentsBottomSheet(
                 // Shimmer loading
                 Column(
                     modifier = Modifier
+                        .weight(1f)
                         .fillMaxWidth()
-                        .heightIn(min = 150.dp)
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -1182,9 +1188,11 @@ fun CommentsBottomSheet(
                 // Empty state
                 Column(
                     modifier = Modifier
+                        .weight(1f)
                         .fillMaxWidth()
                         .padding(vertical = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
                     Box(
                         modifier = Modifier
@@ -1216,10 +1224,12 @@ fun CommentsBottomSheet(
                     )
                 }
             } else {
+                // Fills remaining space so the composer stays pinned at the bottom
+                // regardless of comment count or keyboard state.
                 LazyColumn(
                     modifier = Modifier
+                        .weight(1f)
                         .fillMaxWidth()
-                        .heightIn(max = 380.dp)
                         .padding(horizontal = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     contentPadding = PaddingValues(vertical = 8.dp)
@@ -1291,7 +1301,10 @@ fun CommentsBottomSheet(
                 }
             }
 
-            // Input area
+            // ── Telegram-style composer ─────────────────────────────────────
+            // Single pinned row: [attach +] [pill text field w/ emoji trailing] [send]
+            // Always visible above the IME / nav bar; attachments live behind the
+            // + button so the input row stays uncluttered and easy to tap.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1301,86 +1314,95 @@ fun CommentsBottomSheet(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 )
 
-                // Quick picker tabs
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CommentPickerChip(
-                        icon = Icons.Outlined.EmojiEmotions,
-                        label = stringResource(R.string.ch_stickers),
-                        isActive = activePickerTab == "strapi",
-                        onClick = {
-                            activePickerTab = if (activePickerTab == "strapi") null else "strapi"
-                            showStrapiPicker = activePickerTab == "strapi"
-                            showEmojiPicker = false
-                            showGifPicker = false
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    CommentPickerChip(
-                        icon = Icons.Outlined.Mood,
-                        label = stringResource(R.string.ch_emoji),
-                        isActive = activePickerTab == "emoji",
-                        onClick = {
-                            activePickerTab = if (activePickerTab == "emoji") null else "emoji"
-                            showEmojiPicker = activePickerTab == "emoji"
-                            showStrapiPicker = false
-                            showGifPicker = false
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    CommentPickerChip(
-                        icon = Icons.Outlined.Gif,
-                        label = stringResource(R.string.ch_gif),
-                        isActive = activePickerTab == "gif",
-                        onClick = {
-                            activePickerTab = if (activePickerTab == "gif") null else "gif"
-                            showGifPicker = activePickerTab == "gif"
-                            showEmojiPicker = false
-                            showStrapiPicker = false
-                        }
-                    )
-                }
+                val sendEnabled = commentText.isNotBlank()
 
-                // Main input row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 8.dp),
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    OutlinedTextField(
-                        value = commentText,
-                        onValueChange = { commentText = it },
+                    // Attach (+) button — opens sticker / gif / file sheet
+                    Surface(
+                        onClick = { showAttachMenu = true },
+                        modifier = Modifier.size(44.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = stringResource(R.string.ch_stickers),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Text field pill + inline emoji trailing icon
+                    Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 48.dp, max = 120.dp),
-                        placeholder = {
-                            Text(
-                                stringResource(R.string.ch_comment_placeholder),
-                                fontSize = 14.sp
-                            )
-                        },
-                        maxLines = 4,
-                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                        )
-                    )
+                            .heightIn(min = 44.dp, max = 132.dp),
+                        shape = RoundedCornerShape(22.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                if (commentText.isEmpty()) {
+                                    Text(
+                                        text = stringResource(R.string.ch_comment_placeholder),
+                                        style = LocalTextStyle.current.copy(
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        ),
+                                    )
+                                }
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = commentText,
+                                    onValueChange = { commentText = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    maxLines = 5,
+                                    textStyle = LocalTextStyle.current.copy(
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    ),
+                                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    showEmojiPicker = !showEmojiPicker
+                                    if (showEmojiPicker) { showGifPicker = false; showStrapiPicker = false }
+                                },
+                                modifier = Modifier.size(40.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Mood,
+                                    contentDescription = stringResource(R.string.ch_emoji),
+                                    tint = if (showEmojiPicker)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
+                    }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
-                    // Send button
-                    val sendEnabled = commentText.isNotBlank()
+                    // Send button (disabled when empty)
                     Surface(
                         onClick = {
                             if (sendEnabled) {
@@ -1399,7 +1421,7 @@ fun CommentsBottomSheet(
                         color = if (sendEnabled)
                             MaterialTheme.colorScheme.primary
                         else
-                            MaterialTheme.colorScheme.surfaceVariant
+                            MaterialTheme.colorScheme.surfaceVariant,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
@@ -1409,20 +1431,17 @@ fun CommentsBottomSheet(
                                     Color.White
                                 else
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(20.dp),
                             )
                         }
                     }
                 }
 
-                // Pickers
+                // Pickers appear below the input row when their toggle is active.
                 AnimatedVisibility(visible = showEmojiPicker) {
                     com.worldmates.messenger.ui.components.EmojiPicker(
                         onEmojiSelected = { emoji -> commentText += emoji },
-                        onDismiss = {
-                            showEmojiPicker = false
-                            activePickerTab = null
-                        }
+                        onDismiss = { showEmojiPicker = false }
                     )
                 }
 
@@ -1431,12 +1450,8 @@ fun CommentsBottomSheet(
                         onGifSelected = { gifUrl ->
                             commentText += "\n[GIF]($gifUrl)"
                             showGifPicker = false
-                            activePickerTab = null
                         },
-                        onDismiss = {
-                            showGifPicker = false
-                            activePickerTab = null
-                        }
+                        onDismiss = { showGifPicker = false }
                     )
                 }
 
@@ -1445,16 +1460,31 @@ fun CommentsBottomSheet(
                         onItemSelected = { contentUrl ->
                             commentText += "\n[Sticker]($contentUrl)"
                             showStrapiPicker = false
-                            activePickerTab = null
                         },
-                        onDismiss = {
-                            showStrapiPicker = false
-                            activePickerTab = null
-                        }
+                        onDismiss = { showStrapiPicker = false }
                     )
                 }
             }
         }
+    }
+
+    // Attachment menu (stickers / gifs)
+    if (showAttachMenu) {
+        CommentAttachMenu(
+            onDismiss = { showAttachMenu = false },
+            onPickStickers = {
+                showAttachMenu = false
+                showStrapiPicker = true
+                showEmojiPicker = false
+                showGifPicker = false
+            },
+            onPickGif = {
+                showAttachMenu = false
+                showGifPicker = true
+                showEmojiPicker = false
+                showStrapiPicker = false
+            },
+        )
     }
 
     // User actions sheet for comment author
@@ -1515,6 +1545,101 @@ private fun CommentPickerChip(
                 color = if (isActive) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * Compact Telegram-style attach sheet for the comments composer — lets the user
+ * pick between stickers and GIFs without crowding the input row with toggle chips.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CommentAttachMenu(
+    onDismiss: () -> Unit,
+    onPickStickers: () -> Unit,
+    onPickGif: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.ch_attach),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+            )
+            AttachOptionRow(
+                icon = Icons.Outlined.EmojiEmotions,
+                title = stringResource(R.string.ch_stickers),
+                subtitle = stringResource(R.string.ch_stickers_sub),
+                onClick = onPickStickers,
+            )
+            AttachOptionRow(
+                icon = Icons.Outlined.Gif,
+                title = stringResource(R.string.ch_gifs),
+                subtitle = stringResource(R.string.ch_gifs_sub),
+                onClick = onPickGif,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttachOptionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

@@ -28,10 +28,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.worldmates.messenger.R
 import com.worldmates.messenger.data.model.ChannelPremiumCustomization
 import com.worldmates.messenger.ui.channels.premium.components.AvatarFrameStyle
 import com.worldmates.messenger.ui.channels.premium.components.ChannelLevelUpDialog
@@ -197,12 +202,12 @@ private fun PremiumChannelsThemeScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     PremiumPrimaryButton(
-                        text = "Save & apply",
+                        text = stringResource(R.string.premium_theme_save),
                         onClick = { onSave(enabled, current) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     PremiumSecondaryButton(
-                        text = "Reset to defaults",
+                        text = stringResource(R.string.premium_theme_reset),
                         onClick = {
                             onReset()
                             accent = PremiumPresets.defaultAccent
@@ -236,7 +241,7 @@ private fun TopBar(onClose: () -> Unit) {
         PremiumGlassIconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
             Icon(
                 Icons.Outlined.ArrowBackIosNew,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.premium_theme_back),
                 tint = design.colors.onPrimary,
                 modifier = Modifier.size(18.dp),
             )
@@ -244,11 +249,11 @@ private fun TopBar(onClose: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Column {
             Text(
-                text = "Premium channels",
+                text = stringResource(R.string.premium_channels_design_title),
                 style = design.typography.title.copy(color = design.colors.onPrimary),
             )
             Text(
-                text = "App-wide design defaults",
+                text = stringResource(R.string.premium_theme_subtitle),
                 style = design.typography.caption.copy(color = design.colors.onMuted),
             )
         }
@@ -276,11 +281,14 @@ private fun MasterToggleCard(enabled: Boolean, onChange: (Boolean) -> Unit) {
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Use new premium design",
+                    text = stringResource(R.string.premium_theme_master_title),
                     style = design.typography.bodyStrong.copy(color = design.colors.onPrimary),
                 )
                 Text(
-                    text = if (enabled) "Active for all premium channels" else "Falls back to the old layout",
+                    text = stringResource(
+                        if (enabled) R.string.premium_theme_master_on
+                        else R.string.premium_theme_master_off
+                    ),
                     style = design.typography.caption.copy(color = design.colors.onSecondary),
                 )
             }
@@ -322,7 +330,7 @@ private fun PreviewPanel() {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Worldmates HQ",
+                            text = stringResource(R.string.premium_theme_preview_name),
                             style = design.typography.titleSmall.copy(color = design.colors.onPrimary),
                         )
                         Spacer(Modifier.width(8.dp))
@@ -336,7 +344,7 @@ private fun PreviewPanel() {
             PremiumDivider()
             Spacer(Modifier.height(12.dp))
             Text(
-                text = "This preview reflects every change you make. Pick an accent, choose a header pattern, swap the emoji pack — everything updates here in real time.",
+                text = stringResource(R.string.premium_theme_preview_hint),
                 style = design.typography.body.copy(color = design.colors.onPrimary),
             )
             Spacer(Modifier.height(12.dp))
@@ -365,7 +373,7 @@ private fun PreviewPanel() {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "Subscribe",
+                    text = stringResource(R.string.premium_theme_cta_subscribe),
                     style = design.typography.button.copy(color = design.colors.onAccent),
                 )
             }
@@ -375,6 +383,7 @@ private fun PreviewPanel() {
 
 // ─── Component playground ─────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ComponentPlayground() {
     val design = PremiumDesign.current
@@ -385,9 +394,13 @@ private fun ComponentPlayground() {
     var pickedReaction by remember { mutableStateOf<String?>(null) }
     var pickedStatus by remember { mutableStateOf<String?>(null) }
 
+    val reactionsSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val emojiStatusSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val giftSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     Column(modifier = Modifier.fillMaxWidth()) {
         PremiumSectionHeader(
-            title = "TRY IT OUT",
+            title = stringResource(R.string.premium_theme_playground_title),
             modifier = Modifier.padding(horizontal = 18.dp),
         )
 
@@ -396,8 +409,8 @@ private fun ComponentPlayground() {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             PlaygroundRow(
-                title = "Trial banner",
-                subtitle = "Inline preview shown to channel owners with no prior subscription",
+                title = stringResource(R.string.premium_theme_trial_title),
+                subtitle = stringResource(R.string.premium_theme_trial_sub),
             )
             PremiumTrialBanner(
                 trialDays = 7,
@@ -405,58 +418,86 @@ private fun ComponentPlayground() {
             )
 
             Spacer(Modifier.height(6.dp))
-            PlaygroundButton("Open reactions picker") { showReactions = true }
+            PlaygroundButton(stringResource(R.string.premium_theme_btn_reactions)) { showReactions = true }
             pickedReaction?.let {
                 Text(
-                    text = "Last reaction: $it",
+                    text = stringResource(R.string.premium_theme_last_reaction, it),
                     style = design.typography.caption.copy(color = design.colors.onSecondary),
                 )
             }
 
-            PlaygroundButton("Open emoji status picker") { showEmojiStatus = true }
+            PlaygroundButton(stringResource(R.string.premium_theme_btn_emoji_status)) { showEmojiStatus = true }
             pickedStatus?.let {
                 Text(
-                    text = "Last status: ${it.ifBlank { "—" }}",
+                    text = stringResource(R.string.premium_theme_last_status, it.ifBlank { "—" }),
                     style = design.typography.caption.copy(color = design.colors.onSecondary),
                 )
             }
 
-            PlaygroundButton("Show level-up celebration") { showLevelUp = true }
-            PlaygroundButton("Open gift sheet") { showGift = true }
+            PlaygroundButton(stringResource(R.string.premium_theme_btn_levelup)) { showLevelUp = true }
+            PlaygroundButton(stringResource(R.string.premium_theme_btn_gift)) { showGift = true }
         }
     }
 
     if (showReactions) {
-        PremiumReactionsPicker(
-            onReactionPick = { pickedReaction = it; showReactions = false },
-            currentReaction = pickedReaction,
-        )
+        ModalBottomSheet(
+            onDismissRequest = { showReactions = false },
+            sheetState = reactionsSheet,
+            containerColor = design.colors.backgroundElevated,
+            dragHandle = null,
+        ) {
+            PremiumReactionsPicker(
+                onReactionPick = { pickedReaction = it; showReactions = false },
+                currentReaction = pickedReaction,
+            )
+        }
     }
     if (showEmojiStatus) {
-        PremiumEmojiStatusPicker(
-            current = pickedStatus,
-            onPick = { pickedStatus = it.orEmpty(); showEmojiStatus = false },
-        )
+        ModalBottomSheet(
+            onDismissRequest = { showEmojiStatus = false },
+            sheetState = emojiStatusSheet,
+            containerColor = design.colors.backgroundElevated,
+            dragHandle = null,
+        ) {
+            PremiumEmojiStatusPicker(
+                current = pickedStatus,
+                onPick = { pickedStatus = it.orEmpty(); showEmojiStatus = false },
+                title = stringResource(R.string.premium_theme_emoji_status_title),
+            )
+        }
     }
     if (showLevelUp) {
         ChannelLevelUpDialog(
             visible = true,
             newLevel = 8,
-            unlockedSummary = "Custom emoji pack, deeper analytics and a new banner pattern unlocked.",
+            unlockedSummary = stringResource(R.string.premium_theme_levelup_summary),
             onDismiss = { showLevelUp = false },
             onExplore = { showLevelUp = false },
-            channelName = "Your channel",
+            channelName = stringResource(R.string.premium_theme_channel_default),
         )
     }
     if (showGift) {
-        GiftSubscriptionSheet(
-            plans = listOf(
-                GiftPlanOption("monthly",   1,  299, "1 month",   "Full price"),
-                GiftPlanOption("quarterly", 3,  807, "3 months",  "10% off"),
-                GiftPlanOption("annual",   12, 2691, "12 months", "25% off"),
-            ),
-            onGift = { _, _, _ -> showGift = false },
-        )
+        val plan1 = stringResource(R.string.premium_theme_plan_1m)
+        val plan3 = stringResource(R.string.premium_theme_plan_3m)
+        val plan12 = stringResource(R.string.premium_theme_plan_12m)
+        val priceFull = stringResource(R.string.premium_theme_plan_full)
+        val price10 = stringResource(R.string.premium_theme_plan_10off)
+        val price25 = stringResource(R.string.premium_theme_plan_25off)
+        ModalBottomSheet(
+            onDismissRequest = { showGift = false },
+            sheetState = giftSheet,
+            containerColor = design.colors.backgroundElevated,
+            dragHandle = null,
+        ) {
+            GiftSubscriptionSheet(
+                plans = listOf(
+                    GiftPlanOption("monthly",   1,  299, plan1,  priceFull),
+                    GiftPlanOption("quarterly", 3,  807, plan3,  price10),
+                    GiftPlanOption("annual",   12, 2691, plan12, price25),
+                ),
+                onGift = { _, _, _ -> showGift = false },
+            )
+        }
     }
 }
 
@@ -488,7 +529,7 @@ private fun PlaygroundButton(text: String, onClick: () -> Unit) {
 
 @Composable
 private fun AccentSection(current: AccentPreset, onPick: (AccentPreset) -> Unit) {
-    SectionWrap("ACCENT COLOR") {
+    SectionWrap(stringResource(R.string.premium_theme_section_accent)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -543,7 +584,7 @@ private fun AccentSwatch(preset: AccentPreset, selected: Boolean, onClick: () ->
 
 @Composable
 private fun FrameSection(current: AvatarFramePreset, onPick: (AvatarFramePreset) -> Unit) {
-    SectionWrap("AVATAR FRAME") {
+    SectionWrap(stringResource(R.string.premium_theme_section_frame)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -595,7 +636,7 @@ private fun FrameSwatch(preset: AvatarFramePreset, selected: Boolean, onClick: (
 
 @Composable
 private fun RadiusSection(current: CornerRadiusPreset, onPick: (CornerRadiusPreset) -> Unit) {
-    SectionWrap("POST CORNERS") {
+    SectionWrap(stringResource(R.string.premium_theme_section_radius)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -640,7 +681,7 @@ private fun RadiusSwatch(preset: CornerRadiusPreset, selected: Boolean, onClick:
 
 @Composable
 private fun WeightSection(current: FontWeightPreset, onPick: (FontWeightPreset) -> Unit) {
-    SectionWrap("TITLE WEIGHT") {
+    SectionWrap(stringResource(R.string.premium_theme_section_weight)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -681,7 +722,7 @@ private fun WeightChip(preset: FontWeightPreset, selected: Boolean, onClick: () 
 
 @Composable
 private fun BannerSection(current: BannerPreset, onPick: (BannerPreset) -> Unit) {
-    SectionWrap("HEADER PATTERN") {
+    SectionWrap(stringResource(R.string.premium_theme_section_banner)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -731,7 +772,7 @@ private fun BannerSwatch(preset: BannerPreset, selected: Boolean, onClick: () ->
 
 @Composable
 private fun EmojiPackSection(current: EmojiPackPreset, onPick: (EmojiPackPreset) -> Unit) {
-    SectionWrap("EMOJI PACK") {
+    SectionWrap(stringResource(R.string.premium_theme_section_emoji)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
