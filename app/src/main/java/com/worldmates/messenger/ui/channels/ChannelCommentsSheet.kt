@@ -1110,9 +1110,10 @@ fun WMCommentBubble(
         palette[(comment.userId % palette.size).toInt().coerceAtLeast(0)]
     }
 
-    val bubbleBg = if (isOwn) cs.primary else cs.surfaceVariant.copy(alpha = 0.7f)
-    val textColor = if (isOwn) cs.onPrimary else cs.onSurface
-    val timeColor = if (isOwn) cs.onPrimary.copy(alpha = 0.6f) else cs.onSurface.copy(alpha = 0.42f)
+    val ownBubbleColor = Color(0xFF0A84FF)
+    val bubbleBg = if (isOwn) ownBubbleColor else cs.surfaceVariant.copy(alpha = 0.7f)
+    val textColor = if (isOwn) Color.White else cs.onSurface
+    val timeColor = if (isOwn) Color.White.copy(alpha = 0.6f) else cs.onSurface.copy(alpha = 0.42f)
 
     Box(modifier = modifier.fillMaxWidth()) {
         // Swipe reply hint icon
@@ -1575,6 +1576,292 @@ private fun WMCommentsEmptyState() {
             style = MaterialTheme.typography.bodySmall,
             color = cs.onSurface.copy(alpha = 0.35f)
         )
+    }
+}
+
+// ==================== WM CHANNEL COMMENTS FULL-SCREEN (CLASSIC THEME) ====================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WMChannelCommentsScreen(
+    post: com.worldmates.messenger.data.model.ChannelPost?,
+    channelName: String,
+    channelAvatarUrl: String?,
+    comments: List<ChannelComment>,
+    isLoading: Boolean,
+    currentUserId: Long,
+    isAdmin: Boolean,
+    onBack: () -> Unit,
+    onAddCommentWithReply: (String, Long?) -> Unit,
+    onDeleteComment: (Long) -> Unit,
+    onCommentReaction: (commentId: Long, emoji: String) -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    var commentText by remember { mutableStateOf("") }
+    var showEmojiPicker by remember { mutableStateOf(false) }
+    var replyingToComment by remember { mutableStateOf<ChannelComment?>(null) }
+    var userActionsComment by remember { mutableStateOf<ChannelComment?>(null) }
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(comments.size) {
+        if (comments.isNotEmpty()) {
+            coroutineScope.launch {
+                listState.animateScrollToItem(comments.size - 1)
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.ch_comments),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (!isLoading && comments.isNotEmpty()) {
+                            Text(
+                                text = "${comments.size}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = cs.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                            tint = cs.onSurface
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = cs.surface,
+                    titleContentColor = cs.onSurface
+                )
+            )
+        },
+        containerColor = cs.surface
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            // Post preview pinned at top
+            WMPostPreviewCard(post = post, channelName = channelName, channelAvatarUrl = channelAvatarUrl)
+            HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.3f))
+
+            // Comment list
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    isLoading -> WMCommentsLoadingState()
+                    comments.isEmpty() -> WMCommentsEmptyState()
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            items(comments, key = { it.id }) { comment ->
+                                val isOwn = comment.userId == currentUserId
+                                val replyTo = comment.replyToCommentId?.let { rid ->
+                                    comments.find { it.id == rid }
+                                }
+                                WMCommentBubble(
+                                    comment = comment,
+                                    isOwn = isOwn,
+                                    canDelete = isAdmin || isOwn,
+                                    replyToComment = replyTo,
+                                    onReply = { replyingToComment = it },
+                                    onDelete = { onDeleteComment(comment.id) },
+                                    onReaction = { emoji -> onCommentReaction(comment.id, emoji) },
+                                    onUserMenu = { userActionsComment = comment }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Reply banner
+            AnimatedVisibility(
+                visible = replyingToComment != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                replyingToComment?.let { replying ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(cs.primaryContainer.copy(alpha = 0.18f))
+                            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height(36.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(cs.primary)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = replying.userName ?: replying.username ?: "",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = cs.primary
+                            )
+                            Text(
+                                text = replying.text,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = cs.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                        IconButton(onClick = { replyingToComment = null }, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                Icons.Default.Close,
+                                null,
+                                tint = cs.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Emoji picker
+            AnimatedVisibility(
+                visible = showEmojiPicker,
+                enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
+            ) {
+                com.worldmates.messenger.ui.components.EmojiPicker(
+                    onEmojiSelected = { emoji -> commentText += emoji },
+                    onDismiss = { showEmojiPicker = false }
+                )
+            }
+
+            // Input bar
+            HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.2f))
+            WMCommentInputBar(
+                text = commentText,
+                onTextChange = { commentText = it },
+                showEmojiPicker = showEmojiPicker,
+                onEmojiToggle = { showEmojiPicker = !showEmojiPicker },
+                onSend = {
+                    if (commentText.isNotBlank()) {
+                        onAddCommentWithReply(commentText, replyingToComment?.id)
+                        commentText = ""
+                        replyingToComment = null
+                        showEmojiPicker = false
+                    }
+                }
+            )
+        }
+    }
+
+    // User actions sheet
+    userActionsComment?.let { target ->
+        com.worldmates.messenger.ui.components.CommentUserActionsSheet(
+            userId = target.userId,
+            username = target.userName ?: target.username ?: "User",
+            avatar = target.userAvatar,
+            isOwnComment = target.userId == currentUserId,
+            isAdmin = isAdmin,
+            context = "channel",
+            commentText = target.text,
+            onDismiss = { userActionsComment = null },
+            onAction = { action ->
+                when (action) {
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Reply ->
+                        replyingToComment = target
+                    is com.worldmates.messenger.ui.components.CommentUserAction.Mention ->
+                        commentText = "@${target.username ?: ""} $commentText"
+                    else -> {}
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun WMPostPreviewCard(
+    post: com.worldmates.messenger.data.model.ChannelPost?,
+    channelName: String,
+    channelAvatarUrl: String?
+) {
+    if (post == null) return
+    val cs = MaterialTheme.colorScheme
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = cs.surfaceVariant.copy(alpha = 0.35f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (!channelAvatarUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = channelAvatarUrl.toFullMediaUrl(),
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp).clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(cs.primary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = channelName.take(1).uppercase(),
+                        color = cs.primary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = channelName,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = cs.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                when {
+                    post.text.isNotEmpty() -> Text(
+                        text = post.text,
+                        fontSize = 13.sp,
+                        color = cs.onSurface.copy(alpha = 0.55f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 18.sp
+                    )
+                    !post.media.isNullOrEmpty() -> Text(
+                        text = "📷 ${post.media!!.size} photo(s)",
+                        fontSize = 13.sp,
+                        color = cs.onSurface.copy(alpha = 0.55f)
+                    )
+                }
+            }
+        }
     }
 }
 

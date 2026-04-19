@@ -76,8 +76,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.LanguageManager
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.activity.compose.BackHandler
 
 /**
  * Активність для перегляду деталей каналу та його постів
@@ -850,9 +852,8 @@ fun ChannelDetailsScreen(
             )
         }
 
-        // Bottom sheet коментарів — WM style for Classic, original for Premium
-        if (showCommentsSheet && selectedPost != null) {
-            if (channelViewStyle == ChannelViewStyle.PREMIUM) {
+        // Bottom sheet коментарів — Premium only (Classic uses full-screen overlay below)
+        if (showCommentsSheet && selectedPost != null && channelViewStyle == ChannelViewStyle.PREMIUM) {
             CommentsBottomSheet(
                 post = selectedPost,
                 comments = comments,
@@ -916,71 +917,6 @@ fun ChannelDetailsScreen(
                     )
                 }
             )
-            } else {
-                WMCommentsBottomSheet(
-                    post = selectedPost,
-                    comments = comments,
-                    isLoading = isLoadingComments,
-                    currentUserId = UserSession.userId ?: 0L,
-                    isAdmin = channel?.isAdmin ?: false,
-                    onDismiss = { showCommentsSheet = false },
-                    onAddComment = { text ->
-                        selectedPost?.let { post ->
-                            detailsViewModel.addComment(
-                                postId = post.id,
-                                text = text,
-                                onSuccess = {
-                                    Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
-                                },
-                                onError = { error ->
-                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                        }
-                    },
-                    onAddCommentWithReply = { text, replyToId ->
-                        selectedPost?.let { post ->
-                            detailsViewModel.addComment(
-                                postId = post.id,
-                                text = text,
-                                replyToId = replyToId,
-                                onSuccess = {
-                                    Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
-                                },
-                                onError = { error ->
-                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                        }
-                    },
-                    onDeleteComment = { commentId ->
-                        selectedPost?.let { post ->
-                            detailsViewModel.deleteComment(
-                                commentId = commentId,
-                                postId = post.id,
-                                onSuccess = {
-                                    Toast.makeText(context, context.getString(R.string.comment_deleted), Toast.LENGTH_SHORT).show()
-                                },
-                                onError = { error ->
-                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                        }
-                    },
-                    onCommentReaction = { commentId, emoji ->
-                        detailsViewModel.addCommentReaction(
-                            commentId = commentId,
-                            emoji = emoji,
-                            onSuccess = {
-                                Toast.makeText(context, context.getString(R.string.reaction_added), Toast.LENGTH_SHORT).show()
-                            },
-                            onError = { error ->
-                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                    }
-                )
-            }
         }
 
         // Діалог детального перегляду поста
@@ -1538,6 +1474,70 @@ fun ChannelDetailsScreen(
                 onDismiss = { showVideoPlayer = false }
             )
         }
+    }
+
+    // Classic theme: intercept hardware back when comments overlay is open
+    if (showCommentsSheet && channelViewStyle == ChannelViewStyle.CLASSIC) {
+        BackHandler { showCommentsSheet = false }
+    }
+
+    // Classic theme: full-screen comments overlay — slides up like a new screen (Telegram style)
+    AnimatedVisibility(
+        visible = showCommentsSheet && selectedPost != null && channelViewStyle == ChannelViewStyle.CLASSIC,
+        enter = slideInVertically(animationSpec = tween(300)) { it },
+        exit = slideOutVertically(animationSpec = tween(250)) { it }
+    ) {
+        WMChannelCommentsScreen(
+            post = selectedPost,
+            channelName = channel?.name ?: "",
+            channelAvatarUrl = channel?.avatarUrl,
+            comments = comments,
+            isLoading = isLoadingComments,
+            currentUserId = UserSession.userId ?: 0L,
+            isAdmin = channel?.isAdmin ?: false,
+            onBack = { showCommentsSheet = false },
+            onAddCommentWithReply = { text, replyToId ->
+                selectedPost?.let { post ->
+                    detailsViewModel.addComment(
+                        postId = post.id,
+                        text = text,
+                        replyToId = replyToId,
+                        onSuccess = {
+                            Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
+                        },
+                        onError = { error ->
+                            Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            },
+            onDeleteComment = { commentId ->
+                selectedPost?.let { post ->
+                    detailsViewModel.deleteComment(
+                        commentId = commentId,
+                        postId = post.id,
+                        onSuccess = {
+                            Toast.makeText(context, context.getString(R.string.comment_deleted), Toast.LENGTH_SHORT).show()
+                        },
+                        onError = { error ->
+                            Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            },
+            onCommentReaction = { commentId, emoji ->
+                detailsViewModel.addCommentReaction(
+                    commentId = commentId,
+                    emoji = emoji,
+                    onSuccess = {
+                        Toast.makeText(context, context.getString(R.string.reaction_added), Toast.LENGTH_SHORT).show()
+                    },
+                    onError = { error ->
+                        Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        )
     }
 }
 
