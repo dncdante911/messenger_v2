@@ -1,10 +1,12 @@
 package com.worldmates.messenger.ui.channels.premium.design
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.worldmates.messenger.data.model.Channel
 import com.worldmates.messenger.data.model.ChannelPremiumCustomization
+import com.worldmates.messenger.ui.channels.premium.appearance.PremiumChannelsThemeStore
 import com.worldmates.messenger.ui.channels.premium.components.AvatarFrameStyle
 
 /**
@@ -12,30 +14,62 @@ import com.worldmates.messenger.ui.channels.premium.components.AvatarFrameStyle
  * ready-to-render Compose values. This is the single place where unknown
  * ids fall back to defaults so every other call site can use non-null
  * values without care.
+ *
+ * Resolution order for any given field:
+ *   1. Per-channel customization from the server / per-channel store.
+ *   2. App-wide default chosen by the user in Settings → Themes.
+ *   3. Built-in catalog default in [PremiumPresets].
  */
 object PremiumCustomizationResolver {
 
-    fun avatarFrame(customization: ChannelPremiumCustomization?): AvatarFrameStyle =
-        PremiumPresets.avatarFramePreset(customization?.avatarFrame).style
+    /** Process-wide cache of the global defaults so we don't hit prefs on every recompose. */
+    @Volatile private var globalDefaults: ChannelPremiumCustomization? = null
 
     /**
-     * Resolve a channel's full appearance bundle — used by premium
-     * composables for non-theme knobs (frame, pattern, emoji pack). Theme
-     * overrides flow through [PremiumDesign] instead because they need to
-     * plumb through CompositionLocal.
+     * Master switch from Settings → Themes → Premium channels. When false the
+     * resolver ignores global defaults entirely — per-channel customization
+     * set by an owner still wins, but non-customized channels render the
+     * plain catalog defaults.
      */
+    @Volatile private var globalEnabled: Boolean = true
+
+    /** Called by Application / Activity startup to load the user's global defaults once. */
+    fun primeGlobalDefaults(context: Context) {
+        val store = PremiumChannelsThemeStore.from(context)
+        globalDefaults = store.read()
+        globalEnabled = store.enabled
+    }
+
+    /** Force-refresh the cache after the user saves new defaults from Settings. */
+    fun refreshGlobalDefaults(context: Context) {
+        val store = PremiumChannelsThemeStore.from(context)
+        globalDefaults = store.read()
+        globalEnabled = store.enabled
+    }
+
+    /** True when the user has opted into the Obsidian-Gold premium design system. */
+    fun isGloballyEnabled(): Boolean = globalEnabled
+
+    fun avatarFrame(customization: ChannelPremiumCustomization?): AvatarFrameStyle {
+        val g = globalDefaults?.takeIf { globalEnabled }
+        return PremiumPresets.avatarFramePreset(customization?.avatarFrame ?: g?.avatarFrame).style
+    }
+
     fun resolveForChannel(channel: Channel): ResolvedChannelAppearance =
         resolve(channel.premiumCustomization)
 
     fun resolve(customization: ChannelPremiumCustomization?): ResolvedChannelAppearance {
+        val g = globalDefaults?.takeIf { globalEnabled }
         return ResolvedChannelAppearance(
-            accent = PremiumPresets.accent(customization?.accentColorId),
-            banner = PremiumPresets.banner(customization?.bannerPatternId),
-            emojiPack = PremiumPresets.emojiPack(customization?.emojiPackId),
-            fontWeight = PremiumPresets.fontWeight(customization?.fontWeight),
-            cornerRadius = PremiumPresets.cornerRadius(customization?.postCornerRadius),
-            avatarFrame = PremiumPresets.avatarFramePreset(customization?.avatarFrame),
-            postsBackdropEnabled = customization?.postsBackdropEnabled ?: false,
+            accent = PremiumPresets.accent(customization?.accentColorId ?: g?.accentColorId),
+            banner = PremiumPresets.banner(customization?.bannerPatternId ?: g?.bannerPatternId),
+            emojiPack = PremiumPresets.emojiPack(customization?.emojiPackId ?: g?.emojiPackId),
+            fontWeight = PremiumPresets.fontWeight(customization?.fontWeight ?: g?.fontWeight),
+            cornerRadius = PremiumPresets.cornerRadius(customization?.postCornerRadius ?: g?.postCornerRadius),
+            avatarFrame = PremiumPresets.avatarFramePreset(customization?.avatarFrame ?: g?.avatarFrame),
+            postsBackdropEnabled = customization?.postsBackdropEnabled
+                ?: g?.postsBackdropEnabled
+                ?: false,
         )
     }
 }
