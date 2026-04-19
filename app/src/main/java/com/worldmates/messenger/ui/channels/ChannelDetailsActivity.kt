@@ -338,28 +338,26 @@ fun ChannelDetailsScreen(
             containerColor = Color.Transparent, // Прозорий фон щоб був видно BackgroundImage
             floatingActionButton = {
                 if (channel?.isAdmin == true) {
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        SmallFloatingActionButton(
-                            onClick = { showCreatePollDialog = true },
-                            containerColor = MaterialTheme.colorScheme.secondary
+                    if (channelViewStyle == ChannelViewStyle.PREMIUM) {
+                        // Premium keeps its own separate FABs
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(Icons.Default.HowToVote, contentDescription = "Create Poll")
-                        }
-                        if (channelViewStyle == ChannelViewStyle.PREMIUM) {
-                            PremiumFAB(
-                                onClick = { showCreatePostDialog = true }
-                            )
-                        } else {
-                            FloatingActionButton(
-                                onClick = { showCreatePostDialog = true },
-                                containerColor = MaterialTheme.colorScheme.primary
+                            SmallFloatingActionButton(
+                                onClick = { showCreatePollDialog = true },
+                                containerColor = MaterialTheme.colorScheme.secondary
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = "Create Post")
+                                Icon(Icons.Default.HowToVote, contentDescription = "Create Poll")
                             }
+                            PremiumFAB(onClick = { showCreatePostDialog = true })
                         }
+                    } else {
+                        // WorldMates: single expandable FAB
+                        WMExpandableFab(
+                            onCreatePost = { showCreatePostDialog = true },
+                            onCreatePoll = { showCreatePollDialog = true }
+                        )
                     }
                 }
             }
@@ -852,8 +850,9 @@ fun ChannelDetailsScreen(
             )
         }
 
-        // Bottom sheet коментарів
+        // Bottom sheet коментарів — WM style for Classic, original for Premium
         if (showCommentsSheet && selectedPost != null) {
+            if (channelViewStyle == ChannelViewStyle.PREMIUM) {
             CommentsBottomSheet(
                 post = selectedPost,
                 comments = comments,
@@ -917,6 +916,71 @@ fun ChannelDetailsScreen(
                     )
                 }
             )
+            } else {
+                WMCommentsBottomSheet(
+                    post = selectedPost,
+                    comments = comments,
+                    isLoading = isLoadingComments,
+                    currentUserId = UserSession.userId ?: 0L,
+                    isAdmin = channel?.isAdmin ?: false,
+                    onDismiss = { showCommentsSheet = false },
+                    onAddComment = { text ->
+                        selectedPost?.let { post ->
+                            detailsViewModel.addComment(
+                                postId = post.id,
+                                text = text,
+                                onSuccess = {
+                                    Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    },
+                    onAddCommentWithReply = { text, replyToId ->
+                        selectedPost?.let { post ->
+                            detailsViewModel.addComment(
+                                postId = post.id,
+                                text = text,
+                                replyToId = replyToId,
+                                onSuccess = {
+                                    Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    },
+                    onDeleteComment = { commentId ->
+                        selectedPost?.let { post ->
+                            detailsViewModel.deleteComment(
+                                commentId = commentId,
+                                postId = post.id,
+                                onSuccess = {
+                                    Toast.makeText(context, context.getString(R.string.comment_deleted), Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    },
+                    onCommentReaction = { commentId, emoji ->
+                        detailsViewModel.addCommentReaction(
+                            commentId = commentId,
+                            emoji = emoji,
+                            onSuccess = {
+                                Toast.makeText(context, context.getString(R.string.reaction_added), Toast.LENGTH_SHORT).show()
+                            },
+                            onError = { error ->
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                )
+            }
         }
 
         // Діалог детального перегляду поста
@@ -2543,8 +2607,9 @@ fun AddMembersDialog(
 }
 
 /**
- * Діалог для створення опитування в каналі (тільки для адмінів)
+ * BottomSheet для створення опитування в каналі (тільки для адмінів)
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateChannelPollDialog(
     channelId: Long,
@@ -2555,41 +2620,77 @@ fun CreateChannelPollDialog(
     var options by remember { mutableStateOf(listOf("", "")) }
     var isAnonymous by remember { mutableStateOf(true) }
     var allowsMultiple by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val cs = MaterialTheme.colorScheme
+    val canCreate = question.isNotBlank() && options.count { it.isNotBlank() } >= 2
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        icon = {
+        sheetState = sheetState,
+        containerColor = cs.surface,
+        dragHandle = {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.HowToVote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-        },
-        title = {
-            Text(
-                stringResource(R.string.ch_create_poll),
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 4.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
+                    .background(cs.onSurfaceVariant.copy(alpha = 0.2f))
             )
-        },
-        text = {
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+        ) {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(cs.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.HowToVote,
+                            contentDescription = null,
+                            tint = cs.onPrimaryContainer,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.ch_create_poll),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, null, tint = cs.onSurfaceVariant)
+                }
+            }
+
+            HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.3f))
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Питання
+                // Question field
                 OutlinedTextField(
                     value = question,
                     onValueChange = { if (it.length <= 255) question = it },
@@ -2598,42 +2699,57 @@ fun CreateChannelPollDialog(
                     maxLines = 3,
                     shape = RoundedCornerShape(14.dp),
                     label = { Text(stringResource(R.string.ch_poll_question_label)) },
-                    supportingText = { Text("${question.length}/255", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End) },
+                    supportingText = {
+                        Text(
+                            "${question.length}/255",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End,
+                            color = cs.onSurface.copy(alpha = 0.4f)
+                        )
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        cursorColor = MaterialTheme.colorScheme.primary
+                        focusedBorderColor = cs.primary,
+                        cursorColor = cs.primary
                     )
                 )
 
-                // Варіанти відповідей
-                Text(
-                    text = stringResource(R.string.poll_options_label),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.5.sp
-                )
+                // Options section header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(cs.primary)
+                    )
+                    Text(
+                        text = stringResource(R.string.poll_options_label),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = cs.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
 
+                // Option rows
                 options.forEachIndexed { index, option ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Номер варіанту
                         Surface(
-                            color = if (option.isNotBlank()) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceVariant,
+                            color = if (option.isNotBlank()) cs.primaryContainer else cs.surfaceVariant,
                             shape = CircleShape,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(30.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = "${index + 1}",
+                                    "${index + 1}",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (option.isNotBlank()) MaterialTheme.colorScheme.onPrimaryContainer
-                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (option.isNotBlank()) cs.onPrimaryContainer else cs.onSurfaceVariant
                                 )
                             }
                         }
@@ -2648,8 +2764,8 @@ fun CreateChannelPollDialog(
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                cursorColor = MaterialTheme.colorScheme.primary
+                                focusedBorderColor = cs.primary,
+                                cursorColor = cs.primary
                             )
                         )
                         if (options.size > 2) {
@@ -2657,117 +2773,165 @@ fun CreateChannelPollDialog(
                                 onClick = { options = options.toMutableList().also { it.removeAt(index) } },
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.ch_remove), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = null,
+                                    tint = cs.error,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
                 }
 
+                // Add option button
                 if (options.size < 10) {
-                    OutlinedButton(
+                    TextButton(
                         onClick = { options = options + "" },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.ch_poll_add_option), fontSize = 14.sp)
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.ch_poll_add_option))
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.4f))
 
-                // Налаштування опитування
-                Text(
-                    text = stringResource(R.string.ch_settings_title).uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.sp
-                )
+                // Settings section header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(cs.primary)
+                    )
+                    Text(
+                        stringResource(R.string.ch_settings_title),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = cs.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
 
-                // Анонімне голосування
+                // Anonymous toggle card
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(12.dp)
+                    color = cs.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { isAnonymous = !isAnonymous }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.VisibilityOff,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = cs.primary.copy(alpha = 0.12f),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.VisibilityOff,
+                                    null,
+                                    tint = cs.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.poll_anonymous_toggle),
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                stringResource(R.string.poll_anonymous_label),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = cs.onSurface.copy(alpha = 0.5f)
                             )
                         }
                         Switch(checked = isAnonymous, onCheckedChange = { isAnonymous = it })
                     }
                 }
 
-                // Кілька відповідей
+                // Multiple answers toggle card
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(12.dp)
+                    color = cs.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { allowsMultiple = !allowsMultiple }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.CheckBox,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = cs.secondary.copy(alpha = 0.12f),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.CheckBox,
+                                    null,
+                                    tint = cs.secondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(R.string.poll_multiple_toggle),
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                stringResource(R.string.poll_multiple_answers),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = cs.onSurface.copy(alpha = 0.5f)
                             )
                         }
                         Switch(checked = allowsMultiple, onCheckedChange = { allowsMultiple = it })
                     }
                 }
+
+                // Create button
+                Button(
+                    onClick = {
+                        val validOptions = options.map { it.trim() }.filter { it.isNotEmpty() }
+                        if (!canCreate) return@Button
+                        onCreate(question.trim(), validOptions, isAnonymous, allowsMultiple)
+                        onDismiss()
+                    },
+                    enabled = canCreate,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.HowToVote, null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.ch_create_poll),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(Modifier.height(4.dp))
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val validOptions = options.map { it.trim() }.filter { it.isNotEmpty() }
-                    if (question.isBlank() || validOptions.size < 2) return@Button
-                    onCreate(question.trim(), validOptions, isAnonymous, allowsMultiple)
-                    onDismiss()
-                },
-                enabled = question.isNotBlank() && options.count { it.isNotBlank() } >= 2,
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.HowToVote, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(stringResource(R.string.ch_create_poll))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.post_cancel)) }
         }
-    )
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
