@@ -61,6 +61,7 @@ import com.worldmates.messenger.ui.channels.premium.components.PremiumDivider
 import com.worldmates.messenger.ui.channels.premium.components.PremiumGlassIconButton
 import com.worldmates.messenger.ui.channels.premium.components.PremiumPrimaryButton
 import com.worldmates.messenger.ui.channels.premium.components.PremiumSectionHeader
+import com.worldmates.messenger.ui.channels.premium.components.PremiumTrialBanner
 import com.worldmates.messenger.ui.channels.premium.design.PremiumBrushes
 import com.worldmates.messenger.ui.channels.premium.design.PremiumDesign
 import com.worldmates.messenger.ui.channels.premium.design.PremiumTheme
@@ -219,6 +220,15 @@ private fun ChannelPremiumScreen(
                     Spacer(Modifier.height(20.dp))
 
                     if (isOwner) {
+                        if (status.is_active == 0 && status.trial_available == 1) {
+                            PremiumTrialBanner(
+                                trialDays = status.trial_days,
+                                onStartTrial = { viewModel.startTrial(channelId) },
+                                modifier = Modifier.padding(horizontal = 20.dp),
+                            )
+                            Spacer(Modifier.height(20.dp))
+                        }
+
                         PremiumSectionHeader(
                             title = stringResource(R.string.channel_premium_choose_plan),
                             modifier = Modifier.padding(horizontal = 20.dp),
