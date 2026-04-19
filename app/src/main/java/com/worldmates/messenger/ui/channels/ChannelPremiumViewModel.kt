@@ -21,6 +21,15 @@ data class ChannelPremiumStatus(
     val started_at: String? = null,
     val base_price_uah: Double = 299.0,
     val plans: Map<String, ChannelPlanInfo>? = null,
+    val trial_available: Int = 0,
+    val trial_days: Int = 7,
+    val error_message: String? = null
+)
+
+data class StartTrialResponse(
+    val api_status: Int = 0,
+    val expires_at: String? = null,
+    val trial_days: Int = 0,
     val error_message: String? = null
 )
 
@@ -59,6 +68,11 @@ interface ChannelPremiumApi {
         @Field("plan") plan: String,
         @Field("provider") provider: String
     ): CreateChannelPaymentResponse
+
+    @POST("api/node/channels/{channel_id}/premium/start-trial")
+    suspend fun startTrial(
+        @Path("channel_id") channelId: Long
+    ): StartTrialResponse
 }
 
 // ─── UI State ─────────────────────────────────────────────────────────────────
@@ -107,6 +121,23 @@ class ChannelPremiumViewModel(app: Application) : AndroidViewModel(app) {
                 Log.d(TAG, "Status loaded: is_active=${status.is_active} plan=${status.plan}")
             } catch (e: Exception) {
                 Log.e(TAG, "loadStatus error", e)
+                _uiState.value = ChannelPremiumUiState.Error(e.message ?: "Network error")
+            }
+        }
+    }
+
+    fun startTrial(channelId: Long) {
+        viewModelScope.launch {
+            try {
+                val resp = api.startTrial(channelId)
+                if (resp.api_status == 200) {
+                    Log.d(TAG, "Trial started: days=${resp.trial_days} expires=${resp.expires_at}")
+                    loadStatus(channelId)
+                } else {
+                    _uiState.value = ChannelPremiumUiState.Error(resp.error_message ?: "Trial activation failed")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "startTrial error", e)
                 _uiState.value = ChannelPremiumUiState.Error(e.message ?: "Network error")
             }
         }

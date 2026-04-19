@@ -25,6 +25,8 @@ const md5     = require('md5');
 const https   = require('https');
 
 const BASE_PRICE_UAH = parseFloat(process.env.CHANNEL_SUBSCRIPTION_PRICE_UAH || '299');
+const TRIAL_DAYS     = parseInt(process.env.CHANNEL_PREMIUM_TRIAL_DAYS || '7', 10);
+const TRIAL_PLAN     = 'trial';
 
 const PLANS = {
     monthly:   { months: 1,  discount: 1.00 },
@@ -232,6 +234,7 @@ module.exports = function registerChannelPremiumRoutes(app, ctx) {
             const channelId = parseInt(req.params.channel_id);
             try {
                 let status = { is_active: 0, plan: null, expires_at: null, days_left: 0 };
+                let trialAvailable = 0;
 
                 if (ctx.wm_channel_subscriptions) {
                     const sub = await ctx.wm_channel_subscriptions.findOne({
@@ -258,14 +261,68 @@ module.exports = function registerChannelPremiumRoutes(app, ctx) {
                             days_left:  daysLeft,
                             started_at: sub.started_at
                         };
+                        // Trial is only available if the channel never had any
+                        // subscription before — existing record blocks it.
+                        trialAvailable = 0;
+                    } else {
+                        trialAvailable = 1;
                     }
                 }
 
-                return res.json({ api_status: 200, ...status, base_price_uah: BASE_PRICE_UAH, plans: Object.fromEntries(
-                    Object.entries(PLANS).map(([k, v]) => [k, { months: v.months, price_uah: calcChannelPrice(k) }])
-                )});
+                return res.json({ api_status: 200, ...status, base_price_uah: BASE_PRICE_UAH,
+                    trial_available: trialAvailable,
+                    trial_days: TRIAL_DAYS,
+                    plans: Object.fromEntries(
+                        Object.entries(PLANS).map(([k, v]) => [k, { months: v.months, price_uah: calcChannelPrice(k) }])
+                    )
+                });
             } catch (e) {
                 console.error('[ChannelPremium] status error:', e);
+                return res.status(500).json({ api_status: 500, error_message: e.message });
+            }
+        }
+    );
+
+    // ── POST start-trial ─────────────────────────────────────────────────────
+    //
+    // Grants a free 7-day (configurable) premium subscription to a channel
+    // whose owner has never subscribed before. Idempotent inside its
+    // eligibility window — callers that hit it twice get a 409.
+    app.post('/api/node/channels/:channel_id/premium/start-trial',
+        (req, res, next) => authMiddleware(ctx, req, res, next),
+        async (req, res) => {
+            const channelId = parseInt(req.params.channel_id);
+            const userId    = req.userId;
+            try {
+                if (!await isChannelOwner(ctx, channelId, userId)) {
+                    return res.status(403).json({ api_status: 403, error_message: 'Only channel owner can start trial' });
+                }
+                if (!ctx.wm_channel_subscriptions) {
+                    return res.status(500).json({ api_status: 500, error_message: 'Subscriptions table unavailable' });
+                }
+
+                const existing = await ctx.wm_channel_subscriptions.findOne({ where: { channel_id: channelId } });
+                if (existing) {
+                    return res.status(409).json({ api_status: 409, error_message: 'Trial not available — channel already has a subscription history' });
+                }
+
+                const now = new Date();
+                const expires = new Date(now.getTime() + TRIAL_DAYS * 86400000);
+                await ctx.wm_channel_subscriptions.create({
+                    channel_id: channelId,
+                    is_active:  1,
+                    plan:       TRIAL_PLAN,
+                    started_at: now,
+                    expires_at: expires
+                });
+
+                return res.json({
+                    api_status: 200,
+                    expires_at: expires.toISOString(),
+                    trial_days: TRIAL_DAYS
+                });
+            } catch (e) {
+                console.error('[ChannelPremium] start-trial error:', e);
                 return res.status(500).json({ api_status: 500, error_message: e.message });
             }
         }
