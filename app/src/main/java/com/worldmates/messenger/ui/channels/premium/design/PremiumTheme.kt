@@ -1,6 +1,5 @@
 package com.worldmates.messenger.ui.channels.premium.design
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
@@ -191,16 +190,13 @@ private fun rememberPremiumDesign(
 
 /**
  * Resolve whether the app is currently rendering dark. Reads the app's
- * own theme state first (so the user's manual toggle wins), falling back
- * to `isSystemInDarkTheme()` if the theme layer is unavailable (previews,
- * tests).
+ * own theme state so the user's manual toggle wins. The theme manager
+ * already falls back to `isSystemInDarkTheme()` internally when no
+ * preference is stored, so previews and tests stay correct.
  */
 @Composable
-private fun premiumIsAppDark(): Boolean = try {
+private fun premiumIsAppDark(): Boolean =
     com.worldmates.messenger.ui.theme.rememberThemeState().isDark
-} catch (t: Throwable) {
-    isSystemInDarkTheme()
-}
 
 /** Short accessor — `PremiumDesign.current` inside composables. */
 object PremiumDesignAccess {
