@@ -344,17 +344,10 @@ fun ChannelDetailsScreen(
                     if (channelViewStyle == ChannelViewStyle.PREMIUM) {
                         PremiumFAB(onClick = { showComposeMenu = true })
                     } else {
-                        FloatingActionButton(
-                            onClick = { showComposeMenu = true },
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.ch_compose))
-                        }
-                    } else {
-                        // WorldMates: single expandable FAB
+                        // Classic: expandable FAB that combines post + poll into one button.
                         WMExpandableFab(
                             onCreatePost = { showCreatePostDialog = true },
-                            onCreatePoll = { showCreatePollDialog = true }
+                            onCreatePoll = { showCreatePollDialog = true },
                         )
                     }
                 }
