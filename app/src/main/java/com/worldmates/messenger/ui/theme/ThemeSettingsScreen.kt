@@ -472,6 +472,24 @@ fun ThemeSettingsScreen(
             }
 
             // ══════════════════════════════════════════════════════════════════
+            // 6.7. ПРЕМІУМ КАНАЛИ — глобальний Obsidian-Gold дизайн
+            // ══════════════════════════════════════════════════════════════════
+            item {
+                ThemeSectionHeader(
+                    emoji = "👑",
+                    title = stringResource(R.string.premium_channels_design_title),
+                    subtitle = stringResource(R.string.premium_channels_design_desc),
+                    accentColor = Color(0xFFC8A24B),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                PremiumChannelsDesignTile(
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            // ══════════════════════════════════════════════════════════════════
             // 7. ШВИДКА РЕАКЦІЯ — горизонтальний ряд емодзі
             // ══════════════════════════════════════════════════════════════════
             item {
@@ -2099,6 +2117,82 @@ private fun ChannelViewStyleCard(
                 colors = RadioButtonDefaults.colors(
                     selectedColor = MaterialTheme.colorScheme.primary
                 )
+            )
+        }
+    }
+}
+
+/**
+ * Картка-вхід у налаштування Obsidian-Gold оформлення для преміум-каналів.
+ * Відкриває PremiumChannelsThemeActivity — там живий прев'ю, перемикач
+ * «новий вигляд» і вибір акценту / рамки / банера / пакета емодзі.
+ * Залочена, доки користувач не активує PRO — тап веде на PremiumActivity.
+ */
+@Composable
+fun PremiumChannelsDesignTile(
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val canUsePremium = remember { UserSession.isProActive }
+    val gold = Color(0xFFC8A24B)
+    val onyx = Color(0xFF0E0E12)
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable {
+                if (canUsePremium) {
+                    context.startActivity(
+                        com.worldmates.messenger.ui.channels.premium.appearance
+                            .PremiumChannelsThemeActivity.createIntent(context)
+                    )
+                } else {
+                    context.startActivity(Intent(context, PremiumActivity::class.java))
+                }
+            },
+        shape = RoundedCornerShape(18.dp),
+        color = onyx,
+        border = BorderStroke(1.dp, gold.copy(alpha = 0.55f)),
+        tonalElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(gold.copy(alpha = 0.16f))
+                    .border(1.dp, gold.copy(alpha = 0.7f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "👑", fontSize = 20.sp)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = stringResource(R.string.premium_channels_design_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFF2E7C8)
+                )
+                Text(
+                    text = if (canUsePremium)
+                        stringResource(R.string.premium_channels_design_desc)
+                    else
+                        stringResource(R.string.premium_channels_design_locked),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFF2E7C8).copy(alpha = 0.7f),
+                    maxLines = 2
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = if (canUsePremium) "›" else "🔒",
+                fontSize = 20.sp,
+                color = gold,
+                fontWeight = FontWeight.Bold
             )
         }
     }

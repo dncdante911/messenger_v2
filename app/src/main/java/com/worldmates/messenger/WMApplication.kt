@@ -48,6 +48,11 @@ class WMApplication : android.app.Application(), ImageLoaderFactory {
         // Ініціалізація мультиаккаунтного менеджера
         AccountManager.init(this)
 
+        // Prime the global premium-channels appearance defaults so the
+        // first composable read doesn't hit SharedPreferences synchronously.
+        com.worldmates.messenger.ui.channels.premium.design.PremiumCustomizationResolver
+            .primeGlobalDefaults(this)
+
         // Запуск фонового очищення секретних повідомлень (кожні 15 хвилин)
         SecretChatCleanupWorker.schedule(this)
 

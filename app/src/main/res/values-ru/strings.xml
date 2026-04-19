@@ -1471,6 +1471,12 @@
     <string name="channel_style_premium">Премиум</string>
     <string name="channel_style_premium_desc">Карточки с акцентами, тегами и инлайн-действиями</string>
 
+    <!-- ===== PREMIUM CHANNELS DESIGN ===== -->
+    <string name="premium_channels_design_title">Премиум каналы — дизайн</string>
+    <string name="premium_channels_design_desc">Obsidian Gold: акценты, рамки, баннеры, реакции</string>
+    <string name="premium_channels_design_cta">Настроить</string>
+    <string name="premium_channels_design_locked">Доступно с PRO</string>
+
     <string name="bubble_style_section">🎨 Стиль пузырьков</string>
     <string name="bubble_style_desc">Выберите дизайн пузырьков сообщений</string>
     <string name="quick_reaction_section">❤️ Быстрая реакция</string>

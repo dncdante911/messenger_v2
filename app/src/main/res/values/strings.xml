@@ -1506,6 +1506,12 @@
     <string name="channel_style_premium">Преміум</string>
     <string name="channel_style_premium_desc">Картки з акцентами, тегами та інлайн-діями</string>
 
+    <!-- ===== PREMIUM CHANNELS DESIGN ===== -->
+    <string name="premium_channels_design_title">Преміум канали — дизайн</string>
+    <string name="premium_channels_design_desc">Obsidian Gold: акценти, рамки, банери, реакції</string>
+    <string name="premium_channels_design_cta">Налаштувати</string>
+    <string name="premium_channels_design_locked">Доступно з PRO</string>
+
     <string name="bubble_style_section">🎨 Стиль бульбашок</string>
     <string name="bubble_style_desc">Оберіть дизайн бульбашок повідомлень</string>
     <string name="quick_reaction_section">❤️ Швидка реакція</string>
