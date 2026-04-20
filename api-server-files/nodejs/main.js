@@ -939,6 +939,16 @@ async function runMigrations(ctx) {
 
   console.log('[Migration] All background migrations complete');
 
+  // ── Sticker support for channel comments, thread messages, story comments ──
+  try {
+    await ctx.sequelize.query("ALTER TABLE wo_channel_comments ADD COLUMN IF NOT EXISTS sticker VARCHAR(512) DEFAULT NULL");
+    await ctx.sequelize.query("ALTER TABLE Wo_StoryComments ADD COLUMN IF NOT EXISTS sticker VARCHAR(512) DEFAULT NULL");
+    await ctx.sequelize.query("ALTER TABLE Wo_Comments ADD COLUMN IF NOT EXISTS sticker VARCHAR(512) DEFAULT NULL");
+    console.log('[Migration] sticker column added to comment tables');
+  } catch (e) {
+    console.warn('[Migration] sticker columns:', e.message);
+  }
+
   // ── wm_call_recordings — stream & call recording archive ─────────────────
   try {
     await ctx.sequelize.query(`

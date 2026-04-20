@@ -174,6 +174,7 @@ data class StoryComment(
     @SerializedName("story_id") val storyId: Long,
     @SerializedName("user_id") val userId: Long,
     @SerializedName("text") val text: String,
+    @SerializedName("sticker") val sticker: String? = null,
     @SerializedName("time") val time: Long, // Unix timestamp
     @SerializedName("user_data") val userData: StoryUser? = null,
     @SerializedName("offset_id") val offsetId: Long? = null,

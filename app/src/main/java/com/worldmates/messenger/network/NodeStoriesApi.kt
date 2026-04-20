@@ -69,9 +69,10 @@ interface NodeStoriesApi {
     @FormUrlEncoded
     @POST("api/node/stories/create-comment")
     suspend fun createStoryComment(
-        @Field("story_id") storyId: Long,
-        @Field("text") text: String,
-        @Field("reply_to_comment_id") replyToCommentId: Long? = null
+        @Field("story_id")            storyId: Long,
+        @Field("text")                text: String,
+        @Field("reply_to_comment_id") replyToCommentId: Long? = null,
+        @Field("sticker")             sticker: String? = null
     ): CreateStoryCommentResponse
 
     /** Анонімний перегляд сторіс (без прив'язки до user_id) */

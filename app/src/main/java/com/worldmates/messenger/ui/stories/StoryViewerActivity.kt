@@ -466,6 +466,9 @@ fun StoryViewerScreen(
             onAddCommentWithReply = { text, replyToId ->
                 currentStory?.let { viewModel.createComment(it.id, text, replyToId) }
             },
+            onAddCommentWithSticker = { stickerUrl, replyToId ->
+                currentStory?.let { viewModel.createComment(it.id, "", replyToId, stickerUrl) }
+            },
             onDeleteComment = { viewModel.deleteComment(it) }
         )
     }
@@ -1013,11 +1016,13 @@ fun StoryCommentsSheet(
     onDismiss: () -> Unit,
     onAddComment: (String) -> Unit,
     onDeleteComment: (Long) -> Unit,
-    onAddCommentWithReply: ((String, Long?) -> Unit)? = null
+    onAddCommentWithReply: ((String, Long?) -> Unit)? = null,
+    onAddCommentWithSticker: ((String, Long?) -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var commentText by remember { mutableStateOf("") }
     var showEmojiPicker by remember { mutableStateOf(false) }
+    var showStickerPicker by remember { mutableStateOf(false) }
     var replyingTo by remember { mutableStateOf<StoryComment?>(null) }
     var userActionsTarget by remember { mutableStateOf<StoryComment?>(null) }
     val focusRequester = remember { FocusRequester() }
@@ -1200,6 +1205,22 @@ fun StoryCommentsSheet(
                 }
             }
 
+            // Sticker picker
+            AnimatedVisibility(
+                visible = showStickerPicker,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                com.worldmates.messenger.ui.components.StickerPicker(
+                    onStickerSelected = { stickerUrl ->
+                        onAddCommentWithSticker?.invoke(stickerUrl, replyingTo?.id)
+                        replyingTo = null
+                        showStickerPicker = false
+                    },
+                    onDismiss = { showStickerPicker = false }
+                )
+            }
+
             // Input area
             Row(
                 modifier = Modifier
@@ -1211,13 +1232,25 @@ fun StoryCommentsSheet(
             ) {
                 // Emoji toggle
                 IconButton(
-                    onClick = { showEmojiPicker = !showEmojiPicker },
+                    onClick = { showEmojiPicker = !showEmojiPicker; showStickerPicker = false },
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         imageVector = if (showEmojiPicker) Icons.Outlined.Keyboard else Icons.Outlined.EmojiEmotions,
                         contentDescription = "Emoji",
-                        tint = Color.White.copy(alpha = 0.6f),
+                        tint = if (showEmojiPicker) Color(0xFF2196F3) else Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                // Sticker toggle
+                IconButton(
+                    onClick = { showStickerPicker = !showStickerPicker; showEmojiPicker = false },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Celebration,
+                        contentDescription = "Stickers",
+                        tint = if (showStickerPicker) Color(0xFF2196F3) else Color.White.copy(alpha = 0.6f),
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -1390,15 +1423,24 @@ fun CommentItem(
                     modifier = Modifier.padding(top = 3.dp, bottom = 2.dp)
                 )
             }
-            // MentionText подсвечивает @упоминания синим цветом
-            MentionText(
-                text     = comment.text,
-                style    = androidx.compose.ui.text.TextStyle(
-                    color    = Color.White.copy(alpha = 0.85f),
-                    fontSize = 14.sp
-                ),
-                modifier = Modifier.padding(top = 3.dp)
-            )
+            if (!comment.sticker.isNullOrEmpty()) {
+                com.worldmates.messenger.ui.components.AnimatedStickerView(
+                    url = comment.sticker,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .padding(top = 3.dp)
+                )
+            }
+            if (comment.text.isNotBlank()) {
+                MentionText(
+                    text     = comment.text,
+                    style    = androidx.compose.ui.text.TextStyle(
+                        color    = Color.White.copy(alpha = 0.85f),
+                        fontSize = 14.sp
+                    ),
+                    modifier = Modifier.padding(top = 3.dp)
+                )
+            }
         }
 
         // 3-dot menu: own comment → only delete; other users → user actions

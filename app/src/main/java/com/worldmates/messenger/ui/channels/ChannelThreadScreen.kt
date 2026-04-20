@@ -32,6 +32,8 @@ import coil.compose.AsyncImage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.ThreadMessage
+import com.worldmates.messenger.ui.components.AnimatedStickerView
+import com.worldmates.messenger.ui.components.StickerPicker
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -55,6 +57,7 @@ fun ChannelThreadScreen(
     val listState   = rememberLazyListState()
 
     var inputText       by remember { mutableStateOf("") }
+    var showStickerPicker by remember { mutableStateOf(false) }
     var replyToMessage  by remember { mutableStateOf<ThreadMessage?>(null) }
     var showDeleteDialog by remember { mutableStateOf<ThreadMessage?>(null) }
     var userActionsMsg  by remember { mutableStateOf<ThreadMessage?>(null) }
@@ -110,11 +113,28 @@ fun ChannelThreadScreen(
                         onDismiss = { replyToMessage = null }
                     )
                 }
+                // Sticker picker overlay
+                if (showStickerPicker) {
+                    StickerPicker(
+                        onStickerSelected = { sticker ->
+                            viewModel.sendMessage(
+                                postId    = postId,
+                                text      = "",
+                                replyToId = replyToMessage?.id,
+                                sticker   = sticker.fileUrl
+                            ) { replyToMessage = null }
+                            showStickerPicker = false
+                        },
+                        onDismiss = { showStickerPicker = false }
+                    )
+                }
                 // Input row
                 ThreadInputBar(
-                    text          = inputText,
-                    onTextChange  = { inputText = it },
-                    onSend        = {
+                    text               = inputText,
+                    onTextChange       = { inputText = it },
+                    showStickerPicker  = showStickerPicker,
+                    onToggleSticker    = { showStickerPicker = !showStickerPicker },
+                    onSend             = {
                         viewModel.sendMessage(
                             postId    = postId,
                             text      = inputText,
@@ -423,7 +443,17 @@ private fun ThreadMessageBubble(
                                 }
                             }
 
-                            Text(text = message.text, style = MaterialTheme.typography.bodyMedium)
+                            // Sticker (animated emoji / Telegram sticker)
+                            if (!message.sticker.isNullOrEmpty()) {
+                                AnimatedStickerView(
+                                    url = message.sticker,
+                                    size = 120.dp,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                            if (message.text.isNotBlank()) {
+                                Text(text = message.text, style = MaterialTheme.typography.bodyMedium)
+                            }
                             Text(
                                 text = formatMessageTime(message.time),
                                 style = MaterialTheme.typography.labelSmall,
@@ -507,7 +537,9 @@ private fun ReplyBanner(message: ThreadMessage, onDismiss: () -> Unit) {
 private fun ThreadInputBar(
     text: String,
     onTextChange: (String) -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    showStickerPicker: Boolean = false,
+    onToggleSticker: () -> Unit = {}
 ) {
     Surface(
         shadowElevation = 8.dp,
@@ -521,6 +553,15 @@ private fun ThreadInputBar(
                 .imePadding(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Sticker button
+            IconButton(onClick = onToggleSticker) {
+                Icon(
+                    imageVector = if (showStickerPicker) Icons.Default.KeyboardArrowDown else Icons.Default.EmojiEmotions,
+                    contentDescription = "Stickers",
+                    tint = if (showStickerPicker) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             OutlinedTextField(
                 value = text,
                 onValueChange = onTextChange,

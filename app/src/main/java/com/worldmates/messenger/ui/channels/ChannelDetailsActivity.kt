@@ -903,6 +903,20 @@ fun ChannelDetailsScreen(
                         )
                     }
                 },
+                onAddCommentWithSticker = { stickerUrl, replyToId ->
+                    selectedPost?.let { post ->
+                        detailsViewModel.addComment(
+                            postId = post.id,
+                            text = "",
+                            replyToId = replyToId,
+                            sticker = stickerUrl,
+                            onSuccess = {},
+                            onError = { error ->
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                },
                 onDeleteComment = { commentId ->
                     selectedPost?.let { post ->
                         detailsViewModel.deleteComment(

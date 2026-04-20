@@ -419,6 +419,7 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
         postId: Long,
         text: String,
         replyToId: Long? = null,
+        sticker: String? = null,
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
@@ -427,7 +428,7 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
-        if (text.isBlank()) {
+        if (text.isBlank() && sticker.isNullOrBlank()) {
             onError(str(R.string.error_enter_comment))
             return
         }
@@ -440,7 +441,8 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
                     postId = postId,
                     text = text,
                     replyToId = replyToId,
-                    writeAs = writeAs
+                    writeAs = writeAs,
+                    sticker = sticker
                 )
 
                 if (response.apiStatus == 200) {
