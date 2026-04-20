@@ -36,13 +36,15 @@ function telegramGet(method, params = {}) {
     });
 }
 
-function buildProxyUrl(ctx, fileId) {
+function buildProxyUrl(ctx, fileId, format) {
     const nodeBase = (
         process.env.NODE_WEBHOOK_BASE_URL ||
         ctx.globalconfig?.node_url ||
         'https://worldmates.club:449'
     ).replace(/\/$/, '');
-    return `${nodeBase}/api/node/telegram/sticker-file/${encodeURIComponent(fileId)}`;
+    // Append the format as a file extension so AnimatedStickerView can detect it by URL
+    const ext = format === 'tgs' ? '.tgs' : format === 'webm' ? '.webm' : '.webp';
+    return `${nodeBase}/api/node/telegram/sticker-file/${encodeURIComponent(fileId)}${ext}`;
 }
 
 async function fetchStickerSet(setName) {
@@ -59,18 +61,21 @@ async function fetchStickerSet(setName) {
 }
 
 function stickerSetToPackResponse(ctx, set, packId) {
-    const stickers = set.stickers.map((s, i) => ({
+    const stickers = set.stickers.map((s, i) => {
+        const fmt = s.is_video ? 'webm' : (s.is_animated ? 'tgs' : 'webp');
+        return {
         id:            packId * 1000 + i,
         pack_id:       packId,
-        file_url:      buildProxyUrl(ctx, s.file_id),
+        file_url:      buildProxyUrl(ctx, s.file_id, fmt),
         thumbnail_url: s.thumbnail
-            ? buildProxyUrl(ctx, s.thumbnail.file_id)
-            : buildProxyUrl(ctx, s.file_id),
+            ? buildProxyUrl(ctx, s.thumbnail.file_id, 'webp')
+            : buildProxyUrl(ctx, s.file_id, fmt),
         emoji:         s.emoji || null,
-        format:        s.is_video ? 'webm' : (s.is_animated ? 'tgs' : 'webp'),
+        format:        fmt,
         width:         s.width  || null,
         height:        s.height || null,
-    }));
+        };
+    });
 
     const pack = {
         id:            packId,
@@ -128,7 +133,9 @@ function getStickerPack(ctx) {
 function getStickerFile(ctx) {
     return [async (req, res) => {
         try {
-            const { fileId } = req.params;
+            const rawParam = req.params.fileId || '';
+            // Strip the format hint extension we appended in buildProxyUrl
+            const fileId = decodeURIComponent(rawParam).replace(/\.(tgs|webp|webm)$/i, '');
             if (!fileId || fileId.length > 200) {
                 return res.status(400).end();
             }
