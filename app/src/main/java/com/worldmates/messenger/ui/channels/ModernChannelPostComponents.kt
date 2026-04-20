@@ -2085,45 +2085,6 @@ fun ChannelSettingsDialog(
 /**
  * Діалог детального перегляду поста — повноекранний, з медіа-переглядачами та Telegram-style коментарями
  */
-
-@Composable
-private fun CommentPickerChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    isActive: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = if (isActive)
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        else
-            Color.Transparent
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isActive) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isActive) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDetailDialog(
@@ -2555,12 +2516,56 @@ fun PostDetailDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surface)
-                        .navigationBarsPadding()
                         .imePadding()
+                        .navigationBarsPadding()
                 ) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
+
+                    // Reply bar
+                    replyingToCommentDetail?.let { target ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(3.dp)
+                                    .height(28.dp)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = target.userName ?: target.username ?: "User",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = target.text,
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(
+                                onClick = { replyingToCommentDetail = null },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
 
                     // Voice recording bar
                     if (isRecording) {
@@ -2628,101 +2633,133 @@ fun PostDetailDialog(
                             }
                         }
                     } else {
-                        // Picker tabs
+                        // Telegram-style pinned input row: [attach] [pill: text + emoji] [mic/send]
+                        val sendEnabled = commentText.isNotBlank()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.Start,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(horizontal = 6.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            CommentPickerChip(
-                                icon = Icons.Outlined.EmojiEmotions,
-                                label = stringResource(R.string.post_detail_stickers),
-                                isActive = activePickerTab == "strapi",
-                                onClick = {
-                                    activePickerTab = if (activePickerTab == "strapi") null else "strapi"
-                                    showStrapiPicker = activePickerTab == "strapi"
-                                    showEmojiPicker = false
-                                    showGifPicker = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            CommentPickerChip(
-                                icon = Icons.Outlined.Mood,
-                                label = stringResource(R.string.post_detail_emoji),
-                                isActive = activePickerTab == "emoji",
-                                onClick = {
-                                    activePickerTab = if (activePickerTab == "emoji") null else "emoji"
-                                    showEmojiPicker = activePickerTab == "emoji"
-                                    showStrapiPicker = false
-                                    showGifPicker = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            CommentPickerChip(
-                                icon = Icons.Outlined.Gif,
-                                label = stringResource(R.string.post_detail_gif),
-                                isActive = activePickerTab == "gif",
-                                onClick = {
-                                    activePickerTab = if (activePickerTab == "gif") null else "gif"
-                                    showGifPicker = activePickerTab == "gif"
-                                    showEmojiPicker = false
-                                    showStrapiPicker = false
-                                }
-                            )
-                        }
-
-                        // Input row
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp)
-                                .padding(bottom = 8.dp),
-                            verticalAlignment = Alignment.Bottom
-                        ) {
-                            // Voice recording button
+                            // Attach button (stickers/gifs)
                             IconButton(
                                 onClick = {
-                                    coroutineScope.launch { voiceRecorder.startRecording() }
+                                    if (activePickerTab == "strapi") {
+                                        activePickerTab = null
+                                        showStrapiPicker = false
+                                    } else {
+                                        activePickerTab = "strapi"
+                                        showStrapiPicker = true
+                                        showEmojiPicker = false
+                                        showGifPicker = false
+                                    }
                                 },
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(42.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Mic,
-                                    contentDescription = stringResource(R.string.post_detail_voice),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(22.dp)
+                                    imageVector = Icons.Outlined.Add,
+                                    contentDescription = stringResource(R.string.post_detail_stickers),
+                                    tint = if (activePickerTab == "strapi")
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
 
-                            OutlinedTextField(
-                                value = commentText,
-                                onValueChange = { commentText = it },
+                            // Pill-shaped input field with trailing emoji icon
+                            Surface(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .heightIn(min = 44.dp, max = 120.dp),
-                                placeholder = {
-                                    Text(
-                                        stringResource(R.string.post_detail_add_comment),
-                                        fontSize = 14.sp
+                                    .heightIn(min = 42.dp, max = 120.dp),
+                                shape = RoundedCornerShape(22.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.Bottom
+                                ) {
+                                    androidx.compose.foundation.text.BasicTextField(
+                                        value = commentText,
+                                        onValueChange = { commentText = it },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+                                        textStyle = LocalTextStyle.current.copy(
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            lineHeight = 20.sp
+                                        ),
+                                        cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                                        maxLines = 4,
+                                        decorationBox = { inner ->
+                                            Box {
+                                                if (commentText.isEmpty()) {
+                                                    Text(
+                                                        text = stringResource(R.string.post_detail_add_comment),
+                                                        fontSize = 14.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                                                    )
+                                                }
+                                                inner()
+                                            }
+                                        }
                                     )
-                                },
-                                maxLines = 4,
-                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
-                                shape = RoundedCornerShape(24.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                                )
-                            )
+                                    // Emoji toggle inside pill
+                                    IconButton(
+                                        onClick = {
+                                            if (activePickerTab == "emoji") {
+                                                activePickerTab = null
+                                                showEmojiPicker = false
+                                            } else {
+                                                activePickerTab = "emoji"
+                                                showEmojiPicker = true
+                                                showStrapiPicker = false
+                                                showGifPicker = false
+                                            }
+                                        },
+                                        modifier = Modifier.size(42.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Mood,
+                                            contentDescription = stringResource(R.string.post_detail_emoji),
+                                            tint = if (activePickerTab == "emoji")
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                    // GIF toggle inside pill
+                                    IconButton(
+                                        onClick = {
+                                            if (activePickerTab == "gif") {
+                                                activePickerTab = null
+                                                showGifPicker = false
+                                            } else {
+                                                activePickerTab = "gif"
+                                                showGifPicker = true
+                                                showStrapiPicker = false
+                                                showEmojiPicker = false
+                                            }
+                                        },
+                                        modifier = Modifier.size(42.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Gif,
+                                            contentDescription = stringResource(R.string.post_detail_gif),
+                                            tint = if (activePickerTab == "gif")
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                            }
 
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Send button
-                            val sendEnabled = commentText.isNotBlank()
+                            // Send or mic button (contextual)
                             Surface(
                                 onClick = {
                                     if (sendEnabled) {
@@ -2733,68 +2770,78 @@ fun PostDetailDialog(
                                         }
                                         commentText = ""
                                         replyingToCommentDetail = null
+                                    } else {
+                                        coroutineScope.launch { voiceRecorder.startRecording() }
                                     }
                                 },
-                                enabled = sendEnabled,
-                                modifier = Modifier.size(40.dp),
+                                modifier = Modifier.size(42.dp),
                                 shape = CircleShape,
                                 color = if (sendEnabled)
                                     MaterialTheme.colorScheme.primary
                                 else
-                                    MaterialTheme.colorScheme.surfaceVariant
+                                    Color.Transparent
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        imageVector = Icons.Default.Send,
-                                        contentDescription = stringResource(R.string.post_detail_send),
+                                        imageVector = if (sendEnabled) Icons.Default.Send else Icons.Default.Mic,
+                                        contentDescription = if (sendEnabled)
+                                            stringResource(R.string.post_detail_send)
+                                        else
+                                            stringResource(R.string.post_detail_voice),
                                         tint = if (sendEnabled)
                                             Color.White
                                         else
-                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(20.dp)
+                                            MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(if (sendEnabled) 20.dp else 22.dp)
                                     )
                                 }
                             }
                         }
                     }
 
-                    // Pickers
+                    // Pickers — rendered below input, constrained height so input stays visible
                     AnimatedVisibility(visible = showEmojiPicker) {
-                        com.worldmates.messenger.ui.components.EmojiPicker(
-                            onEmojiSelected = { emoji -> commentText += emoji },
-                            onDismiss = {
-                                showEmojiPicker = false
-                                activePickerTab = null
-                            }
-                        )
+                        Box(modifier = Modifier.heightIn(max = 260.dp)) {
+                            com.worldmates.messenger.ui.components.EmojiPicker(
+                                onEmojiSelected = { emoji -> commentText += emoji },
+                                onDismiss = {
+                                    showEmojiPicker = false
+                                    activePickerTab = null
+                                }
+                            )
+                        }
                     }
 
                     AnimatedVisibility(visible = showGifPicker) {
-                        com.worldmates.messenger.ui.components.GifPicker(
-                            onGifSelected = { gifUrl ->
-                                commentText += "\n[GIF]($gifUrl)"
-                                showGifPicker = false
-                                activePickerTab = null
-                            },
-                            onDismiss = {
-                                showGifPicker = false
-                                activePickerTab = null
-                            }
-                        )
+                        Box(modifier = Modifier.heightIn(max = 300.dp)) {
+                            com.worldmates.messenger.ui.components.GifPicker(
+                                onGifSelected = { gifUrl ->
+                                    commentText += "\n[GIF]($gifUrl)"
+                                    showGifPicker = false
+                                    activePickerTab = null
+                                },
+                                onDismiss = {
+                                    showGifPicker = false
+                                    activePickerTab = null
+                                }
+                            )
+                        }
                     }
 
                     AnimatedVisibility(visible = showStrapiPicker) {
-                        com.worldmates.messenger.ui.strapi.StrapiContentPicker(
-                            onItemSelected = { contentUrl ->
-                                commentText += "\n[Sticker]($contentUrl)"
-                                showStrapiPicker = false
-                                activePickerTab = null
-                            },
-                            onDismiss = {
-                                showStrapiPicker = false
-                                activePickerTab = null
-                            }
-                        )
+                        Box(modifier = Modifier.heightIn(max = 300.dp)) {
+                            com.worldmates.messenger.ui.strapi.StrapiContentPicker(
+                                onItemSelected = { contentUrl ->
+                                    commentText += "\n[Sticker]($contentUrl)"
+                                    showStrapiPicker = false
+                                    activePickerTab = null
+                                },
+                                onDismiss = {
+                                    showStrapiPicker = false
+                                    activePickerTab = null
+                                }
+                            )
+                        }
                     }
                 }
             }

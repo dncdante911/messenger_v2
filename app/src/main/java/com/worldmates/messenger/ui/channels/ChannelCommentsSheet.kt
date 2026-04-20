@@ -606,60 +606,61 @@ fun PremiumCommentItem(
                         }
                     )
                 }
-                .padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 2.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 1.dp, bottom = 1.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Avatar 34dp
+            // Avatar 28dp (compact)
             if (!comment.userAvatar.isNullOrEmpty()) {
                 AsyncImage(
                     model = comment.userAvatar.toFullMediaUrl(),
                     contentDescription = null,
-                    modifier = Modifier.size(34.dp).clip(CircleShape),
+                    modifier = Modifier.size(28.dp).clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
-                        .background(nameColor.copy(alpha = 0.18f)),
+                        .background(nameColor.copy(alpha = 0.22f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = displayName.take(1).uppercase(),
                         color = nameColor,
-                        fontSize = 14.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
             }
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
 
-            // Bubble
+            // Bubble (more visible, compacter)
             Surface(
                 modifier = Modifier
-                    .widthIn(min = 140.dp, max = 290.dp)
+                    .widthIn(min = 120.dp, max = 280.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(bounded = true)
                     ) { showActionMenu = true },
                 shape = RoundedCornerShape(
-                    topStart = 16.dp, topEnd = 16.dp,
-                    bottomStart = 4.dp, bottomEnd = 16.dp
+                    topStart = 14.dp, topEnd = 14.dp,
+                    bottomStart = 4.dp, bottomEnd = 14.dp
                 ),
-                color = cs.surfaceVariant.copy(alpha = 0.5f)
+                color = cs.surfaceVariant.copy(alpha = 0.85f),
+                tonalElevation = 1.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
+                        .padding(start = 10.dp, end = 10.dp, top = 5.dp, bottom = 5.dp)
                 ) {
                     // Name + optional badge in same row
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = displayName,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = nameColor,
                             maxLines = 1,
@@ -723,17 +724,17 @@ fun PremiumCommentItem(
                     // Comment text
                     Text(
                         text = comment.text,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         color = cs.onSurface,
-                        lineHeight = 20.sp,
-                        modifier = Modifier.padding(top = 3.dp)
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(top = 2.dp)
                     )
 
                     // Bottom row: reactions (left) + time (right)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 5.dp),
+                            .padding(top = 3.dp),
                         horizontalArrangement = if (comment.reactionsCount > 0)
                             Arrangement.SpaceBetween else Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically

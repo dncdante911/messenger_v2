@@ -1785,7 +1785,6 @@ private fun RecordingCard(
 /**
  * Діалог для створення нового поста (тільки для адмінів)
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePostDialog(
     channelId: Long,
@@ -1798,11 +1797,9 @@ fun CreatePostDialog(
     var isUploadingMedia by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableIntStateOf(0) }
     var uploadTotal by remember { mutableIntStateOf(0) }
-    var currentMediaIndex by remember { mutableIntStateOf(0) }
 
     val maxMedia = 15
 
-    // Multi-media picker (images + videos)
     val multiMediaPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = maxMedia)
     ) { uris: List<android.net.Uri> ->
@@ -1811,7 +1808,6 @@ fun CreatePostDialog(
         selectedMediaUris = selectedMediaUris + newUris
     }
 
-    // Camera
     val cameraUri = remember {
         android.content.ContentValues().apply {
             put(android.provider.MediaStore.Images.Media.TITLE, "post_image_${System.currentTimeMillis()}")
@@ -1838,7 +1834,6 @@ fun CreatePostDialog(
         else Toast.makeText(context, context.getString(R.string.camera_permission_required), Toast.LENGTH_SHORT).show()
     }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val canPublish = (text.isNotBlank() || selectedMediaUris.isNotEmpty()) && !isUploadingMedia
 
     fun publish() {
@@ -1886,101 +1881,79 @@ fun CreatePostDialog(
         }
     }
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = { if (!isUploadingMedia) onDismiss() },
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = null,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = !isUploadingMedia,
+            dismissOnClickOutside = !isUploadingMedia,
+        ),
     ) {
-        Column(
+        Surface(
             modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
-                .navigationBarsPadding(),
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .imePadding(),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
         ) {
-            // Top bar — close, title, publish (pinned)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(
-                    onClick = { if (!isUploadingMedia) onDismiss() },
-                    enabled = !isUploadingMedia,
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Compact header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = stringResource(R.string.post_cancel),
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.post_new_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    if (selectedMediaUris.isNotEmpty()) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = stringResource(
-                                R.string.post_media_count,
-                                selectedMediaUris.size,
-                                maxMedia,
-                            ),
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = stringResource(R.string.post_new_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        if (selectedMediaUris.isNotEmpty()) {
+                            Text(
+                                text = stringResource(
+                                    R.string.post_media_count,
+                                    selectedMediaUris.size,
+                                    maxMedia,
+                                ),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { if (!isUploadingMedia) onDismiss() },
+                        enabled = !isUploadingMedia,
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.post_cancel),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }
-                Button(
-                    onClick = { publish() },
-                    enabled = canPublish,
-                    shape = RoundedCornerShape(20.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    modifier = Modifier.padding(end = 8.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.Send,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        stringResource(R.string.post_publish),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
-            // Body — scrollable area with large text field + media preview
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                // Media preview grid
+                // Media preview row (if any)
                 if (selectedMediaUris.isNotEmpty()) {
-                    val itemSize = if (selectedMediaUris.size == 1) 220.dp else 150.dp
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(itemSize),
+                            .height(110.dp)
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(selectedMediaUris.size) { index ->
                             Box(
                                 modifier = Modifier
-                                    .size(itemSize)
-                                    .clip(RoundedCornerShape(16.dp)),
+                                    .size(90.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
                             ) {
                                 AsyncImage(
                                     model = selectedMediaUris[index],
@@ -1988,23 +1961,6 @@ fun CreatePostDialog(
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop,
                                 )
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.Black.copy(alpha = 0.55f),
-                                    modifier = Modifier
-                                        .align(Alignment.TopStart)
-                                        .padding(6.dp)
-                                        .size(24.dp),
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            "${index + 1}",
-                                            color = Color.White,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                    }
-                                }
                                 IconButton(
                                     onClick = {
                                         selectedMediaUris = selectedMediaUris
@@ -2013,69 +1969,55 @@ fun CreatePostDialog(
                                     },
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(4.dp)
-                                        .size(28.dp)
-                                        .background(Color.Black.copy(alpha = 0.55f), CircleShape),
+                                        .padding(2.dp)
+                                        .size(22.dp)
+                                        .background(Color.Black.copy(alpha = 0.6f), CircleShape),
                                 ) {
                                     Icon(
                                         Icons.Default.Close,
                                         contentDescription = stringResource(R.string.post_remove_media),
                                         tint = Color.White,
-                                        modifier = Modifier.size(14.dp),
+                                        modifier = Modifier.size(12.dp),
                                     )
                                 }
                                 val mimeType = context.contentResolver.getType(selectedMediaUris[index])
                                 if (mimeType?.startsWith("video/") == true) {
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = Color.Black.copy(alpha = 0.55f),
+                                    Icon(
+                                        Icons.Outlined.Videocam,
+                                        contentDescription = null,
+                                        tint = Color.White,
                                         modifier = Modifier
                                             .align(Alignment.BottomStart)
-                                            .padding(6.dp),
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Icon(
-                                                Icons.Outlined.Videocam,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(14.dp),
-                                            )
-                                            Spacer(modifier = Modifier.width(3.dp))
-                                            Text(
-                                                stringResource(R.string.post_video_label),
-                                                color = Color.White,
-                                                fontSize = 10.sp,
-                                            )
-                                        }
-                                    }
+                                            .padding(4.dp)
+                                            .size(16.dp),
+                                    )
                                 }
                             }
                         }
                     }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                 }
 
-                // Borderless multiline text area — feels like writing, not filling a form
+                // Text field
                 androidx.compose.foundation.text.BasicTextField(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 160.dp),
+                        .heightIn(min = 120.dp, max = 240.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     textStyle = LocalTextStyle.current.copy(
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurface,
-                        lineHeight = 22.sp,
+                        lineHeight = 21.sp,
                     ),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
                     decorationBox = { inner ->
-                        Box {
+                        Box(modifier = Modifier.fillMaxWidth()) {
                             if (text.isEmpty()) {
                                 Text(
                                     text = stringResource(R.string.post_placeholder),
-                                    fontSize = 16.sp,
+                                    fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                                 )
                             }
@@ -2085,80 +2027,97 @@ fun CreatePostDialog(
                 )
 
                 if (isUploadingMedia) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                    LinearProgressIndicator(
+                        progress = {
+                            if (uploadTotal > 0) uploadProgress.toFloat() / uploadTotal else 0f
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        stringResource(R.string.post_uploading, uploadProgress, uploadTotal),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                // Action bar: attach + publish
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = {
+                            multiMediaPicker.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                            )
+                        },
+                        enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
                     ) {
-                        LinearProgressIndicator(
-                            progress = {
-                                if (uploadTotal > 0) uploadProgress.toFloat() / uploadTotal else 0f
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp)),
-                            color = MaterialTheme.colorScheme.primary,
+                        Icon(
+                            Icons.Outlined.PhotoLibrary,
+                            contentDescription = stringResource(R.string.post_gallery),
+                            tint = MaterialTheme.colorScheme.primary,
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                    IconButton(
+                        onClick = {
+                            if (ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.CAMERA,
+                                ) == PackageManager.PERMISSION_GRANTED
+                            ) {
+                                cameraUri?.let { cameraLauncher.launch(it) }
+                            } else {
+                                requestPostCameraPermission.launch(android.Manifest.permission.CAMERA)
+                            }
+                        },
+                        enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
+                    ) {
+                        Icon(
+                            Icons.Outlined.CameraAlt,
+                            contentDescription = stringResource(R.string.post_camera),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    if (text.isNotEmpty()) {
                         Text(
-                            stringResource(R.string.post_uploading, uploadProgress, uploadTotal),
-                            fontSize = 12.sp,
+                            text = "${text.length}",
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
+                    Button(
+                        onClick = { publish() },
+                        enabled = canPublish,
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(end = 6.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.Send,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            stringResource(R.string.post_publish),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
-
-                if (selectedMediaUris.size >= maxMedia) {
-                    Text(
-                        text = stringResource(R.string.post_max_files, maxMedia),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-
-            // Bottom attach bar — pinned above the IME via imePadding()
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                ComposeAttachIconButton(
-                    icon = Icons.Outlined.PhotoLibrary,
-                    label = stringResource(R.string.post_gallery),
-                    enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
-                    onClick = {
-                        multiMediaPicker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
-                        )
-                    },
-                )
-                ComposeAttachIconButton(
-                    icon = Icons.Outlined.CameraAlt,
-                    label = stringResource(R.string.post_camera),
-                    enabled = !isUploadingMedia && selectedMediaUris.size < maxMedia,
-                    onClick = {
-                        if (ContextCompat.checkSelfPermission(
-                                context,
-                                android.Manifest.permission.CAMERA,
-                            ) == PackageManager.PERMISSION_GRANTED
-                        ) {
-                            cameraUri?.let { cameraLauncher.launch(it) }
-                        } else {
-                            requestPostCameraPermission.launch(android.Manifest.permission.CAMERA)
-                        }
-                    },
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = "${text.length}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = 12.dp),
-                )
             }
         }
     }
