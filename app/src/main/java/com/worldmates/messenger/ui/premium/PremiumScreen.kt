@@ -69,7 +69,7 @@ fun PremiumScreen(viewModel: PremiumViewModel, onBack: () -> Unit) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("WorldMates PRO", fontWeight = FontWeight.Bold) },
+                title = { Text("WallyMates PRO", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
@@ -169,7 +169,7 @@ private fun HeroSection(isPro: Boolean, proExpiresAt: Long, daysLeft: Int) {
                 Icon(Icons.Default.Stars, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
             }
             Spacer(Modifier.height(14.dp))
-            Text("WorldMates PRO", style = MaterialTheme.typography.headlineMedium,
+            Text("WallyMates PRO", style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold, color = GoldDark)
             Spacer(Modifier.height(6.dp))
             if (isPro && proExpiresAt > 0L) {

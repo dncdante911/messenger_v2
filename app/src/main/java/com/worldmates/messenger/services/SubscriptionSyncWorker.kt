@@ -60,7 +60,7 @@ class SubscriptionSyncWorker(
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
             .setSmallIcon(R.drawable.ic_notification_message)
-            .setContentTitle("WorldMates PRO")
+            .setContentTitle("WallyMates PRO")
             .setContentText(applicationContext.getString(R.string.premium_expired))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)

@@ -33,7 +33,7 @@ class GoogleDriveBackupManager(private val context: Context) {
 
     companion object {
         private const val TAG = "GoogleDriveBackupManager"
-        private const val BACKUP_FOLDER_NAME = "WorldMates Backups"
+        private const val BACKUP_FOLDER_NAME = "WallyMates Backups"
 
         // TODO: Замініть на ваш Client ID з Google Cloud Console
         // Інструкція: https://console.cloud.google.com/apis/credentials
@@ -94,7 +94,7 @@ class GoogleDriveBackupManager(private val context: Context) {
                 GsonFactory.getDefaultInstance(),
                 credential
             )
-                .setApplicationName("WorldMates Messenger")
+                .setApplicationName("WallyMates Messenger")
                 .build()
 
             // Створити або знайти папку для бекапів

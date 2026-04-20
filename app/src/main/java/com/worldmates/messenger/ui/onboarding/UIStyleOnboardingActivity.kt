@@ -122,7 +122,7 @@ private fun UIStyleOnboardingScreen(onDone: () -> Unit) {
                 style = UIStyle.WORLDMATES,
                 isSelected = selectedStyle == UIStyle.WORLDMATES,
                 onSelect = { selectedStyle = UIStyle.WORLDMATES },
-                title = "WorldMates",
+                title = "WallyMates",
                 subtitle = "Сучасний стиль з градієнтами та анімаціями",
                 previewContent = { WorldMatesPreview() }
             )
@@ -295,7 +295,7 @@ private fun UIStyleCard(
     }
 }
 
-/** Mini preview that mimics the WorldMates gradient-card chat list */
+/** Mini preview that mimics the WallyMates gradient-card chat list */
 @Composable
 private fun WorldMatesPreview() {
     Column(

@@ -425,7 +425,7 @@ fun LogoSection() {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            "WorldMates Messenger",
+            "WallyMates Messenger",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White

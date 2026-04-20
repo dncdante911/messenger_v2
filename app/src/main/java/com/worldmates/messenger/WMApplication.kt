@@ -23,7 +23,7 @@ import com.worldmates.messenger.utils.CrashReporter
 import com.worldmates.messenger.utils.LanguageManager
 
 /**
- * Главный Application класс WorldMates Messenger
+ * Главный Application класс WallyMates Messenger
  */
 class WMApplication : android.app.Application(), ImageLoaderFactory {
 
@@ -97,7 +97,7 @@ class WMApplication : android.app.Application(), ImageLoaderFactory {
             override fun onActivityDestroyed(a: Activity) {}
         })
 
-        Log.d(TAG, "WorldMates Messenger Application started")
+        Log.d(TAG, "WallyMates Messenger Application started")
     }
 
     /**

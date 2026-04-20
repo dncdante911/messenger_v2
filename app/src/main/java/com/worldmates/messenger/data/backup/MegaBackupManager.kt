@@ -27,7 +27,7 @@ class MegaBackupManager(private val context: Context) {
 
     companion object {
         private const val TAG = "MegaBackupManager"
-        private const val BACKUP_FOLDER_NAME = "WorldMates Backups"
+        private const val BACKUP_FOLDER_NAME = "WallyMates Backups"
 
         // TODO: Замініть на ваш App Key з MEGA
         // Інструкція: https://mega.nz/sdk

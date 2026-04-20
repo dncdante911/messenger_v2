@@ -113,7 +113,7 @@ fun TwoFactorAuthScreen(
                                 qrCode.value = TOTPGenerator.generateQRCode(
                                     secret = secret.value,
                                     accountName = UserSession.username ?: "User",
-                                    issuer = "WorldMates"
+                                    issuer = "WallyMates"
                                 )
                                 currentStep.value = TwoFAStep.SETUP
                             },
