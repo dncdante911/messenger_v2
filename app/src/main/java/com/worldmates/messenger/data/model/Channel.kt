@@ -92,6 +92,7 @@ data class ChannelComment(
     @SerializedName("user_name") val userName: String? = null,
     @SerializedName("user_avatar") val userAvatar: String? = null,
     @SerializedName("text") val text: String,
+    @SerializedName("sticker") val sticker: String? = null,
     @SerializedName("time") val time: Long,
     @SerializedName("edited_time") val editedTime: Long? = null,
     @SerializedName("reply_to_comment_id") val replyToCommentId: Long? = null,

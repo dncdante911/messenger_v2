@@ -88,6 +88,7 @@ async function getThreadMessages(ctx, req, res) {
                 post_id:      r.post_id,
                 user_id:      r.user_id,
                 text:         r.text || '',
+                sticker:      r.sticker || null,
                 time:         r.time,
                 reply_to_id:  r.reply_to_id || null,
                 author: {
@@ -135,9 +136,10 @@ async function sendThreadMessage(ctx, io, req, res) {
         const userId    = req.userId;
         const postId    = parseInt(req.params.postId);
         const text      = (req.body.text || '').trim();
+        const sticker   = (req.body.sticker || '').trim() || null;
         const replyToId = parseInt(req.body.reply_to_id) || null;
 
-        if (!text) return res.status(400).json({ api_status: 400, error_message: 'text required' });
+        if (!text && !sticker) return res.status(400).json({ api_status: 400, error_message: 'text or sticker required' });
 
         const now = Math.floor(Date.now() / 1000);
 
@@ -153,10 +155,10 @@ async function sendThreadMessage(ctx, io, req, res) {
 
         // Insert thread message (using wo_channel_comments)
         const [result] = await ctx.sequelize.query(
-            `INSERT INTO wo_channel_comments (post_id, user_id, text, time, reply_to_id)
-             VALUES (:postId, :userId, :text, :time, :replyToId)`,
+            `INSERT INTO wo_channel_comments (post_id, user_id, text, time, reply_to_id, sticker)
+             VALUES (:postId, :userId, :text, :time, :replyToId, :sticker)`,
             {
-                replacements: { postId, userId, text, time: now, replyToId },
+                replacements: { postId, userId, text: text || '', time: now, replyToId, sticker },
                 type: ctx.sequelize.QueryTypes.INSERT,
             }
         );
@@ -170,6 +172,7 @@ async function sendThreadMessage(ctx, io, req, res) {
             channel_id:  channelId,
             user_id:     userId,
             text,
+            sticker:     sticker || null,
             time:        now,
             reply_to_id: replyToId,
             author,

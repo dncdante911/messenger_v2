@@ -740,6 +740,7 @@ function getStoryComments(ctx) {
                     story_id: c.story_id,
                     user_id: c.user_id,
                     text: c.text || '',
+                    sticker: c.sticker || null,
                     time: c.time ? parseInt(c.time) : 0,
                     user_data: userData,
                     offset_id: c.id,
@@ -763,10 +764,11 @@ function createStoryComment(ctx) {
         try {
             const loggedUserId = req.userId;
             const storyId = parseInt(req.body.story_id);
-            const text = (req.body.text || '').trim();
+            const text    = (req.body.text || '').trim();
+            const sticker = (req.body.sticker || '').trim() || null;
 
-            if (!storyId || !text) {
-                return res.status(400).json({ api_status: 400, error_message: 'story_id and text are required' });
+            if (!storyId || (!text && !sticker)) {
+                return res.status(400).json({ api_status: 400, error_message: 'story_id and text or sticker are required' });
             }
 
             const story = await ctx.wo_userstory.findOne({ where: { id: storyId }, raw: true });
@@ -778,7 +780,8 @@ function createStoryComment(ctx) {
             const comment = await ctx.wo_storycomments.create({
                 story_id: storyId,
                 user_id: loggedUserId,
-                text: text,
+                text: text || '',
+                sticker: sticker || null,
                 time: now,
             });
 
@@ -795,6 +798,7 @@ function createStoryComment(ctx) {
                     story_id: storyId,
                     user_id: loggedUserId,
                     text: text,
+                    sticker: sticker || null,
                     time: now,
                     user_data: userData,
                     offset_id: comment.id,

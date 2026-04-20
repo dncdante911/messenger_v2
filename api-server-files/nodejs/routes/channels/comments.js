@@ -74,6 +74,7 @@ async function formatComment(ctx, comment) {
         user_name: writtenAsChannel ? (channelName || userName) : userName,
         user_avatar: writtenAsChannel ? (channelAvatar || userAvatar) : userAvatar,
         text: comment.text || '',
+        sticker: comment.sticker || null,
         time: comment.time || 0,
         edited_time: null,
         reply_to_comment_id: null,
@@ -145,15 +146,16 @@ function addComment(ctx, io) {
     return async (req, res) => {
         try {
             const userId = req.userId;
-            const postId = parseInt(req.body.post_id);
-            const text = (req.body.text || '').trim();
+            const postId  = parseInt(req.body.post_id);
+            const text    = (req.body.text || '').trim();
+            const sticker = (req.body.sticker || '').trim() || null;
 
             if (!postId) {
                 return res.json({ api_status: 400, error_code: 400, error_message: 'post_id is required' });
             }
 
-            if (!text) {
-                return res.json({ api_status: 400, error_code: 400, error_message: 'Comment text is required' });
+            if (!text && !sticker) {
+                return res.json({ api_status: 400, error_code: 400, error_message: 'Comment text or sticker is required' });
             }
 
             // Verify post exists
@@ -185,7 +187,8 @@ function addComment(ctx, io) {
                 user_id: userId,
                 page_id: post.page_id || 0,
                 post_id: postId,
-                text: sanitizedText,
+                text: sanitizedText || '',
+                sticker: sticker || null,
                 time: now
             };
             // Store write_as metadata if admin chose non-default identity

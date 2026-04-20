@@ -27,4 +27,5 @@ module.exports = (sequelize, DataTypes) => sequelize.define('wo_channel_comments
     text:        { type: DataTypes.TEXT, allowNull: true },
     time:        { type: DataTypes.INTEGER.UNSIGNED, defaultValue: 0 },
     reply_to_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
+    sticker:     { type: DataTypes.STRING(512),       allowNull: true, defaultValue: null },
 }, { tableName: 'wo_channel_comments', timestamps: false });

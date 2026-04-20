@@ -55,12 +55,13 @@ class ChannelThreadViewModel : ViewModel() {
         postId: Long,
         text: String,
         replyToId: Long? = null,
+        sticker: String? = null,
         onSent: () -> Unit = {}
     ) {
-        if (text.isBlank()) return
+        if (text.isBlank() && sticker.isNullOrBlank()) return
         viewModelScope.launch {
             try {
-                val resp = NodeRetrofitClient.api.sendThreadMessage(postId, text.trim(), replyToId)
+                val resp = NodeRetrofitClient.api.sendThreadMessage(postId, text.trim(), replyToId, sticker)
                 if (resp.apiStatus == 200 && resp.message != null) {
                     _messages.value = _messages.value + resp.message
                     _total.value    = _total.value + 1
