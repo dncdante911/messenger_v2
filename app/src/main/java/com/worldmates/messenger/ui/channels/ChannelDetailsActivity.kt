@@ -210,7 +210,8 @@ fun ChannelDetailsScreen(
     var showSubGroupsDialog by remember { mutableStateOf(false) }
     var showPostDetailDialog by remember { mutableStateOf(false) }
     var selectedPostForOptions by remember { mutableStateOf<ChannelPost?>(null) }
-    var selectedPostForDetail by remember { mutableStateOf<ChannelPost?>(null) }
+    var selectedPostIdForDetail by remember { mutableStateOf<Long?>(null) }
+    val selectedPostForDetail = posts.find { it.id == selectedPostIdForDetail }
     var refreshing by remember { mutableStateOf(false) }
 
     // 📝 Formatting settings panel state
@@ -597,7 +598,7 @@ fun ChannelDetailsScreen(
                                 key = { it.id }
                             ) { post ->
                                 val onPostClickHandler: () -> Unit = {
-                                    selectedPostForDetail = post
+                                    selectedPostIdForDetail = post.id
                                     detailsViewModel.loadComments(post.id)
                                     detailsViewModel.registerPostView(
                                         postId = post.id,
@@ -607,16 +608,24 @@ fun ChannelDetailsScreen(
                                     showPostDetailDialog = true
                                 }
                                 val onReactionClickHandler: (String) -> Unit = { emoji ->
-                                    detailsViewModel.addPostReaction(
-                                        postId = post.id,
-                                        emoji = emoji,
-                                        onSuccess = {
-                                            Toast.makeText(context, context.getString(R.string.ch_reaction_added), Toast.LENGTH_SHORT).show()
-                                        },
-                                        onError = { error ->
-                                            Toast.makeText(context, context.getString(R.string.ch_error_prefix, error), Toast.LENGTH_SHORT).show()
-                                        }
-                                    )
+                                    val alreadyReacted = post.reactions?.find { it.emoji == emoji }?.userReacted == true
+                                    if (alreadyReacted) {
+                                        detailsViewModel.removePostReaction(
+                                            postId = post.id,
+                                            emoji = emoji,
+                                            onError = { error ->
+                                                Toast.makeText(context, context.getString(R.string.ch_error_prefix, error), Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    } else {
+                                        detailsViewModel.addPostReaction(
+                                            postId = post.id,
+                                            emoji = emoji,
+                                            onError = { error ->
+                                                Toast.makeText(context, context.getString(R.string.ch_error_prefix, error), Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    }
                                 }
                                 val onCommentsClickHandler: () -> Unit = {
                                     detailsViewModel.loadComments(post.id)
@@ -934,17 +943,24 @@ fun ChannelDetailsScreen(
                 onDismiss = { showPostDetailDialog = false },
                 onReactionClick = { emoji ->
                     selectedPostForDetail?.let { post ->
-                        detailsViewModel.addPostReaction(
-                            postId = post.id,
-                            emoji = emoji,
-                            onSuccess = {
-                                Toast.makeText(context, context.getString(R.string.reaction_added), Toast.LENGTH_SHORT).show()
-                                detailsViewModel.loadChannelPosts(channelId)
-                            },
-                            onError = { error ->
-                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
-                            }
-                        )
+                        val alreadyReacted = post.reactions?.find { it.emoji == emoji }?.userReacted == true
+                        if (alreadyReacted) {
+                            detailsViewModel.removePostReaction(
+                                postId = post.id,
+                                emoji = emoji,
+                                onError = { error ->
+                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        } else {
+                            detailsViewModel.addPostReaction(
+                                postId = post.id,
+                                emoji = emoji,
+                                onError = { error ->
+                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
                     }
                 },
                 onAddComment = { text ->
