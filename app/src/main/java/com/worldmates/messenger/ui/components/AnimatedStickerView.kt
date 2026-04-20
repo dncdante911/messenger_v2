@@ -10,25 +10,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.airbnb.lottie.compose.*
-import java.io.ByteArrayInputStream
-import java.util.zip.GZIPInputStream
 
 /**
- * Універсальний компонент для відображення анімованих стікерів
+ * Universal sticker view: .tgs / .json → Lottie; .webp / .gif / .png → AsyncImage.
  *
- * Підтримує формати:
- * - Lottie JSON (.json) - стандартний формат Lottie анімацій
- * - TGS (Telegram Stickers) - gzip стиснутий Lottie JSON
- * - GIF - анімовані GIF
- * - Static images (PNG, WebP) - статичні зображення
- *
- * Використання:
- * ```
- * AnimatedStickerView(
- *     url = "https://cdn.worldmates.club/sticker.json",
- *     modifier = Modifier.size(120.dp)
- * )
- * ```
+ * For TGS (Telegram animated stickers), uses LottieCompositionSpec.Url so Lottie's
+ * own fromInputStream detects the gzip magic bytes and decompresses natively —
+ * no manual download/decompress needed.
  */
 @Composable
 fun AnimatedStickerView(
@@ -42,112 +30,48 @@ fun AnimatedStickerView(
     val fileExtension = remember(url) {
         url.substringAfterLast('.', "").lowercase()
     }
+    val isLottie = fileExtension == "tgs" || fileExtension == "json"
 
     Box(modifier = modifier.size(size)) {
-        when {
-            // Lottie JSON анімація
-            fileExtension == "json" -> {
-                LottieAnimationView(
-                    url = url,
-                    autoPlay = autoPlay,
-                    loop = loop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            // TGS (Telegram Sticker) - gzip стиснутий Lottie JSON
-            fileExtension == "tgs" -> {
-                TgsAnimationView(
-                    url = url,
-                    autoPlay = autoPlay,
-                    loop = loop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            // Всі інші формати (GIF, PNG, WebP) - через Coil
-            else -> {
-                AsyncImage(
-                    model = url,
-                    contentDescription = "Sticker",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = contentScale
-                )
-            }
+        if (isLottie) {
+            LottieUrlView(
+                url = url,
+                autoPlay = autoPlay,
+                loop = loop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            AsyncImage(
+                model = url,
+                contentDescription = "Sticker",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = contentScale
+            )
         }
     }
 }
 
 /**
- * Відображає Lottie JSON анімацію з URL
+ * Loads a Lottie animation from a URL. Handles both plain JSON and gzip-compressed
+ * TGS (Telegram sticker) format — Lottie detects gzip magic bytes internally.
+ * Falls back to AsyncImage if composition fails to load.
  */
 @Composable
-private fun LottieAnimationView(
+private fun LottieUrlView(
     url: String,
     autoPlay: Boolean,
     loop: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Завантажуємо Lottie JSON з URL
-    val composition by rememberLottieComposition(
-        LottieCompositionSpec.Url(url)
-    )
-
-    val progress by animateLottieCompositionAsState(
-        composition = composition,
-        isPlaying = autoPlay,
-        iterations = if (loop) LottieConstants.IterateForever else 1,
-        speed = 1f
-    )
-
-    LottieAnimation(
-        composition = composition,
-        progress = { progress },
-        modifier = modifier
-    )
-}
-
-/**
- * Відображає TGS (Telegram Sticker) анімацію
- * TGS = gzip стиснутий Lottie JSON
- */
-@Composable
-private fun TgsAnimationView(
-    url: String,
-    autoPlay: Boolean,
-    loop: Boolean,
-    modifier: Modifier = Modifier
-) {
-    // Для TGS файлів потрібно спочатку завантажити, розпакувати gzip, і передати JSON в Lottie
-    // Це складніша операція, тому використовуємо LaunchedEffect
-
-    var tgsJsonString by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var hasError by remember { mutableStateOf(false) }
-
-    LaunchedEffect(url) {
-        try {
-            // Download + gzip decompression both run on IO to avoid blocking the UI thread
-            val jsonString = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                val tgsBytes = java.net.URL(url).openStream().use { it.readBytes() }
-                decompressTgs(tgsBytes)
-            }
-            tgsJsonString = jsonString
-            isLoading = false
-        } catch (e: Exception) {
-            android.util.Log.e("AnimatedStickerView", "Failed to load TGS: $url", e)
-            hasError = true
-            isLoading = false
-        }
-    }
+    val compositionResult = rememberLottieComposition(LottieCompositionSpec.Url(url))
 
     when {
-        isLoading -> {
-            // Показуємо placeholder під час завантаження
+        compositionResult.isLoading -> {
+            // Empty placeholder while loading
             Box(modifier = modifier)
         }
-        hasError || tgsJsonString == null -> {
-            // При помилці показуємо fallback через AsyncImage
+        compositionResult.isFailure -> {
+            // Try to show a static thumbnail via Coil as last resort
             AsyncImage(
                 model = url,
                 contentDescription = "Sticker",
@@ -156,20 +80,14 @@ private fun TgsAnimationView(
             )
         }
         else -> {
-            // Відображаємо розпакований Lottie JSON
-            val composition by rememberLottieComposition(
-                LottieCompositionSpec.JsonString(tgsJsonString!!)
-            )
-
             val progress by animateLottieCompositionAsState(
-                composition = composition,
+                composition = compositionResult.value,
                 isPlaying = autoPlay,
                 iterations = if (loop) LottieConstants.IterateForever else 1,
                 speed = 1f
             )
-
             LottieAnimation(
-                composition = composition,
+                composition = compositionResult.value,
                 progress = { progress },
                 modifier = modifier
             )
@@ -177,46 +95,14 @@ private fun TgsAnimationView(
     }
 }
 
-/**
- * Розпаковує gzip стиснутий TGS файл в Lottie JSON string
- */
-private fun decompressTgs(tgsBytes: ByteArray): String {
-    val inputStream = ByteArrayInputStream(tgsBytes)
-    val gzipInputStream = GZIPInputStream(inputStream)
-    return gzipInputStream.bufferedReader().use { it.readText() }
+/** Convenience alias with default size. */
+@Composable
+fun AnimatedSticker(url: String, modifier: Modifier = Modifier) {
+    AnimatedStickerView(url = url, modifier = modifier, size = 120.dp)
 }
 
-/**
- * Простий варіант AnimatedStickerView тільки з URL
- */
+/** Compact variant for lists and thumbnails. */
 @Composable
-fun AnimatedSticker(
-    url: String,
-    modifier: Modifier = Modifier
-) {
-    AnimatedStickerView(
-        url = url,
-        modifier = modifier,
-        size = 120.dp,
-        autoPlay = true,
-        loop = true
-    )
-}
-
-/**
- * Компактний варіант для списків
- */
-@Composable
-fun CompactAnimatedSticker(
-    url: String,
-    modifier: Modifier = Modifier,
-    size: Dp = 64.dp
-) {
-    AnimatedStickerView(
-        url = url,
-        modifier = modifier,
-        size = size,
-        autoPlay = true,
-        loop = true
-    )
+fun CompactAnimatedSticker(url: String, modifier: Modifier = Modifier, size: Dp = 64.dp) {
+    AnimatedStickerView(url = url, modifier = modifier, size = size)
 }
