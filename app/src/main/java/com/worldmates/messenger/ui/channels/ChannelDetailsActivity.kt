@@ -210,7 +210,8 @@ fun ChannelDetailsScreen(
     var showSubGroupsDialog by remember { mutableStateOf(false) }
     var showPostDetailDialog by remember { mutableStateOf(false) }
     var selectedPostForOptions by remember { mutableStateOf<ChannelPost?>(null) }
-    var selectedPostForDetail by remember { mutableStateOf<ChannelPost?>(null) }
+    var selectedPostIdForDetail by remember { mutableStateOf<Long?>(null) }
+    val selectedPostForDetail = posts.find { it.id == selectedPostIdForDetail }
     var refreshing by remember { mutableStateOf(false) }
 
     // 📝 Formatting settings panel state
@@ -597,7 +598,7 @@ fun ChannelDetailsScreen(
                                 key = { it.id }
                             ) { post ->
                                 val onPostClickHandler: () -> Unit = {
-                                    selectedPostForDetail = post
+                                    selectedPostIdForDetail = post.id
                                     detailsViewModel.loadComments(post.id)
                                     detailsViewModel.registerPostView(
                                         postId = post.id,
