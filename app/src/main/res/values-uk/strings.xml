@@ -3425,7 +3425,6 @@
     <string name="er_label_medium">Середній</string>
     <string name="er_label_low">Низький</string>
     <!-- Channel creation dialog -->
-    <string name="channel_name_placeholder">Мій канал</string>
     <string name="channel_type_private">Приватний канал</string>
     <string name="channel_type_public">Публічний канал</string>
     <string name="channel_invite_only">Тільки за запрошенням</string>
@@ -3562,7 +3561,6 @@
     <string name="comment_deleted">Коментар видалено</string>
     <string name="reaction_added">Реакцію додано!</string>
     <string name="error_channel_not_found">Канал не знайдено</string>
-    <string name="avatar_updated">Аватар оновлено</string>
     <string name="subscribe_success">Ви підписалися на канал!</string>
     <string name="unsubscribe_success">Ви відписалися від каналу</string>
     <string name="settings_saved">Налаштування збережено!</string>
