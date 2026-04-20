@@ -1454,6 +1454,18 @@
 
     <string name="themes_title">Темы и оформление</string>
     <string name="select_theme">Выберите тему</string>
+    <string name="theme_cat_section_title">Категории</string>
+    <string name="theme_cat_main_ui">Основной UI</string>
+    <string name="theme_cat_main_ui_desc">Цвета, тёмная тема, фон, пузыри, реакции</string>
+    <string name="theme_cat_channels">Каналы</string>
+    <string name="theme_cat_channels_desc">Стиль каналов и Obsidian-Gold дизайн</string>
+    <string name="theme_cat_calls">Видеозвонки</string>
+    <string name="theme_cat_calls_desc">Рамки участников видеозвонков</string>
+    <string name="theme_cat_calls_open">Выбрать стиль рамок звонков</string>
+    <string name="theme_cat_video_msg">Видеосообщения</string>
+    <string name="theme_cat_video_msg_desc">Рамки круглых видеосообщений</string>
+    <string name="theme_cat_video_msg_open">Выбрать стиль рамок видеосообщений</string>
+    <string name="theme_cat_unavailable">Раздел недоступен в этой сборке</string>
     <string name="video_frame_section">Стили рамок видео</string>
     <string name="call_frame_section">Рамки видеозвонков</string>
     <string name="call_frame_styles_list">Classic, Neon, Gradient, Glass, Rainbow</string>

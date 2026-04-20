@@ -72,6 +72,10 @@ object AppUpdateManager {
     private var snoozedUntilMillis: Long = 0L
     private var downloadId: Long = -1
     private var appContext: Context? = null
+    // Per-process flag: once the prompt is shown & acknowledged, don't re-show
+    // until user explicitly taps "Check for updates" (force=true) or the
+    // process restarts.
+    private var promptDismissedThisSession: Boolean = false
     private const val APK_FILE_NAME = "worldmates_update.apk"
 
     private fun getPrefs(context: Context): SharedPreferences {
@@ -149,8 +153,13 @@ object AppUpdateManager {
 
     /**
      * Check for updates from server.
+     *
+     * When `force = true` (manual "Check for updates" button), the session
+     * dismissal flag is reset so the prompt can be shown again.
      */
     suspend fun checkForUpdates(force: Boolean = false): UpdateState {
+        if (force) promptDismissedThisSession = false
+
         if (!force && _state.value.checkedAtMillis != null) {
             val elapsed = System.currentTimeMillis() - (_state.value.checkedAtMillis ?: 0)
             if (elapsed < 5 * 60_000) return _state.value
@@ -172,7 +181,7 @@ object AppUpdateManager {
             val apkReady = ctx != null && updateAvailable && getApkFile(ctx).exists()
 
             val newState = UpdateState(
-                hasUpdate = updateAvailable && !isSnoozed,
+                hasUpdate = updateAvailable && !isSnoozed && !promptDismissedThisSession,
                 latestVersion = info?.latestVersion,
                 latestVersionCode = info?.versionCode ?: 0,
                 isMandatory = info?.isMandatory ?: false,
@@ -191,6 +200,17 @@ object AppUpdateManager {
         } catch (e: Exception) {
             updateFailure(e.message ?: "Unknown error while checking updates", e)
         }
+    }
+
+    /**
+     * Mark the "new version available" prompt as dismissed for the current
+     * process session. The prompt stays hidden until the user manually
+     * triggers a forced check (via "Check for updates") or the process
+     * restarts.
+     */
+    fun markPromptDismissedForSession() {
+        promptDismissedThisSession = true
+        _state.value = _state.value.copy(hasUpdate = false)
     }
 
     /**

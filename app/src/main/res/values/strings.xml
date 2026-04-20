@@ -1489,6 +1489,18 @@
     <!-- ===== THEME SETTINGS ===== -->
     <string name="themes_title">Теми та оформлення</string>
     <string name="select_theme">Оберіть тему</string>
+    <string name="theme_cat_section_title">Категорії</string>
+    <string name="theme_cat_main_ui">Основний UI</string>
+    <string name="theme_cat_main_ui_desc">Кольори, темна тема, фон, пузирі, реакції</string>
+    <string name="theme_cat_channels">Канали</string>
+    <string name="theme_cat_channels_desc">Стиль каналів та Obsidian-Gold дизайн</string>
+    <string name="theme_cat_calls">Відеодзвінки</string>
+    <string name="theme_cat_calls_desc">Рамки учасників відеодзвінків</string>
+    <string name="theme_cat_calls_open">Обрати стиль рамок дзвінків</string>
+    <string name="theme_cat_video_msg">Відеоповідомлення</string>
+    <string name="theme_cat_video_msg_desc">Рамки круглих відеоповідомлень</string>
+    <string name="theme_cat_video_msg_open">Обрати стиль рамок відеоповідомлень</string>
+    <string name="theme_cat_unavailable">Розділ недоступний у цій збірці</string>
     <string name="video_frame_section">Стилі рамок відео</string>
     <string name="call_frame_section">Рамки відеодзвінків</string>
     <string name="call_frame_styles_list">Classic, Neon, Gradient, Glass, Rainbow</string>
