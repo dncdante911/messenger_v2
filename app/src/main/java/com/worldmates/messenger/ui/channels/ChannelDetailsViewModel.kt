@@ -527,6 +527,19 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
+        val originalPosts = _posts.value
+        _posts.value = _posts.value.map { post ->
+            if (post.id == postId) {
+                val updated = (post.reactions ?: emptyList()).let { list ->
+                    if (list.any { it.emoji == emoji })
+                        list.map { r -> if (r.emoji == emoji) r.copy(count = r.count + 1, userReacted = true) else r }
+                    else
+                        list + PostReaction(emoji = emoji, count = 1, userReacted = true)
+                }
+                post.copy(reactionsCount = post.reactionsCount + 1, reactions = updated)
+            } else post
+        }
+
         viewModelScope.launch {
             try {
                 val response = NodeRetrofitClient.channelApi.addPostReaction(
@@ -535,24 +548,16 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
                 )
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо лічильник реакцій локально
-                    _posts.value = _posts.value.map { post ->
-                        if (post.id == postId) {
-                            post.copy(reactionsCount = post.reactionsCount + 1)
-                        } else {
-                            post
-                        }
-                    }
-
                     _error.value = null
-                    Log.d("ChannelDetailsVM", "Реакцію додано")
                     onSuccess()
                 } else {
+                    _posts.value = originalPosts
                     val errorMsg = response.errorMessage ?: "Помилка додавання реакції"
                     _error.value = errorMsg
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
+                _posts.value = originalPosts
                 val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка додавання реакції", e)
@@ -570,6 +575,18 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
+        val originalPosts = _posts.value
+        _posts.value = _posts.value.map { post ->
+            if (post.id == postId) {
+                val updated = (post.reactions ?: emptyList()).mapNotNull { r ->
+                    if (r.emoji == emoji) {
+                        if (r.count > 1) r.copy(count = r.count - 1, userReacted = false) else null
+                    } else r
+                }
+                post.copy(reactionsCount = maxOf(0, post.reactionsCount - 1), reactions = updated)
+            } else post
+        }
+
         viewModelScope.launch {
             try {
                 val response = NodeRetrofitClient.channelApi.removePostReaction(
@@ -578,24 +595,16 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
                 )
 
                 if (response.apiStatus == 200) {
-                    // Оновлюємо лічильник реакцій локально
-                    _posts.value = _posts.value.map { post ->
-                        if (post.id == postId) {
-                            post.copy(reactionsCount = maxOf(0, post.reactionsCount - 1))
-                        } else {
-                            post
-                        }
-                    }
-
                     _error.value = null
-                    Log.d("ChannelDetailsVM", "Реакцію видалено")
                     onSuccess()
                 } else {
+                    _posts.value = originalPosts
                     val errorMsg = response.errorMessage ?: "Помилка видалення реакції"
                     _error.value = errorMsg
                     onError(errorMsg)
                 }
             } catch (e: Exception) {
+                _posts.value = originalPosts
                 val errorMsg = str(R.string.error_generic_msg, e.localizedMessage ?: "")
                 _error.value = errorMsg
                 Log.e("ChannelDetailsVM", "Помилка видалення реакції", e)
