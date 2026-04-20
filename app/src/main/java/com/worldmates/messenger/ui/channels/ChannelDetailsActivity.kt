@@ -608,24 +608,20 @@ fun ChannelDetailsScreen(
                                     showPostDetailDialog = true
                                 }
                                 val onReactionClickHandler: (String) -> Unit = { emoji ->
-                                    val alreadyReacted = post.reactions?.find { it.emoji == emoji }?.userReacted == true
-                                    if (alreadyReacted) {
-                                        detailsViewModel.removePostReaction(
-                                            postId = post.id,
-                                            emoji = emoji,
-                                            onError = { error ->
-                                                Toast.makeText(context, context.getString(R.string.ch_error_prefix, error), Toast.LENGTH_SHORT).show()
-                                            }
-                                        )
-                                    } else {
-                                        detailsViewModel.addPostReaction(
-                                            postId = post.id,
-                                            emoji = emoji,
-                                            onError = { error ->
-                                                Toast.makeText(context, context.getString(R.string.ch_error_prefix, error), Toast.LENGTH_SHORT).show()
-                                            }
-                                        )
-                                    }
+                                    val limitMsg = if (UserSession.isPro > 0)
+                                        context.getString(R.string.ch_reaction_limit_pro)
+                                    else
+                                        context.getString(R.string.ch_reaction_limit)
+                                    detailsViewModel.toggleReaction(
+                                        postId = post.id,
+                                        emoji = emoji,
+                                        onLimitReached = {
+                                            Toast.makeText(context, limitMsg, Toast.LENGTH_SHORT).show()
+                                        },
+                                        onError = { error ->
+                                            Toast.makeText(context, context.getString(R.string.ch_error_prefix, error), Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
                                 }
                                 val onCommentsClickHandler: () -> Unit = {
                                     detailsViewModel.loadComments(post.id)
@@ -943,24 +939,20 @@ fun ChannelDetailsScreen(
                 onDismiss = { showPostDetailDialog = false },
                 onReactionClick = { emoji ->
                     selectedPostForDetail?.let { post ->
-                        val alreadyReacted = post.reactions?.find { it.emoji == emoji }?.userReacted == true
-                        if (alreadyReacted) {
-                            detailsViewModel.removePostReaction(
-                                postId = post.id,
-                                emoji = emoji,
-                                onError = { error ->
-                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                        } else {
-                            detailsViewModel.addPostReaction(
-                                postId = post.id,
-                                emoji = emoji,
-                                onError = { error ->
-                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                        }
+                        val limitMsg = if (UserSession.isPro > 0)
+                            context.getString(R.string.ch_reaction_limit_pro)
+                        else
+                            context.getString(R.string.ch_reaction_limit)
+                        detailsViewModel.toggleReaction(
+                            postId = post.id,
+                            emoji = emoji,
+                            onLimitReached = {
+                                Toast.makeText(context, limitMsg, Toast.LENGTH_SHORT).show()
+                            },
+                            onError = { error ->
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                            }
+                        )
                     }
                 },
                 onAddComment = { text ->
