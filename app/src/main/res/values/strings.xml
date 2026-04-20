@@ -3226,6 +3226,8 @@
     <string name="ch_delete_post">Видалити пост</string>
     <string name="ch_delete_post_sub">Цю дію не можна скасувати</string>
     <string name="ch_reaction_added">Реакцію додано!</string>
+    <string name="ch_reaction_limit">Ліміт реакцій. Оформіть підписку для 2 реакцій</string>
+    <string name="ch_reaction_limit_pro">Ліміт реакцій (максимум 2 з підпискою)</string>
     <string name="ch_post_created">Пост опубліковано!</string>
     <string name="ch_error_prefix">Помилка: %1$s</string>
 
