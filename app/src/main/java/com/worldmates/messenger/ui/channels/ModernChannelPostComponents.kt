@@ -2143,10 +2143,10 @@ fun PostDetailDialog(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding(),
+                .systemBarsPadding(),
             color = MaterialTheme.colorScheme.background
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().imePadding()) {
                 // ── Top bar ──
                 Row(
                     modifier = Modifier
@@ -2516,53 +2516,60 @@ fun PostDetailDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surface)
-                        .imePadding()
-                        .navigationBarsPadding()
                 ) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
 
-                    // Reply bar
-                    replyingToCommentDetail?.let { target ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
+                    // Reply banner
+                    AnimatedVisibility(
+                        visible = replyingToCommentDetail != null,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        replyingToCommentDetail?.let { replying ->
+                            val cs = MaterialTheme.colorScheme
+                            Row(
                                 modifier = Modifier
-                                    .width(3.dp)
-                                    .height(28.dp)
-                                    .background(MaterialTheme.colorScheme.primary)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = target.userName ?: target.username ?: "User",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = target.text,
-                                    fontSize = 11.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            IconButton(
-                                onClick = { replyingToCommentDetail = null },
-                                modifier = Modifier.size(28.dp)
+                                    .fillMaxWidth()
+                                    .background(cs.primaryContainer.copy(alpha = 0.18f))
+                                    .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(34.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(cs.primary)
                                 )
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = replying.userName ?: replying.username ?: "",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = cs.primary
+                                    )
+                                    Text(
+                                        text = replying.text,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = cs.onSurface.copy(alpha = 0.5f)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { replyingToCommentDetail = null },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        null,
+                                        tint = cs.onSurfaceVariant.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
                     }

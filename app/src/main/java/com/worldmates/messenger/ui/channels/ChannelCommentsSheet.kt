@@ -951,8 +951,8 @@ fun WMCommentsBottomSheet(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(comments, key = { it.id }) { comment ->
                                 val isOwn = comment.userId == currentUserId
@@ -1145,7 +1145,7 @@ fun WMCommentBubble(
                         }
                     )
                 }
-                .padding(vertical = 2.dp),
+                .padding(horizontal = 2.dp, vertical = 3.dp),
             horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start,
             verticalAlignment = Alignment.Bottom
         ) {
@@ -1689,8 +1689,8 @@ fun WMChannelCommentsScreen(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(comments, key = { it.id }) { comment ->
                                 val isOwn = comment.userId == currentUserId
