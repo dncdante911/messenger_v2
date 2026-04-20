@@ -67,7 +67,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -213,7 +215,14 @@ enum class PresetBackground(
 }
 
 /**
- * Екран настройки темы
+ * Категорії налаштувань теми
+ */
+private enum class ThemeCategory {
+    MAIN_UI, CHANNELS, CALL_FRAMES, VIDEO_MSG_FRAMES
+}
+
+/**
+ * Екран настройки темы (hub + 4 submenus)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -227,38 +236,49 @@ fun ThemeSettingsScreen(
     val themeState = rememberThemeState()
     val context = LocalContext.current
 
-    // Лаунчер для вибору зображення
+    var currentCategory by remember { mutableStateOf<ThemeCategory?>(null) }
+
+    // Image picker for custom background
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             try {
-                // Получаем постоянное разрешение на URI
                 context.contentResolver.takePersistableUriPermission(
                     it,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
-                android.util.Log.d("ThemeSettings", "Persistable permission granted for: $it")
                 themeViewModel.setBackgroundImageUri(it.toString())
-                android.util.Log.d("ThemeSettings", "Background image saved: ${it.toString()}")
             } catch (e: Exception) {
-                android.util.Log.e("ThemeSettings", "Failed to take persistable permission", e)
-                // Все равно пробуем сохранить URI
                 themeViewModel.setBackgroundImageUri(it.toString())
             }
         }
     }
+
+    // Handle system back when inside a submenu
+    androidx.activity.compose.BackHandler(enabled = currentCategory != null) {
+        currentCategory = null
+    }
+
+    val screenTitle = when (currentCategory) {
+        null -> stringResource(R.string.themes_title)
+        ThemeCategory.MAIN_UI -> stringResource(R.string.theme_cat_main_ui)
+        ThemeCategory.CHANNELS -> stringResource(R.string.theme_cat_channels)
+        ThemeCategory.CALL_FRAMES -> stringResource(R.string.theme_cat_calls)
+        ThemeCategory.VIDEO_MSG_FRAMES -> stringResource(R.string.theme_cat_video_msg)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = stringResource(R.string.themes_title),
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text(text = screenTitle, fontWeight = FontWeight.SemiBold)
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    IconButton(onClick = {
+                        if (currentCategory != null) currentCategory = null
+                        else onBackClick()
+                    }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = stringResource(R.string.back)
@@ -278,255 +298,504 @@ fun ThemeSettingsScreen(
         val currentChannelViewStyle = rememberChannelViewStyle()
         val currentQuickReaction by UIStylePreferences.quickReaction.collectAsState()
 
-        LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 40.dp)
+        when (currentCategory) {
+            null -> ThemeHubContent(
+                themeViewModel = themeViewModel,
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                onSelect = { cat ->
+                    // Video categories open external activities directly.
+                    when (cat) {
+                        ThemeCategory.CALL_FRAMES -> {
+                            if (onNavigateToCallFrame != null) onNavigateToCallFrame()
+                            else currentCategory = cat
+                        }
+                        ThemeCategory.VIDEO_MSG_FRAMES -> {
+                            if (onNavigateToVideoFrame != null) onNavigateToVideoFrame()
+                            else currentCategory = cat
+                        }
+                        else -> currentCategory = cat
+                    }
+                }
+            )
+            ThemeCategory.MAIN_UI -> ThemeMainUIContent(
+                themeState = themeState,
+                themeViewModel = themeViewModel,
+                currentBubbleStyle = currentBubbleStyle,
+                currentUIStyle = currentUIStyle,
+                currentQuickReaction = currentQuickReaction,
+                onPickBackgroundImage = { imagePickerLauncher.launch("image/*") },
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            )
+            ThemeCategory.CHANNELS -> ThemeChannelsContent(
+                currentChannelViewStyle = currentChannelViewStyle,
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            )
+            ThemeCategory.CALL_FRAMES -> ThemeCallFramesContent(
+                onNavigateToCallFrame = onNavigateToCallFrame,
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            )
+            ThemeCategory.VIDEO_MSG_FRAMES -> ThemeVideoMessagesContent(
+                onNavigateToVideoFrame = onNavigateToVideoFrame,
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeHubContent(
+    themeViewModel: ThemeViewModel,
+    onSelect: (ThemeCategory) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(bottom = 40.dp)
+    ) {
+        // Pinned: One-click interface packs
+        item {
+            OneClickInterfacePacksSection(
+                themeViewModel = themeViewModel,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
+            )
+        }
+
+        item {
+            Text(
+                text = stringResource(R.string.theme_cat_section_title),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 10.dp)
+            )
+        }
+
+        item {
+            ThemeCategoryTile(
+                emoji = "🎨",
+                accentColor = Color(0xFF7C4DFF),
+                title = stringResource(R.string.theme_cat_main_ui),
+                subtitle = stringResource(R.string.theme_cat_main_ui_desc),
+                onClick = { onSelect(ThemeCategory.MAIN_UI) }
+            )
+        }
+        item {
+            ThemeCategoryTile(
+                emoji = "📺",
+                accentColor = Color(0xFFD81B60),
+                title = stringResource(R.string.theme_cat_channels),
+                subtitle = stringResource(R.string.theme_cat_channels_desc),
+                onClick = { onSelect(ThemeCategory.CHANNELS) }
+            )
+        }
+        item {
+            ThemeCategoryTile(
+                emoji = "📞",
+                accentColor = Color(0xFF1E88E5),
+                title = stringResource(R.string.theme_cat_calls),
+                subtitle = stringResource(R.string.theme_cat_calls_desc),
+                onClick = { onSelect(ThemeCategory.CALL_FRAMES) }
+            )
+        }
+        item {
+            ThemeCategoryTile(
+                emoji = "🎥",
+                accentColor = Color(0xFF00897B),
+                title = stringResource(R.string.theme_cat_video_msg),
+                subtitle = stringResource(R.string.theme_cat_video_msg_desc),
+                onClick = { onSelect(ThemeCategory.VIDEO_MSG_FRAMES) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeCategoryTile(
+    emoji: String,
+    accentColor: Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = emoji, fontSize = 22.sp)
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
 
-            // ══════════════════════════════════════════════════════════════════
-            // 1. ГОТОВІ НАБОРИ В ОДИН КЛІК — найшвидший спосіб налаштувати все
-            // ══════════════════════════════════════════════════════════════════
-            item {
-                OneClickInterfacePacksSection(
-                    themeViewModel = themeViewModel,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
+@Composable
+private fun ThemeMainUIContent(
+    themeState: ThemeState,
+    themeViewModel: ThemeViewModel,
+    currentBubbleStyle: BubbleStyle,
+    currentUIStyle: UIStyle,
+    currentQuickReaction: String,
+    onPickBackgroundImage: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(bottom = 40.dp)
+    ) {
+        // Тема кольорів
+        item {
+            ThemeSectionHeader(
+                emoji = "🎨",
+                title = stringResource(R.string.select_theme),
+                accentColor = Color(0xFF7C4DFF),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)
+            )
+        }
+        item {
+            ThemeVariantsLazyRow(
+                selectedVariant = themeState.variant,
+                onVariantSelected = { themeViewModel.setThemeVariant(it) }
+            )
+        }
+        item {
+            val resetDoneText = stringResource(R.string.theme_reset_done)
+            OutlinedButton(
+                onClick = {
+                    themeViewModel.resetToDefaults()
+                    android.widget.Toast.makeText(context, resetDoneText, android.widget.Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = stringResource(R.string.theme_reset_to_default))
             }
+        }
 
-            // ══════════════════════════════════════════════════════════════════
-            // 2. ТЕМА КОЛЬОРІВ
-            // ══════════════════════════════════════════════════════════════════
+        // Відображення
+        item {
+            ThemeSectionHeader(
+                emoji = "🌙",
+                title = stringResource(R.string.appearance_section),
+                accentColor = Color(0xFF1976D2),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+            )
+        }
+        item {
+            ThemeModeSectionCard(
+                themeState = themeState,
+                viewModel = themeViewModel,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             item {
-                ThemeSectionHeader(
-                    emoji = "🎨",
-                    title = stringResource(R.string.select_theme),
-                    accentColor = Color(0xFF7C4DFF),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+                MaterialYouCard(
+                    enabled = themeState.useDynamicColor,
+                    onToggle = { themeViewModel.toggleDynamicColor() },
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
-            item {
-                ThemeVariantsLazyRow(
-                    selectedVariant = themeState.variant,
-                    onVariantSelected = { themeViewModel.setThemeVariant(it) }
-                )
-            }
-            item {
-                val resetDoneText = stringResource(R.string.theme_reset_done)
-                OutlinedButton(
-                    onClick = {
-                        themeViewModel.resetToDefaults()
-                        android.widget.Toast.makeText(context, resetDoneText, android.widget.Toast.LENGTH_SHORT).show()
-                    },
+        }
+
+        // Фон чату
+        item {
+            ThemeSectionHeader(
+                emoji = "🖼️",
+                title = stringResource(R.string.bg_section_title),
+                subtitle = stringResource(R.string.bg_section_desc),
+                accentColor = Color(0xFF00897B),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+            )
+        }
+        item {
+            BackgroundPresetsLazyRow(
+                currentPresetId = themeState.presetBackgroundId,
+                onSelectPreset = { themeViewModel.setPresetBackgroundId(it) }
+            )
+        }
+        item {
+            BackgroundCustomImageRow(
+                currentUri = themeState.backgroundImageUri,
+                onSelectImage = onPickBackgroundImage,
+                onRemoveImage = {
+                    themeViewModel.setBackgroundImageUri(null)
+                    themeViewModel.setPresetBackgroundId(null)
+                },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+            )
+        }
+
+        // Анімований фон
+        item {
+            ThemeSectionHeader(
+                emoji = "✨",
+                title = stringResource(R.string.animated_bg_section_title),
+                subtitle = stringResource(R.string.animated_bg_section_desc),
+                accentColor = Color(0xFF8E24AA),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 12.dp)
+            )
+        }
+        item {
+            AnimatedBackgroundPickerRow()
+        }
+
+        // Стиль бульбашок
+        item {
+            ThemeSectionHeader(
+                emoji = "💬",
+                title = stringResource(R.string.bubble_style_title),
+                subtitle = stringResource(R.string.bubble_style_desc),
+                accentColor = Color(0xFF0097A7),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+            )
+        }
+        item {
+            BubbleStylesLazyRow(
+                currentStyle = currentBubbleStyle,
+                onStyleSelected = { UIStylePreferences.setBubbleStyle(context, it) }
+            )
+        }
+
+        // Стиль інтерфейсу
+        item {
+            ThemeSectionHeader(
+                emoji = "🎛️",
+                title = stringResource(R.string.interface_style),
+                subtitle = stringResource(R.string.interface_style_desc),
+                accentColor = Color(0xFF2E7D32),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+            )
+        }
+        item {
+            UIStyleToggleRow(
+                currentStyle = currentUIStyle,
+                onStyleSelected = { UIStylePreferences.setStyle(context, it) },
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+
+        // Швидка реакція
+        item {
+            ThemeSectionHeader(
+                emoji = "❤️",
+                title = stringResource(R.string.quick_reaction_title),
+                subtitle = stringResource(R.string.quick_reaction_desc),
+                accentColor = Color(0xFFF4511E),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+            )
+        }
+        item {
+            QuickReactionLazyRow(
+                currentReaction = currentQuickReaction,
+                onReactionSelected = { UIStylePreferences.setQuickReaction(context, it) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeChannelsContent(
+    currentChannelViewStyle: ChannelViewStyle,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(bottom = 40.dp)
+    ) {
+        // Стиль каналів
+        item {
+            ThemeSectionHeader(
+                emoji = "📺",
+                title = stringResource(R.string.channel_view_style_title),
+                subtitle = stringResource(R.string.channel_view_style_desc),
+                accentColor = Color(0xFFD81B60),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)
+            )
+        }
+        item {
+            ChannelViewStyleSelector(
+                currentStyle = currentChannelViewStyle,
+                onStyleSelected = { UIStylePreferences.setChannelViewStyle(context, it) },
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+
+        // Преміум канали — дизайн
+        item {
+            ThemeSectionHeader(
+                emoji = "👑",
+                title = stringResource(R.string.premium_channels_design_title),
+                subtitle = stringResource(R.string.premium_channels_design_desc),
+                accentColor = Color(0xFFC8A24B),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+            )
+        }
+        item {
+            PremiumChannelsDesignTile(
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeCallFramesContent(
+    onNavigateToCallFrame: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        ThemeSectionHeader(
+            emoji = "📞",
+            title = stringResource(R.string.call_frame_section),
+            subtitle = stringResource(R.string.call_frame_styles_list),
+            accentColor = Color(0xFF1E88E5)
+        )
+        if (onNavigateToCallFrame != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onNavigateToCallFrame),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text("📞", fontSize = 22.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.theme_cat_calls_open),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
+                    )
                     Icon(
-                        imageVector = Icons.Default.Refresh,
+                        imageVector = Icons.Default.ChevronRight,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.theme_reset_to_default))
-                }
-            }
-
-            // ══════════════════════════════════════════════════════════════════
-            // 3. ВІДОБРАЖЕННЯ — темна / системна тема / Material You
-            // ══════════════════════════════════════════════════════════════════
-            item {
-                ThemeSectionHeader(
-                    emoji = "🌙",
-                    title = stringResource(R.string.appearance_section),
-                    accentColor = Color(0xFF1976D2),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
-                )
-            }
-            item {
-                ThemeModeSectionCard(
-                    themeState = themeState,
-                    viewModel = themeViewModel,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    MaterialYouCard(
-                        enabled = themeState.useDynamicColor,
-                        onToggle = { themeViewModel.toggleDynamicColor() },
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+        } else {
+            Text(
+                text = stringResource(R.string.theme_cat_unavailable),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
 
-            // ══════════════════════════════════════════════════════════════════
-            // 4. ФОН ЧАТУ — пресети + власне фото
-            // ══════════════════════════════════════════════════════════════════
-            item {
-                ThemeSectionHeader(
-                    emoji = "🖼️",
-                    title = stringResource(R.string.bg_section_title),
-                    subtitle = stringResource(R.string.bg_section_desc),
-                    accentColor = Color(0xFF00897B),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
-                )
-            }
-            item {
-                BackgroundPresetsLazyRow(
-                    currentPresetId = themeState.presetBackgroundId,
-                    onSelectPreset = { themeViewModel.setPresetBackgroundId(it) }
-                )
-            }
-            item {
-                BackgroundCustomImageRow(
-                    currentUri = themeState.backgroundImageUri,
-                    onSelectImage = {
-                        android.util.Log.d("ThemeSettings", "Opening image picker for background")
-                        imagePickerLauncher.launch("image/*")
-                    },
-                    onRemoveImage = {
-                        android.util.Log.d("ThemeSettings", "Removing background")
-                        themeViewModel.setBackgroundImageUri(null)
-                        themeViewModel.setPresetBackgroundId(null)
-                    },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                )
-            }
-
-            // ══════════════════════════════════════════════════════════════════
-            // 4b. АНІМОВАНИЙ ФОН — Canvas-варіанти
-            // ══════════════════════════════════════════════════════════════════
-            item {
-                ThemeSectionHeader(
-                    emoji = "✨",
-                    title = stringResource(R.string.animated_bg_section_title),
-                    subtitle = stringResource(R.string.animated_bg_section_desc),
-                    accentColor = Color(0xFF8E24AA),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 12.dp)
-                )
-            }
-            item {
-                AnimatedBackgroundPickerRow()
-            }
-
-            // ══════════════════════════════════════════════════════════════════
-            // 5. СТИЛЬ БУЛЬБАШОК — горизонтальний скрол
-            // ══════════════════════════════════════════════════════════════════
-            item {
-                ThemeSectionHeader(
-                    emoji = "💬",
-                    title = stringResource(R.string.bubble_style_title),
-                    subtitle = stringResource(R.string.bubble_style_desc),
-                    accentColor = Color(0xFF0097A7),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
-                )
-            }
-            item {
-                BubbleStylesLazyRow(
-                    currentStyle = currentBubbleStyle,
-                    onStyleSelected = { UIStylePreferences.setBubbleStyle(context, it) }
-                )
-            }
-
-            // ══════════════════════════════════════════════════════════════════
-            // 6. СТИЛЬ ІНТЕРФЕЙСУ — сегментований перемикач
-            // ══════════════════════════════════════════════════════════════════
-            item {
-                ThemeSectionHeader(
-                    emoji = "🎛️",
-                    title = stringResource(R.string.interface_style),
-                    subtitle = stringResource(R.string.interface_style_desc),
-                    accentColor = Color(0xFF2E7D32),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
-                )
-            }
-            item {
-                UIStyleToggleRow(
-                    currentStyle = currentUIStyle,
-                    onStyleSelected = { UIStylePreferences.setStyle(context, it) },
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            // ══════════════════════════════════════════════════════════════════
-            // 6.5. СТИЛЬ КАНАЛІВ — вибір вигляду списку каналів
-            // ══════════════════════════════════════════════════════════════════
-            item {
-                ThemeSectionHeader(
-                    emoji = "📺",
-                    title = stringResource(R.string.channel_view_style_title),
-                    subtitle = stringResource(R.string.channel_view_style_desc),
-                    accentColor = Color(0xFFD81B60),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
-                )
-            }
-            item {
-                ChannelViewStyleSelector(
-                    currentStyle = currentChannelViewStyle,
-                    onStyleSelected = { UIStylePreferences.setChannelViewStyle(context, it) },
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            // ══════════════════════════════════════════════════════════════════
-            // 6.7. ПРЕМІУМ КАНАЛИ — глобальний Obsidian-Gold дизайн
-            // ══════════════════════════════════════════════════════════════════
-            item {
-                ThemeSectionHeader(
-                    emoji = "👑",
-                    title = stringResource(R.string.premium_channels_design_title),
-                    subtitle = stringResource(R.string.premium_channels_design_desc),
-                    accentColor = Color(0xFFC8A24B),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
-                )
-            }
-            item {
-                PremiumChannelsDesignTile(
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            // ══════════════════════════════════════════════════════════════════
-            // 7. ШВИДКА РЕАКЦІЯ — горизонтальний ряд емодзі
-            // ══════════════════════════════════════════════════════════════════
-            item {
-                ThemeSectionHeader(
-                    emoji = "❤️",
-                    title = stringResource(R.string.quick_reaction_title),
-                    subtitle = stringResource(R.string.quick_reaction_desc),
-                    accentColor = Color(0xFFF4511E),
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
-                )
-            }
-            item {
-                QuickReactionLazyRow(
-                    currentReaction = currentQuickReaction,
-                    onReactionSelected = { UIStylePreferences.setQuickReaction(context, it) }
-                )
-            }
-
-            // ══════════════════════════════════════════════════════════════════
-            // 8. РАМКИ ВІДЕО (якщо є навігація)
-            // ══════════════════════════════════════════════════════════════════
-            if (onNavigateToCallFrame != null || onNavigateToVideoFrame != null) {
-                item {
-                    ThemeSectionHeader(
-                        emoji = "📹",
-                        title = stringResource(R.string.video_frame_section),
-                        accentColor = Color(0xFF455A64),
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp)
+@Composable
+private fun ThemeVideoMessagesContent(
+    onNavigateToVideoFrame: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        ThemeSectionHeader(
+            emoji = "🎥",
+            title = stringResource(R.string.video_message_frame_title),
+            accentColor = Color(0xFF00897B)
+        )
+        if (onNavigateToVideoFrame != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onNavigateToVideoFrame),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🎥", fontSize = 22.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.theme_cat_video_msg_open),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
                     )
-                }
-                item {
-                    VideoFrameStylesSection(
-                        onNavigateToCallFrame = onNavigateToCallFrame,
-                        onNavigateToVideoFrame = onNavigateToVideoFrame
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+        } else {
+            Text(
+                text = stringResource(R.string.theme_cat_unavailable),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
