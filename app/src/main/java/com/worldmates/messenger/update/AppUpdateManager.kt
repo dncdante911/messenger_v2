@@ -259,7 +259,7 @@ object AppUpdateManager {
 
         try {
             val request = DownloadManager.Request(Uri.parse(downloadUrl))
-                .setTitle("WorldMates Messenger")
+                .setTitle("WallyMates Messenger")
                 .setDescription("Завантаження оновлення...")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                 .setDestinationInExternalFilesDir(
@@ -364,7 +364,7 @@ object AppUpdateManager {
 
         try {
             val request = DownloadManager.Request(Uri.parse(downloadUrl))
-                .setTitle("WorldMates Messenger")
+                .setTitle("WallyMates Messenger")
                 .setDescription("Завантаження оновлення...")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalFilesDir(

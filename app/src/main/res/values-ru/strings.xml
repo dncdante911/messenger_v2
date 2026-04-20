@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">WorldMates NEW v2.0</string>
-    <string name="chats_screen_title">WorldMates</string>
+    <string name="app_name">WallyMates</string>
+    <string name="chats_screen_title">WallyMates</string>
 
 
     <string name="language_selection_title">Выберите язык</string>
@@ -29,7 +29,7 @@
     <string name="sign_in">Войти</string>
     <string name="sign_up">Зарегистрироваться</string>
     <string name="login_title">Добро пожаловать</string>
-    <string name="login_subtitle">Войдите в свой аккаунт WorldMates</string>
+    <string name="login_subtitle">Войдите в свой аккаунт WallyMates</string>
     <string name="login_success">Вход выполнен успешно!</string>
     <string name="account_added">Аккаунт добавлен</string>
     <string name="login_failed">Ошибка входа</string>
@@ -75,7 +75,7 @@
     <string name="show_password">Показать пароль</string>
     <string name="change_language">Изменить язык</string>
     <string name="create_account_title">Создать аккаунт</string>
-    <string name="join_worldmates">Присоединяйтесь к WorldMates</string>
+    <string name="join_worldmates">Присоединяйтесь к WallyMates</string>
     <string name="passwords_mismatch">Пароли не совпадают</string>
     <string name="invite_code_label">Инвайт-код (необязательно)</string>
     <string name="invite_code_placeholder">ULTRA-XXXX-XXXX-XXXX</string>
@@ -190,7 +190,7 @@
     <string name="media_type_audio">Аудио</string>
     <string name="media_type_file">Файл</string>
     <string name="geo_discovery_title">Люди рядом</string>
-    <string name="premium_title">WorldMates PRO</string>
+    <string name="premium_title">WallyMates PRO</string>
     <string name="invite_friends">Пригласить друзей</string>
     <string name="view_profile">Просмотреть профиль</string>
     <string name="unarchive">Разархивировать</string>
@@ -640,7 +640,7 @@
     <string name="custom_status_presets">Быстрый выбор</string>
     <string name="custom_status_pick_emoji">Выберите эмодзи</string>
     <string name="custom_status_premium_title">Функция доступна с PRO</string>
-    <string name="custom_status_premium_desc">Устанавливайте кастомные эмодзи и текст статуса с подпиской WorldMates PRO.</string>
+    <string name="custom_status_premium_desc">Устанавливайте кастомные эмодзи и текст статуса с подпиской WallyMates PRO.</string>
     <string name="privacy_settings">Конфиденциальность</string>
     <string name="privacy_subtitle">Настройки приватности</string>
     <string name="notification_settings">Уведомления</string>
@@ -1348,7 +1348,7 @@
     <string name="no_incoming_calls">Нет входящих звонков</string>
     <string name="no_outgoing_calls">Нет исходящих звонков</string>
     <string name="calls_history_empty">История звонков пуста</string>
-    <string name="calls_cta">Позвоните друзьям через WorldMates</string>
+    <string name="calls_cta">Позвоните друзьям через WallyMates</string>
 
 
     <string name="group_label">Группа</string>
@@ -1468,7 +1468,7 @@
 
     <string name="channel_view_style_title">Стиль каналов</string>
     <string name="channel_view_style_desc">Выберите внешний вид списка каналов</string>
-    <string name="channel_style_classic">WorldMates</string>
+    <string name="channel_style_classic">WallyMates</string>
     <string name="channel_style_classic_desc">Стандартный список с категориями и иконками</string>
     <string name="channel_style_premium">Премиум</string>
     <string name="channel_style_premium_desc">Карточки с акцентами, тегами и инлайн-действиями</string>
@@ -1723,7 +1723,7 @@
 
 
     <string name="no_groups_subtitle">Создайте новую группу или присоединитесь к существующей</string>
-    <string name="invite_friends_text">Присоединяйся к WorldMates — лучшему мессенджеру! 🚀\nСкачай здесь: https://worldmates.club</string>
+    <string name="invite_friends_text">Присоединяйся к WallyMates — лучшему мессенджеру! 🚀\nСкачай здесь: https://worldmates.club</string>
     <string name="no_messages_in_chat">Нет сообщений</string>
 
 
@@ -1994,7 +1994,7 @@
     <string name="stars_packs_error">Ошибка загрузки пакетов</string>
 
 
-    <string name="premium_screen_title">WorldMates PRO</string>
+    <string name="premium_screen_title">WallyMates PRO</string>
     <string name="premium_tagline">Больше свободы. Больше возможностей.</string>
     <string name="premium_monthly_label">Месяц</string>
     <string name="premium_yearly_label">Год</string>
@@ -2102,7 +2102,7 @@
     <string name="group_avatar_upload_error">Ошибка обработки изображения: %s</string>
     <string name="group_members_invited">Приглашено %d участник(ов)</string>
     <string name="group_share_subject">Присоединяйтесь к группе %s</string>
-    <string name="group_share_text">Присоединяйтесь к «%s» в WorldMates!</string>
+    <string name="group_share_text">Присоединяйтесь к «%s» в WallyMates!</string>
     <string name="group_share_dialog_title">Поделиться группой</string>
     <string name="group_notifications_on">Уведомления включены</string>
     <string name="group_notifications_off">Уведомления выключены</string>
@@ -2617,7 +2617,7 @@
 
 
     <string name="qr_scan_hint">Отсканируйте, чтобы найти мой профиль</string>
-    <string name="qr_share_text">Найди меня в WorldMates: %s</string>
+    <string name="qr_share_text">Найди меня в WallyMates: %s</string>
 
 
     <string name="tab_media">Медиа</string>
@@ -3070,7 +3070,7 @@
 
     <string name="service_channel_name">Фоновое подключение</string>
     <string name="service_channel_desc">Тихое уведомление для поддержания связи с сервером</string>
-    <string name="service_notif_title">WorldMates</string>
+    <string name="service_notif_title">WallyMates</string>
     <string name="service_notif_text">На связи</string>
 
 

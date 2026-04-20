@@ -1148,15 +1148,13 @@ fun WMCommentBubble(
             horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start,
             verticalAlignment = Alignment.Bottom
         ) {
-            // Avatar — shown only for others
+            // Left avatar (others only)
             if (!isOwn) {
                 if (!comment.userAvatar.isNullOrEmpty()) {
                     AsyncImage(
                         model = comment.userAvatar.toFullMediaUrl(),
                         contentDescription = null,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape),
+                        modifier = Modifier.size(32.dp).clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
@@ -1198,16 +1196,14 @@ fun WMCommentBubble(
                             start = 11.dp, end = 11.dp, top = 7.dp, bottom = 6.dp
                         )
                     ) {
-                        // Sender name (others only)
-                        if (!isOwn) {
-                            Text(
-                                text = displayName,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = nameColor,
-                                modifier = Modifier.padding(bottom = 1.dp)
-                            )
-                        }
+                        // Sender name — always shown in comment threads
+                        Text(
+                            text = displayName,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isOwn) Color.White.copy(alpha = 0.85f) else nameColor,
+                            modifier = Modifier.padding(bottom = 1.dp)
+                        )
 
                         // Reply quote
                         if (replyToComment != null) {
@@ -1306,7 +1302,33 @@ fun WMCommentBubble(
                 }
             }
 
-            if (isOwn) Spacer(Modifier.width(7.dp))
+            // Right avatar (own messages)
+            if (isOwn) {
+                Spacer(Modifier.width(7.dp))
+                if (!comment.userAvatar.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = comment.userAvatar.toFullMediaUrl(),
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0A84FF).copy(alpha = 0.35f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            displayName.take(1).uppercase(),
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
 

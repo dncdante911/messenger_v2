@@ -133,7 +133,7 @@ object TOTPGenerator {
     fun generateQRCode(
         secret: String,
         accountName: String,
-        issuer: String = "WorldMates",
+        issuer: String = "WallyMates",
         size: Int = 512
     ): Bitmap {
         val qrContent = "otpauth://totp/$issuer:$accountName?secret=$secret&issuer=$issuer&digits=$DIGITS&period=$TIME_STEP"

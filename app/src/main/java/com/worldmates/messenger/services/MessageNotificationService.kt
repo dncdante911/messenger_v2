@@ -604,7 +604,7 @@ class MessageNotificationService : Service() {
         val fromName = data.optString("from_name", "").trim()
         if (fromName.isNotEmpty()) return fromName
 
-        return "WorldMates"
+        return "WallyMates"
     }
 
     /**
@@ -856,7 +856,7 @@ class MessageNotificationService : Service() {
             CHANNEL_MESSAGES_NAME,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Нові повідомлення, групи та канали WorldMates"
+            description = "Нові повідомлення, групи та канали WallyMates"
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 200, 80, 200)
             enableLights(true)
@@ -877,7 +877,7 @@ class MessageNotificationService : Service() {
             CHANNEL_CALLS_NAME,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Вхідні дзвінки WorldMates"
+            description = "Вхідні дзвінки WallyMates"
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             setSound(
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),

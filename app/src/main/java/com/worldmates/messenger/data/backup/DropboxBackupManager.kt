@@ -29,7 +29,7 @@ class DropboxBackupManager(private val context: Context) {
 
     companion object {
         private const val TAG = "DropboxBackupManager"
-        private const val BACKUP_FOLDER_PATH = "/WorldMates Backups"
+        private const val BACKUP_FOLDER_PATH = "/WallyMates Backups"
         private const val PREFS_NAME = "dropbox_prefs"
         private const val PREF_ACCESS_TOKEN = "access_token"
         private const val PREF_REFRESH_TOKEN = "refresh_token"
@@ -69,7 +69,7 @@ class DropboxBackupManager(private val context: Context) {
                     DROPBOX_APP_SECRET
                 )
 
-                val config = DbxRequestConfig.newBuilder("WorldMates/2.0").build()
+                val config = DbxRequestConfig.newBuilder("WallyMates/2.0").build()
                 dropboxClient = DbxClientV2(config, credential)
 
                 Log.d(TAG, "✅ Dropbox client initialized from saved credentials")
@@ -95,7 +95,7 @@ class DropboxBackupManager(private val context: Context) {
             Auth.startOAuth2PKCE(
                 context,
                 DROPBOX_APP_KEY,
-                DbxRequestConfig.newBuilder("WorldMates/2.0").build(),
+                DbxRequestConfig.newBuilder("WallyMates/2.0").build(),
                 listOf("files.content.write", "files.content.read", "files.metadata.read")
             )
 
@@ -124,7 +124,7 @@ class DropboxBackupManager(private val context: Context) {
                 .apply()
 
             // Ініціалізувати клієнт
-            val config = DbxRequestConfig.newBuilder("WorldMates/2.0").build()
+            val config = DbxRequestConfig.newBuilder("WallyMates/2.0").build()
             dropboxClient = DbxClientV2(config, credential)
 
             Log.d(TAG, "✅ OAuth completed successfully")

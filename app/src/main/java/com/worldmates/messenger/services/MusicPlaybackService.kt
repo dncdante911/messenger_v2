@@ -385,7 +385,7 @@ class MusicPlaybackService : MediaSessionService() {
                 // Метадані відображаються в нотифікації плеєра і на lock screen
                 val metadata = MediaMetadata.Builder()
                     .setTitle(title)
-                    .setArtist(artist.ifEmpty { "WorldMates" })
+                    .setArtist(artist.ifEmpty { "WallyMates" })
                     .setDisplayTitle(title)
                     .build()
 

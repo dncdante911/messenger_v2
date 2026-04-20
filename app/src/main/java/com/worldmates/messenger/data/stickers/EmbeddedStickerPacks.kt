@@ -35,7 +35,7 @@ object EmbeddedStickerPacks {
             description = "Анімовані емоції для спілкування",
             iconUrl = null,
             thumbnailUrl = null,
-            author = "WorldMates",
+            author = "WallyMates",
             stickers = listOf(
                 // Щасливі емоції
                 Sticker(1001, -1, "lottie://emotions_happy", format = "lottie", emoji = "😊"),
@@ -105,7 +105,7 @@ object EmbeddedStickerPacks {
             description = "Милі анімовані тварини",
             iconUrl = null,
             thumbnailUrl = null,
-            author = "WorldMates",
+            author = "WallyMates",
             stickers = listOf(
                 // Свійські тварини
                 Sticker(2001, -2, "lottie://animals_dog", format = "lottie", emoji = "🐶"),
@@ -175,7 +175,7 @@ object EmbeddedStickerPacks {
             description = "Анімації для свят та подій",
             iconUrl = null,
             thumbnailUrl = null,
-            author = "WorldMates",
+            author = "WallyMates",
             stickers = listOf(
                 Sticker(3001, -3, "lottie://celebration_confetti", format = "lottie", emoji = "🎊"),
                 Sticker(3002, -3, "lottie://celebration_party", format = "lottie", emoji = "🎉"),
@@ -242,7 +242,7 @@ object EmbeddedStickerPacks {
             description = "Анімовані жести рук",
             iconUrl = null,
             thumbnailUrl = null,
-            author = "WorldMates",
+            author = "WallyMates",
             stickers = listOf(
                 Sticker(4001, -4, "lottie://gestures_thumbs_up", format = "lottie", emoji = "👍"),
                 Sticker(4002, -4, "lottie://gestures_thumbs_down", format = "lottie", emoji = "👎"),
@@ -301,7 +301,7 @@ object EmbeddedStickerPacks {
             description = "Анімовані серця та любов",
             iconUrl = null,
             thumbnailUrl = null,
-            author = "WorldMates",
+            author = "WallyMates",
             stickers = listOf(
                 // Кольорові серця
                 Sticker(5001, -5, "lottie://hearts_red", format = "lottie", emoji = "❤️"),

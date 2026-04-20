@@ -96,7 +96,7 @@ private fun SplashScreen(onFinished: () -> Unit) {
                 // TODO: замени на реальное изображение маскота:
                 // Image(
                 //     painter = painterResource(R.drawable.mascot_splash),
-                //     contentDescription = "WorldMates Mascot",
+                //     contentDescription = "WallyMates Mascot",
                 //     modifier = Modifier.fillMaxSize()
                 // )
                 MascotPlaceholder()
@@ -106,7 +106,7 @@ private fun SplashScreen(onFinished: () -> Unit) {
 
             // Название приложения
             Text(
-                text = "WorldMates",
+                text = "WallyMates",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,

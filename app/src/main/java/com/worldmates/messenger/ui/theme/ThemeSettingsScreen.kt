@@ -977,7 +977,7 @@ fun UIStyleSection() {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // WorldMates стиль
+            // WallyMates стиль
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1011,7 +1011,7 @@ fun UIStyleSection() {
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "WorldMates",
+                        text = "WallyMates",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium
                     )
@@ -1882,7 +1882,7 @@ fun UIStyleToggleRow(
                 UIStyle.TELEGRAM   -> "📋"
             }
             val label = when (style) {
-                UIStyle.WORLDMATES -> "WorldMates"
+                UIStyle.WORLDMATES -> "WallyMates"
                 UIStyle.TELEGRAM   -> stringResource(R.string.frame_style_classic)
             }
             val description = when (style) {

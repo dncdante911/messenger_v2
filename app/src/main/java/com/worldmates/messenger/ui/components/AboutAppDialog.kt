@@ -33,7 +33,7 @@ fun AboutAppDialog(
         },
         title = {
             Text(
-                text = "WorldMates Messenger",
+                text = "WallyMates Messenger",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -96,7 +96,7 @@ fun AboutAppDialog(
 
                 // Copyright
                 Text(
-                    text = "© 2024-2026 WorldMates",
+                    text = "© 2024-2026 WallyMates",
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),

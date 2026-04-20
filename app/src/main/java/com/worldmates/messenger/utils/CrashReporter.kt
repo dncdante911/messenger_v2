@@ -74,7 +74,7 @@ object CrashReporter : Thread.UncaughtExceptionHandler {
         val userId  = runCatching { UserSession.userId }.getOrDefault(0L)
 
         val report = buildString {
-            appendLine("=== WorldMates Crash Report ===")
+            appendLine("=== WallyMates Crash Report ===")
             appendLine("Time:        $dateFmt")
             appendLine("App Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
             appendLine("Android:     ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
