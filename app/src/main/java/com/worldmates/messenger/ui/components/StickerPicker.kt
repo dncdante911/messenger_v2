@@ -32,6 +32,7 @@ import com.worldmates.messenger.data.model.StickerPack
 import com.worldmates.messenger.data.repository.StickerRepository
 import com.worldmates.messenger.data.repository.StrapiStickerRepository
 import com.worldmates.messenger.data.stickers.EmbeddedStickerPacks
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.launch
 
 /**
@@ -81,19 +82,28 @@ fun StickerPicker(
     // Завантажуємо кастомні паки з API (Strapi/CDN)
     val customPacks by stickerRepository.stickerPacks.collectAsState()
 
-    // Об'єднуємо всі паки: вбудовані + стандартні + з API
-    val activePacks = remember(customPacks) {
+    // Telegram animated emoji pack
+    var telegramPack by remember { mutableStateOf<StickerPack?>(null) }
+    var telegramLoading by remember { mutableStateOf(false) }
+    var telegramError by remember { mutableStateOf<String?>(null) }
+
+    // Об'єднуємо всі паки: вбудовані + Telegram + стандартні + з API
+    val activePacks = remember(customPacks, telegramPack) {
         val packs = mutableListOf<StickerPack>()
-        // Спочатку вбудовані анімовані паки
         packs.addAll(embeddedPacks)
-        // Потім стандартні emoji
+        telegramPack?.let { packs.add(it) }
         packs.add(standardPack)
-        // Потім паки з Strapi/CDN
         packs.addAll(customPacks.filter { it.isActive && it.stickers?.isNotEmpty() == true })
         packs
     }
 
     var selectedPack by remember { mutableStateOf(embeddedPacks.firstOrNull() ?: standardPack) }
+
+    // Sync selectedPack when telegramPack loads and was the intended selection
+    LaunchedEffect(telegramPack) {
+        val tg = telegramPack ?: return@LaunchedEffect
+        if (selectedPack.id == tg.id) selectedPack = tg
+    }
 
     // Завантажуємо паки при відкритті
     LaunchedEffect(Unit) {
@@ -129,13 +139,59 @@ fun StickerPicker(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Telegram animated emoji button
+                    TelegramEmojiButton(
+                        isLoading = telegramLoading,
+                        isLoaded = telegramPack != null,
+                        onClick = {
+                            if (telegramPack != null) {
+                                selectedPack = telegramPack!!
+                            } else if (!telegramLoading) {
+                                telegramLoading = true
+                                telegramError = null
+                                scope.launch {
+                                    try {
+                                        val response = NodeRetrofitClient.api.getTelegramAnimatedEmoji()
+                                        if (response.apiStatus == 200 && response.pack != null) {
+                                            telegramPack = response.pack
+                                            selectedPack = response.pack
+                                        } else {
+                                            telegramError = response.errorMessage ?: "Failed to load"
+                                        }
+                                    } catch (e: Exception) {
+                                        telegramError = e.message
+                                    } finally {
+                                        telegramLoading = false
+                                    }
+                                }
+                            }
+                        }
+                    )
                     IconButton(onClick = { showManageSheet = true }) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.sticker_manage_title))
                     }
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
+                }
+            }
+
+            // Telegram error snackbar
+            if (telegramError != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text = "Telegram: $telegramError",
+                        modifier = Modifier.padding(8.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
 
@@ -285,25 +341,31 @@ private fun StickerPackTab(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            if (pack.iconUrl != null || pack.thumbnailUrl != null) {
-                AsyncImage(
-                    model = pack.iconUrl ?: pack.thumbnailUrl,
-                    contentDescription = pack.name,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp)
-                )
-            } else {
-                Text(
-                    text = pack.name.take(2),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isSelected) {
-                        colorScheme.primary
-                    } else {
-                        colorScheme.onSurface
-                    }
-                )
+            when {
+                // Telegram пак — показуємо ✈️ замість .tgs іконки
+                pack.author == "Telegram" -> {
+                    Text(
+                        text = "✈️",
+                        fontSize = 24.sp
+                    )
+                }
+                pack.iconUrl != null || pack.thumbnailUrl != null -> {
+                    AsyncImage(
+                        model = pack.iconUrl ?: pack.thumbnailUrl,
+                        contentDescription = pack.name,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp)
+                    )
+                }
+                else -> {
+                    Text(
+                        text = pack.name.take(2),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected) colorScheme.primary else colorScheme.onSurface
+                    )
+                }
             }
         }
     }
@@ -448,6 +510,54 @@ fun StickerPackManagementSheet(onDismiss: () -> Unit) {
             }
 
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/**
+ * Кнопка для завантаження та перегляду Telegram анімованих емоджі.
+ * Показує ✈️ якщо не завантажено, спінер під час завантаження,
+ * та ✅ коли пак уже доступний.
+ */
+@Composable
+private fun TelegramEmojiButton(
+    isLoading: Boolean,
+    isLoaded: Boolean,
+    onClick: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Surface(
+        modifier = Modifier
+            .padding(end = 4.dp)
+            .clickable(enabled = !isLoading, onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = if (isLoaded) colorScheme.primaryContainer else colorScheme.surfaceVariant,
+        shadowElevation = if (isLoaded) 2.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = colorScheme.primary
+                )
+            } else {
+                Text(
+                    text = if (isLoaded) "✅" else "✈️",
+                    fontSize = 16.sp
+                )
+            }
+            Text(
+                text = "Telegram",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (isLoaded) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant
+            )
         }
     }
 }
