@@ -6,29 +6,39 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.airbnb.lottie.compose.*
+import com.worldmates.messenger.data.stickers.EmbeddedStickerPacks
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.ByteArrayInputStream
+import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
+// Shared client for downloading TGS / Lottie JSON files from external CDNs.
+// Using a lazy singleton avoids creating a new client on every recomposition.
+private val stickerHttpClient by lazy {
+    OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+}
+
 /**
- * Універсальний компонент для відображення анімованих стікерів
+ * Universal sticker / animated-emoji renderer.
  *
- * Підтримує формати:
- * - Lottie JSON (.json) - стандартний формат Lottie анімацій
- * - TGS (Telegram Stickers) - gzip стиснутий Lottie JSON
- * - GIF - анімовані GIF
- * - Static images (PNG, WebP) - статичні зображення
- *
- * Використання:
- * ```
- * AnimatedStickerView(
- *     url = "https://cdn.worldmates.club/sticker.json",
- *     modifier = Modifier.size(120.dp)
- * )
- * ```
+ * Supported URL schemes:
+ *  - lottie://resource_name   → embedded raw resource via LottieCompositionSpec.RawRes
+ *  - https://…/sticker.tgs   → Telegram animated sticker (gzip Lottie JSON)
+ *  - https://…/sticker.json  → plain Lottie JSON
+ *  - https://…/sticker.gif   → animated GIF via Coil
+ *  - android.resource://…    → local resource via Coil
+ *  - anything else            → Coil (WebP, PNG, …)
  */
 @Composable
 fun AnimatedStickerView(
@@ -39,78 +49,82 @@ fun AnimatedStickerView(
     autoPlay: Boolean = true,
     loop: Boolean = true
 ) {
-    val fileExtension = remember(url) {
-        url.substringAfterLast('.', "").lowercase()
-    }
-
     Box(modifier = modifier.size(size)) {
         when {
-            // Lottie JSON анімація
-            fileExtension == "json" -> {
-                LottieAnimationView(
-                    url = url,
-                    autoPlay = autoPlay,
-                    loop = loop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            url.startsWith("lottie://") ->
+                EmbeddedLottieView(lottieUrl = url, autoPlay = autoPlay, loop = loop,
+                    modifier = Modifier.fillMaxSize())
 
-            // TGS (Telegram Sticker) - gzip стиснутий Lottie JSON
-            fileExtension == "tgs" -> {
-                TgsAnimationView(
-                    url = url,
-                    autoPlay = autoPlay,
-                    loop = loop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            url.endsWith(".tgs", ignoreCase = true) ->
+                TgsAnimationView(url = url, autoPlay = autoPlay, loop = loop,
+                    modifier = Modifier.fillMaxSize())
 
-            // Всі інші формати (GIF, PNG, WebP) - через Coil
-            else -> {
+            url.endsWith(".json", ignoreCase = true) ->
+                LottieUrlView(url = url, autoPlay = autoPlay, loop = loop,
+                    modifier = Modifier.fillMaxSize())
+
+            else ->
                 AsyncImage(
                     model = url,
                     contentDescription = "Sticker",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = contentScale
                 )
-            }
         }
     }
 }
 
-/**
- * Відображає Lottie JSON анімацію з URL
- */
+// ── Embedded sticker (lottie://name) ─────────────────────────────────────────
+
 @Composable
-private fun LottieAnimationView(
+private fun EmbeddedLottieView(
+    lottieUrl: String,
+    autoPlay: Boolean,
+    loop: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val resourceName = lottieUrl.removePrefix("lottie://")
+    val resId = remember(lottieUrl) {
+        context.resources.getIdentifier(resourceName, "raw", context.packageName)
+    }
+
+    if (resId != 0) {
+        val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(resId))
+        val progress by animateLottieCompositionAsState(
+            composition = composition,
+            isPlaying = autoPlay,
+            iterations = if (loop) LottieConstants.IterateForever else 1,
+            speed = 1f
+        )
+        LottieAnimation(composition = composition, progress = { progress }, modifier = modifier)
+    } else {
+        // Raw resource not found — no-op placeholder
+        Box(modifier = modifier)
+    }
+}
+
+// ── Lottie JSON from HTTP URL ─────────────────────────────────────────────────
+
+@Composable
+private fun LottieUrlView(
     url: String,
     autoPlay: Boolean,
     loop: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Завантажуємо Lottie JSON з URL
-    val composition by rememberLottieComposition(
-        LottieCompositionSpec.Url(url)
-    )
-
+    val composition by rememberLottieComposition(LottieCompositionSpec.Url(url))
     val progress by animateLottieCompositionAsState(
         composition = composition,
         isPlaying = autoPlay,
         iterations = if (loop) LottieConstants.IterateForever else 1,
         speed = 1f
     )
-
-    LottieAnimation(
-        composition = composition,
-        progress = { progress },
-        modifier = modifier
-    )
+    LottieAnimation(composition = composition, progress = { progress }, modifier = modifier)
 }
 
-/**
- * Відображає TGS (Telegram Sticker) анімацію
- * TGS = gzip стиснутий Lottie JSON
- */
+// ── TGS (gzip-compressed Lottie JSON) from HTTP URL ──────────────────────────
+
 @Composable
 private fun TgsAnimationView(
     url: String,
@@ -118,105 +132,60 @@ private fun TgsAnimationView(
     loop: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Для TGS файлів потрібно спочатку завантажити, розпакувати gzip, і передати JSON в Lottie
-    // Це складніша операція, тому використовуємо LaunchedEffect
-
-    var tgsJsonString by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var hasError by remember { mutableStateOf(false) }
+    var tgsJson by remember(url) { mutableStateOf<String?>(null) }
+    var loadFailed by remember(url) { mutableStateOf(false) }
 
     LaunchedEffect(url) {
-        try {
-            // Download + gzip decompression both run on IO to avoid blocking the UI thread
-            val jsonString = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                val tgsBytes = java.net.URL(url).openStream().use { it.readBytes() }
-                decompressTgs(tgsBytes)
+        withContext(Dispatchers.IO) {
+            try {
+                // Use OkHttp with explicit timeouts.
+                // Accept-Encoding: identity prevents the HTTP stack from adding
+                // a second gzip layer on top of the file-level gzip in the TGS.
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Accept-Encoding", "identity")
+                    .build()
+                val bytes = stickerHttpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) throw Exception("HTTP ${response.code}")
+                    response.body?.bytes() ?: throw Exception("Empty body")
+                }
+                tgsJson = decompressTgs(bytes)
+            } catch (e: Exception) {
+                android.util.Log.e("AnimatedStickerView", "TGS load failed [$url]: ${e.message}")
+                loadFailed = true
             }
-            tgsJsonString = jsonString
-            isLoading = false
-        } catch (e: Exception) {
-            android.util.Log.e("AnimatedStickerView", "Failed to load TGS: $url", e)
-            hasError = true
-            isLoading = false
         }
     }
 
     when {
-        isLoading -> {
-            // Показуємо placeholder під час завантаження
-            Box(modifier = modifier)
-        }
-        hasError || tgsJsonString == null -> {
-            // При помилці показуємо fallback через AsyncImage
-            AsyncImage(
-                model = url,
-                contentDescription = "Sticker",
-                modifier = modifier,
-                contentScale = ContentScale.Fit
-            )
-        }
-        else -> {
-            // Відображаємо розпакований Lottie JSON
+        tgsJson != null -> {
             val composition by rememberLottieComposition(
-                LottieCompositionSpec.JsonString(tgsJsonString!!)
+                LottieCompositionSpec.JsonString(tgsJson!!)
             )
-
             val progress by animateLottieCompositionAsState(
                 composition = composition,
                 isPlaying = autoPlay,
                 iterations = if (loop) LottieConstants.IterateForever else 1,
                 speed = 1f
             )
-
-            LottieAnimation(
-                composition = composition,
-                progress = { progress },
-                modifier = modifier
-            )
+            LottieAnimation(composition = composition, progress = { progress }, modifier = modifier)
         }
+        // Loading or error — keep the reserved space but render nothing
+        else -> Box(modifier = modifier)
     }
 }
 
-/**
- * Розпаковує gzip стиснутий TGS файл в Lottie JSON string
- */
-private fun decompressTgs(tgsBytes: ByteArray): String {
-    val inputStream = ByteArrayInputStream(tgsBytes)
-    val gzipInputStream = GZIPInputStream(inputStream)
-    return gzipInputStream.bufferedReader().use { it.readText() }
+private fun decompressTgs(bytes: ByteArray): String =
+    GZIPInputStream(ByteArrayInputStream(bytes)).bufferedReader().use { it.readText() }
+
+// ── Convenience variants ──────────────────────────────────────────────────────
+
+@Composable
+fun AnimatedSticker(url: String, modifier: Modifier = Modifier) {
+    AnimatedStickerView(url = url, modifier = modifier, size = 120.dp, autoPlay = true, loop = true)
 }
 
-/**
- * Простий варіант AnimatedStickerView тільки з URL
- */
 @Composable
-fun AnimatedSticker(
-    url: String,
-    modifier: Modifier = Modifier
-) {
-    AnimatedStickerView(
-        url = url,
-        modifier = modifier,
-        size = 120.dp,
-        autoPlay = true,
-        loop = true
-    )
-}
-
-/**
- * Компактний варіант для списків
- */
-@Composable
-fun CompactAnimatedSticker(
-    url: String,
-    modifier: Modifier = Modifier,
-    size: Dp = 64.dp
-) {
-    AnimatedStickerView(
-        url = url,
-        modifier = modifier,
-        size = size,
-        autoPlay = true,
-        loop = true
-    )
+fun CompactAnimatedSticker(url: String, modifier: Modifier = Modifier, size: Dp = 64.dp) {
+    AnimatedStickerView(url = url, modifier = modifier, size = size, autoPlay = true, loop = true)
 }
