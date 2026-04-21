@@ -847,7 +847,8 @@ interface NodeApi {
     suspend fun sendThreadMessage(
         @Path("postId")       postId: Long,
         @Field("text")        text: String,
-        @Field("reply_to_id") replyToId: Long? = null
+        @Field("reply_to_id") replyToId: Long? = null,
+        @Field("sticker")     sticker: String? = null
     ): NodeThreadMessageResponse
 
     @DELETE(Constants.NODE_THREAD_DELETE)
@@ -1135,6 +1136,18 @@ interface NodeApi {
         @Path("packId") packId: Long
     ): EmojiPackDetailResponse
 
+    // ═══════════════════ TELEGRAM STICKERS ═══════════════════════════════════
+
+    /** Fetch the Telegram AnimatedEmojies pack via server-side proxy. */
+    @GET("api/node/telegram/animated-emoji")
+    suspend fun getTelegramAnimatedEmoji(): StickerPackDetailResponse
+
+    /** Fetch any public Telegram sticker set by its short name. */
+    @GET("api/node/telegram/sticker-pack/{setName}")
+    suspend fun getTelegramStickerPack(
+        @Path("setName") setName: String
+    ): StickerPackDetailResponse
+
     // ═══════════════════════ APP UPDATE ══════════════════════════════════════
 
     @GET(Constants.NODE_UPDATE_CHECK)
@@ -1377,6 +1390,7 @@ data class ThreadMessage(
     @SerializedName("post_id")     val postId: Long,
     @SerializedName("user_id")     val userId: Long,
     @SerializedName("text")        val text: String,
+    @SerializedName("sticker")     val sticker: String? = null,
     @SerializedName("time")        val time: Long,
     @SerializedName("reply_to_id") val replyToId: Long?,
     @SerializedName("author")      val author: ThreadAuthor?

@@ -438,7 +438,7 @@ class StoryRepository(private val context: Context) {
     /**
      * Створити коментар до story
      */
-    suspend fun createComment(storyId: Long, text: String, replyToId: Long? = null): Result<StoryComment> {
+    suspend fun createComment(storyId: Long, text: String, replyToId: Long? = null, sticker: String? = null): Result<StoryComment> {
         return try {
             if (UserSession.accessToken == null) {
                 return Result.failure(Exception("Не авторизовано"))
@@ -447,7 +447,8 @@ class StoryRepository(private val context: Context) {
             val response = nodeStoriesApi.createStoryComment(
                 storyId = storyId,
                 text = text,
-                replyToCommentId = replyToId
+                replyToCommentId = replyToId,
+                sticker = sticker
             )
 
             if (response.apiStatus == 200 && response.comment != null) {

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
@@ -32,6 +33,7 @@ import com.worldmates.messenger.data.model.StickerPack
 import com.worldmates.messenger.data.repository.StickerRepository
 import com.worldmates.messenger.data.repository.StrapiStickerRepository
 import com.worldmates.messenger.data.stickers.EmbeddedStickerPacks
+import com.worldmates.messenger.network.NodeRetrofitClient
 import kotlinx.coroutines.launch
 
 /**
@@ -81,19 +83,28 @@ fun StickerPicker(
     // Завантажуємо кастомні паки з API (Strapi/CDN)
     val customPacks by stickerRepository.stickerPacks.collectAsState()
 
-    // Об'єднуємо всі паки: вбудовані + стандартні + з API
-    val activePacks = remember(customPacks) {
+    // Telegram animated emoji pack
+    var telegramPack by remember { mutableStateOf<StickerPack?>(null) }
+    var telegramLoading by remember { mutableStateOf(false) }
+    var telegramError by remember { mutableStateOf<String?>(null) }
+
+    // Об'єднуємо всі паки: вбудовані + Telegram + стандартні + з API
+    val activePacks = remember(customPacks, telegramPack) {
         val packs = mutableListOf<StickerPack>()
-        // Спочатку вбудовані анімовані паки
         packs.addAll(embeddedPacks)
-        // Потім стандартні emoji
+        telegramPack?.let { packs.add(it) }
         packs.add(standardPack)
-        // Потім паки з Strapi/CDN
         packs.addAll(customPacks.filter { it.isActive && it.stickers?.isNotEmpty() == true })
         packs
     }
 
     var selectedPack by remember { mutableStateOf(embeddedPacks.firstOrNull() ?: standardPack) }
+
+    // Sync selectedPack when telegramPack loads and was the intended selection
+    LaunchedEffect(telegramPack) {
+        val tg = telegramPack ?: return@LaunchedEffect
+        if (selectedPack.id == tg.id) selectedPack = tg
+    }
 
     // Завантажуємо паки при відкритті
     LaunchedEffect(Unit) {
@@ -129,7 +140,35 @@ fun StickerPicker(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Telegram animated emoji button
+                    TelegramEmojiButton(
+                        isLoading = telegramLoading,
+                        isLoaded = telegramPack != null,
+                        onClick = {
+                            if (telegramPack != null) {
+                                selectedPack = telegramPack!!
+                            } else if (!telegramLoading) {
+                                telegramLoading = true
+                                telegramError = null
+                                scope.launch {
+                                    try {
+                                        val response = NodeRetrofitClient.api.getTelegramAnimatedEmoji()
+                                        if (response.apiStatus == 200 && response.pack != null) {
+                                            telegramPack = response.pack
+                                            selectedPack = response.pack
+                                        } else {
+                                            telegramError = response.errorMessage ?: "Failed to load"
+                                        }
+                                    } catch (e: Exception) {
+                                        telegramError = e.message
+                                    } finally {
+                                        telegramLoading = false
+                                    }
+                                }
+                            }
+                        }
+                    )
                     IconButton(onClick = { showManageSheet = true }) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.sticker_manage_title))
                     }
@@ -139,21 +178,80 @@ fun StickerPicker(
                 }
             }
 
+            // Telegram error snackbar
+            if (telegramError != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text = "Telegram: $telegramError",
+                        modifier = Modifier.padding(8.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+
             Divider()
 
-            // Сітка стікерів
+            // Метка текущего пака
+            val isTelegramPack = selectedPack.author == "Telegram"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = if (isTelegramPack) "✈️" else getPackTabIcon(selectedPack),
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = selectedPack.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (isTelegramPack) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = colorScheme.secondaryContainer
+                    ) {
+                        Text(
+                            text = "Animated Emoji",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            // Сітка стікерів — для Telegram emoji компактніша сітка
+            val columns = if (isTelegramPack) 6 else 4
+            val itemSize = if (isTelegramPack) 52.dp else 80.dp
+            val animSize = if (isTelegramPack) 40.dp else 64.dp
+
             LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
+                columns = GridCells.Fixed(columns),
                 modifier = Modifier
                     .weight(1f)
-                    .padding(8.dp),
-                contentPadding = PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 8.dp),
+                contentPadding = PaddingValues(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(selectedPack.stickers ?: emptyList()) { sticker ->
                     StickerItem(
                         sticker = sticker,
+                        itemSize = itemSize,
+                        animSize = animSize,
                         onClick = {
                             onStickerSelected(sticker)
                             onDismiss()
@@ -164,16 +262,16 @@ fun StickerPicker(
 
             Divider()
 
-            // Паки стікерів (якщо більше одного)
+            // Нижня панель паків — горизонтальний скролл з emoji-іконками
             if (activePacks.size > 1) {
-                Row(
+                LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(colorScheme.surfaceVariant)
-                        .padding(vertical = 8.dp, horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    activePacks.forEach { pack ->
+                    items(activePacks) { pack ->
                         StickerPackTab(
                             pack = pack,
                             isSelected = selectedPack.id == pack.id,
@@ -187,13 +285,15 @@ fun StickerPicker(
 }
 
 /**
- * Елемент стікера в сітці
- * Підтримує як анімовані (Lottie/TGS), так і статичні стікери
+ * Елемент стікера в сітці.
+ * [itemSize] — розмір картки, [animSize] — розмір анімації всередині.
  */
 @Composable
 private fun StickerItem(
     sticker: Sticker,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    itemSize: androidx.compose.ui.unit.Dp = 80.dp,
+    animSize: androidx.compose.ui.unit.Dp = 64.dp,
 ) {
     // lottie:// URLs are handled directly by AnimatedStickerView (no conversion needed)
     val stickerUrl = if (sticker.fileUrl.startsWith("lottie://")) {
@@ -202,56 +302,42 @@ private fun StickerItem(
         sticker.thumbnailUrl ?: sticker.fileUrl
     }
 
-    Card(
+    Box(
         modifier = Modifier
-            .size(80.dp)
+            .size(itemSize)
+            .clip(MaterialTheme.shapes.medium)
             .clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            when {
-                // Анімований стікер (Lottie, TGS, або GIF)
-                sticker.format in listOf("lottie", "tgs", "gif") ||
-                stickerUrl?.endsWith(".json") == true ||
-                stickerUrl?.endsWith(".tgs") == true ||
-                stickerUrl?.endsWith(".gif") == true -> {
-                    AnimatedStickerView(
-                        url = stickerUrl ?: "",
-                        size = 64.dp,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-                // Emoji fallback (як текст)
-                stickerUrl == sticker.emoji -> {
-                    Text(
-                        text = sticker.emoji ?: "🎭",
-                        fontSize = 40.sp,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-                // Статичне зображення (WebP, PNG)
-                else -> {
-                    AsyncImage(
-                        model = stickerUrl,
-                        contentDescription = sticker.emoji,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(8.dp)
-                    )
-                }
+        when {
+            sticker.format in listOf("lottie", "tgs", "gif") ||
+            stickerUrl?.endsWith(".json") == true ||
+            stickerUrl?.endsWith(".tgs") == true ||
+            stickerUrl?.endsWith(".gif") == true -> {
+                AnimatedStickerView(
+                    url = stickerUrl ?: "",
+                    size = animSize
+                )
+            }
+            stickerUrl == sticker.emoji -> {
+                Text(
+                    text = sticker.emoji ?: "🎭",
+                    fontSize = (animSize.value * 0.6).sp
+                )
+            }
+            else -> {
+                AsyncImage(
+                    model = stickerUrl,
+                    contentDescription = sticker.emoji,
+                    modifier = Modifier.size(animSize)
+                )
             }
         }
     }
 }
 
 /**
- * Вкладка паку стікерів
+ * Таб паку стікерів — показує emoji-іконку та підпис назви.
  */
 @Composable
 private fun StickerPackTab(
@@ -261,48 +347,49 @@ private fun StickerPackTab(
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
-    Card(
+    Column(
         modifier = Modifier
-            .size(60.dp)
-            .clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                colorScheme.primaryContainer
-            } else {
-                colorScheme.surface
-            }
-        ),
-        border = if (isSelected) {
-            androidx.compose.foundation.BorderStroke(2.dp, colorScheme.primary)
-        } else null
+            .width(52.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) colorScheme.primaryContainer else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            if (pack.iconUrl != null || pack.thumbnailUrl != null) {
-                AsyncImage(
-                    model = pack.iconUrl ?: pack.thumbnailUrl,
-                    contentDescription = pack.name,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp)
-                )
-            } else {
-                Text(
-                    text = pack.name.take(2),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isSelected) {
-                        colorScheme.primary
-                    } else {
-                        colorScheme.onSurface
-                    }
-                )
-            }
-        }
+        Text(
+            text = getPackTabIcon(pack),
+            fontSize = 22.sp,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = pack.name.split(" ").first().take(8),
+            fontSize = 9.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            color = if (isSelected) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant
+        )
     }
+}
+
+/** Returns a representative emoji icon for a sticker pack tab. */
+private fun getPackTabIcon(pack: StickerPack): String = when {
+    pack.author == "Telegram"                                              -> "✈️"
+    pack.name.contains("Емоці", ignoreCase = true) ||
+        pack.name.contains("Emotion", ignoreCase = true)                  -> "😊"
+    pack.name.contains("Тварин", ignoreCase = true) ||
+        pack.name.contains("Animal", ignoreCase = true)                   -> "🐾"
+    pack.name.contains("Святкув", ignoreCase = true) ||
+        pack.name.contains("Celebr", ignoreCase = true)                   -> "🎉"
+    pack.name.contains("Жест", ignoreCase = true) ||
+        pack.name.contains("Gesture", ignoreCase = true)                  -> "👋"
+    pack.name.contains("Серц", ignoreCase = true) ||
+        pack.name.contains("Heart", ignoreCase = true)                    -> "❤️"
+    pack.name.contains("WorldMates", ignoreCase = true)                   -> "🎭"
+    pack.name.contains("Emoji", ignoreCase = true) ||
+        pack.name.contains("Емодж", ignoreCase = true)                    -> "😄"
+    else                                                                   -> "🗂️"
 }
 
 /**
@@ -444,6 +531,54 @@ fun StickerPackManagementSheet(onDismiss: () -> Unit) {
             }
 
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/**
+ * Кнопка для завантаження та перегляду Telegram анімованих емоджі.
+ * Показує ✈️ якщо не завантажено, спінер під час завантаження,
+ * та ✅ коли пак уже доступний.
+ */
+@Composable
+private fun TelegramEmojiButton(
+    isLoading: Boolean,
+    isLoaded: Boolean,
+    onClick: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    Surface(
+        modifier = Modifier
+            .padding(end = 4.dp)
+            .clickable(enabled = !isLoading, onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        color = if (isLoaded) colorScheme.primaryContainer else colorScheme.surfaceVariant,
+        shadowElevation = if (isLoaded) 2.dp else 0.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = colorScheme.primary
+                )
+            } else {
+                Text(
+                    text = if (isLoaded) "✅" else "✈️",
+                    fontSize = 16.sp
+                )
+            }
+            Text(
+                text = "Telegram",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (isLoaded) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant
+            )
         }
     }
 }

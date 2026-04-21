@@ -41,6 +41,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.R
+import com.worldmates.messenger.ui.components.AnimatedStickerView
+import com.worldmates.messenger.ui.components.StickerPicker
 
 // ==================== COMMENT CARD ====================
 
@@ -208,12 +210,14 @@ fun CommentsBottomSheet(
     onDismiss: () -> Unit,
     onAddComment: (String) -> Unit,
     onAddCommentWithReply: ((String, Long?) -> Unit)? = null,
+    onAddCommentWithSticker: ((String, Long?) -> Unit)? = null,
     onDeleteComment: (Long) -> Unit,
     onCommentReaction: (commentId: Long, emoji: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var commentText by remember { mutableStateOf("") }
     var showEmojiPicker by remember { mutableStateOf(false) }
+    var showStickerPicker by remember { mutableStateOf(false) }
     var replyingToComment by remember { mutableStateOf<ChannelComment?>(null) }
     var userActionsComment by remember { mutableStateOf<ChannelComment?>(null) }
     val cs = MaterialTheme.colorScheme
@@ -432,6 +436,22 @@ fun CommentsBottomSheet(
                 )
             }
 
+            // ── Sticker picker (slides in above input bar) ──
+            AnimatedVisibility(
+                visible = showStickerPicker,
+                enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
+            ) {
+                com.worldmates.messenger.ui.components.StickerPicker(
+                    onStickerSelected = { stickerUrl ->
+                        onAddCommentWithSticker?.invoke(stickerUrl, replyingToComment?.id)
+                        replyingToComment = null
+                        showStickerPicker = false
+                    },
+                    onDismiss = { showStickerPicker = false }
+                )
+            }
+
             // ── Input bar (always pinned at bottom) ──
             HorizontalDivider(color = cs.outlineVariant.copy(alpha = 0.25f))
             Row(
@@ -443,7 +463,7 @@ fun CommentsBottomSheet(
             ) {
                 // Emoji toggle
                 IconButton(
-                    onClick = { showEmojiPicker = !showEmojiPicker },
+                    onClick = { showEmojiPicker = !showEmojiPicker; showStickerPicker = false },
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
@@ -451,6 +471,19 @@ fun CommentsBottomSheet(
                         else Icons.Outlined.EmojiEmotions,
                         contentDescription = null,
                         tint = if (showEmojiPicker) cs.primary
+                               else cs.onSurfaceVariant.copy(alpha = 0.55f),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                // Sticker toggle
+                IconButton(
+                    onClick = { showStickerPicker = !showStickerPicker; showEmojiPicker = false },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Celebration,
+                        contentDescription = "Stickers",
+                        tint = if (showStickerPicker) cs.primary
                                else cs.onSurfaceVariant.copy(alpha = 0.55f),
                         modifier = Modifier.size(22.dp)
                     )
@@ -721,14 +754,24 @@ fun PremiumCommentItem(
                         }
                     }
 
+                    // Sticker (animated emoji / Telegram sticker)
+                    if (!comment.sticker.isNullOrEmpty()) {
+                        AnimatedStickerView(
+                            url = comment.sticker,
+                            size = 120.dp,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                        )
+                    }
                     // Comment text
-                    Text(
-                        text = comment.text,
-                        fontSize = 13.sp,
-                        color = cs.onSurface,
-                        lineHeight = 18.sp,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                    if (comment.text.isNotBlank()) {
+                        Text(
+                            text = comment.text,
+                            fontSize = 13.sp,
+                            color = cs.onSurface,
+                            lineHeight = 18.sp,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
 
                     // Bottom row: reactions (left) + time (right)
                     Row(

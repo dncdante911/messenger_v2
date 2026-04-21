@@ -321,10 +321,10 @@ class StoryViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Створити коментар
      */
-    fun createComment(storyId: Long, text: String, replyToId: Long? = null) {
+    fun createComment(storyId: Long, text: String, replyToId: Long? = null, sticker: String? = null) {
         viewModelScope.launch {
             try {
-                repository.createComment(storyId, text, replyToId).onSuccess {
+                repository.createComment(storyId, text, replyToId, sticker).onSuccess {
                     Log.d(TAG, "Comment created: ${it.id}")
                 }.onFailure { e ->
                     _error.value = e.message

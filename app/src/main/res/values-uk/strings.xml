@@ -1489,6 +1489,18 @@
     <!-- ===== THEME SETTINGS ===== -->
     <string name="themes_title">Теми та оформлення</string>
     <string name="select_theme">Оберіть тему</string>
+    <string name="theme_cat_section_title">Категорії</string>
+    <string name="theme_cat_main_ui">Основний UI</string>
+    <string name="theme_cat_main_ui_desc">Кольори, темна тема, фон, пузирі, реакції</string>
+    <string name="theme_cat_channels">Канали</string>
+    <string name="theme_cat_channels_desc">Стиль каналів та Obsidian-Gold дизайн</string>
+    <string name="theme_cat_calls">Відеодзвінки</string>
+    <string name="theme_cat_calls_desc">Рамки учасників відеодзвінків</string>
+    <string name="theme_cat_calls_open">Обрати стиль рамок дзвінків</string>
+    <string name="theme_cat_video_msg">Відеоповідомлення</string>
+    <string name="theme_cat_video_msg_desc">Рамки круглих відеоповідомлень</string>
+    <string name="theme_cat_video_msg_open">Обрати стиль рамок відеоповідомлень</string>
+    <string name="theme_cat_unavailable">Розділ недоступний у цій збірці</string>
     <string name="video_frame_section">Стилі рамок відео</string>
     <string name="call_frame_section">Рамки відеодзвінків</string>
     <string name="call_frame_styles_list">Classic, Neon, Gradient, Glass, Rainbow</string>
@@ -3413,7 +3425,6 @@
     <string name="er_label_medium">Середній</string>
     <string name="er_label_low">Низький</string>
     <!-- Channel creation dialog -->
-    <string name="channel_name_placeholder">Мій канал</string>
     <string name="channel_type_private">Приватний канал</string>
     <string name="channel_type_public">Публічний канал</string>
     <string name="channel_invite_only">Тільки за запрошенням</string>
@@ -3550,7 +3561,6 @@
     <string name="comment_deleted">Коментар видалено</string>
     <string name="reaction_added">Реакцію додано!</string>
     <string name="error_channel_not_found">Канал не знайдено</string>
-    <string name="avatar_updated">Аватар оновлено</string>
     <string name="subscribe_success">Ви підписалися на канал!</string>
     <string name="unsubscribe_success">Ви відписалися від каналу</string>
     <string name="settings_saved">Налаштування збережено!</string>

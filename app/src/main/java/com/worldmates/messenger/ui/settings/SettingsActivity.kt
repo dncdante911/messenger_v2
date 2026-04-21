@@ -600,10 +600,21 @@ fun SettingsMainScreen(
     }
 
     if (updateState.hasUpdate && updateState.apkUrl != null) {
+        // Guarantee the prompt is only rendered once per session: whenever this
+        // dialog leaves composition (user action, back press, navigation away),
+        // mark it dismissed so it won't re-appear until the user taps
+        // "Check for updates" (force=true) or the process restarts.
+        androidx.compose.runtime.DisposableEffect(Unit) {
+            onDispose {
+                if (!updateState.isMandatory) {
+                    AppUpdateManager.markPromptDismissedForSession()
+                }
+            }
+        }
         AlertDialog(
             onDismissRequest = {
                 if (!updateState.isMandatory) {
-                    viewModel.snoozeUpdatePrompt()
+                    AppUpdateManager.markPromptDismissedForSession()
                 }
             },
             title = { Text(stringResource(R.string.update_available_title, updateState.latestVersion ?: "")) },
@@ -633,13 +644,16 @@ fun SettingsMainScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { AppUpdateManager.openUpdateUrl(context) }) {
+                TextButton(onClick = {
+                    AppUpdateManager.openUpdateUrl(context)
+                    AppUpdateManager.markPromptDismissedForSession()
+                }) {
                     Text(stringResource(R.string.update_now))
                 }
             },
             dismissButton = {
                 if (!updateState.isMandatory) {
-                    TextButton(onClick = { viewModel.snoozeUpdatePrompt() }) {
+                    TextButton(onClick = { AppUpdateManager.markPromptDismissedForSession() }) {
                         Text(stringResource(R.string.later))
                     }
                 }
