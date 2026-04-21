@@ -148,8 +148,9 @@ function updateWindowBadge() {
 // ─── HTTP proxy (existing) ────────────────────────────────────────────────────
 
 const WM_ENDPOINTS = [
-  { host: 'worldmates.club', sni: null           },
-  { host: '46.232.232.38',   sni: 'worldmates.club' },
+  { host: 'worldmates.club',   sni: null              },
+  { host: '46.232.232.38',     sni: 'worldmates.club' },
+  { host: '93.171.188.229',    sni: 'worldmates.club' },
 ];
 const RETRY_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'UND_ERR_SOCKET']);
 

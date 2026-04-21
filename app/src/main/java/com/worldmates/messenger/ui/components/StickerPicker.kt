@@ -195,15 +195,11 @@ private fun StickerItem(
     sticker: Sticker,
     onClick: () -> Unit
 ) {
-    val context = LocalContext.current
-    val stickerUrl = when {
-        // Вбудований анімований стікер (lottie://)
-        sticker.fileUrl.startsWith("lottie://") -> {
-            EmbeddedStickerPacks.getEmbeddedStickerResourceUrl(context, sticker.fileUrl)
-                ?: sticker.emoji // Fallback на emoji якщо ресурс не знайдено
-        }
-        // Звичайний стікер з URL
-        else -> sticker.thumbnailUrl ?: sticker.fileUrl
+    // lottie:// URLs are handled directly by AnimatedStickerView (no conversion needed)
+    val stickerUrl = if (sticker.fileUrl.startsWith("lottie://")) {
+        sticker.fileUrl
+    } else {
+        sticker.thumbnailUrl ?: sticker.fileUrl
     }
 
     Card(

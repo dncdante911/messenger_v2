@@ -11,7 +11,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.airbnb.lottie.compose.*
-import com.worldmates.messenger.data.stickers.EmbeddedStickerPacks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient

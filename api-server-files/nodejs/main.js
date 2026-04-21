@@ -66,7 +66,8 @@ const { registerModerationRoutes }   = require('./routes/moderation/index')
 const { registerScheduledRoutes }    = require('./routes/scheduled')
 const { registerFolderRoutes }       = require('./routes/folders')
 const { registerBackupRoutes }       = require('./routes/backup')
-const { registerStickerRoutes }      = require('./routes/stickers')
+const { registerStickerRoutes }           = require('./routes/stickers')
+const { registerTelegramStickerRoutes }   = require('./routes/telegram-stickers')
 const { registerBusinessRoutes, handleBusinessAutoReply } = require('./routes/business')
 const { registerBusinessDirectoryRoutes } = require('./routes/business-directory')
 const { registerSearchRoutes }       = require('./routes/search/index')
@@ -1329,6 +1330,9 @@ async function main() {
 
   // Register Sticker & Emoji Packs routes (replaces PHP sticker_pack/emoji_pack endpoints)
   registerStickerRoutes(app, ctx);
+
+  // Register Telegram Sticker proxy (fetches TG sticker sets via bot token in .env)
+  registerTelegramStickerRoutes(app, ctx);
 
   // Register Voice Transcription route (PRO — OpenAI Whisper)
   registerVoiceTranscriptionRoutes(app, ctx);

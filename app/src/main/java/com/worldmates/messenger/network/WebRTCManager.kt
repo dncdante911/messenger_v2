@@ -112,6 +112,7 @@ class WebRTCManager(private val context: Context) {
         private const val TURN_REALM = "worldmates.club"
         private const val TURN_IP_1 = "195.22.131.11"
         private const val TURN_IP_2 = "46.232.232.38"
+        private const val TURN_IP_3 = "93.171.188.229"
         // TURNS (TLS) должен использовать доменное имя — SSL сертификат привязан к домену
         private const val TURNS_DOMAIN = "worldmates.club"
 
@@ -147,6 +148,7 @@ class WebRTCManager(private val context: Context) {
             // STUN on own coturn servers (no Google dependency)
             servers.add(PeerConnection.IceServer.builder("stun:$TURN_IP_1:3478").createIceServer())
             servers.add(PeerConnection.IceServer.builder("stun:$TURN_IP_2:3478").createIceServer())
+            servers.add(PeerConnection.IceServer.builder("stun:$TURN_IP_3:3478").createIceServer())
 
             // TURN серверы WorldMates (с credentials для relay)
             val (username, credential) = generateTurnCredentials()
@@ -166,6 +168,14 @@ class WebRTCManager(private val context: Context) {
                         .createIceServer()
                 )
 
+                // TURN UDP IP3
+                servers.add(
+                    PeerConnection.IceServer.builder("turn:$TURN_IP_3:3478?transport=udp")
+                        .setUsername(username)
+                        .setPassword(credential)
+                        .createIceServer()
+                )
+
                 // TURN TCP (fallback для строгих файрволов)
                 servers.add(
                     PeerConnection.IceServer.builder("turn:$TURN_IP_1:3478?transport=tcp")
@@ -175,6 +185,12 @@ class WebRTCManager(private val context: Context) {
                 )
                 servers.add(
                     PeerConnection.IceServer.builder("turn:$TURN_IP_2:3478?transport=tcp")
+                        .setUsername(username)
+                        .setPassword(credential)
+                        .createIceServer()
+                )
+                servers.add(
+                    PeerConnection.IceServer.builder("turn:$TURN_IP_3:3478?transport=tcp")
                         .setUsername(username)
                         .setPassword(credential)
                         .createIceServer()

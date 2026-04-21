@@ -14,7 +14,7 @@ const TURN_SECRET = process.env.TURN_SECRET || (() => {
 
 // Конфигурация серверов (внешние IP вашего шлюза с HAProxy)
 const TURN_SERVER_URL = 'worldmates.club';
-const TURN_IPS = ['195.22.131.11', '46.232.232.38'];
+const TURN_IPS = ['195.22.131.11', '46.232.232.38', '93.171.188.229'];
 const TURN_PORT = 3478;
 const TURN_TLS_PORT = 5349;
 // Для TURNS (TLS) используем доменное имя — SSL сертификат привязан к домену, а не к IP.
