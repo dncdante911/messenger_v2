@@ -23,7 +23,7 @@ const path    = require('path');
 const https   = require('https');
 const { requireAuth } = require('../helpers/validate-token');
 
-const TG_TOKEN   = process.env.TG_BOT_TOKEN || '';
+const TG_TOKEN   = process.env.TG_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '';
 const TG_API     = `https://api.telegram.org/bot${TG_TOKEN}`;
 const TG_FILES   = `https://api.telegram.org/file/bot${TG_TOKEN}`;
 
