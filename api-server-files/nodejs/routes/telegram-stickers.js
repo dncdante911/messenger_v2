@@ -149,10 +149,63 @@ function getTelegramStickerSet(ctx) {
     }];
 }
 
+// ─── GET /api/node/telegram/animated-emoji ────────────────────────────────────
+// Fetches the "AnimatedEmojies" TG sticker set and returns it as a StickerPack
+// so StickerPicker can render it without special-casing.
+// Response matches StickerPackDetailResponse: { api_status, pack: { id, name, stickers } }
+
+const ANIMATED_EMOJI_SET = 'AnimatedEmojies';
+const ANIMATED_EMOJI_PACK_ID = -100; // negative ID to avoid clash with real packs
+
+function getAnimatedEmojiPack(ctx) {
+    return [requireAuth(ctx), async (req, res) => {
+        if (!TG_TOKEN) {
+            return res.json({ api_status: 503, error_message: 'TG_BOT_TOKEN not configured on server' });
+        }
+        try {
+            const set = await tgCall('getStickerSet', { name: ANIMATED_EMOJI_SET });
+
+            const stickers = await Promise.all(
+                set.stickers.map(async (s, i) => {
+                    const ext     = s.is_animated ? '.tgs' : '.webp';
+                    const fileUrl = await cacheFile(ctx, s.file_id, ext);
+                    const thumbId = s.thumbnail?.file_id || s.thumb?.file_id || null;
+                    const thumbUrl = thumbId ? await cacheFile(ctx, thumbId, '.webp') : fileUrl;
+                    return {
+                        id:            ANIMATED_EMOJI_PACK_ID * 1000 + i,
+                        pack_id:       ANIMATED_EMOJI_PACK_ID,
+                        file_url:      fileUrl || '',
+                        thumbnail_url: thumbUrl,
+                        emoji:         s.emoji || '',
+                        format:        s.is_animated ? 'tgs' : 'webp',
+                    };
+                })
+            );
+
+            const pack = {
+                id:          ANIMATED_EMOJI_PACK_ID,
+                name:        set.title || 'Telegram Emoji',
+                description: 'Animated emoji from Telegram',
+                author:      'Telegram',
+                is_active:   true,
+                is_animated: set.is_animated || false,
+                icon_url:    stickers[0]?.thumbnail_url || null,
+                stickers:    stickers.filter(s => s.file_url),
+            };
+
+            return res.json({ api_status: 200, pack });
+        } catch (e) {
+            console.error(`[TgStickers] getAnimatedEmojiPack: ${e.message}`);
+            return res.json({ api_status: 500, error_message: e.message });
+        }
+    }];
+}
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 function registerTelegramStickerRoutes(app, ctx) {
-    app.get('/api/telegram/sticker-set/:setName', getTelegramStickerSet(ctx));
+    app.get('/api/telegram/sticker-set/:setName',   getTelegramStickerSet(ctx));
+    app.get('/api/node/telegram/animated-emoji',    getAnimatedEmojiPack(ctx));
     console.log('[TgStickers] Routes registered');
 }
 

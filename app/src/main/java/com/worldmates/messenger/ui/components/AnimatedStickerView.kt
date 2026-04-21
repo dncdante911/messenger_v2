@@ -162,7 +162,7 @@ private fun TgsAnimationView(
                 LottieCompositionSpec.JsonString(tgsJson!!)
             )
             val progress by animateLottieCompositionAsState(
-                composition = compositionResult.value,
+                composition = composition,
                 isPlaying = autoPlay,
                 iterations = if (loop) LottieConstants.IterateForever else 1,
                 speed = 1f

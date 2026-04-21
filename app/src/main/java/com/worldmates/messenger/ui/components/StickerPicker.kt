@@ -55,7 +55,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun StickerPicker(
-    onStickerSelected: (Sticker) -> Unit,
+    onStickerSelected: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -253,7 +253,7 @@ fun StickerPicker(
                         itemSize = itemSize,
                         animSize = animSize,
                         onClick = {
-                            onStickerSelected(sticker)
+                            onStickerSelected(sticker.fileUrl)
                             onDismiss()
                         }
                     )
