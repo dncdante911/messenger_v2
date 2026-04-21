@@ -45,8 +45,8 @@ import kotlinx.coroutines.launch
  *
  * if (showStickerPicker) {
  *     StickerPicker(
- *         onStickerSelected = { sticker ->
- *             viewModel.sendSticker(sticker.id)
+ *         onStickerSelected = { stickerUrl ->
+ *             viewModel.sendSticker(stickerUrl)
  *         },
  *         onDismiss = { showStickerPicker = false }
  *     )
