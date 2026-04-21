@@ -221,7 +221,7 @@ fun getLastMessagePreview(message: com.worldmates.messenger.data.model.Message):
 
     val mediaUrl = message.decryptedMediaUrl ?: message.mediaUrl
     // Also consider stickers field (GIF/sticker URL stored there)
-    val stickerUrl = message.stickers?.takeIf { it.startsWith("http") }
+    val stickerUrl = message.stickers?.takeIf { it.startsWith("http") || it.startsWith("lottie://") }
     val effectiveMediaUrl = when {
         !mediaUrl.isNullOrEmpty() -> mediaUrl
         stickerUrl != null -> stickerUrl

@@ -1098,6 +1098,18 @@ interface NodeApi {
         @Path("packId") packId: Long
     ): StickerPackDetailResponse
 
+    // ═══════════════════════ TELEGRAM STICKERS ═══════════════════════════════
+
+    /**
+     * Fetch a Telegram sticker set via our server proxy.
+     * Server calls TG Bot API with its bot token and returns the set + cached file URLs.
+     * @param setName  e.g. "HotCherry" — same name used in t.me/addstickers/<setName>
+     */
+    @GET("api/telegram/sticker-set/{setName}")
+    suspend fun getTelegramStickerSet(
+        @Path("setName") setName: String
+    ): TelegramStickerSetResponse
+
     // ═══════════════════════ EMOJI PACKS ═════════════════════════════════════
 
     /** List all custom emoji packs. */
@@ -1634,5 +1646,31 @@ data class NodeNotesStorageResponse(
     @SerializedName("api_status")   val apiStatus:   Int  = 0,
     @SerializedName("used_bytes")   val usedBytes:   Long = 0,
     @SerializedName("quota_bytes")  val quotaBytes:  Long = 0,
+    @SerializedName("error_message") val errorMessage: String? = null,
+)
+
+// ==================== TELEGRAM STICKERS ====================
+
+/** One sticker item from a Telegram sticker set (as returned by our proxy). */
+data class TelegramStickerItem(
+    /** Cached CDN URL on worldmates.club — .tgs or .webp */
+    @SerializedName("file_url")    val fileUrl:   String,
+    /** Thumbnail URL (always webp) cached on worldmates.club */
+    @SerializedName("thumb_url")   val thumbUrl:  String? = null,
+    /** Emoji associated with this sticker */
+    @SerializedName("emoji")       val emoji:     String  = "",
+    /** true = animated TGS (Lottie), false = static WebP */
+    @SerializedName("is_animated") val isAnimated: Boolean = false,
+    /** true = video sticker (.webm) */
+    @SerializedName("is_video")    val isVideo:   Boolean = false,
+)
+
+data class TelegramStickerSetResponse(
+    @SerializedName("api_status")    val apiStatus:  Int  = 0,
+    @SerializedName("name")          val name:       String = "",
+    @SerializedName("title")         val title:      String = "",
+    @SerializedName("is_animated")   val isAnimated: Boolean = false,
+    @SerializedName("is_video")      val isVideo:    Boolean = false,
+    @SerializedName("stickers")      val stickers:   List<TelegramStickerItem> = emptyList(),
     @SerializedName("error_message") val errorMessage: String? = null,
 )

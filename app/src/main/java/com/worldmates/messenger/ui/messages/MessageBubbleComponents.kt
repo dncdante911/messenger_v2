@@ -373,7 +373,7 @@ fun MessageBubbleComposable(
                 // ── Resolve media URL & type before deciding bubble style ─────────
                 // stickers field holds GIF/sticker URL when it's an http URL (not JSON poll data)
                 val stickerMediaUrl: String? = message.stickers
-                    ?.takeIf { it.startsWith("http") }
+                    ?.takeIf { it.startsWith("http") || it.startsWith("lottie://") }
 
                 val effectiveMediaUrl: String? = when {
                     !message.decryptedMediaUrl.isNullOrEmpty() -> message.decryptedMediaUrl.also {

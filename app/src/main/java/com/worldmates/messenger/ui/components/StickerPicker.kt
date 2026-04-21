@@ -295,13 +295,11 @@ private fun StickerItem(
     itemSize: androidx.compose.ui.unit.Dp = 80.dp,
     animSize: androidx.compose.ui.unit.Dp = 64.dp,
 ) {
-    val context = LocalContext.current
-    val stickerUrl = when {
-        sticker.fileUrl.startsWith("lottie://") -> {
-            EmbeddedStickerPacks.getEmbeddedStickerResourceUrl(context, sticker.fileUrl)
-                ?: sticker.emoji
-        }
-        else -> sticker.thumbnailUrl ?: sticker.fileUrl
+    // lottie:// URLs are handled directly by AnimatedStickerView (no conversion needed)
+    val stickerUrl = if (sticker.fileUrl.startsWith("lottie://")) {
+        sticker.fileUrl
+    } else {
+        sticker.thumbnailUrl ?: sticker.fileUrl
     }
 
     Box(
