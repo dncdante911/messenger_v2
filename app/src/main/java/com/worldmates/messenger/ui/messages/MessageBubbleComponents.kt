@@ -433,7 +433,7 @@ fun MessageBubbleComposable(
                         // ── 🖼️ TRANSPARENT MEDIA BUBBLE (like Telegram) ───────────
                         when (detectedMediaType) {
                             "sticker" -> {
-                                // Sticker/GIF: bare content, no bubble wrapper at all
+                                // Transparent sticker bubble: sticker + overlaid timestamp pill (Telegram/Viber style)
                                 Box(
                                     modifier = Modifier
                                         .padding(horizontal = 8.dp)
@@ -449,6 +449,37 @@ fun MessageBubbleComposable(
                                         autoPlay = true,
                                         loop = true
                                     )
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(4.dp)
+                                            .background(
+                                                color = Color.Black.copy(alpha = 0.35f),
+                                                shape = RoundedCornerShape(10.dp)
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Text(
+                                                text = formatTime(message.timeStamp),
+                                                color = Color.White,
+                                                fontSize = 11.sp
+                                            )
+                                            if (isOwn) {
+                                                if (message.isLocalPending) {
+                                                    PendingMessageIcon()
+                                                } else {
+                                                    MessageStatusIcon(
+                                                        isRead = message.isRead ?: false,
+                                                        modifier = Modifier
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             else -> {
