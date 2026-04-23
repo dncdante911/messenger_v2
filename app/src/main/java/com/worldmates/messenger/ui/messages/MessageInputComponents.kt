@@ -56,12 +56,8 @@ fun MessageInputBar(
     onCameraClick: () -> Unit,
     onVideoCameraClick: () -> Unit,
     showMediaOptions: Boolean,
-    showEmojiPicker: Boolean,
-    onToggleEmojiPicker: () -> Unit,
-    showStickerPicker: Boolean,
-    onToggleStickerPicker: () -> Unit,
-    showGifPicker: Boolean,
-    onToggleGifPicker: () -> Unit,
+    showUnifiedPicker: Boolean,
+    onToggleUnifiedPicker: (com.worldmates.messenger.ui.components.MediaPickerTab) -> Unit,
     showLocationPicker: Boolean,
     onToggleLocationPicker: () -> Unit,
     showContactPicker: Boolean,
@@ -307,28 +303,14 @@ fun MessageInputBar(
                         onClick = { onInputModeChange(InputMode.VIDEO) }
                     )
 
-                    // Emoji mode
+                    // Unified media picker (emoji + gif + stickers)
                     InputModeTab(
                         icon = Icons.Default.EmojiEmotions,
                         label = stringResource(R.string.input_mode_emoji),
-                        isSelected = currentInputMode == InputMode.EMOJI,
-                        onClick = { onInputModeChange(InputMode.EMOJI) }
-                    )
-
-                    // Sticker mode
-                    InputModeTab(
-                        icon = Icons.Default.StickyNote2,
-                        label = stringResource(R.string.input_mode_stickers),
-                        isSelected = currentInputMode == InputMode.STICKER,
-                        onClick = { onInputModeChange(InputMode.STICKER) }
-                    )
-
-                    // GIF mode
-                    InputModeTab(
-                        icon = Icons.Default.Gif,
-                        label = stringResource(R.string.input_mode_gif),
-                        isSelected = currentInputMode == InputMode.GIF,
-                        onClick = { onInputModeChange(InputMode.GIF) }
+                        isSelected = showUnifiedPicker,
+                        onClick = {
+                            onToggleUnifiedPicker(com.worldmates.messenger.ui.components.MediaPickerTab.EMOJI)
+                        }
                     )
                 }
 
@@ -530,34 +512,6 @@ fun MessageInputBar(
                             }
                         }
 
-                        InputMode.EMOJI, InputMode.STICKER, InputMode.GIF -> {
-                            // Показуємо текстове поле для коментаря
-                            TextField(
-                                value = messageText,
-                                onValueChange = effectiveOnChange,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 40.dp, max = 120.dp)
-                                    .background(colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
-                                placeholder = {
-                                    Text(
-                                        stringResource(R.string.add_comment_placeholder),
-                                        color = colorScheme.onSurfaceVariant,
-                                        fontSize = 16.sp
-                                    )
-                                },
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    focusedTextColor = colorScheme.onSurface,
-                                    unfocusedTextColor = colorScheme.onSurface
-                                ),
-                                textStyle = MaterialTheme.typography.bodyLarge,
-                                maxLines = 4
-                            )
-                        }
                     }
 
                     Spacer(modifier = Modifier.width(4.dp))
@@ -722,26 +676,6 @@ fun MessageInputBar(
                             }
                         }
 
-                        InputMode.EMOJI, InputMode.STICKER, InputMode.GIF -> {
-                            // Відкрито пікер - кнопка Send якщо є текст
-                            if (messageText.isNotBlank()) {
-                                IconButton(
-                                    onClick = onSendClick,
-                                    enabled = !isLoading,
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Send,
-                                        contentDescription = stringResource(R.string.send_label),
-                                        tint = colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            } else {
-                                // Просто placeholder
-                                Spacer(modifier = Modifier.size(40.dp))
-                            }
-                        }
                     }
                 }
             }
