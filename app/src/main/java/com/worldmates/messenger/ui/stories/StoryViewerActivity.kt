@@ -15,9 +15,6 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -465,9 +462,6 @@ fun StoryViewerScreen(
             },
             onAddCommentWithReply = { text, replyToId ->
                 currentStory?.let { viewModel.createComment(it.id, text, replyToId) }
-            },
-            onAddCommentWithSticker = { stickerUrl, replyToId ->
-                currentStory?.let { viewModel.createComment(it.id, "", replyToId, stickerUrl) }
             },
             onDeleteComment = { viewModel.deleteComment(it) }
         )
@@ -998,16 +992,6 @@ fun FloatingReactionAnimation(
 // Comments Bottom Sheet (modern design + emoji picker)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-private val EMOJI_GRID = listOf(
-    "\uD83D\uDE00", "\uD83D\uDE02", "\uD83D\uDE0D", "\uD83E\uDD70",
-    "\uD83D\uDE0E", "\uD83D\uDE09", "\uD83E\uDD23", "\uD83D\uDE18",
-    "\uD83D\uDE4F", "\uD83D\uDC4D", "\uD83D\uDC4F", "\u2764\uFE0F",
-    "\uD83D\uDD25", "\uD83C\uDF89", "\uD83D\uDCAF", "\uD83C\uDF1F",
-    "\uD83D\uDE22", "\uD83D\uDE2D", "\uD83D\uDE31", "\uD83E\uDD14",
-    "\uD83D\uDE21", "\uD83E\uDD2F", "\uD83D\uDE4C", "\uD83D\uDE48",
-    "\uD83D\uDC40", "\uD83D\uDCAA", "\uD83C\uDF38", "\uD83C\uDF1E",
-    "\uD83C\uDF08", "\uD83D\uDE80", "\uD83C\uDFC6", "\uD83C\uDF82"
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1017,12 +1001,10 @@ fun StoryCommentsSheet(
     onAddComment: (String) -> Unit,
     onDeleteComment: (Long) -> Unit,
     onAddCommentWithReply: ((String, Long?) -> Unit)? = null,
-    onAddCommentWithSticker: ((String, Long?) -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var commentText by remember { mutableStateOf("") }
     var showEmojiPicker by remember { mutableStateOf(false) }
-    var showStickerPicker by remember { mutableStateOf(false) }
     var replyingTo by remember { mutableStateOf<StoryComment?>(null) }
     var userActionsTarget by remember { mutableStateOf<StoryComment?>(null) }
     val focusRequester = remember { FocusRequester() }
@@ -1173,51 +1155,16 @@ fun StoryCommentsSheet(
                 }
             }
 
-            // Emoji picker
+            // Emoji picker (modern, full-category)
             AnimatedVisibility(
                 visible = showEmojiPicker,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(8),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .background(Color(0xFF2C2C2E))
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(EMOJI_GRID) { emoji ->
-                        Text(
-                            text = emoji,
-                            fontSize = 24.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    commentText += emoji
-                                }
-                                .padding(6.dp)
-                        )
-                    }
-                }
-            }
-
-            // Sticker picker
-            AnimatedVisibility(
-                visible = showStickerPicker,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                com.worldmates.messenger.ui.components.StickerPicker(
-                    onStickerSelected = { stickerUrl ->
-                        onAddCommentWithSticker?.invoke(stickerUrl, replyingTo?.id)
-                        replyingTo = null
-                        showStickerPicker = false
-                    },
-                    onDismiss = { showStickerPicker = false }
+                com.worldmates.messenger.ui.components.EmojiPicker(
+                    onEmojiSelected = { emoji -> commentText += emoji },
+                    onDismiss = { showEmojiPicker = false },
+                    onBackspace = { if (commentText.isNotEmpty()) commentText = commentText.dropLast(1) }
                 )
             }
 
@@ -1232,25 +1179,13 @@ fun StoryCommentsSheet(
             ) {
                 // Emoji toggle
                 IconButton(
-                    onClick = { showEmojiPicker = !showEmojiPicker; showStickerPicker = false },
+                    onClick = { showEmojiPicker = !showEmojiPicker },
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         imageVector = if (showEmojiPicker) Icons.Outlined.Keyboard else Icons.Outlined.EmojiEmotions,
                         contentDescription = "Emoji",
                         tint = if (showEmojiPicker) Color(0xFF2196F3) else Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                // Sticker toggle
-                IconButton(
-                    onClick = { showStickerPicker = !showStickerPicker; showEmojiPicker = false },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Celebration,
-                        contentDescription = "Stickers",
-                        tint = if (showStickerPicker) Color(0xFF2196F3) else Color.White.copy(alpha = 0.6f),
                         modifier = Modifier.size(24.dp)
                     )
                 }

@@ -42,7 +42,6 @@ import kotlin.math.roundToInt
 import com.worldmates.messenger.data.model.*
 import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.components.AnimatedStickerView
-import com.worldmates.messenger.ui.components.StickerPicker
 
 // ==================== COMMENT CARD ====================
 
@@ -210,14 +209,12 @@ fun CommentsBottomSheet(
     onDismiss: () -> Unit,
     onAddComment: (String) -> Unit,
     onAddCommentWithReply: ((String, Long?) -> Unit)? = null,
-    onAddCommentWithSticker: ((String, Long?) -> Unit)? = null,
     onDeleteComment: (Long) -> Unit,
     onCommentReaction: (commentId: Long, emoji: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var commentText by remember { mutableStateOf("") }
     var showEmojiPicker by remember { mutableStateOf(false) }
-    var showStickerPicker by remember { mutableStateOf(false) }
     var replyingToComment by remember { mutableStateOf<ChannelComment?>(null) }
     var userActionsComment by remember { mutableStateOf<ChannelComment?>(null) }
     val cs = MaterialTheme.colorScheme
@@ -432,23 +429,8 @@ fun CommentsBottomSheet(
             ) {
                 com.worldmates.messenger.ui.components.EmojiPicker(
                     onEmojiSelected = { emoji -> commentText += emoji },
-                    onDismiss = { showEmojiPicker = false }
-                )
-            }
-
-            // ── Sticker picker (slides in above input bar) ──
-            AnimatedVisibility(
-                visible = showStickerPicker,
-                enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
-                exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
-            ) {
-                com.worldmates.messenger.ui.components.StickerPicker(
-                    onStickerSelected = { stickerUrl ->
-                        onAddCommentWithSticker?.invoke(stickerUrl, replyingToComment?.id)
-                        replyingToComment = null
-                        showStickerPicker = false
-                    },
-                    onDismiss = { showStickerPicker = false }
+                    onDismiss = { showEmojiPicker = false },
+                    onBackspace = { if (commentText.isNotEmpty()) commentText = commentText.dropLast(1) }
                 )
             }
 
@@ -463,7 +445,7 @@ fun CommentsBottomSheet(
             ) {
                 // Emoji toggle
                 IconButton(
-                    onClick = { showEmojiPicker = !showEmojiPicker; showStickerPicker = false },
+                    onClick = { showEmojiPicker = !showEmojiPicker },
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
@@ -471,19 +453,6 @@ fun CommentsBottomSheet(
                         else Icons.Outlined.EmojiEmotions,
                         contentDescription = null,
                         tint = if (showEmojiPicker) cs.primary
-                               else cs.onSurfaceVariant.copy(alpha = 0.55f),
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                // Sticker toggle
-                IconButton(
-                    onClick = { showStickerPicker = !showStickerPicker; showEmojiPicker = false },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Celebration,
-                        contentDescription = "Stickers",
-                        tint = if (showStickerPicker) cs.primary
                                else cs.onSurfaceVariant.copy(alpha = 0.55f),
                         modifier = Modifier.size(22.dp)
                     )
