@@ -1,177 +1,202 @@
 'use strict';
 
-const https = require('https');
+/**
+ * Telegram Sticker Proxy
+ *
+ * Fetches sticker sets from the Telegram Bot API using the bot token
+ * stored in .env (TG_BOT_TOKEN). Files are downloaded once and cached
+ * on the worldmates.club CDN so the Android app never needs the token.
+ *
+ * Endpoint:
+ *   GET /api/telegram/sticker-set/:setName
+ *
+ * Response:
+ *   { api_status, name, title, is_animated, is_video,
+ *     stickers: [{ file_url, thumb_url, emoji, is_animated, is_video }] }
+ *
+ * TG_BOT_TOKEN must be set in .env.
+ * Cached files are written to upload/tg-stickers/ under the site root.
+ */
+
+const fs      = require('fs');
+const path    = require('path');
+const https   = require('https');
 const { requireAuth } = require('../helpers/validate-token');
 
-const TELEGRAM_API = 'https://api.telegram.org';
-const PACK_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const TG_TOKEN   = process.env.TG_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '';
+const TG_API     = `https://api.telegram.org/bot${TG_TOKEN}`;
+const TG_FILES   = `https://api.telegram.org/file/bot${TG_TOKEN}`;
 
-// In-memory cache: { [setName]: { data, timestamp } }
-const packCache = new Map();
+// Site root = the directory that serves static files (same as media-upload.js)
+const SITE_ROOT  = path.resolve(__dirname, '..', '..', '..');
+const CACHE_DIR  = path.join(SITE_ROOT, 'upload', 'tg-stickers');
 
-// File-id → file_path cache to reduce Telegram API calls
-const filePathCache = new Map();
-const FILE_PATH_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getBotToken() {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not configured on the server');
-    return token;
+function ensureDir(dir) {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-function telegramGet(method, params = {}) {
-    return new Promise((resolve, reject) => {
-        const token = getBotToken();
-        const query = new URLSearchParams(params).toString();
-        const url = `${TELEGRAM_API}/bot${token}/${method}?${query}`;
+function siteUrl(ctx) {
+    return (ctx.globalconfig?.site_url || '').replace(/\/$/, '');
+}
 
-        https.get(url, (res) => {
-            let raw = '';
-            res.on('data', chunk => { raw += chunk; });
+/** Simple HTTPS GET → Buffer */
+function httpsGet(url) {
+    return new Promise((resolve, reject) => {
+        https.get(url, res => {
+            const chunks = [];
+            res.on('data', c => chunks.push(c));
             res.on('end', () => {
-                try { resolve(JSON.parse(raw)); }
-                catch (e) { reject(new Error('Invalid JSON from Telegram API')); }
+                if (res.statusCode !== 200) {
+                    return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+                }
+                resolve(Buffer.concat(chunks));
             });
         }).on('error', reject);
     });
 }
 
-function buildProxyUrl(ctx, fileId, format) {
-    const nodeBase = (
-        process.env.NODE_WEBHOOK_BASE_URL ||
-        ctx.globalconfig?.node_url ||
-        'https://worldmates.club:449'
-    ).replace(/\/$/, '');
-    // Append the format as a file extension so AnimatedStickerView can detect it by URL
-    const ext = format === 'tgs' ? '.tgs' : format === 'webm' ? '.webm' : '.webp';
-    return `${nodeBase}/api/node/telegram/sticker-file/${encodeURIComponent(fileId)}${ext}`;
+/** Call Telegram Bot API and return parsed JSON body. */
+async function tgCall(method, params = {}) {
+    const qs  = new URLSearchParams(params).toString();
+    const url = `${TG_API}/${method}${qs ? '?' + qs : ''}`;
+    const buf = await httpsGet(url);
+    const json = JSON.parse(buf.toString('utf8'));
+    if (!json.ok) throw new Error(`TG API error: ${json.description || 'unknown'}`);
+    return json.result;
 }
 
-async function fetchStickerSet(setName) {
-    const cached = packCache.get(setName);
-    if (cached && Date.now() - cached.timestamp < PACK_CACHE_TTL) {
-        return cached.data;
+/**
+ * Download a TG file by file_id and cache it locally.
+ * Returns the CDN URL, or null on error.
+ */
+async function cacheFile(ctx, fileId, ext) {
+    const filename = `${fileId}${ext}`;
+    const absPath  = path.join(CACHE_DIR, filename);
+    const relPath  = `upload/tg-stickers/${filename}`;
+    const cdnUrl   = `${siteUrl(ctx)}/${relPath}`;
+
+    // Already cached — skip download
+    if (fs.existsSync(absPath)) return cdnUrl;
+
+    try {
+        const fileInfo = await tgCall('getFile', { file_id: fileId });
+        const filePath = fileInfo.file_path;
+        const fileUrl  = `${TG_FILES}/${filePath}`;
+        const data     = await httpsGet(fileUrl);
+        ensureDir(CACHE_DIR);
+        fs.writeFileSync(absPath, data);
+        return cdnUrl;
+    } catch (e) {
+        console.error(`[TgStickers] cacheFile ${fileId}: ${e.message}`);
+        return null;
     }
-
-    const result = await telegramGet('getStickerSet', { name: setName });
-    if (!result.ok) throw new Error(result.description || 'Telegram API error');
-
-    packCache.set(setName, { data: result.result, timestamp: Date.now() });
-    return result.result;
 }
 
-function stickerSetToPackResponse(ctx, set, packId) {
-    const stickers = set.stickers.map((s, i) => {
-        const fmt = s.is_video ? 'webm' : (s.is_animated ? 'tgs' : 'webp');
-        return {
-        id:            packId * 1000 + i,
-        pack_id:       packId,
-        file_url:      buildProxyUrl(ctx, s.file_id, fmt),
-        thumbnail_url: s.thumbnail
-            ? buildProxyUrl(ctx, s.thumbnail.file_id, 'webp')
-            : buildProxyUrl(ctx, s.file_id, fmt),
-        emoji:         s.emoji || null,
-        format:        fmt,
-        width:         s.width  || null,
-        height:        s.height || null,
-        };
-    });
+// ─── GET /api/telegram/sticker-set/:setName ───────────────────────────────────
 
-    const pack = {
-        id:            packId,
-        name:          set.title || set.name,
-        description:   `Telegram: @${set.name}`,
-        icon_url:      stickers[0]?.thumbnail_url || null,
-        author:        'Telegram',
-        is_active:     true,
-        is_animated:   set.stickers.some(s => s.is_animated),
-        sticker_count: stickers.length,
-        stickers,
-    };
+function getTelegramStickerSet(ctx) {
+    return [requireAuth(ctx), async (req, res) => {
+        if (!TG_TOKEN) {
+            return res.json({ api_status: 503, error_message: 'TG_BOT_TOKEN not configured on server' });
+        }
 
-    return { api_status: 200, pack, stickers };
+        const { setName } = req.params;
+        if (!setName || !/^[\w]+$/.test(setName)) {
+            return res.json({ api_status: 400, error_message: 'Invalid sticker set name' });
+        }
+
+        try {
+            const set = await tgCall('getStickerSet', { name: setName });
+
+            const stickers = await Promise.all(
+                set.stickers.map(async s => {
+                    const isAnimated = s.is_animated || false;
+                    const isVideo    = s.is_video    || false;
+
+                    // Main file
+                    const ext      = isAnimated ? '.tgs' : isVideo ? '.webm' : '.webp';
+                    const fileUrl  = await cacheFile(ctx, s.file_id, ext);
+
+                    // Thumbnail (always webp)
+                    const thumbId  = s.thumbnail?.file_id || s.thumb?.file_id || null;
+                    const thumbUrl = thumbId ? await cacheFile(ctx, thumbId, '.webp') : fileUrl;
+
+                    return {
+                        file_url:    fileUrl,
+                        thumb_url:   thumbUrl,
+                        emoji:       s.emoji || '',
+                        is_animated: isAnimated,
+                        is_video:    isVideo,
+                    };
+                })
+            );
+
+            return res.json({
+                api_status:  200,
+                name:        set.name,
+                title:       set.title,
+                is_animated: set.is_animated || false,
+                is_video:    set.is_video    || false,
+                stickers:    stickers.filter(s => s.file_url),
+            });
+
+        } catch (e) {
+            console.error(`[TgStickers] getStickerSet ${setName}: ${e.message}`);
+            return res.json({ api_status: 500, error_message: e.message });
+        }
+    }];
 }
 
 // ─── GET /api/node/telegram/animated-emoji ────────────────────────────────────
-// Returns the Telegram AnimatedEmojies sticker set in our StickerPack format.
+// Fetches the "AnimatedEmojies" TG sticker set and returns it as a StickerPack
+// so StickerPicker can render it without special-casing.
+// Response matches StickerPackDetailResponse: { api_status, pack: { id, name, stickers } }
 
-function getAnimatedEmoji(ctx) {
+const ANIMATED_EMOJI_SET = 'AnimatedEmojies';
+const ANIMATED_EMOJI_PACK_ID = -100; // negative ID to avoid clash with real packs
+
+function getAnimatedEmojiPack(ctx) {
     return [requireAuth(ctx), async (req, res) => {
-        try {
-            const set = await fetchStickerSet('AnimatedEmojies');
-            return res.json(stickerSetToPackResponse(ctx, set, 9001));
-        } catch (err) {
-            console.error('[TelegramStickers/animatedEmoji]', err.message);
-            return res.json({ api_status: 500, error_message: err.message });
+        if (!TG_TOKEN) {
+            return res.json({ api_status: 503, error_message: 'TG_BOT_TOKEN not configured on server' });
         }
-    }];
-}
-
-// ─── GET /api/node/telegram/sticker-pack/:setName ─────────────────────────────
-// Returns any public Telegram sticker set by its short name.
-
-function getStickerPack(ctx) {
-    return [requireAuth(ctx), async (req, res) => {
         try {
-            const { setName } = req.params;
-            if (!setName || !/^[a-zA-Z0-9_]{1,64}$/.test(setName)) {
-                return res.status(400).json({ api_status: 400, error_message: 'Invalid sticker set name' });
-            }
-            const set = await fetchStickerSet(setName);
-            return res.json(stickerSetToPackResponse(ctx, set, 9002));
-        } catch (err) {
-            console.error('[TelegramStickers/getStickerPack]', err.message);
-            return res.json({ api_status: 500, error_message: err.message });
-        }
-    }];
-}
+            const set = await tgCall('getStickerSet', { name: ANIMATED_EMOJI_SET });
 
-// ─── GET /api/node/telegram/sticker-file/:fileId ─────────────────────────────
-// PUBLIC — no auth. Proxies .tgs / .webp / .webm file download from Telegram CDN.
-// No auth because AnimatedStickerView uses raw java.net.URL without custom headers.
+            const stickers = await Promise.all(
+                set.stickers.map(async (s, i) => {
+                    const ext     = s.is_animated ? '.tgs' : '.webp';
+                    const fileUrl = await cacheFile(ctx, s.file_id, ext);
+                    const thumbId = s.thumbnail?.file_id || s.thumb?.file_id || null;
+                    const thumbUrl = thumbId ? await cacheFile(ctx, thumbId, '.webp') : fileUrl;
+                    return {
+                        id:            ANIMATED_EMOJI_PACK_ID * 1000 + i,
+                        pack_id:       ANIMATED_EMOJI_PACK_ID,
+                        file_url:      fileUrl || '',
+                        thumbnail_url: thumbUrl,
+                        emoji:         s.emoji || '',
+                        format:        s.is_animated ? 'tgs' : 'webp',
+                    };
+                })
+            );
 
-function getStickerFile(ctx) {
-    return [async (req, res) => {
-        try {
-            const rawParam = req.params.fileId || '';
-            // Strip the format hint extension we appended in buildProxyUrl
-            const fileId = decodeURIComponent(rawParam).replace(/\.(tgs|webp|webm)$/i, '');
-            if (!fileId || fileId.length > 200) {
-                return res.status(400).end();
-            }
+            const pack = {
+                id:          ANIMATED_EMOJI_PACK_ID,
+                name:        set.title || 'Telegram Emoji',
+                description: 'Animated emoji from Telegram',
+                author:      'Telegram',
+                is_active:   true,
+                is_animated: set.is_animated || false,
+                icon_url:    stickers[0]?.thumbnail_url || null,
+                stickers:    stickers.filter(s => s.file_url),
+            };
 
-            let filePath = null;
-            const cachedPath = filePathCache.get(fileId);
-            if (cachedPath && Date.now() - cachedPath.timestamp < FILE_PATH_CACHE_TTL) {
-                filePath = cachedPath.path;
-            } else {
-                const fileInfo = await telegramGet('getFile', { file_id: fileId });
-                if (!fileInfo.ok || !fileInfo.result?.file_path) {
-                    return res.status(404).end();
-                }
-                filePath = fileInfo.result.file_path;
-                filePathCache.set(fileId, { path: filePath, timestamp: Date.now() });
-            }
-
-            const token = getBotToken();
-            const fileUrl = `${TELEGRAM_API}/file/bot${token}/${filePath}`;
-
-            const contentType = filePath.endsWith('.tgs')  ? 'application/octet-stream'
-                              : filePath.endsWith('.webp') ? 'image/webp'
-                              : filePath.endsWith('.webm') ? 'video/webm'
-                              : 'application/octet-stream';
-
-            https.get(fileUrl, (telegramRes) => {
-                res.setHeader('Content-Type', contentType);
-                res.setHeader('Cache-Control', 'public, max-age=86400');
-                telegramRes.pipe(res);
-            }).on('error', (err) => {
-                console.error('[TelegramStickers/getFile pipe]', err.message);
-                if (!res.headersSent) res.status(502).end();
-            });
-        } catch (err) {
-            console.error('[TelegramStickers/getStickerFile]', err.message);
-            if (!res.headersSent) res.status(500).end();
+            return res.json({ api_status: 200, pack });
+        } catch (e) {
+            console.error(`[TgStickers] getAnimatedEmojiPack: ${e.message}`);
+            return res.json({ api_status: 500, error_message: e.message });
         }
     }];
 }
@@ -179,10 +204,9 @@ function getStickerFile(ctx) {
 // ─── Register ─────────────────────────────────────────────────────────────────
 
 function registerTelegramStickerRoutes(app, ctx) {
-    app.get('/api/node/telegram/animated-emoji',        getAnimatedEmoji(ctx));
-    app.get('/api/node/telegram/sticker-pack/:setName', getStickerPack(ctx));
-    app.get('/api/node/telegram/sticker-file/:fileId',  getStickerFile(ctx));
-    console.log('[TelegramStickers] Routes registered');
+    app.get('/api/telegram/sticker-set/:setName',   getTelegramStickerSet(ctx));
+    app.get('/api/node/telegram/animated-emoji',    getAnimatedEmojiPack(ctx));
+    console.log('[TgStickers] Routes registered');
 }
 
 module.exports = { registerTelegramStickerRoutes };

@@ -116,12 +116,12 @@ fun ChannelThreadScreen(
                 // Sticker picker overlay
                 if (showStickerPicker) {
                     StickerPicker(
-                        onStickerSelected = { sticker ->
+                        onStickerSelected = { stickerUrl ->
                             viewModel.sendMessage(
                                 postId    = postId,
                                 text      = "",
                                 replyToId = replyToMessage?.id,
-                                sticker   = sticker.fileUrl
+                                sticker   = stickerUrl
                             ) { replyToMessage = null }
                             showStickerPicker = false
                         },

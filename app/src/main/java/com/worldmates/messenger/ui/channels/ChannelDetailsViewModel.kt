@@ -521,6 +521,33 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
+     * Toggles a reaction on a post: removes it if the user already reacted with that emoji,
+     * adds it otherwise (respecting the 1-reaction / 2-reaction limit based on subscription).
+     */
+    fun toggleReaction(
+        postId: Long,
+        emoji: String,
+        onLimitReached: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val post = _posts.value.find { it.id == postId } ?: return
+        val reactions = post.reactions ?: emptyList()
+        val alreadyReacted = reactions.any { it.emoji == emoji && it.userReacted }
+
+        if (alreadyReacted) {
+            removePostReaction(postId, emoji, onError = onError)
+        } else {
+            val maxReactions = if (UserSession.isPro > 0) 2 else 1
+            val currentCount = reactions.count { it.userReacted }
+            if (currentCount >= maxReactions) {
+                onLimitReached()
+            } else {
+                addPostReaction(postId, emoji, onError = onError)
+            }
+        }
+    }
+
+    /**
      * Додає реакцію на пост
      */
     fun addPostReaction(postId: Long, emoji: String, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {

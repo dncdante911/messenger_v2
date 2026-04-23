@@ -74,6 +74,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         private const val TURN_SECRET = "ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9"
         private const val TURN_HOST_1 = "195.22.131.11"
         private const val TURN_HOST_2 = "46.232.232.38"
+        private const val TURN_HOST_3 = "93.171.188.229"
         // TURNS (TLS) — по домену, т.к. SSL сертификат привязан к домену
         private const val TURNS_DOMAIN = "worldmates.club"
 
@@ -1821,6 +1822,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
             listOf(
                 PeerConnection.IceServer.builder("stun:$TURN_HOST_1:3478").createIceServer(),
                 PeerConnection.IceServer.builder("stun:$TURN_HOST_2:3478").createIceServer(),
+                PeerConnection.IceServer.builder("stun:$TURN_HOST_3:3478").createIceServer(),
                 PeerConnection.IceServer.builder(listOf(
                     "turn:$TURN_HOST_1:3478?transport=udp",
                     "turn:$TURN_HOST_1:3478?transport=tcp"
@@ -1828,6 +1830,10 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 PeerConnection.IceServer.builder(listOf(
                     "turn:$TURN_HOST_2:3478?transport=udp",
                     "turn:$TURN_HOST_2:3478?transport=tcp"
+                )).setUsername(username).setPassword(credential).createIceServer(),
+                PeerConnection.IceServer.builder(listOf(
+                    "turn:$TURN_HOST_3:3478?transport=udp",
+                    "turn:$TURN_HOST_3:3478?transport=tcp"
                 )).setUsername(username).setPassword(credential).createIceServer(),
                 // TURNS TLS — по домену (SSL сертификат привязан к домену, не к IP)
                 PeerConnection.IceServer.builder("turns:$TURNS_DOMAIN:5349?transport=tcp")

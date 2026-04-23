@@ -28,6 +28,7 @@ class GroupWebRTCManager(private val context: Context) {
         private const val TURN_SECRET = "ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9"
         private const val TURN_IP_1 = "195.22.131.11"
         private const val TURN_IP_2 = "46.232.232.38"
+        private const val TURN_IP_3 = "93.171.188.229"
         // TURNS (TLS) — по домену, т.к. SSL сертификат привязан к домену
         private const val TURNS_DOMAIN = "worldmates.club"
 
@@ -48,6 +49,7 @@ class GroupWebRTCManager(private val context: Context) {
                 listOf(
                     PeerConnection.IceServer.builder("stun:$TURN_IP_1:3478").createIceServer(),
                     PeerConnection.IceServer.builder("stun:$TURN_IP_2:3478").createIceServer(),
+                    PeerConnection.IceServer.builder("stun:$TURN_IP_3:3478").createIceServer(),
                     PeerConnection.IceServer.builder(listOf(
                         "turn:$TURN_IP_1:3478?transport=udp",
                         "turn:$TURN_IP_1:3478?transport=tcp"
@@ -55,6 +57,10 @@ class GroupWebRTCManager(private val context: Context) {
                     PeerConnection.IceServer.builder(listOf(
                         "turn:$TURN_IP_2:3478?transport=udp",
                         "turn:$TURN_IP_2:3478?transport=tcp"
+                    )).setUsername(username).setPassword(credential).createIceServer(),
+                    PeerConnection.IceServer.builder(listOf(
+                        "turn:$TURN_IP_3:3478?transport=udp",
+                        "turn:$TURN_IP_3:3478?transport=tcp"
                     )).setUsername(username).setPassword(credential).createIceServer(),
                     // TURNS TLS — по домену (SSL сертификат привязан к домену, не к IP)
                     PeerConnection.IceServer.builder("turns:$TURNS_DOMAIN:5349?transport=tcp")
