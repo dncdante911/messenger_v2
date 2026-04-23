@@ -1124,18 +1124,6 @@ interface NodeApi {
         @Path("packId") packId: Long
     ): EmojiPackDetailResponse
 
-    // ═══════════════════ TELEGRAM STICKERS ═══════════════════════════════════
-
-    /** Fetch the Telegram AnimatedEmojies pack via server-side proxy. */
-    @GET("api/node/telegram/animated-emoji")
-    suspend fun getTelegramAnimatedEmoji(): StickerPackDetailResponse
-
-    /** Fetch any public Telegram sticker set by its short name. */
-    @GET("api/node/telegram/sticker-pack/{setName}")
-    suspend fun getTelegramStickerPack(
-        @Path("setName") setName: String
-    ): StickerPackDetailResponse
-
     // ═══════════════════════ APP UPDATE ══════════════════════════════════════
 
     @GET(Constants.NODE_UPDATE_CHECK)

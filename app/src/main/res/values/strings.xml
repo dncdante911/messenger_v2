@@ -1060,6 +1060,7 @@
 
     <!-- ===== EMOJI PICKER ===== -->
     <string name="emoji_smileys">Смайлики</string>
+    <string name="emoji_people">Люди</string>
     <string name="emoji_gestures">Жести</string>
     <string name="emoji_animals">Тварини</string>
     <string name="emoji_food">Їжа</string>
