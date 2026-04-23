@@ -226,9 +226,8 @@ fun MessagesScreen(
         }
     }
     var showMediaOptions by remember { mutableStateOf(false) }
-    var showEmojiPicker by remember { mutableStateOf(false) }
-    var showStickerPicker by remember { mutableStateOf(false) }
-    var showGifPicker by remember { mutableStateOf(false) }  // 🎬 GIF Picker
+    var showUnifiedPicker by remember { mutableStateOf(false) }
+    var unifiedPickerTab by remember { mutableStateOf(com.worldmates.messenger.ui.components.MediaPickerTab.EMOJI) }
     var showLocationPicker by remember { mutableStateOf(false) }  // 📍 Location Picker
     var showContactPicker by remember { mutableStateOf(false) }  // 📇 Contact Picker
     var showStrapiPicker by remember { mutableStateOf(false) }  // 🛍️ Strapi Content Picker
@@ -1964,28 +1963,8 @@ fun MessagesScreen(
                     currentInputMode = currentInputMode,
                     onInputModeChange = { newMode ->
                         currentInputMode = newMode
-                        // Автоматично відкриваємо відповідні пікери
-                        when (newMode) {
-                            InputMode.EMOJI -> {
-                                showEmojiPicker = true
-                                showStickerPicker = false
-                                showGifPicker = false
-                            }
-                            InputMode.STICKER -> {
-                                showEmojiPicker = false
-                                showStickerPicker = true
-                                showGifPicker = false
-                            }
-                            InputMode.GIF -> {
-                                showEmojiPicker = false
-                                showStickerPicker = false
-                                showGifPicker = true
-                            }
-                            else -> {
-                                showEmojiPicker = false
-                                showStickerPicker = false
-                                showGifPicker = false
-                            }
+                        if (newMode !in listOf(InputMode.TEXT, InputMode.VOICE, InputMode.VIDEO)) {
+                            showUnifiedPicker = false
                         }
                     },
                     messageText = messageText,
@@ -2061,12 +2040,15 @@ fun MessagesScreen(
                     onBatchClick = { multipleFilesPickerLauncher.launch("image/*") },
                     onVideoCameraClick = { if (onRequestVideoPermissions()) showVideoMessageRecorder = true },
                     showMediaOptions = showMediaOptions,
-                    showEmojiPicker = showEmojiPicker,
-                    onToggleEmojiPicker = { showEmojiPicker = !showEmojiPicker },
-                    showStickerPicker = showStickerPicker,
-                    onToggleStickerPicker = { showStickerPicker = !showStickerPicker },
-                    showGifPicker = showGifPicker,
-                    onToggleGifPicker = { showGifPicker = !showGifPicker },
+                    showUnifiedPicker = showUnifiedPicker,
+                    onToggleUnifiedPicker = { tab ->
+                        if (showUnifiedPicker && unifiedPickerTab == tab) {
+                            showUnifiedPicker = false
+                        } else {
+                            unifiedPickerTab = tab
+                            showUnifiedPicker = true
+                        }
+                    },
                     showLocationPicker = showLocationPicker,
                     onToggleLocationPicker = { showLocationPicker = !showLocationPicker },
                     showContactPicker = showContactPicker,
@@ -2156,15 +2138,12 @@ fun MessagesScreen(
             }
 
             MessagesMediaPickersAndDialogs(
-                showEmojiPicker = showEmojiPicker,
+                showUnifiedPicker = showUnifiedPicker,
+                unifiedPickerTab = unifiedPickerTab,
                 onEmojiSelected = { emoji -> messageText += emoji },
-                onEmojiDismiss = { showEmojiPicker = false },
-                showStickerPicker = showStickerPicker,
-                onStickerSelected = { stickerUrl -> viewModel.sendSticker(stickerUrl); showStickerPicker = false },
-                onStickerDismiss = { showStickerPicker = false },
-                showGifPicker = showGifPicker,
-                onGifSelected = { gifUrl -> viewModel.sendGif(gifUrl); showGifPicker = false },
-                onGifDismiss = { showGifPicker = false },
+                onGifSelected = { gifUrl -> viewModel.sendGif(gifUrl); showUnifiedPicker = false },
+                onStickerSelected = { sticker -> viewModel.sendSticker(sticker.fileUrl); showUnifiedPicker = false },
+                onPickerDismiss = { showUnifiedPicker = false },
                 showLocationPicker = showLocationPicker,
                 onLocationSelected = { locationData -> viewModel.sendLocation(locationData); showLocationPicker = false },
                 onLocationDismiss = { showLocationPicker = false },
@@ -2288,15 +2267,12 @@ private fun MessagesDeletionDialogs(
 
 @Composable
 private fun MessagesMediaPickersAndDialogs(
-    showEmojiPicker: Boolean,
+    showUnifiedPicker: Boolean,
+    unifiedPickerTab: com.worldmates.messenger.ui.components.MediaPickerTab,
     onEmojiSelected: (String) -> Unit,
-    onEmojiDismiss: () -> Unit,
-    showStickerPicker: Boolean,
-    onStickerSelected: (String) -> Unit,
-    onStickerDismiss: () -> Unit,
-    showGifPicker: Boolean,
     onGifSelected: (String) -> Unit,
-    onGifDismiss: () -> Unit,
+    onStickerSelected: (com.worldmates.messenger.data.model.Sticker) -> Unit,
+    onPickerDismiss: () -> Unit,
     showLocationPicker: Boolean,
     onLocationSelected: (com.worldmates.messenger.data.repository.LocationData) -> Unit,
     onLocationDismiss: () -> Unit,
@@ -2318,24 +2294,13 @@ private fun MessagesMediaPickersAndDialogs(
     onForward: (List<Long>) -> Unit,
     onForwardDismiss: () -> Unit,
 ) {
-    if (showEmojiPicker) {
-        com.worldmates.messenger.ui.components.EmojiPicker(
+    if (showUnifiedPicker) {
+        com.worldmates.messenger.ui.components.UnifiedMediaPicker(
             onEmojiSelected = onEmojiSelected,
-            onDismiss = onEmojiDismiss
-        )
-    }
-
-    if (showStickerPicker) {
-        com.worldmates.messenger.ui.components.StickerPicker(
-            onStickerSelected = onStickerSelected,
-            onDismiss = onStickerDismiss
-        )
-    }
-
-    if (showGifPicker) {
-        com.worldmates.messenger.ui.components.GifPicker(
             onGifSelected = onGifSelected,
-            onDismiss = onGifDismiss
+            onStickerSelected = onStickerSelected,
+            onDismiss = onPickerDismiss,
+            initialTab = unifiedPickerTab
         )
     }
 
