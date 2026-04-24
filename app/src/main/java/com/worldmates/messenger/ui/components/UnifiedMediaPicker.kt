@@ -8,6 +8,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -42,25 +46,25 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// Public API — used by MessagesScreen and MessageInputComponents
 enum class MediaPickerTab { EMOJI, GIF, STICKERS }
 
-// Internal sealed class — tracks exactly which section is active
-private sealed class PickerSection {
-    data class EmojiSection(val cat: EmojiCategory) : PickerSection()
-    object GifSection : PickerSection()
-    data class PackSection(val packId: Long) : PickerSection()
-}
+// Internal: which of the 3 main sections is open
+private enum class MainTab { EMOJI, GIF, STICKERS }
 
 /**
- * Telegram-style unified media picker — emoji categories, GIF, and sticker packs
- * all share ONE scrollable bottom navigation bar with a bottom-underline selection indicator.
+ * Modern unified media picker — 3 fixed section tabs at the bottom,
+ * swipeable emoji categories, secondary sub-nav row for packs/categories,
+ * full-size content area.
  *
- * @param onEmojiSelected    Called when user taps an emoji (does NOT auto-dismiss).
- * @param onGifSelected      Called with the chosen GIF URL; auto-dismisses.
- * @param onStickerSelected  Called with the chosen Sticker; auto-dismisses.
- * @param onDismiss          Closes the panel.
- * @param onBackspace        Optional backspace handler pinned to the right of the nav bar.
- * @param initialTab         Which section opens first.
+ * Layout (340 dp total):
+ *   ┌───────────────────────────────────┐
+ *   │   Content (weight 1f)             │  emoji pager / gif grid / sticker grid
+ *   ├───────────────────────────────────┤  divider
+ *   │   Sub-nav (38 dp)                 │  category icons OR pack thumbnails
+ *   ├───────────────────────────────────┤  divider
+ *   │   Main tabs (48 dp)               │  😊  GIF  🎭
+ *   └───────────────────────────────────┘
  */
 @Composable
 fun UnifiedMediaPicker(
@@ -72,7 +76,7 @@ fun UnifiedMediaPicker(
     initialTab:        MediaPickerTab = MediaPickerTab.EMOJI,
     modifier:          Modifier = Modifier
 ) {
-    val scope = rememberCoroutineScope()
+    val scope   = rememberCoroutineScope()
     val context = LocalContext.current
 
     // ── Repositories ──────────────────────────────────────────────────────────
@@ -80,7 +84,7 @@ fun UnifiedMediaPicker(
     val giphyRepo   = remember { GiphyRepository.getInstance(context) }
     val stickerRepo = remember { StickerRepository.getInstance(context) }
 
-    // ── Emoji data ────────────────────────────────────────────────────────────
+    // ── Emoji ─────────────────────────────────────────────────────────────────
     val customEmojis by emojiRepo.customEmojis.collectAsState()
     val recentEmojis by emojiRepo.recentEmojis.collectAsState()
     val emojiCategories = remember(recentEmojis) {
@@ -88,39 +92,54 @@ fun UnifiedMediaPicker(
             if (recentEmojis.isNotEmpty()) add(EmojiCategory.RECENT)
             addAll(listOf(
                 EmojiCategory.SMILEYS, EmojiCategory.PEOPLE, EmojiCategory.GESTURES,
-                EmojiCategory.ANIMALS, EmojiCategory.FOOD, EmojiCategory.ACTIVITIES,
+                EmojiCategory.ANIMALS, EmojiCategory.FOOD,   EmojiCategory.ACTIVITIES,
                 EmojiCategory.TRAVEL,  EmojiCategory.OBJECTS, EmojiCategory.SYMBOLS,
                 EmojiCategory.CUSTOM
             ))
         }
     }
 
-    // ── Sticker data ──────────────────────────────────────────────────────────
+    // ── Stickers ──────────────────────────────────────────────────────────────
     val embeddedPacks = remember { EmbeddedStickerPacks.getAllEmbeddedPacks() }
-    val customPacks by stickerRepo.stickerPacks.collectAsState()
-    val activePacks = remember(customPacks) {
+    val customPacks  by stickerRepo.stickerPacks.collectAsState()
+    val activePacks   = remember(customPacks) {
         buildList {
             addAll(embeddedPacks)
             addAll(customPacks.filter { it.isActive && it.stickers?.isNotEmpty() == true })
         }
     }
+    var selectedPackId by remember { mutableStateOf(-1L) }
+    LaunchedEffect(activePacks) {
+        if (selectedPackId == -1L && activePacks.isNotEmpty())
+            selectedPackId = activePacks.first().id
+    }
 
-    // ── GIF data ──────────────────────────────────────────────────────────────
-    var gifs by remember { mutableStateOf<List<GifItem>>(emptyList()) }
-    var searchQuery by remember { mutableStateOf("") }
+    // ── GIFs ──────────────────────────────────────────────────────────────────
+    var gifs         by remember { mutableStateOf<List<GifItem>>(emptyList()) }
+    var gifQuery     by remember { mutableStateOf("") }
     val isGifLoading by giphyRepo.isLoading.collectAsState()
-    var searchJob: Job? by remember { mutableStateOf(null) }
+    var gifSearchJob: Job? by remember { mutableStateOf(null) }
 
-    // ── Active section ────────────────────────────────────────────────────────
-    var activeSection by remember {
-        mutableStateOf<PickerSection>(
-            when (initialTab) {
-                MediaPickerTab.GIF      -> PickerSection.GifSection
-                MediaPickerTab.STICKERS -> PickerSection.PackSection(-1L) // resolved when packs load
-                else                    -> PickerSection.EmojiSection(EmojiCategory.SMILEYS)
-            }
+    // ── Active tab ────────────────────────────────────────────────────────────
+    var activeTab by remember {
+        mutableStateOf(when (initialTab) {
+            MediaPickerTab.GIF      -> MainTab.GIF
+            MediaPickerTab.STICKERS -> MainTab.STICKERS
+            else                    -> MainTab.EMOJI
+        })
+    }
+
+    // ── Emoji pager + sub-nav sync ────────────────────────────────────────────
+    val pagerState  = rememberPagerState(initialPage = 0) { emojiCategories.size }
+    val catRowState = rememberLazyListState()
+    LaunchedEffect(pagerState.currentPage) {
+        // Keep the active category icon visible in the sub-nav row
+        catRowState.animateScrollToItem(
+            index        = pagerState.currentPage,
+            scrollOffset = -120
         )
     }
+
     var showManageSheet by remember { mutableStateOf(false) }
 
     // ── Data loading ──────────────────────────────────────────────────────────
@@ -129,261 +148,347 @@ fun UnifiedMediaPicker(
         scope.launch { stickerRepo.fetchStickerPacks() }
         giphyRepo.fetchTrendingGifs(limit = 50).onSuccess { gifs = it }
     }
-
-    LaunchedEffect(searchQuery) {
-        searchJob?.cancel()
-        if (searchQuery.isBlank()) {
+    LaunchedEffect(gifQuery) {
+        gifSearchJob?.cancel()
+        if (gifQuery.isBlank()) {
             giphyRepo.fetchTrendingGifs(limit = 50).onSuccess { gifs = it }
         } else {
-            searchJob = scope.launch {
-                delay(450)
-                giphyRepo.searchGifs(searchQuery, limit = 50).onSuccess { gifs = it }
+            gifSearchJob = scope.launch {
+                delay(400)
+                giphyRepo.searchGifs(gifQuery, limit = 50).onSuccess { gifs = it }
             }
         }
     }
 
-    // Resolve placeholder pack ID once packs are loaded
-    LaunchedEffect(activePacks) {
-        val s = activeSection
-        if (s is PickerSection.PackSection && s.packId == -1L && activePacks.isNotEmpty()) {
-            activeSection = PickerSection.PackSection(activePacks.first().id)
-        }
-    }
-
-    if (showManageSheet) {
-        StickerPackManagementSheet(onDismiss = { showManageSheet = false })
-    }
+    if (showManageSheet) StickerPackManagementSheet(onDismiss = { showManageSheet = false })
 
     val cs = MaterialTheme.colorScheme
 
+    // ── Root surface ──────────────────────────────────────────────────────────
     Surface(
         modifier        = modifier.fillMaxWidth().height(340.dp),
         color           = cs.surface,
-        shadowElevation = 6.dp,
-        shape           = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        shadowElevation = 8.dp,
+        shape           = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
     ) {
         Column {
-            // ── Content area ──────────────────────────────────────────────────
+
+            // ═══════════════════════════════════════════════════════════════════
+            // CONTENT AREA — fills all remaining space
+            // ═══════════════════════════════════════════════════════════════════
             Box(modifier = Modifier.weight(1f)) {
-                when (val s = activeSection) {
-                    is PickerSection.EmojiSection -> EmojiCategoryContent(
-                        category     = s.cat,
-                        recentEmojis = recentEmojis,
-                        customEmojis = customEmojis,
-                        onEmojiSelected = { emoji ->
-                            emojiRepo.trackEmojiUsage(emoji)
-                            onEmojiSelected(emoji)
-                        }
-                    )
-                    is PickerSection.GifSection -> GifGridContent(
-                        gifs          = gifs,
-                        isLoading     = isGifLoading,
-                        searchQuery   = searchQuery,
-                        giphyRepo     = giphyRepo,
-                        onQueryChange = { searchQuery = it },
-                        onGifSelected = { url -> onGifSelected(url); onDismiss() }
-                    )
-                    is PickerSection.PackSection -> StickerPackContent(
-                        packId      = s.packId,
-                        activePacks = activePacks,
-                        onStickerSelected = { sticker -> onStickerSelected(sticker); onDismiss() }
-                    )
-                }
-            }
-
-            HorizontalDivider(thickness = 0.5.dp, color = cs.outlineVariant.copy(alpha = 0.2f))
-
-            // ── Unified bottom nav bar ────────────────────────────────────────
-            UnifiedNavBar(
-                activeSection   = activeSection,
-                emojiCategories = emojiCategories,
-                activePacks     = activePacks,
-                onSectionChange = { activeSection = it },
-                onAddPacks      = { showManageSheet = true },
-                onBackspace     = onBackspace
-            )
-        }
-    }
-}
-
-// ── Unified bottom nav bar ────────────────────────────────────────────────────
-
-@Composable
-private fun UnifiedNavBar(
-    activeSection:   PickerSection,
-    emojiCategories: List<EmojiCategory>,
-    activePacks:     List<StickerPack>,
-    onSectionChange: (PickerSection) -> Unit,
-    onAddPacks:      () -> Unit,
-    onBackspace:     (() -> Unit)?
-) {
-    val cs = MaterialTheme.colorScheme
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .background(cs.surface),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Scrollable part — emoji categories + GIF + sticker packs
-        LazyRow(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 2.dp)
-        ) {
-            // 1. Emoji category icons
-            items(emojiCategories) { cat ->
-                val sel = activeSection is PickerSection.EmojiSection &&
-                          (activeSection as PickerSection.EmojiSection).cat == cat
-                NavItem(selected = sel, onClick = { onSectionChange(PickerSection.EmojiSection(cat)) }) {
-                    Text(
-                        text      = cat.tabIcon,
-                        fontSize  = 20.sp,
-                        textAlign = TextAlign.Center,
-                        color     = if (sel) cs.primary else cs.onSurfaceVariant.copy(alpha = 0.65f)
-                    )
-                }
-            }
-
-            // Divider
-            item { NavDivider() }
-
-            // 2. GIF button
-            item {
-                val sel = activeSection is PickerSection.GifSection
-                NavItem(selected = sel, onClick = { onSectionChange(PickerSection.GifSection) }) {
-                    Text(
-                        text       = "GIF",
-                        fontSize   = 11.sp,
-                        fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
-                        color      = if (sel) cs.primary else cs.onSurfaceVariant.copy(alpha = 0.65f),
-                        textAlign  = TextAlign.Center
-                    )
-                }
-            }
-
-            // Sticker packs + add button (only when packs are available)
-            if (activePacks.isNotEmpty()) {
-                item { NavDivider() }
-
-                // 3. One thumbnail per sticker pack
-                items(activePacks) { pack ->
-                    val sel = activeSection is PickerSection.PackSection &&
-                              (activeSection as PickerSection.PackSection).packId == pack.id
-                    NavItem(selected = sel, onClick = { onSectionChange(PickerSection.PackSection(pack.id)) }) {
-                        val thumbUrl = pack.stickers?.firstOrNull()?.thumbnailUrl
-                                       ?: pack.thumbnailUrl
-                                       ?: pack.iconUrl
-                        if (!thumbUrl.isNullOrEmpty() && !thumbUrl.startsWith("lottie://")) {
-                            AsyncImage(
-                                model              = thumbUrl,
-                                contentDescription = pack.name,
-                                modifier           = Modifier.size(26.dp).clip(RoundedCornerShape(4.dp)),
-                                contentScale       = ContentScale.Fit
-                            )
-                        } else {
-                            Text(
-                                text      = getUmpPackIcon(pack.name),
-                                fontSize  = 20.sp,
-                                color     = if (sel) cs.primary else cs.onSurfaceVariant.copy(alpha = 0.65f)
-                            )
-                        }
-                    }
-                }
-
-                // "+" button to open pack management
-                item {
-                    Box(
-                        modifier           = Modifier.width(40.dp).height(50.dp).clickable(onClick = onAddPacks),
-                        contentAlignment   = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector        = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier           = Modifier.size(20.dp),
-                            tint               = cs.onSurfaceVariant.copy(alpha = 0.45f)
+                when (activeTab) {
+                    MainTab.EMOJI -> HorizontalPager(
+                        state    = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        EmojiPageContent(
+                            category        = emojiCategories[page],
+                            recentEmojis    = recentEmojis,
+                            customEmojis    = customEmojis,
+                            onEmojiSelected = { emoji ->
+                                emojiRepo.trackEmojiUsage(emoji)
+                                onEmojiSelected(emoji)
+                            }
                         )
                     }
+                    MainTab.GIF -> GifContent(
+                        gifs          = gifs,
+                        isLoading     = isGifLoading,
+                        query         = gifQuery,
+                        giphyRepo     = giphyRepo,
+                        onQueryChange = { gifQuery = it },
+                        onGifSelected = { url -> onGifSelected(url); onDismiss() }
+                    )
+                    MainTab.STICKERS -> StickerContent(
+                        packId            = selectedPackId,
+                        activePacks       = activePacks,
+                        onStickerSelected = { s -> onStickerSelected(s); onDismiss() }
+                    )
                 }
             }
-        }
 
-        // Backspace — fixed, pinned to right, outside the scrollable row
-        if (onBackspace != null) {
+            // ═══════════════════════════════════════════════════════════════════
+            // SUB-NAV (38 dp) — emoji categories OR sticker packs
+            // ═══════════════════════════════════════════════════════════════════
+            HorizontalDivider(thickness = 0.5.dp, color = cs.outlineVariant.copy(alpha = 0.18f))
             Box(
-                modifier         = Modifier.size(48.dp).clickable(onClick = onBackspace),
-                contentAlignment = Alignment.Center
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(38.dp)
+                    .background(cs.surfaceVariant.copy(alpha = 0.12f))
             ) {
-                Icon(
-                    imageVector        = Icons.Default.Backspace,
-                    contentDescription = null,
-                    modifier           = Modifier.size(20.dp),
-                    tint               = cs.onSurfaceVariant.copy(alpha = 0.38f)
+                when (activeTab) {
+                    MainTab.EMOJI -> EmojiSubNav(
+                        categories    = emojiCategories,
+                        pagerState    = pagerState,
+                        rowState      = catRowState,
+                        onBackspace   = onBackspace,
+                        onCategoryTap = { idx ->
+                            scope.launch { pagerState.animateScrollToPage(idx) }
+                        }
+                    )
+                    MainTab.STICKERS -> StickerSubNav(
+                        activePacks    = activePacks,
+                        selectedPackId = selectedPackId,
+                        onPackSelected = { selectedPackId = it },
+                        onAddPacks     = { showManageSheet = true }
+                    )
+                    MainTab.GIF -> {
+                        // GIF has no sub-nav — the box stays as a subtle visual spacer
+                    }
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════════════
+            // MAIN SECTION TABS (48 dp) — 😊  GIF  🎭
+            // ═══════════════════════════════════════════════════════════════════
+            HorizontalDivider(thickness = 0.5.dp, color = cs.outlineVariant.copy(alpha = 0.18f))
+            Row(
+                modifier          = Modifier.fillMaxWidth().height(48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionTab(
+                    modifier = Modifier.weight(1f),
+                    selected = activeTab == MainTab.EMOJI,
+                    onClick  = { activeTab = MainTab.EMOJI },
+                    label    = "😊",
+                    isEmoji  = true
+                )
+                SectionTab(
+                    modifier = Modifier.weight(1f),
+                    selected = activeTab == MainTab.GIF,
+                    onClick  = { activeTab = MainTab.GIF },
+                    label    = "GIF",
+                    isEmoji  = false
+                )
+                SectionTab(
+                    modifier = Modifier.weight(1f),
+                    selected = activeTab == MainTab.STICKERS,
+                    onClick  = { activeTab = MainTab.STICKERS },
+                    label    = "🎭",
+                    isEmoji  = true
                 )
             }
         }
     }
 }
 
-// Single nav bar item — 44dp wide, 50dp tall, bottom underline when selected
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN SECTION TAB
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
-private fun NavItem(
+private fun SectionTab(
+    modifier: Modifier,
+    selected: Boolean,
+    onClick:  () -> Unit,
+    label:    String,
+    isEmoji:  Boolean      // true = render as emoji Text, false = as styled text label
+) {
+    val cs = MaterialTheme.colorScheme
+    Box(
+        modifier         = modifier.fillMaxHeight().clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isEmoji) {
+            Text(
+                text     = label,
+                fontSize = if (selected) 24.sp else 21.sp,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Text(
+                text       = label,
+                fontSize   = 13.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color      = if (selected) cs.primary else cs.onSurfaceVariant.copy(alpha = 0.6f),
+                textAlign  = TextAlign.Center
+            )
+        }
+        // Selection indicator — 2 dp line at the TOP of the tab (border between sub-nav and tabs)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .width(28.dp)
+                .height(2.dp)
+                .background(
+                    color = if (selected) cs.primary else Color.Transparent,
+                    shape = RoundedCornerShape(bottomStart = 2.dp, bottomEnd = 2.dp)
+                )
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMOJI SUB-NAV — scrollable category icons + backspace
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun EmojiSubNav(
+    categories:    List<EmojiCategory>,
+    pagerState:    androidx.compose.foundation.pager.PagerState,
+    rowState:      androidx.compose.foundation.lazy.LazyListState,
+    onBackspace:   (() -> Unit)?,
+    onCategoryTap: (Int) -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier          = Modifier.fillMaxSize(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LazyRow(
+            state          = rowState,
+            modifier       = Modifier.weight(1f).fillMaxHeight(),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            itemsIndexed(categories) { idx, cat ->
+                val selected = pagerState.currentPage == idx
+                SubNavItem(
+                    selected = selected,
+                    onClick  = { onCategoryTap(idx) }
+                ) {
+                    Text(
+                        text      = cat.tabIcon,
+                        fontSize  = if (selected) 20.sp else 18.sp,
+                        color     = if (selected) cs.primary
+                                    else cs.onSurfaceVariant.copy(alpha = 0.55f),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+        // Backspace — visible only on emoji tab
+        if (onBackspace != null) {
+            Box(
+                modifier         = Modifier.size(40.dp).clickable(onClick = onBackspace),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector        = Icons.Default.Backspace,
+                    contentDescription = null,
+                    modifier           = Modifier.size(18.dp),
+                    tint               = cs.onSurfaceVariant.copy(alpha = 0.4f)
+                )
+            }
+            Spacer(modifier = Modifier.width(2.dp))
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STICKER SUB-NAV — pack thumbnails + add button
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun StickerSubNav(
+    activePacks:    List<StickerPack>,
+    selectedPackId: Long,
+    onPackSelected: (Long) -> Unit,
+    onAddPacks:     () -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier          = Modifier.fillMaxSize(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LazyRow(
+            modifier       = Modifier.weight(1f).fillMaxHeight(),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(activePacks) { pack ->
+                val selected = pack.id == selectedPackId
+                SubNavItem(
+                    selected = selected,
+                    onClick  = { onPackSelected(pack.id) }
+                ) {
+                    val thumb = pack.stickers?.firstOrNull()?.thumbnailUrl
+                                ?: pack.thumbnailUrl ?: pack.iconUrl
+                    if (!thumb.isNullOrEmpty() && !thumb.startsWith("lottie://")) {
+                        AsyncImage(
+                            model              = thumb,
+                            contentDescription = pack.name,
+                            modifier           = Modifier.size(24.dp).clip(RoundedCornerShape(4.dp)),
+                            contentScale       = ContentScale.Fit
+                        )
+                    } else {
+                        Text(
+                            text  = getUmpPackIcon(pack.name),
+                            fontSize = if (selected) 20.sp else 18.sp,
+                            color = if (selected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                        )
+                    }
+                }
+            }
+        }
+        // Add packs button
+        Box(
+            modifier         = Modifier.size(40.dp).clickable(onClick = onAddPacks),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector        = Icons.Default.Add,
+                contentDescription = null,
+                modifier           = Modifier.size(18.dp),
+                tint               = cs.onSurfaceVariant.copy(alpha = 0.45f)
+            )
+        }
+        Spacer(modifier = Modifier.width(2.dp))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUB-NAV ITEM — shared item shell: 40 dp wide, fills height, bottom underline
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun SubNavItem(
     selected: Boolean,
     onClick:  () -> Unit,
     content:  @Composable () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
     Box(
-        modifier         = Modifier.width(44.dp).height(50.dp).clickable(onClick = onClick),
+        modifier         = Modifier.width(40.dp).fillMaxHeight().clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         content()
-        // Telegram-style selection: 2dp underline at bottom, NOT a background highlight
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .width(22.dp)
+                .width(20.dp)
                 .height(2.dp)
                 .background(
                     color = if (selected) cs.primary else Color.Transparent,
-                    shape = RoundedCornerShape(topStart = 1.dp, topEnd = 1.dp)
+                    shape = RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp)
                 )
         )
     }
 }
 
-// Thin vertical divider separating nav sections
-@Composable
-private fun NavDivider() {
-    Box(
-        modifier = Modifier
-            .width(1.dp)
-            .height(24.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-    )
-}
-
-// ── Emoji category content ────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// EMOJI PAGE CONTENT — one grid per category (swipeable via HorizontalPager)
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun EmojiCategoryContent(
-    category:     EmojiCategory,
-    recentEmojis: List<String>,
-    customEmojis: List<CustomEmoji>,
+private fun EmojiPageContent(
+    category:        EmojiCategory,
+    recentEmojis:    List<String>,
+    customEmojis:    List<CustomEmoji>,
     onEmojiSelected: (String) -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
     when {
-        // Custom emoji pack — show image grid
         category == EmojiCategory.CUSTOM && customEmojis.isNotEmpty() -> {
             LazyVerticalGrid(
                 columns        = GridCells.Fixed(8),
-                modifier       = Modifier.fillMaxSize().padding(4.dp),
-                contentPadding = PaddingValues(4.dp)
+                modifier       = Modifier.fillMaxSize().padding(horizontal = 4.dp),
+                contentPadding = PaddingValues(vertical = 4.dp)
             ) {
                 items(customEmojis) { ce ->
                     Box(
-                        modifier         = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
+                        modifier         = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp))
                                            .clickable { onEmojiSelected(ce.code) },
                         contentAlignment = Alignment.Center
                     ) {
@@ -396,13 +501,12 @@ private fun EmojiCategoryContent(
                 }
             }
         }
-        // Empty states
         (category == EmojiCategory.RECENT && recentEmojis.isEmpty()) ||
         (category == EmojiCategory.CUSTOM  && customEmojis.isEmpty()) -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(if (category == EmojiCategory.RECENT) "🙂" else "✨", fontSize = 32.sp)
-                    Spacer(Modifier.height(6.dp))
+                    Text(if (category == EmojiCategory.RECENT) "🙂" else "✨", fontSize = 34.sp)
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         text      = stringResource(R.string.emoji_no_recent),
                         style     = MaterialTheme.typography.bodySmall,
@@ -412,18 +516,17 @@ private fun EmojiCategoryContent(
                 }
             }
         }
-        // Standard emoji grid
         else -> {
             val emojis = if (category == EmojiCategory.RECENT) recentEmojis else category.emojis
             LazyVerticalGrid(
-                columns        = GridCells.Fixed(8),
-                modifier       = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                columns             = GridCells.Fixed(8),
+                modifier            = Modifier.fillMaxSize().padding(horizontal = 4.dp),
+                contentPadding      = PaddingValues(vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(emojis) { emoji ->
                     Box(
-                        modifier         = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
+                        modifier         = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp))
                                            .clickable { onEmojiSelected(emoji) },
                         contentAlignment = Alignment.Center
                     ) {
@@ -435,13 +538,15 @@ private fun EmojiCategoryContent(
     }
 }
 
-// ── GIF content ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// GIF CONTENT — search field + grid + GIPHY attribution
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun GifGridContent(
+private fun GifContent(
     gifs:          List<GifItem>,
     isLoading:     Boolean,
-    searchQuery:   String,
+    query:         String,
     giphyRepo:     GiphyRepository,
     onQueryChange: (String) -> Unit,
     onGifSelected: (String) -> Unit
@@ -450,31 +555,27 @@ private fun GifGridContent(
     val cs      = MaterialTheme.colorScheme
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Search field
         OutlinedTextField(
-            value         = searchQuery,
+            value         = query,
             onValueChange = onQueryChange,
             modifier      = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 6.dp)
                 .height(44.dp),
-            placeholder = {
+            placeholder  = {
                 Text(
-                    text  = stringResource(R.string.search_gif_hint),
+                    stringResource(R.string.search_gif_hint),
                     fontSize = 13.sp,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.55f)
+                    color    = cs.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
+            leadingIcon  = {
+                Icon(Icons.Default.Search, null,
                     modifier = Modifier.size(18.dp),
-                    tint     = cs.onSurfaceVariant.copy(alpha = 0.55f)
-                )
+                    tint     = cs.onSurfaceVariant.copy(alpha = 0.5f))
             },
             trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
+                if (query.isNotEmpty()) {
                     IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Default.Close, null, modifier = Modifier.size(16.dp))
                     }
@@ -484,7 +585,7 @@ private fun GifGridContent(
             textStyle   = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
             colors      = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor      = cs.primary.copy(alpha = 0.5f),
-                unfocusedBorderColor    = cs.outlineVariant.copy(alpha = 0.35f),
+                unfocusedBorderColor    = cs.outlineVariant.copy(alpha = 0.3f),
                 focusedContainerColor   = cs.surfaceVariant.copy(alpha = 0.15f),
                 unfocusedContainerColor = cs.surfaceVariant.copy(alpha = 0.15f)
             ),
@@ -493,77 +594,67 @@ private fun GifGridContent(
 
         Box(modifier = Modifier.weight(1f)) {
             when {
-                isLoading && gifs.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
+                isLoading && gifs.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
+                }
+                gifs.isEmpty() && query.isNotEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("😕", fontSize = 36.sp)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            stringResource(R.string.gif_empty_title),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = cs.onSurfaceVariant
+                        )
                     }
                 }
-                gifs.isEmpty() && searchQuery.isNotEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("😕", fontSize = 36.sp)
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text  = stringResource(R.string.gif_empty_title),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = cs.onSurfaceVariant
+                else -> LazyVerticalGrid(
+                    columns               = GridCells.Fixed(3),
+                    contentPadding        = PaddingValues(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement   = Arrangement.spacedBy(4.dp),
+                    modifier              = Modifier.fillMaxSize()
+                ) {
+                    items(gifs) { gif ->
+                        val preview = gif.downsizedMediumUrl.ifEmpty { gif.fixedWidthUrl.ifEmpty { gif.previewUrl } }
+                        Box(
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(cs.surfaceVariant)
+                                .clickable {
+                                    val url = giphyRepo.getGifUrls(gif).getBestForChat()
+                                    if (url.isNotEmpty()) onGifSelected(url)
+                                }
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(preview).crossfade(true).build(),
+                                contentDescription = gif.title.ifEmpty { "GIF" },
+                                contentScale       = ContentScale.Crop,
+                                modifier           = Modifier.fillMaxSize()
                             )
-                        }
-                    }
-                }
-                else -> {
-                    LazyVerticalGrid(
-                        columns               = GridCells.Fixed(3),
-                        contentPadding        = PaddingValues(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement   = Arrangement.spacedBy(4.dp),
-                        modifier              = Modifier.fillMaxSize()
-                    ) {
-                        items(gifs) { gifItem ->
-                            val previewUrl = gifItem.downsizedMediumUrl.ifEmpty {
-                                gifItem.fixedWidthUrl.ifEmpty { gifItem.previewUrl }
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(cs.surfaceVariant)
-                                    .clickable {
-                                        val urls = giphyRepo.getGifUrls(gifItem)
-                                        val url  = urls.getBestForChat()
-                                        if (url.isNotEmpty()) onGifSelected(url)
-                                    }
-                            ) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(previewUrl)
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = gifItem.title.ifEmpty { "GIF" },
-                                    contentScale       = ContentScale.Crop,
-                                    modifier           = Modifier.fillMaxSize()
-                                )
-                            }
                         }
                     }
                 }
             }
         }
 
-        // GIPHY attribution (required by terms of service)
         Box(
-            modifier         = Modifier.fillMaxWidth().background(Color(0xFF111111)).padding(vertical = 3.dp),
+            modifier         = Modifier.fillMaxWidth().background(Color(0xFF0D0D0D)).padding(vertical = 3.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text("Powered by GIPHY", fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
+            Text("Powered by GIPHY", fontSize = 10.sp, color = Color.White.copy(alpha = 0.45f))
         }
     }
 }
 
-// ── Sticker pack content ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// STICKER CONTENT — grid for the selected pack
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun StickerPackContent(
+private fun StickerContent(
     packId:            Long,
     activePacks:       List<StickerPack>,
     onStickerSelected: (Sticker) -> Unit
@@ -574,12 +665,12 @@ private fun StickerPackContent(
     if (pack == null || pack.stickers.isNullOrEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("🎭", fontSize = 40.sp)
+                Text("🎭", fontSize = 42.sp)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text  = stringResource(R.string.sticker_pack_no_available),
                     style = MaterialTheme.typography.bodySmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.6f)
+                    color = cs.onSurfaceVariant.copy(alpha = 0.55f)
                 )
             }
         }
@@ -598,7 +689,9 @@ private fun StickerPackContent(
     }
 }
 
-// ── Sticker item ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// STICKER ITEM
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun UmpStickerItem(sticker: Sticker, onClick: () -> Unit) {
@@ -608,42 +701,37 @@ private fun UmpStickerItem(sticker: Sticker, onClick: () -> Unit) {
             EmbeddedStickerPacks.getEmbeddedStickerResourceUrl(context, sticker.fileUrl) ?: sticker.emoji
         else -> sticker.thumbnailUrl ?: sticker.fileUrl
     }
-
     Box(
         modifier         = Modifier.size(68.dp).clip(MaterialTheme.shapes.medium).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         when {
             sticker.format in listOf("lottie", "tgs", "gif") ||
-            url?.endsWith(".json") == true ||
-            url?.endsWith(".tgs")  == true ||
-            url?.endsWith(".gif")  == true -> {
+            url?.endsWith(".json") == true || url?.endsWith(".tgs") == true || url?.endsWith(".gif") == true ->
                 AnimatedStickerView(url = url ?: "", size = 52.dp)
-            }
-            url == sticker.emoji -> {
-                Text(sticker.emoji ?: "🎭", fontSize = 30.sp)
-            }
-            else -> {
-                AsyncImage(
-                    model              = url,
-                    contentDescription = sticker.emoji,
-                    modifier           = Modifier.size(52.dp),
-                    contentScale       = ContentScale.Fit
-                )
-            }
+            url == sticker.emoji ->
+                Text(sticker.emoji ?: "🎭", fontSize = 32.sp)
+            else -> AsyncImage(
+                model              = url,
+                contentDescription = sticker.emoji,
+                modifier           = Modifier.size(52.dp),
+                contentScale       = ContentScale.Fit
+            )
         }
     }
 }
 
-// ── Pack icon fallback ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
 
 private fun getUmpPackIcon(name: String): String = when {
-    name.contains("Емоці",   ignoreCase = true) || name.contains("Emotion", ignoreCase = true) -> "😊"
-    name.contains("Тварин",  ignoreCase = true) || name.contains("Animal",  ignoreCase = true) -> "🐾"
-    name.contains("Святкув", ignoreCase = true) || name.contains("Celebr",  ignoreCase = true) -> "🎉"
-    name.contains("Жест",    ignoreCase = true) || name.contains("Gesture", ignoreCase = true) -> "👋"
-    name.contains("Серц",    ignoreCase = true) || name.contains("Heart",   ignoreCase = true) -> "❤️"
-    name.contains("WorldMates", ignoreCase = true)                                              -> "🎭"
-    name.contains("Emoji",   ignoreCase = true) || name.contains("Емодж",   ignoreCase = true) -> "😄"
-    else                                                                                         -> "🗂️"
+    name.contains("Емоці",    ignoreCase = true) || name.contains("Emotion", ignoreCase = true) -> "😊"
+    name.contains("Тварин",   ignoreCase = true) || name.contains("Animal",  ignoreCase = true) -> "🐾"
+    name.contains("Святкув",  ignoreCase = true) || name.contains("Celebr",  ignoreCase = true) -> "🎉"
+    name.contains("Жест",     ignoreCase = true) || name.contains("Gesture", ignoreCase = true) -> "👋"
+    name.contains("Серц",     ignoreCase = true) || name.contains("Heart",   ignoreCase = true) -> "❤️"
+    name.contains("WorldMates", ignoreCase = true)                                               -> "🎭"
+    name.contains("Emoji",    ignoreCase = true) || name.contains("Емодж",   ignoreCase = true) -> "😄"
+    else                                                                                          -> "🗂️"
 }
