@@ -28,6 +28,7 @@ const funcs  = require('../../functions/functions');
 const crypto = require('../../helpers/crypto');
 const { buildPollResponse } = require('./polls');
 const { TEXT_DECISION, checkText } = require('../../helpers/text-moderator');
+const { checkSpam } = require('../../helpers/anti-spam');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -379,6 +380,31 @@ function sendMessage(ctx, io) {
             const hasContent = plaintext || stickers || (lat !== '0' && lng !== '0') || contact;
             if (!hasContent)
                 return res.status(400).json({ api_status: 400, error_message: 'Повідомлення не має вмісту' });
+
+            // ── Anti-spam check ────────────────────────────────────────────────
+            {
+                let joinedTs = 0;
+                try {
+                    const u = await ctx.wo_users.findOne({
+                        where: { user_id: userId }, attributes: ['joined'], raw: true
+                    });
+                    joinedTs = u?.joined || 0;
+                } catch { /* non-critical */ }
+
+                const spam = checkSpam(userId, plaintext, joinedTs);
+                if (spam.blocked) {
+                    const msgs = {
+                        rate_limit:            'Вы отправляете сообщения слишком быстро. Подождите немного.',
+                        duplicate_message:     'Это сообщение уже было отправлено.',
+                        link_spam_new_account: 'Новые аккаунты не могут отправлять много ссылок.'
+                    };
+                    return res.status(429).json({
+                        api_status:    429,
+                        error_message: msgs[spam.reason] || 'Сообщение заблокировано.',
+                        spam_reason:   spam.reason
+                    });
+                }
+            }
 
             // ── Текстова модерація (тільки для cipher_version=1/2, не E2EE) ──
             if (plaintext) {

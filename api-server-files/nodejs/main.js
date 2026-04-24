@@ -76,6 +76,7 @@ const { registerChannelScheduledPostRoutes } = require('./routes/channels/schedu
 const { registerVoiceTranscriptionRoutes }   = require('./routes/voice-transcription')
 const { registerCrashReportRoutes }          = require('./routes/crash-report')
 const { registerShareRoutes }                = require('./routes/channels/share')
+const { registerContentPolicyRoutes }        = require('./routes/channels/content-policy')
 const { startCronJobs }              = require('./jobs/cronJobs')
 const setupMediaAutoDeleteJob        = require('./jobs/media-auto-delete')
 const { createGeoblockMiddleware }   = require('./middleware/geoblock')
@@ -1287,8 +1288,10 @@ async function main() {
   registerDeleteAccountRoutes(app, ctx);
   // Register Report User REST API (replaces PHP report_user.php)
   registerReportUserRoutes(app, ctx);
-  // Register Content Moderation REST API (очередь, блэклист, политики контента)
+  // Register Content Moderation REST API (очередь, блэклист, політики контенту)
   registerModerationRoutes(app, ctx);
+  // Register Channel Content Policy routes (all_ages / mature / adult_verified + subscribe gate)
+  registerContentPolicyRoutes(app, ctx);
   // Register Profile REST API (own profile, other users, follow, block, search)
   registerProfileRoutes(app, ctx);
   // Register User Rating / karma system
