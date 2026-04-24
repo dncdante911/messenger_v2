@@ -3058,6 +3058,11 @@
     <string name="photo_filter_invert">Негатив</string>
     <string name="photo_filter_blur">Розмиття</string>
     <string name="photo_filter_sharpen">Різкість</string>
+    <string name="photo_filter_warm">Тепло</string>
+    <string name="photo_filter_cool">Холод</string>
+    <string name="photo_filter_vivid">Яскравий</string>
+    <string name="flip_horizontal">Дзеркало Г</string>
+    <string name="flip_vertical">Дзеркало В</string>
 
     <!-- ===== BUSINESS DIRECTORY ===== -->
     <string name="business_directory">Бізнес-каталог</string>

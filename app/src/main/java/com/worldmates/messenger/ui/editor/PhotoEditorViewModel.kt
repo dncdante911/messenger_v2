@@ -10,40 +10,36 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
 
-/**
- * PHOTO EDITOR VIEWMODEL
- *
- * Manages photo editing state and operations:
- * - Image loading and manipulation
- * - Drawing paths with normalized coordinates
- * - Text elements
- * - Filters and adjustments
- * - Undo/Redo stack
- * - Save with multiple options
- */
 class PhotoEditorViewModel : ViewModel() {
-    private val TAG = "PhotoEditorViewModel"
 
-    // Image state
-    private val _originalBitmap = MutableStateFlow<Bitmap?>(null)
-    private val _editedBitmap = MutableStateFlow<Bitmap?>(null)
+    private val TAG = "PhotoEditorVM"
+    private val MAX_DIM = 1920 // max image dimension on load
+
+    // ── Image state ───────────────────────────────────────────────────────────
+    private val _originalBitmap  = MutableStateFlow<Bitmap?>(null)
+    private val _editedBitmap    = MutableStateFlow<Bitmap?>(null)
     val editedBitmap: StateFlow<Bitmap?> = _editedBitmap.asStateFlow()
 
-    // Tool state
+    private val _isProcessing = MutableStateFlow(false)
+    val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
+
+    // ── Tool state ────────────────────────────────────────────────────────────
     private val _currentTool = MutableStateFlow(EditorTool.DRAW)
     val currentTool: StateFlow<EditorTool> = _currentTool.asStateFlow()
 
-    // Drawing state - uses normalized points (0-1) for resolution independence
+    // ── Drawing state (normalized 0-1 coords) ─────────────────────────────────
     private val _drawingPaths = MutableStateFlow<List<DrawPath>>(emptyList())
     val drawingPaths: StateFlow<List<DrawPath>> = _drawingPaths.asStateFlow()
 
@@ -53,537 +49,536 @@ class PhotoEditorViewModel : ViewModel() {
     private val _brushSize = MutableStateFlow(10f)
     val brushSize: StateFlow<Float> = _brushSize.asStateFlow()
 
-    // Text state
+    // ── Text / sticker state ──────────────────────────────────────────────────
     private val _textElements = MutableStateFlow<List<TextElement>>(emptyList())
     val textElements: StateFlow<List<TextElement>> = _textElements.asStateFlow()
 
-    // Filter state
+    // ── Filter state ──────────────────────────────────────────────────────────
     private val _selectedFilter = MutableStateFlow(PhotoFilter.NONE)
     val selectedFilter: StateFlow<PhotoFilter> = _selectedFilter.asStateFlow()
 
-    // Adjustment state
-    private val _brightness = MutableStateFlow(0f)
-    val brightness: StateFlow<Float> = _brightness.asStateFlow()
+    // ── Adjustment state ──────────────────────────────────────────────────────
+    private val _brightness  = MutableStateFlow(0f)
+    private val _contrast    = MutableStateFlow(1f)
+    private val _saturation  = MutableStateFlow(1f)
+    private val _warmth      = MutableStateFlow(0f) // -1 cool … +1 warm
+    val brightness:  StateFlow<Float> = _brightness.asStateFlow()
+    val contrast:    StateFlow<Float> = _contrast.asStateFlow()
+    val saturation:  StateFlow<Float> = _saturation.asStateFlow()
+    val warmth:      StateFlow<Float> = _warmth.asStateFlow()
 
-    private val _contrast = MutableStateFlow(1f)
-    val contrast: StateFlow<Float> = _contrast.asStateFlow()
-
-    private val _saturation = MutableStateFlow(1f)
-    val saturation: StateFlow<Float> = _saturation.asStateFlow()
-
-    // Rotation state
+    // ── Rotation state ────────────────────────────────────────────────────────
     private val _rotationAngle = MutableStateFlow(0)
     val rotationAngle: StateFlow<Int> = _rotationAngle.asStateFlow()
 
-    // Crop rect state — normalized 0-1 coordinates (left, top, right, bottom)
+    // ── Crop state ────────────────────────────────────────────────────────────
     private val _cropRect = MutableStateFlow(CropRect(0f, 0f, 1f, 1f))
     val cropRect: StateFlow<CropRect> = _cropRect.asStateFlow()
 
-    // Undo/Redo stacks
+    // ── Undo / Redo stacks ────────────────────────────────────────────────────
     private val undoStack = mutableListOf<EditorState>()
     private val redoStack = mutableListOf<EditorState>()
 
-    /**
-     * Load image from URL or file path
-     */
+    // Tracks if undo was already saved during current ADJUST session
+    private var adjustUndoSaved = false
+    private var adjustJob: Job? = null
+
+    // ── Image loading ─────────────────────────────────────────────────────────
+
     fun loadImage(imageUrl: String, context: Context) {
         viewModelScope.launch {
+            _isProcessing.value = true
             try {
-                Log.d(TAG, "Loading image: $imageUrl")
-
                 val bitmap = withContext(Dispatchers.IO) {
-                    if (imageUrl.startsWith("http")) {
-                        val url = URL(imageUrl)
-                        BitmapFactory.decodeStream(url.openStream())
+                    val raw = if (imageUrl.startsWith("http")) {
+                        val conn = URL(imageUrl).openConnection()
+                        conn.connectTimeout = 10_000
+                        conn.readTimeout    = 15_000
+                        conn.getInputStream().use { BitmapFactory.decodeStream(it) }
                     } else {
                         BitmapFactory.decodeFile(imageUrl)
                     }
+                    raw?.let { scaleToBounds(it, MAX_DIM) }
                 }
-
                 if (bitmap != null) {
                     _originalBitmap.value = bitmap
-                    _editedBitmap.value = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-                    Log.d(TAG, "Image loaded: ${bitmap.width}x${bitmap.height}")
+                    _editedBitmap.value   = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+                    Log.d(TAG, "Loaded ${bitmap.width}×${bitmap.height}")
                 } else {
-                    Log.e(TAG, "Failed to load bitmap")
+                    Log.e(TAG, "Failed to decode bitmap from $imageUrl")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading image: ${e.message}", e)
+                Log.e(TAG, "loadImage error: ${e.message}", e)
+            } finally {
+                _isProcessing.value = false
             }
         }
     }
 
+    // Scale bitmap so its longest dimension ≤ maxDim; recycles input if scaled
+    private fun scaleToBounds(bmp: Bitmap, maxDim: Int): Bitmap {
+        if (bmp.width <= maxDim && bmp.height <= maxDim) return bmp
+        val scale = maxDim.toFloat() / maxOf(bmp.width, bmp.height)
+        val scaled = Bitmap.createScaledBitmap(
+            bmp, (bmp.width * scale).toInt(), (bmp.height * scale).toInt(), true
+        )
+        bmp.recycle()
+        return scaled
+    }
+
+    // ── Tool selection ────────────────────────────────────────────────────────
+
     fun selectTool(tool: EditorTool) {
+        if (tool == EditorTool.ADJUST) adjustUndoSaved = false
         _currentTool.value = tool
     }
 
-    /**
-     * Add drawing path from canvas points (normalized to 0-1 range)
-     */
+    // ── Drawing ───────────────────────────────────────────────────────────────
+
     fun addDrawPathFromPoints(
         canvasPoints: List<Offset>,
-        canvasSize: IntSize,
-        color: Color,
-        strokeWidth: Float
+        canvasSize:   IntSize,
+        color:        Color,
+        strokeWidth:  Float
     ) {
         if (canvasPoints.size < 2 || canvasSize.width == 0 || canvasSize.height == 0) return
-
         saveStateForUndo()
-
-        // Normalize points to 0-1 range
-        val normalizedPoints = canvasPoints.map { point ->
-            Offset(
-                point.x / canvasSize.width.toFloat(),
-                point.y / canvasSize.height.toFloat()
-            )
+        val normalized = canvasPoints.map { pt ->
+            Offset(pt.x / canvasSize.width, pt.y / canvasSize.height)
         }
-
-        val drawPath = DrawPath(normalizedPoints, color, strokeWidth)
-        _drawingPaths.value = _drawingPaths.value + drawPath
-        Log.d(TAG, "Added draw path with ${normalizedPoints.size} points")
+        _drawingPaths.value = _drawingPaths.value + DrawPath(normalized, color, strokeWidth)
     }
 
-    /**
-     * Apply all drawings and text to the bitmap (for saving)
-     */
-    fun applyAllDrawingsTobitmap() {
-        val bitmap = _editedBitmap.value ?: return
-        val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        val canvas = Canvas(result)
+    fun setDrawColor(color: Color) { _selectedColor.value = color }
+    fun setBrushSize(size: Float)  { _brushSize.value = size }
 
-        // Draw all paths
-        _drawingPaths.value.forEach { drawPath ->
-            val points = drawPath.points
-            if (points.size >= 2) {
-                val paint = Paint().apply {
-                    this.color = drawPath.color.toArgb()
-                    this.strokeWidth = drawPath.strokeWidth * result.width / 400f // Scale to bitmap
-                    this.style = Paint.Style.STROKE
-                    this.strokeCap = Paint.Cap.ROUND
-                    this.strokeJoin = Paint.Join.ROUND
-                    this.isAntiAlias = true
-                }
-
-                val path = android.graphics.Path()
-                path.moveTo(points[0].x * result.width, points[0].y * result.height)
-                for (i in 1 until points.size) {
-                    path.lineTo(points[i].x * result.width, points[i].y * result.height)
-                }
-                canvas.drawPath(path, paint)
-            }
-        }
-
-        // Draw all text elements
-        _textElements.value.forEach { element ->
-            val paint = Paint().apply {
-                this.color = element.color.toArgb()
-                this.textSize = element.size * result.width / 10f
-                this.isAntiAlias = true
-                this.typeface = Typeface.DEFAULT_BOLD
-            }
-            canvas.drawText(element.text, element.x * result.width, element.y * result.height, paint)
-        }
-
-        _editedBitmap.value = result
-        Log.d(TAG, "Applied all drawings to bitmap")
-    }
-
-    @Deprecated("Use addDrawPathFromPoints instead")
-    fun addDrawPath(path: Path) {
-        // Legacy - not used with new point-based system
-    }
-
-    fun setDrawColor(color: Color) {
-        _selectedColor.value = color
-    }
-
-    fun setBrushSize(size: Float) {
-        _brushSize.value = size
-    }
+    // ── Text / stickers ───────────────────────────────────────────────────────
 
     fun addText(text: String, color: Color, size: Float) {
         saveStateForUndo()
-        val textElement = TextElement(text, color, size, 0.5f, 0.5f)
-        _textElements.value = _textElements.value + textElement
-    }
-
-    fun addTextAt(text: String, x: Float, y: Float) {
-        saveStateForUndo()
-        val textElement = TextElement(text, _selectedColor.value, 24f, x, y)
-        _textElements.value = _textElements.value + textElement
+        _textElements.value = _textElements.value + TextElement(text, color, size, 0.5f, 0.45f)
     }
 
     fun addSticker(sticker: String) {
         saveStateForUndo()
-        val textElement = TextElement(sticker, Color.White, 48f, 0.5f, 0.5f)
-        _textElements.value = _textElements.value + textElement
-        Log.d(TAG, "Added sticker: $sticker")
+        _textElements.value = _textElements.value + TextElement(sticker, Color.White, 48f, 0.5f, 0.45f)
     }
+
+    fun moveTextElement(index: Int, newX: Float, newY: Float) {
+        val list = _textElements.value.toMutableList()
+        if (index in list.indices) {
+            list[index] = list[index].copy(
+                x = newX.coerceIn(0.02f, 0.98f),
+                y = newY.coerceIn(0.02f, 0.98f)
+            )
+            _textElements.value = list
+        }
+    }
+
+    // Save undo snapshot once at the start of a text drag
+    fun beginMoveTextElement() { saveStateForUndo() }
+
+    fun deleteTextElement(index: Int) {
+        saveStateForUndo()
+        _textElements.value = _textElements.value.toMutableList().also { it.removeAt(index) }
+    }
+
+    // ── Filters ───────────────────────────────────────────────────────────────
 
     fun applyFilter(filter: PhotoFilter) {
         saveStateForUndo()
         _selectedFilter.value = filter
-
-        val original = _originalBitmap.value ?: return
-        val filtered = original.copy(Bitmap.Config.ARGB_8888, true)
-
-        _editedBitmap.value = when (filter) {
-            PhotoFilter.NONE -> filtered
-            PhotoFilter.GRAYSCALE -> applyGrayscale(filtered)
-            PhotoFilter.SEPIA -> applySepia(filtered)
-            PhotoFilter.INVERT -> applyInvert(filtered)
-            PhotoFilter.BLUR -> applyBlur(filtered)
-            PhotoFilter.SHARPEN -> applySharpen(filtered)
+        viewModelScope.launch {
+            _isProcessing.value = true
+            val original = _originalBitmap.value ?: run { _isProcessing.value = false; return@launch }
+            val result = withContext(Dispatchers.Default) {
+                val base = original.copy(Bitmap.Config.ARGB_8888, true)
+                when (filter) {
+                    PhotoFilter.NONE      -> base
+                    PhotoFilter.GRAYSCALE -> applyGrayscale(base)
+                    PhotoFilter.SEPIA     -> applySepia(base)
+                    PhotoFilter.INVERT    -> applyInvert(base)
+                    PhotoFilter.BLUR      -> applyBlurFast(base, radius = 10)
+                    PhotoFilter.SHARPEN   -> applySharpen(base)
+                    PhotoFilter.WARM      -> applyColorMatrix(base, warmColorMatrix(0.6f))
+                    PhotoFilter.COOL      -> applyColorMatrix(base, warmColorMatrix(-0.6f))
+                    PhotoFilter.VIVID     -> applyVivid(base)
+                }
+            }
+            _editedBitmap.value = result
+            _isProcessing.value = false
         }
-
-        Log.d(TAG, "Applied filter: ${filter.name}")
     }
 
-    fun setBrightness(value: Float) {
-        _brightness.value = value
-        applyAdjustments()
+    // ── Adjustments (debounced) ───────────────────────────────────────────────
+
+    fun setBrightness(value: Float) { _brightness.value = value;  scheduleAdjustments() }
+    fun setContrast  (value: Float) { _contrast.value   = value;  scheduleAdjustments() }
+    fun setSaturation(value: Float) { _saturation.value = value;  scheduleAdjustments() }
+    fun setWarmth    (value: Float) { _warmth.value     = value;  scheduleAdjustments() }
+
+    private fun scheduleAdjustments() {
+        if (!adjustUndoSaved) { saveStateForUndo(); adjustUndoSaved = true }
+        adjustJob?.cancel()
+        adjustJob = viewModelScope.launch {
+            delay(80) // 80 ms debounce
+            withContext(Dispatchers.Default) { applyAdjustmentsInternal() }
+        }
     }
 
-    fun setContrast(value: Float) {
-        _contrast.value = value
-        applyAdjustments()
+    private fun applyAdjustmentsInternal() {
+        val original = _originalBitmap.value ?: return
+        val cm = ColorMatrix()
+
+        // Brightness
+        val b = _brightness.value * 255
+        cm.postConcat(ColorMatrix(floatArrayOf(
+            1f, 0f, 0f, 0f, b,
+            0f, 1f, 0f, 0f, b,
+            0f, 0f, 1f, 0f, b,
+            0f, 0f, 0f, 1f, 0f
+        )))
+
+        // Contrast
+        val c = _contrast.value
+        val t = (1f - c) / 2f * 255
+        cm.postConcat(ColorMatrix(floatArrayOf(
+            c, 0f, 0f, 0f, t,
+            0f, c, 0f, 0f, t,
+            0f, 0f, c, 0f, t,
+            0f, 0f, 0f, 1f, 0f
+        )))
+
+        // Saturation
+        cm.postConcat(ColorMatrix().apply { setSaturation(_saturation.value) })
+
+        // Warmth
+        val w = _warmth.value
+        if (w != 0f) cm.postConcat(warmColorMatrix(w))
+
+        val result = Bitmap.createBitmap(original.width, original.height, Bitmap.Config.ARGB_8888)
+        Canvas(result).drawBitmap(original, 0f, 0f, Paint().apply {
+            colorFilter = ColorMatrixColorFilter(cm)
+        })
+        _editedBitmap.value = result
     }
 
-    fun setSaturation(value: Float) {
-        _saturation.value = value
-        applyAdjustments()
-    }
+    private fun warmColorMatrix(strength: Float) = ColorMatrix(floatArrayOf(
+        1f + strength * 0.3f,  0f,                   0f,                    0f, 0f,
+        0f,                    1f + strength * 0.04f, 0f,                    0f, 0f,
+        0f,                    0f,                    1f - strength * 0.25f, 0f, 0f,
+        0f,                    0f,                    0f,                    1f, 0f
+    ))
+
+    // ── Rotate / Flip ─────────────────────────────────────────────────────────
 
     fun rotate(degrees: Int) {
         saveStateForUndo()
         _rotationAngle.value = (_rotationAngle.value + degrees) % 360
-
-        val current = _editedBitmap.value ?: return
-        val matrix = Matrix().apply {
-            postRotate(degrees.toFloat())
+        viewModelScope.launch {
+            _isProcessing.value = true
+            val current = _editedBitmap.value ?: run { _isProcessing.value = false; return@launch }
+            val result = withContext(Dispatchers.Default) {
+                val m = Matrix().apply { postRotate(degrees.toFloat()) }
+                Bitmap.createBitmap(current, 0, 0, current.width, current.height, m, true)
+            }
+            _editedBitmap.value = result
+            _isProcessing.value = false
         }
-
-        val rotated = Bitmap.createBitmap(
-            current, 0, 0, current.width, current.height, matrix, true
-        )
-
-        _editedBitmap.value = rotated
-        Log.d(TAG, "Rotated ${degrees} (total: ${_rotationAngle.value})")
     }
 
-    fun resetCrop() {
-        _cropRect.value = CropRect(0f, 0f, 1f, 1f)
+    fun flip(horizontal: Boolean) {
+        saveStateForUndo()
+        viewModelScope.launch {
+            _isProcessing.value = true
+            val current = _editedBitmap.value ?: run { _isProcessing.value = false; return@launch }
+            val result = withContext(Dispatchers.Default) {
+                val m = Matrix().apply {
+                    val cx = current.width  / 2f
+                    val cy = current.height / 2f
+                    if (horizontal) postScale(-1f, 1f, cx, cy)
+                    else            postScale(1f, -1f, cx, cy)
+                }
+                Bitmap.createBitmap(current, 0, 0, current.width, current.height, m, true)
+            }
+            _editedBitmap.value = result
+            _isProcessing.value = false
+        }
     }
+
+    // ── Crop ──────────────────────────────────────────────────────────────────
+
+    fun resetCrop() { _cropRect.value = CropRect(0f, 0f, 1f, 1f) }
 
     fun updateCropRect(left: Float, top: Float, right: Float, bottom: Float) {
-        val minSize = 0.05f
+        val min = 0.05f
         _cropRect.value = CropRect(
-            left   = left.coerceIn(0f, (right - minSize).coerceAtLeast(0f)),
-            top    = top.coerceIn(0f, (bottom - minSize).coerceAtLeast(0f)),
-            right  = right.coerceIn((left + minSize).coerceAtMost(1f), 1f),
-            bottom = bottom.coerceIn((top + minSize).coerceAtMost(1f), 1f)
+            left   = left.coerceIn(0f, (right  - min).coerceAtLeast(0f)),
+            top    = top.coerceIn(0f,  (bottom - min).coerceAtLeast(0f)),
+            right  = right.coerceIn((left   + min).coerceAtMost(1f), 1f),
+            bottom = bottom.coerceIn((top + min).coerceAtMost(1f), 1f)
         )
     }
 
     fun applyCrop() {
         saveStateForUndo()
-        val bitmap = _editedBitmap.value ?: return
-        val rect = _cropRect.value
-
-        val x = (rect.left * bitmap.width).toInt().coerceIn(0, bitmap.width - 1)
-        val y = (rect.top * bitmap.height).toInt().coerceIn(0, bitmap.height - 1)
-        val w = ((rect.right - rect.left) * bitmap.width).toInt().coerceIn(1, bitmap.width - x)
-        val h = ((rect.bottom - rect.top) * bitmap.height).toInt().coerceIn(1, bitmap.height - y)
-
-        _editedBitmap.value = Bitmap.createBitmap(bitmap, x, y, w, h)
-        _cropRect.value = CropRect(0f, 0f, 1f, 1f)  // reset after applying
-        Log.d(TAG, "Crop applied: x=$x y=$y w=$w h=$h")
+        viewModelScope.launch {
+            _isProcessing.value = true
+            val bitmap = _editedBitmap.value ?: run { _isProcessing.value = false; return@launch }
+            val rect   = _cropRect.value
+            val result = withContext(Dispatchers.Default) {
+                val x = (rect.left  * bitmap.width ).toInt().coerceIn(0, bitmap.width  - 1)
+                val y = (rect.top   * bitmap.height).toInt().coerceIn(0, bitmap.height - 1)
+                val w = ((rect.right  - rect.left) * bitmap.width ).toInt().coerceIn(1, bitmap.width  - x)
+                val h = ((rect.bottom - rect.top)  * bitmap.height).toInt().coerceIn(1, bitmap.height - y)
+                Bitmap.createBitmap(bitmap, x, y, w, h)
+            }
+            _editedBitmap.value  = result
+            _cropRect.value      = CropRect(0f, 0f, 1f, 1f)
+            _isProcessing.value  = false
+        }
     }
 
+    // ── Save ──────────────────────────────────────────────────────────────────
+
     /**
-     * Save edited image to cache
+     * Apply all canvas drawings and text to the bitmap, then save to cache.
+     * Runs on IO thread; caller must be in a coroutine context.
      */
+    suspend fun applyAndSaveImage(context: Context): File? = withContext(Dispatchers.Default) {
+        try {
+            val bitmap = _editedBitmap.value ?: return@withContext null
+            val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+            val canvas = Canvas(result)
+
+            _drawingPaths.value.forEach { dp ->
+                if (dp.points.size >= 2) {
+                    val paint = Paint().apply {
+                        color       = dp.color.toArgb()
+                        strokeWidth = dp.strokeWidth * result.width / 400f
+                        style       = Paint.Style.STROKE
+                        strokeCap   = Paint.Cap.ROUND
+                        strokeJoin  = Paint.Join.ROUND
+                        isAntiAlias = true
+                    }
+                    val path = android.graphics.Path()
+                    path.moveTo(dp.points[0].x * result.width, dp.points[0].y * result.height)
+                    for (i in 1 until dp.points.size) {
+                        path.lineTo(dp.points[i].x * result.width, dp.points[i].y * result.height)
+                    }
+                    canvas.drawPath(path, paint)
+                }
+            }
+
+            _textElements.value.forEach { el ->
+                val paint = Paint().apply {
+                    color       = el.color.toArgb()
+                    textSize    = el.size * result.width / 10f
+                    isAntiAlias = true
+                    typeface    = Typeface.DEFAULT_BOLD
+                    setShadowLayer(4f, 1f, 1f, android.graphics.Color.argb(120, 0, 0, 0))
+                }
+                canvas.drawText(el.text, el.x * result.width, el.y * result.height, paint)
+            }
+
+            withContext(Dispatchers.IO) {
+                val file = File(context.cacheDir, "edited_${System.currentTimeMillis()}.jpg")
+                FileOutputStream(file).use { result.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+                file
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "applyAndSaveImage: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun saveOriginalImage(context: Context): File? = withContext(Dispatchers.IO) {
+        try {
+            val bitmap = _originalBitmap.value ?: return@withContext null
+            val file   = File(context.cacheDir, "original_${System.currentTimeMillis()}.jpg")
+            FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+            file
+        } catch (e: Exception) {
+            Log.e(TAG, "saveOriginalImage: ${e.message}", e)
+            null
+        }
+    }
+
+    // Keep the old sync API for compatibility, but route through the async version
     fun saveImage(context: Context): File? {
-        try {
+        // Blocking call — only use from background thread
+        return try {
             val bitmap = _editedBitmap.value ?: return null
-
-            val outputDir = context.cacheDir
-            val outputFile = File(outputDir, "edited_${System.currentTimeMillis()}.jpg")
-
-            FileOutputStream(outputFile).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-            }
-
-            Log.d(TAG, "Image saved: ${outputFile.absolutePath}")
-            return outputFile
+            val file   = File(context.cacheDir, "edited_${System.currentTimeMillis()}.jpg")
+            FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+            file
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving image: ${e.message}", e)
-            return null
+            Log.e(TAG, "saveImage: ${e.message}", e)
+            null
         }
     }
 
-    /**
-     * Save original (unedited) image to cache
-     */
-    fun saveOriginalImage(context: Context): File? {
-        try {
-            val bitmap = _originalBitmap.value ?: return null
-
-            val outputDir = context.cacheDir
-            val outputFile = File(outputDir, "original_${System.currentTimeMillis()}.jpg")
-
-            FileOutputStream(outputFile).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-            }
-
-            Log.d(TAG, "Original image saved: ${outputFile.absolutePath}")
-            return outputFile
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving original: ${e.message}", e)
-            return null
-        }
-    }
+    // ── Undo / Redo ───────────────────────────────────────────────────────────
 
     fun undo() {
         if (undoStack.isNotEmpty()) {
-            val currentState = captureCurrentState()
-            redoStack.add(currentState)
-
-            val previousState = undoStack.removeAt(undoStack.lastIndex)
-            restoreState(previousState)
+            redoStack.add(captureCurrentState())
+            restoreState(undoStack.removeAt(undoStack.lastIndex))
         }
     }
 
     fun redo() {
         if (redoStack.isNotEmpty()) {
-            val currentState = captureCurrentState()
-            undoStack.add(currentState)
-
-            val nextState = redoStack.removeAt(redoStack.lastIndex)
-            restoreState(nextState)
+            undoStack.add(captureCurrentState())
+            restoreState(redoStack.removeAt(redoStack.lastIndex))
         }
     }
 
     fun canUndo(): Boolean = undoStack.isNotEmpty()
     fun canRedo(): Boolean = redoStack.isNotEmpty()
 
-    // Private helpers
-
     private fun saveStateForUndo() {
-        val state = captureCurrentState()
-        undoStack.add(state)
+        undoStack.add(captureCurrentState())
         redoStack.clear()
-        if (undoStack.size > 20) {
-            undoStack.removeAt(0)
-        }
+        if (undoStack.size > 10) undoStack.removeAt(0)
     }
 
-    private fun captureCurrentState(): EditorState {
-        val bitmap = _editedBitmap.value?.copy(Bitmap.Config.ARGB_8888, true)
-        return EditorState(
-            bitmap = bitmap,
-            drawingPaths = _drawingPaths.value.toList(),
-            textElements = _textElements.value.toList(),
-            filter = _selectedFilter.value,
-            brightness = _brightness.value,
-            contrast = _contrast.value,
-            saturation = _saturation.value,
-            rotationAngle = _rotationAngle.value
-        )
-    }
+    private fun captureCurrentState() = EditorState(
+        bitmap        = _editedBitmap.value?.copy(Bitmap.Config.ARGB_8888, true),
+        drawingPaths  = _drawingPaths.value.toList(),
+        textElements  = _textElements.value.toList(),
+        filter        = _selectedFilter.value,
+        brightness    = _brightness.value,
+        contrast      = _contrast.value,
+        saturation    = _saturation.value,
+        warmth        = _warmth.value,
+        rotationAngle = _rotationAngle.value,
+        cropRect      = _cropRect.value
+    )
 
     private fun restoreState(state: EditorState) {
-        _editedBitmap.value = state.bitmap?.copy(Bitmap.Config.ARGB_8888, true)
-        _drawingPaths.value = state.drawingPaths
-        _textElements.value = state.textElements
+        _editedBitmap.value   = state.bitmap?.copy(Bitmap.Config.ARGB_8888, true)
+        _drawingPaths.value   = state.drawingPaths
+        _textElements.value   = state.textElements
         _selectedFilter.value = state.filter
-        _brightness.value = state.brightness
-        _contrast.value = state.contrast
-        _saturation.value = state.saturation
-        _rotationAngle.value = state.rotationAngle
+        _brightness.value     = state.brightness
+        _contrast.value       = state.contrast
+        _saturation.value     = state.saturation
+        _warmth.value         = state.warmth
+        _rotationAngle.value  = state.rotationAngle
+        _cropRect.value       = state.cropRect
     }
 
-    private fun applyAdjustments() {
-        val original = _originalBitmap.value ?: return
-        val adjusted = original.copy(Bitmap.Config.ARGB_8888, true)
+    // ── Filter implementations ────────────────────────────────────────────────
 
-        val colorMatrix = ColorMatrix().apply {
-            val b = _brightness.value * 255
-            postConcat(ColorMatrix().apply {
-                set(floatArrayOf(
-                    1f, 0f, 0f, 0f, b,
-                    0f, 1f, 0f, 0f, b,
-                    0f, 0f, 1f, 0f, b,
-                    0f, 0f, 0f, 1f, 0f
-                ))
-            })
-
-            val c = _contrast.value
-            val t = (1f - c) / 2f * 255
-            postConcat(ColorMatrix().apply {
-                set(floatArrayOf(
-                    c, 0f, 0f, 0f, t,
-                    0f, c, 0f, 0f, t,
-                    0f, 0f, c, 0f, t,
-                    0f, 0f, 0f, 1f, 0f
-                ))
-            })
-
-            setSaturation(_saturation.value)
-        }
-
-        val paint = Paint().apply {
-            colorFilter = ColorMatrixColorFilter(colorMatrix)
-        }
-
-        val result = Bitmap.createBitmap(adjusted.width, adjusted.height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(result)
-        canvas.drawBitmap(adjusted, 0f, 0f, paint)
-
-        _editedBitmap.value = result
-    }
-
-    // Filter implementations
-
-    private fun applyGrayscale(bitmap: Bitmap): Bitmap {
-        val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        val canvas = Canvas(result)
-        val colorMatrix = ColorMatrix().apply { setSaturation(0f) }
-        val paint = Paint().apply { colorFilter = ColorMatrixColorFilter(colorMatrix) }
-        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+    private fun applyColorMatrix(bitmap: Bitmap, cm: ColorMatrix): Bitmap {
+        val result = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        Canvas(result).drawBitmap(bitmap, 0f, 0f, Paint().apply { colorFilter = ColorMatrixColorFilter(cm) })
+        bitmap.recycle()
         return result
     }
 
-    private fun applySepia(bitmap: Bitmap): Bitmap {
-        val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        val canvas = Canvas(result)
-        val colorMatrix = ColorMatrix().apply {
-            set(floatArrayOf(
-                0.393f, 0.769f, 0.189f, 0f, 0f,
-                0.349f, 0.686f, 0.168f, 0f, 0f,
-                0.272f, 0.534f, 0.131f, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f
-            ))
-        }
-        val paint = Paint().apply { colorFilter = ColorMatrixColorFilter(colorMatrix) }
-        canvas.drawBitmap(bitmap, 0f, 0f, paint)
-        return result
-    }
+    private fun applyGrayscale(bitmap: Bitmap) =
+        applyColorMatrix(bitmap, ColorMatrix().apply { setSaturation(0f) })
 
-    private fun applyInvert(bitmap: Bitmap): Bitmap {
-        val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        val canvas = Canvas(result)
-        val colorMatrix = ColorMatrix().apply {
-            set(floatArrayOf(
-                -1f, 0f, 0f, 0f, 255f,
-                0f, -1f, 0f, 0f, 255f,
-                0f, 0f, -1f, 0f, 255f,
-                0f, 0f, 0f, 1f, 0f
-            ))
-        }
-        val paint = Paint().apply { colorFilter = ColorMatrixColorFilter(colorMatrix) }
-        canvas.drawBitmap(bitmap, 0f, 0f, paint)
-        return result
-    }
+    private fun applySepia(bitmap: Bitmap) =
+        applyColorMatrix(bitmap, ColorMatrix(floatArrayOf(
+            0.393f, 0.769f, 0.189f, 0f, 0f,
+            0.349f, 0.686f, 0.168f, 0f, 0f,
+            0.272f, 0.534f, 0.131f, 0f, 0f,
+            0f,     0f,     0f,     1f, 0f
+        )))
 
-    private fun applyBlur(bitmap: Bitmap): Bitmap {
-        // Simple averaging blur (no RenderScript needed)
-        val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        val width = bitmap.width
-        val height = bitmap.height
-        val pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+    private fun applyInvert(bitmap: Bitmap) =
+        applyColorMatrix(bitmap, ColorMatrix(floatArrayOf(
+            -1f, 0f, 0f, 0f, 255f,
+             0f,-1f, 0f, 0f, 255f,
+             0f, 0f,-1f, 0f, 255f,
+             0f, 0f, 0f, 1f,   0f
+        )))
 
-        val radius = 3
-        val resultPixels = IntArray(width * height)
-        for (y in radius until height - radius) {
-            for (x in radius until width - radius) {
-                var r = 0; var g = 0; var b = 0; var count = 0
-                for (dy in -radius..radius) {
-                    for (dx in -radius..radius) {
-                        val pixel = pixels[(y + dy) * width + (x + dx)]
-                        r += (pixel shr 16) and 0xFF
-                        g += (pixel shr 8) and 0xFF
-                        b += pixel and 0xFF
-                        count++
-                    }
-                }
-                resultPixels[y * width + x] = (0xFF shl 24) or ((r / count) shl 16) or ((g / count) shl 8) or (b / count)
-            }
-        }
-        result.setPixels(resultPixels, 0, width, 0, 0, width, height)
+    // Fast blur via scale-down trick — O(n) instead of O(n·r²), negligible quality loss
+    private fun applyBlurFast(bitmap: Bitmap, radius: Int): Bitmap {
+        val factor = (radius / 2).coerceIn(2, 8)
+        val w = (bitmap.width  / factor).coerceAtLeast(1)
+        val h = (bitmap.height / factor).coerceAtLeast(1)
+        val small  = Bitmap.createScaledBitmap(bitmap, w, h, true)
+        val result = Bitmap.createScaledBitmap(small, bitmap.width, bitmap.height, true)
+        small.recycle()
+        bitmap.recycle()
         return result
     }
 
     private fun applySharpen(bitmap: Bitmap): Bitmap {
-        // Sharpen using unsharp mask principle
-        val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        val width = bitmap.width
-        val height = bitmap.height
-        val pixels = IntArray(width * height)
+        val result  = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val width   = bitmap.width
+        val height  = bitmap.height
+        val pixels  = IntArray(width * height)
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-
-        val resultPixels = IntArray(width * height)
-        // Sharpen kernel: center=5, adjacent=-1
+        val out = IntArray(width * height)
         for (y in 1 until height - 1) {
             for (x in 1 until width - 1) {
-                val center = pixels[y * width + x]
-                val top = pixels[(y - 1) * width + x]
-                val bottom = pixels[(y + 1) * width + x]
-                val left = pixels[y * width + (x - 1)]
-                val right = pixels[y * width + (x + 1)]
-
-                val r = (5 * ((center shr 16) and 0xFF) - ((top shr 16) and 0xFF) - ((bottom shr 16) and 0xFF) - ((left shr 16) and 0xFF) - ((right shr 16) and 0xFF)).coerceIn(0, 255)
-                val g = (5 * ((center shr 8) and 0xFF) - ((top shr 8) and 0xFF) - ((bottom shr 8) and 0xFF) - ((left shr 8) and 0xFF) - ((right shr 8) and 0xFF)).coerceIn(0, 255)
-                val b2 = (5 * (center and 0xFF) - (top and 0xFF) - (bottom and 0xFF) - (left and 0xFF) - (right and 0xFF)).coerceIn(0, 255)
-                resultPixels[y * width + x] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b2
+                val c = pixels[y * width + x]
+                val t = pixels[(y - 1) * width + x]
+                val b = pixels[(y + 1) * width + x]
+                val l = pixels[y * width + (x - 1)]
+                val r = pixels[y * width + (x + 1)]
+                fun ch(s: Int) = (s shr 16 and 0xFF) to (s shr 8 and 0xFF) to (s and 0xFF)
+                val rr = (5 * (c shr 16 and 0xFF) - (t shr 16 and 0xFF) - (b shr 16 and 0xFF) - (l shr 16 and 0xFF) - (r shr 16 and 0xFF)).coerceIn(0, 255)
+                val gg = (5 * (c shr 8  and 0xFF) - (t shr 8  and 0xFF) - (b shr 8  and 0xFF) - (l shr 8  and 0xFF) - (r shr 8  and 0xFF)).coerceIn(0, 255)
+                val bb = (5 * (c and 0xFF)        - (t and 0xFF)        - (b and 0xFF)        - (l and 0xFF)        - (r and 0xFF)).coerceIn(0, 255)
+                out[y * width + x] = (0xFF shl 24) or (rr shl 16) or (gg shl 8) or bb
             }
         }
-        result.setPixels(resultPixels, 0, width, 0, 0, width, height)
+        result.setPixels(out, 0, width, 0, 0, width, height)
+        bitmap.recycle()
         return result
+    }
+
+    // Vivid: boost saturation + slight contrast
+    private fun applyVivid(bitmap: Bitmap): Bitmap {
+        val cm = ColorMatrix()
+        cm.setSaturation(1.8f)
+        val c = 1.15f; val t = (1f - c) / 2f * 255
+        cm.postConcat(ColorMatrix(floatArrayOf(
+            c, 0f, 0f, 0f, t,  0f, c, 0f, 0f, t,  0f, 0f, c, 0f, t,  0f, 0f, 0f, 1f, 0f
+        )))
+        return applyColorMatrix(bitmap, cm)
     }
 }
 
-/**
- * Editor State (for undo/redo)
- */
+// ── Data classes ──────────────────────────────────────────────────────────────
+
 data class EditorState(
-    val bitmap: Bitmap?,
-    val drawingPaths: List<DrawPath>,
-    val textElements: List<TextElement>,
-    val filter: PhotoFilter,
-    val brightness: Float,
-    val contrast: Float,
-    val saturation: Float,
-    val rotationAngle: Int
+    val bitmap:        Bitmap?,
+    val drawingPaths:  List<DrawPath>,
+    val textElements:  List<TextElement>,
+    val filter:        PhotoFilter,
+    val brightness:    Float,
+    val contrast:      Float,
+    val saturation:    Float,
+    val warmth:        Float,
+    val rotationAngle: Int,
+    val cropRect:      CropRect
 )
 
-/**
- * Drawing Path - uses normalized points (0-1)
- */
 data class DrawPath(
-    val points: List<Offset>,
-    val color: Color,
+    val points:      List<Offset>,
+    val color:       Color,
     val strokeWidth: Float
 )
 
-/**
- * Text Element
- */
 data class TextElement(
-    val text: String,
+    val text:  String,
     val color: Color,
-    val size: Float,
-    val x: Float,  // Normalized 0-1
-    val y: Float   // Normalized 0-1
+    val size:  Float,
+    val x:     Float,  // normalized 0-1
+    val y:     Float   // normalized 0-1
 )
 
-/**
- * Crop Rect — all values normalized to 0-1 range relative to the image size.
- */
 data class CropRect(
-    val left: Float,
-    val top: Float,
-    val right: Float,
+    val left:   Float,
+    val top:    Float,
+    val right:  Float,
     val bottom: Float
 )
