@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
@@ -11,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -58,9 +60,12 @@ fun VideoMessageComponent(
     val frameStyle = remember { getSavedVideoMessageFrameStyle(context) }
 
     val containerShape = when (frameStyle) {
-        VideoMessageFrameStyle.CIRCLE  -> CircleShape
-        VideoMessageFrameStyle.MINIMAL -> RoundedCornerShape(6.dp)
-        else                           -> RoundedCornerShape(20.dp)
+        VideoMessageFrameStyle.CIRCLE   -> CircleShape
+        VideoMessageFrameStyle.MINIMAL  -> RoundedCornerShape(6.dp)
+        VideoMessageFrameStyle.GRADIENT -> GenericShape { size, _ ->
+            addOval(Rect(Offset.Zero, size))
+        }
+        else -> RoundedCornerShape(20.dp)
     }
 
     // Animations for dynamic border styles
@@ -152,7 +157,7 @@ fun VideoMessageComponent(
 
     val isCircle = frameStyle == VideoMessageFrameStyle.CIRCLE
     val sizeModifier = if (isCircle) {
-        Modifier.size(220.dp)
+        Modifier.size(260.dp)
     } else {
         Modifier
             .wrapContentWidth()
@@ -186,6 +191,7 @@ fun VideoMessageComponent(
                     InlineVideoPlayer(
                         videoUrl = decryptedVideoUrl!!,
                         shape = containerShape,
+                        isCircularFrame = isCircle,
                         modifier = Modifier.fillMaxWidth(),
                         onFullscreenClick = { showVideoPlayer = true }
                     )

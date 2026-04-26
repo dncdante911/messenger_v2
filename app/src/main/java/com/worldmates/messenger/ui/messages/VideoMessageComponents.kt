@@ -28,11 +28,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -455,7 +464,10 @@ fun VideoMessageRecorder(
 // VideoMessageCameraPreview видалено - тепер preview інтегровано в VideoMessageRecorder
 
 /**
- * 🎨 Накладення рамки на відеоповідомлення
+ * 🎨 Накладення рамки на відеоповідомлення під час запису.
+ *
+ * Малює темну маску поверх превью камери з «вирізом» у формі, що відповідає
+ * вибраному стилю, щоб користувач бачив саме ту область, яка потрапить у відео.
  */
 @Composable
 fun VideoMessageFrameOverlay(
@@ -463,109 +475,101 @@ fun VideoMessageFrameOverlay(
     isRecording: Boolean,
     modifier: Modifier = Modifier
 ) {
-    when (style) {
-        VideoMessageFrameStyle.CIRCLE -> {
-            // Круглий стиль - маска що показує тільки круг
-            Box(modifier = modifier) {
-                // Тут буде маска для круглого вигляду
-            }
-        }
-        VideoMessageFrameStyle.NEON -> {
-            // Неонова рамка з пульсацією
-            val infiniteTransition = rememberInfiniteTransition(label = "neon")
-            val glowAlpha by infiniteTransition.animateFloat(
-                initialValue = 0.5f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1000),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "glow"
-            )
-            Box(
-                modifier = modifier
-                    .padding(16.dp)
-                    .border(
-                        width = 3.dp,
-                        color = Color(0xFF00FFFF).copy(alpha = glowAlpha),
-                        shape = RoundedCornerShape(24.dp)
-                    )
-            )
-        }
-        VideoMessageFrameStyle.GRADIENT -> {
-            Box(
-                modifier = modifier
-                    .padding(16.dp)
-                    .border(
-                        width = 3.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFF667eea),
-                                Color(0xFF764ba2),
-                                Color(0xFFf093fb)
-                            )
-                        ),
-                        shape = RoundedCornerShape(24.dp)
-                    )
-            )
-        }
-        VideoMessageFrameStyle.RAINBOW -> {
-            var offsetX by remember { mutableStateOf(0f) }
-            LaunchedEffect(Unit) {
-                while (true) {
-                    delay(50)
-                    offsetX = (offsetX + 10f) % 360f
-                }
-            }
-            Box(
-                modifier = modifier
-                    .padding(16.dp)
-                    .border(
-                        width = 3.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFFff0000),
-                                Color(0xFFff7f00),
-                                Color(0xFFffff00),
-                                Color(0xFF00ff00),
-                                Color(0xFF0000ff),
-                                Color(0xFF4b0082),
-                                Color(0xFF9400d3)
-                            ),
-                            start = Offset(offsetX, 0f),
-                            end = Offset(offsetX + 500f, 500f)
-                        ),
-                        shape = RoundedCornerShape(24.dp)
-                    )
-            )
-        }
-        VideoMessageFrameStyle.ROUNDED -> {
-            Box(
-                modifier = modifier
-                    .padding(16.dp)
-                    .border(
-                        width = 2.dp,
-                        color = Color.White.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(24.dp)
-                    )
-            )
-        }
-        VideoMessageFrameStyle.MINIMAL -> {
-            // Без рамки
-        }
-    }
+    val infiniteTransition = rememberInfiniteTransition(label = "overlay")
+    val neonAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.55f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(950), RepeatMode.Reverse),
+        label = "neon"
+    )
+    val rainbowHue by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing)),
+        label = "hue"
+    )
 
-    // Індикатор запису
-    if (isRecording) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .border(
-                    width = 4.dp,
-                    color = Color.Red.copy(alpha = 0.8f),
-                    shape = if (style == VideoMessageFrameStyle.CIRCLE) CircleShape else RoundedCornerShape(24.dp)
+    Canvas(modifier = modifier) {
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+
+        val isCircle = style == VideoMessageFrameStyle.CIRCLE
+        val isOval   = style == VideoMessageFrameStyle.GRADIENT
+
+        // Capture area dimensions
+        val frameR = minOf(size.width, size.height) * 0.43f
+        val frameW = size.width * 0.90f
+        val frameH = if (isOval) frameW * 0.68f else size.height * 0.52f
+        val cornerR = when (style) {
+            VideoMessageFrameStyle.MINIMAL -> 14.dp.toPx()
+            else -> 28.dp.toPx()
+        }
+        val frameLeft   = (size.width  - frameW) / 2f
+        val frameTop    = (size.height - frameH) / 2f
+        val frameRight  = (size.width  + frameW) / 2f
+        val frameBottom = (size.height + frameH) / 2f
+
+        // Dark cutout mask: full screen minus the capture window
+        val outerPath = Path().apply { addRect(Rect(0f, 0f, size.width, size.height)) }
+        val innerPath = Path().apply {
+            when {
+                isCircle -> addOval(Rect(cx - frameR, cy - frameR, cx + frameR, cy + frameR))
+                isOval   -> addOval(Rect(frameLeft, frameTop, frameRight, frameBottom))
+                else     -> addRoundRect(RoundRect(frameLeft, frameTop, frameRight, frameBottom,
+                                                   cornerRadius = CornerRadius(cornerR)))
+            }
+        }
+        drawPath(Path.combine(PathOperation.Difference, outerPath, innerPath), Color.Black.copy(alpha = 0.60f))
+
+        // Border colour per style
+        val borderColor = when (style) {
+            VideoMessageFrameStyle.NEON    -> Color(0xFF00FFFF).copy(alpha = neonAlpha)
+            VideoMessageFrameStyle.RAINBOW -> {
+                val rgb = android.graphics.Color.HSVToColor(floatArrayOf(rainbowHue % 360f, 1f, 1f))
+                Color(rgb)
+            }
+            VideoMessageFrameStyle.MINIMAL -> Color.White.copy(alpha = 0.45f)
+            else -> Color.White.copy(alpha = 0.82f)
+        }
+        val borderW  = 2.5.dp.toPx()
+        val bStroke  = Stroke(borderW, cap = StrokeCap.Round)
+        when {
+            isCircle -> drawCircle(borderColor, frameR, Offset(cx, cy), style = bStroke)
+            isOval   -> drawOval(
+                color = borderColor,
+                topLeft = Offset(frameLeft, frameTop),
+                size = Size(frameW, frameH),
+                style = bStroke
+            )
+            else -> drawRoundRect(
+                color = borderColor,
+                topLeft = Offset(frameLeft, frameTop),
+                size = Size(frameW, frameH),
+                cornerRadius = CornerRadius(cornerR),
+                style = bStroke
+            )
+        }
+
+        // Recording: red pulsing outline just outside the border
+        if (isRecording) {
+            val pad = borderW + 3.dp.toPx()
+            val recStroke = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round)
+            val recColor  = Color.Red.copy(alpha = 0.82f)
+            when {
+                isCircle -> drawCircle(recColor, frameR + pad, Offset(cx, cy), style = recStroke)
+                isOval   -> drawOval(
+                    color = recColor,
+                    topLeft = Offset(frameLeft - pad, frameTop - pad),
+                    size = Size(frameW + pad * 2, frameH + pad * 2),
+                    style = recStroke
                 )
-        )
+                else -> drawRoundRect(
+                    color = recColor,
+                    topLeft = Offset(frameLeft - pad, frameTop - pad),
+                    size = Size(frameW + pad * 2, frameH + pad * 2),
+                    cornerRadius = CornerRadius(cornerR + pad),
+                    style = recStroke
+                )
+            }
+        }
     }
 }
 
