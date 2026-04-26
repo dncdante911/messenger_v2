@@ -1,7 +1,9 @@
 package com.worldmates.messenger.ui.calls
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
@@ -12,7 +14,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.Image
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -24,21 +26,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
+import com.worldmates.messenger.services.MessageNotificationService
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.LanguageManager
 
 /**
- * 📞 Activity для відображення вхідного дзвінка
+ * Full-screen incoming call activity.
  *
- * Показується поверх інших екранів коли приходить вхідний дзвінок
- * Має кнопки Accept та Decline
- * Грає ringtone та вібрує
+ * Design: Telegram-style — dark gradient background, large avatar with
+ * animated pulse rings, caller name + call type, accept/decline FABs.
+ *
+ * Bug fixes applied:
+ * 1. Cancels call notification on accept/decline so the ongoing notification
+ *    doesn't linger in the shade and re-launch this activity.
+ * 2. Listens for ACTION_CALL_ACCEPTED_ELSEWHERE broadcast (sent by the service
+ *    when call:accepted_elsewhere arrives) and finishes immediately — prevents
+ *    a stale call screen after accepting on another device/socket.
  */
 class IncomingCallActivity : ComponentActivity() {
 
@@ -48,70 +59,82 @@ class IncomingCallActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "IncomingCallActivity"
-        const val EXTRA_FROM_ID = "from_id"
-        const val EXTRA_FROM_NAME = "from_name"
+        const val EXTRA_FROM_ID     = "from_id"
+        const val EXTRA_FROM_NAME   = "from_name"
         const val EXTRA_FROM_AVATAR = "from_avatar"
-        const val EXTRA_CALL_TYPE = "call_type"
-        const val EXTRA_ROOM_NAME = "room_name"
-        const val EXTRA_SDP_OFFER = "sdp_offer"
+        const val EXTRA_CALL_TYPE   = "call_type"
+        const val EXTRA_ROOM_NAME   = "room_name"
+        const val EXTRA_SDP_OFFER   = "sdp_offer"
 
-        /**
-         * Створити Intent для запуску IncomingCallActivity
-         */
         fun createIntent(
-            context: Context,
-            fromId: Int,
-            fromName: String,
+            context:    Context,
+            fromId:     Int,
+            fromName:   String,
             fromAvatar: String,
-            callType: String,
-            roomName: String,
-            sdpOffer: String?
-        ): Intent {
-            return Intent(context, IncomingCallActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(EXTRA_FROM_ID, fromId)
-                putExtra(EXTRA_FROM_NAME, fromName)
-                putExtra(EXTRA_FROM_AVATAR, fromAvatar)
-                putExtra(EXTRA_CALL_TYPE, callType)
-                putExtra(EXTRA_ROOM_NAME, roomName)
-                putExtra(EXTRA_SDP_OFFER, sdpOffer)
-            }
+            callType:   String,
+            roomName:   String,
+            sdpOffer:   String?
+        ): Intent = Intent(context, IncomingCallActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_FROM_ID,     fromId)
+            putExtra(EXTRA_FROM_NAME,   fromName)
+            putExtra(EXTRA_FROM_AVATAR, fromAvatar)
+            putExtra(EXTRA_CALL_TYPE,   callType)
+            putExtra(EXTRA_ROOM_NAME,   roomName)
+            putExtra(EXTRA_SDP_OFFER,   sdpOffer)
         }
     }
 
-    override fun attachBaseContext(newBase: android.content.Context) {
+    // Dismiss this activity when the call was accepted on another socket/device
+    private val dismissReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            Log.d(TAG, "📞 call:accepted_elsewhere — finishing IncomingCallActivity")
+            stopRingtoneAndVibration()
+            finish()
+        }
+    }
+
+    override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LanguageManager.applyLanguage(newBase))
     }
 
-        override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Отримати дані про дзвінок з Intent
-        val fromId = intent.getIntExtra(EXTRA_FROM_ID, 0)
-        val fromName = intent.getStringExtra(EXTRA_FROM_NAME) ?: "Unknown"
+        val fromId     = intent.getIntExtra(EXTRA_FROM_ID, 0)
+        val fromName   = intent.getStringExtra(EXTRA_FROM_NAME)   ?: "Unknown"
         val fromAvatar = intent.getStringExtra(EXTRA_FROM_AVATAR) ?: ""
-        val callType = intent.getStringExtra(EXTRA_CALL_TYPE) ?: "audio"
-        val roomName = intent.getStringExtra(EXTRA_ROOM_NAME) ?: ""
-        val sdpOffer = intent.getStringExtra(EXTRA_SDP_OFFER)
+        val callType   = intent.getStringExtra(EXTRA_CALL_TYPE)   ?: "audio"
+        val roomName   = intent.getStringExtra(EXTRA_ROOM_NAME)   ?: ""
+        val sdpOffer   = intent.getStringExtra(EXTRA_SDP_OFFER)
 
-        Log.d(TAG, "📞 Incoming call from: $fromName (ID: $fromId), type: $callType, room: $roomName")
+        Log.d(TAG, "📞 Incoming call from: $fromName ($fromId) type=$callType room=$roomName")
 
-        // Запустити ringtone та вібрацію
+        // Observe callDismissed from ViewModel (call:accepted_elsewhere via ViewModel socket)
+        callsViewModel.callDismissed.observe(this) { dismissedRoom ->
+            if (dismissedRoom == roomName) {
+                Log.d(TAG, "📞 ViewModel signalled dismiss for room $roomName")
+                stopRingtoneAndVibration()
+                finish()
+            }
+        }
+
         startRingtoneAndVibration()
 
-        // Показати UI
         setContent {
             WorldMatesThemedApp {
                 IncomingCallScreen(
-                    fromName = fromName,
+                    fromName   = fromName,
                     fromAvatar = fromAvatar,
-                    callType = callType,
-                    onAccept = {
+                    callType   = callType,
+                    onAccept   = {
                         stopRingtoneAndVibration()
+                        MessageNotificationService.dismissCallNotifications(this)
                         acceptCall(fromId, fromName, fromAvatar, callType, roomName, sdpOffer)
                     },
-                    onDecline = {
+                    onDecline  = {
                         stopRingtoneAndVibration()
+                        MessageNotificationService.dismissCallNotifications(this)
                         declineCall(roomName)
                     }
                 )
@@ -119,95 +142,78 @@ class IncomingCallActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * 🔔 Запустити ringtone та вібрацію
-     */
+    override fun onResume() {
+        super.onResume()
+        val filter = IntentFilter(MessageNotificationService.ACTION_CALL_ACCEPTED_ELSEWHERE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(dismissReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(dismissReceiver, filter)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try { unregisterReceiver(dismissReceiver) } catch (_: Exception) {}
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // singleTop: same call relaunched — nothing to do, already showing
+        Log.d(TAG, "onNewIntent — already showing, ignoring")
+    }
+
     private fun startRingtoneAndVibration() {
         try {
-            // Ringtone
-            val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            ringtone = RingtoneManager.getRingtone(applicationContext, ringtoneUri)
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            ringtone = RingtoneManager.getRingtone(applicationContext, uri)
             ringtone?.play()
-            Log.d(TAG, "🔔 Ringtone started")
 
-            // Vibration
             vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val vibrationEffect = VibrationEffect.createWaveform(
-                    longArrayOf(0, 1000, 1000),  // Пауза, вібрація, пауза
-                    0  // Повторювати з індексу 0
-                )
-                vibrator?.vibrate(vibrationEffect)
+                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 1000, 1000), 0))
             } else {
                 @Suppress("DEPRECATION")
                 vibrator?.vibrate(longArrayOf(0, 1000, 1000), 0)
             }
-            Log.d(TAG, "📳 Vibration started")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting ringtone/vibration", e)
         }
     }
 
-    /**
-     * 🔕 Зупинити ringtone та вібрацію
-     */
     private fun stopRingtoneAndVibration() {
         try {
             ringtone?.stop()
             vibrator?.cancel()
-            Log.d(TAG, "🔕 Ringtone and vibration stopped")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping ringtone/vibration", e)
         }
     }
 
-    /**
-     * ✅ Прийняти дзвінок
-     *
-     * ВАЖЛИВО: НЕ викликаємо acceptCall() тут!
-     * CallsActivity сама ініціалізує WebRTC і відправить call:accept
-     * Це вирішує проблему з різними ViewModel instances
-     */
     private fun acceptCall(
-        fromId: Int,
-        fromName: String,
+        fromId:     Int,
+        fromName:   String,
         fromAvatar: String,
-        callType: String,
-        roomName: String,
-        sdpOffer: String?
+        callType:   String,
+        roomName:   String,
+        sdpOffer:   String?
     ) {
-        Log.d(TAG, "✅ Call accepted, starting CallsActivity...")
-
-        // ✅ ВИПРАВЛЕНО: НЕ викликаємо acceptCall() тут!
-        // CallsActivity має свій ViewModel і сама виконає:
-        // 1. Отримання ICE серверів
-        // 2. Створення PeerConnection
-        // 3. Встановлення remote SDP (offer)
-        // 4. Створення local media stream
-        // 5. Створення answer
-        // 6. Відправка call:accept на сервер
-
-        // Запустити CallsActivity для активного дзвінка
-        val intent = Intent(this, CallsActivity::class.java).apply {
-            putExtra("is_incoming", true)
-            putExtra("from_id", fromId)
-            putExtra("from_name", fromName)
-            putExtra("from_avatar", fromAvatar)
-            putExtra("call_type", callType)
-            putExtra("room_name", roomName)
-            putExtra("sdp_offer", sdpOffer)
-        }
-        startActivity(intent)
+        Log.d(TAG, "✅ Call accepted, starting CallsActivity")
+        startActivity(Intent(this, CallsActivity::class.java).apply {
+            putExtra("is_incoming",  true)
+            putExtra("from_id",      fromId)
+            putExtra("from_name",    fromName)
+            putExtra("from_avatar",  fromAvatar)
+            putExtra("call_type",    callType)
+            putExtra("room_name",    roomName)
+            putExtra("sdp_offer",    sdpOffer)
+        })
         finish()
     }
 
-    /**
-     * ❌ Відхилити дзвінок
-     */
     private fun declineCall(roomName: String) {
         Log.d(TAG, "❌ Call declined")
-
-        // Відправити call:reject через CallsViewModel
         callsViewModel.rejectCall(roomName)
         finish()
     }
@@ -218,102 +224,178 @@ class IncomingCallActivity : ComponentActivity() {
     }
 }
 
-/**
- * 🎨 UI екрану вхідного дзвінка
- */
+// ── UI ────────────────────────────────────────────────────────────────────────
+
 @Composable
 fun IncomingCallScreen(
-    fromName: String,
+    fromName:   String,
     fromAvatar: String,
-    callType: String,
-    onAccept: () -> Unit,
-    onDecline: () -> Unit
+    callType:   String,
+    onAccept:   () -> Unit,
+    onDecline:  () -> Unit
 ) {
+    // Pulse animation for the avatar ring
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseScale1 by infiniteTransition.animateFloat(
+        initialValue = 1f, targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(
+            tween(1200, easing = EaseOut), RepeatMode.Restart
+        ), label = "pulse1"
+    )
+    val pulseScale2 by infiniteTransition.animateFloat(
+        initialValue = 1f, targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(
+            tween(1200, delayMillis = 400, easing = EaseOut), RepeatMode.Restart
+        ), label = "pulse2"
+    )
+    val pulseAlpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.35f, targetValue = 0f,
+        animationSpec = infiniteRepeatable(tween(1200, easing = EaseOut), RepeatMode.Restart),
+        label = "alpha1"
+    )
+    val pulseAlpha2 by infiniteTransition.animateFloat(
+        initialValue = 0.22f, targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            tween(1200, delayMillis = 400, easing = EaseOut), RepeatMode.Restart
+        ), label = "alpha2"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // Аватар
-            if (fromAvatar.isNotEmpty()) {
-                Image(
-                    painter = rememberAsyncImagePainter(fromAvatar),
-                    contentDescription = "Caller avatar",
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460))
                 )
-            } else {
-                // Placeholder якщо немає аватара
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = fromName.firstOrNull()?.uppercase() ?: "?",
-                        fontSize = 48.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+    ) {
+        // Blurred background avatar (full width, low opacity)
+        if (fromAvatar.isNotEmpty()) {
+            AsyncImage(
+                model             = fromAvatar,
+                contentDescription = null,
+                modifier          = Modifier.fillMaxSize(),
+                contentScale      = ContentScale.Crop,
+                alpha             = 0.12f
+            )
+        }
+
+        Column(
+            modifier              = Modifier.fillMaxSize(),
+            horizontalAlignment   = Alignment.CenterHorizontally,
+            verticalArrangement   = Arrangement.SpaceBetween
+        ) {
+            // ── Top section: caller info ──────────────────────────────────────
+            Column(
+                modifier            = Modifier.padding(top = 80.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Call type label
+                Text(
+                    text      = if (callType == "video") "Incoming video call" else "Incoming call",
+                    fontSize  = 15.sp,
+                    color     = Color.White.copy(alpha = 0.7f),
+                    letterSpacing = 0.5.sp
+                )
+
+                // Avatar with pulse rings
+                Box(contentAlignment = Alignment.Center) {
+                    // Outer pulse ring
+                    Box(
+                        modifier = Modifier
+                            .size(176.dp)
+                            .scale(pulseScale2)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = pulseAlpha2))
                     )
+                    // Inner pulse ring
+                    Box(
+                        modifier = Modifier
+                            .size(176.dp)
+                            .scale(pulseScale1)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = pulseAlpha1))
+                    )
+                    // Avatar
+                    if (fromAvatar.isNotEmpty()) {
+                        AsyncImage(
+                            model              = fromAvatar,
+                            contentDescription = "Caller avatar",
+                            modifier           = Modifier
+                                .size(160.dp)
+                                .clip(CircleShape),
+                            contentScale       = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(160.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF2A5298)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text       = fromName.firstOrNull()?.uppercase() ?: "?",
+                                fontSize   = 64.sp,
+                                fontWeight = FontWeight.Bold,
+                                color      = Color.White
+                            )
+                        }
+                    }
                 }
+
+                // Caller name
+                Text(
+                    text       = fromName,
+                    fontSize   = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = Color.White
+                )
             }
 
-            // Ім'я
-            Text(
-                text = fromName,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            // Тип дзвінка
-            Text(
-                text = if (callType == "video") "📹 Video call" else "📞 Audio call",
-                fontSize = 18.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Кнопки
+            // ── Bottom section: action buttons ────────────────────────────────
             Row(
-                horizontalArrangement = Arrangement.spacedBy(48.dp)
+                modifier              = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 72.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment     = Alignment.CenterVertically
             ) {
-                // Відхилити
-                FloatingActionButton(
-                    onClick = onDecline,
-                    containerColor = Color.Red,
-                    modifier = Modifier.size(72.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CallEnd,
-                        contentDescription = "Decline",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
+                // Decline
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    FloatingActionButton(
+                        onClick          = onDecline,
+                        containerColor   = Color(0xFFE53935),
+                        modifier         = Modifier.size(72.dp)
+                    ) {
+                        Icon(
+                            imageVector        = Icons.Default.CallEnd,
+                            contentDescription = "Decline",
+                            tint               = Color.White,
+                            modifier           = Modifier.size(32.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("Decline", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
                 }
 
-                // Прийняти
-                FloatingActionButton(
-                    onClick = onAccept,
-                    containerColor = Color.Green,
-                    modifier = Modifier.size(72.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Call,
-                        contentDescription = "Accept",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
+                // Accept
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    FloatingActionButton(
+                        onClick          = onAccept,
+                        containerColor   = Color(0xFF43A047),
+                        modifier         = Modifier.size(72.dp)
+                    ) {
+                        Icon(
+                            imageVector        = Icons.Default.Call,
+                            contentDescription = "Accept",
+                            tint               = Color.White,
+                            modifier           = Modifier.size(32.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("Accept", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
                 }
             }
         }
