@@ -1,9 +1,13 @@
 package com.worldmates.messenger.services
 
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessaging
@@ -12,6 +16,7 @@ import com.google.firebase.messaging.RemoteMessage
 import com.worldmates.messenger.R
 import com.worldmates.messenger.data.UserSession
 import com.worldmates.messenger.network.NodeRetrofitClient
+import com.worldmates.messenger.ui.calls.IncomingCallActivity
 import com.worldmates.messenger.ui.messages.MessagesActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +39,9 @@ import kotlinx.coroutines.launch
  *  5. On the server side: download the Firebase Admin SDK service account key
  *     (Project Settings → Service Accounts → Generate new private key)
  *     and put it at api-server-files/nodejs/firebase-service-account.json
+ *
+ * Server FCM payload for calls should include:
+ *   type, from_name, from_id, from_avatar, room_name, call_type
  */
 class WMFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -88,12 +96,6 @@ class WMFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(message)
         Log.d(TAG, "FCM message received: ${message.data}")
 
-        // If Socket.IO service is alive and connected, it already showed a notification.
-        if (MessageNotificationService.isConnected) {
-            Log.d(TAG, "Socket.IO connected — skipping FCM notification")
-            return
-        }
-
         val data        = message.data
         val type        = data["type"] ?: "message"
         val fromName    = data["from_name"]  ?: data["title"]  ?: getString(R.string.app_name)
@@ -103,17 +105,117 @@ class WMFirebaseMessagingService : FirebaseMessagingService() {
 
         when (type) {
             "call" -> {
-                // Incoming call while app is killed — the calls subsystem handles ringing.
-                // We just ensure the service restarts so WebRTC can connect.
+                val roomName   = data["room_name"]   ?: data["roomName"]   ?: ""
+                val callType   = data["call_type"]   ?: data["callType"]   ?: "audio"
+                val fromAvatar = data["from_avatar"] ?: data["fromAvatar"] ?: ""
+                val sdpOffer   = data["sdp_offer"]   ?: data["sdpOffer"]
+
+                // Always restart the service so the socket reconnects for WebRTC signaling.
+                // If the server re-sends call:incoming on call:register, that will handle it.
                 restartNotificationService()
+
+                // If the Socket.IO service is already connected, skip — it handles the call.
+                if (MessageNotificationService.isConnected) {
+                    Log.d(TAG, "Socket.IO connected — skipping FCM call notification")
+                    return
+                }
+
+                // App was killed — show the call notification immediately from FCM data so
+                // the user sees the ring screen without waiting for socket reconnection.
+                if (fromName.isNotEmpty() && fromId > 0) {
+                    Log.d(TAG, "📞 Showing call notification from FCM: $fromName, room=$roomName")
+                    ensureCallNotificationChannel()
+                    showCallNotificationFromFcm(
+                        fromName   = fromName,
+                        fromId     = fromId.toInt(),
+                        fromAvatar = fromAvatar,
+                        callType   = callType,
+                        roomName   = roomName,
+                        sdpOffer   = sdpOffer
+                    )
+                }
             }
             else -> {
+                // If Socket.IO service is alive and connected, it already showed a notification.
+                if (MessageNotificationService.isConnected) {
+                    Log.d(TAG, "Socket.IO connected — skipping FCM message notification")
+                    return
+                }
                 showMessageNotification(fromName, body, fromId, recipientId)
             }
         }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Ensure the call notification channel exists.
+     * MessageNotificationService normally creates it, but may not have run yet.
+     */
+    private fun ensureCallNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.getNotificationChannel(MessageNotificationService.CHANNEL_CALLS_ID) != null) return
+
+        val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+        val audioAttr = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        val channel = NotificationChannel(
+            MessageNotificationService.CHANNEL_CALLS_ID,
+            MessageNotificationService.CHANNEL_CALLS_NAME,
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            setSound(ringtoneUri, audioAttr)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 1000, 500, 1000)
+        }
+        nm.createNotificationChannel(channel)
+    }
+
+    /**
+     * Show a full-screen incoming call notification from FCM payload data.
+     * Used when the Socket.IO service is killed and can't receive call:incoming.
+     */
+    private fun showCallNotificationFromFcm(
+        fromName:   String,
+        fromId:     Int,
+        fromAvatar: String,
+        callType:   String,
+        roomName:   String,
+        sdpOffer:   String?
+    ) {
+        val callIntent = IncomingCallActivity.createIntent(
+            context    = this,
+            fromId     = fromId,
+            fromName   = fromName,
+            fromAvatar = fromAvatar,
+            callType   = callType,
+            roomName   = roomName,
+            sdpOffer   = sdpOffer
+        )
+        val fullScreenPi = PendingIntent.getActivity(
+            this, fromId, callIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val callTypeText = if (callType == "video")
+            getString(R.string.video_call) else getString(R.string.incoming_call)
+
+        val notification = NotificationCompat.Builder(this, MessageNotificationService.CHANNEL_CALLS_ID)
+            .setSmallIcon(R.drawable.ic_notification_service)
+            .setContentTitle(fromName)
+            .setContentText(callTypeText)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setFullScreenIntent(fullScreenPi, true)
+            .setAutoCancel(true)
+            .setOngoing(true)
+            .build()
+
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(MessageNotificationService.CALL_NOTIF_ID, notification)
+    }
 
     private fun showMessageNotification(
         senderName: String,

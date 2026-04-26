@@ -1,6 +1,9 @@
 package com.worldmates.messenger.ui.calls
 
 import android.app.Application
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -169,6 +172,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     private var audioFocusRequest: AudioFocusRequest? = null
     private var savedAudioMode: Int = AudioManager.MODE_NORMAL
     private var callWakeLock: PowerManager.WakeLock? = null
+    private var bluetoothScoStarted = false
     private var savedIsSpeakerphoneOn: Boolean = false
 
     init {
@@ -1331,12 +1335,37 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     }
 
     /**
-     * 🔊 Увімкнути/вимкнути громку зв'язок (speaker)
+     * 🔊 Увімкнути/вимкнути громку зв'язок (speaker).
+     * When switching back to earpiece and a BT headset is connected, routes to headset.
      */
     fun toggleSpeaker(enabled: Boolean) {
         audioManager.isSpeakerphoneOn = enabled
+        if (!enabled && isBluetoothHeadsetConnected()) {
+            // Route to BT headset instead of earpiece
+            audioManager.startBluetoothSco()
+            audioManager.isBluetoothScoOn = true
+            bluetoothScoStarted = true
+        } else if (enabled && bluetoothScoStarted) {
+            // Speaker overrides BT headset
+            audioManager.stopBluetoothSco()
+            audioManager.isBluetoothScoOn = false
+            bluetoothScoStarted = false
+        }
         Log.d("CallsViewModel", "Speaker ${if (enabled) "enabled" else "disabled"}")
     }
+
+    /**
+     * Returns true if a Bluetooth headset (SCO or A2DP) is currently connected.
+     * Requires BLUETOOTH_CONNECT permission (API 31+) or BLUETOOTH (API ≤ 30).
+     */
+    @SuppressLint("MissingPermission")
+    private fun isBluetoothHeadsetConnected(): Boolean = try {
+        val bt = BluetoothAdapter.getDefaultAdapter() ?: return false
+        bt.isEnabled && (
+            bt.getProfileConnectionState(BluetoothProfile.HEADSET) == BluetoothProfile.STATE_CONNECTED ||
+            bt.getProfileConnectionState(BluetoothProfile.A2DP) == BluetoothProfile.STATE_CONNECTED
+        )
+    } catch (e: Exception) { false }
 
     /**
      * 🔊 Setup audio for call - CRITICAL for hearing the other party
@@ -1386,6 +1415,14 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
             callWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WorldMates:CallWakeLock")
             callWakeLock?.acquire(4 * 60 * 60 * 1000L) // max 4 h
 
+            // Start Bluetooth SCO only when a headset is actually connected
+            if (isBluetoothHeadsetConnected()) {
+                audioManager.startBluetoothSco()
+                audioManager.isBluetoothScoOn = true
+                bluetoothScoStarted = true
+                Log.d("CallsViewModel", "🎧 Bluetooth SCO started (headset connected)")
+            }
+
             Log.d("CallsViewModel", "🔊 Call audio setup complete - mode: MODE_IN_COMMUNICATION, speaker: $isVideoCall")
         } catch (e: Exception) {
             Log.e("CallsViewModel", "🔊 Error setting up call audio", e)
@@ -1400,6 +1437,14 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
             // Release wake lock
             callWakeLock?.let { if (it.isHeld) it.release() }
             callWakeLock = null
+
+            // Stop Bluetooth SCO if we started it
+            if (bluetoothScoStarted) {
+                audioManager.stopBluetoothSco()
+                audioManager.isBluetoothScoOn = false
+                bluetoothScoStarted = false
+                Log.d("CallsViewModel", "🎧 Bluetooth SCO stopped")
+            }
 
             // Abandon audio focus
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1710,8 +1755,11 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
         }
     }
 
-    fun onCallEnded(data: JSONObject) { // Изменили тип с JsonObject на JSONObject
+    fun onCallEnded(data: JSONObject) {
         webRTCManager.close()
+        releaseCallAudio()
+        acceptedRoomName = null
+        pendingIncomingRooms.clear()
         callEnded.postValue(true)
         currentCallData = null
     }
