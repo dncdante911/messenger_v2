@@ -637,6 +637,7 @@ fun InlineVideoPlayer(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(12.dp),
     isCircularFrame: Boolean = false,
+    progressBrush: Brush? = null,
     onFullscreenClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -646,13 +647,20 @@ fun InlineVideoPlayer(
     var duration by remember { mutableStateOf(0L) }
 
     val exoPlayer = remember(videoUrl) {
-        ExoPlayer.Builder(context).build().apply {
-            val mediaItem = MediaItem.fromUri(Uri.parse(videoUrl))
-            setMediaItem(mediaItem)
-            prepare()
-            playWhenReady = false
-            addListener(object : Player.Listener {
+        ExoPlayer.Builder(context).build().also { player ->
+            player.setMediaItem(MediaItem.fromUri(Uri.parse(videoUrl)))
+            player.prepare()
+            player.playWhenReady = false
+            player.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_ENDED) {
+                        // Reset to start so the user can replay without refreshing
+                        player.seekTo(0)
+                        player.playWhenReady = false
+                        showControls = true
+                    }
+                }
             })
         }
     }
@@ -831,7 +839,7 @@ fun InlineVideoPlayer(
                                 .fillMaxWidth(p)
                                 .fillMaxHeight()
                                 .background(
-                                    Brush.horizontalGradient(
+                                    progressBrush ?: Brush.horizontalGradient(
                                         listOf(Color(0xFF60A5FA), Color(0xFF3B82F6))
                                     )
                                 )

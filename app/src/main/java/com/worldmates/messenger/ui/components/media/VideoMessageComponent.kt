@@ -89,6 +89,31 @@ fun VideoMessageComponent(
         }
     }
 
+    // Progress bar brush — each style gets its own colour/gradient
+    val progressBrush: Brush? = when (frameStyle) {
+        VideoMessageFrameStyle.NEON -> Brush.horizontalGradient(
+            listOf(Color(0xFF00FFFF).copy(alpha = 0.65f), Color(0xFF00FFFF))
+        )
+        VideoMessageFrameStyle.GRADIENT -> Brush.horizontalGradient(
+            listOf(Color(0xFF667eea), Color(0xFF764ba2), Color(0xFFf093fb))
+        )
+        VideoMessageFrameStyle.RAINBOW -> Brush.horizontalGradient(
+            colors = listOf(
+                Color(0xFFFF0000), Color(0xFFFF7F00), Color(0xFFFFFF00),
+                Color(0xFF00FF00), Color(0xFF0000FF), Color(0xFF9400D3)
+            ),
+            startX = rainbowOffset,
+            endX = rainbowOffset + 320f
+        )
+        VideoMessageFrameStyle.ROUNDED -> Brush.horizontalGradient(
+            listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.85f))
+        )
+        VideoMessageFrameStyle.MINIMAL -> Brush.horizontalGradient(
+            listOf(Color.White.copy(alpha = 0.4f), Color.White.copy(alpha = 0.65f))
+        )
+        VideoMessageFrameStyle.CIRCLE -> null // circle uses arc, not bar
+    }
+
     val frameBorder: Modifier = when (frameStyle) {
         VideoMessageFrameStyle.NEON -> Modifier.border(
             width = 2.5.dp,
@@ -192,6 +217,7 @@ fun VideoMessageComponent(
                         videoUrl = decryptedVideoUrl!!,
                         shape = containerShape,
                         isCircularFrame = isCircle,
+                        progressBrush = progressBrush,
                         modifier = Modifier.fillMaxWidth(),
                         onFullscreenClick = { showVideoPlayer = true }
                     )
