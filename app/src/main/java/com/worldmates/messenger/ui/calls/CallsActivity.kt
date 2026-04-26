@@ -67,18 +67,6 @@ import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
 import com.worldmates.messenger.utils.LanguageManager
 
-/**
- * 🎨 Стилі кастомних рамок для відеодзвінків
- */
-enum class CallFrameStyle {
-    CLASSIC,    // Класична рамка з легкою тінню
-    NEON,       // Неонова рамка з пульсуючим світінням
-    GRADIENT,   // Градієнтна рамка з кольоровим переходом
-    MINIMAL,    // Мінімалістична без рамки
-    GLASS,      // Скляний ефект з blur
-    RAINBOW     // Веселкова анімована рамка
-}
-
 class CallsActivity : ComponentActivity() {
 
     private lateinit var callsViewModel: CallsViewModel
@@ -929,68 +917,6 @@ fun ActiveCallScreen(
     } // end Box
 } // end ActiveCallScreen
 
-/**
- * 🎨 Selector для вибору стилю рамки
- */
-@Composable
-fun FrameStyleSelector(
-    currentStyle: CallFrameStyle,
-    onStyleChange: (CallFrameStyle) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .background(Color(0x99000000), RoundedCornerShape(8.dp))
-            .clickable { expanded = !expanded }
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Style,
-                contentDescription = "Frame Style",
-                tint = Color.White,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = currentStyle.name,
-                fontSize = 12.sp,
-                color = Color.White
-            )
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            CallFrameStyle.values().forEach { style ->
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            val emoji = when (style) {
-                                CallFrameStyle.CLASSIC -> "🎨"
-                                CallFrameStyle.NEON -> "💡"
-                                CallFrameStyle.GRADIENT -> "🌈"
-                                CallFrameStyle.MINIMAL -> "⚪"
-                                CallFrameStyle.GLASS -> "💎"
-                                CallFrameStyle.RAINBOW -> "🌈"
-                            }
-                            Text("$emoji ${style.name}")
-                        }
-                    },
-                    onClick = {
-                        onStyleChange(style)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
 // ── Modern call UI components ────────────────────────────────────────────────
 
 /**
@@ -1127,21 +1053,22 @@ fun ModernCallTopBar(
 }
 
 /**
- * Background for audio calls — dark gradient + avatar glow.
+ * Background for audio calls — themed gradient + avatar overlay.
+ * Background style is read from [CallBackgroundManager] (user preference).
  */
 @Composable
 fun AudioCallBackground(calleeName: String, calleeAvatar: String) {
+    val context = LocalContext.current
+    val selectedBg = remember { CallBackgroundManager.load(context) }
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F2040))
-                )
-            ),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        // Ghost avatar full-screen at low opacity
+        // ── Themed background layer ──────────────────────────────────────────
+        CallBgLayer(bg = selectedBg, modifier = Modifier.fillMaxSize())
+
+        // Ghost avatar full-screen at low opacity for depth
         if (calleeAvatar.isNotEmpty()) {
             AsyncImage(
                 model = calleeAvatar,
@@ -1151,11 +1078,12 @@ fun AudioCallBackground(calleeName: String, calleeAvatar: String) {
                 alpha = 0.08f
             )
         }
+
+        // ── Avatar + name ────────────────────────────────────────────────────
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Avatar with soft glow ring
             Box(contentAlignment = Alignment.Center) {
                 Box(
                     modifier = Modifier
@@ -1409,52 +1337,6 @@ fun CallControlButton(
 }
 
 /**
- * 📹 Компонент для відображення віддаленої відео потоку з кастомними рамками
- */
-@Composable
-fun RemoteVideoView(
-    remoteStream: MediaStream,
-    localStream: MediaStream? = null,
-    frameStyle: CallFrameStyle = CallFrameStyle.CLASSIC,
-    onSwitchCamera: () -> Unit = {}
-) {
-    var isFullscreen by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = {
-                        // Double tap → fullscreen toggle
-                        isFullscreen = !isFullscreen
-                    }
-                )
-            }
-    ) {
-        // 🎥 Віддалене відео з кастомною рамкою
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(if (isFullscreen) 0.dp else 16.dp)
-        ) {
-            // Застосовуємо стиль рамки
-            when (frameStyle) {
-                CallFrameStyle.CLASSIC -> ClassicVideoFrame(remoteStream)
-                CallFrameStyle.NEON -> NeonVideoFrame(remoteStream)
-                CallFrameStyle.GRADIENT -> GradientVideoFrame(remoteStream)
-                CallFrameStyle.MINIMAL -> MinimalVideoFrame(remoteStream)
-                CallFrameStyle.GLASS -> GlassVideoFrame(remoteStream)
-                CallFrameStyle.RAINBOW -> RainbowVideoFrame(remoteStream)
-            }
-        }
-
-        // Локальне відео тепер показується окремо в ActiveCallScreen
-    }
-}
-
-/**
  * 📱 Picture-in-Picture для локального відео (draggable + swipe to switch camera)
  */
 @Composable
@@ -1655,170 +1537,6 @@ fun WebRTCVideoRenderer(
         },
         modifier = modifier
     )
-}
-
-/**
- * 🎨 CLASSIC: Класична рамка з легкою тінню
- */
-@Composable
-fun ClassicVideoFrame(remoteStream: MediaStream) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .shadow(8.dp, RoundedCornerShape(24.dp))
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color.Black)
-    ) {
-        WebRTCVideoRenderer(
-            videoStream = remoteStream,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}
-
-/**
- * 💡 NEON: Неонова рамка з пульсуючим світінням
- */
-@Composable
-fun NeonVideoFrame(remoteStream: MediaStream) {
-    var animatedAlpha by remember { mutableStateOf(1f) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1000)
-            animatedAlpha = if (animatedAlpha == 1f) 0.5f else 1f
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                color = Color(0xFF00ffff).copy(alpha = animatedAlpha * 0.3f),
-                shape = RoundedCornerShape(24.dp)
-            )
-            .padding(4.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.Black)
-    ) {
-        WebRTCVideoRenderer(
-            videoStream = remoteStream,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}
-
-/**
- * 🌈 GRADIENT: Градієнтна рамка з кольоровим переходом
- */
-@Composable
-fun GradientVideoFrame(remoteStream: MediaStream) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFF667eea),
-                        Color(0xFF764ba2),
-                        Color(0xFFf093fb)
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
-            .padding(4.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.Black)
-    ) {
-        WebRTCVideoRenderer(
-            videoStream = remoteStream,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}
-
-/**
- * ⚪ MINIMAL: Мінімалістична без рамки
- */
-@Composable
-fun MinimalVideoFrame(remoteStream: MediaStream) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        WebRTCVideoRenderer(
-            videoStream = remoteStream,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}
-
-/**
- * 💎 GLASS: Скляний ефект з blur
- */
-@Composable
-fun GlassVideoFrame(remoteStream: MediaStream) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                color = Color.White.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(24.dp)
-            )
-            .padding(2.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(Color.Black)
-    ) {
-        WebRTCVideoRenderer(
-            videoStream = remoteStream,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}
-
-/**
- * 🌈 RAINBOW: Веселкова анімована рамка
- */
-@Composable
-fun RainbowVideoFrame(remoteStream: MediaStream) {
-    var offsetX by remember { mutableStateOf(0f) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(50)
-            offsetX = (offsetX + 10f) % 360f
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFFff0000),
-                        Color(0xFFff7f00),
-                        Color(0xFFffff00),
-                        Color(0xFF00ff00),
-                        Color(0xFF0000ff),
-                        Color(0xFF4b0082),
-                        Color(0xFF9400d3)
-                    ),
-                    start = Offset(offsetX, 0f),
-                    end = Offset(offsetX + 1000f, 1000f)
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
-            .padding(4.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.Black)
-    ) {
-        WebRTCVideoRenderer(
-            videoStream = remoteStream,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
 }
 
 /**

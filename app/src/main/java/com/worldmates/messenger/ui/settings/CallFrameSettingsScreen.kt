@@ -3,10 +3,10 @@ package com.worldmates.messenger.ui.settings
 import android.content.Context
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,9 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -26,30 +23,43 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.worldmates.messenger.R
-import com.worldmates.messenger.ui.calls.CallFrameStyle
+import com.worldmates.messenger.data.UserSession
+import com.worldmates.messenger.ui.calls.CallBackground
+import com.worldmates.messenger.ui.calls.CallBackgroundManager
+import com.worldmates.messenger.ui.calls.CallBgLayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CallFrameSettingsScreen(
-    onBackClick: () -> Unit
-) {
+fun CallFrameSettingsScreen(onBackClick: () -> Unit) {
     val context = LocalContext.current
-    val prefs = remember {
-        context.getSharedPreferences("call_frame_prefs", Context.MODE_PRIVATE)
-    }
+    var selected by remember { mutableStateOf(CallBackgroundManager.load(context)) }
+    val isPremiumUser = remember { UserSession.isProActive }
 
-    var selectedStyle by remember {
-        mutableStateOf(
-            CallFrameStyle.valueOf(
-                prefs.getString("selected_frame_style", CallFrameStyle.CLASSIC.name)
-                    ?: CallFrameStyle.CLASSIC.name
-            )
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text(stringResource(R.string.call_bg_reset_default)) },
+            text = { Text(stringResource(R.string.call_bg_reset_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    CallBackgroundManager.reset(context)
+                    selected = CallBackground.DEFAULT
+                    showResetDialog = false
+                }) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
         )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text(stringResource(R.string.call_frame_style_title)) },
+            title = { Text(stringResource(R.string.call_bg_settings_title)) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -69,83 +79,201 @@ fun CallFrameSettingsScreen(
         ) {
             item {
                 Text(
-                    text = stringResource(R.string.call_frame_select_desc),
+                    text = stringResource(R.string.call_bg_settings_desc),
                     fontSize = 14.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
 
-            items(CallFrameStyle.values()) { style ->
-                CallFrameStyleCard(
-                    style = style,
-                    isSelected = selectedStyle == style,
+            // ── Free section ─────────────────────────────────────────────────
+            item {
+                SectionHeader(label = stringResource(R.string.call_bg_free_label))
+            }
+
+            val freeItems = CallBackground.values().filter { !it.isPremium }
+            items(freeItems.size) { idx ->
+                val bg = freeItems[idx]
+                CallBgCard(
+                    bg = bg,
+                    isSelected = selected == bg,
+                    isLocked = false,
                     onClick = {
-                        selectedStyle = style
-                        prefs.edit().putString("selected_frame_style", style.name).apply()
+                        selected = bg
+                        CallBackgroundManager.save(context, bg)
                     }
                 )
+            }
+
+            // ── Premium section ───────────────────────────────────────────────
+            item {
+                SectionHeader(label = stringResource(R.string.call_bg_premium_label))
+            }
+
+            val premiumItems = CallBackground.values().filter { it.isPremium }
+            items(premiumItems.size) { idx ->
+                val bg = premiumItems[idx]
+                CallBgCard(
+                    bg = bg,
+                    isSelected = selected == bg,
+                    isLocked = !isPremiumUser,
+                    onClick = {
+                        if (isPremiumUser) {
+                            selected = bg
+                            CallBackgroundManager.save(context, bg)
+                        }
+                    }
+                )
+            }
+
+            // ── Reset button ──────────────────────────────────────────────────
+            item {
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { showResetDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.call_bg_reset_default))
+                }
             }
         }
     }
 }
 
 @Composable
-fun CallFrameStyleCard(
-    style: CallFrameStyle,
+private fun SectionHeader(label: String) {
+    Text(
+        text = label,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        letterSpacing = 0.8.sp,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+    )
+}
+
+@Composable
+fun CallBgCard(
+    bg: CallBackground,
     isSelected: Boolean,
+    isLocked: Boolean,
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFF0084FF).copy(alpha = 0.1f)
-                           else MaterialTheme.colorScheme.surface
+            containerColor = if (isSelected)
+                Color(0xFF0084FF).copy(alpha = 0.08f)
+            else
+                MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp),
+        border = if (isSelected)
+            androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF0084FF))
+        else null
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(80.dp, 100.dp)) {
-                when (style) {
-                    CallFrameStyle.CLASSIC -> ClassicPreview()
-                    CallFrameStyle.NEON -> NeonPreview()
-                    CallFrameStyle.GRADIENT -> GradientPreview()
-                    CallFrameStyle.MINIMAL -> MinimalPreview()
-                    CallFrameStyle.GLASS -> GlassPreview()
-                    CallFrameStyle.RAINBOW -> RainbowPreview()
+            // Thumbnail preview
+            Box(
+                modifier = Modifier
+                    .size(width = 96.dp, height = 68.dp)
+                    .clip(RoundedCornerShape(10.dp))
+            ) {
+                CallBgLayer(
+                    bg = bg,
+                    modifier = Modifier.fillMaxSize()
+                )
+                if (isLocked) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.45f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                if (bg.isPremium) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFFFD700))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text("PRO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = getStyleEmoji(style),
-                        fontSize = 20.sp,
-                        modifier = Modifier.padding(end = 8.dp)
+                        text = callBgName(bg),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
-                    Text(
-                        text = localizedStyleName(style),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (bg.isPremium && isLocked) {
+                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Stars,
+                            contentDescription = null,
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(Modifier.height(3.dp))
                 Text(
-                    text = localizedStyleDescription(style),
+                    text = if (isLocked) stringResource(R.string.call_bg_premium_locked)
+                    else callBgDescription(bg),
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = if (isLocked) Color(0xFFFFD700).copy(alpha = 0.8f)
+                    else MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (bg.isPremium && !isLocked) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF4CAF50))
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Анімовано", fontSize = 10.sp, color = Color(0xFF4CAF50))
+                    }
+                }
             }
 
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
-                    contentDescription = stringResource(R.string.done),
+                    contentDescription = null,
                     tint = Color(0xFF0084FF),
                     modifier = Modifier.size(24.dp)
                 )
@@ -155,159 +283,25 @@ fun CallFrameStyleCard(
 }
 
 @Composable
-fun localizedStyleName(style: CallFrameStyle): String {
-    return when (style) {
-        CallFrameStyle.CLASSIC -> stringResource(R.string.frame_style_classic)
-        CallFrameStyle.NEON -> stringResource(R.string.frame_style_neon)
-        CallFrameStyle.GRADIENT -> stringResource(R.string.frame_style_gradient)
-        CallFrameStyle.MINIMAL -> stringResource(R.string.frame_style_minimal)
-        CallFrameStyle.GLASS -> stringResource(R.string.frame_style_glass)
-        CallFrameStyle.RAINBOW -> stringResource(R.string.frame_style_rainbow)
-    }
+fun callBgName(bg: CallBackground): String = when (bg) {
+    CallBackground.DEFAULT       -> stringResource(R.string.call_bg_default)
+    CallBackground.SUNSET        -> stringResource(R.string.call_bg_sunset)
+    CallBackground.OCEAN         -> stringResource(R.string.call_bg_ocean)
+    CallBackground.AURORA        -> stringResource(R.string.call_bg_aurora)
+    CallBackground.STARFIELD     -> stringResource(R.string.call_bg_starfield)
+    CallBackground.NEON_CITY     -> stringResource(R.string.call_bg_neon_city)
+    CallBackground.GRADIENT_SHIFT -> stringResource(R.string.call_bg_gradient_shift)
+    CallBackground.CRYSTAL       -> stringResource(R.string.call_bg_crystal)
 }
 
 @Composable
-fun localizedStyleDescription(style: CallFrameStyle): String {
-    return when (style) {
-        CallFrameStyle.CLASSIC -> stringResource(R.string.frame_style_classic_desc)
-        CallFrameStyle.NEON -> stringResource(R.string.frame_style_neon_desc)
-        CallFrameStyle.GRADIENT -> stringResource(R.string.frame_style_gradient_desc)
-        CallFrameStyle.MINIMAL -> stringResource(R.string.frame_style_minimal_desc)
-        CallFrameStyle.GLASS -> stringResource(R.string.frame_style_glass_desc)
-        CallFrameStyle.RAINBOW -> stringResource(R.string.frame_style_rainbow_desc)
-    }
-}
-
-@Composable
-fun ClassicPreview() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .shadow(8.dp, RoundedCornerShape(16.dp))
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF2a2a2a))
-    )
-}
-
-@Composable
-fun NeonPreview() {
-    var animatedAlpha by remember { mutableStateOf(1f) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(1000)
-            animatedAlpha = if (animatedAlpha == 1f) 0.5f else 1f
-        }
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color = Color(0xFF00ffff).copy(alpha = animatedAlpha * 0.5f), shape = RoundedCornerShape(16.dp))
-            .padding(2.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFF2a2a2a))
-    )
-}
-
-@Composable
-fun GradientPreview() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(colors = listOf(Color(0xFF667eea), Color(0xFF764ba2), Color(0xFFf093fb))),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(2.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFF2a2a2a))
-    )
-}
-
-@Composable
-fun MinimalPreview() {
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2a2a2a)))
-}
-
-@Composable
-fun GlassPreview() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color = Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(16.dp))
-            .padding(1.dp)
-            .clip(RoundedCornerShape(15.dp))
-            .background(Color(0xFF2a2a2a))
-    )
-}
-
-@Composable
-fun RainbowPreview() {
-    var offsetX by remember { mutableStateOf(0f) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(50)
-            offsetX = (offsetX + 5f) % 180f
-        }
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFFff0000), Color(0xFFff7f00), Color(0xFFffff00),
-                        Color(0xFF00ff00), Color(0xFF0000ff), Color(0xFF4b0082), Color(0xFF9400d3)
-                    ),
-                    start = Offset(offsetX, 0f),
-                    end = Offset(offsetX + 500f, 500f)
-                ),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(2.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFF2a2a2a))
-    )
-}
-
-fun getStyleEmoji(style: CallFrameStyle): String {
-    return when (style) {
-        CallFrameStyle.CLASSIC -> "🎨"
-        CallFrameStyle.NEON -> "💡"
-        CallFrameStyle.GRADIENT -> "🌈"
-        CallFrameStyle.MINIMAL -> "⚪"
-        CallFrameStyle.GLASS -> "💎"
-        CallFrameStyle.RAINBOW -> "🌈"
-    }
-}
-
-fun getStyleName(style: CallFrameStyle): String {
-    return when (style) {
-        CallFrameStyle.CLASSIC -> "Класична"
-        CallFrameStyle.NEON -> "Неонова"
-        CallFrameStyle.GRADIENT -> "Градієнтна"
-        CallFrameStyle.MINIMAL -> "Мінімалістична"
-        CallFrameStyle.GLASS -> "Скляна"
-        CallFrameStyle.RAINBOW -> "Веселкова"
-    }
-}
-
-fun getStyleDescription(style: CallFrameStyle): String {
-    return when (style) {
-        CallFrameStyle.CLASSIC -> "Класична рамка з легкою тінню"
-        CallFrameStyle.NEON -> "Неонова рамка з пульсуючим світінням"
-        CallFrameStyle.GRADIENT -> "Градієнтна фіолетово-рожева рамка"
-        CallFrameStyle.MINIMAL -> "Без рамки, чисте відео"
-        CallFrameStyle.GLASS -> "Скляний ефект з прозорістю"
-        CallFrameStyle.RAINBOW -> "Веселкова анімована рамка"
-    }
-}
-
-fun getSavedCallFrameStyle(context: Context): CallFrameStyle {
-    val prefs = context.getSharedPreferences("call_frame_prefs", Context.MODE_PRIVATE)
-    val styleName = prefs.getString("selected_frame_style", CallFrameStyle.CLASSIC.name)
-    return try {
-        CallFrameStyle.valueOf(styleName ?: CallFrameStyle.CLASSIC.name)
-    } catch (e: Exception) {
-        CallFrameStyle.CLASSIC
-    }
+fun callBgDescription(bg: CallBackground): String = when (bg) {
+    CallBackground.DEFAULT       -> stringResource(R.string.call_bg_default_desc)
+    CallBackground.SUNSET        -> stringResource(R.string.call_bg_sunset_desc)
+    CallBackground.OCEAN         -> stringResource(R.string.call_bg_ocean_desc)
+    CallBackground.AURORA        -> stringResource(R.string.call_bg_aurora_desc)
+    CallBackground.STARFIELD     -> stringResource(R.string.call_bg_starfield_desc)
+    CallBackground.NEON_CITY     -> stringResource(R.string.call_bg_neon_city_desc)
+    CallBackground.GRADIENT_SHIFT -> stringResource(R.string.call_bg_gradient_shift_desc)
+    CallBackground.CRYSTAL       -> stringResource(R.string.call_bg_crystal_desc)
 }
