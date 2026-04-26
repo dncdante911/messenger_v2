@@ -98,6 +98,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
 
     // LiveData для UI
     val incomingCall = MutableLiveData<CallData?>()
+    /** Posted with the roomName when call:accepted_elsewhere arrives (dismiss IncomingCallActivity). */
+    val callDismissed = MutableLiveData<String>()
     val callConnected = MutableLiveData<Boolean>()
     val callEnded = MutableLiveData<Boolean>()
     val callError = MutableLiveData<String>()
@@ -229,6 +231,21 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
                 }
             } catch (e: Exception) {
                 Log.e("CallsViewModel", "Error processing call:reaction", e)
+            }
+        }
+
+        // 📞 Call accepted on another socket/device — dismiss pending call screens
+        socketManager.on("call:accepted_elsewhere") { args ->
+            try {
+                val data = args.getOrNull(0) as? org.json.JSONObject ?: return@on
+                val roomName = data.optString("roomName", "")
+                Log.d("CallsViewModel", "📞 call:accepted_elsewhere for room $roomName")
+                if (roomName.isNotEmpty()) {
+                    pendingIncomingRooms.remove(roomName)
+                    callDismissed.postValue(roomName)
+                }
+            } catch (e: Exception) {
+                Log.e("CallsViewModel", "Error processing call:accepted_elsewhere", e)
             }
         }
 

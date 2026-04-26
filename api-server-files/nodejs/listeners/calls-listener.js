@@ -473,6 +473,7 @@ async function registerCallsListeners(socket, io, ctx) {
 
             if (callInfo) {
                 const initiatorId = callInfo.from_id;
+                const recipientId = callInfo.to_id;
                 const iceServers = turnHelper.getIceServers(initiatorId);
 
                 // ✅ CLUSTER-SAFE: отправить SDP answer через io.to(room)
@@ -483,6 +484,17 @@ async function registerCallsListeners(socket, io, ctx) {
                     iceServers: iceServers
                 });
                 console.log(`[CALLS] Answer sent to initiator ${initiatorId} with TURN credentials`);
+
+                // Notify ALL sockets of the recipient (same user, other devices/tabs) that
+                // the call was accepted here so they can dismiss their incoming call screens.
+                // The accepting socket itself ignores this because it already handled the call.
+                if (recipientId) {
+                    io.to(String(recipientId)).emit('call:accepted_elsewhere', {
+                        roomName: roomName,
+                        acceptedBy: userId
+                    });
+                    console.log(`[CALLS] Notified recipient ${recipientId} other sockets: call:accepted_elsewhere`);
+                }
 
                 // ✅ CLUSTER-SAFE: доставить буферизированные ICE кандидаты из Redis
                 const bufferedCandidates = await getBufferedIceCandidates(roomName);
@@ -621,6 +633,13 @@ async function registerCallsListeners(socket, io, ctx) {
                 io.to(String(call.from_id)).emit('call:rejected', {
                     roomName, rejectedBy: userId
                 });
+                // Also dismiss call screens on all other sockets of the recipient
+                // (covers the case where the user declined on one device but another is ringing)
+                if (call.to_id) {
+                    io.to(String(call.to_id)).emit('call:accepted_elsewhere', {
+                        roomName, acceptedBy: userId
+                    });
+                }
             }
 
             ctx.activeCalls.delete(roomName);

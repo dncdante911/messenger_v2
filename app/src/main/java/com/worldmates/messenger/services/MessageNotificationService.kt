@@ -64,9 +64,20 @@ class MessageNotificationService : Service() {
         // AlarmManager request code для перезапуску
         private const val RESTART_ALARM_REQUEST_CODE = 9002
 
-        // Notification IDs для вхідних дзвінків
-        private const val CALL_NOTIF_ID       = 9003
-        private const val GROUP_CALL_NOTIF_ID = 9004
+        // Notification IDs для вхідних дзвінків (public — used by IncomingCallActivity to cancel)
+        const val CALL_NOTIF_ID       = 9003
+        const val GROUP_CALL_NOTIF_ID = 9004
+
+        // Action broadcast by service when call was accepted on another socket/device
+        const val ACTION_CALL_ACCEPTED_ELSEWHERE = "com.worldmates.messenger.CALL_ACCEPTED_ELSEWHERE"
+
+        /** Cancel any pending call notification. Safe to call from any context. */
+        fun dismissCallNotifications(context: android.content.Context) {
+            val nm = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE)
+                    as android.app.NotificationManager
+            nm.cancel(CALL_NOTIF_ID)
+            nm.cancel(GROUP_CALL_NOTIF_ID)
+        }
 
         // Notification ID for the group-summary notification (messages)
         private const val SUMMARY_NOTIF_ID    = 9005
@@ -127,6 +138,10 @@ class MessageNotificationService : Service() {
     private var socket: Socket? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    // Dedup: track roomNames already handled so duplicate socket events (reconnect race)
+    // don't launch two IncomingCallActivity instances for the same call.
+    private val processedCallRooms = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
     // Cached notification preferences (updated reactively via DataStore Flow)
     @Volatile private var notifPrefs = UserPreferences()
 
@@ -167,10 +182,19 @@ class MessageNotificationService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Якщо сокет не підключений (перезапуск після вбивства) — підключаємо
-        if (socket == null || socket?.connected() != true) {
-            connectSocket()
+        if (socket?.connected() == true) {
+            // Already fully connected — just refresh the restart alarm, nothing else.
+            scheduleRestartAlarm()
+            return START_STICKY
         }
+        // Socket is null, disconnected, or in a mid-reconnect state.
+        // Tear it down completely before creating a fresh one, otherwise the old socket
+        // auto-reconnects in the background and we end up with two active sockets in the
+        // user's call room — each one fires call:incoming, causing the duplicate call bug.
+        socket?.off()
+        socket?.disconnect()
+        socket = null
+        connectSocket()
         scheduleRestartAlarm()
         return START_STICKY
     }
@@ -267,6 +291,8 @@ class MessageNotificationService : Service() {
 
             socket?.on(Socket.EVENT_DISCONNECT) {
                 isConnected = false
+                // Clear dedup set on disconnect so a fresh reconnect can process new calls
+                processedCallRooms.clear()
                 Log.d(TAG, "Notification socket disconnected")
             }
 
@@ -282,6 +308,22 @@ class MessageNotificationService : Service() {
             // ── Incoming group call ──────────────────────────────────────────────
             socket?.on("group_call:incoming") { args ->
                 (args.firstOrNull() as? JSONObject)?.let { handleIncomingGroupCall(it) }
+            }
+
+            // ── Call accepted on another socket/device → dismiss our call screen ──
+            socket?.on("call:accepted_elsewhere") { args ->
+                (args.firstOrNull() as? JSONObject)?.let { data ->
+                    val roomName = data.optString("roomName", "")
+                    Log.d(TAG, "📞 call:accepted_elsewhere for room $roomName — dismissing")
+                    processedCallRooms.remove(roomName)
+                    dismissCallNotifications(this@MessageNotificationService)
+                    // Notify IncomingCallActivity (if visible) to finish
+                    val broadcast = Intent(ACTION_CALL_ACCEPTED_ELSEWHERE).apply {
+                        putExtra("room_name", roomName)
+                        setPackage(packageName)
+                    }
+                    sendBroadcast(broadcast)
+                }
             }
 
             // Private chat messages (two possible event names for compatibility)
@@ -328,6 +370,15 @@ class MessageNotificationService : Service() {
      */
     private fun handleIncomingCall(data: JSONObject) {
         try {
+            val roomName = data.optString("roomName", data.optString("room_name", ""))
+
+            // Dedup: same socket event can fire twice if there are stale socket listeners
+            // or if the socket briefly reconnected and re-registered for the same call.
+            if (roomName.isNotEmpty() && !processedCallRooms.add(roomName)) {
+                Log.w(TAG, "⚠️ Duplicate call:incoming for room $roomName — ignoring")
+                return
+            }
+
             val fromId = listOf(
                 data.optInt("fromId", 0),
                 data.optInt("from_id", 0),
@@ -347,7 +398,6 @@ class MessageNotificationService : Service() {
             ).firstOrNull { it.isNotEmpty() } ?: ""
 
             val callType = data.optString("callType", data.optString("call_type", "audio"))
-            val roomName = data.optString("roomName", data.optString("room_name", ""))
             val sdpOffer = data.optString("sdpOffer", data.optString("sdp_offer", ""))
                 .takeIf { it.isNotEmpty() }
 
