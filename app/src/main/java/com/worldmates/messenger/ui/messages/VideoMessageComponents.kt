@@ -495,9 +495,15 @@ fun VideoMessageFrameOverlay(
         val isOval   = style == VideoMessageFrameStyle.GRADIENT
 
         // Capture area dimensions
-        val frameR = minOf(size.width, size.height) * 0.43f
-        val frameW = size.width * 0.90f
-        val frameH = if (isOval) frameW * 0.68f else size.height * 0.52f
+        // CIRCLE — bigger radius (46% of shorter screen side)
+        val frameR = minOf(size.width, size.height) * 0.46f
+
+        // GRADIENT oval — portrait: height > width (face-friendly)
+        val ovalW  = size.width  * 0.74f
+        val ovalH  = size.height * 0.54f   // always > ovalW on a portrait phone
+
+        val frameW = if (isOval) ovalW else size.width  * 0.88f
+        val frameH = if (isOval) ovalH else size.height * 0.50f
         val cornerR = when (style) {
             VideoMessageFrameStyle.MINIMAL -> 14.dp.toPx()
             else -> 28.dp.toPx()
