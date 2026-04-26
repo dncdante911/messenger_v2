@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -197,27 +199,38 @@ fun VideoMessageStyleCard(
 
 @Composable
 fun VideoMessageStylePreview(style: VideoMessageFrameStyle) {
-    val shape = when (style) {
-        VideoMessageFrameStyle.CIRCLE -> CircleShape
-        else -> RoundedCornerShape(12.dp)
+    val ovalShape = GenericShape { size, _ -> addOval(Rect(Offset.Zero, size)) }
+
+    // GRADIENT preview uses a wider-than-tall box to show the oval shape
+    val isOval   = style == VideoMessageFrameStyle.GRADIENT
+    val isCircle = style == VideoMessageFrameStyle.CIRCLE
+
+    val containerShape = when {
+        isCircle -> CircleShape
+        isOval   -> ovalShape
+        else     -> RoundedCornerShape(12.dp)
     }
+    val previewWidth  = if (isOval) 80.dp else 70.dp
+    val previewHeight = if (isOval) 54.dp else 70.dp
 
     Box(
         modifier = Modifier
-            .size(70.dp)
-            .clip(shape)
+            .width(previewWidth)
+            .height(previewHeight)
+            .clip(containerShape)
             .background(Color.DarkGray),
         contentAlignment = Alignment.Center
     ) {
-        // Контент превью (імітація відео)
+        // Simulated video thumbnail
         Box(
             modifier = Modifier
-                .size(60.dp)
-                .clip(shape)
+                .fillMaxSize()
+                .padding(6.dp)
+                .clip(containerShape)
                 .background(Color.Gray)
         )
 
-        // Рамка залежно від стилю
+        // Frame border per style
         when (style) {
             VideoMessageFrameStyle.CIRCLE -> {
                 Box(
@@ -229,37 +242,34 @@ fun VideoMessageStylePreview(style: VideoMessageFrameStyle) {
             VideoMessageFrameStyle.ROUNDED -> {
                 Box(
                     modifier = Modifier
-                        .size(70.dp)
+                        .width(previewWidth).height(previewHeight)
                         .border(2.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                 )
             }
             VideoMessageFrameStyle.NEON -> {
                 val infiniteTransition = rememberInfiniteTransition(label = "neon")
                 val alpha by infiniteTransition.animateFloat(
-                    initialValue = 0.5f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1000),
-                        repeatMode = RepeatMode.Reverse
-                    ),
+                    initialValue = 0.5f, targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse),
                     label = "glow"
                 )
                 Box(
                     modifier = Modifier
-                        .size(70.dp)
+                        .width(previewWidth).height(previewHeight)
                         .border(2.dp, Color(0xFF00FFFF).copy(alpha = alpha), RoundedCornerShape(12.dp))
                 )
             }
             VideoMessageFrameStyle.GRADIENT -> {
+                // Oval container with gradient border
                 Box(
                     modifier = Modifier
-                        .size(70.dp)
+                        .width(previewWidth).height(previewHeight)
                         .border(
                             2.dp,
                             Brush.linearGradient(
                                 listOf(Color(0xFF667eea), Color(0xFF764ba2), Color(0xFFf093fb))
                             ),
-                            RoundedCornerShape(12.dp)
+                            ovalShape
                         )
                 )
             }
@@ -273,7 +283,7 @@ fun VideoMessageStylePreview(style: VideoMessageFrameStyle) {
                 }
                 Box(
                     modifier = Modifier
-                        .size(70.dp)
+                        .width(previewWidth).height(previewHeight)
                         .border(
                             2.dp,
                             Brush.linearGradient(
@@ -288,9 +298,7 @@ fun VideoMessageStylePreview(style: VideoMessageFrameStyle) {
                         )
                 )
             }
-            VideoMessageFrameStyle.MINIMAL -> {
-                // Без рамки
-            }
+            VideoMessageFrameStyle.MINIMAL -> { /* no border */ }
         }
     }
 }

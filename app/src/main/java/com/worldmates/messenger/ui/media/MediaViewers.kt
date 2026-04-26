@@ -813,7 +813,7 @@ fun InlineVideoPlayer(
                                 listOf(Color.Transparent, Color.Black.copy(0.62f))
                             )
                         )
-                        .padding(horizontal = 10.dp, bottom = 8.dp, top = 14.dp)
+                        .padding(start = 10.dp, end = 10.dp, top = 14.dp, bottom = 8.dp)
                 ) {
                     // Thin 3 dp progress bar (no Slider thumb)
                     Box(
