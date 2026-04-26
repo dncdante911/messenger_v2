@@ -201,7 +201,7 @@ fun VideoMessageStyleCard(
 fun VideoMessageStylePreview(style: VideoMessageFrameStyle) {
     val ovalShape = GenericShape { size, _ -> addOval(Rect(Offset.Zero, size)) }
 
-    // GRADIENT preview uses a wider-than-tall box to show the oval shape
+    // GRADIENT preview uses a portrait (taller-than-wide) box to clearly show the oval shape
     val isOval   = style == VideoMessageFrameStyle.GRADIENT
     val isCircle = style == VideoMessageFrameStyle.CIRCLE
 
@@ -210,8 +210,8 @@ fun VideoMessageStylePreview(style: VideoMessageFrameStyle) {
         isOval   -> ovalShape
         else     -> RoundedCornerShape(12.dp)
     }
-    val previewWidth  = if (isOval) 80.dp else 70.dp
-    val previewHeight = if (isOval) 54.dp else 70.dp
+    val previewWidth  = if (isOval) 50.dp else 70.dp
+    val previewHeight = if (isOval) 72.dp else 70.dp
 
     Box(
         modifier = Modifier
