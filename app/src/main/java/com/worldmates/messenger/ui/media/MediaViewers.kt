@@ -52,6 +52,10 @@ import coil.compose.AsyncImage
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 
 /**
  * 🎨 УНИКАЛЬНЫЙ СТИЛЬНЫЙ ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ
@@ -623,13 +627,16 @@ fun ImageGalleryViewer(
 
 /**
  * 🎬 ІНЛАЙН ВІДЕО ПЛЕЄР (для використання всередині чату)
- * Компактний плеєр з можливістю розгортання на весь екран
+ *
+ * @param shape         Форма контейнера (передається з VideoMessageComponent за вибраним стилем)
+ * @param isCircularFrame true для стилю CIRCLE — показує дуговий прогрес замість лінійного
  */
 @Composable
 fun InlineVideoPlayer(
     videoUrl: String,
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(12.dp),
+    isCircularFrame: Boolean = false,
     onFullscreenClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -643,17 +650,13 @@ fun InlineVideoPlayer(
             val mediaItem = MediaItem.fromUri(Uri.parse(videoUrl))
             setMediaItem(mediaItem)
             prepare()
-            playWhenReady = false // Не автостарт
-
+            playWhenReady = false
             addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(playing: Boolean) {
-                    isPlaying = playing
-                }
+                override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
             })
         }
     }
 
-    // Оновлення позиції
     LaunchedEffect(exoPlayer) {
         while (isActive) {
             currentPosition = exoPlayer.currentPosition
@@ -662,10 +665,16 @@ fun InlineVideoPlayer(
         }
     }
 
-    DisposableEffect(exoPlayer) {
-        onDispose {
-            exoPlayer.release()
+    // Auto-hide controls 0.8s after playback starts
+    LaunchedEffect(isPlaying, showControls) {
+        if (isPlaying && showControls) {
+            kotlinx.coroutines.delay(800)
+            showControls = false
         }
+    }
+
+    DisposableEffect(exoPlayer) {
+        onDispose { exoPlayer.release() }
     }
 
     Box(
@@ -675,155 +684,192 @@ fun InlineVideoPlayer(
             .clip(shape)
             .background(Color.Black)
     ) {
-        // ExoPlayer view
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = false
-                    setOnClickListener {
-                        showControls = !showControls
-                    }
+                    setOnClickListener { showControls = !showControls }
                 }
             },
             modifier = Modifier.fillMaxSize()
         )
 
-        // Градієнтний оверлей
-        AnimatedVisibility(
-            visible = showControls || !isPlaying,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.5f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f)
-                            )
-                        )
-                    )
-            )
-        }
-
-        // Центральна кнопка Play/Pause
-        AnimatedVisibility(
-            visible = showControls || !isPlaying,
-            enter = scaleIn() + fadeIn(),
-            exit = scaleOut() + fadeOut(),
-            modifier = Modifier.align(Alignment.Center)
-        ) {
-            Surface(
-                onClick = {
-                    if (exoPlayer.isPlaying) {
-                        exoPlayer.pause()
-                    } else {
-                        exoPlayer.play()
-                    }
-                    // isPlaying state is managed by Player.Listener.onIsPlayingChanged
-                },
-                shape = CircleShape,
-                color = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.size(64.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = Color.Black,
-                        modifier = Modifier.size(32.dp)
+        // Arc progress track drawn around the circle edge
+        if (isCircularFrame && duration > 0) {
+            val progress = currentPosition.toFloat() / duration.toFloat()
+            Canvas(modifier = Modifier.fillMaxSize().padding(5.dp)) {
+                val strokeW = 3.5.dp.toPx()
+                val r = (minOf(size.width, size.height) / 2f) - strokeW
+                val cx = size.width / 2f
+                val cy = size.height / 2f
+                val arcSz = Size(r * 2f, r * 2f)
+                val arcTL = Offset(cx - r, cy - r)
+                val arcStroke = Stroke(width = strokeW, cap = StrokeCap.Round)
+                // Background ring
+                drawArc(
+                    color = Color.White.copy(alpha = 0.22f),
+                    startAngle = -90f, sweepAngle = 360f, useCenter = false,
+                    style = arcStroke, topLeft = arcTL, size = arcSz
+                )
+                // Progress arc
+                if (progress > 0f) {
+                    drawArc(
+                        color = Color.White,
+                        startAngle = -90f,
+                        sweepAngle = 360f * progress.coerceIn(0f, 1f),
+                        useCenter = false,
+                        style = arcStroke, topLeft = arcTL, size = arcSz
                     )
                 }
             }
         }
 
-        // Кнопка розгортання на весь екран (якщо передано callback)
+        // Dim overlay
+        AnimatedVisibility(
+            visible = showControls || !isPlaying,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(300)),
+            modifier = Modifier.matchParentSize()
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(
+                    if (isCircularFrame)
+                        Brush.radialGradient(listOf(Color.Black.copy(0.35f), Color.Transparent))
+                    else
+                        Brush.verticalGradient(
+                            listOf(Color.Black.copy(0.4f), Color.Transparent, Color.Black.copy(0.6f))
+                        )
+                )
+            )
+        }
+
+        // Compact play/pause button (40 dp), auto-hides with playback
+        AnimatedVisibility(
+            visible = showControls || !isPlaying,
+            enter = scaleIn(tween(160)) + fadeIn(tween(160)),
+            exit = scaleOut(tween(220)) + fadeOut(tween(220)),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Surface(
+                onClick = {
+                    if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
+                    showControls = true
+                },
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = 0.52f),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+
+        // Fullscreen button — compact (28 dp)
         if (onFullscreenClick != null) {
             AnimatedVisibility(
                 visible = showControls,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(250)),
+                modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
             ) {
                 Surface(
-                    onClick = {
-                        exoPlayer.pause()
-                        onFullscreenClick()
-                    },
+                    onClick = { exoPlayer.pause(); onFullscreenClick() },
                     shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.6f),
-                    modifier = Modifier.size(36.dp)
+                    color = Color.Black.copy(alpha = 0.52f),
+                    modifier = Modifier.size(28.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Fullscreen,
                             contentDescription = "На весь екран",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     }
                 }
             }
         }
 
-        // Нижня панель з прогресбаром
-        AnimatedVisibility(
-            visible = showControls || !isPlaying,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f)
+        // Bottom bar: thin progress + time (only for non-circular frame)
+        if (!isCircularFrame) {
+            AnimatedVisibility(
+                visible = showControls || !isPlaying,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(tween(200)),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(tween(250)),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.Black.copy(0.62f))
                             )
                         )
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                // Прогресбар
-                Slider(
-                    value = currentPosition.toFloat(),
-                    onValueChange = { newPosition ->
-                        exoPlayer.seekTo(newPosition.toLong())
-                    },
-                    valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color.White,
-                        activeTrackColor = Color(0xFF0084FF),
-                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Час
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 10.dp, bottom = 8.dp, top = 14.dp)
                 ) {
-                    Text(
-                        text = formatVideoTime(currentPosition),
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = formatVideoTime(duration),
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp
-                    )
+                    // Thin 3 dp progress bar (no Slider thumb)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.25f))
+                    ) {
+                        val p = if (duration > 0)
+                            (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                        else 0f
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(p)
+                                .fillMaxHeight()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFF60A5FA), Color(0xFF3B82F6))
+                                    )
+                                )
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatVideoTime(currentPosition),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = formatVideoTime(duration),
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp
+                        )
+                    }
                 }
+            }
+        } else {
+            // Circular: remaining time label
+            AnimatedVisibility(
+                visible = showControls || !isPlaying,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(250)),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp)
+            ) {
+                Text(
+                    text = formatVideoTime(if (duration > 0) duration - currentPosition else 0L),
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
