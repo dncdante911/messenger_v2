@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -628,6 +629,7 @@ fun ImageGalleryViewer(
 fun InlineVideoPlayer(
     videoUrl: String,
     modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(12.dp),
     onFullscreenClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -670,7 +672,7 @@ fun InlineVideoPlayer(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 200.dp, max = 300.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(shape)
             .background(Color.Black)
     ) {
         // ExoPlayer view
@@ -722,7 +724,7 @@ fun InlineVideoPlayer(
                     } else {
                         exoPlayer.play()
                     }
-                    isPlaying = !isPlaying
+                    // isPlaying state is managed by Player.Listener.onIsPlayingChanged
                 },
                 shape = CircleShape,
                 color = Color.White.copy(alpha = 0.9f),

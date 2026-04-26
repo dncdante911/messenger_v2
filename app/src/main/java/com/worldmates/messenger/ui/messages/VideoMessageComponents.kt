@@ -138,8 +138,11 @@ fun VideoMessageRecorder(
         }
     }
 
-    // Стиль рамки
-    val frameStyle = remember { getSavedVideoMessageFrameStyle(context) }
+    // Стиль рамки — re-read on every composition so changes in settings take effect
+    var frameStyle by remember { mutableStateOf(getSavedVideoMessageFrameStyle(context)) }
+    LaunchedEffect(Unit) {
+        frameStyle = getSavedVideoMessageFrameStyle(context)
+    }
 
     // ✅ Функція для початку запису
     fun startRecording() {
