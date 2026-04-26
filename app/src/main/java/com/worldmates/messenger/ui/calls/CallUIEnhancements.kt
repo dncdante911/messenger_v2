@@ -516,11 +516,11 @@ fun EnhancedOutgoingCallScreen(
                             .background(Color(0xFF2A3A4A)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = calleeName.firstOrNull()?.uppercase() ?: "?",
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.65f),
+                            modifier = Modifier.size(64.dp)
                         )
                     }
                 }

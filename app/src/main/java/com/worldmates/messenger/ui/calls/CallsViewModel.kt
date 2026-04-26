@@ -7,6 +7,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -167,6 +168,7 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
     }
     private var audioFocusRequest: AudioFocusRequest? = null
     private var savedAudioMode: Int = AudioManager.MODE_NORMAL
+    private var callWakeLock: PowerManager.WakeLock? = null
     private var savedIsSpeakerphoneOn: Boolean = false
 
     init {
@@ -1379,12 +1381,10 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
             // Enable speakerphone for video calls by default, earpiece for audio calls
             audioManager.isSpeakerphoneOn = isVideoCall
 
-            // ✅ Enable Bluetooth SCO if headset is connected
-            if (audioManager.isBluetoothScoAvailableOffCall) {
-                audioManager.startBluetoothSco()
-                audioManager.isBluetoothScoOn = true
-                Log.d("CallsViewModel", "🔊 Bluetooth SCO started")
-            }
+            // Acquire PARTIAL_WAKE_LOCK so CPU/mic stay alive when screen turns off
+            val pm = getApplication<Application>().getSystemService(Context.POWER_SERVICE) as PowerManager
+            callWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WorldMates:CallWakeLock")
+            callWakeLock?.acquire(4 * 60 * 60 * 1000L) // max 4 h
 
             Log.d("CallsViewModel", "🔊 Call audio setup complete - mode: MODE_IN_COMMUNICATION, speaker: $isVideoCall")
         } catch (e: Exception) {
@@ -1397,12 +1397,9 @@ class CallsViewModel(application: Application) : AndroidViewModel(application), 
      */
     private fun releaseCallAudio() {
         try {
-            // Stop Bluetooth SCO
-            if (audioManager.isBluetoothScoOn) {
-                audioManager.stopBluetoothSco()
-                audioManager.isBluetoothScoOn = false
-                Log.d("CallsViewModel", "🔊 Bluetooth SCO stopped")
-            }
+            // Release wake lock
+            callWakeLock?.let { if (it.isHeld) it.release() }
+            callWakeLock = null
 
             // Abandon audio focus
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
