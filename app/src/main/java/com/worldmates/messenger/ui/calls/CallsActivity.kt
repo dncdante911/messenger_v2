@@ -55,7 +55,7 @@ import coil.compose.AsyncImage
 import com.worldmates.messenger.network.WebRTCManager
 import com.worldmates.messenger.ui.theme.ThemeManager
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
-import com.worldmates.messenger.ui.settings.getSavedCallFrameStyle
+import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import org.json.JSONObject
@@ -612,7 +612,7 @@ fun OutgoingCallScreen(
 }
 
 /**
- * 📞 Екран активного дзвінка з кастомними рамками
+ * 📞 Екран активного дзвінка — чистий сучасний дизайн
  */
 @Composable
 fun ActiveCallScreen(
@@ -622,7 +622,7 @@ fun ActiveCallScreen(
     calleeName: String = "",
     calleeAvatar: String = "",
     callType: String = "audio",
-    calleeId: Long = 0L  // kept for API compat, transfer feature removed
+    calleeId: Long = 0L  // kept for API compat
 ) {
     val context = LocalContext.current
     var audioEnabled by remember { mutableStateOf(true) }
@@ -636,25 +636,19 @@ fun ActiveCallScreen(
     var isRecording by remember { mutableStateOf(false) }
     var noiseCancellation by remember { mutableStateOf(true) }
 
-    // ─── Відеофільтри ────────────────────────────────────────────────────────
     var showFiltersPanel by remember { mutableStateOf(false) }
     val activeFilter by viewModel.activeVideoFilter.collectAsState()
     var filterIntensity by remember { mutableStateOf(1.0f) }
 
-    // ─── Віртуальний фон ─────────────────────────────────────────────────────
     var showBgPanel by remember { mutableStateOf(false) }
     val activeVirtualBg by viewModel.activeVirtualBg.collectAsState()
 
-    // 📹 Поточна якість відео
-    var currentVideoQuality by remember {
-        mutableStateOf(viewModel.getVideoQuality())
-    }
-
-    // 🎨 Завантажити збережений стиль рамки з Settings
-    var currentFrameStyle by remember {
-        mutableStateOf(getSavedCallFrameStyle(context))
-    }
+    var currentVideoQuality by remember { mutableStateOf(viewModel.getVideoQuality()) }
     val localStream by viewModel.localStreamAdded.observeAsState()
+
+    val hasRemoteVideo = remoteStream?.videoTracks?.isNotEmpty() == true
+    // Show the connecting screen until we have a real connection or video
+    val isConnected = connectionState == "CONNECTED" || hasRemoteVideo
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -663,7 +657,6 @@ fun ActiveCallScreen(
         }
     }
 
-    // ─── Auto-hide UI after 5 s of inactivity ────────────────────────────────
     var uiVisible by remember { mutableStateOf(true) }
     var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(lastInteractionTime) {
@@ -671,7 +664,6 @@ fun ActiveCallScreen(
         uiVisible = false
     }
 
-    // ─── Sync adaptive quality changes back to UI state ──────────────────────
     val adaptiveQuality by viewModel.adaptiveVideoQuality.collectAsState()
     LaunchedEffect(adaptiveQuality) {
         currentVideoQuality = adaptiveQuality
@@ -680,10 +672,8 @@ fun ActiveCallScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
+            .background(Color.Black)
             .pointerInput(Unit) {
-                // awaitPointerEvent() fires on any pointer event including those
-                // already consumed by inner views (RemoteVideoView, PiP)
                 awaitEachGesture {
                     awaitPointerEvent()
                     uiVisible = true
@@ -691,418 +681,253 @@ fun ActiveCallScreen(
                 }
             }
     ) {
-        // Віддалена відео/аудіо потік
-        if (remoteStream?.videoTracks?.isNotEmpty() == true) {
-            // 🎥 Показати відео з кастомними рамками
-            RemoteVideoView(
-                remoteStream = remoteStream,
-                localStream = null,  // Не показуємо тут, покажемо окремо
-                frameStyle = currentFrameStyle,
-                onSwitchCamera = { viewModel.switchCamera() }
+        if (!isConnected) {
+            // ── Connecting / dialing state ──────────────────────────────────
+            EnhancedOutgoingCallScreen(
+                calleeName = calleeName,
+                calleeAvatar = calleeAvatar,
+                callType = callType,
+                onCancel = { viewModel.endCall() }
             )
         } else {
-            // Показати аватар/ім'я співрозмовника (під час аудіо дзвінка або поки немає відео)
-            Column(
-                modifier = Modifier
-                    .fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                if (calleeAvatar.isNotEmpty()) {
-                    AsyncImage(
-                        model = calleeAvatar,
-                        contentDescription = calleeName,
-                        modifier = Modifier
-                            .size(140.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(140.dp),
-                        tint = Color(0xFF666666)
+            // ── Active call ─────────────────────────────────────────────────
+
+            // Background: remote video or audio call gradient
+            if (hasRemoteVideo) {
+                WebRTCVideoRenderer(
+                    videoStream = remoteStream!!,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                AudioCallBackground(calleeName = calleeName, calleeAvatar = calleeAvatar)
+            }
+
+            // Local camera PiP
+            localStream?.let { stream ->
+                if (stream.videoTracks.isNotEmpty()) {
+                    var pipOffset by remember { mutableStateOf(Offset(0f, 0f)) }
+                    LocalVideoPiP(
+                        localStream = stream,
+                        offset = pipOffset,
+                        onOffsetChange = { pipOffset = it },
+                        viewModel = viewModel,
+                        onSwitchCamera = { viewModel.switchCamera() }
                     )
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    text = calleeName,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
             }
-        }
 
-        // 📱 Локальне відео (PiP) - показуємо ЗАВЖДИ якщо є localStream
-        localStream?.let { stream ->
-            if (stream.videoTracks.isNotEmpty()) {
-                var pipOffset by remember { mutableStateOf(Offset(0f, 0f)) }
-                LocalVideoPiP(
-                    localStream = stream,
-                    offset = pipOffset,
-                    onOffsetChange = { newOffset ->
-                        pipOffset = newOffset
-                    },
-                    viewModel = viewModel,
-                    onSwitchCamera = { viewModel.switchCamera() },
-                )
-            }
-        }
-
-        // Топ: інформація про дзвінок + перемикач стилів (auto-hide)
-        AnimatedVisibility(
-            visible = uiVisible,
-            enter = fadeIn(animationSpec = tween(300)),
-            exit = fadeOut(animationSpec = tween(600)),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Enhanced status bar
-            EnhancedConnectionStatus(
-                connectionState = connectionState,
-                callDuration = callDuration,
-                calleeName = calleeName,
-                isRecording = isRecording,
-                isScreenSharing = isScreenSharing
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Noise cancellation indicator
-            NoiseCancellationIndicator(isEnabled = noiseCancellation)
-
-            // Recording banner
-            if (isRecording) {
-                Spacer(modifier = Modifier.height(8.dp))
-                RecordingNotificationBanner(
-                    recordedBy = "Ви",
-                    onStop = { isRecording = false },
-                    modifier = Modifier.padding(horizontal = 16.dp)
+            // ── Top bar (auto-hide) ─────────────────────────────────────────
+            AnimatedVisibility(
+                visible = uiVisible,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(600)),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                ModernCallTopBar(
+                    calleeName = calleeName,
+                    callDuration = callDuration,
+                    connectionState = connectionState,
+                    isRecording = isRecording,
+                    isScreenSharing = isScreenSharing,
+                    noiseCancellation = noiseCancellation,
+                    onStopRecording = { isRecording = false },
+                    onStopScreenShare = { isScreenSharing = false }
                 )
             }
 
-            // Screen sharing banner
-            if (isScreenSharing) {
-                Spacer(modifier = Modifier.height(8.dp))
-                ScreenSharingBanner(
-                    onStop = { isScreenSharing = false },
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 🎨 Перемикач стилів рамок (тільки для відеодзвінків)
-            if (remoteStream?.videoTracks?.isNotEmpty() == true) {
-                FrameStyleSelector(
-                    currentStyle = currentFrameStyle,
-                    onStyleChange = { currentFrameStyle = it }
-                )
-            }
-        }
-        } // end AnimatedVisibility (top UI)
-
-        // ─── Gradient scrim + panels + control bar (auto-hide) ────────────────
-        AnimatedVisibility(
-            visible = uiVisible || showFiltersPanel || showBgPanel,
-            enter = fadeIn(animationSpec = tween(300)),
-            exit = fadeOut(animationSpec = tween(600)),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                // Gradient scrim — dark at bottom, fully transparent at top
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(240.dp)
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.85f)
+            // ── Bottom controls (auto-hide) ─────────────────────────────────
+            AnimatedVisibility(
+                visible = uiVisible || showFiltersPanel || showBgPanel,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(600)),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // Gradient scrim over video
+                    if (hasRemoteVideo) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp)
+                                .align(Alignment.BottomCenter)
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+                                    )
                                 )
-                            )
-                        )
-                )
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // ── Expanded panels ──────────────────────────────────────
-                    AnimatedVisibility(
-                        visible = showFiltersPanel,
-                        enter = expandVertically(expandFrom = Alignment.Bottom),
-                        exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
-                    ) {
-                        VideoFiltersPanel(
-                            activeFilter = activeFilter,
-                            intensity = filterIntensity,
-                            onFilterSelected = { viewModel.applyVideoFilter(it) },
-                            onIntensityChanged = { intensity ->
-                                filterIntensity = intensity
-                                viewModel.setFilterIntensity(intensity)
-                            },
-                            onDismiss = { showFiltersPanel = false }
-                        )
-                    }
-                    AnimatedVisibility(
-                        visible = showBgPanel,
-                        enter = expandVertically(expandFrom = Alignment.Bottom),
-                        exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
-                    ) {
-                        VirtualBackgroundPanel(
-                            activeMode = activeVirtualBg,
-                            onModeSelected = { viewModel.applyVirtualBackground(it) },
-                            onCustomImageSelected = { viewModel.loadCustomBackground(it) },
-                            onDismiss = { showBgPanel = false }
                         )
                     }
 
-                    // ── Effect pill buttons (only when camera is ON) ─────────
-                    if (videoEnabled && !showFiltersPanel && !showBgPanel) {
-                        Row(
-                            modifier = Modifier.padding(bottom = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Expanded panels
+                        AnimatedVisibility(
+                            visible = showFiltersPanel,
+                            enter = expandVertically(expandFrom = Alignment.Bottom),
+                            exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
                         ) {
-                            // Filters pill
-                            val filterActive = activeFilter != VideoFilterType.NONE
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = if (filterActive)
-                                    Color(0xFF7C4DFF).copy(alpha = 0.85f)
-                                else
-                                    Color.White.copy(alpha = 0.15f),
-                                modifier = Modifier.clickable {
-                                    showFiltersPanel = true
-                                    showBgPanel = false
-                                    uiVisible = true
-                                    lastInteractionTime = System.currentTimeMillis()
-                                }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoFixHigh,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.video_filters_title),
-                                        color = Color.White,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
+                            VideoFiltersPanel(
+                                activeFilter = activeFilter,
+                                intensity = filterIntensity,
+                                onFilterSelected = { viewModel.applyVideoFilter(it) },
+                                onIntensityChanged = { intensity ->
+                                    filterIntensity = intensity
+                                    viewModel.setFilterIntensity(intensity)
+                                },
+                                onDismiss = { showFiltersPanel = false }
+                            )
+                        }
+                        AnimatedVisibility(
+                            visible = showBgPanel,
+                            enter = expandVertically(expandFrom = Alignment.Bottom),
+                            exit = shrinkVertically(shrinkTowards = Alignment.Bottom)
+                        ) {
+                            VirtualBackgroundPanel(
+                                activeMode = activeVirtualBg,
+                                onModeSelected = { viewModel.applyVirtualBackground(it) },
+                                onCustomImageSelected = { viewModel.loadCustomBackground(it) },
+                                onDismiss = { showBgPanel = false }
+                            )
+                        }
 
-                            // Quality pill
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = Color.White.copy(alpha = 0.15f),
-                                modifier = Modifier.clickable {
-                                    showQualitySelector = true
-                                    uiVisible = true
-                                    lastInteractionTime = System.currentTimeMillis()
-                                }
+                        // Effect pills (only when camera is on and panels are hidden)
+                        if (videoEnabled && hasRemoteVideo && !showFiltersPanel && !showBgPanel) {
+                            Row(
+                                modifier = Modifier.padding(bottom = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Hd,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = when (currentVideoQuality) {
-                                            com.worldmates.messenger.network.VideoQuality.QHD     -> "1440p"
-                                            com.worldmates.messenger.network.VideoQuality.FULL_HD -> "1080p"
-                                            com.worldmates.messenger.network.VideoQuality.HIGH    -> "720p"
-                                            com.worldmates.messenger.network.VideoQuality.MEDIUM  -> "480p"
-                                            com.worldmates.messenger.network.VideoQuality.LOW     -> "240p"
-                                        },
-                                        color = Color.White,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-
-                            // Background pill
-                            val bgActive = activeVirtualBg != VirtualBgMode.NONE
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = if (bgActive)
-                                    Color(0xFF00BCD4).copy(alpha = 0.85f)
-                                else
-                                    Color.White.copy(alpha = 0.15f),
-                                modifier = Modifier.clickable {
-                                    showBgPanel = true
-                                    showFiltersPanel = false
-                                    uiVisible = true
-                                    lastInteractionTime = System.currentTimeMillis()
-                                }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.BlurOn,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.virtual_bg_title),
-                                        color = Color.White,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
+                                val filterActive = activeFilter != VideoFilterType.NONE
+                                CallEffectPill(
+                                    icon = Icons.Default.AutoFixHigh,
+                                    label = stringResource(R.string.video_filters_title),
+                                    isActive = filterActive,
+                                    activeColor = Color(0xFF7C4DFF),
+                                    onClick = {
+                                        showFiltersPanel = true; showBgPanel = false
+                                        uiVisible = true; lastInteractionTime = System.currentTimeMillis()
+                                    }
+                                )
+                                val bgActive = activeVirtualBg != VirtualBgMode.NONE
+                                CallEffectPill(
+                                    icon = Icons.Default.BlurOn,
+                                    label = stringResource(R.string.virtual_bg_title),
+                                    isActive = bgActive,
+                                    activeColor = Color(0xFF00BCD4),
+                                    onClick = {
+                                        showBgPanel = true; showFiltersPanel = false
+                                        uiVisible = true; lastInteractionTime = System.currentTimeMillis()
+                                    }
+                                )
                             }
                         }
-                    }
 
-                    // ── Main control bar ─────────────────────────────────────
-                    EnhancedCallControlBar(
-                        audioEnabled = audioEnabled,
-                        videoEnabled = videoEnabled,
-                        speakerEnabled = speakerEnabled,
-                        isScreenSharing = isScreenSharing,
-                        isRecording = isRecording,
-                        noiseCancellation = noiseCancellation,
-                        onToggleAudio = {
-                            audioEnabled = !audioEnabled
-                            viewModel.toggleAudio(audioEnabled)
-                        },
-                        onToggleVideo = {
-                            videoEnabled = !videoEnabled
-                            viewModel.toggleVideo(videoEnabled)
-                        },
-                        onToggleSpeaker = {
-                            speakerEnabled = !speakerEnabled
-                            viewModel.toggleSpeaker(speakerEnabled)
-                        },
-                        onSwitchCamera = { viewModel.switchCamera() },
-                        onToggleScreenShare = {
-                            val act = context as? CallsActivity
-                            if (act != null) {
-                                act.screenSharingIntegration.toggle()
-                                isScreenSharing = act.screenSharingIntegration.isSharing
-                            } else {
-                                isScreenSharing = !isScreenSharing
-                            }
-                        },
-                        onToggleRecording = { isRecording = !isRecording },
-                        onToggleNoiseCancellation = { noiseCancellation = !noiseCancellation },
-                        onEndCall = { viewModel.endCall() },
-                        onPiP = { enterPiPMode(context) },
-                        onShowReactions = { showReactions = !showReactions },
-                        modifier = Modifier
-                    )
+                        // Main control bar
+                        ModernCallControlBar(
+                            audioEnabled = audioEnabled,
+                            videoEnabled = videoEnabled,
+                            speakerEnabled = speakerEnabled,
+                            callType = callType,
+                            isScreenSharing = isScreenSharing,
+                            onToggleAudio = {
+                                audioEnabled = !audioEnabled
+                                viewModel.toggleAudio(audioEnabled)
+                            },
+                            onToggleVideo = {
+                                videoEnabled = !videoEnabled
+                                viewModel.toggleVideo(videoEnabled)
+                            },
+                            onToggleSpeaker = {
+                                speakerEnabled = !speakerEnabled
+                                viewModel.toggleSpeaker(speakerEnabled)
+                            },
+                            onSwitchCamera = { viewModel.switchCamera() },
+                            onToggleScreenShare = {
+                                val act = context as? CallsActivity
+                                if (act != null) {
+                                    act.screenSharingIntegration.toggle()
+                                    isScreenSharing = act.screenSharingIntegration.isSharing
+                                } else {
+                                    isScreenSharing = !isScreenSharing
+                                }
+                            },
+                            onShowReactions = { showReactions = !showReactions },
+                            onEndCall = { viewModel.endCall() }
+                        )
+                    }
                 }
             }
-        } // end AnimatedVisibility (bottom)
 
-        // Floating reaction animation
-        val floatingReaction by viewModel.incomingReaction.observeAsState()
-        var displayedReaction by remember { mutableStateOf<String?>(null) }
-        var reactionVisible by remember { mutableStateOf(false) }
-        val reactionAlpha by animateFloatAsState(
-            targetValue = if (reactionVisible) 1f else 0f,
-            animationSpec = tween(durationMillis = 300),
-            label = "reactionAlpha"
-        )
-        val reactionOffsetY by animateFloatAsState(
-            targetValue = if (reactionVisible) 0f else 80f,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-            label = "reactionOffsetY"
-        )
+            // Floating reaction animation
+            val floatingReaction by viewModel.incomingReaction.observeAsState()
+            var displayedReaction by remember { mutableStateOf<String?>(null) }
+            var reactionVisible by remember { mutableStateOf(false) }
+            val reactionAlpha by animateFloatAsState(
+                targetValue = if (reactionVisible) 1f else 0f,
+                animationSpec = tween(durationMillis = 300),
+                label = "reactionAlpha"
+            )
+            val reactionOffsetY by animateFloatAsState(
+                targetValue = if (reactionVisible) 0f else 80f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                label = "reactionOffsetY"
+            )
 
-        LaunchedEffect(floatingReaction) {
-            floatingReaction?.let { (emoji, _) ->
-                displayedReaction = emoji
-                reactionVisible = true
-                delay(2000)
-                reactionVisible = false
-                delay(300)
-                displayedReaction = null
-                viewModel.incomingReaction.value = null
+            LaunchedEffect(floatingReaction) {
+                floatingReaction?.let { (emoji, _) ->
+                    displayedReaction = emoji
+                    reactionVisible = true
+                    delay(2000)
+                    reactionVisible = false
+                    delay(300)
+                    displayedReaction = null
+                    viewModel.incomingReaction.value = null
+                }
             }
-        }
 
-        if (displayedReaction != null) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 24.dp)
-                    .offset(y = reactionOffsetY.dp)
-                    .graphicsLayer(alpha = reactionAlpha)
-            ) {
-                Text(
-                    text = displayedReaction ?: "",
-                    fontSize = 64.sp
+            if (displayedReaction != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 24.dp)
+                        .offset(y = reactionOffsetY.dp)
+                        .graphicsLayer(alpha = reactionAlpha)
+                ) {
+                    Text(text = displayedReaction ?: "", fontSize = 64.sp)
+                }
+            }
+
+            if (showReactions) {
+                ReactionsOverlay(
+                    onReactionSelected = { reaction ->
+                        viewModel.sendCallReaction(reaction)
+                        showReactions = false
+                    },
+                    onDismiss = { showReactions = false }
                 )
             }
-        }
 
-        // Reactions Overlay
-        if (showReactions) {
-            ReactionsOverlay(
-                onReactionSelected = { reaction ->
-                    viewModel.sendCallReaction(reaction)
-                    showReactions = false
-                },
-                onDismiss = { showReactions = false }
-            )
-        }
+            if (showChatOverlay) {
+                ChatDuringCallOverlay(viewModel = viewModel, onDismiss = { showChatOverlay = false })
+            }
 
-        // 💬 Chat Overlay during call - рендериться ПОВЕРХ усього
-        if (showChatOverlay) {
-            ChatDuringCallOverlay(
-                viewModel = viewModel,
-                onDismiss = { showChatOverlay = false }
-            )
-        }
-
-        // 📹 Video Quality Selector Overlay
-        if (showQualitySelector) {
-            VideoQualitySelector(
-                currentQuality = currentVideoQuality,
-                onQualitySelected = { quality ->
-                    if (viewModel.setVideoQuality(quality)) {
-                        currentVideoQuality = quality
-                    }
-                    showQualitySelector = false
-                },
-                onDismiss = { showQualitySelector = false }
-            )
-        }
-    }
-}
+            if (showQualitySelector) {
+                VideoQualitySelector(
+                    currentQuality = currentVideoQuality,
+                    onQualitySelected = { quality ->
+                        if (viewModel.setVideoQuality(quality)) {
+                            currentVideoQuality = quality
+                        }
+                        showQualitySelector = false
+                    },
+                    onDismiss = { showQualitySelector = false }
+                )
+            }
+        } // end else (isConnected)
+    } // end Box
+} // end ActiveCallScreen
 
 /**
  * 🎨 Selector для вибору стилю рамки
@@ -1162,6 +987,381 @@ fun FrameStyleSelector(
                     }
                 )
             }
+        }
+    }
+}
+
+// ── Modern call UI components ────────────────────────────────────────────────
+
+/**
+ * Top status bar shown during an active call (auto-hides after 5 s).
+ */
+@Composable
+fun ModernCallTopBar(
+    calleeName: String,
+    callDuration: Int,
+    connectionState: String,
+    isRecording: Boolean,
+    isScreenSharing: Boolean,
+    noiseCancellation: Boolean,
+    onStopRecording: () -> Unit,
+    onStopScreenShare: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "top_bar")
+    val dotAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
+        label = "dot"
+    )
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Caller name + duration pill
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.Black.copy(alpha = 0.55f))
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Column {
+                Text(
+                    text = calleeName,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (connectionState == "CONNECTED" && callDuration > 0) {
+                    Text(
+                        text = formatDuration(callDuration),
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFFC107).copy(alpha = dotAlpha))
+                        )
+                        Text(
+                            text = when (connectionState) {
+                                "RECONNECTING" -> "Відновлення..."
+                                "ACCEPTING" -> "Підключення..."
+                                else -> "З'єднання..."
+                            },
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // Right-side indicators
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (noiseCancellation) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF9C27B0).copy(alpha = 0.25f))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                ) {
+                    Text(text = "NC", fontSize = 10.sp, color = Color(0xFFCE93D8))
+                }
+            }
+            if (isRecording) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFE53935).copy(alpha = 0.2f))
+                        .clickable(onClick = onStopRecording)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFE53935).copy(alpha = dotAlpha))
+                        )
+                        Text(text = "REC", fontSize = 10.sp, color = Color(0xFFE57373))
+                    }
+                }
+            }
+            if (isScreenSharing) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF00BCD4).copy(alpha = 0.2f))
+                        .clickable(onClick = onStopScreenShare)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ScreenShare,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = Color(0xFF00BCD4)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Background for audio calls — dark gradient + avatar glow.
+ */
+@Composable
+fun AudioCallBackground(calleeName: String, calleeAvatar: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F2040))
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        // Ghost avatar full-screen at low opacity
+        if (calleeAvatar.isNotEmpty()) {
+            AsyncImage(
+                model = calleeAvatar,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.08f
+            )
+        }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // Avatar with soft glow ring
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(172.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.06f))
+                )
+                if (calleeAvatar.isNotEmpty()) {
+                    AsyncImage(
+                        model = calleeAvatar,
+                        contentDescription = calleeName,
+                        modifier = Modifier
+                            .size(148.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(148.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF2A3A5C)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = calleeName.firstOrNull()?.uppercase() ?: "?",
+                            fontSize = 60.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+            Text(
+                text = calleeName,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+    }
+}
+
+/**
+ * Clean modern control bar for active calls.
+ *
+ * Audio calls: MIC | SPEAKER | REACT | END
+ * Video calls: MIC | VIDEO | FLIP  | SPEAKER | END
+ */
+@Composable
+fun ModernCallControlBar(
+    audioEnabled: Boolean,
+    videoEnabled: Boolean,
+    speakerEnabled: Boolean,
+    callType: String,
+    isScreenSharing: Boolean = false,
+    onToggleAudio: () -> Unit,
+    onToggleVideo: () -> Unit,
+    onToggleSpeaker: () -> Unit,
+    onSwitchCamera: () -> Unit,
+    onToggleScreenShare: () -> Unit = {},
+    onShowReactions: () -> Unit = {},
+    onEndCall: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Mute
+        CallBtn(
+            icon = if (audioEnabled) Icons.Default.Mic else Icons.Default.MicOff,
+            label = if (audioEnabled) "Мік" else "Вимк",
+            bgColor = if (!audioEnabled) Color(0xFFCC3333) else Color(0xFF2E2E2E),
+            onClick = onToggleAudio
+        )
+
+        if (callType == "video") {
+            // Camera on/off
+            CallBtn(
+                icon = if (videoEnabled) Icons.Default.Videocam else Icons.Default.VideocamOff,
+                label = if (videoEnabled) "Відео" else "Вимк",
+                bgColor = if (!videoEnabled) Color(0xFFCC3333) else Color(0xFF2E2E2E),
+                onClick = onToggleVideo
+            )
+            // Flip camera
+            CallBtn(
+                icon = Icons.Default.Cameraswitch,
+                label = "Камера",
+                bgColor = Color(0xFF2E2E2E),
+                onClick = onSwitchCamera
+            )
+        }
+
+        // Speaker
+        CallBtn(
+            icon = if (speakerEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeDown,
+            label = if (speakerEnabled) "Динамік" else "Навушн.",
+            bgColor = if (speakerEnabled) Color(0xFF1A4A1A) else Color(0xFF2E2E2E),
+            onClick = onToggleSpeaker
+        )
+
+        if (callType == "audio") {
+            // Reactions for audio calls (handy shortcut)
+            CallBtn(
+                icon = Icons.Default.EmojiEmotions,
+                label = "Реакція",
+                bgColor = Color(0xFF2E2E2E),
+                onClick = onShowReactions
+            )
+        }
+
+        // End call — larger red button
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable(onClick = onEndCall)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(62.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(Color(0xFFFF3B30), Color(0xFFCC0000))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CallEnd,
+                    contentDescription = "Завершити",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text("Кінець", color = Color(0xFFFF5252), fontSize = 11.sp)
+        }
+    }
+}
+
+/**
+ * Individual control button used in [ModernCallControlBar].
+ */
+@Composable
+fun CallBtn(
+    icon: ImageVector,
+    label: String,
+    bgColor: Color,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(54.dp)
+                .clip(CircleShape)
+                .background(bgColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.75f),
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * Compact pill button for Filters / Background effects.
+ */
+@Composable
+fun CallEffectPill(
+    icon: ImageVector,
+    label: String,
+    isActive: Boolean,
+    activeColor: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = if (isActive) activeColor.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.15f),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Text(text = label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
