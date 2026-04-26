@@ -752,7 +752,7 @@ fun ActiveCallScreen(
                     }
 
                     Column(
-                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).navigationBarsPadding(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // Expanded panels
@@ -949,6 +949,7 @@ fun ModernCallTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1113,11 +1114,11 @@ fun AudioCallBackground(calleeName: String, calleeAvatar: String) {
                             .background(Color(0xFF2A3A5C)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = calleeName.firstOrNull()?.uppercase() ?: "?",
-                            fontSize = 60.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.65f),
+                            modifier = Modifier.size(80.dp)
                         )
                     }
                 }
@@ -1169,15 +1170,16 @@ fun ModernCallControlBar(
             onClick = onToggleAudio
         )
 
-        if (callType == "video") {
-            // Camera on/off
-            CallBtn(
-                icon = if (videoEnabled) Icons.Default.Videocam else Icons.Default.VideocamOff,
-                label = if (videoEnabled) "Відео" else "Вимк",
-                bgColor = if (!videoEnabled) Color(0xFFCC3333) else Color(0xFF2E2E2E),
-                onClick = onToggleVideo
-            )
-            // Flip camera
+        // Video toggle — always visible so audio calls can switch to video too
+        CallBtn(
+            icon = if (videoEnabled) Icons.Default.Videocam else Icons.Default.VideocamOff,
+            label = "Відео",
+            bgColor = if (!videoEnabled) Color(0xFF2E2E2E) else Color(0xFF1A3A6A),
+            onClick = onToggleVideo
+        )
+
+        // Flip camera — only when video is actually on
+        if (videoEnabled) {
             CallBtn(
                 icon = Icons.Default.Cameraswitch,
                 label = "Камера",
@@ -1193,16 +1195,6 @@ fun ModernCallControlBar(
             bgColor = if (speakerEnabled) Color(0xFF1A4A1A) else Color(0xFF2E2E2E),
             onClick = onToggleSpeaker
         )
-
-        if (callType == "audio") {
-            // Reactions for audio calls (handy shortcut)
-            CallBtn(
-                icon = Icons.Default.EmojiEmotions,
-                label = "Реакція",
-                bgColor = Color(0xFF2E2E2E),
-                onClick = onShowReactions
-            )
-        }
 
         // End call — larger red button
         Column(

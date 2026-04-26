@@ -551,7 +551,16 @@ class WebRTCManager(private val context: Context) {
 
             // Создать аудио трек
             if (audioEnabled) {
-                val audioSource = peerConnectionFactory.createAudioSource(MediaConstraints())
+                // Disable software AGC — it causes the metallic/robotic voice effect.
+                // Hardware echo cancellation and noise suppression are already enabled
+                // via JavaAudioDeviceModule, so we only need software highpass filter here.
+                val audioConstraints = MediaConstraints().apply {
+                    mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
+                    mandatory.add(MediaConstraints.KeyValuePair("googAutoGainControl", "false"))
+                    mandatory.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
+                    mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
+                }
+                val audioSource = peerConnectionFactory.createAudioSource(audioConstraints)
                 localAudioTrack = peerConnectionFactory.createAudioTrack("audio_track", audioSource)
                 localAudioTrack?.let {
                     it.setEnabled(true)  // ✅ Явно включить аудио трек
