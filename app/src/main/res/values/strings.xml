@@ -1495,7 +1495,7 @@
     <string name="theme_cat_main_ui_desc">Кольори, темна тема, фон, пузирі, реакції</string>
     <string name="theme_cat_channels">Канали</string>
     <string name="theme_cat_channels_desc">Стиль каналів та Obsidian-Gold дизайн</string>
-    <string name="theme_cat_calls">Відеодзвінки</string>
+    <string name="theme_cat_calls">Фон дзвінків</string>
     <string name="theme_cat_calls_desc">Красиві фони для аудіо та відеодзвінків</string>
     <string name="theme_cat_calls_open">Обрати фон дзвінків</string>
     <string name="theme_cat_video_msg">Відеоповідомлення</string>
@@ -1507,11 +1507,13 @@
     <string name="call_frame_styles_list">Класика, Захід, Океан, Аврора, Зірки…</string>
 
     <!-- Call Backgrounds -->
-    <string name="call_bg_settings_title">Фон відеодзвінку</string>
+    <string name="call_bg_settings_title">Фон дзвінків</string>
     <string name="call_bg_settings_desc">Оберіть фон для аудіо та відеодзвінків</string>
     <string name="call_bg_free_label">БЕЗКОШТОВНІ ФОНИ</string>
     <string name="call_bg_premium_label">ПРЕМІУМ ФОНИ</string>
     <string name="call_bg_premium_locked">Доступно з підпискою Преміум</string>
+    <string name="call_bg_animated">Анімований</string>
+    <string name="call_bg_current_label">ПОТОЧНИЙ ФОН</string>
     <string name="call_bg_reset_default">Скинути до стандартного</string>
     <string name="call_bg_reset_confirm">Фон буде змінено на стандартний темно-синій. Продовжити?</string>
     <string name="call_bg_default">Класика</string>

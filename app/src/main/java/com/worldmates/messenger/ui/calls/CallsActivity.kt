@@ -657,6 +657,8 @@ fun ActiveCallScreen(
         currentVideoQuality = adaptiveQuality
     }
 
+    val selectedBg = remember { CallBackgroundManager.load(context) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -669,6 +671,9 @@ fun ActiveCallScreen(
                 }
             }
     ) {
+        // Always render the selected background as the base layer
+        CallBgLayer(bg = selectedBg, modifier = Modifier.fillMaxSize())
+
         if (!isConnected) {
             // ── Connecting / dialing state ──────────────────────────────────
             EnhancedOutgoingCallScreen(
