@@ -75,18 +75,26 @@ fun CallFrameSettingsScreen(onBackClick: () -> Unit) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // ── Current background preview ────────────────────────────────────
+            item {
+                SectionHeader(label = stringResource(R.string.call_bg_current_label))
+            }
+            item {
+                CurrentBgPreview(bg = selected, isPremiumUser = isPremiumUser)
+            }
+
             item {
                 Text(
                     text = stringResource(R.string.call_bg_settings_desc),
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
                 )
             }
 
-            // ── Free section ─────────────────────────────────────────────────
+            // ── Free section ──────────────────────────────────────────────────
             item {
                 SectionHeader(label = stringResource(R.string.call_bg_free_label))
             }
@@ -128,7 +136,7 @@ fun CallFrameSettingsScreen(onBackClick: () -> Unit) {
 
             // ── Reset button ──────────────────────────────────────────────────
             item {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
                 OutlinedButton(
                     onClick = { showResetDialog = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -144,6 +152,7 @@ fun CallFrameSettingsScreen(onBackClick: () -> Unit) {
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.call_bg_reset_default))
                 }
+                Spacer(Modifier.height(8.dp))
             }
         }
     }
@@ -153,12 +162,64 @@ fun CallFrameSettingsScreen(onBackClick: () -> Unit) {
 private fun SectionHeader(label: String) {
     Text(
         text = label,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.SemiBold,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
-        letterSpacing = 0.8.sp,
+        letterSpacing = 1.sp,
         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
     )
+}
+
+@Composable
+private fun CurrentBgPreview(bg: CallBackground, isPremiumUser: Boolean) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            CallBgLayer(bg = bg, modifier = Modifier.fillMaxSize())
+
+            // Name badge bottom-left
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = callBgName(bg),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
+
+            // PRO badge + lock for locked premium
+            if (bg.isPremium) {
+                val isLocked = !isPremiumUser
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isLocked) Color(0xFFFFD700) else Color(0xFFFFD700))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = if (isLocked) "🔒 PRO" else "✦ PRO",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -172,6 +233,7 @@ fun CallBgCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected)
                 Color(0xFF0084FF).copy(alpha = 0.08f)
@@ -186,13 +248,13 @@ fun CallBgCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Thumbnail preview
             Box(
                 modifier = Modifier
-                    .size(width = 96.dp, height = 68.dp)
+                    .size(width = 108.dp, height = 76.dp)
                     .clip(RoundedCornerShape(10.dp))
             ) {
                 CallBgLayer(
@@ -265,7 +327,11 @@ fun CallBgCard(
                                 .background(Color(0xFF4CAF50))
                         )
                         Spacer(Modifier.width(4.dp))
-                        Text("Анімовано", fontSize = 10.sp, color = Color(0xFF4CAF50))
+                        Text(
+                            text = stringResource(R.string.call_bg_animated),
+                            fontSize = 10.sp,
+                            color = Color(0xFF4CAF50)
+                        )
                     }
                 }
             }
