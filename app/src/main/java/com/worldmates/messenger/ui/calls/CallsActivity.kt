@@ -685,26 +685,55 @@ fun ActiveCallScreen(
         } else {
             // ── Active call ─────────────────────────────────────────────────
 
-            // Background: remote video or audio call gradient
+            // ── Video / audio background ─────────────────────────────────────
+            var isVideoSwapped by remember { mutableStateOf(false) }
+
             if (hasRemoteVideo) {
-                WebRTCVideoRenderer(
-                    videoStream = remoteStream!!,
-                    modifier = Modifier.fillMaxSize()
-                )
+                val localHasVideo = localStream?.videoTracks?.isNotEmpty() == true
+                if (!isVideoSwapped) {
+                    // Normal: remote full-screen, local in PiP
+                    WebRTCVideoRenderer(videoStream = remoteStream!!, modifier = Modifier.fillMaxSize())
+                } else {
+                    // Swapped: local full-screen, remote in PiP
+                    if (localHasVideo) {
+                        WebRTCVideoRenderer(
+                            videoStream = localStream!!,
+                            modifier = Modifier.fillMaxSize(),
+                            isMirrored = true
+                        )
+                    } else {
+                        AudioCallBackground(calleeName = calleeName, calleeAvatar = calleeAvatar)
+                    }
+                }
             } else {
                 AudioCallBackground(calleeName = calleeName, calleeAvatar = calleeAvatar)
             }
 
-            // Local camera PiP
-            localStream?.let { stream ->
-                if (stream.videoTracks.isNotEmpty()) {
+            // ── PiP overlay ──────────────────────────────────────────────────
+            if (hasRemoteVideo) {
+                if (!isVideoSwapped) {
+                    // Normal: local video in PiP
+                    localStream?.let { stream ->
+                        if (stream.videoTracks.isNotEmpty()) {
+                            var pipOffset by remember { mutableStateOf(Offset(0f, 0f)) }
+                            LocalVideoPiP(
+                                localStream = stream,
+                                offset = pipOffset,
+                                onOffsetChange = { pipOffset = it },
+                                viewModel = viewModel,
+                                onSwitchCamera = { viewModel.switchCamera() },
+                                onSwap = { isVideoSwapped = true }
+                            )
+                        }
+                    }
+                } else {
+                    // Swapped: remote video in PiP
                     var pipOffset by remember { mutableStateOf(Offset(0f, 0f)) }
-                    LocalVideoPiP(
-                        localStream = stream,
+                    RemoteVideoPiP(
+                        remoteStream = remoteStream!!,
                         offset = pipOffset,
                         onOffsetChange = { pipOffset = it },
-                        viewModel = viewModel,
-                        onSwitchCamera = { viewModel.switchCamera() }
+                        onSwap = { isVideoSwapped = false }
                     )
                 }
             }
@@ -1342,7 +1371,8 @@ fun LocalVideoPiP(
     offset: Offset,
     onOffsetChange: (Offset) -> Unit,
     viewModel: CallsViewModel,
-    onSwitchCamera: () -> Unit = {}
+    onSwitchCamera: () -> Unit = {},
+    onSwap: () -> Unit = {}
 ) {
     var isDragging by remember { mutableStateOf(false) }
     var dragStartOffset by remember { mutableStateOf(Offset.Zero) }
@@ -1420,21 +1450,37 @@ fun LocalVideoPiP(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Індикатор перемикання камери
+        // Camera-switch button (top-right)
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(8.dp)
                 .size(32.dp)
                 .background(Color(0x99000000), CircleShape)
-                .clickable {
-                    onSwitchCamera()
-                },
+                .clickable { onSwitchCamera() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Cameraswitch,
                 contentDescription = stringResource(R.string.switch_camera),
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        // Swap button (top-left): tap to make this view full-screen
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(8.dp)
+                .size(32.dp)
+                .background(Color(0x99000000), CircleShape)
+                .clickable { onSwap() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Fullscreen,
+                contentDescription = "Swap views",
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
@@ -1449,6 +1495,92 @@ fun LocalVideoPiP(
                         color = Color(0xFF2196F3).copy(alpha = 0.3f),
                         shape = RoundedCornerShape(16.dp)
                     )
+            )
+        }
+    }
+}
+
+/**
+ * Small draggable overlay showing the REMOTE video stream.
+ * Used when local and remote views are swapped.
+ */
+@Composable
+fun RemoteVideoPiP(
+    remoteStream: MediaStream,
+    offset: Offset,
+    onOffsetChange: (Offset) -> Unit,
+    onSwap: () -> Unit = {}
+) {
+    var isDragging by remember { mutableStateOf(false) }
+    var currentVideoTrack by remember { mutableStateOf<org.webrtc.VideoTrack?>(null) }
+
+    Box(
+        modifier = Modifier
+            .offset(x = offset.x.dp, y = offset.y.dp)
+            .padding(16.dp)
+            .width(120.dp)
+            .height(160.dp)
+            .shadow(8.dp, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF1a1a1a))
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { isDragging = true },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onOffsetChange(
+                            Offset(
+                                x = (offset.x + dragAmount.x).coerceIn(0f, 800f),
+                                y = (offset.y + dragAmount.y).coerceIn(0f, 1400f)
+                            )
+                        )
+                    },
+                    onDragEnd = { isDragging = false }
+                )
+            }
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                SurfaceViewRenderer(ctx).apply {
+                    init(WebRTCManager.getEglContext(), null)
+                    setZOrderMediaOverlay(true)
+                    setEnableHardwareScaler(true)
+                }
+            },
+            update = { renderer ->
+                val newTrack = remoteStream.videoTracks.firstOrNull()
+                if (newTrack != currentVideoTrack) {
+                    currentVideoTrack?.removeSink(renderer)
+                    newTrack?.addSink(renderer)
+                    currentVideoTrack = newTrack
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Swap back button (top-left)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(8.dp)
+                .size(32.dp)
+                .background(Color(0x99000000), CircleShape)
+                .clickable { onSwap() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.FullscreenExit,
+                contentDescription = "Swap back",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        if (isDragging) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF2196F3).copy(alpha = 0.3f), RoundedCornerShape(16.dp))
             )
         }
     }
