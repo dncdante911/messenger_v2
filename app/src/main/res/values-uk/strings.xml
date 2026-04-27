@@ -3670,4 +3670,9 @@
     <string name="call_error_title">Помилка дзвінка</string>
     <string name="call_idle_label">Немає активних дзвінків</string>
     <string name="call_preview_your_camera">Ваша камера</string>
+
+    <!-- ===== CHANNEL LIVESTREAM NOTIFICATIONS ===== -->
+    <string name="notif_channel_live_channel_name">Прямі ефіри</string>
+    <string name="notif_channel_live_body">%s веде прямий ефір</string>
+    <string name="notif_channel_live_tap_hint">Торкніться, щоб дивитися</string>
 </resources>

@@ -95,4 +95,60 @@ async function sendPush(token, { title, body, data = {} }) {
     }
 }
 
-module.exports = { sendPush };
+/**
+ * Send the same push notification to many FCM tokens in batches of 500.
+ * Uses sendEachForMulticast (firebase-admin ≥ 11).
+ *
+ * @param {string[]} tokens   - Array of FCM registration tokens.
+ * @param {object}  opts      - Same shape as sendPush opts: { title, body, data }.
+ * @returns {Promise<{ sent: number, stale: string[] }>}
+ */
+async function sendPushToMany(tokens, { title, body, data = {} }) {
+    init();
+    if (!messaging || !tokens || tokens.length === 0) return { sent: 0, stale: [] };
+
+    const stringData = {};
+    for (const [k, v] of Object.entries(data)) stringData[k] = String(v);
+
+    const BATCH_SIZE = 500;
+    let sent  = 0;
+    const stale = [];
+
+    for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
+        const batch = tokens.slice(i, i + BATCH_SIZE);
+        const message = {
+            tokens: batch,
+            notification: { title, body },
+            data: stringData,
+            android: {
+                priority: 'high',
+                notification: {
+                    sound:       'default',
+                    channelId:   'wm_livestream',
+                    clickAction: 'OPEN_CHANNEL_ACTIVITY',
+                },
+            },
+        };
+        try {
+            const result = await messaging.sendEachForMulticast(message);
+            sent += result.successCount;
+            result.responses.forEach((resp, idx) => {
+                if (!resp.success) {
+                    const code = resp.error?.code;
+                    if (
+                        code === 'messaging/registration-token-not-registered' ||
+                        code === 'messaging/invalid-registration-token'
+                    ) {
+                        stale.push(batch[idx]);
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('[FCM] sendPushToMany batch error:', e.message);
+        }
+    }
+
+    return { sent, stale };
+}
+
+module.exports = { sendPush, sendPushToMany };

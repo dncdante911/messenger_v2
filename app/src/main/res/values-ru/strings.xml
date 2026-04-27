@@ -3813,4 +3813,9 @@
     <string name="call_error_title">Ошибка звонка</string>
     <string name="call_idle_label">Нет активных звонков</string>
     <string name="call_preview_your_camera">Ваша камера</string>
+
+    <!-- ===== CHANNEL LIVESTREAM NOTIFICATIONS ===== -->
+    <string name="notif_channel_live_channel_name">Прямые эфиры</string>
+    <string name="notif_channel_live_body">%s ведёт прямой эфир</string>
+    <string name="notif_channel_live_tap_hint">Нажмите, чтобы смотреть</string>
 </resources>

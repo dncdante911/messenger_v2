@@ -34,6 +34,7 @@
 
 const crypto     = require('crypto');
 const turnHelper = require('../../helpers/turn-credentials');
+const { sendPushToMany } = require('../../firebase-push');
 
 const REGULAR_QUALITIES = ['240p', '360p', '480p', '720p'];
 const PREMIUM_QUALITIES = ['360p', '480p', '720p', '1080p', '1080p60'];
@@ -181,60 +182,108 @@ module.exports = function registerLivestreamRoutes(app, ctx, io) {
                     targetBitrate: QUALITY_BITRATE[chosenQuality] || 2500,
                 });
 
-                // Push notification to channel subscribers who are NOT currently online.
-                // We insert Wo_Notifications rows — the PHP push daemon picks them up and sends FCM.
-                // Fire-and-forget: don't block the response if this fails.
+                // Notify ALL channel subscribers in real-time:
+                //   • Online users  → their personal Socket.IO room (String(userId)) so they
+                //                     receive channel:stream_started even if not in the channel room.
+                //   • Offline users → FCM push notification sent directly from Node.js (no PHP).
+                // Fire-and-forget: don't block the HTTP response.
                 setImmediate(async () => {
                     try {
                         const streamTitle = title || host.name;
-                        // Get all channel subscribers (paginate to avoid huge IN clauses)
-                        const BATCH = 500;
+                        const pushTitle   = host.name;
+                        const pushBody    = streamTitle;
+                        const pushData    = {
+                            type:       'channel_live',
+                            channel_id: String(channelId),
+                            stream_id:  String(streamId),
+                            from_name:  host.name,
+                            from_avatar: host.avatar,
+                            body:       pushBody,
+                        };
+                        const socketPayload = {
+                            channelId,
+                            streamId,
+                            roomName,
+                            quality:      chosenQuality,
+                            title:        title || null,
+                            isPremium,
+                            hostUserId:   userId,
+                            hostName:     host.name,
+                            hostAvatar:   host.avatar,
+                            startedAt,
+                            targetBitrate: QUALITY_BITRATE[chosenQuality] || 2500,
+                        };
+
+                        const DB_BATCH = 500;
                         let offset = 0;
+                        let totalFcmSent = 0;
+
                         while (true) {
+                            // 1. Load a batch of subscriber user IDs
                             const followers = await ctx.wo_pages_likes.findAll({
                                 where: { page_id: channelId, active: '1' },
                                 attributes: ['user_id'],
-                                limit: BATCH,
+                                limit: DB_BATCH,
                                 offset,
                                 raw: true,
                             });
                             if (!followers.length) break;
-                            offset += BATCH;
+                            offset += DB_BATCH;
 
-                            const rows = followers
-                                .filter(f => f.user_id !== userId)  // skip the streamer themselves
-                                .map(f => ({
-                                    notifier_id:  userId,
-                                    recipient_id: f.user_id,
-                                    post_id:      0,
-                                    page_id:      channelId,
-                                    group_id:     0,
-                                    group_chat_id: 0,
-                                    event_id:     0,
-                                    thread_id:    0,
-                                    blog_id:      0,
-                                    story_id:     0,
-                                    reply_id:     null,
-                                    comment_id:   null,
-                                    seen_pop:     0,
-                                    type:         'channel_live',
-                                    type2:        'channel_live',
-                                    text:         streamTitle,
-                                    url:          `channel?id=${channelId}`,
-                                    full_link:    `channel?id=${channelId}&stream=${streamId}`,
-                                    seen:         0,
-                                    sent_push:    0,
-                                    time:         startedAt,
-                                }));
+                            const subscriberIds = followers
+                                .map(f => f.user_id)
+                                .filter(id => id !== userId);  // skip the streamer
 
-                            if (rows.length) {
-                                await ctx.wo_notification.bulkCreate(rows, { ignoreDuplicates: true });
+                            // 2. Send channel:stream_started to each subscriber's personal room.
+                            //    This reaches them even if they are not subscribed to channel_{channelId}.
+                            for (const subId of subscriberIds) {
+                                io.to(String(subId)).emit('channel:stream_started', socketPayload);
                             }
-                            if (followers.length < BATCH) break;
+
+                            // 3. Collect FCM tokens for subscribers who are offline
+                            const offlineIds = subscriberIds.filter(id => {
+                                const socks = ctx.userIdSocket?.[id];
+                                return !Array.isArray(socks) || socks.length === 0;
+                            });
+
+                            if (offlineIds.length > 0) {
+                                const sessions = await ctx.wo_appssessions.findAll({
+                                    where: {
+                                        user_id:   offlineIds,
+                                        fcm_token: { [require('sequelize').Op.ne]: null },
+                                    },
+                                    attributes: ['user_id', 'fcm_token'],
+                                    raw: true,
+                                });
+
+                                const tokens = [...new Set(
+                                    sessions.map(s => s.fcm_token).filter(Boolean)
+                                )];
+
+                                if (tokens.length > 0) {
+                                    const { sent, stale } = await sendPushToMany(tokens, {
+                                        title: pushTitle,
+                                        body:  pushBody,
+                                        data:  pushData,
+                                    });
+                                    totalFcmSent += sent;
+
+                                    // Clean up expired tokens
+                                    if (stale.length > 0) {
+                                        await ctx.wo_appssessions.update(
+                                            { fcm_token: null },
+                                            { where: { fcm_token: stale } }
+                                        ).catch(() => {});
+                                    }
+                                }
+                            }
+
+                            if (followers.length < DB_BATCH) break;
                         }
-                        console.log(`[Livestream] Queued push notifications for channel ${channelId} stream ${streamId}`);
+
+                        console.log(`[Livestream] Stream start notified: channel=${channelId} fcm_sent=${totalFcmSent}`);
                     } catch (pushErr) {
-                        console.error('[Livestream] push notification insert error:', pushErr.message);
+                        console.error('[Livestream] notification error:', pushErr.message);
                     }
                 });
 
