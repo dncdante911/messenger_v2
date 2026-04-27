@@ -134,6 +134,10 @@ class LivestreamWebRTCManager(private val context: Context) {
     // ─────────────────────────────────────────────────────────────────────────
 
     fun handleOfferFromHost(hostUserId: Long, sdpOffer: String, iceServers: List<PeerConnection.IceServer>) {
+        if (peerConnections.containsKey(hostUserId)) {
+            Log.w(TAG, "Already negotiating with host $hostUserId — ignoring duplicate offer")
+            return
+        }
         try {
             ensureFactory()  // Viewer never calls setupLocalCamera(), so factory must be initialised here
             val pc = createPeerConnection(hostUserId, iceServers) ?: return
