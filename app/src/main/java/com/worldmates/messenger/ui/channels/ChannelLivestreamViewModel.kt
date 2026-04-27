@@ -227,10 +227,6 @@ class ChannelLivestreamViewModel(app: Application) : AndroidViewModel(app), Sock
         // socket?.on(event, listener) — if socket is null the listeners are silently dropped.
         socketManager.connect()
         setupLivestreamWebRTCCallbacks()
-        // connect() must be called BEFORE setupLivestreamSocketListeners():
-        // socketManager.on() does socket?.on(...) — if socket is null (pre-connect)
-        // the listener is silently dropped and stream events are never received.
-        socketManager.connect()
         setupLivestreamSocketListeners()
     }
 

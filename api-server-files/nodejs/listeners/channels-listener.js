@@ -389,6 +389,7 @@ async function registerChannelsListeners(socket, io, ctx) {
             } catch (_) {}
 
             // Find host socket and notify them to create an offer for this viewer
+            let hostUserId = null;
             if (channelId) {
                 const stream = await ctx.wm_channel_livestreams.findOne({
                     where: { channel_id: channelId, status: 'live', room_name: roomName },
@@ -397,7 +398,8 @@ async function registerChannelsListeners(socket, io, ctx) {
                 }).catch(() => null);
 
                 if (stream) {
-                    const hostSockets = ctx.userIdSocket[stream.host_user_id];
+                    hostUserId = stream.host_user_id;
+                    const hostSockets = ctx.userIdSocket[hostUserId];
                     if (hostSockets && hostSockets.length > 0) {
                         hostSockets.forEach(s => s.emit('stream:viewer_joined', {
                             roomName,
@@ -408,6 +410,16 @@ async function registerChannelsListeners(socket, io, ctx) {
                     }
                 }
             }
+
+            // Keep ctx.activeStreams in sync so stream:leave (calls-listener) can notify host.
+            if (!ctx.activeStreams) ctx.activeStreams = new Map();
+            let room = ctx.activeStreams.get(roomName);
+            if (!room) {
+                room = { hostSocketId: null, hostUserId, viewers: new Map() };
+                ctx.activeStreams.set(roomName, room);
+            }
+            room.viewers.set(userId, socket.id);
+            if (hostUserId && !room.hostUserId) room.hostUserId = hostUserId;
 
             console.log(`[Livestream] Viewer ${userId} joined stream room ${roomName}`);
         } catch (e) {
@@ -423,9 +435,8 @@ async function registerChannelsListeners(socket, io, ctx) {
         const { roomName, toUserId, sdpOffer } = data;
         if (!toUserId || !sdpOffer) return;
 
-        const fromUserId = ctx.socketIdUserHash
-            ? ctx.userHashUserId?.[ctx.socketIdUserHash[socket.id]]
-            : null;
+        // socket.userId is set by JoinController on auth and is always the numeric user ID.
+        const fromUserId = socket.userId || null;
 
         const recipientSockets = ctx.userIdSocket[toUserId];
         if (recipientSockets && recipientSockets.length > 0) {
@@ -434,6 +445,9 @@ async function registerChannelsListeners(socket, io, ctx) {
                 fromUserId,
                 sdpOffer,
             }));
+        } else {
+            // Fallback: viewer joined socket room via stream:viewer_join handler
+            socket.to(roomName).emit('stream:offer', { roomName, fromUserId, sdpOffer });
         }
     });
 
@@ -445,9 +459,7 @@ async function registerChannelsListeners(socket, io, ctx) {
         const { roomName, toUserId, sdpAnswer } = data;
         if (!toUserId || !sdpAnswer) return;
 
-        const fromUserId = ctx.socketIdUserHash
-            ? ctx.userHashUserId?.[ctx.socketIdUserHash[socket.id]]
-            : null;
+        const fromUserId = socket.userId || null;
 
         const recipientSockets = ctx.userIdSocket[toUserId];
         if (recipientSockets && recipientSockets.length > 0) {
@@ -456,6 +468,8 @@ async function registerChannelsListeners(socket, io, ctx) {
                 fromUserId,
                 sdpAnswer,
             }));
+        } else {
+            socket.to(roomName).emit('stream:answer', { roomName, fromUserId, sdpAnswer });
         }
     });
 
@@ -467,9 +481,7 @@ async function registerChannelsListeners(socket, io, ctx) {
         const { roomName, toUserId, candidate, sdpMid, sdpMLineIndex } = data;
         if (!candidate) return;
 
-        const fromUserId = ctx.socketIdUserHash
-            ? ctx.userHashUserId?.[ctx.socketIdUserHash[socket.id]]
-            : null;
+        const fromUserId = socket.userId || null;
 
         const payload = { roomName, fromUserId, candidate, sdpMid, sdpMLineIndex };
 
@@ -477,9 +489,11 @@ async function registerChannelsListeners(socket, io, ctx) {
             const recipientSockets = ctx.userIdSocket[toUserId];
             if (recipientSockets && recipientSockets.length > 0) {
                 recipientSockets.forEach(s => s.emit('stream:ice', payload));
+            } else {
+                // Fallback: use the socket room the viewer joined in stream:viewer_join
+                socket.to(roomName).emit('stream:ice', payload);
             }
         } else {
-            // Broadcast to entire room (fallback)
             socket.to(roomName).emit('stream:ice', payload);
         }
     });

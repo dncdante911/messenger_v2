@@ -1105,84 +1105,6 @@ async function registerCallsListeners(socket, io, ctx) {
         }
     });
 
-    // ── stream:offer ─────────────────────────────────────────────────────────
-    // Host sends SDP offer to a specific viewer.
-    socket.on('stream:offer', (data) => {
-        try {
-            const { roomName, toUserId, sdpOffer, iceServers } = data;
-            const fromUserId = ctx.socketIdUserHash?.[socket.id];
-
-            // Find the viewer's socket
-            const room = ctx.activeStreams.get(roomName);
-            const viewerSocketId = room?.viewers.get(toUserId);
-
-            const target = viewerSocketId
-                ? io.sockets.sockets.get(viewerSocketId)
-                : null;
-
-            if (target) {
-                target.emit('stream:offer', { roomName, fromUserId, sdpOffer, iceServers });
-            } else {
-                io.to(String(toUserId)).emit('stream:offer', { roomName, fromUserId, sdpOffer, iceServers });
-            }
-        } catch (e) {
-            console.error('[STREAM] stream:offer error:', e);
-        }
-    });
-
-    // ── stream:answer ────────────────────────────────────────────────────────
-    // Viewer sends SDP answer back to the host.
-    socket.on('stream:answer', (data) => {
-        try {
-            const { roomName, toUserId, sdpAnswer } = data;
-            const fromUserId = ctx.socketIdUserHash?.[socket.id];
-
-            const room = ctx.activeStreams.get(roomName);
-            const hostSocketId = room?.hostSocketId;
-            const target = hostSocketId ? io.sockets.sockets.get(hostSocketId) : null;
-
-            if (target) {
-                target.emit('stream:answer', { roomName, fromUserId, sdpAnswer });
-            } else {
-                io.to(String(toUserId)).emit('stream:answer', { roomName, fromUserId, sdpAnswer });
-            }
-        } catch (e) {
-            console.error('[STREAM] stream:answer error:', e);
-        }
-    });
-
-    // ── stream:ice ───────────────────────────────────────────────────────────
-    // Either side sends an ICE candidate to the other party.
-    socket.on('stream:ice', (data) => {
-        try {
-            const { roomName, toUserId, candidate, sdpMid, sdpMLineIndex } = data;
-            const fromUserId = ctx.socketIdUserHash?.[socket.id];
-
-            const room = ctx.activeStreams.get(roomName);
-            let targetSocketId = null;
-
-            if (room) {
-                // If sender is host → find viewer socket; otherwise find host socket
-                if (room.hostUserId == fromUserId) {
-                    targetSocketId = room.viewers.get(toUserId);
-                } else {
-                    targetSocketId = room.hostSocketId;
-                }
-            }
-
-            const payload = { roomName, fromUserId, candidate, sdpMid, sdpMLineIndex };
-
-            if (targetSocketId) {
-                const target = io.sockets.sockets.get(targetSocketId);
-                target?.emit('stream:ice', payload);
-            } else {
-                io.to(String(toUserId)).emit('stream:ice', payload);
-            }
-        } catch (e) {
-            console.error('[STREAM] stream:ice error:', e);
-        }
-    });
-
     // ── stream:leave ─────────────────────────────────────────────────────────
     // Viewer voluntarily leaves the stream room.
     socket.on('stream:leave', (data) => {
@@ -1191,14 +1113,15 @@ async function registerCallsListeners(socket, io, ctx) {
             if (!roomName) return;
 
             socket.leave(roomName);
-            const room = ctx.activeStreams.get(roomName);
+            const room = ctx.activeStreams?.get(roomName);
             if (room) {
                 room.viewers.delete(viewerUserId);
+                const payload = { roomName, viewerUserId };
                 if (room.hostSocketId) {
-                    io.to(room.hostSocketId).emit('stream:viewer_left', {
-                        roomName,
-                        viewerUserId
-                    });
+                    io.to(room.hostSocketId).emit('stream:viewer_left', payload);
+                } else if (room.hostUserId && ctx.userIdSocket?.[room.hostUserId]) {
+                    // Fallback: host registered via channels-listener path (no hostSocketId set)
+                    ctx.userIdSocket[room.hostUserId].forEach(s => s.emit('stream:viewer_left', payload));
                 }
             }
             console.log(`[STREAM] Viewer ${viewerUserId} left room ${roomName}`);
