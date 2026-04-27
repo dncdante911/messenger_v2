@@ -26,7 +26,9 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.worldmates.messenger.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,7 +80,7 @@ fun EnhancedCallControlBar(
         ) {
             GlassCallButton(
                 icon = if (audioEnabled) Icons.Default.Mic else Icons.Default.MicOff,
-                label = if (audioEnabled) "Мік" else "Вимк",
+                label = if (audioEnabled) stringResource(R.string.call_btn_mic) else stringResource(R.string.call_btn_muted),
                 isActive = audioEnabled,
                 activeColor = Color(0xFF2196F3),
                 onClick = onToggleAudio
@@ -86,7 +88,7 @@ fun EnhancedCallControlBar(
 
             GlassCallButton(
                 icon = if (videoEnabled) Icons.Default.Videocam else Icons.Default.VideocamOff,
-                label = if (videoEnabled) "Відео" else "Вимк",
+                label = if (videoEnabled) stringResource(R.string.call_btn_video) else stringResource(R.string.call_btn_muted),
                 isActive = videoEnabled,
                 activeColor = Color(0xFF2196F3),
                 onClick = onToggleVideo
@@ -94,7 +96,7 @@ fun EnhancedCallControlBar(
 
             GlassCallButton(
                 icon = if (speakerEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeDown,
-                label = "Динамік",
+                label = stringResource(R.string.call_btn_speaker),
                 isActive = speakerEnabled,
                 activeColor = Color(0xFF4CAF50),
                 onClick = onToggleSpeaker
@@ -102,7 +104,7 @@ fun EnhancedCallControlBar(
 
             GlassCallButton(
                 icon = Icons.Default.Cameraswitch,
-                label = "Камера",
+                label = stringResource(R.string.call_btn_camera),
                 isActive = false,
                 onClick = onSwitchCamera
             )
@@ -125,7 +127,7 @@ fun EnhancedCallControlBar(
         ) {
             SmallFeatureButton(
                 icon = Icons.Default.ScreenShare,
-                label = "Екран",
+                label = stringResource(R.string.call_btn_screen),
                 isActive = isScreenSharing,
                 activeColor = Color(0xFF00BCD4),
                 onClick = onToggleScreenShare
@@ -133,7 +135,7 @@ fun EnhancedCallControlBar(
 
             SmallFeatureButton(
                 icon = Icons.Default.FiberManualRecord,
-                label = "Запис",
+                label = stringResource(R.string.call_btn_record),
                 isActive = isRecording,
                 activeColor = Color(0xFFE53935),
                 onClick = onToggleRecording
@@ -141,7 +143,7 @@ fun EnhancedCallControlBar(
 
             SmallFeatureButton(
                 icon = Icons.Default.GraphicEq,
-                label = "Шум",
+                label = stringResource(R.string.call_btn_noise),
                 isActive = noiseCancellation,
                 activeColor = Color(0xFF9C27B0),
                 onClick = onToggleNoiseCancellation
@@ -149,7 +151,7 @@ fun EnhancedCallControlBar(
 
             SmallFeatureButton(
                 icon = Icons.Default.EmojiEmotions,
-                label = "Реакції",
+                label = stringResource(R.string.call_btn_reactions),
                 isActive = false,
                 activeColor = Color(0xFFFF9800),
                 onClick = onShowReactions
@@ -157,7 +159,7 @@ fun EnhancedCallControlBar(
 
             SmallFeatureButton(
                 icon = Icons.Default.PictureInPicture,
-                label = "PiP",
+                label = stringResource(R.string.call_btn_pip),
                 isActive = false,
                 activeColor = Color(0xFF00BCD4),
                 onClick = onPiP
@@ -250,7 +252,7 @@ fun EndCallButton(onClick: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Default.CallEnd,
-                contentDescription = "Завершити",
+                contentDescription = stringResource(R.string.call_btn_end_desc),
                 tint = Color.White,
                 modifier = Modifier.size(28.dp)
             )
@@ -259,7 +261,7 @@ fun EndCallButton(onClick: () -> Unit) {
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Кінець",
+            text = stringResource(R.string.call_btn_end),
             fontSize = 10.sp,
             color = Color(0xFFFF5252),
             textAlign = TextAlign.Center
@@ -377,9 +379,9 @@ fun EnhancedConnectionStatus(
         } else {
             Text(
                 text = when (connectionState) {
-                    "CONNECTING" -> "З'єднання..."
-                    "ACCEPTING" -> "Прийняття..."
-                    "RECONNECTING" -> "Перепідключення..."
+                    "CONNECTING" -> stringResource(R.string.call_status_connecting)
+                    "ACCEPTING" -> stringResource(R.string.call_status_accepting)
+                    "RECONNECTING" -> stringResource(R.string.call_status_reconnecting)
                     "CONNECTED" -> calleeName
                     else -> connectionState
                 },
@@ -538,7 +540,7 @@ fun EnhancedOutgoingCallScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = if (callType == "video") "Відеодзвінок..." else "Дзвонимо...",
+                text = if (callType == "video") stringResource(R.string.call_outgoing_video_status) else stringResource(R.string.call_outgoing_audio_status),
                 fontSize = 16.sp,
                 color = Color(0xFF8899AA)
             )
@@ -556,7 +558,7 @@ fun EnhancedOutgoingCallScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.CallEnd,
-                    contentDescription = "Скасувати",
+                    contentDescription = stringResource(R.string.call_btn_cancel),
                     tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
@@ -565,7 +567,7 @@ fun EnhancedOutgoingCallScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Скасувати",
+                text = stringResource(R.string.call_btn_cancel),
                 fontSize = 14.sp,
                 color = Color(0xFF8899AA)
             )
@@ -580,10 +582,11 @@ fun EnhancedOutgoingCallScreen(
  */
 @Composable
 fun RecordingNotificationBanner(
-    recordedBy: String = "Ви",
+    recordedBy: String = "",
     onStop: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val effectiveRecordedBy = recordedBy.ifEmpty { stringResource(R.string.call_recording_you) }
     val infiniteTransition = rememberInfiniteTransition(label = "rec_blink")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.5f,
@@ -613,7 +616,7 @@ fun RecordingNotificationBanner(
         )
 
         Text(
-            text = "$recordedBy записує цей дзвінок",
+            text = stringResource(R.string.call_recording_message, effectiveRecordedBy),
             fontSize = 13.sp,
             color = Color(0xFFE53935),
             modifier = Modifier.weight(1f)
@@ -625,7 +628,7 @@ fun RecordingNotificationBanner(
                 contentPadding = PaddingValues(horizontal = 8.dp)
             ) {
                 Text(
-                    text = "Зупинити",
+                    text = stringResource(R.string.call_stop),
                     fontSize = 12.sp,
                     color = Color(0xFFE53935),
                     fontWeight = FontWeight.Bold
@@ -663,7 +666,7 @@ fun ScreenSharingBanner(
         )
 
         Text(
-            text = "Ви демонструєте екран",
+            text = stringResource(R.string.call_screen_sharing_active),
             fontSize = 13.sp,
             color = Color(0xFF00BCD4),
             modifier = Modifier.weight(1f)
@@ -674,7 +677,7 @@ fun ScreenSharingBanner(
             contentPadding = PaddingValues(horizontal = 8.dp)
         ) {
             Text(
-                text = "Зупинити",
+                text = stringResource(R.string.call_stop),
                 fontSize = 12.sp,
                 color = Color(0xFF00BCD4),
                 fontWeight = FontWeight.Bold
@@ -714,7 +717,7 @@ fun NoiseCancellationIndicator(
                 tint = Color(0xFF9C27B0)
             )
             Text(
-                text = "AI шумозаглушення",
+                text = stringResource(R.string.call_noise_cancel_badge),
                 fontSize = 10.sp,
                 color = Color(0xFF9C27B0)
             )
@@ -751,8 +754,8 @@ fun AudioModeBadge(
         else -> Icons.Default.VolumeDown
     }
     val label = when {
-        speakerEnabled -> "Динамік"
-        else -> "Навушник"
+        speakerEnabled -> stringResource(R.string.call_audio_speaker)
+        else -> stringResource(R.string.call_audio_earpiece)
     }
 
     Row(

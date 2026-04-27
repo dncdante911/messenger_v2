@@ -3796,4 +3796,50 @@
     <string name="action_reply">Повторити</string>
     <!-- Comment user fallback -->
     <string name="ch_user_fallback">Користувач</string>
+
+    <!-- ===== CALL SCREEN UI ===== -->
+    <string name="call_incoming_video">Вхідний відеодзвінок</string>
+    <string name="call_accept">Прийняти</string>
+    <string name="call_decline">Відхилити</string>
+
+    <string name="call_btn_mic">Мік</string>
+    <string name="call_btn_muted">Вимк</string>
+    <string name="call_btn_video">Відео</string>
+    <string name="call_btn_speaker">Динамік</string>
+    <string name="call_btn_earpiece">Навушн.</string>
+    <string name="call_btn_camera">Камера</string>
+    <string name="call_btn_screen">Екран</string>
+    <string name="call_btn_record">Запис</string>
+    <string name="call_btn_noise">Шум</string>
+    <string name="call_btn_reactions">Реакції</string>
+    <string name="call_btn_pip">PiP</string>
+    <string name="call_btn_end">Кінець</string>
+    <string name="call_btn_end_desc">Завершити</string>
+    <string name="call_btn_cancel">Скасувати</string>
+
+    <string name="call_status_connecting">З\'єднання…</string>
+    <string name="call_status_accepting">Прийняття…</string>
+    <string name="call_status_reconnecting">Перепідключення…</string>
+    <string name="call_status_restoring">Відновлення…</string>
+
+    <string name="call_outgoing_video_status">Відеодзвінок…</string>
+    <string name="call_outgoing_audio_status">Дзвонимо…</string>
+
+    <string name="call_rec_badge">REC</string>
+    <string name="call_nc_badge">NC</string>
+    <string name="call_noise_cancel_badge">AI шумозаглушення</string>
+
+    <string name="call_recording_you">Ви</string>
+    <string name="call_recording_message">%s записує цей дзвінок</string>
+    <string name="call_stop">Зупинити</string>
+    <string name="call_screen_sharing_active">Ви демонструєте екран</string>
+
+    <string name="call_audio_speaker">Динамік</string>
+    <string name="call_audio_earpiece">Навушник</string>
+
+    <string name="call_permissions_required">Для дзвінків потрібні дозволи на мікрофон та камеру</string>
+    <string name="call_permissions_required_mic">Для дзвінків потрібні дозволи на мікрофон</string>
+    <string name="call_error_title">Помилка дзвінка</string>
+    <string name="call_idle_label">Немає активних дзвінків</string>
+    <string name="call_preview_your_camera">Ваша камера</string>
 </resources>
