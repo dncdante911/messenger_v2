@@ -1328,20 +1328,23 @@ class ChannelDetailsViewModel(app: Application) : AndroidViewModel(app) {
                 viewModelScope.launch { _activeStreamRoomName.value = null }
             }
         }
-        // Check if the channel is already live (set by a previous socket event)
-        if (LiveChannelTracker.isLive(channelId)) {
-            _activeStreamRoomName.value = ""  // live but roomName not yet known from this session
-            // Verify with the server — the tracker may be stale if the stream ended while the
-            // socket was disconnected (e.g. user was in ChannelLivestreamActivity)
-            viewModelScope.launch {
-                try {
-                    val lsApi = NodeRetrofitClient.retrofit.create(ChannelLivestreamApi::class.java)
-                    val resp  = lsApi.getActiveStream(channelId)
-                    if (resp.stream == null) {
-                        LiveChannelTracker.markEnded(channelId)
-                        _activeStreamRoomName.value = null
-                    }
-                } catch (_: Exception) { /* stale state is acceptable; socket events will correct it */ }
+        // Always verify live state with the server on open:
+        //   • Detects an ongoing stream when the app starts cold (LiveChannelTracker is empty).
+        //   • Also corrects stale "live" tracker state if the stream ended while disconnected.
+        viewModelScope.launch {
+            try {
+                val lsApi = NodeRetrofitClient.retrofit.create(ChannelLivestreamApi::class.java)
+                val resp  = lsApi.getActiveStream(channelId)
+                if (resp.stream != null) {
+                    LiveChannelTracker.markLive(channelId)
+                    _activeStreamRoomName.value = resp.stream.room_name ?: ""
+                } else {
+                    LiveChannelTracker.markEnded(channelId)
+                    _activeStreamRoomName.value = null
+                }
+            } catch (_: Exception) {
+                // Network error — fall back to whatever LiveChannelTracker currently says
+                if (!LiveChannelTracker.isLive(channelId)) _activeStreamRoomName.value = null
             }
         }
         socketHandler?.connect(channelId)

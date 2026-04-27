@@ -47,6 +47,8 @@ class WMFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
         private const val TAG = "WMFcmService"
+        const val CHANNEL_LIVESTREAM_ID    = "wm_livestream"
+        private const val LIVESTREAM_NOTIF_ID_BASE = 70000L
 
         /**
          * Fetch the current FCM token and register it with the WM server.
@@ -133,6 +135,15 @@ class WMFirebaseMessagingService : FirebaseMessagingService() {
                         roomName   = roomName,
                         sdpOffer   = sdpOffer
                     )
+                }
+            }
+            "channel_live" -> {
+                val channelId = data["channel_id"]?.toLongOrNull() ?: 0L
+                val streamId  = data["stream_id"]?.toLongOrNull()  ?: 0L
+                Log.d(TAG, "🔴 FCM channel_live: channel=$channelId from=$fromName")
+                if (channelId > 0) {
+                    ensureLivestreamNotificationChannel()
+                    showLivestreamNotification(channelId, streamId, fromName)
                 }
             }
             else -> {
@@ -248,6 +259,53 @@ class WMFirebaseMessagingService : FirebaseMessagingService() {
 
         // Also restart the background service so future messages come via Socket.IO
         restartNotificationService()
+    }
+
+    private fun ensureLivestreamNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.getNotificationChannel(CHANNEL_LIVESTREAM_ID) != null) return
+        val channel = NotificationChannel(
+            CHANNEL_LIVESTREAM_ID,
+            getString(R.string.notif_channel_live_channel_name),
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            enableVibration(true)
+            setSound(
+                android.provider.Settings.System.DEFAULT_NOTIFICATION_URI,
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                    .build()
+            )
+        }
+        nm.createNotificationChannel(channel)
+    }
+
+    private fun showLivestreamNotification(channelId: Long, streamId: Long, hostName: String) {
+        val intent = Intent(this, com.worldmates.messenger.ui.channels.ChannelDetailsActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("channel_id", channelId)
+            if (streamId > 0) putExtra("stream_id", streamId)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            (channelId + 90000L).toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val body = getString(R.string.notif_channel_live_body, hostName)
+        val notification = NotificationCompat.Builder(this, CHANNEL_LIVESTREAM_ID)
+            .setSmallIcon(R.drawable.ic_notification_service)
+            .setContentTitle(hostName)
+            .setContentText(body)
+            .setSubText(getString(R.string.notif_channel_live_tap_hint))
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .build()
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify((LIVESTREAM_NOTIF_ID_BASE + channelId).toInt(), notification)
     }
 
     private fun restartNotificationService() {
