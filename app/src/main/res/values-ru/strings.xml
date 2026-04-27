@@ -3767,4 +3767,50 @@
     <string name="action_delete">Удалить</string>
     <string name="action_reply">Ответить</string>
     <string name="ch_user_fallback">Пользователь</string>
+
+    <!-- ===== CALL SCREEN UI ===== -->
+    <string name="call_incoming_video">Входящий видеозвонок</string>
+    <string name="call_accept">Принять</string>
+    <string name="call_decline">Отклонить</string>
+
+    <string name="call_btn_mic">Мик</string>
+    <string name="call_btn_muted">Выкл</string>
+    <string name="call_btn_video">Видео</string>
+    <string name="call_btn_speaker">Динамик</string>
+    <string name="call_btn_earpiece">Наушн.</string>
+    <string name="call_btn_camera">Камера</string>
+    <string name="call_btn_screen">Экран</string>
+    <string name="call_btn_record">Запись</string>
+    <string name="call_btn_noise">Шум</string>
+    <string name="call_btn_reactions">Реакции</string>
+    <string name="call_btn_pip">PiP</string>
+    <string name="call_btn_end">Конец</string>
+    <string name="call_btn_end_desc">Завершить</string>
+    <string name="call_btn_cancel">Отменить</string>
+
+    <string name="call_status_connecting">Соединение…</string>
+    <string name="call_status_accepting">Принятие…</string>
+    <string name="call_status_reconnecting">Переподключение…</string>
+    <string name="call_status_restoring">Восстановление…</string>
+
+    <string name="call_outgoing_video_status">Видеозвонок…</string>
+    <string name="call_outgoing_audio_status">Звоним…</string>
+
+    <string name="call_rec_badge">REC</string>
+    <string name="call_nc_badge">NC</string>
+    <string name="call_noise_cancel_badge">AI шумоподавление</string>
+
+    <string name="call_recording_you">Вы</string>
+    <string name="call_recording_message">%s записывает этот звонок</string>
+    <string name="call_stop">Остановить</string>
+    <string name="call_screen_sharing_active">Вы демонстрируете экран</string>
+
+    <string name="call_audio_speaker">Динамик</string>
+    <string name="call_audio_earpiece">Наушник</string>
+
+    <string name="call_permissions_required">Для звонков требуются разрешения на микрофон и камеру</string>
+    <string name="call_permissions_required_mic">Для звонков требуются разрешения на микрофон</string>
+    <string name="call_error_title">Ошибка звонка</string>
+    <string name="call_idle_label">Нет активных звонков</string>
+    <string name="call_preview_your_camera">Ваша камера</string>
 </resources>

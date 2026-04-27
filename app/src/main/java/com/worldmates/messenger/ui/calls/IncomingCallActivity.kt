@@ -1,5 +1,6 @@
 package com.worldmates.messenger.ui.calls
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -10,14 +11,22 @@ import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.content.pm.PackageManager
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.core.content.ContextCompat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
@@ -27,13 +36,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 import com.worldmates.messenger.services.MessageNotificationService
 import com.worldmates.messenger.ui.theme.WorldMatesThemedApp
 import com.worldmates.messenger.utils.LanguageManager
@@ -260,6 +273,12 @@ fun IncomingCallScreen(
         ), label = "alpha2"
     )
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val hasCameraPermission = remember {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -293,7 +312,7 @@ fun IncomingCallScreen(
             ) {
                 // Call type label
                 Text(
-                    text      = if (callType == "video") "Incoming video call" else "Incoming call",
+                    text      = if (callType == "video") stringResource(R.string.call_incoming_video) else stringResource(R.string.incoming_call),
                     fontSize  = 15.sp,
                     color     = Color.White.copy(alpha = 0.7f),
                     letterSpacing = 0.5.sp
@@ -371,13 +390,13 @@ fun IncomingCallScreen(
                     ) {
                         Icon(
                             imageVector        = Icons.Default.CallEnd,
-                            contentDescription = "Decline",
+                            contentDescription = stringResource(R.string.call_decline),
                             tint               = Color.White,
                             modifier           = Modifier.size(32.dp)
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    Text("Decline", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
+                    Text(stringResource(R.string.call_decline), color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
                 }
 
                 // Accept
@@ -389,15 +408,77 @@ fun IncomingCallScreen(
                     ) {
                         Icon(
                             imageVector        = Icons.Default.Call,
-                            contentDescription = "Accept",
+                            contentDescription = stringResource(R.string.call_accept),
                             tint               = Color.White,
                             modifier           = Modifier.size(32.dp)
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    Text("Accept", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
+                    Text(stringResource(R.string.call_accept), color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
+                }
+            }
+        }
+
+        // Self-preview for video calls — shows user how they look before accepting
+        if (callType == "video" && hasCameraPermission) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 20.dp, bottom = 155.dp)
+                    .size(width = 80.dp, height = 112.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.5.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+            ) {
+                CameraPreviewOverlay(modifier = Modifier.fillMaxSize())
+                // "Your camera" label at the bottom of the preview
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .padding(vertical = 3.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text     = stringResource(R.string.call_preview_your_camera),
+                        fontSize = 8.sp,
+                        color    = Color.White.copy(alpha = 0.85f)
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun CameraPreviewOverlay(modifier: Modifier = Modifier) {
+    val context       = androidx.compose.ui.platform.LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    AndroidView(
+        factory = { ctx ->
+            val previewView = PreviewView(ctx).apply {
+                scaleType = PreviewView.ScaleType.FILL_CENTER
+            }
+            val future = ProcessCameraProvider.getInstance(ctx)
+            future.addListener({
+                try {
+                    val cameraProvider = future.get()
+                    val preview = Preview.Builder().build().also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_FRONT_CAMERA,
+                        preview
+                    )
+                } catch (e: Exception) {
+                    Log.w("IncomingCallActivity", "Camera self-preview failed: ${e.message}")
+                }
+            }, ContextCompat.getMainExecutor(ctx))
+            previewView
+        },
+        modifier = modifier
+    )
 }

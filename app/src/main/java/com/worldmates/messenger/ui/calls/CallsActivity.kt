@@ -101,7 +101,7 @@ class CallsActivity : ComponentActivity() {
                 // ❌ Дозволи не надано
                 Toast.makeText(
                     this,
-                    "Для дзвінків потрібні дозволи на мікрофон" + if (callType == "video") " та камеру" else "",
+                    if (callType == "video") getString(R.string.call_permissions_required) else getString(R.string.call_permissions_required_mic),
                     Toast.LENGTH_LONG
                 ).show()
                 finish()
@@ -483,7 +483,7 @@ fun IncomingCallScreen(callData: CallData, viewModel: CallsViewModel) {
             ) {
                 Icon(
                     imageVector = Icons.Default.CallEnd,
-                    contentDescription = "Reject",
+                    contentDescription = stringResource(R.string.call_decline),
                     tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
@@ -501,7 +501,7 @@ fun IncomingCallScreen(callData: CallData, viewModel: CallsViewModel) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Call,
-                    contentDescription = "Accept",
+                    contentDescription = stringResource(R.string.call_accept),
                     tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
@@ -573,7 +573,7 @@ fun OutgoingCallScreen(
 
         // Статус з анімацією
         Text(
-            text = if (callType == "video") "📹 Відеодзвінок..." else "📞 Дзвонимо...",
+            text = if (callType == "video") stringResource(R.string.call_outgoing_video_status) else stringResource(R.string.call_outgoing_audio_status),
             fontSize = 16.sp,
             color = Color(0xFFbbbbbb).copy(alpha = alpha),
             textAlign = TextAlign.Center
@@ -591,7 +591,7 @@ fun OutgoingCallScreen(
         ) {
             Icon(
                 imageVector = Icons.Default.CallEnd,
-                contentDescription = "Cancel",
+                contentDescription = stringResource(R.string.call_btn_cancel),
                 tint = Color.White,
                 modifier = Modifier.size(32.dp)
             )
@@ -1018,9 +1018,9 @@ fun ModernCallTopBar(
                         )
                         Text(
                             text = when (connectionState) {
-                                "RECONNECTING" -> "Відновлення..."
-                                "ACCEPTING" -> "Підключення..."
-                                else -> "З'єднання..."
+                                "RECONNECTING" -> stringResource(R.string.call_status_restoring)
+                                "ACCEPTING" -> stringResource(R.string.call_status_accepting)
+                                else -> stringResource(R.string.call_status_connecting)
                             },
                             color = Color.White.copy(alpha = 0.7f),
                             fontSize = 12.sp
@@ -1042,7 +1042,7 @@ fun ModernCallTopBar(
                         .background(Color(0xFF9C27B0).copy(alpha = 0.25f))
                         .padding(horizontal = 6.dp, vertical = 3.dp)
                 ) {
-                    Text(text = "NC", fontSize = 10.sp, color = Color(0xFFCE93D8))
+                    Text(text = stringResource(R.string.call_nc_badge), fontSize = 10.sp, color = Color(0xFFCE93D8))
                 }
             }
             if (isRecording) {
@@ -1063,7 +1063,7 @@ fun ModernCallTopBar(
                                 .clip(CircleShape)
                                 .background(Color(0xFFE53935).copy(alpha = dotAlpha))
                         )
-                        Text(text = "REC", fontSize = 10.sp, color = Color(0xFFE57373))
+                        Text(text = stringResource(R.string.call_rec_badge), fontSize = 10.sp, color = Color(0xFFE57373))
                     }
                 }
             }
@@ -1194,7 +1194,7 @@ fun ModernCallControlBar(
         // Mute
         CallBtn(
             icon = if (audioEnabled) Icons.Default.Mic else Icons.Default.MicOff,
-            label = if (audioEnabled) "Мік" else "Вимк",
+            label = if (audioEnabled) stringResource(R.string.call_btn_mic) else stringResource(R.string.call_btn_muted),
             bgColor = if (!audioEnabled) Color(0xFFCC3333) else Color(0xFF2E2E2E),
             onClick = onToggleAudio
         )
@@ -1202,7 +1202,7 @@ fun ModernCallControlBar(
         // Video toggle — always visible so audio calls can switch to video too
         CallBtn(
             icon = if (videoEnabled) Icons.Default.Videocam else Icons.Default.VideocamOff,
-            label = "Відео",
+            label = stringResource(R.string.call_btn_video),
             bgColor = if (!videoEnabled) Color(0xFF2E2E2E) else Color(0xFF1A3A6A),
             onClick = onToggleVideo
         )
@@ -1211,7 +1211,7 @@ fun ModernCallControlBar(
         if (videoEnabled) {
             CallBtn(
                 icon = Icons.Default.Cameraswitch,
-                label = "Камера",
+                label = stringResource(R.string.call_btn_camera),
                 bgColor = Color(0xFF2E2E2E),
                 onClick = onSwitchCamera
             )
@@ -1220,7 +1220,7 @@ fun ModernCallControlBar(
         // Speaker
         CallBtn(
             icon = if (speakerEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeDown,
-            label = if (speakerEnabled) "Динамік" else "Навушн.",
+            label = if (speakerEnabled) stringResource(R.string.call_btn_speaker) else stringResource(R.string.call_btn_earpiece),
             bgColor = if (speakerEnabled) Color(0xFF1A4A1A) else Color(0xFF2E2E2E),
             onClick = onToggleSpeaker
         )
@@ -1243,13 +1243,13 @@ fun ModernCallControlBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.CallEnd,
-                    contentDescription = "Завершити",
+                    contentDescription = stringResource(R.string.call_btn_end_desc),
                     tint = Color.White,
                     modifier = Modifier.size(28.dp)
                 )
             }
             Spacer(Modifier.height(6.dp))
-            Text("Кінець", color = Color(0xFFFF5252), fontSize = 11.sp)
+            Text(stringResource(R.string.call_btn_end), color = Color(0xFFFF5252), fontSize = 11.sp)
         }
     }
 }
@@ -1480,7 +1480,7 @@ fun LocalVideoPiP(
         ) {
             Icon(
                 imageVector = Icons.Default.Fullscreen,
-                contentDescription = "Swap views",
+                contentDescription = stringResource(R.string.call_btn_pip),
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
@@ -1570,7 +1570,7 @@ fun RemoteVideoPiP(
         ) {
             Icon(
                 imageVector = Icons.Default.FullscreenExit,
-                contentDescription = "Swap back",
+                contentDescription = stringResource(R.string.call_btn_pip),
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
@@ -2013,7 +2013,7 @@ fun ErrorScreen(error: String, viewModel: CallsViewModel) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Помилка дзвінка",
+            text = stringResource(R.string.call_error_title),
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
@@ -2035,7 +2035,7 @@ fun ErrorScreen(error: String, viewModel: CallsViewModel) {
             onClick = { viewModel.endCall() },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFd32f2f))
         ) {
-            Text("Закрити")
+            Text(stringResource(R.string.action_close))
         }
     }
 }
@@ -2062,7 +2062,7 @@ fun IdleScreen(viewModel: CallsViewModel) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Немає активних дзвінків",
+            text = stringResource(R.string.call_idle_label),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
