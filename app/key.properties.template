@@ -1,0 +1,11 @@
+# Copy this file to key.properties and fill in your keystore details.
+# NEVER commit key.properties to version control.
+#
+# Generate keystore with:
+#   keytool -genkey -v -keystore worldmates-release.jks -alias worldmates -keyalg RSA -keysize 2048 -validity 10000
+# Then place the .jks file one level above this file (in the project root).
+
+storeFile=../worldmates-release.jks
+storePassword=YOUR_STORE_PASSWORD
+keyAlias=worldmates
+keyPassword=YOUR_KEY_PASSWORD
