@@ -40,7 +40,10 @@
 # ── Retrofit / OkHttp ────────────────────────────────────────────────────────
 -dontwarn retrofit2.**
 -keep class retrofit2.** { *; }
--keep interface com.worldmates.messenger.network.** { *; }
+# Keep all network classes (interfaces + data classes used as Retrofit return types).
+# Without this R8 renames/merges response data classes, breaking the coroutine
+# state-machine cast at invokeSuspend (ClassCastException in release builds).
+-keep class com.worldmates.messenger.network.** { *; }
 -dontwarn okhttp3.**
 -keep class okhttp3.** { *; }
 -dontwarn okio.**
