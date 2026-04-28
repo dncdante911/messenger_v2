@@ -3,17 +3,20 @@ import { t, initLang, setLang, getLang, translateSocketStatus, type Lang } from 
 import type { Socket } from 'socket.io-client';
 import {
   archiveChat, AuthError, clearHistory,
+  blockUser, unblockUser, loadBlockedUsers,
   createChannel, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost, searchChannels,
   createGroup, createStory, searchGroups,
   createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
-  getIceServers, initiateCall, endCall, loadChannels, loadChats,
+  getIceServers, initiateCall, endCall, loadChannels, loadChats, loadArchivedChats,
   loadGroups, loadGroupMessages, loadMoreGroupMessages, loadMessages, loadMoreMessages, loadStories,
   login, loginByPhone, markGroupSeen, markSeen, markStorySeen,
   muteChat, normaliseMessage, pinChat, pinMessage,
+  getMyProfile, updateMyProfile, uploadAvatar,
   reactToMessage, reactToGroupMessage, registerAccount,
   searchMessages,
   sendMessage, sendGroupMessage, sendMessageWithMedia, sendVoiceMessage, TURN_FALLBACK,
-  uploadMedia
+  uploadMedia,
+  type UserProfile,
 } from './api';
 import type { ChannelPost } from './types';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
@@ -360,6 +363,23 @@ export default function App() {
 
   // ── Lightbox ──────────────────────────────────────────────────────────────
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
+  // ── Profile editing ───────────────────────────────────────────────────────
+  const [myProfile,      setMyProfile]      = useState<UserProfile | null>(null);
+  const [profileFirst,   setProfileFirst]   = useState('');
+  const [profileLast,    setProfileLast]    = useState('');
+  const [profileAbout,   setProfileAbout]   = useState('');
+  const [profileUser,    setProfileUser]    = useState('');
+  const [profileSaving,  setProfileSaving]  = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+
+  // ── Archived chats ────────────────────────────────────────────────────────
+  const [archivedChats,  setArchivedChats]  = useState<ChatItem[]>([]);
+  const [showArchived,   setShowArchived]   = useState(false);
+  const [archivedLoaded, setArchivedLoaded] = useState(false);
+
+  // ── Blocked users ─────────────────────────────────────────────────────────
+  const [blockedUsers,   setBlockedUsers]   = useState<UserProfile[]>([]);
+  const [blockedLoaded,  setBlockedLoaded]  = useState(false);
 
   // ── Voice recording ───────────────────────────────────────────────────────
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -1048,6 +1068,84 @@ export default function App() {
     setIsRecordingVoice(false);
   }
 
+  // ─── Profile ──────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (section !== 'settings' || myProfile || !session) return;
+    getMyProfile(session.token).then(p => {
+      setMyProfile(p);
+      setProfileFirst(p.first_name ?? '');
+      setProfileLast(p.last_name  ?? '');
+      setProfileAbout(p.about     ?? '');
+      setProfileUser(p.username   ?? '');
+    }).catch(() => {});
+  }, [section, myProfile, session]);
+
+  async function handleSaveProfile() {
+    if (!session) return;
+    setProfileSaving('saving');
+    try {
+      await updateMyProfile(session.token, {
+        first_name: profileFirst,
+        last_name:  profileLast,
+        about:      profileAbout,
+        username:   profileUser,
+      });
+      setMyProfile(prev => prev ? { ...prev, first_name: profileFirst, last_name: profileLast, about: profileAbout, username: profileUser } : prev);
+      setProfileSaving('done');
+      setTimeout(() => setProfileSaving('idle'), 2500);
+    } catch {
+      setProfileSaving('error');
+      setTimeout(() => setProfileSaving('idle'), 2500);
+    }
+  }
+
+  async function handleAvatarUpload(file: File) {
+    if (!session) return;
+    try {
+      const url = await uploadAvatar(session.token, file);
+      if (url) setMyProfile(prev => prev ? { ...prev, avatar: url } : prev);
+    } catch { /* ignore */ }
+  }
+
+  // ─── Archived chats ───────────────────────────────────────────────────────
+
+  async function handleToggleArchived() {
+    if (!session) return;
+    if (!archivedLoaded) {
+      const r = await loadArchivedChats(session.token);
+      setArchivedChats(r.data ?? []);
+      setArchivedLoaded(true);
+    }
+    setShowArchived(v => !v);
+  }
+
+  async function handleUnarchive(userId: number) {
+    if (!session) return;
+    await archiveChat(session.token, userId, false);
+    setArchivedChats(prev => prev.filter(c => c.user_id !== userId));
+  }
+
+  // ─── Block / unblock ──────────────────────────────────────────────────────
+
+  async function handleBlockUser(userId: number) {
+    if (!session || !window.confirm(t('chat.block') + '?')) return;
+    await blockUser(session.token, userId);
+  }
+
+  async function handleLoadBlocked() {
+    if (!session || blockedLoaded) return;
+    const users = await loadBlockedUsers(session.token);
+    setBlockedUsers(users);
+    setBlockedLoaded(true);
+  }
+
+  async function handleUnblock(userId: number) {
+    if (!session) return;
+    await unblockUser(session.token, userId);
+    setBlockedUsers(prev => prev.filter(u => u.id !== userId));
+  }
+
   // ─── Typing emit ──────────────────────────────────────────────────────────
 
   function handleComposerInput(text: string) {
@@ -1618,6 +1716,35 @@ export default function App() {
                 </div>
               </button>
             ))}
+
+            {/* ── Archived chats ──────────────────────────────────────────── */}
+            <button className="archived-toggle" onClick={handleToggleArchived}>
+              <span>📦 {t('sidebar.archived')}</span>
+              {archivedChats.length > 0 && <span className="unread-badge">{archivedChats.length}</span>}
+              <span className="archived-toggle-arrow">{showArchived ? '▲' : '▼'}</span>
+            </button>
+            {showArchived && (
+              archivedChats.length === 0
+                ? <div className="empty-state" style={{ fontSize: 13 }}>{t('sidebar.noArchived')}</div>
+                : archivedChats.map(chat => (
+                  <div key={chat.user_id} className="chat-item archived-item">
+                    <Avatar name={chat.name} src={chat.avatar} size={46} />
+                    <div className="chat-item-body">
+                      <div className="chat-item-row">
+                        <span className="chat-item-name">{chat.name}</span>
+                        <span className="chat-item-time">{formatChatTime(chat.time)}</span>
+                      </div>
+                      <div className="chat-item-row">
+                        <span className="chat-item-preview">{previewLastMessage(chat.last_message)}</span>
+                      </div>
+                    </div>
+                    <button className="icon-btn" title={t('chat.unarchive')}
+                      onClick={e => { e.stopPropagation(); handleUnarchive(chat.user_id); }}>
+                      📤
+                    </button>
+                  </div>
+                ))
+            )}
           </div>
         )}
 
@@ -1742,13 +1869,67 @@ export default function App() {
         {/* ── Settings ──────────────────────────────────────────────────── */}
         {section === 'settings' && (
           <div className="list-scroll settings-panel">
+            {/* ── Profile header ──────────────────────────────────────── */}
             <div className="settings-item">
-              <Avatar name={session.username} size={48} />
+              <label className="avatar-upload-label" title={t('settings.uploadAvatar')}>
+                <Avatar name={session.username} src={myProfile?.avatar} size={56} />
+                <input type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); }} />
+                <span className="avatar-upload-badge">📷</span>
+              </label>
               <div>
-                <div className="settings-name">{session.username}</div>
+                <div className="settings-name">{myProfile ? `${myProfile.first_name ?? ''} ${myProfile.last_name ?? ''}`.trim() || session.username : session.username}</div>
                 <div className="settings-sub">{t('settings.userId')} {session.userId}</div>
               </div>
             </div>
+
+            {/* ── Edit profile ────────────────────────────────────────── */}
+            <div className="settings-section">
+              <div className="settings-label">{t('settings.editProfile')}</div>
+              <input className="settings-input" placeholder={t('settings.firstName')}
+                value={profileFirst} onChange={e => setProfileFirst(e.target.value)} />
+              <input className="settings-input" placeholder={t('settings.lastName')}
+                value={profileLast} onChange={e => setProfileLast(e.target.value)} />
+              <input className="settings-input" placeholder={t('settings.username')}
+                value={profileUser} onChange={e => setProfileUser(e.target.value)} />
+              <textarea className="settings-input settings-textarea" placeholder={t('settings.about')}
+                value={profileAbout} onChange={e => setProfileAbout(e.target.value)} rows={3} />
+              <button
+                className={profileSaving === 'done' ? 'btn-success' : profileSaving === 'error' ? 'btn-danger' : 'btn-primary'}
+                disabled={profileSaving === 'saving'}
+                onClick={handleSaveProfile}
+              >
+                {profileSaving === 'saving' ? t('settings.saving') :
+                 profileSaving === 'done'   ? t('settings.saved') :
+                 profileSaving === 'error'  ? t('settings.errorRetry') :
+                 t('settings.saveProfile')}
+              </button>
+            </div>
+
+            {/* ── Blocked users ────────────────────────────────────────── */}
+            <div className="settings-section">
+              <div className="settings-label"
+                style={{ cursor: 'pointer' }}
+                onClick={() => { handleLoadBlocked(); setBlockedLoaded(true); }}>
+                {t('settings.blockedUsers')} {blockedUsers.length > 0 ? `(${blockedUsers.length})` : ''}
+              </div>
+              {blockedLoaded && (
+                blockedUsers.length === 0
+                  ? <div className="empty-state" style={{ fontSize: 13 }}>{t('settings.noBlocked')}</div>
+                  : blockedUsers.map(u => (
+                    <div key={u.id} className="settings-row">
+                      <div className="settings-blocked-info">
+                        <Avatar name={u.first_name ?? u.username} src={u.avatar} size={32} />
+                        <span>{u.first_name ? `${u.first_name} ${u.last_name ?? ''}`.trim() : u.username}</span>
+                      </div>
+                      <button className="btn-sm btn-outline" onClick={() => handleUnblock(u.id)}>
+                        {t('settings.unblock')}
+                      </button>
+                    </div>
+                  ))
+              )}
+            </div>
+
             <div className="settings-section">
               <div className="settings-label">{t('settings.language')}</div>
               <div className="settings-row">
@@ -2129,6 +2310,9 @@ export default function App() {
                 </button>
                 <button className="icon-btn" title={t('chat.archive')} onClick={() => archiveChat(session.token, selectedChat.user_id, true)}>
                   📦
+                </button>
+                <button className="icon-btn danger" title={t('chat.block')} onClick={() => handleBlockUser(selectedChat.user_id)}>
+                  🚫
                 </button>
                 <button className="icon-btn danger" title={t('chat.deleteConversation')}
                   onClick={() => { if (window.confirm(t('chat.deleteConversationConfirm'))) deleteConversation(session.token, selectedChat.user_id); }}>

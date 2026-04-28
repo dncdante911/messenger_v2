@@ -140,6 +140,23 @@ async function nodeGet<T>(path: string, token: string): Promise<T> {
   return parseJson<T>(text);
 }
 
+async function nodePut<T>(path: string, token: string, data: Record<string, unknown> = {}): Promise<T> {
+  const text = await doRequest(`${NODE_BASE_URL}${path}`, {
+    method:  'PUT',
+    headers: { 'access-token': token, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    buildForm(data)
+  });
+  return parseJson<T>(text);
+}
+
+async function nodeDelete<T>(path: string, token: string): Promise<T> {
+  const text = await doRequest(`${NODE_BASE_URL}${path}`, {
+    method:  'DELETE',
+    headers: { 'access-token': token }
+  });
+  return parseJson<T>(text);
+}
+
 // ─── Normalizers ──────────────────────────────────────────────────────────────
 
 function toStr(v: unknown, fb = ''): string {
@@ -660,6 +677,81 @@ export async function markStorySeen(token: string, storyId: number): Promise<voi
 
 export async function createStory(token: string, file: File, fileType: 'image' | 'video'): Promise<void> {
   await doUpload(`${NODE_BASE_URL}/api/node/stories/create`, token, { file_type: fileType }, file);
+}
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+export type UserProfile = {
+  id: number;
+  username: string;
+  first_name?: string;
+  last_name?: string;
+  about?: string;
+  avatar?: string;
+  email?: string;
+};
+
+export async function getMyProfile(token: string): Promise<UserProfile> {
+  const resp = await nodeGet<Record<string, unknown>>('/api/node/users/me', token);
+  const u = (resp.user_data ?? resp) as Record<string, unknown>;
+  return {
+    id:         Number(u.user_id ?? u.id ?? 0),
+    username:   toStr(u.username, ''),
+    first_name: toStr(u.first_name, ''),
+    last_name:  toStr(u.last_name, ''),
+    about:      toStr(u.about, ''),
+    avatar:     toStr(u.avatar, ''),
+    email:      toStr(u.email, ''),
+  };
+}
+
+export async function updateMyProfile(
+  token: string,
+  fields: { first_name?: string; last_name?: string; about?: string; username?: string }
+): Promise<void> {
+  await nodePut('/api/node/users/me', token, fields as Record<string, unknown>);
+}
+
+export async function uploadAvatar(token: string, file: File): Promise<string> {
+  const text   = await doUpload(`${NODE_BASE_URL}/api/node/user/avatars/upload`, token, {}, file);
+  const resp   = await parseJson<Record<string, unknown>>(text);
+  const avatar = resp.avatar_url ?? resp.image_src ?? resp.url ?? '';
+  return toStr(avatar, '');
+}
+
+// ─── Archived chats ───────────────────────────────────────────────────────────
+
+export async function loadArchivedChats(token: string): Promise<ChatListResponse> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/chat/chats', token, {
+    limit: 80, offset: 0, show_archived: 'true'
+  });
+  const raw = (resp.data ?? []) as Record<string, unknown>[];
+  return {
+    api_status: '200',
+    data: Array.isArray(raw) ? raw.map(normaliseChatItem) : []
+  };
+}
+
+// ─── Block / unblock users ────────────────────────────────────────────────────
+
+export async function blockUser(token: string, userId: number): Promise<void> {
+  await nodePost(`/api/node/users/${userId}/block`, token, {});
+}
+
+export async function unblockUser(token: string, userId: number): Promise<void> {
+  await nodeDelete(`/api/node/users/${userId}/block`, token);
+}
+
+export async function loadBlockedUsers(token: string): Promise<UserProfile[]> {
+  const resp = await nodeGet<Record<string, unknown>>('/api/node/users/me/blocked', token);
+  const raw  = (resp.data ?? resp.users ?? []) as Record<string, unknown>[];
+  return Array.isArray(raw) ? raw.map(u => ({
+    id:       Number(u.user_id ?? u.id ?? 0),
+    username: toStr(u.username, ''),
+    first_name: toStr(u.first_name, ''),
+    last_name:  toStr(u.last_name, ''),
+    avatar:     toStr(u.avatar, ''),
+  })) : [];
 }
 
 // ─── Calls / ICE servers ──────────────────────────────────────────────────────

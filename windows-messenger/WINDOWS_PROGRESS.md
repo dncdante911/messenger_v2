@@ -24,10 +24,10 @@
 | Звонки — история | ✅ | ❌ | Нет |
 | Звонки — группа | ✅ | ❌ | Нет |
 | Голосовые сообщения | ✅ | ✅ iter-3 | Готово |
-| Редактирование профиля | ✅ | ❌ | Нет |
-| Настройки приватности | ✅ | ❌ | Нет |
-| Блокировка пользователей | ✅ | ❌ | Нет |
-| Архив чатов (список) | ✅ | ❌ | Нет |
+| Редактирование профиля | ✅ | ✅ iter-4 | Готово |
+| Настройки приватности | ✅ | ⚠️ iter-4 | Частично |
+| Блокировка пользователей | ✅ | ✅ iter-4 | Готово |
+| Архив чатов (список) | ✅ | ✅ iter-4 | Готово |
 | Стикеры / GIF | ✅ | ❌ | Нет |
 | Боты | ✅ | ❌ | Нет |
 | Безопасность (PIN/2FA) | ✅ | ❌ | Нет |
@@ -90,24 +90,34 @@
 
 ---
 
-### Итерация 4 — Профиль и Настройки
-**Статус:** 🕐 Запланировано
+### Итерация 4 — Профиль, Блокировка, Архив
+**Статус:** ✅ Завершено (сборка: `✓ built in 1.01s`, TSC: 0 ошибок)
 
-- Редактирование профиля (аватар, имя, bio, username)
-- Настройки приватности
-- Уведомления по типам
-- Блокировка пользователей + список
-- Архив чатов
+**Сделано:**
+- **Редактирование профиля** — секция «Edit Profile» в Settings: поля имени, фамилии, username, bio; кнопка Save с состояниями saving/done/error; API `getMyProfile`, `updateMyProfile`; профиль загружается при первом открытии Settings
+- **Аватар** — клик на аватар в Settings открывает file picker; загрузка через `uploadAvatar` → обновление превью; badge-кнопка 📷 поверх аватара
+- **Блокировка** — кнопка 🚫 в хедере личного чата вызывает `blockUser`; в Settings раздел «Blocked users» со списком заблокированных и кнопкой Unblock у каждого; API `blockUser`, `unblockUser`, `loadBlockedUsers`
+- **Архив чатов** — в сайдбаре чатов кнопка-разворот «📦 Archived» с счётчиком; при раскрытии грузится список через `loadArchivedChats`; у каждого архивного чата кнопка 📤 Unarchive (API `archiveChat`)
+- **Новые API** — `getMyProfile`, `updateMyProfile`, `uploadAvatar`, `loadArchivedChats`, `blockUser`, `unblockUser`, `loadBlockedUsers`, `nodePut<T>`, `nodeDelete<T>`
+- **i18n** — ключи `settings.editProfile`, `settings.firstName`, `settings.lastName`, `settings.username`, `settings.about`, `settings.saveProfile`, `settings.saving`, `settings.saved`, `settings.uploadAvatar`, `sidebar.archived`, `sidebar.noArchived`, `chat.unarchive`, `settings.blockedUsers`, `settings.noBlocked`, `settings.unblock`, `chat.block`, `chat.unblock` × 3 локали
+- **CSS** — `.settings-input`, `.settings-textarea`, `.avatar-upload-label`, `.avatar-upload-badge`, `.settings-blocked-info`, `.archived-toggle`, `.archived-toggle-arrow`, `.archived-item`, `.btn-success`, `.btn-secondary`, `.btn-outline`
+
+**Файлы:**
+- `src/api.ts` — новые функции профиля/блокировки/архива
+- `src/App.tsx` — `myProfile`, `profileFirst/Last/About/User`, `profileSaving`, `archivedChats`, `showArchived`, `archivedLoaded`, `blockedUsers`, `blockedLoaded`; обработчики `handleSaveProfile`, `handleAvatarUpload`, `handleToggleArchived`, `handleUnarchive`, `handleBlockUser`, `handleLoadBlocked`, `handleUnblock`; UI в Settings и в сайдбаре чатов
+- `src/i18n.ts` — 16 новых ключей × 3 локали
+- `src/styles.css` — 12 новых правил/классов
 
 ---
 
 ### Итерация 5 — Звонки и демонстрация экрана
 **Статус:** 🕐 Запланировано
 
-- История звонков
-- Нормальный incoming call (отдельное окно, рингтон)
+- История звонков (лог входящих/исходящих)
+- Полноэкранный incoming call — отдельный оверлей, рингтон
 - Демонстрация экрана (`getDisplayMedia`)
 - Групповые звонки (mesh WebRTC)
+- Кнопка «Позвонить» непосредственно из хедера личного чата
 
 ---
 
@@ -124,8 +134,9 @@
 | 7 | Черновики теряются при смене чата | Medium | ✅ iter-2 |
 | 8 | Поиск сообщений — API есть, UI нет | Medium | ✅ iter-2 |
 | 9 | Форматирование текста отсутствует | Medium | ✅ iter-2 |
-| 10 | Архив чатов — кнопка есть, список нет | Medium | iter-4 |
-| 11 | Редактирование профиля недоступно | Medium | iter-4 |
+| 10 | Архив чатов — кнопка есть, список нет | Medium | ✅ iter-4 |
+| 11 | Редактирование профиля недоступно | Medium | ✅ iter-4 |
 | 12 | Голосовые сообщения не записываются | Medium | ✅ iter-3 |
 | 13 | Картинки открываются в браузере, нет lightbox | Low | ✅ iter-3 |
-| 14 | Настройки приватности отсутствуют | Medium | iter-4 |
+| 14 | Настройки приватности отсутствуют | Medium | ⚠️ iter-4 частично |
+| 15 | Блокировка пользователей — нет UI | Medium | ✅ iter-4 |
