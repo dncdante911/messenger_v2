@@ -188,33 +188,30 @@ fun ChooseModeCard(
     onForgotPassword: () -> Unit,
     onForgotEmail: () -> Unit
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(16.dp, RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(28.dp),
-        color = colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+        color = Color(0xFF0D1530).copy(alpha = 0.88f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Text(
                 stringResource(R.string.what_restore_title),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = colorScheme.onSurface
+                color = Color.White
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 stringResource(R.string.choose_recovery_desc),
                 fontSize = 14.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.7f)
+                color = Color.White.copy(alpha = 0.65f)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Forgot password card
             RecoveryOptionCard(
                 icon = Icons.Default.Lock,
                 title = stringResource(R.string.forgot_password_option),
@@ -224,7 +221,6 @@ fun ChooseModeCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Forgot email card
             RecoveryOptionCard(
                 icon = Icons.Default.Email,
                 title = stringResource(R.string.forgot_email),
@@ -242,13 +238,11 @@ fun RecoveryOptionCard(
     subtitle: String,
     onClick: () -> Unit
 ) {
-    val colorScheme = MaterialTheme.colorScheme
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(16.dp)),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        color = Color(0xFF1A2540).copy(alpha = 0.80f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
         onClick = onClick
     ) {
         Row(
@@ -258,21 +252,43 @@ fun RecoveryOptionCard(
             Surface(
                 modifier = Modifier.size(48.dp),
                 shape = RoundedCornerShape(12.dp),
-                color = colorScheme.primary.copy(alpha = 0.15f)
+                color = Color(0xFF1565C0).copy(alpha = 0.25f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = colorScheme.primary, modifier = Modifier.size(24.dp))
+                    Icon(icon, null, tint = Color(0xFF4FC3F7), modifier = Modifier.size(24.dp))
                 }
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onSurface)
-                Text(subtitle, fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text(subtitle, fontSize = 13.sp, color = Color.White.copy(alpha = 0.60f))
             }
-            Icon(Icons.Default.ChevronRight, null, tint = colorScheme.onSurface.copy(alpha = 0.4f))
+            Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.35f))
         }
     }
 }
+
+// ─── Shared field colors for dark-background auth screens ────────────────────
+
+@Composable
+private fun recoveryFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White.copy(alpha = 0.85f),
+    disabledTextColor = Color.White.copy(alpha = 0.45f),
+    focusedBorderColor = Color(0xFF4FC3F7),
+    unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+    focusedLabelColor = Color(0xFF4FC3F7),
+    unfocusedLabelColor = Color.White.copy(alpha = 0.55f),
+    cursorColor = Color(0xFF4FC3F7),
+    focusedLeadingIconColor = Color(0xFF4FC3F7),
+    unfocusedLeadingIconColor = Color.White.copy(alpha = 0.45f),
+    focusedTrailingIconColor = Color(0xFF4FC3F7),
+    unfocusedTrailingIconColor = Color.White.copy(alpha = 0.45f),
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    errorContainerColor = Color.Transparent
+)
 
 // ─── Forgot Password Flow ─────────────────────────────────────────────────────
 
@@ -306,24 +322,25 @@ fun ForgotPasswordFlow(
             .fillMaxWidth()
             .shadow(16.dp, RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(28.dp),
-        color = colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+        color = Color(0xFF0D1530).copy(alpha = 0.88f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             when (step) {
 
                 // ── Step 1: Enter contact ────────────────────────────────────
                 ResetStep.ENTER_CONTACT -> {
-                    Text(stringResource(R.string.enter_email_or_phone_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.enter_email_or_phone_title), fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(stringResource(R.string.will_send_6digit),
-                        fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
+                        fontSize = 13.sp, color = Color.White.copy(alpha = 0.60f))
                     Spacer(modifier = Modifier.height(16.dp))
 
                     TabRow(
                         selectedTabIndex = selectedTab,
                         containerColor = Color.Transparent,
-                        contentColor = colorScheme.primary
+                        contentColor = Color(0xFF4FC3F7)
                     ) {
                         Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 },
                             text = { Text(stringResource(R.string.email)) },
@@ -343,7 +360,8 @@ fun ForgotPasswordFlow(
                             modifier = Modifier.fillMaxWidth(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                             enabled = !isLoading, singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            colors = recoveryFieldColors()
                         )
                     } else {
                         PhoneInputField(
@@ -392,14 +410,15 @@ fun ForgotPasswordFlow(
 
                 // ── Step 2: Enter code ───────────────────────────────────────
                 ResetStep.ENTER_CODE -> {
-                    Text(stringResource(R.string.enter_confirm_code_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.enter_confirm_code_title), fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         infoMessage ?: if (selectedTab == 0)
                             stringResource(R.string.code_sent_to_format, email)
                         else
                             stringResource(R.string.code_sent_to_number_format, contact),
-                        fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f)
+                        fontSize = 13.sp, color = Color.White.copy(alpha = 0.60f)
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -412,7 +431,8 @@ fun ForgotPasswordFlow(
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         enabled = !isLoading, singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = recoveryFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -454,20 +474,21 @@ fun ForgotPasswordFlow(
                             }
                         }
                     }) {
-                        Text(stringResource(R.string.resend_code_btn), color = colorScheme.primary)
+                        Text(stringResource(R.string.resend_code_btn), color = Color(0xFF4FC3F7))
                     }
 
                     TextButton(onClick = { step = ResetStep.ENTER_CONTACT; code = ""; errorMessage = null }) {
-                        Text(stringResource(R.string.go_back_btn))
+                        Text(stringResource(R.string.go_back_btn), color = Color.White.copy(alpha = 0.70f))
                     }
                 }
 
                 // ── Step 3: New password ─────────────────────────────────────
                 ResetStep.NEW_PASSWORD -> {
-                    Text(stringResource(R.string.new_password_screen_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.new_password_screen_title), fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(stringResource(R.string.enter_new_password_desc),
-                        fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
+                        fontSize = 13.sp, color = Color.White.copy(alpha = 0.60f))
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -487,7 +508,8 @@ fun ForgotPasswordFlow(
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         enabled = !isLoading, singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = recoveryFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -501,10 +523,11 @@ fun ForgotPasswordFlow(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         enabled = !isLoading, singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        isError = confirmPassword.isNotEmpty() && newPassword != confirmPassword
+                        isError = confirmPassword.isNotEmpty() && newPassword != confirmPassword,
+                        colors = recoveryFieldColors()
                     )
                     if (confirmPassword.isNotEmpty() && newPassword != confirmPassword) {
-                        Text(stringResource(R.string.passwords_not_match), color = colorScheme.error,
+                        Text(stringResource(R.string.passwords_not_match), color = Color(0xFFFFCDD2),
                             fontSize = 12.sp, modifier = Modifier.padding(start = 12.dp, top = 4.dp))
                     }
 
@@ -591,8 +614,8 @@ fun ForgotEmailFlow(
             .fillMaxWidth()
             .shadow(16.dp, RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(28.dp),
-        color = colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+        color = Color(0xFF0D1530).copy(alpha = 0.88f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
 
@@ -600,14 +623,14 @@ fun ForgotEmailFlow(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = colorScheme.primary.copy(alpha = 0.1f)
+                color = Color(0xFF1565C0).copy(alpha = 0.18f)
             ) {
                 Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, null, tint = colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Info, null, tint = Color(0xFF4FC3F7), modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         stringResource(R.string.phone_recovery_info_text),
-                        fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        fontSize = 13.sp, color = Color.White.copy(alpha = 0.80f)
                     )
                 }
             }
@@ -618,10 +641,11 @@ fun ForgotEmailFlow(
 
                 // ── Step 1: Enter phone ──────────────────────────────────────
                 ResetStep.ENTER_CONTACT -> {
-                    Text(stringResource(R.string.enter_phone_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.enter_phone_title), fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(stringResource(R.string.phone_linked_hint),
-                        fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
+                        fontSize = 13.sp, color = Color.White.copy(alpha = 0.60f))
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -668,10 +692,11 @@ fun ForgotEmailFlow(
 
                 // ── Step 2: Enter code ───────────────────────────────────────
                 ResetStep.ENTER_CODE -> {
-                    Text(stringResource(R.string.enter_confirm_code_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.enter_confirm_code_title), fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(infoMessage ?: stringResource(R.string.code_sent_to_number_format, fullPhone),
-                        fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
+                        fontSize = 13.sp, color = Color.White.copy(alpha = 0.60f))
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -683,7 +708,8 @@ fun ForgotEmailFlow(
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         enabled = !isLoading, singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = recoveryFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -745,17 +771,18 @@ fun ForgotEmailFlow(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = { step = ResetStep.ENTER_CONTACT; code = ""; errorMessage = null }) {
-                        Text(stringResource(R.string.go_back_btn))
+                        Text(stringResource(R.string.go_back_btn), color = Color.White.copy(alpha = 0.70f))
                     }
                 }
 
                 // ── Step 3: Show temp password ───────────────────────────────
                 ResetStep.SHOW_TEMP_PASSWORD -> {
-                    Text(stringResource(R.string.temp_password_created_title), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.temp_password_created_title), fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         stringResource(R.string.account_restored_temp_pass),
-                        fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.7f)
+                        fontSize = 13.sp, color = Color.White.copy(alpha = 0.70f)
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))

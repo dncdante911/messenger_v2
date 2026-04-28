@@ -48,7 +48,7 @@ fun GenderSelectionCard(
     val cardColor = when {
         isSelected && gender == "male" -> Color(0xFF6EC6FF).copy(alpha = 0.2f)
         isSelected && gender == "female" -> Color(0xFFFF80AB).copy(alpha = 0.2f)
-        else -> colorScheme.surface
+        else -> Color(0xFF1A2540).copy(alpha = 0.75f)
     }
 
     val borderColor = when {
@@ -92,7 +92,7 @@ fun GenderSelectionCard(
                     tint = when {
                         isSelected && gender == "male" -> Color(0xFF2196F3)
                         isSelected && gender == "female" -> Color(0xFFE91E63)
-                        else -> colorScheme.onSurface.copy(alpha = 0.6f)
+                        else -> Color.White.copy(alpha = 0.55f)
                     }
                 )
             }
@@ -106,7 +106,7 @@ fun GenderSelectionCard(
                 color = when {
                     isSelected && gender == "male" -> Color(0xFF2196F3)
                     isSelected && gender == "female" -> Color(0xFFE91E63)
-                    else -> colorScheme.onSurface
+                    else -> Color.White.copy(alpha = 0.75f)
                 }
             )
         }
@@ -131,6 +131,7 @@ fun GenderSelectionGroup(
             text = stringResource(R.string.gender_select_label),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
+            color = Color.White.copy(alpha = 0.85f),
             modifier = Modifier.padding(bottom = 12.dp)
         )
 

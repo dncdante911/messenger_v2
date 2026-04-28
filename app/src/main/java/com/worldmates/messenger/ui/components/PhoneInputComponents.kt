@@ -112,13 +112,13 @@ fun PhoneInputField(
                         text = selectedCountry.dialCode,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = Color.White.copy(alpha = 0.85f)
                     )
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
                         contentDescription = "Выбрать страну",
                         modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = Color.White.copy(alpha = 0.55f)
                     )
                 }
             },
@@ -138,9 +138,21 @@ fun PhoneInputField(
             shape = RoundedCornerShape(12.dp),
             isError = isError,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                cursorColor = MaterialTheme.colorScheme.primary
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White.copy(alpha = 0.85f),
+                disabledTextColor = Color.White.copy(alpha = 0.45f),
+                focusedBorderColor = Color(0xFF4FC3F7),
+                unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                focusedLabelColor = Color(0xFF4FC3F7),
+                unfocusedLabelColor = Color.White.copy(alpha = 0.55f),
+                cursorColor = Color(0xFF4FC3F7),
+                focusedLeadingIconColor = Color(0xFF4FC3F7),
+                unfocusedLeadingIconColor = Color.White.copy(alpha = 0.45f),
+                focusedTrailingIconColor = Color(0xFF4FC3F7),
+                unfocusedTrailingIconColor = Color.White.copy(alpha = 0.45f),
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent
             )
         )
 
