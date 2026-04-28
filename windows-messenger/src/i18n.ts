@@ -109,6 +109,29 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.signOut':      'Выйти',
     'settings.language':     'Язык интерфейса',
 
+    // Profile editing
+    'settings.editProfile':  'Редактировать профиль',
+    'settings.firstName':    'Имя',
+    'settings.lastName':     'Фамилия',
+    'settings.username':     'Никнейм',
+    'settings.about':        'О себе',
+    'settings.saveProfile':  'Сохранить',
+    'settings.saving':       'Сохраняю…',
+    'settings.saved':        '✓ Сохранено',
+    'settings.uploadAvatar': 'Сменить фото',
+
+    // Archived chats
+    'sidebar.archived':   'Архив',
+    'sidebar.noArchived': 'Нет архивных чатов',
+    'chat.unarchive':     'Из архива',
+
+    // Block / unblock
+    'settings.blockedUsers': 'Заблокированные',
+    'settings.noBlocked':    'Нет заблокированных',
+    'settings.unblock':      'Разблокировать',
+    'chat.block':            'Заблокировать',
+    'chat.unblock':          'Разблокировать',
+
     // Bubble actions
     'bubble.reply':   'Ответить',
     'bubble.react':   'Реакция',
@@ -249,6 +272,26 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.signOut':      'Вийти',
     'settings.language':     'Мова інтерфейсу',
 
+    'settings.editProfile':  'Редагувати профіль',
+    'settings.firstName':    "Ім'я",
+    'settings.lastName':     'Прізвище',
+    'settings.username':     'Нікнейм',
+    'settings.about':        'Про себе',
+    'settings.saveProfile':  'Зберегти',
+    'settings.saving':       'Зберігаю…',
+    'settings.saved':        '✓ Збережено',
+    'settings.uploadAvatar': 'Змінити фото',
+
+    'sidebar.archived':   'Архів',
+    'sidebar.noArchived': 'Немає архівних чатів',
+    'chat.unarchive':     'З архіву',
+
+    'settings.blockedUsers': 'Заблоковані',
+    'settings.noBlocked':    'Немає заблокованих',
+    'settings.unblock':      'Розблокувати',
+    'chat.block':            'Заблокувати',
+    'chat.unblock':          'Розблокувати',
+
     'bubble.reply':    'Відповісти',
     'bubble.react':    'Реакція',
     'bubble.edit':     'Змінити',
@@ -383,6 +426,26 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.socketStatus': 'Socket status',
     'settings.signOut':      'Sign out',
     'settings.language':     'Interface language',
+
+    'settings.editProfile':  'Edit profile',
+    'settings.firstName':    'First name',
+    'settings.lastName':     'Last name',
+    'settings.username':     'Username',
+    'settings.about':        'About',
+    'settings.saveProfile':  'Save',
+    'settings.saving':       'Saving…',
+    'settings.saved':        '✓ Saved',
+    'settings.uploadAvatar': 'Change photo',
+
+    'sidebar.archived':   'Archive',
+    'sidebar.noArchived': 'No archived chats',
+    'chat.unarchive':     'Unarchive',
+
+    'settings.blockedUsers': 'Blocked users',
+    'settings.noBlocked':    'No blocked users',
+    'settings.unblock':      'Unblock',
+    'chat.block':            'Block user',
+    'chat.unblock':          'Unblock user',
 
     'bubble.reply':    'Reply',
     'bubble.react':    'React',
