@@ -1691,6 +1691,22 @@
     <string name="audio_quality_compressed">Сжатый (экономия трафика)</string>
     <string name="audio_quality_compressed_desc">Уменьшенный размер, меньше трафика</string>
 
+    <!-- VIDEO QUALITY SELECTION (Telegram-like) -->
+    <string name="video_send_title">Отправить видео</string>
+    <string name="video_send_as">Отправить как</string>
+    <string name="video_quality_video_message">Видеосообщение</string>
+    <string name="video_quality_video_message_desc">480p · компактно и быстро</string>
+    <string name="video_quality_compressed">Сжатое видео</string>
+    <string name="video_quality_compressed_desc">720p · хорошее качество</string>
+    <string name="video_quality_high">Высокое качество</string>
+    <string name="video_quality_high_desc">1080p · максимальная чёткость</string>
+    <string name="video_quality_original_file">Как файл</string>
+    <string name="video_quality_original_file_desc">Оригинал без изменений, сервер сожмёт в фоне</string>
+    <string name="video_compressing">Сжатие видео…</string>
+    <string name="video_compression_progress">Сжатие %d%%</string>
+    <string name="video_send_button">Отправить</string>
+    <string name="video_size_duration_format">%1$s · %2$s</string>
+    <string name="video_duration_short">%d:%02d</string>
 
     <string name="for_me_only">Только для меня</string>
     <string name="for_all_members">Для всех участников</string>

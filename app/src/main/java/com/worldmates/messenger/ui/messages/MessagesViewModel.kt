@@ -18,7 +18,9 @@ import com.worldmates.messenger.network.MediaLoadingManager
 import com.worldmates.messenger.network.NetworkQualityMonitor
 import com.worldmates.messenger.network.NodeRetrofitClient
 import com.worldmates.messenger.network.SocketManager
+import android.net.Uri
 import com.worldmates.messenger.utils.DecryptionUtility
+import com.worldmates.messenger.utils.VideoCompressor
 import com.worldmates.messenger.utils.signal.SignalEncryptionService
 import com.worldmates.messenger.utils.signal.SignalGroupEncryptionService
 import kotlinx.coroutines.Dispatchers
@@ -104,6 +106,13 @@ class MessagesViewModel(application: Application) :
 
     private val _uploadProgress = MutableStateFlow(0)
     val uploadProgress: StateFlow<Int> = _uploadProgress
+
+    // Video compression state (shown before upload starts)
+    private val _isCompressing = MutableStateFlow(false)
+    val isCompressing: StateFlow<Boolean> = _isCompressing.asStateFlow()
+
+    private val _compressionProgress = MutableStateFlow(0)
+    val compressionProgress: StateFlow<Int> = _compressionProgress.asStateFlow()
 
     // Combined presence/activity status for the chat header
     private val _presenceStatus = MutableStateFlow<UserPresenceStatus>(UserPresenceStatus.Offline)
@@ -1316,6 +1325,109 @@ class MessagesViewModel(application: Application) :
         }
     }
 
+
+    /**
+     * Compress (if needed) and upload a video with the chosen quality tier.
+     *
+     * Flow:
+     *   1. If quality != null  → run VideoCompressor on device, show progress.
+     *   2. If sendAsFile=true  → skip compression, upload as type="file".
+     *   3. Delegate to uploadAndSendMedia() with effective type + quality.
+     */
+    fun uploadAndSendVideo(
+        file: File,
+        quality: VideoCompressor.Quality?,
+        sendAsFile: Boolean = false,
+    ) {
+        if (UserSession.accessToken == null || (recipientId == 0L && groupId == 0L)) {
+            _error.value = "Помилка: не авторизовано"
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val fileToUpload: File
+
+                if (!sendAsFile && quality != null) {
+                    // ── Compress on-device before upload ────────────────────
+                    _isCompressing.value = true
+                    _compressionProgress.value = 0
+
+                    val compressor = VideoCompressor(context)
+                    val result = compressor.compressIfNeeded(
+                        videoUri  = Uri.fromFile(file),
+                        quality   = quality,
+                        threshold = com.worldmates.messenger.data.Constants.VIDEO_COMPRESSION_THRESHOLD,
+                        onProgress = { pct ->
+                            _compressionProgress.value = pct
+                        },
+                    )
+
+                    _isCompressing.value = false
+                    _compressionProgress.value = 0
+
+                    fileToUpload = when (result) {
+                        is VideoCompressor.CompressionResult.Success          -> result.compressedFile
+                        is VideoCompressor.CompressionResult.NoCompressionNeeded -> result.file
+                        is VideoCompressor.CompressionResult.Error            -> {
+                            Log.w("MessagesViewModel", "Compression failed, uploading original: ${result.message}")
+                            file
+                        }
+                    }
+                } else {
+                    // ── Skip compression (sendAsFile or null quality) ────────
+                    fileToUpload = file
+                }
+
+                val effectiveType = if (sendAsFile) "file" else "video"
+
+                _isLoading.value = true
+                if (mediaUploader == null) mediaUploader = MediaUploader(context)
+
+                val uploadResult = mediaUploader!!.uploadMedia(
+                    accessToken = UserSession.accessToken!!,
+                    mediaType   = effectiveType,
+                    filePath    = fileToUpload.absolutePath,
+                    recipientId = recipientId.takeIf { it != 0L },
+                    groupId     = groupId.takeIf { it != 0L },
+                    isPremium   = UserSession.isProActive,
+                    quality     = quality,
+                    sendAsFile  = sendAsFile,
+                    onProgress  = { progress -> _uploadProgress.value = progress },
+                )
+
+                when (uploadResult) {
+                    is MediaUploader.UploadResult.Success -> {
+                        _uploadProgress.value = 0
+                        _error.value = null
+                        Log.d("MessagesViewModel", "Video uploaded: ${uploadResult.url}")
+                        delay(600)
+                        if (groupId != 0L) fetchGroupMessages() else fetchMessages()
+                        if (fileToUpload != file && fileToUpload.exists()) fileToUpload.delete()
+                        if (file.exists()) file.delete()
+                    }
+                    is MediaUploader.UploadResult.Error -> {
+                        _error.value = uploadResult.message
+                        _uploadProgress.value = 0
+                        Log.e("MessagesViewModel", "Video upload error: ${uploadResult.message}")
+                    }
+                    is MediaUploader.UploadResult.Progress -> {
+                        _uploadProgress.value = uploadResult.percent
+                    }
+                }
+
+                _isLoading.value = false
+
+            } catch (e: Exception) {
+                _isCompressing.value = false
+                _isLoading.value = false
+                _uploadProgress.value = 0
+                _compressionProgress.value = 0
+                _error.value = "Помилка: ${e.localizedMessage}"
+                Log.e("MessagesViewModel", "uploadAndSendVideo error", e)
+            }
+        }
+    }
 
     /**
      * Пакетне завантаження і відправка кількох медіафайлів одночасно (до 15).

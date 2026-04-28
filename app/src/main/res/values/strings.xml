@@ -1756,6 +1756,23 @@
     <string name="audio_quality_compressed">Стиснутий (економія трафіку)</string>
     <string name="audio_quality_compressed_desc">Зменшений розмір, менше трафіку</string>
 
+    <!-- VIDEO QUALITY SELECTION (Telegram-like) -->
+    <string name="video_send_title">Надіслати відео</string>
+    <string name="video_send_as">Надіслати як</string>
+    <string name="video_quality_video_message">Відеоповідомлення</string>
+    <string name="video_quality_video_message_desc">480p · компактно та швидко</string>
+    <string name="video_quality_compressed">Стиснуте відео</string>
+    <string name="video_quality_compressed_desc">720p · гарна якість</string>
+    <string name="video_quality_high">Висока якість</string>
+    <string name="video_quality_high_desc">1080p · максимальна чіткість</string>
+    <string name="video_quality_original_file">Як файл</string>
+    <string name="video_quality_original_file_desc">Оригінал без змін, сервер стисне у фоні</string>
+    <string name="video_compressing">Стиснення відео…</string>
+    <string name="video_compression_progress">Стиснення %d%%</string>
+    <string name="video_send_button">Надіслати</string>
+    <string name="video_size_duration_format">%1$s · %2$s</string>
+    <string name="video_duration_short">%d:%02d</string>
+
     <!-- PRIVATE CHATS: History and message actions -->
     <string name="for_me_only">Тільки для мене</string>
     <string name="for_all_members">Для всіх учасників</string>
