@@ -9,20 +9,31 @@
  * Body (multipart/form-data):
  *   file        – the file to upload (any field name: image, video, audio, file)
  *   type        – media type: "image" | "video" | "audio" | "voice" | "file"
+ *   quality     – video quality: "video_message" | "compressed" | "high" | "original" | "auto"
+ *                 Defaults to "auto". "original" skips server-side compression entirely.
  *   chat_type   – 'private' | 'group' | 'channel' (для политики контента)
  *   entity_id   – ID группы или канала (0 для приватного чата)
  *
  * Response (compatible with Android XhrUploadResponse):
  *   { status: 200, image: "url", image_src: "path", is_sensitive: false }
- *   { status: 200, video: "url", video_src: "path" }
+ *   { status: 200, video: "url", video_src: "path", compression_pending: false }
  *   { status: 200, audio: "url", audio_src: "path" }
- *   { status: 200, file:  "url", file_src:  "path" }
+ *   { status: 200, file:  "url", file_src:  "path", compression_pending: true }
  *
- * File size limits (match Android Constants):
+ * Video compression strategy (Telegram-like):
+ *   type=video, quality=video_message → Android already compressed; server skips (< 50 MB expected)
+ *   type=video, quality=compressed    → Android compressed to 720p; server skips
+ *   type=video, quality=high          → Android compressed to 1080p; server skips
+ *   type=video, quality=original      → No compression anywhere; stored as-is
+ *   type=file   (large video/movie)   → Saved immediately; ffmpeg runs in background in-place.
+ *                                       compression_pending=true in response.
+ *                                       Socket.IO emits 'media_compressed' when done.
+ *
+ * File size limits:
  *   Images : 25 MB
- *   Videos : 1 GB
+ *   Videos : 1 GB   (Android pre-compresses, so this is the post-compression ceiling)
  *   Audio  : 100 MB
- *   Files  : 250 MB
+ *   Files  : 10 GB  (allows full movie uploads)
  */
 
 const path   = require('path');
@@ -36,16 +47,21 @@ const {
     addToModerationQueue
 } = require('../../helpers/content-moderator');
 
+const {
+    compressInPlace,
+    isVideoFile,
+} = require('../../helpers/video-compressor');
+
 // ─── Config ────────────────────────────────────────────────────────────────────
 
 const SITE_ROOT = path.resolve(__dirname, '..', '..', '..');
 
 const LIMITS = {
-    image: 25  * 1024 * 1024,   //  25 MB
-    video: 1024 * 1024 * 1024,  //   1 GB
-    audio: 100 * 1024 * 1024,   // 100 MB
-    voice: 100 * 1024 * 1024,   // 100 MB
-    file:  250 * 1024 * 1024,   // 250 MB
+    image: 25   * 1024 * 1024,          //  25 MB
+    video: 1024 * 1024 * 1024,          //   1 GB (Android pre-compresses)
+    audio: 100  * 1024 * 1024,          // 100 MB
+    voice: 100  * 1024 * 1024,          // 100 MB
+    file:  10   * 1024 * 1024 * 1024,   //  10 GB (full movies)
 };
 
 const UPLOAD_DIRS = {
@@ -56,8 +72,10 @@ const UPLOAD_DIRS = {
     file:  'upload/files',
 };
 
+// Minimum file size (bytes) to trigger background compression for "file" type video uploads
+const MOVIE_COMPRESS_THRESHOLD = 100 * 1024 * 1024; // 100 MB
+
 // ─── Magic Bytes Security ──────────────────────────────────────────────────────
-// Block executable/script files disguised as media regardless of extension.
 
 const BLOCKED_SIGNATURES = [
     { sig: Buffer.from([0x7F, 0x45, 0x4C, 0x46]),                   label: 'ELF executable'      },
@@ -102,16 +120,55 @@ function fullUrl(ctx, relPath) {
     return `${base}/${relPath}`;
 }
 
-// ─── multer — memory storage, write to disk ourselves ─────────────────────────
+// ─── multer — memory storage for validation, then write to disk ───────────────
 
 const upload = multer({
     storage: multer.memoryStorage(),
     limits:  { fileSize: Math.max(...Object.values(LIMITS)) },
 }).any();
 
+// ─── Background compression for large video files (movies) ───────────────────
+
+/**
+ * Kick off background ffmpeg compression for a large file-type video.
+ * The file URL stays the same; the on-disk file is replaced with a smaller one.
+ * Notifies the uploader via Socket.IO when done.
+ */
+function scheduleBackgroundCompression(absPath, url, userId, io) {
+    const fileSizeBytes = fs.existsSync(absPath) ? fs.statSync(absPath).size : 0;
+
+    console.log(
+        `[ChatUpload] Scheduling background compression: ` +
+        `${(fileSizeBytes / 1024 / 1024).toFixed(1)} MB → ${absPath}`
+    );
+
+    compressInPlace(absPath, { quality: 'auto', fileSize: fileSizeBytes }, (result) => {
+        if (result.success && !result.skipped) {
+            const origMb = (result.originalSize / 1024 / 1024).toFixed(1);
+            const compMb = (result.compressedSize / 1024 / 1024).toFixed(1);
+            const pct    = Math.round((1 - result.compressedSize / result.originalSize) * 100);
+            console.log(`[ChatUpload] Background compression done: ${origMb}MB → ${compMb}MB (−${pct}%)`);
+
+            // Notify the uploader so they can show a "file compressed" indicator
+            if (io && userId) {
+                io.to(String(userId)).emit('media_compressed', {
+                    url,
+                    original_size:    result.originalSize,
+                    compressed_size:  result.compressedSize,
+                    reduction_percent: pct,
+                });
+            }
+        } else if (result.skipped) {
+            console.log(`[ChatUpload] Background compression skipped (already small): ${absPath}`);
+        } else {
+            console.warn(`[ChatUpload] Background compression failed: ${result.error}`);
+        }
+    });
+}
+
 // ─── POST /api/node/chat/upload ────────────────────────────────────────────────
 
-function uploadChatMedia(ctx) {
+function uploadChatMedia(ctx, io) {
     return (req, res) => {
         upload(req, res, async (err) => {
             if (err instanceof multer.MulterError) {
@@ -145,25 +202,24 @@ function uploadChatMedia(ctx) {
                 }
 
                 // ── Content Moderation ──────────────────────────────────────
-                // chat_type и entity_id передаются клиентом чтобы применить правильную политику
-                const chatType  = (req.body.chat_type  || 'private').toLowerCase();
-                const entityId  = parseInt(req.body.entity_id || '0', 10);
-                const senderId  = req.user?.user_id || 0; // если requireAuth включён выше
+                const chatType = (req.body.chat_type  || 'private').toLowerCase();
+                const entityId = parseInt(req.body.entity_id || '0', 10);
+                const userId   = req.user?.user_id || 0;
 
                 const moderationResult = await checkContent(
                     ctx,
                     uploadedFile.buffer,
                     mediaType,
-                    { senderId, chatType, entityId }
+                    { senderId: userId, chatType, entityId }
                 );
 
                 if (moderationResult.decision === DECISION.BLOCK) {
                     console.warn(
-                        `[ChatUpload] BLOCK: user=${senderId} reason=${moderationResult.reason} ` +
+                        `[ChatUpload] BLOCK: user=${userId} reason=${moderationResult.reason} ` +
                         `sha256=${moderationResult.sha256.slice(0, 12)}...`
                     );
                     return res.json({
-                        status: 451,  // 451 Unavailable For Legal Reasons
+                        status: 451,
                         error:  'Загрузка запрещена: контент нарушает правила платформы',
                         reason: moderationResult.reason
                     });
@@ -187,34 +243,55 @@ function uploadChatMedia(ctx) {
 
                 await fs.promises.writeFile(absPath, uploadedFile.buffer);
 
-                // Если решение HOLD — добавляем в очередь модерации
+                // ── Moderation queue ────────────────────────────────────────
                 if (moderationResult.decision === DECISION.HOLD) {
                     console.log(`[ChatUpload] HOLD: файл сохранён, добавлен в очередь модерации: ${relPath}`);
                     await addToModerationQueue(ctx, {
-                        filePath:     relPath,
-                        fileUrl:      url,
+                        filePath:      relPath,
+                        fileUrl:       url,
                         mediaType,
-                        senderId,
-                        channelId:    chatType === 'channel' ? entityId : 0,
-                        groupId:      chatType === 'group'   ? entityId : 0,
+                        senderId:      userId,
+                        channelId:     chatType === 'channel' ? entityId : 0,
+                        groupId:       chatType === 'group'   ? entityId : 0,
                         chatType,
-                        contentLevel: moderationResult.reason,
-                        sha256:       moderationResult.sha256,
+                        contentLevel:  moderationResult.reason,
+                        sha256:        moderationResult.sha256,
                         nudeNetResult: moderationResult.nudeNet,
-                        reason:       moderationResult.reason
+                        reason:        moderationResult.reason
                     });
                 }
+                // ── End Moderation queue ────────────────────────────────────
+
+                // ── Background video compression for large file uploads ─────
+                // "file" type = user sent video as file (movie).
+                // We compress in-place asynchronously so the URL stays valid.
+                // "video" type = Android already compressed before upload — skip.
+                const qualityParam = (req.body.quality || 'auto').toLowerCase();
+                let compressionPending = false;
+
+                if (
+                    mediaType === 'file' &&
+                    qualityParam !== 'original' &&
+                    uploadedFile.size > MOVIE_COMPRESS_THRESHOLD &&
+                    isVideoFile(filename)
+                ) {
+                    compressionPending = true;
+                    // Non-blocking: respond immediately, compress in background
+                    setImmediate(() => scheduleBackgroundCompression(absPath, url, userId, io));
+                }
+                // ── End compression ─────────────────────────────────────────
 
                 // Build XhrUploadResponse-compatible JSON
                 const resp = {
-                    status:       200,
-                    image:        null, image_src: null,
-                    video:        null, video_src: null,
-                    audio:        null, audio_src: null,
-                    file:         null, file_src:  null,
-                    error:        null,
-                    is_sensitive: moderationResult.isSensitive,  // клиент ставит блюр если true
-                    moderation:   moderationResult.decision       // 'allow' | 'blur' | 'hold'
+                    status:              200,
+                    image:               null, image_src: null,
+                    video:               null, video_src: null,
+                    audio:               null, audio_src: null,
+                    file:                null, file_src:  null,
+                    error:               null,
+                    is_sensitive:        moderationResult.isSensitive,
+                    moderation:          moderationResult.decision,
+                    compression_pending: compressionPending,
                 };
 
                 switch (mediaType) {
@@ -239,6 +316,7 @@ function uploadChatMedia(ctx) {
                 const sizeKb = Math.round(uploadedFile.size / 1024);
                 console.log(
                     `[ChatUpload] ${mediaType} uploaded: ${relPath} (${sizeKb} KB) ` +
+                    `quality=${qualityParam} compression_pending=${compressionPending} ` +
                     `decision=${moderationResult.decision} sensitive=${moderationResult.isSensitive}`
                 );
                 return res.json(resp);

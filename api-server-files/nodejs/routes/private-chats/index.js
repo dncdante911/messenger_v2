@@ -121,8 +121,8 @@ function registerPrivateChatRoutes(app, ctx, io) {
     app.post('/api/node/chat/media-auto-delete-setting', auth, actions.setMediaAutoDeleteSetting(ctx));
 
     // ── media upload (replaces PHP /xhr/upload_*.php) ─────────────────────────
-    // POST /api/node/chat/upload  body: { file (multipart), type: image|video|audio|voice|file }
-    app.post('/api/node/chat/upload', auth, mediaUp.uploadChatMedia(ctx));
+    // POST /api/node/chat/upload  body: { file (multipart), type: image|video|audio|voice|file, quality? }
+    app.post('/api/node/chat/upload', auth, mediaUp.uploadChatMedia(ctx, io));
 
     console.log('[Private Chat API] Endpoints registered under /api/node/chat/* and /api/node/user/*');
     console.log('  Messages : get, send, send-media, loadmore, edit, search, seen, typing, notify-media');
