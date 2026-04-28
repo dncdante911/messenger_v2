@@ -49,6 +49,7 @@
 -dontwarn com.google.gson.**
 -keep class com.google.gson.** { *; }
 -keep class sun.misc.Unsafe { *; }
+-dontwarn sun.misc.**
 -keep class com.google.gson.stream.** { *; }
 
 # ── Socket.IO ─────────────────────────────────────────────────────────────────
@@ -104,3 +105,12 @@
 # ── Google Drive / API Client ─────────────────────────────────────────────────
 -keep class com.google.api.** { *; }
 -dontwarn com.google.api.**
+
+# Игнорируем отсутствующие классы Apache HTTP и Java Naming
+-dontwarn javax.naming.**
+-dontwarn org.ietf.jgss.**
+-dontwarn org.apache.http.**
+
+# Если R8 всё равно ругается на "Missing classes", можно добавить общие правила
+-keep class javax.naming.** { *; }
+-keep class org.ietf.jgss.** { *; }
