@@ -18,6 +18,7 @@ import type {
   GroupItem,
   MediaUploadResponse,
   MessageItem,
+  MessageReaction,
   MessagesResponse,
   StoryItem
 } from './types';
@@ -415,7 +416,8 @@ export async function sendMessageWithMedia(
 export async function sendVoiceMessage(token: string, recipientId: number, voiceFile: File): Promise<void> {
   const text   = await doUpload(`${NODE_BASE_URL}/api/node/chat/upload`, token, { type: 'voice' }, voiceFile);
   const upload = await parseJson<MediaUploadResponse>(text);
-  const mediaUrl = upload.audio_src ?? upload.file_src ?? '';
+  // Server may store audio/webm as video — fall back through all src fields
+  const mediaUrl = upload.audio_src ?? upload.video_src ?? upload.file_src ?? '';
   await nodePost('/api/node/chat/send-media', token, {
     recipient_id:    recipientId,
     group_id:        0,
@@ -593,20 +595,44 @@ export async function createChannel(token: string, name: string, description: st
   await nodePost('/api/node/channel/create', token, { name, description });
 }
 
+function normaliseChannelPost(raw: Record<string, unknown>): ChannelPost {
+  // Server returns media as List<PostMedia> each with {url, type, filename}
+  const mediaList = (raw.media ?? []) as Record<string, unknown>[];
+  const firstMedia = Array.isArray(mediaList) && mediaList.length > 0 ? mediaList[0] : null;
+  const mediaUrl   = firstMedia ? toStr(firstMedia.url ?? firstMedia.file_url ?? firstMedia.filename, '') : undefined;
+  const rawType    = firstMedia ? toStr(firstMedia.type, '').toLowerCase() : undefined;
+  // Normalise type: "photo"→"image", "audio"→"audio", etc.
+  const mediaType  = rawType === 'photo' ? 'image' : (rawType || undefined);
+  return {
+    id:             Number(raw.id ?? 0),
+    channel_id:     Number(raw.channel_id ?? 0),
+    publisher_id:   Number(raw.author_id ?? raw.publisher_id ?? 0),
+    text:           toStr(raw.text, ''),
+    media:          mediaUrl && mediaUrl.length > 0 ? mediaUrl : undefined,
+    media_type:     mediaType,
+    reactions:      (raw.reactions as MessageReaction[] | undefined),
+    comments_count: Number(raw.comments_count ?? 0),
+    views_count:    Number(raw.views_count ?? raw.view_count ?? 0),
+    time:           raw.created_time ? new Date(Number(raw.created_time) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : toStr(raw.time, undefined),
+    time_unix:      raw.created_time ? Number(raw.created_time) : undefined,
+    is_pinned:      Boolean(raw.is_pinned),
+  };
+}
+
 export async function loadChannelPosts(token: string, channelId: number): Promise<ChannelPostsResponse> {
   const resp = await nodePost<Record<string, unknown>>('/api/node/channel/posts', token, {
     channel_id: channelId, limit: 30, offset: 0
   });
-  const raw = (resp.posts ?? resp.data ?? []) as ChannelPost[];
-  return { api_status: String(resp.api_status ?? '200'), posts: Array.isArray(raw) ? raw : [] };
+  const raw = (resp.posts ?? resp.data ?? []) as Record<string, unknown>[];
+  return { api_status: String(resp.api_status ?? '200'), posts: Array.isArray(raw) ? raw.map(normaliseChannelPost) : [] };
 }
 
 export async function loadMoreChannelPosts(token: string, channelId: number, offset: number): Promise<ChannelPostsResponse> {
   const resp = await nodePost<Record<string, unknown>>('/api/node/channel/posts', token, {
     channel_id: channelId, limit: 30, offset
   });
-  const raw = (resp.posts ?? resp.data ?? []) as ChannelPost[];
-  return { api_status: String(resp.api_status ?? '200'), posts: Array.isArray(raw) ? raw : [] };
+  const raw = (resp.posts ?? resp.data ?? []) as Record<string, unknown>[];
+  return { api_status: String(resp.api_status ?? '200'), posts: Array.isArray(raw) ? raw.map(normaliseChannelPost) : [] };
 }
 
 export async function createChannelPost(
@@ -647,7 +673,8 @@ export async function loadStories(token: string): Promise<GenericListResponse<St
     const mItems  = (s.mediaItems   ?? []) as Record<string, unknown>[];
     const vidItem = videos[0] ?? mItems.find(m => m.type === 'video');
     const imgItem = images[0] ?? mItems.find(m => m.type === 'image');
-    const file    = toStr(vidItem?.filename ?? imgItem?.filename ?? s.thumbnail, '');
+    // thumbnail is always a full URL from the server; filename may be relative so use thumbnail first
+    const file    = toStr(s.thumbnail ?? vidItem?.filename ?? imgItem?.filename, '');
     const fileType: 'image' | 'video' = vidItem ? 'video' : 'image';
     const firstName = toStr(ud.first_name, '');
     const lastName  = toStr(ud.last_name, '');

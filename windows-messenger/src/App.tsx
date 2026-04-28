@@ -214,12 +214,15 @@ function Bubble({
         {/* Text */}
         {msg._decryptFailed ? (
           <p className="bubble-text decrypt-msg">{t('bubble.encrypted')}</p>
-        ) : msg.text ? (
-          <p className="bubble-text">
-            {renderText(msg.text)}
-            {msg.is_edited && <span className="edited-mark">{t('bubble.edited')}</span>}
-          </p>
-        ) : msg.cipher_version === CIPHER_VERSION_SIGNAL ? (
+        ) : msg.text ? (() => {
+          const call = parseCallMessage(msg.text);
+          return call
+            ? <CallBubble call={call} />
+            : <p className="bubble-text">
+                {renderText(msg.text)}
+                {msg.is_edited && <span className="edited-mark">{t('bubble.edited')}</span>}
+              </p>;
+        })() : msg.cipher_version === CIPHER_VERSION_SIGNAL ? (
           <p className="bubble-text decrypt-msg">{t('bubble.encrypted')}</p>
         ) : null}
 
@@ -280,6 +283,45 @@ function renderText(text: string): React.ReactNode {
   if (last < text.length) nodes.push(text.slice(last));
   // No formatting tokens found → return plain string for perf
   return nodes.length === 1 && typeof nodes[0] === 'string' ? nodes[0] : <>{nodes}</>;
+}
+
+// ─── Call message parser ──────────────────────────────────────────────────────
+
+type CallMsgPayload = {
+  callType: 'audio' | 'video';
+  roomName: string;
+  initiatorName: string;
+  maxParticipants: number;
+  isPremiumCall: boolean;
+};
+
+function parseCallMessage(text: string): CallMsgPayload | null {
+  if (!text || text[0] !== '{') return null;
+  try {
+    const p = JSON.parse(text) as Record<string, unknown>;
+    if (typeof p.callType !== 'string' || typeof p.roomName !== 'string') return null;
+    return {
+      callType:        p.callType === 'video' ? 'video' : 'audio',
+      roomName:        String(p.roomName),
+      initiatorName:   String(p.initiatorName ?? ''),
+      maxParticipants: Number(p.maxParticipants ?? 5),
+      isPremiumCall:   Boolean(p.isPremiumCall),
+    };
+  } catch { return null; }
+}
+
+function CallBubble({ call }: { call: CallMsgPayload }) {
+  return (
+    <div className="bubble-call">
+      <span className="bubble-call-icon">{call.callType === 'video' ? '📹' : '📞'}</span>
+      <div className="bubble-call-info">
+        <span className="bubble-call-title">
+          {call.callType === 'video' ? t('call.videoCall') : t('call.voiceCall')}
+        </span>
+        <span className="bubble-call-meta">{call.initiatorName}</span>
+      </div>
+    </div>
+  );
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
@@ -1043,14 +1085,18 @@ export default function App() {
     if (!session || !selectedChat) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      // Prefer ogg (unambiguously audio on all platforms) over webm (video container)
+      const mimeType = MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg'
+        : MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
       const mr = new MediaRecorder(stream, { mimeType });
       voiceChunksRef.current = [];
       mr.ondataavailable = e => { if (e.data.size > 0) voiceChunksRef.current.push(e.data); };
       mr.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(voiceChunksRef.current, { type: mimeType });
-        const ext  = mimeType.includes('webm') ? 'webm' : 'ogg';
+        const ext  = mimeType.includes('ogg') ? 'ogg' : 'webm';
         const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: mimeType });
         try {
           await sendVoiceMessage(session.token, selectedChat.user_id, file);
@@ -2108,7 +2154,12 @@ export default function App() {
                             }
                           </div>
                         )}
-                        {msg.text && <p className="bubble-text">{renderText(msg.text)}{msg.is_edited && <span className="edited-mark">{t('bubble.edited')}</span>}</p>}
+                        {msg.text && (() => {
+                          const call = parseCallMessage(msg.text);
+                          return call
+                            ? <CallBubble call={call} />
+                            : <p className="bubble-text">{renderText(msg.text)}{msg.is_edited && <span className="edited-mark">{t('bubble.edited')}</span>}</p>;
+                        })()}
                         <div className="bubble-footer">
                           <time className="bubble-time">{formatTime(msg.time_text, msg.time)}</time>
                           {isOwn && <span className="seen-tick">{msg.is_seen ? '✓✓' : '✓'}</span>}

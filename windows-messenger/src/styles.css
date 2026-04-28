@@ -1392,3 +1392,26 @@ body {
   cursor: default;
 }
 .archived-item .chat-item-body { flex: 1; min-width: 0; }
+
+/* ─── Call message bubble ───────────────────────────────────────────────────── */
+.bubble-call {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px;
+  min-width: 160px;
+}
+.bubble-call-icon { font-size: 22px; flex-shrink: 0; }
+.bubble-call-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bubble-call-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.bubble-call-meta {
+  font-size: 11px;
+  opacity: .65;
+}
