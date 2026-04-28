@@ -14,6 +14,16 @@ declare global {
         body?:    string;
       }) => Promise<{ ok: boolean; status: number; text: string }>;
 
+      /** Upload a file as multipart/form-data through the Electron main process (no CORS). */
+      upload?: (payload: {
+        urlStr:   string;
+        token:    string;
+        fields:   Record<string, string>;
+        fileName: string;
+        fileMime: string;
+        fileData: ArrayBuffer;
+      }) => Promise<{ ok: boolean; status: number; text: string }>;
+
       /** Show a native desktop / tray notification. */
       notify?: (payload: {
         title:   string;

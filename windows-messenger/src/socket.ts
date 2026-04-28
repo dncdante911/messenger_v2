@@ -71,8 +71,8 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
 
   socket.on('connect', () => {
     handlers.onStatus?.('Connected');
-    socket.emit('join', { access_token: token });
-    // Notify App so it can flush pending actions (session resets, message reload).
+    // Server expects user_id = access_token (session hash), not a numeric ID
+    socket.emit('join', { user_id: token, access_token: token });
     handlers.onConnected?.();
   });
 
@@ -91,7 +91,7 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
 
   socket.on('reconnect', (attempt: number) => {
     handlers.onStatus?.(`Reconnected (attempt ${attempt})`);
-    socket.emit('join', { access_token: token });
+    socket.emit('join', { user_id: token, access_token: token });
     // 'connect' event also fires on reconnect, which calls onConnected — no
     // need to call it again here to avoid double-reloading.
   });

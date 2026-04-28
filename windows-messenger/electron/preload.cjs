@@ -8,6 +8,12 @@ contextBridge.exposeInMainWorld('desktopApp', {
   request: (payload) => ipcRenderer.invoke('wm:request', payload),
 
   /**
+   * Upload a file via multipart/form-data through the main process (bypasses CORS).
+   * @param {{ urlStr, token, fields, fileName, fileMime, fileData: ArrayBuffer }} payload
+   */
+  upload: (payload) => ipcRenderer.invoke('wm:upload', payload),
+
+  /**
    * Show a native desktop notification.
    * The main process only shows it when the window is not focused.
    * @param {{ title: string, body: string, chatId?: number }} payload

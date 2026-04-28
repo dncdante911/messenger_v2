@@ -154,11 +154,17 @@ const WM_ENDPOINTS = [
 ];
 const RETRY_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'UND_ERR_SOCKET']);
 
+// body can be string (text) or Buffer (binary)
 function requestVia(endpoint, url, method, headers, body) {
   return new Promise((resolve, reject) => {
     const reqHeaders = Object.assign({}, headers);
     if (endpoint.sni) reqHeaders['Host'] = url.hostname;
-    if (body) reqHeaders['Content-Length'] = Buffer.byteLength(body, 'utf8').toString();
+
+    const bodyBuf = body === null || body === undefined ? null
+      : Buffer.isBuffer(body) ? body
+      : Buffer.from(body, 'utf8');
+
+    if (bodyBuf) reqHeaders['Content-Length'] = bodyBuf.length.toString();
 
     const agent = new https.Agent({
       keepAlive: false,
@@ -186,7 +192,7 @@ function requestVia(endpoint, url, method, headers, body) {
       }
     );
     req.on('error', reject);
-    if (body) req.write(body);
+    if (bodyBuf) req.write(bodyBuf);
     req.end();
   });
 }
@@ -206,6 +212,54 @@ ipcMain.handle('wm:request', async (_event, payload) => {
     } catch (e) {
       const code = e.code ?? '';
       console.error(`[wm:request] ${endpoint.host}:${url.port} → ${code || e.message}`);
+      if (RETRY_CODES.has(code)) { lastErr = e; continue; }
+      throw e;
+    }
+  }
+  throw lastErr;
+});
+
+// ─── Binary upload proxy (bypasses CORS for multipart/form-data) ─────────────
+
+const UPLOAD_BOUNDARY = '----WMFormBoundary7MA4YWxkTrZu0gW';
+
+function buildMultipartBody(fields, fileName, fileMime, fileData) {
+  const parts = [];
+  for (const [name, value] of Object.entries(fields || {})) {
+    parts.push(Buffer.from(
+      `--${UPLOAD_BOUNDARY}\r\n` +
+      `Content-Disposition: form-data; name="${name}"\r\n\r\n` +
+      `${value}\r\n`
+    ));
+  }
+  parts.push(Buffer.from(
+    `--${UPLOAD_BOUNDARY}\r\n` +
+    `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+    `Content-Type: ${fileMime}\r\n\r\n`
+  ));
+  // fileData arrives as ArrayBuffer (structured clone from renderer)
+  parts.push(Buffer.from(fileData));
+  parts.push(Buffer.from(`\r\n--${UPLOAD_BOUNDARY}--\r\n`));
+  return Buffer.concat(parts);
+}
+
+ipcMain.handle('wm:upload', async (_event, { urlStr, token, fields, fileName, fileMime, fileData }) => {
+  let url;
+  try { url = new URL(urlStr); } catch (e) { throw e; }
+
+  const body    = buildMultipartBody(fields, fileName, fileMime, fileData);
+  const headers = {
+    'access-token': token,
+    'Content-Type': `multipart/form-data; boundary=${UPLOAD_BOUNDARY}`,
+  };
+
+  let lastErr;
+  for (const endpoint of WM_ENDPOINTS) {
+    try {
+      return await requestVia(endpoint, url, 'POST', headers, body);
+    } catch (e) {
+      const code = e.code ?? '';
+      console.error(`[wm:upload] ${endpoint.host} → ${code || e.message}`);
       if (RETRY_CODES.has(code)) { lastErr = e; continue; }
       throw e;
     }

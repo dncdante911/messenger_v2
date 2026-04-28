@@ -54,11 +54,7 @@ export class AuthError extends Error {
 async function doRequest(url: string, options: RequestInit): Promise<string> {
   const ipc = window.desktopApp?.request;
 
-  // FormData (binary / multipart) cannot pass through the text-only IPC proxy.
-  // Use native fetch directly — Electron renderer can make HTTPS requests.
-  const isFormData = options.body instanceof FormData;
-
-  if (ipc && !isFormData) {
+  if (ipc) {
     const headers = (options.headers ?? {}) as Record<string, string>;
     const result  = await ipc({
       url,
@@ -71,11 +67,44 @@ async function doRequest(url: string, options: RequestInit): Promise<string> {
     return result.text;
   }
 
-  // Direct fetch: FormData uploads or browser (non-Electron) context.
+  // Browser (non-Electron) context
   const res  = await fetch(url, options);
   const text = await res.text();
   if (res.status === 401) throw new AuthError();
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  return text;
+}
+
+// Uploads a file as multipart/form-data, routing through Electron IPC to avoid CORS.
+async function doUpload(
+  url:    string,
+  token:  string,
+  fields: Record<string, string>,
+  file:   File
+): Promise<string> {
+  const ipcUpload = window.desktopApp?.upload;
+  if (ipcUpload) {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await ipcUpload({
+      urlStr:   url,
+      token,
+      fields,
+      fileName: file.name,
+      fileMime: file.type || 'application/octet-stream',
+      fileData: arrayBuffer,
+    });
+    if (result.status === 401) throw new AuthError();
+    if (!result.ok) throw new Error(`HTTP ${result.status}`);
+    return result.text;
+  }
+  // Dev browser fallback (no CORS restriction)
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  form.append('file', file);
+  const res  = await fetch(url, { method: 'POST', headers: { 'access-token': token }, body: form });
+  const text = await res.text();
+  if (res.status === 401) throw new AuthError();
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return text;
 }
 
@@ -333,16 +362,10 @@ export async function searchMessages(token: string, recipientId: number, query: 
 // ─── Media ────────────────────────────────────────────────────────────────────
 
 export async function uploadMedia(token: string, file: File): Promise<MediaUploadResponse> {
-  const form = new FormData();
-  form.append('type', file.type.startsWith('image') ? 'image'
+  const type = file.type.startsWith('image') ? 'image'
     : file.type.startsWith('video') ? 'video'
-    : file.type.startsWith('audio') ? 'audio' : 'file');
-  form.append('file', file);
-  const text = await doRequest(`${NODE_BASE_URL}/api/node/chat/upload`, {
-    method:  'POST',
-    headers: { 'access-token': token },
-    body:    form as unknown as BodyInit
-  });
+    : file.type.startsWith('audio') ? 'audio' : 'file';
+  const text = await doUpload(`${NODE_BASE_URL}/api/node/chat/upload`, token, { type }, file);
   return parseJson<MediaUploadResponse>(text);
 }
 
@@ -373,14 +396,7 @@ export async function sendMessageWithMedia(
 }
 
 export async function sendVoiceMessage(token: string, recipientId: number, voiceFile: File): Promise<void> {
-  const form = new FormData();
-  form.append('type', 'voice');
-  form.append('file', voiceFile);
-  const text = await doRequest(`${NODE_BASE_URL}/api/node/chat/upload`, {
-    method:  'POST',
-    headers: { 'access-token': token },
-    body:    form as unknown as BodyInit,
-  });
+  const text   = await doUpload(`${NODE_BASE_URL}/api/node/chat/upload`, token, { type: 'voice' }, voiceFile);
   const upload = await parseJson<MediaUploadResponse>(text);
   const mediaUrl = upload.audio_src ?? upload.file_src ?? '';
   await nodePost('/api/node/chat/send-media', token, {
@@ -541,7 +557,9 @@ function normaliseGroupMessages(payload: Record<string, unknown>): MessagesRespo
 // ─── Channels ─────────────────────────────────────────────────────────────────
 
 export async function loadChannels(token: string): Promise<GenericListResponse<ChannelItem>> {
-  const resp = await nodePost<Record<string, unknown>>('/api/node/channel/list', token, { limit: 50, offset: 0 });
+  const resp = await nodePost<Record<string, unknown>>('/api/node/channel/list', token, {
+    type: 'get_subscribed', limit: 50, offset: 0
+  });
   const raw  = (resp.channels ?? resp.data ?? []) as Record<string, unknown>[];
   const data: ChannelItem[] = Array.isArray(raw) ? raw.map(c => ({
     id:                Number(c.id ?? c.channel_id),
@@ -604,24 +622,44 @@ export async function markChannelPostViewed(token: string, postId: number): Prom
 
 export async function loadStories(token: string): Promise<GenericListResponse<StoryItem>> {
   const resp = await nodePost<Record<string, unknown>>('/api/node/stories/get', token, { limit: 35 });
-  const raw  = (resp.stories ?? resp.data ?? []) as StoryItem[];
-  return { api_status: '200', data: raw };
+  const raw  = (resp.stories ?? resp.data ?? []) as Record<string, unknown>[];
+  const data: StoryItem[] = Array.isArray(raw) ? raw.map(s => {
+    const ud      = (s.user_data    ?? {}) as Record<string, unknown>;
+    const images  = (s.images       ?? []) as Record<string, unknown>[];
+    const videos  = (s.videos       ?? []) as Record<string, unknown>[];
+    const mItems  = (s.mediaItems   ?? []) as Record<string, unknown>[];
+    const vidItem = videos[0] ?? mItems.find(m => m.type === 'video');
+    const imgItem = images[0] ?? mItems.find(m => m.type === 'image');
+    const file    = toStr(vidItem?.filename ?? imgItem?.filename ?? s.thumbnail, '');
+    const fileType: 'image' | 'video' = vidItem ? 'video' : 'image';
+    const firstName = toStr(ud.first_name, '');
+    const lastName  = toStr(ud.last_name, '');
+    const username  = toStr(ud.username, '');
+    const displayName = (firstName + ' ' + lastName).trim() || username || `User ${s.user_id}`;
+    return {
+      id:          Number(s.id),
+      user_id:     Number(s.user_id),
+      user_name:   displayName,
+      user_avatar: toStr(ud.avatar, undefined),
+      file,
+      thumbnail:   toStr(s.thumbnail, undefined),
+      file_type:   fileType,
+      created_at:  s.posted ? new Date(Number(s.posted) * 1000).toLocaleDateString() : '',
+      expire_time: Number(s.expire ?? 0),
+      is_seen:     Number(s.is_viewed ?? 0) === 1,
+      views_count: Number(s.view_count ?? 0),
+    };
+  }) : [];
+  return { api_status: '200', data };
 }
 
 export async function markStorySeen(token: string, storyId: number): Promise<void> {
-  try { await nodePost('/api/node/stories/seen', token, { story_id: storyId }); }
+  try { await nodePost('/api/node/stories/mark-viewed', token, { story_id: storyId }); }
   catch { /* non-critical */ }
 }
 
 export async function createStory(token: string, file: File, fileType: 'image' | 'video'): Promise<void> {
-  const form = new FormData();
-  form.append('file', file);
-  form.append('file_type', fileType);
-  await doRequest(`${NODE_BASE_URL}/api/node/stories/create`, {
-    method:  'POST',
-    headers: { 'access-token': token },
-    body:    form as unknown as BodyInit
-  });
+  await doUpload(`${NODE_BASE_URL}/api/node/stories/create`, token, { file_type: fileType }, file);
 }
 
 // ─── Calls / ICE servers ──────────────────────────────────────────────────────
