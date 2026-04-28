@@ -10,6 +10,8 @@
 import type {
   AuthResponse,
   ChannelItem,
+  ChannelPost,
+  ChannelPostsResponse,
   ChatItem,
   ChatListResponse,
   GenericListResponse,
@@ -416,11 +418,68 @@ export async function loadGroupMessages(token: string, groupId: number): Promise
   const resp = await nodePost<Record<string, unknown>>('/api/node/group/messages/get', token, {
     group_id: groupId, limit: 40, before_message_id: 0
   });
-  return normaliseMessages(resp);
+  return normaliseGroupMessages(resp);
 }
 
-export async function sendGroupMessage(token: string, groupId: number, text: string): Promise<void> {
-  await nodePost('/api/node/group/messages/send', token, { group_id: groupId, text });
+export async function loadMoreGroupMessages(token: string, groupId: number, beforeId: number): Promise<MessagesResponse> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/group/messages/loadmore', token, {
+    group_id: groupId, before_message_id: beforeId, limit: 40
+  });
+  return normaliseGroupMessages(resp);
+}
+
+export async function sendGroupMessage(
+  token:    string,
+  groupId:  number,
+  text:     string,
+  replyToId?: number
+): Promise<{ id?: number }> {
+  const body: Record<string, unknown> = {
+    group_id: groupId,
+    text,
+    ...(replyToId ? { reply_id: replyToId } : {})
+  };
+  const resp = await nodePost<Record<string, unknown>>('/api/node/group/messages/send', token, body);
+  const msgData = resp.message_data as Record<string, unknown> | undefined;
+  return { id: msgData ? Number(msgData.id) : undefined };
+}
+
+export async function editGroupMessage(token: string, messageId: number, text: string): Promise<void> {
+  await nodePost('/api/node/group/messages/edit', token, { message_id: messageId, text });
+}
+
+export async function deleteGroupMessage(token: string, messageId: number): Promise<void> {
+  await nodePost('/api/node/group/messages/delete', token, {
+    message_id: messageId, delete_type: 'everyone'
+  });
+}
+
+export async function reactToGroupMessage(token: string, messageId: number, emoji: string): Promise<void> {
+  await nodePost('/api/node/group/messages/react', token, { message_id: messageId, reaction: emoji }).catch(() => {});
+}
+
+export async function markGroupSeen(token: string, groupId: number): Promise<void> {
+  try { await nodePost('/api/node/group/messages/seen', token, { group_id: groupId }); }
+  catch { /* non-critical */ }
+}
+
+function normaliseGroupMessage(m: Record<string, unknown>): MessageItem {
+  const base = normaliseMessage(m);
+  return {
+    ...base,
+    group_id:    m.group_id ? Number(m.group_id) : undefined,
+    sender_name: m.sender_name ? toStr(m.sender_name) : m.user_data
+      ? toStr((m.user_data as Record<string, unknown>).name ?? (m.user_data as Record<string, unknown>).username, '')
+      : undefined,
+  };
+}
+
+function normaliseGroupMessages(payload: Record<string, unknown>): MessagesResponse {
+  const arr = (payload.messages ?? []) as Record<string, unknown>[];
+  return {
+    api_status: String(payload.api_status ?? '200'),
+    messages: Array.isArray(arr) ? arr.map(normaliseGroupMessage) : []
+  };
 }
 
 // ─── Channels ─────────────────────────────────────────────────────────────────
@@ -443,12 +502,59 @@ export async function createChannel(token: string, name: string, description: st
   await nodePost('/api/node/channel/create', token, { name, description });
 }
 
+export async function loadChannelPosts(token: string, channelId: number): Promise<ChannelPostsResponse> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/channel/posts', token, {
+    channel_id: channelId, limit: 30, offset: 0
+  });
+  const raw = (resp.posts ?? resp.data ?? []) as ChannelPost[];
+  return { api_status: String(resp.api_status ?? '200'), posts: Array.isArray(raw) ? raw : [] };
+}
+
+export async function loadMoreChannelPosts(token: string, channelId: number, offset: number): Promise<ChannelPostsResponse> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/channel/posts', token, {
+    channel_id: channelId, limit: 30, offset
+  });
+  const raw = (resp.posts ?? resp.data ?? []) as ChannelPost[];
+  return { api_status: String(resp.api_status ?? '200'), posts: Array.isArray(raw) ? raw : [] };
+}
+
+export async function createChannelPost(
+  token:      string,
+  channelId:  number,
+  text:       string,
+  mediaUrl?:  string,
+  mediaType?: string
+): Promise<void> {
+  const body: Record<string, unknown> = { channel_id: channelId, text };
+  if (mediaUrl)  body.media      = mediaUrl;
+  if (mediaType) body.media_type = mediaType;
+  await nodePost('/api/node/channel/create-post', token, body);
+}
+
+export async function deleteChannelPost(token: string, postId: number): Promise<void> {
+  await nodePost('/api/node/channel/delete-post', token, { post_id: postId });
+}
+
+export async function reactToChannelPost(token: string, postId: number, emoji: string): Promise<void> {
+  await nodePost('/api/node/channel/post-reaction', token, { post_id: postId, reaction: emoji }).catch(() => {});
+}
+
+export async function markChannelPostViewed(token: string, postId: number): Promise<void> {
+  try { await nodePost('/api/node/channel/post-view', token, { post_id: postId }); }
+  catch { /* non-critical */ }
+}
+
 // ─── Stories ──────────────────────────────────────────────────────────────────
 
 export async function loadStories(token: string): Promise<GenericListResponse<StoryItem>> {
   const resp = await nodePost<Record<string, unknown>>('/api/node/stories/get', token, { limit: 35 });
   const raw  = (resp.stories ?? resp.data ?? []) as StoryItem[];
   return { api_status: '200', data: raw };
+}
+
+export async function markStorySeen(token: string, storyId: number): Promise<void> {
+  try { await nodePost('/api/node/stories/seen', token, { story_id: storyId }); }
+  catch { /* non-critical */ }
 }
 
 export async function createStory(token: string, file: File, fileType: 'image' | 'video'): Promise<void> {

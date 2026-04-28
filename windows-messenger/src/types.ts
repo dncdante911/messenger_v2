@@ -65,6 +65,8 @@ export type MessageItem = {
   media_type?: 'image' | 'video' | 'audio' | 'document' | 'voice' | 'sticker' | 'gif';
   media_filename?: string;
   media_duration?: number;    // seconds (audio/video)
+  sender_name?: string;       // display name for group messages
+  group_id?: number;          // populated for group messages
   reply_to?: {
     id: number;
     from_id: number;
@@ -217,6 +219,14 @@ export type MessagePinnedEvent = {
   pinned: boolean;
 };
 
+// ─── Channel posts response ───────────────────────────────────────────────────
+
+export type ChannelPostsResponse = {
+  api_status: string;
+  posts?: ChannelPost[];
+  data?: ChannelPost[];
+};
+
 // ─── Generic list response ────────────────────────────────────────────────────
 
 export type GenericListResponse<T> = {
@@ -274,7 +284,7 @@ export type Session = {
 
 // ─── UI state ─────────────────────────────────────────────────────────────────
 
-export type ActiveSection = 'chats' | 'groups' | 'channels' | 'stories' | 'calls' | 'settings';
+export type ActiveSection = 'chats' | 'groups' | 'channels' | 'stories' | 'calls' | 'settings' | 'archived';
 
 export type ReplyTarget = {
   id:      number;

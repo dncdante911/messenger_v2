@@ -1,14 +1,20 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import React, { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { t, initLang, setLang, getLang, translateSocketStatus, type Lang } from './i18n';
 import type { Socket } from 'socket.io-client';
 import {
-  archiveChat, AuthError, clearHistory, createChannel, createGroup, createStory,
-  createNodeApiShim, deleteConversation, deleteMessage, editMessage,
+  archiveChat, AuthError, clearHistory,
+  createChannel, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost,
+  createGroup, createStory,
+  createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
   getIceServers, initiateCall, endCall, loadChannels, loadChats,
-  loadGroups, loadMessages, loadMoreMessages, loadStories, login, loginByPhone,
-  markSeen, muteChat, normaliseMessage, pinChat, pinMessage, reactToMessage, registerAccount,
-  sendMessage, sendMessageWithMedia, TURN_FALLBACK
+  loadGroups, loadGroupMessages, loadMoreGroupMessages, loadMessages, loadMoreMessages, loadStories,
+  login, loginByPhone, markGroupSeen, markSeen, markStorySeen,
+  muteChat, normaliseMessage, pinChat, pinMessage,
+  reactToMessage, reactToGroupMessage, registerAccount,
+  sendMessage, sendGroupMessage, sendMessageWithMedia, TURN_FALLBACK,
+  uploadMedia
 } from './api';
+import type { ChannelPost } from './types';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
@@ -301,6 +307,32 @@ export default function App() {
   // ── Sidebar search ────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery]   = useState('');
 
+  // ── Group chat ────────────────────────────────────────────────────────────
+  const [selectedGroup, setSelectedGroup]     = useState<GroupItem | null>(null);
+  const [groupMessages, setGroupMessages]     = useState<MessageItem[]>([]);
+  const [groupMsgLoading, setGroupMsgLoading] = useState(false);
+  const [groupMsgError, setGroupMsgError]     = useState(false);
+  const [groupHasMore, setGroupHasMore]       = useState(false);
+  const [newGroupMessage, setNewGroupMessage] = useState('');
+  const [groupReplyTarget, setGroupReplyTarget] = useState<ReplyTarget | null>(null);
+  const [groupEditingMsg, setGroupEditingMsg]   = useState<MessageItem | null>(null);
+  const selectedGroupRef = useRef<GroupItem | null>(null);
+
+  // ── Channel posts ─────────────────────────────────────────────────────────
+  const [selectedChannel, setSelectedChannel]     = useState<ChannelItem | null>(null);
+  const [channelPosts, setChannelPosts]           = useState<ChannelPost[]>([]);
+  const [channelPostsLoading, setChannelPostsLoading] = useState(false);
+  const [channelPostOffset, setChannelPostOffset] = useState(0);
+  const [channelHasMore, setChannelHasMore]       = useState(false);
+  const [newChannelPost, setNewChannelPost]       = useState('');
+  const [channelPostMedia, setChannelPostMedia]   = useState<File | null>(null);
+  const selectedChannelRef = useRef<ChannelItem | null>(null);
+
+  // ── Story viewer ──────────────────────────────────────────────────────────
+  const [viewingStoryIdx, setViewingStoryIdx] = useState<number | null>(null);
+  const [storyProgress, setStoryProgress]     = useState(0);
+  const storyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // ── Send error banner ─────────────────────────────────────────────────────
   const [sendError, setSendError]           = useState('');
   const [signalResetStatus, setSignalResetStatus] = useState<'idle'|'working'|'done'|'error'>('idle');
@@ -476,6 +508,39 @@ export default function App() {
         }
       },
 
+      onGroupMessage: (rawMsg) => {
+        const raw = rawMsg as unknown as Record<string, unknown>;
+        const msg: MessageItem = {
+          id:          Number(raw.id),
+          from_id:     Number(raw.from_id ?? raw.sender_id),
+          to_id:       0,
+          text:        String(raw.text ?? ''),
+          time_text:   String(raw.time_text ?? 'now'),
+          time:        raw.time ? Number(raw.time) : Math.floor(Date.now() / 1000),
+          media:       raw.media as string | undefined,
+          media_type:  raw.media_type as MessageItem['media_type'],
+          group_id:    raw.group_id ? Number(raw.group_id) : rawMsg.group_id,
+          sender_name: raw.sender_name
+            ? String(raw.sender_name)
+            : raw.user_data
+              ? String((raw.user_data as Record<string, unknown>).name ?? (raw.user_data as Record<string, unknown>).username ?? '')
+              : undefined,
+        };
+        setGroupMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          if (msg.group_id === selectedGroupRef.current?.id) return [...prev, msg];
+          return prev;
+        });
+        setGroups(prev => prev.map(g =>
+          g.id === msg.group_id
+            ? { ...g, last_message: msg.text || '[медиа]', time: 'now' }
+            : g
+        ));
+        if (msg.from_id !== session.userId && msg.group_id !== selectedGroupRef.current?.id) {
+          playNotificationBeep();
+        }
+      },
+
       onTyping:     e => { if (e.sender_id !== session.userId) setTypingUsers(s => new Set([...s, e.sender_id])); },
       onTypingDone: e => { setTypingUsers(s => { const n = new Set(s); n.delete(e.sender_id); return n; }); },
       onUserOnline:  e => setOnlineUsers(s => new Set([...s, e.user_id])),
@@ -541,6 +606,8 @@ export default function App() {
   const chatsRef        = useRef<ChatItem[]>([]);
   useEffect(() => { selectedChatRef.current = selectedChat; }, [selectedChat]);
   useEffect(() => { chatsRef.current = chats; }, [chats]);
+  useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
+  useEffect(() => { selectedChannelRef.current = selectedChannel; }, [selectedChannel]);
 
   // ─── Badge count (tray + taskbar overlay) ───────────────────────────────
   useEffect(() => {
@@ -586,6 +653,108 @@ export default function App() {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
+
+  // ─── Load group messages when group changes ──────────────────────────────
+
+  useEffect(() => {
+    if (!session || !selectedGroup) return;
+    setGroupMsgError(false);
+    setGroupMsgLoading(true);
+    setGroupMessages([]);
+    let cancelled = false;
+    loadGroupMessages(session.token, selectedGroup.id)
+      .then(r => {
+        if (cancelled) return;
+        setGroupMessages(r.messages ?? []);
+        setGroupHasMore((r.messages ?? []).length >= 40);
+        markGroupSeen(session.token, selectedGroup.id);
+        setGroupMsgLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) { setGroupMsgError(true); setGroupMsgLoading(false); }
+      });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, selectedGroup?.id]);
+
+  // ─── Load channel posts when channel changes ──────────────────────────────
+
+  useEffect(() => {
+    if (!session || !selectedChannel) return;
+    setChannelPostsLoading(true);
+    setChannelPosts([]);
+    setChannelPostOffset(0);
+    let cancelled = false;
+    loadChannelPosts(session.token, selectedChannel.id)
+      .then(r => {
+        if (cancelled) return;
+        setChannelPosts(r.posts ?? []);
+        setChannelHasMore((r.posts ?? []).length >= 30);
+        setChannelPostOffset((r.posts ?? []).length);
+        setChannelPostsLoading(false);
+        // Mark first 10 posts as viewed
+        (r.posts ?? []).slice(0, 10).forEach(p => markChannelPostViewed(session.token, p.id));
+      })
+      .catch(() => { if (!cancelled) setChannelPostsLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, selectedChannel?.id]);
+
+  // ─── Story viewer timer ───────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (viewingStoryIdx === null) {
+      if (storyTimerRef.current) { clearInterval(storyTimerRef.current); storyTimerRef.current = null; }
+      setStoryProgress(0);
+      return;
+    }
+    setStoryProgress(0);
+    if (storyTimerRef.current) clearInterval(storyTimerRef.current);
+    const duration = 5000;
+    const step = 100;
+    storyTimerRef.current = setInterval(() => {
+      setStoryProgress(p => {
+        const next = p + (step / duration) * 100;
+        if (next >= 100) {
+          setViewingStoryIdx(idx => {
+            if (idx === null) return null;
+            const nextIdx = idx + 1;
+            return nextIdx < stories.length ? nextIdx : null;
+          });
+          return 0;
+        }
+        return next;
+      });
+    }, step);
+    return () => { if (storyTimerRef.current) clearInterval(storyTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewingStoryIdx]);
+
+  function openStory(idx: number) {
+    setViewingStoryIdx(idx);
+    if (session && stories[idx]) markStorySeen(session.token, stories[idx].id);
+  }
+
+  function closeStory() { setViewingStoryIdx(null); }
+
+  function nextStory() {
+    setViewingStoryIdx(idx => {
+      if (idx === null) return null;
+      const next = idx + 1;
+      if (next < stories.length) {
+        if (session) markStorySeen(session.token, stories[next].id);
+        return next;
+      }
+      return null;
+    });
+  }
+
+  function prevStory() {
+    setViewingStoryIdx(idx => {
+      if (idx === null || idx === 0) return idx;
+      return idx - 1;
+    });
+  }
 
   // ─── Load messages when chat changes ─────────────────────────────────────
 
@@ -838,6 +1007,102 @@ export default function App() {
     if (!session) return;
     await pinMessage(session.token, msg.id, !msg.is_pinned).catch(console.error);
     setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, is_pinned: !m.is_pinned } : m));
+  }
+
+  // ─── Group chat actions ───────────────────────────────────────────────────
+
+  async function handleSendGroupMessage(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!session || !selectedGroup) return;
+    const text = newGroupMessage.trim();
+    if (!text && !groupEditingMsg) return;
+
+    if (groupEditingMsg) {
+      if (!text) return;
+      await editGroupMessage(session.token, groupEditingMsg.id, text).catch(console.error);
+      setGroupMessages(prev => prev.map(m => m.id === groupEditingMsg.id ? { ...m, text, is_edited: true } : m));
+      setGroupEditingMsg(null);
+      setNewGroupMessage('');
+      return;
+    }
+
+    const optimisticId = -(Date.now());
+    const optimistic: MessageItem = {
+      id: optimisticId, from_id: session.userId, to_id: 0,
+      text, time_text: 'now', time: Math.floor(Date.now() / 1000),
+      group_id: selectedGroup.id,
+      reply_to: groupReplyTarget ? { id: groupReplyTarget.id, from_id: groupReplyTarget.from_id, text: groupReplyTarget.text } : undefined,
+      _pending: true,
+    };
+    setGroupMessages(prev => [...prev, optimistic]);
+    setNewGroupMessage('');
+    setGroupReplyTarget(null);
+
+    try {
+      const result = await sendGroupMessage(session.token, selectedGroup.id, text, groupReplyTarget?.id);
+      setGroupMessages(prev => prev.map(m =>
+        m.id === optimisticId ? { ...m, id: result.id ?? optimisticId, _pending: false } : m
+      ));
+    } catch {
+      setGroupMessages(prev => prev.filter(m => m.id !== optimisticId));
+      setSendError(t('misc.sendError'));
+      setTimeout(() => setSendError(''), 4000);
+    }
+  }
+
+  async function handleDeleteGroupMessage(msg: MessageItem) {
+    if (!session) return;
+    await deleteGroupMessage(session.token, msg.id).catch(console.error);
+    setGroupMessages(prev => prev.filter(m => m.id !== msg.id));
+  }
+
+  async function handleLoadMoreGroupMessages() {
+    if (!session || !selectedGroup || !groupHasMore || groupMessages.length === 0) return;
+    const oldest = groupMessages[0].id;
+    const r = await loadMoreGroupMessages(session.token, selectedGroup.id, oldest);
+    setGroupMessages(prev => [...(r.messages ?? []), ...prev]);
+    setGroupHasMore((r.messages ?? []).length >= 40);
+  }
+
+  // ─── Channel post actions ─────────────────────────────────────────────────
+
+  async function handleCreateChannelPost(e: React.FormEvent) {
+    e.preventDefault();
+    if (!session || !selectedChannel) return;
+    const text = newChannelPost.trim();
+    if (!text && !channelPostMedia) return;
+
+    let mediaUrl: string | undefined;
+    let mediaType: string | undefined;
+    if (channelPostMedia) {
+      try {
+        const up = await uploadMedia(session.token, channelPostMedia);
+        mediaUrl  = up.image_src ?? up.video_src ?? up.file_src;
+        mediaType = channelPostMedia.type.startsWith('image') ? 'image'
+          : channelPostMedia.type.startsWith('video') ? 'video' : 'file';
+      } catch { /* upload failed, post without media */ }
+    }
+
+    setNewChannelPost('');
+    setChannelPostMedia(null);
+    await createChannelPost(session.token, selectedChannel.id, text, mediaUrl, mediaType).catch(console.error);
+    const r = await loadChannelPosts(session.token, selectedChannel.id);
+    setChannelPosts(r.posts ?? []);
+    setChannelPostOffset((r.posts ?? []).length);
+  }
+
+  async function handleDeleteChannelPost(postId: number) {
+    if (!session) return;
+    await deleteChannelPost(session.token, postId).catch(console.error);
+    setChannelPosts(prev => prev.filter(p => p.id !== postId));
+  }
+
+  async function handleLoadMoreChannelPosts() {
+    if (!session || !selectedChannel || !channelHasMore) return;
+    const r = await loadMoreChannelPosts(session.token, selectedChannel.id, channelPostOffset);
+    setChannelPosts(prev => [...prev, ...(r.posts ?? [])]);
+    setChannelHasMore((r.posts ?? []).length >= 30);
+    setChannelPostOffset(prev => prev + (r.posts ?? []).length);
   }
 
   // ─── Groups ───────────────────────────────────────────────────────────────
@@ -1184,13 +1449,23 @@ export default function App() {
             </form>
             {groups.length === 0 && <div className="empty-state">{t('sidebar.noGroups')}</div>}
             {groups.map(g => (
-              <div key={g.id} className="list-item">
+              <button key={g.id}
+                className={`chat-item ${selectedGroup?.id === g.id ? 'active' : ''}`}
+                onClick={() => setSelectedGroup(g)}
+              >
                 <Avatar name={asText(g.group_name, 'G')} src={g.avatar} size={44} />
-                <div className="list-item-body">
-                  <span className="list-item-name">{asText(g.group_name, t('nav.groups'))}</span>
-                  <span className="list-item-sub">{g.members_count ?? 0} {t('sidebar.members')}</span>
+                <div className="chat-item-body">
+                  <div className="chat-item-row">
+                    <span className="chat-item-name">{asText(g.group_name, t('nav.groups'))}</span>
+                    <span className="chat-item-time">{g.time ? formatChatTime(g.time as string) : ''}</span>
+                  </div>
+                  <div className="chat-item-row">
+                    <span className="chat-item-preview">
+                      {g.last_message ? previewLastMessage(g.last_message) : `${g.members_count ?? 0} ${t('sidebar.members')}`}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -1205,13 +1480,23 @@ export default function App() {
             </form>
             {channels.length === 0 && <div className="empty-state">{t('sidebar.noChannels')}</div>}
             {channels.map(c => (
-              <div key={c.id} className="list-item">
+              <button key={c.id}
+                className={`chat-item ${selectedChannel?.id === c.id ? 'active' : ''}`}
+                onClick={() => setSelectedChannel(c)}
+              >
                 <Avatar name={asText(c.name, 'C')} src={c.avatar_url} size={44} />
-                <div className="list-item-body">
-                  <span className="list-item-name">{asText(c.name, t('nav.channels'))}</span>
-                  <span className="list-item-sub">{c.subscribers_count ?? 0} {t('sidebar.subscribers')}</span>
+                <div className="chat-item-body">
+                  <div className="chat-item-row">
+                    <span className="chat-item-name">{asText(c.name, t('nav.channels'))}</span>
+                    <span className="chat-item-time">{c.time ? formatChatTime(c.time) : ''}</span>
+                  </div>
+                  <div className="chat-item-row">
+                    <span className="chat-item-preview">
+                      {c.last_post ?? `${c.subscribers_count ?? 0} ${t('sidebar.subscribers')}`}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -1228,8 +1513,8 @@ export default function App() {
               <button type="submit" className="btn-sm" disabled={!newStoryFile}>{t('sidebar.uploadStory')}</button>
             </form>
             <div className="stories-grid">
-              {stories.map(s => (
-                <div key={s.id} className="story-thumb">
+              {stories.map((s, idx) => (
+                <button key={s.id} className={`story-thumb ${s.is_seen ? 'story-seen' : ''}`} onClick={() => openStory(idx)}>
                   {s.file
                     ? s.file_type === 'video'
                       ? <video src={s.file} className="story-media" />
@@ -1237,7 +1522,8 @@ export default function App() {
                     : <div className="story-placeholder">{s.user_name?.[0] ?? '?'}</div>
                   }
                   <span className="story-label">{s.user_name ?? `Story #${s.id}`}</span>
-                </div>
+                  {!s.is_seen && <div className="story-unseen-ring" />}
+                </button>
               ))}
             </div>
           </div>
@@ -1333,9 +1619,272 @@ export default function App() {
         )}
       </aside>
 
+      {/* ── Story viewer overlay ──────────────────────────────────────────── */}
+      {viewingStoryIdx !== null && stories[viewingStoryIdx] && (() => {
+        const s = stories[viewingStoryIdx];
+        return (
+          <div className="story-viewer" onClick={closeStory}>
+            <div className="story-viewer-progress">
+              {stories.map((_, i) => (
+                <div key={i} className="story-progress-track">
+                  <div
+                    className="story-progress-fill"
+                    style={{ width: i < viewingStoryIdx ? '100%' : i === viewingStoryIdx ? `${storyProgress}%` : '0%' }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="story-viewer-header">
+              <Avatar name={s.user_name ?? '?'} src={s.user_avatar} size={36} />
+              <span className="story-viewer-name">{s.user_name ?? `Story #${s.id}`}</span>
+              <span className="story-viewer-time">{s.created_at ?? ''}</span>
+              <button className="story-viewer-close" onClick={e => { e.stopPropagation(); closeStory(); }}>✕</button>
+            </div>
+            <div className="story-viewer-media" onClick={e => e.stopPropagation()}>
+              {s.file
+                ? s.file_type === 'video'
+                  ? <video src={s.file} autoPlay loop className="story-viewer-img" />
+                  : <img src={s.file} alt="story" className="story-viewer-img" />
+                : <div className="story-viewer-placeholder">{s.user_name?.[0] ?? '?'}</div>
+              }
+            </div>
+            <button className="story-nav story-nav-prev" onClick={e => { e.stopPropagation(); prevStory(); }}>‹</button>
+            <button className="story-nav story-nav-next" onClick={e => { e.stopPropagation(); nextStory(); }}>›</button>
+          </div>
+        );
+      })()}
+
       {/* ── Main chat view ────────────────────────────────────────────────── */}
       <main className="chat-main">
-        {!selectedChat || (section !== 'chats' && section !== 'calls') ? (
+        {/* ── Group chat ──────────────────────────────────────────────────── */}
+        {section === 'groups' && selectedGroup ? (
+          <>
+            <div className="chat-header">
+              <div className="chat-header-left">
+                <Avatar name={asText(selectedGroup.group_name, 'G')} src={selectedGroup.avatar} size={38} />
+                <div className="chat-header-info">
+                  <span className="chat-header-name">{asText(selectedGroup.group_name, t('nav.groups'))}</span>
+                  <span className="chat-header-status">{selectedGroup.members_count ?? 0} {t('sidebar.members')}</span>
+                </div>
+              </div>
+            </div>
+            <div className="messages-scroll" ref={messagesScrollRef}>
+              {groupHasMore && (
+                <button className="load-more" onClick={handleLoadMoreGroupMessages}>{t('chat.loadEarlier')}</button>
+              )}
+              {groupMsgLoading && <div className="messages-loading"><div className="spinner" /></div>}
+              {groupMsgError && (
+                <div className="msg-load-error">
+                  <p>{t('chat.loadError')}</p>
+                  <button className="retry-btn" onClick={() => {
+                    if (!session || !selectedGroup) return;
+                    setGroupMsgError(false); setGroupMsgLoading(true);
+                    loadGroupMessages(session.token, selectedGroup.id)
+                      .then(r => { setGroupMessages(r.messages ?? []); setGroupMsgLoading(false); })
+                      .catch(() => { setGroupMsgError(true); setGroupMsgLoading(false); });
+                  }}>{t('chat.retry')}</button>
+                </div>
+              )}
+              {groupMessages.map((msg, idx) => {
+                const isOwn = msg.from_id === session.userId;
+                const prevMsg = groupMessages[idx - 1];
+                const showSenderName = !isOwn && (!prevMsg || prevMsg.from_id !== msg.from_id);
+                return (
+                  <div key={msg.id} className={`msg-row ${isOwn ? 'own' : ''}`}>
+                    {!isOwn && (
+                      <div style={{ width: 28, flexShrink: 0, alignSelf: 'flex-end', paddingBottom: 4 }}>
+                        {showSenderName && <Avatar name={msg.sender_name ?? `User ${msg.from_id}`} size={28} />}
+                      </div>
+                    )}
+                    <div className="bubble-row">
+                      <div className={`bubble ${isOwn ? 'own' : ''} ${msg._pending ? 'pending' : ''}`}>
+                        {showSenderName && !isOwn && (
+                          <span className="group-sender-name">{msg.sender_name ?? `User ${msg.from_id}`}</span>
+                        )}
+                        {msg.reply_to && (
+                          <div className="reply-quote">
+                            <div className="reply-bar" />
+                            <div className="reply-content">
+                              <span className="reply-text">{asText(msg.reply_to.text, t('bubble.media')).slice(0, 80)}</span>
+                            </div>
+                          </div>
+                        )}
+                        {msg.media && (
+                          <div className="bubble-media">
+                            {msg.media_type === 'image' || (!msg.media_type && /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.media))
+                              ? <img src={msg.media} alt="media" className="media-img" onClick={() => window.open(msg.media, '_blank')} />
+                              : msg.media_type === 'video'
+                                ? <video src={msg.media} controls className="media-video" />
+                                : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">📎 {msg.media_filename ?? t('misc.downloadFile')}</a>
+                            }
+                          </div>
+                        )}
+                        {msg.text && <p className="bubble-text">{msg.text}{msg.is_edited && <span className="edited-mark">{t('bubble.edited')}</span>}</p>}
+                        <div className="bubble-footer">
+                          <time className="bubble-time">{formatTime(msg.time_text, msg.time)}</time>
+                          {isOwn && <span className="seen-tick">{msg.is_seen ? '✓✓' : '✓'}</span>}
+                        </div>
+                        {(msg.reactions ?? []).length > 0 && (
+                          <div className="reactions">
+                            {msg.reactions!.map((r, i) => (
+                              <button key={i} className={`reaction-chip ${r.user_ids.includes(session.userId) ? 'mine' : ''}`}
+                                onClick={() => reactToGroupMessage(session.token, msg.id, r.emoji).catch(console.error)}>
+                                {r.emoji} {r.count}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {isOwn && (
+                        <div className="bubble-actions actions-left">
+                          <button className="action-btn" title={t('bubble.reply')} onClick={() => setGroupReplyTarget({ id: msg.id, from_id: msg.from_id, text: asText(msg.text, t('bubble.media')) })}>↩</button>
+                          <button className="action-btn" title={t('bubble.edit')} onClick={() => { setGroupEditingMsg(msg); setNewGroupMessage(asText(msg.text, '')); }}>✎</button>
+                          <button className="action-btn" title={t('bubble.delete')} onClick={() => handleDeleteGroupMessage(msg)}>🗑</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+            {sendError && <div className="send-error-banner">{sendError}</div>}
+            <div className="composer">
+              {(groupReplyTarget || groupEditingMsg) && (
+                <div className="composer-banner">
+                  <div className="composer-banner-line" />
+                  <div className="composer-banner-content">
+                    <span className="composer-banner-label">{groupEditingMsg ? t('chat.editing') : t('chat.replyTo')}</span>
+                    <span className="composer-banner-text">{groupEditingMsg ? asText(groupEditingMsg.text, '').slice(0, 60) : groupReplyTarget!.text.slice(0, 60)}</span>
+                  </div>
+                  <button className="composer-banner-close" onClick={() => { setGroupReplyTarget(null); setGroupEditingMsg(null); setNewGroupMessage(''); }}>✕</button>
+                </div>
+              )}
+              <form className="composer-row" onSubmit={handleSendGroupMessage}>
+                <textarea
+                  className="composer-input"
+                  placeholder={t('chat.writePlaceholder')}
+                  value={newGroupMessage}
+                  rows={1}
+                  onChange={e => setNewGroupMessage(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendGroupMessage(); } }}
+                />
+                <button type="submit" className={`send-btn ${newGroupMessage.trim() ? 'active' : ''}`} disabled={!newGroupMessage.trim() && !groupEditingMsg}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+              </form>
+            </div>
+          </>
+        ) : section === 'groups' ? (
+          <div className="chat-empty"><div className="chat-empty-icon">👥</div><h3>{t('sidebar.groups')}</h3><p>{t('sidebar.noGroups')}</p></div>
+
+        /* ── Channel posts ─────────────────────────────────────────────────── */
+        ) : section === 'channels' && selectedChannel ? (
+          <>
+            <div className="chat-header">
+              <div className="chat-header-left">
+                <Avatar name={asText(selectedChannel.name, 'C')} src={selectedChannel.avatar_url} size={38} />
+                <div className="chat-header-info">
+                  <span className="chat-header-name">{asText(selectedChannel.name, t('nav.channels'))}</span>
+                  <span className="chat-header-status">{selectedChannel.subscribers_count ?? 0} {t('sidebar.subscribers')}</span>
+                </div>
+              </div>
+            </div>
+            <div className="messages-scroll channel-scroll" ref={messagesScrollRef}>
+              {channelPostsLoading && <div className="messages-loading"><div className="spinner" /></div>}
+              {!channelPostsLoading && channelPosts.length === 0 && (
+                <div className="chat-empty"><div className="chat-empty-icon">📢</div><h3>{t('sidebar.noChannels')}</h3></div>
+              )}
+              {channelPosts.map(post => (
+                <div key={post.id} className="channel-post">
+                  <div className="channel-post-header">
+                    <Avatar name={asText(selectedChannel.name, 'C')} src={selectedChannel.avatar_url} size={28} />
+                    <span className="channel-post-author">{asText(selectedChannel.name, '')}</span>
+                    <span className="channel-post-time">{post.time ? formatTime(post.time) : ''}</span>
+                    {post.is_pinned && <span className="channel-post-pin">📌</span>}
+                    {post.publisher_id === session.userId && (
+                      <button className="action-btn" style={{ marginLeft: 'auto' }} title={t('bubble.delete')}
+                        onClick={() => handleDeleteChannelPost(post.id)}>🗑</button>
+                    )}
+                  </div>
+                  {post.media && (
+                    <div className="bubble-media" style={{ marginBottom: 8 }}>
+                      {post.media_type === 'image' || (!post.media_type && /\.(jpg|jpeg|png|gif|webp)$/i.test(post.media))
+                        ? <img src={post.media} alt="media" className="media-img" style={{ maxWidth: '100%' }} onClick={() => window.open(post.media, '_blank')} />
+                        : post.media_type === 'video'
+                          ? <video src={post.media} controls className="media-video" style={{ maxWidth: '100%' }} />
+                          : <a href={post.media} target="_blank" rel="noreferrer" className="media-file">📎 {t('misc.downloadFile')}</a>
+                      }
+                    </div>
+                  )}
+                  {post.text && <p className="channel-post-text">{post.text}</p>}
+                  <div className="channel-post-footer">
+                    <span className="channel-post-stat">👁 {post.views_count ?? 0}</span>
+                    <span className="channel-post-stat">💬 {post.comments_count ?? 0}</span>
+                    <div className="reactions" style={{ marginTop: 0 }}>
+                      {(post.reactions ?? []).map((r, i) => (
+                        <button key={i} className="reaction-chip"
+                          onClick={() => { if (session) reactToChannelPost(session.token, post.id, r.emoji).catch(console.error); }}>
+                          {r.emoji} {r.count}
+                        </button>
+                      ))}
+                      {EMOJI_QUICK.slice(0, 5).map(e => (
+                        <button key={e} className="reaction-chip add-reaction"
+                          onClick={() => { if (session) reactToChannelPost(session.token, post.id, e).then(() => {
+                            setChannelPosts(prev => prev.map(p => p.id !== post.id ? p : {
+                              ...p, reactions: (() => {
+                                const ex = (p.reactions ?? []).find(r => r.emoji === e);
+                                return ex
+                                  ? (p.reactions ?? []).map(r => r.emoji === e ? { ...r, count: r.count + 1 } : r)
+                                  : [...(p.reactions ?? []), { emoji: e, count: 1, user_ids: [session.userId] }];
+                              })()
+                            }));
+                          }).catch(console.error); }}>
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {channelHasMore && (
+                <button className="load-more" onClick={handleLoadMoreChannelPosts}>{t('chat.loadEarlier')}</button>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            <div className="composer">
+              {channelPostMedia && (
+                <div className="attachment-preview">
+                  <span>📎 {channelPostMedia.name}</span>
+                  <button onClick={() => setChannelPostMedia(null)}>✕</button>
+                </div>
+              )}
+              <form className="composer-row" onSubmit={handleCreateChannelPost}>
+                <label className="icon-btn attach-btn" title={t('chat.attachFile')}>
+                  📎
+                  <input type="file" style={{ display: 'none' }} accept="image/*,video/*"
+                    onChange={e => setChannelPostMedia(e.target.files?.[0] ?? null)} />
+                </label>
+                <textarea
+                  className="composer-input"
+                  placeholder={t('sidebar.uploadStory')}
+                  value={newChannelPost}
+                  rows={1}
+                  onChange={e => setNewChannelPost(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCreateChannelPost(e as unknown as React.FormEvent); } }}
+                />
+                <button type="submit" className={`send-btn ${newChannelPost.trim() || channelPostMedia ? 'active' : ''}`}
+                  disabled={!newChannelPost.trim() && !channelPostMedia}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+              </form>
+            </div>
+          </>
+        ) : section === 'channels' ? (
+          <div className="chat-empty"><div className="chat-empty-icon">📢</div><h3>{t('sidebar.channels')}</h3><p>{t('sidebar.noChannels')}</p></div>
+
+        /* ── Private chat (existing) ──────────────────────────────────────── */
+        ) : !selectedChat || (section !== 'chats' && section !== 'calls') ? (
           <div className="chat-empty">
             <div className="chat-empty-icon">💬</div>
             <h3>{t('chat.selectConversation')}</h3>
