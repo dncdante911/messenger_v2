@@ -88,6 +88,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'chat.replyTo':                '↩ Ответить ',
     'chat.yourself':               'себе',
     'chat.attachFile':             'Прикрепить файл',
+    'chat.voiceMessage':           'Голосовое сообщение (удерживайте)',
+    'chat.stopRecording':          'Остановить запись',
     'chat.editPlaceholder':        'Редактировать сообщение…',
     'chat.writePlaceholder':       'Написать сообщение…',
 
@@ -227,6 +229,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'chat.replyTo':                '↩ Відповісти ',
     'chat.yourself':               'собі',
     'chat.attachFile':             'Прикріпити файл',
+    'chat.voiceMessage':           'Голосове повідомлення (утримуйте)',
+    'chat.stopRecording':          'Зупинити запис',
     'chat.editPlaceholder':        'Редагувати повідомлення…',
     'chat.writePlaceholder':       'Написати повідомлення…',
 
@@ -360,6 +364,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'chat.replyTo':                '↩ Reply to ',
     'chat.yourself':               'yourself',
     'chat.attachFile':             'Attach file',
+    'chat.voiceMessage':           'Voice message (hold)',
+    'chat.stopRecording':          'Stop recording',
     'chat.editPlaceholder':        'Edit message…',
     'chat.writePlaceholder':       'Write a message…',
 

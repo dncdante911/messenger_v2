@@ -372,6 +372,28 @@ export async function sendMessageWithMedia(
   });
 }
 
+export async function sendVoiceMessage(token: string, recipientId: number, voiceFile: File): Promise<void> {
+  const form = new FormData();
+  form.append('type', 'voice');
+  form.append('file', voiceFile);
+  const text = await doRequest(`${NODE_BASE_URL}/api/node/chat/upload`, {
+    method:  'POST',
+    headers: { 'access-token': token },
+    body:    form as unknown as BodyInit,
+  });
+  const upload = await parseJson<MediaUploadResponse>(text);
+  const mediaUrl = upload.audio_src ?? upload.file_src ?? '';
+  await nodePost('/api/node/chat/send-media', token, {
+    recipient_id:    recipientId,
+    group_id:        0,
+    media_url:       mediaUrl,
+    media_type:      'voice',
+    media_file_name: voiceFile.name,
+    caption:         '',
+    message_hash_id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+  });
+}
+
 // ─── Chat management ──────────────────────────────────────────────────────────
 
 export async function muteChat(token: string, userId: number, mute: boolean): Promise<void> {
