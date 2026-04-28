@@ -912,6 +912,193 @@ body {
 .send-btn:hover:not(:disabled) { transform: scale(1.05); }
 .send-btn:disabled { opacity: .4; cursor: not-allowed; }
 
+/* ─── Group sender name ──────────────────────────────────────────────────────── */
+.group-sender-name {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent-h);
+  margin-bottom: 3px;
+}
+
+/* ─── Channel posts ──────────────────────────────────────────────────────────── */
+.channel-scroll { gap: 0 !important; }
+
+.channel-post {
+  background: var(--bg-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  margin: 6px 8px;
+  transition: border-color .15s;
+}
+.channel-post:hover { border-color: var(--border); }
+
+.channel-post-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.channel-post-author { font-size: 14px; font-weight: 600; }
+.channel-post-time   { font-size: 11px; color: var(--text-2); }
+.channel-post-pin    { font-size: 12px; }
+
+.channel-post-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 10px;
+}
+
+.channel-post-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light);
+}
+.channel-post-stat {
+  font-size: 12px;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.add-reaction {
+  background: transparent;
+  border-color: transparent;
+  opacity: .5;
+  font-size: 14px;
+}
+.add-reaction:hover { opacity: 1; background: var(--bg-hover); }
+
+/* ─── Story viewer ───────────────────────────────────────────────────────────── */
+.story-thumb {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  aspect-ratio: 9/16;
+}
+.story-thumb:hover { opacity: .85; }
+.story-unseen-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--r-md);
+  border: 2.5px solid var(--accent);
+  pointer-events: none;
+}
+.story-seen .story-unseen-ring { border-color: var(--text-3); }
+
+.story-viewer {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.92);
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+}
+
+.story-viewer-progress {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+  z-index: 10;
+}
+.story-progress-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.story-progress-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 2px;
+  transition: width .1s linear;
+}
+
+.story-viewer-header {
+  position: absolute;
+  top: 28px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+}
+.story-viewer-name { font-size: 14px; font-weight: 600; color: #fff; }
+.story-viewer-time { font-size: 12px; color: rgba(255,255,255,.6); flex: 1; }
+.story-viewer-close {
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,.1);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background .15s;
+}
+.story-viewer-close:hover { background: rgba(255,255,255,.2); }
+
+.story-viewer-media {
+  width: min(400px, 90vw);
+  aspect-ratio: 9/16;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  position: relative;
+}
+.story-viewer-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.story-viewer-placeholder {
+  width: 100%; height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 72px;
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+
+.story-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px; height: 44px;
+  background: rgba(255,255,255,.1);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 26px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background .15s;
+  z-index: 10;
+}
+.story-nav:hover { background: rgba(255,255,255,.2); }
+.story-nav-prev { left: 16px; }
+.story-nav-next { right: 16px; }
+
 /* ─── Call overlay ───────────────────────────────────────────────────────────── */
 .call-overlay {
   position: fixed;
