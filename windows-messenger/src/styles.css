@@ -1214,4 +1214,54 @@ body {
   word-break: break-word;
   margin: 0;
 }
-.call-btn:hover   { opacity: .85; transform: scale(1.03); }
+
+/* ─── Lightbox ──────────────────────────────────────────────────────────────── */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  cursor: zoom-out;
+}
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: rgba(255,255,255,.12);
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.lightbox-close:hover { background: rgba(255,255,255,.25); }
+.lightbox-img {
+  max-width: 92vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 40px rgba(0,0,0,.6);
+  cursor: default;
+}
+
+/* ─── Voice recording button ────────────────────────────────────────────────── */
+.voice-btn {
+  font-size: 18px;
+  transition: background .15s, transform .1s;
+}
+.voice-btn.recording {
+  background: var(--danger);
+  color: #fff;
+  border-radius: 50%;
+  animation: pulse-rec 1s ease-in-out infinite;
+}
+@keyframes pulse-rec {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.15); }
+}

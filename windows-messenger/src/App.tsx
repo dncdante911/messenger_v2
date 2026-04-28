@@ -12,7 +12,7 @@ import {
   muteChat, normaliseMessage, pinChat, pinMessage,
   reactToMessage, reactToGroupMessage, registerAccount,
   searchMessages,
-  sendMessage, sendGroupMessage, sendMessageWithMedia, TURN_FALLBACK,
+  sendMessage, sendGroupMessage, sendMessageWithMedia, sendVoiceMessage, TURN_FALLBACK,
   uploadMedia
 } from './api';
 import type { ChannelPost } from './types';
@@ -143,13 +143,14 @@ function TypingDots() {
 }
 
 function Bubble({
-  msg, isOwn, onReply, onEdit, onDelete, onReact, userId
+  msg, isOwn, onReply, onEdit, onDelete, onReact, onOpenMedia, userId
 }: {
   msg: MessageItem; isOwn: boolean; userId: number;
   onReply: (m: MessageItem) => void;
   onEdit:  (m: MessageItem) => void;
   onDelete: (m: MessageItem) => void;
   onReact: (m: MessageItem, emoji: string) => void;
+  onOpenMedia: (src: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -195,7 +196,7 @@ function Bubble({
         {msg.media && (
           <div className="bubble-media">
             {mediaIsImage
-              ? <img src={msg.media} alt="media" className="media-img" onClick={() => window.open(msg.media, '_blank')} />
+              ? <img src={msg.media} alt="media" className="media-img" onClick={() => onOpenMedia(msg.media!)} />
               : msg.media_type === 'video'
                 ? <video src={msg.media} controls className="media-video" />
                 : msg.media_type === 'audio' || msg.media_type === 'voice'
@@ -356,6 +357,14 @@ export default function App() {
   const [chatSearchResults, setChatSearchResults] = useState<MessageItem[]>([]);
   const [chatSearchLoading, setChatSearchLoading] = useState(false);
   const chatSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Lightbox ──────────────────────────────────────────────────────────────
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
+  // ── Voice recording ───────────────────────────────────────────────────────
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceChunksRef   = useRef<Blob[]>([]);
 
   // ── Group chat ────────────────────────────────────────────────────────────
   const [selectedGroup, setSelectedGroup]     = useState<GroupItem | null>(null);
@@ -1006,6 +1015,37 @@ export default function App() {
       setSendError(t('misc.sendError'));
       setTimeout(() => setSendError(''), 4000);
     }
+  }
+
+  // ─── Voice recording ──────────────────────────────────────────────────────
+
+  async function startVoiceRecording() {
+    if (!session || !selectedChat) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      const mr = new MediaRecorder(stream, { mimeType });
+      voiceChunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) voiceChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(voiceChunksRef.current, { type: mimeType });
+        const ext  = mimeType.includes('webm') ? 'webm' : 'ogg';
+        const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: mimeType });
+        try {
+          await sendVoiceMessage(session.token, selectedChat.user_id, file);
+        } catch { /* ignore send error for voice */ }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setIsRecordingVoice(true);
+    } catch { /* microphone permission denied */ }
+  }
+
+  function stopVoiceRecording() {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+    setIsRecordingVoice(false);
   }
 
   // ─── Typing emit ──────────────────────────────────────────────────────────
@@ -1809,6 +1849,19 @@ export default function App() {
         );
       })()}
 
+      {/* ── Lightbox ─────────────────────────────────────────────────────── */}
+      {lightboxSrc && (
+        <div className="lightbox" onClick={() => setLightboxSrc(null)}>
+          <button className="lightbox-close" onClick={e => { e.stopPropagation(); setLightboxSrc(null); }}>✕</button>
+          <img
+            src={lightboxSrc}
+            alt="full-size"
+            className="lightbox-img"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {/* ── Main chat view ────────────────────────────────────────────────── */}
       <main className="chat-main">
         {/* ── Group chat ──────────────────────────────────────────────────── */}
@@ -1867,7 +1920,7 @@ export default function App() {
                         {msg.media && (
                           <div className="bubble-media">
                             {msg.media_type === 'image' || (!msg.media_type && /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.media))
-                              ? <img src={msg.media} alt="media" className="media-img" onClick={() => window.open(msg.media, '_blank')} />
+                              ? <img src={msg.media} alt="media" className="media-img" onClick={() => setLightboxSrc(msg.media!)} />
                               : msg.media_type === 'video'
                                 ? <video src={msg.media} controls className="media-video" />
                                 : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">📎 {msg.media_filename ?? t('misc.downloadFile')}</a>
@@ -1965,7 +2018,7 @@ export default function App() {
                   {post.media && (
                     <div className="bubble-media" style={{ marginBottom: 8 }}>
                       {post.media_type === 'image' || (!post.media_type && /\.(jpg|jpeg|png|gif|webp)$/i.test(post.media))
-                        ? <img src={post.media} alt="media" className="media-img" style={{ maxWidth: '100%' }} onClick={() => window.open(post.media, '_blank')} />
+                        ? <img src={post.media} alt="media" className="media-img" style={{ maxWidth: '100%' }} onClick={() => setLightboxSrc(post.media!)} />
                         : post.media_type === 'video'
                           ? <video src={post.media} controls className="media-video" style={{ maxWidth: '100%' }} />
                           : <a href={post.media} target="_blank" rel="noreferrer" className="media-file">📎 {t('misc.downloadFile')}</a>
@@ -2173,6 +2226,7 @@ export default function App() {
                       onEdit={handleEditStart}
                       onDelete={handleDelete}
                       onReact={handleReact}
+                      onOpenMedia={setLightboxSrc}
                     />
                   </div>
                 );
@@ -2242,6 +2296,19 @@ export default function App() {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                   }}
                 />
+
+                {/* Voice record button (hidden when text/media is ready) */}
+                {!newMessage.trim() && !pendingMedia && !editingMsg && (
+                  <button
+                    className={`icon-btn voice-btn ${isRecordingVoice ? 'recording' : ''}`}
+                    title={isRecordingVoice ? t('chat.stopRecording') : t('chat.voiceMessage')}
+                    onMouseDown={startVoiceRecording}
+                    onMouseUp={stopVoiceRecording}
+                    onMouseLeave={isRecordingVoice ? stopVoiceRecording : undefined}
+                  >
+                    🎤
+                  </button>
+                )}
 
                 {/* Send button */}
                 <button
