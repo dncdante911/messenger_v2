@@ -3843,6 +3843,22 @@
     <string name="call_idle_label">Немає активних дзвінків</string>
     <string name="call_preview_your_camera">Ваша камера</string>
 
+    <!-- ===== STRAPI STICKER / GIF PICKER ===== -->
+    <string name="strapi_picker_title">Стікери і GIF</string>
+    <string name="strapi_tab_all">Всі</string>
+    <string name="strapi_tab_stickers">Стікери</string>
+    <string name="strapi_tab_gifs">GIF</string>
+    <string name="strapi_tab_emojis">Емодзі</string>
+    <string name="strapi_loading">Завантаження…</string>
+    <string name="strapi_error_title">Помилка завантаження</string>
+    <string name="strapi_retry">Спробувати ще раз</string>
+    <string name="strapi_back_to_packs">← Назад до паків</string>
+    <string name="strapi_pack_empty">Пак порожній</string>
+    <string name="strapi_no_content">Немає контенту</string>
+    <string name="strapi_refresh">Оновити</string>
+    <string name="strapi_items_count">%d елементів</string>
+    <string name="strapi_close">Закрити</string>
+
     <!-- ===== CHANNEL LIVESTREAM NOTIFICATIONS ===== -->
     <string name="notif_channel_live_channel_name">Прямі ефіри</string>
     <string name="notif_channel_live_body">%s веде прямий ефір</string>

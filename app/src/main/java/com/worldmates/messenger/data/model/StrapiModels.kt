@@ -125,9 +125,17 @@ fun PackItem.toStrapiContentPack(cdnUrl: String = "https://cdn.worldmates.club")
         type = StrapiContentPack.ContentType.fromString(attributes.type ?: "sticker"),
         slug = attributes.slug ?: "pack-$id",
         items = attributes.uploadGifs?.data?.map { mediaItem ->
+            val rawUrl = mediaItem.attributes.url
+            // Strapi returns absolute URLs when server.url is configured; relative otherwise.
+            // Guard against double-prefixing either way.
+            val fullUrl = if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+                rawUrl
+            } else {
+                cdnUrl + rawUrl
+            }
             StrapiContentItem(
                 id = mediaItem.id,
-                url = cdnUrl + mediaItem.attributes.url,
+                url = fullUrl,
                 name = mediaItem.attributes.name,
                 width = mediaItem.attributes.width,
                 height = mediaItem.attributes.height

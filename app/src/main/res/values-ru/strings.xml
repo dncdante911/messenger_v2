@@ -3814,6 +3814,22 @@
     <string name="call_idle_label">Нет активных звонков</string>
     <string name="call_preview_your_camera">Ваша камера</string>
 
+    <!-- ===== STRAPI STICKER / GIF PICKER ===== -->
+    <string name="strapi_picker_title">Стикеры и GIF</string>
+    <string name="strapi_tab_all">Все</string>
+    <string name="strapi_tab_stickers">Стикеры</string>
+    <string name="strapi_tab_gifs">GIF</string>
+    <string name="strapi_tab_emojis">Эмодзи</string>
+    <string name="strapi_loading">Загрузка…</string>
+    <string name="strapi_error_title">Ошибка загрузки</string>
+    <string name="strapi_retry">Попробовать снова</string>
+    <string name="strapi_back_to_packs">← Назад к пакам</string>
+    <string name="strapi_pack_empty">Пак пустой</string>
+    <string name="strapi_no_content">Нет контента</string>
+    <string name="strapi_refresh">Обновить</string>
+    <string name="strapi_items_count">%d элементов</string>
+    <string name="strapi_close">Закрыть</string>
+
     <!-- ===== CHANNEL LIVESTREAM NOTIFICATIONS ===== -->
     <string name="notif_channel_live_channel_name">Прямые эфиры</string>
     <string name="notif_channel_live_body">%s ведёт прямой эфир</string>
