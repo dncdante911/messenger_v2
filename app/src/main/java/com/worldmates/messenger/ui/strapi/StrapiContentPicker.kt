@@ -14,9 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.worldmates.messenger.R
 
 /**
  * Bottom Sheet для вибору стікерів/гіфок з Strapi
@@ -62,19 +64,19 @@ fun StrapiContentPicker(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (selectedPack != null) selectedPack?.name ?: "Стікери і GIF" else "Стікери і GIF",
+                    text = if (selectedPack != null) selectedPack?.name ?: stringResource(R.string.strapi_picker_title) else stringResource(R.string.strapi_picker_title),
                     style = MaterialTheme.typography.titleLarge
                 )
 
                 Row {
                     IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, "Оновити")
+                        Icon(Icons.Default.Refresh, stringResource(R.string.strapi_refresh))
                     }
                     IconButton(onClick = {
                         viewModel.selectPack(null)
                         onDismiss()
                     }) {
-                        Icon(Icons.Default.Close, "Закрити")
+                        Icon(Icons.Default.Close, stringResource(R.string.strapi_close))
                     }
                 }
             }
@@ -85,22 +87,22 @@ fun StrapiContentPicker(
                     Tab(
                         selected = selectedTab == StrapiContentViewModel.ContentTab.ALL,
                         onClick = { viewModel.selectTab(StrapiContentViewModel.ContentTab.ALL) },
-                        text = { Text("Всі") }
+                        text = { Text(stringResource(R.string.strapi_tab_all)) }
                     )
                     Tab(
                         selected = selectedTab == StrapiContentViewModel.ContentTab.STICKERS,
                         onClick = { viewModel.selectTab(StrapiContentViewModel.ContentTab.STICKERS) },
-                        text = { Text("Стікери") }
+                        text = { Text(stringResource(R.string.strapi_tab_stickers)) }
                     )
                     Tab(
                         selected = selectedTab == StrapiContentViewModel.ContentTab.GIFS,
                         onClick = { viewModel.selectTab(StrapiContentViewModel.ContentTab.GIFS) },
-                        text = { Text("GIF") }
+                        text = { Text(stringResource(R.string.strapi_tab_gifs)) }
                     )
                     Tab(
                         selected = selectedTab == StrapiContentViewModel.ContentTab.EMOJIS,
                         onClick = { viewModel.selectTab(StrapiContentViewModel.ContentTab.EMOJIS) },
-                        text = { Text("Емодзі") }
+                        text = { Text(stringResource(R.string.strapi_tab_emojis)) }
                     )
                 }
             }
@@ -115,7 +117,7 @@ fun StrapiContentPicker(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator()
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Завантаження...", style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.strapi_loading), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -131,7 +133,7 @@ fun StrapiContentPicker(
                             modifier = Modifier.padding(32.dp)
                         ) {
                             Text(
-                                text = "Помилка завантаження",
+                                text = stringResource(R.string.strapi_error_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.error
                             )
@@ -143,7 +145,7 @@ fun StrapiContentPicker(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(onClick = { viewModel.refresh() }) {
-                                Text("Спробувати ще раз")
+                                Text(stringResource(R.string.strapi_retry))
                             }
                         }
                     }
@@ -159,7 +161,7 @@ fun StrapiContentPicker(
                             onClick = { viewModel.selectPack(null) },
                             modifier = Modifier.padding(horizontal = 16.dp)
                         ) {
-                            Text("\u2190 Назад до паків")
+                            Text(stringResource(R.string.strapi_back_to_packs))
                         }
 
                         if (packItems.isEmpty()) {
@@ -167,7 +169,7 @@ fun StrapiContentPicker(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Пак порожній", style = MaterialTheme.typography.bodyMedium)
+                                Text(stringResource(R.string.strapi_pack_empty), style = MaterialTheme.typography.bodyMedium)
                             }
                         } else {
                             // Сітка з елементами
@@ -202,11 +204,11 @@ fun StrapiContentPicker(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.padding(32.dp)
                         ) {
-                            Text("Немає контенту", style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.strapi_no_content), style = MaterialTheme.typography.bodyMedium)
                             if (!isLoading) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 TextButton(onClick = { viewModel.refresh() }) {
-                                    Text("Оновити")
+                                    Text(stringResource(R.string.strapi_refresh))
                                 }
                             }
                         }
@@ -278,7 +280,7 @@ fun StrapiPackCard(
             )
 
             Text(
-                text = "${pack.items.size} елементів",
+                text = stringResource(R.string.strapi_items_count, pack.items.size),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
