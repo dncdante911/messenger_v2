@@ -54,6 +54,12 @@
 -keep class sun.misc.Unsafe { *; }
 -dontwarn sun.misc.**
 -keep class com.google.gson.stream.** { *; }
+# Preserve generic signatures of TypeToken and all subclasses (including anonymous
+# object : TypeToken<List<X>>() {} created in ChatOrganizationManager, etc.).
+# Without these two rules R8 strips the type argument and Gson throws
+# "TypeToken must be created with a type argument" at runtime.
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
 
 # ── Socket.IO ─────────────────────────────────────────────────────────────────
 -dontwarn io.socket.**
