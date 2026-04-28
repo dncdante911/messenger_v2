@@ -53,7 +53,12 @@ export class AuthError extends Error {
 
 async function doRequest(url: string, options: RequestInit): Promise<string> {
   const ipc = window.desktopApp?.request;
-  if (ipc) {
+
+  // FormData (binary / multipart) cannot pass through the text-only IPC proxy.
+  // Use native fetch directly — Electron renderer can make HTTPS requests.
+  const isFormData = options.body instanceof FormData;
+
+  if (ipc && !isFormData) {
     const headers = (options.headers ?? {}) as Record<string, string>;
     const result  = await ipc({
       url,
@@ -65,6 +70,8 @@ async function doRequest(url: string, options: RequestInit): Promise<string> {
     if (!result.ok) throw new Error(`HTTP ${result.status}`);
     return result.text;
   }
+
+  // Direct fetch: FormData uploads or browser (non-Electron) context.
   const res  = await fetch(url, options);
   const text = await res.text();
   if (res.status === 401) throw new AuthError();
@@ -412,6 +419,33 @@ export async function loadGroups(token: string): Promise<GenericListResponse<Gro
 
 export async function createGroup(token: string, groupName: string): Promise<void> {
   await nodePost('/api/node/group/create', token, { group_name: groupName, parts: '' });
+}
+
+export async function searchGroups(token: string, query: string): Promise<GenericListResponse<GroupItem>> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/group/search', token, { query, limit: 30, offset: 0 });
+  const raw  = (resp.groups ?? resp.data ?? []) as Record<string, unknown>[];
+  const data: GroupItem[] = Array.isArray(raw) ? raw.map(g => ({
+    id:            Number(g.id ?? g.group_id),
+    group_name:    toStr(g.group_name ?? g.name, 'Group'),
+    avatar:        g.avatar as string | undefined,
+    members_count: Number(g.members_count ?? 0),
+    description:   toStr(g.description, '')
+  })) : [];
+  return { api_status: '200', data };
+}
+
+export async function searchChannels(token: string, query: string): Promise<GenericListResponse<ChannelItem>> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/channel/list', token, { limit: 50, offset: 0, query });
+  const raw  = (resp.channels ?? resp.data ?? []) as Record<string, unknown>[];
+  const data: ChannelItem[] = Array.isArray(raw) ? raw.map(c => ({
+    id:                Number(c.id ?? c.channel_id),
+    name:              toStr(c.name, 'Channel'),
+    username:          c.username as string | undefined,
+    avatar_url:        (c.avatar_url ?? c.avatar) as string | undefined,
+    subscribers_count: Number(c.subscribers_count ?? 0),
+    description:       toStr(c.description, '')
+  })) : [];
+  return { api_status: '200', data };
 }
 
 export async function loadGroupMessages(token: string, groupId: number): Promise<MessagesResponse> {
