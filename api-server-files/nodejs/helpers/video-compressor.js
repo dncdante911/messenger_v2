@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Video compression helper using fluent-ffmpeg.
+ * Video compression helper using ffmpeg-static + child_process.
  *
  * Telegram-like quality tiers:
  *   video_message – 480p, CRF 28  – short in-chat clips (~5-15 MB)
@@ -16,14 +16,15 @@
 
 const path   = require('path');
 const fs     = require('fs');
-const ffmpeg = require('fluent-ffmpeg');
+const { spawn } = require('child_process');
 
-// Use bundled ffmpeg-static binary when available, otherwise fall back to PATH
+// Resolve ffmpeg binary: bundled ffmpeg-static → system PATH fallback
+let ffmpegBin = 'ffmpeg';
 try {
-    const ffmpegPath = require('ffmpeg-static');
-    if (ffmpegPath) {
-        ffmpeg.setFfmpegPath(ffmpegPath);
-        console.log('[VideoCompressor] Using bundled ffmpeg:', ffmpegPath);
+    const staticPath = require('ffmpeg-static');
+    if (staticPath && fs.existsSync(staticPath)) {
+        ffmpegBin = staticPath;
+        console.log('[VideoCompressor] Using bundled ffmpeg:', ffmpegBin);
     }
 } catch (_) {
     console.log('[VideoCompressor] ffmpeg-static not found, using system ffmpeg from PATH');
@@ -46,6 +47,37 @@ function autoTierForFile(fileSizeBytes) {
     if (mb < 500)  return { maxHeight: 720,  crf: 23, preset: 'fast',   audioBitrate: '128k' };
     if (mb < 2048) return { maxHeight: 1080, crf: 26, preset: 'fast',   audioBitrate: '128k' };
     return              { maxHeight: 1080, crf: 28, preset: 'medium', audioBitrate: '128k' };
+}
+
+// ─── Duration probe ───────────────────────────────────────────────────────────
+
+// Returns duration in seconds via ffprobe, or 0 if unavailable
+function probeDuration(inputPath) {
+    return new Promise((resolve) => {
+        // Derive ffprobe path from ffmpegBin (same directory, sibling binary)
+        let ffprobeBin = 'ffprobe';
+        if (ffmpegBin !== 'ffmpeg') {
+            const candidate = path.join(path.dirname(ffmpegBin), 'ffprobe');
+            if (fs.existsSync(candidate)) ffprobeBin = candidate;
+        }
+
+        const args = [
+            '-v', 'error',
+            '-select_streams', 'v:0',
+            '-show_entries', 'format=duration',
+            '-of', 'csv=p=0',
+            inputPath,
+        ];
+
+        let out = '';
+        const proc = spawn(ffprobeBin, args);
+        proc.stdout.on('data', (d) => { out += d.toString(); });
+        proc.on('close', () => {
+            const secs = parseFloat(out.trim());
+            resolve(isNaN(secs) ? 0 : secs);
+        });
+        proc.on('error', () => resolve(0));
+    });
 }
 
 // ─── Core compression function ────────────────────────────────────────────────
@@ -77,43 +109,66 @@ async function compressVideo(inputPath, outputPath, opts = {}) {
         `CRF=${tier.crf} preset=${tier.preset} input=${(inputSize / 1024 / 1024).toFixed(1)}MB`
     );
 
+    // Probe duration up-front so we can compute progress percentage
+    const durationSecs = onProgress ? await probeDuration(inputPath) : 0;
+
+    const args = [
+        '-i', inputPath,
+        '-c:v', 'libx264',
+        '-crf', String(tier.crf),
+        '-preset', tier.preset,
+        // Scale: limit the longer dimension to maxHeight, keep AR, force even pixels
+        '-vf', `scale=-2:'min(${tier.maxHeight},ih)'`,
+        '-c:a', 'aac',
+        '-b:a', tier.audioBitrate,
+        '-ac', '2',
+        // Web-optimised: moov atom at start for fast streaming
+        '-movflags', '+faststart',
+        // Progress output to stderr in a machine-readable format
+        '-progress', 'pipe:2',
+        '-nostats',
+        '-y',
+        outputPath,
+    ];
+
     return new Promise((resolve) => {
-        let cmd = ffmpeg(inputPath)
-            .videoCodec('libx264')
-            .audioCodec('aac')
-            .outputOptions([
-                `-crf ${tier.crf}`,
-                `-preset ${tier.preset}`,
-                // Scale: limit height to maxHeight, keep aspect ratio, ensure even dimensions
-                `-vf scale=-2:min(${tier.maxHeight}\\,ih)`,
-                // Web-optimised: place moov atom at start of file for fast streaming
-                '-movflags +faststart',
-                `-b:a ${tier.audioBitrate}`,
-                '-ac 2',
-            ])
-            .output(outputPath);
+        const proc = spawn(ffmpegBin, args);
 
-        if (onProgress) {
-            cmd = cmd.on('progress', (p) => {
-                onProgress(Math.min(99, Math.round(p.percent || 0)));
-            });
-        }
+        let stderrBuf = '';
+        proc.stderr.on('data', (chunk) => {
+            stderrBuf += chunk.toString();
 
-        cmd
-            .on('end', () => {
-                const outSize = fs.existsSync(outputPath) ? fs.statSync(outputPath).size : 0;
-                const pct = inputSize > 0 ? Math.round((1 - outSize / inputSize) * 100) : 0;
+            // ffmpeg -progress emits key=value pairs; parse "out_time_ms"
+            if (onProgress && durationSecs > 0) {
+                const match = stderrBuf.match(/out_time_ms=(\d+)/g);
+                if (match && match.length > 0) {
+                    const lastMs = parseInt(match[match.length - 1].split('=')[1], 10);
+                    const pct = Math.min(99, Math.round((lastMs / 1e6 / durationSecs) * 100));
+                    onProgress(pct);
+                }
+            }
+        });
+
+        proc.on('close', (code) => {
+            if (code === 0 && fs.existsSync(outputPath)) {
+                const outSize = fs.statSync(outputPath).size;
+                const saved = inputSize > 0 ? Math.round((1 - outSize / inputSize) * 100) : 0;
                 console.log(
                     `[VideoCompressor] Done: ${(inputSize / 1024 / 1024).toFixed(1)}MB → ` +
-                    `${(outSize / 1024 / 1024).toFixed(1)}MB (−${pct}%)`
+                    `${(outSize / 1024 / 1024).toFixed(1)}MB (−${saved}%)`
                 );
                 resolve({ success: true, outputPath, originalSize: inputSize, compressedSize: outSize });
-            })
-            .on('error', (err) => {
-                console.error('[VideoCompressor] Error:', err.message);
-                resolve({ success: false, error: err.message });
-            })
-            .run();
+            } else {
+                const errSnippet = stderrBuf.slice(-500);
+                console.error('[VideoCompressor] ffmpeg exited with code', code, '\n', errSnippet);
+                resolve({ success: false, error: `ffmpeg exited with code ${code}` });
+            }
+        });
+
+        proc.on('error', (err) => {
+            console.error('[VideoCompressor] spawn error:', err.message);
+            resolve({ success: false, error: err.message });
+        });
     });
 }
 
@@ -122,7 +177,7 @@ async function compressVideo(inputPath, outputPath, opts = {}) {
 /**
  * Compress a video file in-place:
  *   1. Compress to a temp path.
- *   2. Replace original with compressed.
+ *   2. Replace original with compressed only if smaller.
  *
  * The URL stored in the message stays valid — only the file on disk changes.
  *
@@ -141,21 +196,19 @@ function compressInPlace(filePath, opts = {}, onDone) {
     compressVideo(filePath, tmpPath, opts)
         .then((result) => {
             if (!result.success) {
-                if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+                if (fs.existsSync(tmpPath)) try { fs.unlinkSync(tmpPath); } catch (_) {}
                 onDone && onDone({ success: false, error: result.error });
                 return;
             }
 
-            // Only replace if the compressed file is actually smaller
-            const tmpSize = fs.existsSync(tmpPath) ? fs.statSync(tmpPath).size : 0;
+            const tmpSize  = fs.existsSync(tmpPath)  ? fs.statSync(tmpPath).size  : 0;
             const origSize = fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
 
             if (tmpSize > 0 && tmpSize < origSize) {
                 fs.renameSync(tmpPath, filePath);
                 onDone && onDone({ success: true, originalSize: origSize, compressedSize: tmpSize });
             } else {
-                // Compressed file is not smaller — keep original
-                if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+                if (fs.existsSync(tmpPath)) try { fs.unlinkSync(tmpPath); } catch (_) {}
                 console.log('[VideoCompressor] Skipped replacement: compressed is not smaller');
                 onDone && onDone({ success: true, originalSize: origSize, compressedSize: origSize, skipped: true });
             }
