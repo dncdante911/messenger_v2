@@ -43,6 +43,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
@@ -1800,11 +1802,23 @@ fun CreatePostDialog(
     onCreate: (text: String, mediaList: List<com.worldmates.messenger.data.model.PostMedia>?) -> Unit
 ) {
     val context = LocalContext.current
+    val scope   = androidx.compose.runtime.rememberCoroutineScope()
     var text by remember { mutableStateOf("") }
     var selectedMediaUris by remember { mutableStateOf<List<android.net.Uri>>(emptyList()) }
     var isUploadingMedia by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableIntStateOf(0) }
     var uploadTotal by remember { mutableIntStateOf(0) }
+
+    // Video quality selection — shown when at least one video is in the selection
+    var channelVideoQuality by remember {
+        mutableStateOf(com.worldmates.messenger.ui.messages.VideoSendOption.COMPRESSED)
+    }
+    var isCompressingVideo by remember { mutableStateOf(false) }
+    var videoCompressionProgress by remember { mutableIntStateOf(0) }
+
+    val hasVideoSelected = selectedMediaUris.any {
+        context.contentResolver.getType(it)?.startsWith("video/") == true
+    }
 
     val maxMedia = 15
 
@@ -1842,7 +1856,8 @@ fun CreatePostDialog(
         else Toast.makeText(context, context.getString(R.string.camera_permission_required), Toast.LENGTH_SHORT).show()
     }
 
-    val canPublish = (text.isNotBlank() || selectedMediaUris.isNotEmpty()) && !isUploadingMedia
+    val canPublish = (text.isNotBlank() || selectedMediaUris.isNotEmpty()) &&
+                     !isUploadingMedia && !isCompressingVideo
 
     fun publish() {
         if (!canPublish) return
@@ -1851,37 +1866,123 @@ fun CreatePostDialog(
             uploadTotal = selectedMediaUris.size
             uploadProgress = 0
             val uploadedMedia = mutableListOf<com.worldmates.messenger.data.model.PostMedia>()
+
             fun uploadNext(index: Int) {
                 if (index >= selectedMediaUris.size) {
                     isUploadingMedia = false
                     onCreate(text.trim(), uploadedMedia)
                     return
                 }
-                uploadMediaFile(
-                    context = context,
-                    uri = selectedMediaUris[index],
-                    onSuccess = { url ->
-                        val mimeType = context.contentResolver.getType(selectedMediaUris[index])
-                        val mediaType = if (mimeType?.startsWith("video/") == true) "video" else "image"
-                        uploadedMedia.add(
-                            com.worldmates.messenger.data.model.PostMedia(
-                                url = url,
-                                type = mediaType,
-                                filename = null,
+
+                val uri      = selectedMediaUris[index]
+                val mimeType = context.contentResolver.getType(uri)
+                val isVideo  = mimeType?.startsWith("video/") == true
+
+                // For videos: optionally compress on-device before uploading
+                if (isVideo && channelVideoQuality != com.worldmates.messenger.ui.messages.VideoSendOption.ORIGINAL) {
+                    scope.launch(Dispatchers.IO) {
+                        // Copy URI to cache file
+                        val ext = mimeType!!.substringAfterLast('/').let { if (it == "quicktime") "mov" else it }
+                        val tmpFile = java.io.File(context.cacheDir, "ch_video_${System.currentTimeMillis()}.$ext")
+                        try {
+                            context.contentResolver.openInputStream(uri)?.use { input ->
+                                tmpFile.outputStream().use { output -> input.copyTo(output) }
+                            }
+
+                            // Compress with chosen quality
+                            withContext(Dispatchers.Main) {
+                                isCompressingVideo = true
+                                videoCompressionProgress = 0
+                            }
+                            val compressor = com.worldmates.messenger.utils.VideoCompressor(context)
+                            val result = compressor.compressIfNeeded(
+                                videoUri   = android.net.Uri.fromFile(tmpFile),
+                                quality    = channelVideoQuality.quality
+                                    ?: com.worldmates.messenger.utils.VideoCompressor.Quality.COMPRESSED,
+                                threshold  = com.worldmates.messenger.data.Constants.VIDEO_COMPRESSION_THRESHOLD,
+                                onProgress = { pct ->
+                                    scope.launch(Dispatchers.Main) { videoCompressionProgress = pct }
+                                },
                             )
-                        )
-                        uploadProgress = index + 1
-                        uploadNext(index + 1)
-                    },
-                    onError = { error ->
-                        isUploadingMedia = false
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.post_upload_error, error),
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    },
-                )
+                            withContext(Dispatchers.Main) { isCompressingVideo = false }
+
+                            val fileToUpload = when (result) {
+                                is com.worldmates.messenger.utils.VideoCompressor.CompressionResult.Success          ->
+                                    result.compressedFile
+                                is com.worldmates.messenger.utils.VideoCompressor.CompressionResult.NoCompressionNeeded ->
+                                    result.file
+                                is com.worldmates.messenger.utils.VideoCompressor.CompressionResult.Error            ->
+                                    tmpFile
+                            }
+
+                            // Upload the compressed file
+                            uploadMediaFile(
+                                context     = context,
+                                uri         = android.net.Uri.fromFile(fileToUpload),
+                                quality     = channelVideoQuality.quality?.serverParam ?: "auto",
+                                onSuccess   = { url ->
+                                    tmpFile.delete()
+                                    if (fileToUpload != tmpFile) fileToUpload.delete()
+                                    scope.launch(Dispatchers.Main) {
+                                        uploadedMedia.add(
+                                            com.worldmates.messenger.data.model.PostMedia(
+                                                url = url, type = "video", filename = null,
+                                            )
+                                        )
+                                        uploadProgress = index + 1
+                                        uploadNext(index + 1)
+                                    }
+                                },
+                                onError = { error ->
+                                    tmpFile.delete()
+                                    scope.launch(Dispatchers.Main) {
+                                        isUploadingMedia = false
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.post_upload_error, error),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                },
+                            )
+                        } catch (e: Exception) {
+                            tmpFile.delete()
+                            withContext(Dispatchers.Main) {
+                                isCompressingVideo = false
+                                isUploadingMedia = false
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.post_upload_error, e.localizedMessage),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    }
+                } else {
+                    // Image or "send as original" video — upload directly
+                    uploadMediaFile(
+                        context = context,
+                        uri     = uri,
+                        quality = "original",
+                        onSuccess = { url ->
+                            uploadedMedia.add(
+                                com.worldmates.messenger.data.model.PostMedia(
+                                    url = url, type = if (isVideo) "video" else "image", filename = null,
+                                )
+                            )
+                            uploadProgress = index + 1
+                            uploadNext(index + 1)
+                        },
+                        onError = { error ->
+                            isUploadingMedia = false
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.post_upload_error, error),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        },
+                    )
+                }
             }
             uploadNext(0)
         } else {
@@ -2004,6 +2105,36 @@ fun CreatePostDialog(
                         }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                }
+
+                // ── Video quality selector (shown when videos are selected) ──
+                if (hasVideoSelected) {
+                    ChannelVideoQualityRow(
+                        selected  = channelVideoQuality,
+                        onSelect  = { channelVideoQuality = it },
+                        modifier  = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                }
+
+                // ── Compression progress (while compressing on-device) ────────
+                if (isCompressingVideo) {
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Text(
+                            text  = stringResource(R.string.video_compression_progress, videoCompressionProgress),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
 
                 // Text field
@@ -2267,6 +2398,7 @@ private fun ComposeActionRow(
 private fun uploadMediaFile(
     context: android.content.Context,
     uri: android.net.Uri,
+    quality: String = "auto",
     onSuccess: (String) -> Unit,
     onError: (String) -> Unit
 ) {
@@ -2274,9 +2406,7 @@ private fun uploadMediaFile(
         try {
             val contentResolver = context.contentResolver
             val inputStream = contentResolver.openInputStream(uri) ?: run {
-                withContext(Dispatchers.Main) {
-                    onError("Не вдалося відкрити файл")
-                }
+                withContext(Dispatchers.Main) { onError("Не вдалося відкрити файл") }
                 return@launch
             }
 
@@ -2290,25 +2420,20 @@ private fun uploadMediaFile(
                 else -> "file"
             }
 
-            val requestFile = okhttp3.RequestBody.create(
-                mimeType.toMediaTypeOrNull(),
-                bytes
-            )
-
+            val ext = mimeType.split("/").last().let { if (it == "quicktime") "mov" else it }
+            val requestFile = okhttp3.RequestBody.create(mimeType.toMediaTypeOrNull(), bytes)
             val filePart = okhttp3.MultipartBody.Part.createFormData(
                 "file",
-                "media_${System.currentTimeMillis()}.${mimeType.split("/").last()}",
+                "media_${System.currentTimeMillis()}.$ext",
                 requestFile
             )
-
-            val mediaTypePart = okhttp3.RequestBody.create(
-                "text/plain".toMediaTypeOrNull(),
-                mediaType
-            )
+            val mediaTypePart  = okhttp3.RequestBody.create("text/plain".toMediaTypeOrNull(), mediaType)
+            val qualityPart    = okhttp3.RequestBody.create("text/plain".toMediaTypeOrNull(), quality)
 
             val response = com.worldmates.messenger.network.NodeRetrofitClient.channelUploadApi.uploadMedia(
                 mediaType = mediaTypePart,
-                file = filePart
+                file      = filePart,
+                quality   = qualityPart,
             )
 
             withContext(Dispatchers.Main) {
@@ -2319,8 +2444,78 @@ private fun uploadMediaFile(
                 }
             }
         } catch (e: Exception) {
-            withContext(Dispatchers.Main) {
-                onError("Помилка: ${e.localizedMessage}")
+            withContext(Dispatchers.Main) { onError("Помилка: ${e.localizedMessage}") }
+        }
+    }
+}
+
+/**
+ * Compact horizontal chip row for selecting video quality in the channel post composer.
+ * Shows only the options relevant for posts: Compact, Good quality, Original.
+ */
+@Composable
+private fun ChannelVideoQualityRow(
+    selected: com.worldmates.messenger.ui.messages.VideoSendOption,
+    onSelect: (com.worldmates.messenger.ui.messages.VideoSendOption) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Only the three most useful options for post videos
+    val options = listOf(
+        com.worldmates.messenger.ui.messages.VideoSendOption.COMPRESSED,
+        com.worldmates.messenger.ui.messages.VideoSendOption.HIGH_QUALITY,
+        com.worldmates.messenger.ui.messages.VideoSendOption.ORIGINAL,
+    )
+    Column(modifier = modifier) {
+        Text(
+            text  = stringResource(R.string.video_send_as),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 6.dp),
+        )
+        androidx.compose.foundation.layout.Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { option ->
+                val isSelected = selected == option
+                val bgColor by animateColorAsState(
+                    if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    label = "chipBg",
+                )
+                val textColor = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+
+                Surface(
+                    onClick = { onSelect(option) },
+                    shape   = RoundedCornerShape(20.dp),
+                    color   = bgColor,
+                    border  = if (isSelected)
+                        BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                    else null,
+                ) {
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(13.dp),
+                            )
+                        }
+                        Text(
+                            text  = stringResource(option.titleRes),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = textColor,
+                        )
+                    }
+                }
             }
         }
     }

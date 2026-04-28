@@ -367,7 +367,9 @@ interface NodeChannelApi {
     @POST(Constants.NODE_MEDIA_UPLOAD)
     suspend fun uploadMedia(
         @Part("media_type") mediaType: RequestBody,
-        @Part file: MultipartBody.Part
+        @Part file: MultipartBody.Part,
+        /** Telegram-like quality: "video_message" | "compressed" | "high" | "original" | "auto" */
+        @Part("quality") quality: RequestBody? = null,
     ): MediaUploadResponse
 
     // ═══════════════════════ CHANNEL SUB-GROUPS ═════════════════════════════════

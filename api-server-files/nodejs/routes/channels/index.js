@@ -36,6 +36,7 @@ const channelPolls  = require('./polls');
 const threads       = require('./threads');
 const channelGroups = require('./channel-groups');
 const backup        = require('./backup');
+const { compressInPlace, isVideoFile } = require('../../helpers/video-compressor');
 
 // ─── Upload base path from config ───────────────────────────────────────────
 // Use site_path from config.json (absolute filesystem path to web root).
@@ -69,6 +70,8 @@ const upload = multer({
 });
 
 // ─── multer for generic media upload (image/video/audio/file) ───────────────
+// Accepts images AND videos. 1 GB limit — Android pre-compresses, server
+// applies additional ffmpeg pass for large videos in the background.
 const mediaUpload = multer({
     storage: multer.diskStorage({
         destination: function (req, file, cb) {
@@ -80,7 +83,14 @@ const mediaUpload = multer({
             cb(null, 'ch_media_' + Date.now() + '_' + Math.floor(Math.random() * 100000) + ext);
         }
     }),
-    limits: { fileSize: 100 * 1024 * 1024 } // 100MB
+    limits: { fileSize: 1024 * 1024 * 1024 }, // 1 GB (Android pre-compresses)
+    fileFilter: (req, file, cb) => {
+        // Allow images, videos, audio — block executables
+        const ok = file.mimetype.startsWith('image/') ||
+                   file.mimetype.startsWith('video/') ||
+                   file.mimetype.startsWith('audio/');
+        cb(null, ok);
+    }
 });
 
 // ─── auth middleware ────────────────────────────────────────────────────────
@@ -196,6 +206,29 @@ function uploadMedia(ctx) {
 
             const relativePath = 'upload/photos/channels/media/' + req.file.filename;
             const fileUrl = await funcs.Wo_GetMedia(ctx, relativePath);
+
+            // ── Background ffmpeg compression for channel video posts ──────────
+            // Android already compresses before upload; this is a safety net for
+            // web/desktop clients that upload without pre-compression.
+            const quality = (req.body.quality || 'auto').toLowerCase();
+            if (
+                mediaType === 'video' &&
+                quality !== 'original' &&
+                isVideoFile(req.file.filename) &&
+                req.file.size > 50 * 1024 * 1024  // > 50 MB
+            ) {
+                const absPath = req.file.path;
+                console.log(`[Channels/uploadMedia] Scheduling background compression for ${req.file.filename}`);
+                setImmediate(() => {
+                    compressInPlace(absPath, { quality, fileSize: req.file.size }, (result) => {
+                        if (result.success && !result.skipped) {
+                            const pct = Math.round((1 - result.compressedSize / result.originalSize) * 100);
+                            console.log(`[Channels/uploadMedia] Compression done: -${pct}% ${req.file.filename}`);
+                        }
+                    });
+                });
+            }
+            // ── End compression ───────────────────────────────────────────────
 
             return res.json({
                 api_status: 200,
