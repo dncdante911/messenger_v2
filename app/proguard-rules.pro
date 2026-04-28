@@ -51,9 +51,6 @@
 # ── Gson ──────────────────────────────────────────────────────────────────────
 -dontwarn com.google.gson.**
 -keep class com.google.gson.** { *; }
--keep class sun.misc.Unsafe { *; }
--dontwarn sun.misc.**
--keep class com.google.gson.stream.** { *; }
 # Preserve generic signatures of TypeToken and all subclasses (including anonymous
 # object : TypeToken<List<X>>() {} created in ChatOrganizationManager, etc.).
 # Without these two rules R8 strips the type argument and Gson throws
