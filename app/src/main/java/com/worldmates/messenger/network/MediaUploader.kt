@@ -73,6 +73,11 @@ class MediaUploader(private val context: Context) {
      * Загружает медиа-файл на сервер (двухшаговый процесс)
      * Шаг 1: Загружаем файл на сервер через xhr endpoint
      * Шаг 2: Отправляем сообщение с URL загруженного файла
+     *
+     * @param quality   Telegram-like quality tier for video uploads.
+     *                  Null = no quality param sent (server uses "auto").
+     * @param sendAsFile When true, sends video as type="file" (original, no Android compression).
+     *                  The server will compress it in the background if it's large.
      */
     suspend fun uploadMedia(
         accessToken: String,
@@ -82,6 +87,8 @@ class MediaUploader(private val context: Context) {
         groupId: Long? = null,
         isPremium: Boolean = com.worldmates.messenger.data.UserSession.isProActive,
         caption: String = "",
+        quality: com.worldmates.messenger.utils.VideoCompressor.Quality? = null,
+        sendAsFile: Boolean = false,
         onProgress: ((Int) -> Unit)? = null
     ): UploadResult = withContext(Dispatchers.IO) {
         try {
@@ -97,13 +104,18 @@ class MediaUploader(private val context: Context) {
             val fileSize = file.length()
             Log.d(TAG, "Розмір файлу: ${"%.2f".format(fileSize / 1024.0 / 1024.0)}MB (${fileSize / 1024}KB) для типу $mediaType")
 
-            if (!validateFileSize(file, mediaType, isPremium)) {
-                return@withContext UploadResult.Error("Файл занадто великий для типу: $mediaType")
+            // When sendAsFile=true, override media type to "file" so the server stores it
+            // as-is and runs background compression for large video files (movies).
+            val effectiveType = if (sendAsFile && mediaType == Constants.MESSAGE_TYPE_VIDEO)
+                Constants.MESSAGE_TYPE_FILE else mediaType
+
+            if (!validateFileSize(file, effectiveType, isPremium)) {
+                return@withContext UploadResult.Error("Файл занадто великий для типу: $effectiveType")
             }
 
             // Шаг 1: Загружаем файл на сервер через xhr endpoint
-            Log.d(TAG, "Крок 1: Завантаження файлу на сервер...")
-            val uploadResponse = uploadFileToServer(accessToken, file, mediaType, onProgress)
+            Log.d(TAG, "Крок 1: Завантаження файлу на сервер... type=$effectiveType quality=${quality?.serverParam ?: "auto"}")
+            val uploadResponse = uploadFileToServer(accessToken, file, effectiveType, quality, onProgress)
 
             // Логирование деталей ответа для отладки
             Log.d(TAG, "Статус завантаження: ${uploadResponse.status}")
@@ -120,7 +132,7 @@ class MediaUploader(private val context: Context) {
             }
 
             // Получаем URL загруженного файла
-            val mediaUrl = when (mediaType) {
+            val mediaUrl = when (effectiveType) {
                 Constants.MESSAGE_TYPE_IMAGE -> uploadResponse.imageUrl
                 Constants.MESSAGE_TYPE_VIDEO -> uploadResponse.videoUrl
                 Constants.MESSAGE_TYPE_AUDIO, Constants.MESSAGE_TYPE_VOICE -> uploadResponse.audioUrl
@@ -151,12 +163,12 @@ class MediaUploader(private val context: Context) {
             val nodeApi = NodeRetrofitClient.api
 
             if (recipientId != null) {
-                Log.d(TAG, "Крок 2: Відправка повідомлення з медіа (тип=$mediaType)...")
+                Log.d(TAG, "Крок 2: Відправка повідомлення з медіа (тип=$effectiveType)...")
                 val nodeResponse = nodeApi.sendMediaMessage(
                     recipientId = recipientId,
                     mediaUrl = finalMediaUrl,
-                    mediaType = mediaType,
-                    mediaFileName = file.name, // Оригінальне ім'я файлу (Artist - Title.mp3)
+                    mediaType = effectiveType,
+                    mediaFileName = file.name,
                     messageHashId = hashId,
                     caption = caption
                 )
@@ -177,12 +189,12 @@ class MediaUploader(private val context: Context) {
                     }
                 }
             } else if (groupId != null) {
-                Log.d(TAG, "Крок 2: Відправка повідомлення в групу (тип=$mediaType)...")
+                Log.d(TAG, "Крок 2: Відправка повідомлення в групу (тип=$effectiveType)...")
                 val nodeResponse = nodeApi.sendMediaMessage(
                     groupId = groupId,
                     mediaUrl = finalMediaUrl,
-                    mediaType = mediaType,
-                    mediaFileName = file.name, // Оригінальне ім'я файлу
+                    mediaType = effectiveType,
+                    mediaFileName = file.name,
                     messageHashId = hashId,
                     caption = caption
                 )
@@ -226,15 +238,18 @@ class MediaUploader(private val context: Context) {
         accessToken: String,
         file: File,
         mediaType: String,
+        quality: com.worldmates.messenger.utils.VideoCompressor.Quality? = null,
         onProgress: ((Int) -> Unit)? = null
     ): XhrUploadResponse {
-        val requestBody = ProgressRequestBody(file, getMimeType(mediaType), onProgress)
-        val filePart    = MultipartBody.Part.createFormData("file", file.name, requestBody)
-        val typePart    = mediaType.toRequestBody("text/plain".toMediaType())
+        val requestBody  = ProgressRequestBody(file, getMimeType(mediaType), onProgress)
+        val filePart     = MultipartBody.Part.createFormData("file", file.name, requestBody)
+        val typePart     = mediaType.toRequestBody("text/plain".toMediaType())
+        val qualityParam = (quality?.serverParam ?: "auto").toRequestBody("text/plain".toMediaType())
 
         return NodeRetrofitClient.chatUploadApi.uploadChatMedia(
-            type = typePart,
-            file = filePart,
+            type    = typePart,
+            file    = filePart,
+            quality = qualityParam,
         )
     }
 
@@ -331,11 +346,11 @@ class MediaUploader(private val context: Context) {
     private fun validateFileSize(file: File, mediaType: String, isPremium: Boolean = com.worldmates.messenger.data.UserSession.isProActive): Boolean {
         val fileSize = file.length()
         val maxSize = when (mediaType) {
-            Constants.MESSAGE_TYPE_IMAGE -> Constants.MAX_IMAGE_SIZE // 15MB
-            Constants.MESSAGE_TYPE_VIDEO -> Constants.MAX_VIDEO_SIZE // 1GB (с сжатием)
-            Constants.MESSAGE_TYPE_AUDIO, Constants.MESSAGE_TYPE_VOICE -> Constants.MAX_AUDIO_SIZE // 100MB
-            Constants.MESSAGE_TYPE_FILE -> Constants.MAX_FILE_SIZE // 500MB для любых файлов
-            else -> Constants.MAX_FILE_SIZE // 500MB по умолчанию
+            Constants.MESSAGE_TYPE_IMAGE -> Constants.MAX_IMAGE_SIZE
+            Constants.MESSAGE_TYPE_VIDEO -> Constants.MAX_VIDEO_SIZE
+            Constants.MESSAGE_TYPE_AUDIO, Constants.MESSAGE_TYPE_VOICE -> Constants.MAX_AUDIO_SIZE
+            Constants.MESSAGE_TYPE_FILE  -> Constants.MAX_FILE_SIZE   // 10 GB — movies allowed
+            else -> Constants.MAX_FILE_SIZE
         }
         Log.d(TAG, "Валідація розміру: ${"%.2f".format(fileSize / 1024.0 / 1024.0)}MB / ${maxSize / 1024 / 1024}MB для типу $mediaType")
         return fileSize <= maxSize

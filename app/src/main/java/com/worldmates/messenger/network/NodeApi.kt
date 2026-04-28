@@ -127,8 +127,10 @@ interface NodeApi {
     @Multipart
     @POST("api/node/chat/upload")
     suspend fun uploadChatMedia(
-        @Part("type") type: okhttp3.RequestBody,
-        @Part         file: MultipartBody.Part
+        @Part("type")    type: okhttp3.RequestBody,
+        @Part            file: MultipartBody.Part,
+        /** Telegram-like quality: "video_message" | "compressed" | "high" | "original" | "auto" */
+        @Part("quality") quality: okhttp3.RequestBody? = null,
     ): XhrUploadResponse
 
     /**

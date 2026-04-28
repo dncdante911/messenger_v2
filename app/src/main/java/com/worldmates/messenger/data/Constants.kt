@@ -331,10 +331,14 @@ object Constants {
     // Firebase видалений — використовуємо Socket.IO ForegroundService + keep-alive
     
     // ==================== MEDIA UPLOAD ====================
-    const val MAX_IMAGE_SIZE = 25 * 1024 * 1024L // 25MB (увеличено с 15MB)
-    const val MAX_VIDEO_SIZE = 1024 * 1024 * 1024L // 1GB (с сжатием)
-    const val MAX_AUDIO_SIZE = 100 * 1024 * 1024L // 100MB (со сжатием)
-    const val MAX_FILE_SIZE = 250 * 1024 * 1024L // 250MB для документов (уменьшено с 500MB)
+    const val MAX_IMAGE_SIZE = 25 * 1024 * 1024L // 25MB
+    const val MAX_VIDEO_SIZE = 1024 * 1024 * 1024L // 1GB upload ceiling (Android pre-compresses)
+    const val MAX_AUDIO_SIZE = 100 * 1024 * 1024L // 100MB
+    const val MAX_FILE_SIZE  = 10 * 1024 * 1024 * 1024L // 10GB — allows full movie uploads
+
+    // Threshold above which VideoCompressor kicks in (50 MB).
+    // Files smaller than this are sent as-is (already small enough).
+    const val VIDEO_COMPRESSION_THRESHOLD = 50 * 1024 * 1024L // 50MB
     const val MAX_FILES_PER_MESSAGE = 10 // Максимум 10 файлів за раз
     
     const val MEDIA_UPLOAD_TIMEOUT = 600 // 10 minutes in seconds
