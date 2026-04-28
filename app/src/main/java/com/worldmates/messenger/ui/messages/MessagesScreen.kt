@@ -236,6 +236,14 @@ fun MessagesScreen(
     var showAudioQualityDialog by remember { mutableStateOf(false) }
     var pendingAudioFile by remember { mutableStateOf<java.io.File?>(null) }
 
+    // Video quality selection sheet (Telegram-like)
+    var showVideoQualitySheet by remember { mutableStateOf(false) }
+    var pendingVideoFile by remember { mutableStateOf<java.io.File?>(null) }
+
+    // Compression progress (collected from ViewModel)
+    val isCompressing by viewModel.isCompressing.collectAsState()
+    val compressionProgress by viewModel.compressionProgress.collectAsState()
+
     // 🎯 Режим введення (Swipeable як в Telegram/Viber)
     var currentInputMode by remember { mutableStateOf(InputMode.TEXT) }
 
@@ -574,7 +582,9 @@ fun MessagesScreen(
             Log.d("MessagesScreen", "Вибрано відео: $it")
             val file = fileManager.copyUriToCache(it)
             if (file != null) {
-                viewModel.uploadAndSendMedia(file, "video")
+                // Show quality selection sheet — user chooses how to send
+                pendingVideoFile = file
+                showVideoQualitySheet = true
             } else {
                 Log.e("MessagesScreen", "Не вдалося скопіювати відео")
             }
@@ -1649,8 +1659,12 @@ fun MessagesScreen(
                     onVideoRecorded = { videoFile ->
                         Log.d("MessagesScreen", "📹 Відео записано: ${videoFile.absolutePath}")
                         showVideoMessageRecorder = false
-                        // Відправити відеоповідомлення
-                        viewModel.uploadAndSendMedia(videoFile, "video")
+                        // Recorded in-app clips always use VIDEO_MESSAGE quality (480p, compact)
+                        viewModel.uploadAndSendVideo(
+                            file       = videoFile,
+                            quality    = com.worldmates.messenger.utils.VideoCompressor.Quality.VIDEO_MESSAGE,
+                            sendAsFile = false,
+                        )
                     },
                     onCancel = {
                         Log.d("MessagesScreen", "❌ Запис відео скасовано")
@@ -2134,6 +2148,34 @@ fun MessagesScreen(
                             }
                         }
                     }
+                )
+            }
+
+            // ── Video compression progress overlay ────────────────────────────
+            if (isCompressing) {
+                VideoCompressionOverlay(progress = compressionProgress)
+            }
+
+            // ── Video quality selection sheet (from gallery picker) ────────────
+            if (showVideoQualitySheet && pendingVideoFile != null) {
+                VideoQualitySheet(
+                    videoFile = pendingVideoFile!!,
+                    onSend = { quality, sendAsFile ->
+                        val file = pendingVideoFile
+                        showVideoQualitySheet = false
+                        pendingVideoFile = null
+                        if (file != null) {
+                            viewModel.uploadAndSendVideo(
+                                file       = file,
+                                quality    = quality,
+                                sendAsFile = sendAsFile,
+                            )
+                        }
+                    },
+                    onDismiss = {
+                        showVideoQualitySheet = false
+                        pendingVideoFile = null
+                    },
                 )
             }
 
