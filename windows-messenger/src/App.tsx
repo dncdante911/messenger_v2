@@ -3,14 +3,15 @@ import { t, initLang, setLang, getLang, translateSocketStatus, type Lang } from 
 import type { Socket } from 'socket.io-client';
 import {
   archiveChat, AuthError, clearHistory,
-  createChannel, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost,
-  createGroup, createStory,
+  createChannel, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost, searchChannels,
+  createGroup, createStory, searchGroups,
   createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
   getIceServers, initiateCall, endCall, loadChannels, loadChats,
   loadGroups, loadGroupMessages, loadMoreGroupMessages, loadMessages, loadMoreMessages, loadStories,
   login, loginByPhone, markGroupSeen, markSeen, markStorySeen,
   muteChat, normaliseMessage, pinChat, pinMessage,
   reactToMessage, reactToGroupMessage, registerAccount,
+  searchMessages,
   sendMessage, sendGroupMessage, sendMessageWithMedia, TURN_FALLBACK,
   uploadMedia
 } from './api';
@@ -211,7 +212,7 @@ function Bubble({
           <p className="bubble-text decrypt-msg">{t('bubble.encrypted')}</p>
         ) : msg.text ? (
           <p className="bubble-text">
-            {msg.text}
+            {renderText(msg.text)}
             {msg.is_edited && <span className="edited-mark">{t('bubble.edited')}</span>}
           </p>
         ) : msg.cipher_version === CIPHER_VERSION_SIGNAL ? (
@@ -239,6 +240,42 @@ function Bubble({
       </div>
     </div>
   );
+}
+
+// ─── Text formatting (Markdown-lite) ──────────────────────────────────────────
+// Supports: **bold**, _italic_, `code`, ||spoiler||
+
+function Spoiler({ text }: { text: string }) {
+  const [revealed, setRevealed] = React.useState(false);
+  return (
+    <span
+      className={`spoiler ${revealed ? 'revealed' : ''}`}
+      onClick={() => setRevealed(v => !v)}
+      title={revealed ? '' : 'Нажмите, чтобы показать'}
+    >
+      {text}
+    </span>
+  );
+}
+
+const FORMAT_RE = /(\*\*(.+?)\*\*|_(.+?)_|`(.+?)`|\|\|(.+?)\|\|)/gs;
+
+function renderText(text: string): React.ReactNode {
+  const nodes: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  FORMAT_RE.lastIndex = 0;
+  while ((m = FORMAT_RE.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    if (m[2] !== undefined) nodes.push(<strong key={m.index}>{m[2]}</strong>);
+    else if (m[3] !== undefined) nodes.push(<em key={m.index}>{m[3]}</em>);
+    else if (m[4] !== undefined) nodes.push(<code key={m.index} className="inline-code">{m[4]}</code>);
+    else if (m[5] !== undefined) nodes.push(<Spoiler key={m.index} text={m[5]} />);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  // No formatting tokens found → return plain string for perf
+  return nodes.length === 1 && typeof nodes[0] === 'string' ? nodes[0] : <>{nodes}</>;
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
@@ -306,6 +343,19 @@ export default function App() {
 
   // ── Sidebar search ────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery]   = useState('');
+  const [groupSearch, setGroupSearch]   = useState('');
+  const [channelSearch, setChannelSearch] = useState('');
+  const [groupSearchResults, setGroupSearchResults]     = useState<GroupItem[] | null>(null);
+  const [channelSearchResults, setChannelSearchResults] = useState<ChannelItem[] | null>(null);
+  const groupSearchTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const channelSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── In-chat message search ────────────────────────────────────────────────
+  const [chatSearchOpen, setChatSearchOpen]       = useState(false);
+  const [chatSearchQuery, setChatSearchQuery]     = useState('');
+  const [chatSearchResults, setChatSearchResults] = useState<MessageItem[]>([]);
+  const [chatSearchLoading, setChatSearchLoading] = useState(false);
+  const chatSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Group chat ────────────────────────────────────────────────────────────
   const [selectedGroup, setSelectedGroup]     = useState<GroupItem | null>(null);
@@ -1225,9 +1275,100 @@ export default function App() {
     !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Groups/channels: show server search results when available, else client-side filter
+  const filteredGroups = (groupSearchResults ?? groups).filter(g =>
+    !groupSearchResults && groupSearch
+      ? asText(g.group_name, '').toLowerCase().includes(groupSearch.toLowerCase())
+      : true
+  );
+  const filteredChannels = (channelSearchResults ?? channels).filter(c =>
+    !channelSearchResults && channelSearch
+      ? asText(c.name, '').toLowerCase().includes(channelSearch.toLowerCase())
+      : true
+  );
+
   const typingInChat = selectedChat
     ? Array.from(typingUsers).some(id => id === selectedChat.user_id)
     : false;
+
+  // ─── Group/Channel search handlers ────────────────────────────────────────
+
+  function handleGroupSearch(q: string) {
+    setGroupSearch(q);
+    setGroupSearchResults(null);
+    if (groupSearchTimer.current) clearTimeout(groupSearchTimer.current);
+    if (!q.trim() || !session) return;
+    groupSearchTimer.current = setTimeout(async () => {
+      try {
+        const r = await searchGroups(session.token, q.trim());
+        setGroupSearchResults(r.data ?? []);
+      } catch { /* keep local filter on error */ }
+    }, 400);
+  }
+
+  function handleChannelSearch(q: string) {
+    setChannelSearch(q);
+    setChannelSearchResults(null);
+    if (channelSearchTimer.current) clearTimeout(channelSearchTimer.current);
+    if (!q.trim() || !session) return;
+    channelSearchTimer.current = setTimeout(async () => {
+      try {
+        const r = await searchChannels(session.token, q.trim());
+        setChannelSearchResults(r.data ?? []);
+      } catch { /* keep local filter on error */ }
+    }, 400);
+  }
+
+  // ─── In-chat search ───────────────────────────────────────────────────────
+
+  function openChatSearch() {
+    setChatSearchOpen(true);
+    setChatSearchQuery('');
+    setChatSearchResults([]);
+  }
+
+  function closeChatSearch() {
+    setChatSearchOpen(false);
+    setChatSearchQuery('');
+    setChatSearchResults([]);
+    if (chatSearchTimer.current) clearTimeout(chatSearchTimer.current);
+  }
+
+  function handleChatSearchInput(q: string) {
+    setChatSearchQuery(q);
+    if (chatSearchTimer.current) clearTimeout(chatSearchTimer.current);
+    if (!q.trim() || !session || !selectedChat) { setChatSearchResults([]); return; }
+    setChatSearchLoading(true);
+    chatSearchTimer.current = setTimeout(async () => {
+      try {
+        const r = await searchMessages(session.token, selectedChat.user_id, q.trim());
+        setChatSearchResults(r.messages ?? []);
+      } catch { setChatSearchResults([]); }
+      finally { setChatSearchLoading(false); }
+    }, 400);
+  }
+
+  // ─── Drafts ───────────────────────────────────────────────────────────────
+
+  function draftKey(userId: number) { return `wm_draft_${userId}`; }
+
+  // Load draft when switching to a chat
+  useEffect(() => {
+    if (!selectedChat) return;
+    const draft = localStorage.getItem(draftKey(selectedChat.user_id)) ?? '';
+    setNewMessage(draft);
+    // Reset search state when chat changes
+    closeChatSearch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat?.user_id]);
+
+  function handleComposerInputWithDraft(text: string) {
+    handleComposerInput(text);
+    if (selectedChat) {
+      if (text) localStorage.setItem(draftKey(selectedChat.user_id), text);
+      else localStorage.removeItem(draftKey(selectedChat.user_id));
+    }
+  }
 
   // ─── Render: Auth ─────────────────────────────────────────────────────────
 
@@ -1443,12 +1584,19 @@ export default function App() {
         {/* ── Groups ────────────────────────────────────────────────────── */}
         {section === 'groups' && (
           <div className="list-scroll">
+            <div className="search-box">
+              <input
+                value={groupSearch}
+                onChange={e => handleGroupSearch(e.target.value)}
+                placeholder={t('sidebar.searchGroups')}
+              />
+            </div>
             <form className="create-form" onSubmit={handleCreateGroup}>
               <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder={t('sidebar.newGroupName')} />
               <button type="submit" className="btn-sm">{t('sidebar.create')}</button>
             </form>
-            {groups.length === 0 && <div className="empty-state">{t('sidebar.noGroups')}</div>}
-            {groups.map(g => (
+            {filteredGroups.length === 0 && <div className="empty-state">{t('sidebar.noGroups')}</div>}
+            {filteredGroups.map(g => (
               <button key={g.id}
                 className={`chat-item ${selectedGroup?.id === g.id ? 'active' : ''}`}
                 onClick={() => setSelectedGroup(g)}
@@ -1473,13 +1621,20 @@ export default function App() {
         {/* ── Channels ──────────────────────────────────────────────────── */}
         {section === 'channels' && (
           <div className="list-scroll">
+            <div className="search-box">
+              <input
+                value={channelSearch}
+                onChange={e => handleChannelSearch(e.target.value)}
+                placeholder={t('sidebar.searchChannels')}
+              />
+            </div>
             <form className="create-form" onSubmit={handleCreateChannel}>
               <input value={newChannelName} onChange={e => setNewChannelName(e.target.value)} placeholder={t('sidebar.channelName')} />
               <input value={newChannelDesc} onChange={e => setNewChannelDesc(e.target.value)} placeholder={t('sidebar.description')} />
               <button type="submit" className="btn-sm">{t('sidebar.create')}</button>
             </form>
-            {channels.length === 0 && <div className="empty-state">{t('sidebar.noChannels')}</div>}
-            {channels.map(c => (
+            {filteredChannels.length === 0 && <div className="empty-state">{t('sidebar.noChannels')}</div>}
+            {filteredChannels.map(c => (
               <button key={c.id}
                 className={`chat-item ${selectedChannel?.id === c.id ? 'active' : ''}`}
                 onClick={() => setSelectedChannel(c)}
@@ -1719,7 +1874,7 @@ export default function App() {
                             }
                           </div>
                         )}
-                        {msg.text && <p className="bubble-text">{msg.text}{msg.is_edited && <span className="edited-mark">{t('bubble.edited')}</span>}</p>}
+                        {msg.text && <p className="bubble-text">{renderText(msg.text)}{msg.is_edited && <span className="edited-mark">{t('bubble.edited')}</span>}</p>}
                         <div className="bubble-footer">
                           <time className="bubble-time">{formatTime(msg.time_text, msg.time)}</time>
                           {isOwn && <span className="seen-tick">{msg.is_seen ? '✓✓' : '✓'}</span>}
@@ -1907,6 +2062,9 @@ export default function App() {
                 </div>
               </div>
               <div className="chat-header-actions">
+                <button className="icon-btn" title={t('chat.search')} onClick={openChatSearch}>
+                  🔍
+                </button>
                 <button className="icon-btn" title={t('call.voiceCall')} onClick={() => { setSection('calls'); startCall('audio'); }}>
                   🎙
                 </button>
@@ -1925,6 +2083,32 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            {/* ── In-chat search panel ─────────────────────────────────── */}
+            {chatSearchOpen && (
+              <div className="chat-search-panel">
+                <div className="chat-search-row">
+                  <input
+                    autoFocus
+                    className="chat-search-input"
+                    placeholder={t('chat.searchPlaceholder')}
+                    value={chatSearchQuery}
+                    onChange={e => handleChatSearchInput(e.target.value)}
+                  />
+                  <button className="icon-btn" onClick={closeChatSearch}>✕</button>
+                </div>
+                {chatSearchLoading && <div className="chat-search-loading">…</div>}
+                {!chatSearchLoading && chatSearchQuery && chatSearchResults.length === 0 && (
+                  <div className="chat-search-empty">{t('chat.searchEmpty')}</div>
+                )}
+                {chatSearchResults.map(msg => (
+                  <div key={msg.id} className="chat-search-result">
+                    <time className="chat-search-time">{formatTime(msg.time_text, msg.time)}</time>
+                    <p className="chat-search-text">{msg.text ?? t('bubble.media')}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* ── Messages ─────────────────────────────────────────────── */}
             <div className="messages-scroll" ref={messagesScrollRef}>
@@ -2053,7 +2237,7 @@ export default function App() {
                   placeholder={editingMsg ? t('chat.editPlaceholder') : t('chat.writePlaceholder')}
                   value={newMessage}
                   rows={1}
-                  onChange={e => handleComposerInput(e.target.value)}
+                  onChange={e => handleComposerInputWithDraft(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                   }}

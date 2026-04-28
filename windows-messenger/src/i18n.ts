@@ -138,6 +138,15 @@ const translations: Record<Lang, Record<string, string>> = {
     'tray.newMessage': 'Новое сообщение',
     'tray.unread':     'Непрочитанных: {count}',
 
+    // Search / drafts
+    'sidebar.searchGroups':   'Поиск групп…',
+    'sidebar.searchChannels': 'Поиск каналов…',
+    'chat.search':            'Поиск в чате…',
+    'chat.searchPlaceholder': 'Поиск сообщений…',
+    'chat.searchResults':     'Результаты поиска',
+    'chat.searchEmpty':       'Ничего не найдено',
+    'chat.draft':             'Черновик',
+
     // Language names
     'lang.ru': 'Русский',
     'lang.uk': 'Українська',
@@ -263,6 +272,15 @@ const translations: Record<Lang, Record<string, string>> = {
     'tray.newMessage': 'Нове повідомлення',
     'tray.unread':     'Непрочитаних: {count}',
 
+    // Search / drafts
+    'sidebar.searchGroups':   'Пошук груп…',
+    'sidebar.searchChannels': 'Пошук каналів…',
+    'chat.search':            'Пошук у чаті…',
+    'chat.searchPlaceholder': 'Пошук повідомлень…',
+    'chat.searchResults':     'Результати пошуку',
+    'chat.searchEmpty':       'Нічого не знайдено',
+    'chat.draft':             'Чернетка',
+
     'lang.ru': 'Русский',
     'lang.uk': 'Українська',
     'lang.en': 'English',
@@ -386,6 +404,14 @@ const translations: Record<Lang, Record<string, string>> = {
     'tray.quit':       'Quit',
     'tray.newMessage': 'New message',
     'tray.unread':     'Unread: {count}',
+
+    'sidebar.searchGroups':   'Search groups…',
+    'sidebar.searchChannels': 'Search channels…',
+    'chat.search':            'Search in chat…',
+    'chat.searchPlaceholder': 'Search messages…',
+    'chat.searchResults':     'Search results',
+    'chat.searchEmpty':       'No messages found',
+    'chat.draft':             'Draft',
 
     'lang.ru': 'Русский',
     'lang.uk': 'Українська',
