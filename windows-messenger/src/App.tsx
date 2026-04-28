@@ -258,6 +258,7 @@ export default function App() {
   const [email, setEmail]           = useState('');
   const [password, setPassword]     = useState('');
   const [authError, setAuthError]   = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const [section, setSection]       = useState<ActiveSection>('chats');
@@ -970,51 +971,79 @@ export default function App() {
       <div className="auth-page">
         <div className="auth-glow" />
         <form className="auth-card" onSubmit={handleAuth}>
+
+          {/* ── Brand ── */}
           <div className="auth-logo">
-            <div className="auth-logo-icon">WM</div>
-            <h1 className="auth-title">WorldMates</h1>
+            <div className="auth-logo-icon">W</div>
+            <div className="auth-logo-text">
+              <h1 className="auth-title">WorldMates</h1>
+              <p className="auth-subtitle">{t('auth.subtitle')}</p>
+            </div>
           </div>
-          <p className="auth-subtitle">{t('auth.subtitle')}</p>
 
+          {/* ── Login / Register tabs ── */}
           <div className="tabs">
-            <button type="button" className={authMode === 'login' ? 'tab active' : 'tab'} onClick={() => setAuthMode('login')}>{t('auth.tab.login')}</button>
-            <button type="button" className={authMode === 'register' ? 'tab active' : 'tab'} onClick={() => setAuthMode('register')}>{t('auth.tab.register')}</button>
+            <button type="button" className={authMode === 'login' ? 'tab active' : 'tab'}
+              onClick={() => setAuthMode('login')}>{t('auth.tab.login')}</button>
+            <button type="button" className={authMode === 'register' ? 'tab active' : 'tab'}
+              onClick={() => setAuthMode('register')}>{t('auth.tab.register')}</button>
           </div>
 
+          {/* ── Login method (username / phone) ── */}
           {authMode === 'login' && (
-            <div className="tabs" style={{ marginTop: 0 }}>
-              <button type="button" className={loginBy === 'username' ? 'tab active' : 'tab'} onClick={() => setLoginBy('username')}>{t('auth.field.username')}</button>
-              <button type="button" className={loginBy === 'phone' ? 'tab active' : 'tab'} onClick={() => setLoginBy('phone')}>{t('auth.field.phone')}</button>
+            <div className="tabs">
+              <button type="button" className={loginBy === 'username' ? 'tab active' : 'tab'}
+                onClick={() => setLoginBy('username')}>{t('auth.field.username')}</button>
+              <button type="button" className={loginBy === 'phone' ? 'tab active' : 'tab'}
+                onClick={() => setLoginBy('phone')}>{t('auth.field.phone')}</button>
             </div>
           )}
 
+          {/* ── Username ── */}
           {(authMode === 'register' || loginBy === 'username') && (
             <label className="field">
               <span>{t('auth.field.username')}</span>
               <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-                placeholder={t('auth.placeholder.username')} autoComplete="username" required={authMode === 'register' || loginBy === 'username'} />
+                placeholder={t('auth.placeholder.username')} autoComplete="username"
+                required={authMode === 'register' || loginBy === 'username'} />
             </label>
           )}
 
+          {/* ── Phone ── */}
           {(authMode === 'register' || loginBy === 'phone') && (
             <label className="field">
               <span>{t('auth.field.phone')}</span>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder={t('auth.placeholder.phone')} autoComplete="tel" required={authMode === 'register' || loginBy === 'phone'} />
+                placeholder={t('auth.placeholder.phone')} autoComplete="tel"
+                required={authMode === 'register' || loginBy === 'phone'} />
             </label>
           )}
 
+          {/* ── Email (register only) ── */}
           {authMode === 'register' && (
             <label className="field">
               <span>{t('auth.field.email')}</span>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('auth.placeholder.email')} />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder={t('auth.placeholder.email')} autoComplete="email" />
             </label>
           )}
 
+          {/* ── Password ── */}
           <label className="field">
             <span>{t('auth.field.password')}</span>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder={t('auth.placeholder.password')} autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} required />
+            <div className="field-password-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password} onChange={e => setPassword(e.target.value)}
+                placeholder={t('auth.placeholder.password')}
+                autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                required
+              />
+              <button type="button" className="password-toggle" tabIndex={-1}
+                onClick={() => setShowPassword(v => !v)}>
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
           </label>
 
           {authError && <div className="auth-error">{authError}</div>}
