@@ -91,15 +91,26 @@ async function sendEmail(to, subject, html) {
     try {
         await transporter.verify();
     } catch (err) {
-        // Пробуємо перестворити transporter якщо з'єднання протухло
+        console.error(`[SMTP] verify failed (${SMTP_CONFIG.host}:${SMTP_CONFIG.port}): ${err.message}`);
+        // Try to re-create the transporter in case the connection went stale
         _smtpTransporter = null;
         const fresh = getSmtpTransporter();
-        await fresh.verify();
+        try {
+            await fresh.verify();
+        } catch (e2) {
+            console.error(`[SMTP] second verify also failed: ${e2.message}`);
+            throw new Error(`SMTP: cannot connect to ${SMTP_CONFIG.host}:${SMTP_CONFIG.port} — ${e2.message}`);
+        }
         _smtpTransporter = fresh;
     }
 
-    await _smtpTransporter.sendMail({ from: SMTP_CONFIG.from, to, subject, html });
-    console.log(`[SMTP] Sent "${subject}" → ${to} via ${SMTP_CONFIG.host}:${SMTP_CONFIG.port}`);
+    try {
+        await _smtpTransporter.sendMail({ from: SMTP_CONFIG.from, to, subject, html });
+        console.log(`[SMTP] Sent "${subject}" → ${to} via ${SMTP_CONFIG.host}:${SMTP_CONFIG.port}`);
+    } catch (err) {
+        console.error(`[SMTP] sendMail failed → ${to}: ${err.message}`);
+        throw new Error(`SMTP send error: ${err.message}`);
+    }
 }
 
 // ─── Twilio SMS ────────────────────────────────────────────────────────────────
@@ -502,7 +513,9 @@ function requestPasswordReset(ctx) {
 
         } catch (err) {
             console.error('[Auth/reset-request]', err.message);
-            return res.json({ api_status: 500, error_message: L.server_error });
+            // Surface SMTP errors so the admin can diagnose them without looking at logs
+            const userMsg = err.message.startsWith('SMTP') ? err.message : L.server_error;
+            return res.json({ api_status: 500, error_message: userMsg });
         }
     };
 }
@@ -653,12 +666,12 @@ function quickRegister(ctx) {
         } catch (err) {
             console.error('[Auth/quick-register]', err.message);
 
-            // More informative error if Twilio is not configured
             if (err.message.includes('Twilio')) {
                 return res.json({ api_status: 503, error_message: err.message });
             }
-
-            return res.json({ api_status: 500, error_message: L.server_error });
+            // Surface SMTP errors so the admin can diagnose without looking at logs
+            const userMsg = err.message.startsWith('SMTP') ? err.message : L.server_error;
+            return res.json({ api_status: 500, error_message: userMsg });
         }
     };
 }
@@ -793,9 +806,20 @@ function register(ctx) {
                 }
             }
 
-            // Determine if verification is required
-            const emailValidation = ctx.globalconfig['email_validation'] === '1' || ctx.globalconfig['email_validation'] === 1;
-            const phoneValidation = ctx.globalconfig['phone_number_validation'] === '1' || ctx.globalconfig['phone_number_validation'] === 1;
+            // Determine if verification is required.
+            // .env REQUIRE_EMAIL_VERIFICATION / REQUIRE_PHONE_VERIFICATION takes
+            // full priority over the WoWonder admin-panel DB settings.
+            //   'true'  → always require OTP (email or phone)
+            //   'false' → skip verification, register immediately
+            //   unset   → fall back to WoWonder DB (email_validation / phone_number_validation)
+            const _envEmail = process.env.REQUIRE_EMAIL_VERIFICATION;
+            const _envPhone = process.env.REQUIRE_PHONE_VERIFICATION;
+            const emailValidation = _envEmail !== undefined
+                ? _envEmail === 'true'
+                : (ctx.globalconfig['email_validation'] === '1' || ctx.globalconfig['email_validation'] === 1);
+            const phoneValidation = _envPhone !== undefined
+                ? _envPhone === 'true'
+                : (ctx.globalconfig['phone_number_validation'] === '1' || ctx.globalconfig['phone_number_validation'] === 1);
             const needsVerification = (email && emailValidation) || (phone && phoneValidation);
 
             const hashedPassword = await hashPassword(password);
@@ -1017,7 +1041,8 @@ function sendCode(ctx) {
             if (err.message.includes('Twilio')) {
                 return res.json({ api_status: 503, error_message: err.message });
             }
-            return res.json({ api_status: 500, error_message: L.server_error });
+            const userMsg = err.message.startsWith('SMTP') ? err.message : L.server_error;
+            return res.json({ api_status: 500, error_message: userMsg });
         }
     };
 }
