@@ -5,6 +5,7 @@ import {
   archiveChat, AuthError, clearHistory,
   blockUser, unblockUser, loadBlockedUsers,
   createChannel, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost, searchChannels, voteChannelPoll,
+  loadChannelComments, addChannelComment, deleteChannelComment, reactToChannelComment,
   createGroup, createStory, searchGroups,
   createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
   getIceServers, initiateCall, endCall, loadChannels, loadChats, loadArchivedChats,
@@ -18,7 +19,7 @@ import {
   uploadMedia,
   type UserProfile,
 } from './api';
-import type { ChannelPost, ChannelPoll, PollOption } from './types';
+import type { ChannelPost, ChannelPoll, ChannelComment, PollOption } from './types';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
@@ -160,6 +161,9 @@ function Bubble({
 
   const isEncrypted = msg.cipher_version === CIPHER_VERSION_SIGNAL;
   const mediaIsImage = msg.media_type === 'image' || (!msg.media_type && msg.media && /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.media));
+  const isVoice = msg.media_type === 'voice' || msg.media_type === 'audio'
+    || !!(msg.media_filename?.match(/^VOICE_/i))
+    || !!(msg.media && /\/VOICE_[^/]*\.(webm|ogg|m4a|opus|aac)/i.test(msg.media));
 
   return (
     <div
@@ -202,7 +206,7 @@ function Bubble({
               ? <img src={msg.media} alt="media" className="media-img" onClick={() => onOpenMedia(msg.media!)} />
               : msg.media_type === 'video'
                 ? <video src={msg.media} controls className="media-video" />
-                : msg.media_type === 'audio' || msg.media_type === 'voice'
+                : isVoice
                   ? <audio src={msg.media} controls className="media-audio" />
                   : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">
                       📎 {msg.media_filename ?? t('misc.downloadFile')}
@@ -481,6 +485,14 @@ export default function App() {
   const [channelPostMedia, setChannelPostMedia]   = useState<File | null>(null);
   const [votingPollId, setVotingPollId]           = useState<number | null>(null);
   const selectedChannelRef = useRef<ChannelItem | null>(null);
+
+  // ── Channel comments ──────────────────────────────────────────────────────
+  const [commentPost,      setCommentPost]      = useState<ChannelPost | null>(null);
+  const [comments,         setComments]         = useState<ChannelComment[]>([]);
+  const [commentsLoading,  setCommentsLoading]  = useState(false);
+  const [newComment,       setNewComment]       = useState('');
+  const [commentReplyTo,   setCommentReplyTo]   = useState<{ id: number; text: string } | null>(null);
+  const commentsEndRef = useRef<HTMLDivElement>(null);
 
   // ── Story viewer ──────────────────────────────────────────────────────────
   const [viewingStoryIdx, setViewingStoryIdx] = useState<number | null>(null);
@@ -1386,6 +1398,46 @@ export default function App() {
     setChannelPostOffset(prev => prev + (r.posts ?? []).length);
   }
 
+  async function handleOpenComments(post: ChannelPost) {
+    setCommentPost(post);
+    setCommentsLoading(true);
+    setComments([]);
+    setNewComment('');
+    setCommentReplyTo(null);
+    try {
+      const list = await loadChannelComments(session!.token, post.id);
+      setComments(list);
+      setTimeout(() => commentsEndRef.current?.scrollIntoView(), 100);
+    } catch { /* ignore */ }
+    setCommentsLoading(false);
+  }
+
+  async function handleSendComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!session || !commentPost || !newComment.trim()) return;
+    const text = newComment.trim();
+    setNewComment('');
+    await addChannelComment(session.token, commentPost.id, text, commentReplyTo?.id).catch(console.error);
+    setCommentReplyTo(null);
+    const list = await loadChannelComments(session.token, commentPost.id);
+    setComments(list);
+    setTimeout(() => commentsEndRef.current?.scrollIntoView(), 100);
+    // Update comment count in post list
+    setChannelPosts(prev => prev.map(p => p.id === commentPost.id
+      ? { ...p, comments_count: (p.comments_count ?? 0) + 1 } : p));
+  }
+
+  async function handleDeleteComment(commentId: number) {
+    if (!session || !commentPost) return;
+    await deleteChannelComment(session.token, commentId).catch(console.error);
+    setComments(prev => prev.filter(c => c.id !== commentId));
+  }
+
+  async function handleReactComment(commentId: number, emoji: string) {
+    if (!session) return;
+    await reactToChannelComment(session.token, commentId, emoji).catch(console.error);
+  }
+
   // ─── Groups ───────────────────────────────────────────────────────────────
 
   async function handleCreateGroup(e: FormEvent) {
@@ -2270,6 +2322,10 @@ export default function App() {
           <>
             <div className="chat-header">
               <div className="chat-header-left">
+                {commentPost
+                  ? <button className="icon-btn" onClick={() => setCommentPost(null)}>←</button>
+                  : null
+                }
                 <Avatar name={asText(selectedChannel.name, 'C')} src={selectedChannel.avatar_url} size={38} />
                 <div className="chat-header-info">
                   <span className="chat-header-name">{asText(selectedChannel.name, t('nav.channels'))}</span>
@@ -2277,105 +2333,163 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="messages-scroll channel-scroll" ref={messagesScrollRef}>
-              {channelPostsLoading && <div className="messages-loading"><div className="spinner" /></div>}
-              {!channelPostsLoading && channelPosts.length === 0 && (
-                <div className="chat-empty"><div className="chat-empty-icon">📢</div><h3>{t('sidebar.noChannels')}</h3></div>
-              )}
-              {channelPosts.map(post => (
-                <div key={post.id} className="channel-post">
-                  <div className="channel-post-header">
-                    <Avatar name={asText(selectedChannel.name, 'C')} src={selectedChannel.avatar_url} size={28} />
-                    <span className="channel-post-author">{asText(selectedChannel.name, '')}</span>
-                    <span className="channel-post-time">{post.time ? formatTime(post.time) : ''}</span>
-                    {post.is_pinned && <span className="channel-post-pin">📌</span>}
-                    {post.publisher_id === session.userId && (
-                      <button className="action-btn" style={{ marginLeft: 'auto' }} title={t('bubble.delete')}
-                        onClick={() => handleDeleteChannelPost(post.id)}>🗑</button>
-                    )}
-                  </div>
-                  {/* Multi-media gallery */}
-                  {(post.media_items && post.media_items.length > 0) && (
-                    <div className={`post-gallery count-${Math.min(post.media_items.length, 4)}`}>
-                      {post.media_items.map((item, i) => (
-                        <div key={i} className="post-gallery-item">
-                          {item.type === 'video'
-                            ? <video src={item.url} controls className="post-gallery-media" />
-                            : item.type === 'image'
-                              ? <img src={item.url} alt="" className="post-gallery-media" onClick={() => setLightboxSrc(item.url)} />
-                              : <a href={item.url} target="_blank" rel="noreferrer" className="media-file">📎 {t('misc.downloadFile')}</a>
-                          }
+            {commentPost ? (
+              /* ── Comments panel ─────────────────────────────────────────── */
+              <div className="comments-panel">
+                <div className="comments-header">
+                  <button className="icon-btn" onClick={() => setCommentPost(null)}>←</button>
+                  <span>{t('channel.comments')} · {commentPost.text?.slice(0, 30) || '...'}</span>
+                </div>
+                <div className="comments-list">
+                  {commentsLoading && <div className="messages-loading"><div className="spinner" /></div>}
+                  {comments.map(c => (
+                    <div key={c.id} className="comment-item">
+                      <Avatar name={c.user_name ?? c.username ?? '?'} src={c.user_avatar} size={32} />
+                      <div className="comment-body">
+                        <div className="comment-meta">
+                          <span className="comment-author">{c.user_name ?? c.username ?? `User ${c.user_id}`}</span>
+                          <span className="comment-time">{new Date(c.time * 1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>
                         </div>
-                      ))}
+                        <p className="comment-text">{renderText(c.text)}</p>
+                        <div className="comment-actions">
+                          {EMOJI_QUICK.slice(0, 5).map(e => (
+                            <button key={e} className="reaction-chip add-reaction" onClick={() => handleReactComment(c.id, e)}>{e}</button>
+                          ))}
+                          <button className="action-btn" onClick={() => setCommentReplyTo({id: c.id, text: c.text.slice(0, 60)})}>↩</button>
+                          {c.user_id === session.userId && (
+                            <button className="action-btn" onClick={() => handleDeleteComment(c.id)}>🗑</button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  {/* Poll widget */}
-                  {post.poll && (
-                    <PollWidget poll={post.poll} postId={post.id}
-                      onVote={(pollId, optId) => handleVotePoll(pollId, optId)} />
-                  )}
-                  {post.text && <p className="channel-post-text">{post.text}</p>}
-                  <div className="channel-post-footer">
-                    <span className="channel-post-stat">👁 {post.views_count ?? 0}</span>
-                    <span className="channel-post-stat">💬 {post.comments_count ?? 0}</span>
-                    <div className="reactions" style={{ marginTop: 0 }}>
-                      {(post.reactions ?? []).map((r, i) => (
-                        <button key={i} className="reaction-chip"
-                          onClick={() => { if (session) reactToChannelPost(session.token, post.id, r.emoji).catch(console.error); }}>
-                          {r.emoji} {r.count}
-                        </button>
-                      ))}
-                      {EMOJI_QUICK.slice(0, 5).map(e => (
-                        <button key={e} className="reaction-chip add-reaction"
-                          onClick={() => { if (session) reactToChannelPost(session.token, post.id, e).then(() => {
-                            setChannelPosts(prev => prev.map(p => p.id !== post.id ? p : {
-                              ...p, reactions: (() => {
-                                const ex = (p.reactions ?? []).find(r => r.emoji === e);
-                                return ex
-                                  ? (p.reactions ?? []).map(r => r.emoji === e ? { ...r, count: r.count + 1 } : r)
-                                  : [...(p.reactions ?? []), { emoji: e, count: 1, user_ids: [session.userId] }];
-                              })()
-                            }));
-                          }).catch(console.error); }}>
-                          {e}
-                        </button>
-                      ))}
+                  ))}
+                  <div ref={commentsEndRef} />
+                </div>
+                {commentReplyTo && (
+                  <div className="composer-banner">
+                    <div className="composer-banner-line" />
+                    <div className="composer-banner-content">
+                      <span className="composer-banner-label">{t('chat.replyTo')}</span>
+                      <span className="composer-banner-text">{commentReplyTo.text}</span>
                     </div>
+                    <button className="composer-banner-close" onClick={() => setCommentReplyTo(null)}>✕</button>
                   </div>
+                )}
+                <form className="composer-row" onSubmit={handleSendComment} style={{padding:'8px 12px'}}>
+                  <textarea className="composer-input" placeholder={t('channel.addComment')} value={newComment}
+                    rows={1} onChange={e => setNewComment(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment(e as unknown as React.FormEvent); }}} />
+                  <button type="submit" className="send-btn" disabled={!newComment.trim()}>➤</button>
+                </form>
+              </div>
+            ) : (
+              /* ── Posts list (compact) ───────────────────────────────────── */
+              <>
+                <div className="messages-scroll channel-scroll" ref={messagesScrollRef}>
+                  {channelPostsLoading && <div className="messages-loading"><div className="spinner" /></div>}
+                  {!channelPostsLoading && channelPosts.length === 0 && (
+                    <div className="chat-empty"><div className="chat-empty-icon">📢</div><h3>{t('sidebar.noChannels')}</h3></div>
+                  )}
+                  <div className="channel-feed">
+                    {channelPosts.map(post => (
+                      <div key={post.id} className="cp">
+                        <div className="cp-header">
+                          <Avatar name={asText(selectedChannel.name, 'C')} src={selectedChannel.avatar_url} size={24} />
+                          <span className="cp-author">{asText(selectedChannel.name, '')}</span>
+                          <span className="cp-time">{post.time ? formatTime(post.time) : ''}</span>
+                          {post.is_pinned && <span className="cp-pin">📌</span>}
+                          {post.publisher_id === session.userId && (
+                            <button className="action-btn" style={{ marginLeft: 'auto' }} title={t('bubble.delete')}
+                              onClick={() => handleDeleteChannelPost(post.id)}>🗑</button>
+                          )}
+                        </div>
+                        {/* Multi-media gallery */}
+                        {(post.media_items && post.media_items.length > 0) && (
+                          <div className={`post-gallery count-${Math.min(post.media_items.length, 4)}`}>
+                            {post.media_items.map((item, i) => (
+                              <div key={i} className="post-gallery-item">
+                                {item.type === 'video'
+                                  ? <video src={item.url} controls className="post-gallery-media" />
+                                  : item.type === 'image'
+                                    ? <img src={item.url} alt="" className="post-gallery-media" onClick={() => setLightboxSrc(item.url)} />
+                                    : <a href={item.url} target="_blank" rel="noreferrer" className="media-file">📎 {t('misc.downloadFile')}</a>
+                                }
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Poll widget */}
+                        {post.poll && (
+                          <PollWidget poll={post.poll} postId={post.id}
+                            onVote={(pollId, optId) => handleVotePoll(pollId, optId)} />
+                        )}
+                        {post.text && <p className="cp-text">{post.text}</p>}
+                        <div className="cp-footer">
+                          <span className="cp-stat">👁 {post.views_count ?? 0}</span>
+                          <button className="cp-comment-btn" onClick={() => handleOpenComments(post)}>
+                            💬 {post.comments_count ?? 0}
+                          </button>
+                          <div className="reactions" style={{ marginTop: 0 }}>
+                            {(post.reactions ?? []).map((r, i) => (
+                              <button key={i} className="reaction-chip"
+                                onClick={() => { if (session) reactToChannelPost(session.token, post.id, r.emoji).catch(console.error); }}>
+                                {r.emoji} {r.count}
+                              </button>
+                            ))}
+                            {EMOJI_QUICK.slice(0, 5).map(e => (
+                              <button key={e} className="reaction-chip add-reaction"
+                                onClick={() => { if (session) reactToChannelPost(session.token, post.id, e).then(() => {
+                                  setChannelPosts(prev => prev.map(p => p.id !== post.id ? p : {
+                                    ...p, reactions: (() => {
+                                      const ex = (p.reactions ?? []).find(r => r.emoji === e);
+                                      return ex
+                                        ? (p.reactions ?? []).map(r => r.emoji === e ? { ...r, count: r.count + 1 } : r)
+                                        : [...(p.reactions ?? []), { emoji: e, count: 1, user_ids: [session.userId] }];
+                                    })()
+                                  }));
+                                }).catch(console.error); }}>
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {channelHasMore && (
+                    <button className="load-more" onClick={handleLoadMoreChannelPosts}>{t('chat.loadEarlier')}</button>
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
-              ))}
-              {channelHasMore && (
-                <button className="load-more" onClick={handleLoadMoreChannelPosts}>{t('chat.loadEarlier')}</button>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-            <div className="composer">
-              {channelPostMedia && (
-                <div className="attachment-preview">
-                  <span>📎 {channelPostMedia.name}</span>
-                  <button onClick={() => setChannelPostMedia(null)}>✕</button>
+                <div className="composer">
+                  {channelPostMedia && (
+                    <div className="attachment-preview">
+                      <span>📎 {channelPostMedia.name}</span>
+                      <button onClick={() => setChannelPostMedia(null)}>✕</button>
+                    </div>
+                  )}
+                  <form className="composer-row" onSubmit={handleCreateChannelPost}>
+                    <label className="icon-btn attach-btn" title={t('chat.attachFile')}>
+                      📎
+                      <input type="file" style={{ display: 'none' }} accept="image/*,video/*"
+                        onChange={e => setChannelPostMedia(e.target.files?.[0] ?? null)} />
+                    </label>
+                    <textarea
+                      className="composer-input"
+                      placeholder={t('sidebar.uploadStory')}
+                      value={newChannelPost}
+                      rows={1}
+                      onChange={e => setNewChannelPost(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCreateChannelPost(e as unknown as React.FormEvent); } }}
+                    />
+                    <button type="submit" className={`send-btn ${newChannelPost.trim() || channelPostMedia ? 'active' : ''}`}
+                      disabled={!newChannelPost.trim() && !channelPostMedia}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                  </form>
                 </div>
-              )}
-              <form className="composer-row" onSubmit={handleCreateChannelPost}>
-                <label className="icon-btn attach-btn" title={t('chat.attachFile')}>
-                  📎
-                  <input type="file" style={{ display: 'none' }} accept="image/*,video/*"
-                    onChange={e => setChannelPostMedia(e.target.files?.[0] ?? null)} />
-                </label>
-                <textarea
-                  className="composer-input"
-                  placeholder={t('sidebar.uploadStory')}
-                  value={newChannelPost}
-                  rows={1}
-                  onChange={e => setNewChannelPost(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCreateChannelPost(e as unknown as React.FormEvent); } }}
-                />
-                <button type="submit" className={`send-btn ${newChannelPost.trim() || channelPostMedia ? 'active' : ''}`}
-                  disabled={!newChannelPost.trim() && !channelPostMedia}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </button>
-              </form>
-            </div>
+              </>
+            )}
           </>
         ) : section === 'channels' ? (
           <div className="chat-empty"><div className="chat-empty-icon">📢</div><h3>{t('sidebar.channels')}</h3><p>{t('sidebar.noChannels')}</p></div>

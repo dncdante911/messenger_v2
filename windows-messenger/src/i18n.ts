@@ -152,6 +152,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'channel.anonymous':   'Анонимный',
     'channel.pollClosed':  'Опрос закрыт',
     'channel.vote':        'Проголосовать',
+    'channel.addComment':  'Написать комментарий…',
+    'channel.comments':    'Комментарии',
 
     // Socket status translations
     'socket.connected':      'Подключено',
@@ -314,6 +316,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'channel.anonymous':   'Анонімне',
     'channel.pollClosed':  'Опитування закрито',
     'channel.vote':        'Проголосувати',
+    'channel.addComment':  'Написати коментар…',
+    'channel.comments':    'Коментарі',
 
     'socket.connected':      "З'єднано",
     'socket.offline':        'Не в мережі',
@@ -473,6 +477,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'channel.anonymous':   'Anonymous',
     'channel.pollClosed':  'Poll closed',
     'channel.vote':        'Vote',
+    'channel.addComment':  'Add a comment…',
+    'channel.comments':    'Comments',
 
     'socket.connected':      'Connected',
     'socket.offline':        'Offline',
