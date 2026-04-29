@@ -7,6 +7,7 @@ import com.worldmates.messenger.ui.components.formatting.FormattingSettings
 import com.worldmates.messenger.ui.channels.premium.design.PremiumBrushes
 import com.worldmates.messenger.ui.channels.premium.design.PremiumDesign
 import com.worldmates.messenger.ui.channels.premium.design.PremiumTheme
+import com.worldmates.messenger.ui.channels.premium.design.current
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
