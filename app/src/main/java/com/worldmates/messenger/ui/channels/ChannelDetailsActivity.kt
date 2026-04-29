@@ -865,7 +865,7 @@ fun ChannelDetailsScreen(
 
         // Bottom sheet коментарів — Premium only (Classic uses full-screen overlay below)
         if (showCommentsSheet && selectedPost != null && channelViewStyle == ChannelViewStyle.PREMIUM) {
-            CommentsBottomSheet(
+            PremiumCommentsSheet(
                 post = selectedPost,
                 comments = comments,
                 isLoading = isLoadingComments,
@@ -932,6 +932,79 @@ fun ChannelDetailsScreen(
 
         // Діалог детального перегляду поста
         if (showPostDetailDialog && selectedPostForDetail != null) {
+            if (channelViewStyle == ChannelViewStyle.PREMIUM) {
+                PremiumPostDetailScreen(
+                    post = selectedPostForDetail!!,
+                    channelName = channel?.name ?: "",
+                    channelAvatarUrl = channel?.avatarUrl,
+                    comments = comments,
+                    isLoadingComments = isLoadingComments,
+                    currentUserId = UserSession.userId ?: 0L,
+                    isAdmin = channel?.isAdmin ?: false,
+                    onDismiss = { showPostDetailDialog = false },
+                    onReactionClick = { emoji ->
+                        selectedPostForDetail?.let { post ->
+                            val limitMsg = if (UserSession.isPro > 0)
+                                context.getString(R.string.ch_reaction_limit_pro)
+                            else
+                                context.getString(R.string.ch_reaction_limit)
+                            detailsViewModel.toggleReaction(
+                                postId = post.id,
+                                emoji = emoji,
+                                onLimitReached = {
+                                    Toast.makeText(context, limitMsg, Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    },
+                    onAddCommentWithReply = { text, replyToId ->
+                        selectedPostForDetail?.let { post ->
+                            detailsViewModel.addComment(
+                                postId = post.id,
+                                text = text,
+                                replyToId = replyToId,
+                                onSuccess = {
+                                    Toast.makeText(context, context.getString(R.string.comment_added), Toast.LENGTH_SHORT).show()
+                                    detailsViewModel.loadComments(post.id)
+                                },
+                                onError = { error ->
+                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    },
+                    onDeleteComment = { commentId ->
+                        selectedPostForDetail?.let { post ->
+                            detailsViewModel.deleteComment(
+                                commentId = commentId,
+                                postId = post.id,
+                                onSuccess = {
+                                    Toast.makeText(context, context.getString(R.string.comment_deleted), Toast.LENGTH_SHORT).show()
+                                    detailsViewModel.loadComments(post.id)
+                                },
+                                onError = { error ->
+                                    Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    },
+                    onCommentReaction = { commentId, emoji ->
+                        detailsViewModel.addCommentReaction(
+                            commentId = commentId,
+                            emoji = emoji,
+                            onSuccess = {
+                                Toast.makeText(context, context.getString(R.string.reaction_added), Toast.LENGTH_SHORT).show()
+                            },
+                            onError = { error ->
+                                Toast.makeText(context, context.getString(R.string.error_generic_msg, error), Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                )
+            } else {
             PostDetailDialog(
                 post = selectedPostForDetail!!,
                 comments = comments,
@@ -1016,6 +1089,7 @@ fun ChannelDetailsScreen(
                     )
                 }
             )
+            } // end else (classic PostDetailDialog)
         }
 
         // Bottom sheet опцій поста
