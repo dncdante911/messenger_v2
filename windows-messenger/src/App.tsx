@@ -13,13 +13,16 @@ import {
   login, loginByPhone, markGroupSeen, markSeen, markStorySeen,
   muteChat, normaliseMessage, pinChat, pinMessage,
   getMyProfile, updateMyProfile, uploadAvatar,
+  loadCallHistory, deleteCallRecord, clearCallHistory,
+  loadPrivacySettings, updatePrivacySettings,
   reactToMessage, reactToGroupMessage, registerAccount,
   searchMessages,
   sendMessage, sendGroupMessage, sendMessageWithMedia, sendVoiceMessage, TURN_FALLBACK,
   uploadMedia,
+  loadStickerPacks, sendStickerMessage, sendGifMessage, loadTrendingGifs, searchGifs, searchBots,
   type UserProfile,
 } from './api';
-import type { ChannelPost, ChannelPoll, ChannelComment, PollOption } from './types';
+import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack, GifItem, BotItem } from './types';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
@@ -28,8 +31,8 @@ import {
 } from './socket';
 import { createLocalVideoStream, createPeerConnection } from './webrtc';
 import type {
-  ActiveSection, CallState, ChatItem, ChannelItem, GroupItem,
-  MessageItem, ReplyTarget, Session, StoryItem
+  ActiveSection, CallHistoryItem, CallState, ChatItem, ChannelItem, GroupItem,
+  MessageItem, PrivacySettings, ReplyTarget, Session, StoryItem
 } from './types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -202,15 +205,19 @@ function Bubble({
         {/* Media */}
         {msg.media && (
           <div className="bubble-media">
-            {mediaIsImage
-              ? <img src={msg.media} alt="media" className="media-img" onClick={() => onOpenMedia(msg.media!)} />
-              : msg.media_type === 'video'
-                ? <video src={msg.media} controls className="media-video" />
-                : isVoice
-                  ? <audio src={msg.media} controls className="media-audio" />
-                  : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">
-                      📎 {msg.media_filename ?? t('misc.downloadFile')}
-                    </a>
+            {msg.media_type === 'sticker'
+              ? <img src={msg.media} alt="sticker" className="bubble-sticker" />
+              : msg.media_type === 'gif'
+                ? <img src={msg.media} alt="gif" className="bubble-gif" onClick={() => onOpenMedia(msg.media!)} />
+                : mediaIsImage
+                  ? <img src={msg.media} alt="media" className="media-img" onClick={() => onOpenMedia(msg.media!)} />
+                  : msg.media_type === 'video'
+                    ? <video src={msg.media} controls className="media-video" />
+                    : isVoice
+                      ? <audio src={msg.media} controls className="media-audio" />
+                      : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">
+                          📎 {msg.media_filename ?? t('misc.downloadFile')}
+                        </a>
             }
           </div>
         )}
@@ -494,10 +501,35 @@ export default function App() {
   const [commentReplyTo,   setCommentReplyTo]   = useState<{ id: number; text: string } | null>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
+  // ── Sticker / GIF picker ──────────────────────────────────────────────────
+  const [showPicker,       setShowPicker]       = useState<'sticker'|'gif'|null>(null);
+  const [stickerPacks,     setStickerPacks]     = useState<StickerPack[]>([]);
+  const [stickerPacksLoaded, setStickerPacksLoaded] = useState(false);
+  const [activeStickerPack, setActiveStickerPack] = useState<number | null>(null);
+  const [gifResults,       setGifResults]       = useState<GifItem[]>([]);
+  const [gifQuery,         setGifQuery]         = useState('');
+  const gifDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Bot search ────────────────────────────────────────────────────────────
+  const [showBotSearch,   setShowBotSearch]   = useState(false);
+  const [botQuery,        setBotQuery]        = useState('');
+  const [botResults,      setBotResults]      = useState<BotItem[]>([]);
+  const botDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Story viewer ──────────────────────────────────────────────────────────
   const [viewingStoryIdx, setViewingStoryIdx] = useState<number | null>(null);
   const [storyProgress, setStoryProgress]     = useState(0);
   const storyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Call history ──────────────────────────────────────────────────────────
+  const [callHistory,       setCallHistory]       = useState<CallHistoryItem[]>([]);
+  const [callHistoryLoaded, setCallHistoryLoaded] = useState(false);
+  const [callHistoryFilter, setCallHistoryFilter] = useState<'all'|'missed'|'incoming'|'outgoing'>('all');
+
+  // ── Privacy settings ──────────────────────────────────────────────────────
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings | null>(null);
+  const [privacyLoaded,   setPrivacyLoaded]   = useState(false);
+  const [privacySaving,   setPrivacySaving]   = useState<'idle'|'saving'|'done'|'error'>('idle');
 
   // ── Send error banner ─────────────────────────────────────────────────────
   const [sendError, setSendError]           = useState('');
@@ -1173,6 +1205,14 @@ export default function App() {
     }).catch(() => {});
   }, [section, myProfile, session]);
 
+  // Auto-load call history when entering Calls section
+  useEffect(() => {
+    if (section === 'calls' && !callHistoryLoaded && session) {
+      handleLoadCallHistory(callHistoryFilter);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
+
   async function handleSaveProfile() {
     if (!session) return;
     setProfileSaving('saving');
@@ -1236,6 +1276,49 @@ export default function App() {
     if (!session) return;
     await unblockUser(session.token, userId);
     setBlockedUsers(prev => prev.filter(u => u.id !== userId));
+  }
+
+  // ─── Call history ─────────────────────────────────────────────────────────
+
+  async function handleLoadCallHistory(filter: 'all'|'missed'|'incoming'|'outgoing' = 'all') {
+    if (!session) return;
+    const items = await loadCallHistory(session.token, filter);
+    setCallHistory(items);
+    setCallHistoryLoaded(true);
+  }
+
+  async function handleDeleteCall(callId: number) {
+    if (!session) return;
+    await deleteCallRecord(session.token, callId).catch(console.error);
+    setCallHistory(prev => prev.filter(c => c.id !== callId));
+  }
+
+  async function handleClearCallHistory() {
+    if (!session) return;
+    await clearCallHistory(session.token).catch(console.error);
+    setCallHistory([]);
+  }
+
+  // ─── Privacy settings ─────────────────────────────────────────────────────
+
+  async function handleLoadPrivacy() {
+    if (!session || privacyLoaded) return;
+    const ps = await loadPrivacySettings(session.token).catch(() => null);
+    if (ps) setPrivacySettings(ps);
+    setPrivacyLoaded(true);
+  }
+
+  async function handleSavePrivacy() {
+    if (!session || !privacySettings) return;
+    setPrivacySaving('saving');
+    try {
+      await updatePrivacySettings(session.token, privacySettings);
+      setPrivacySaving('done');
+      setTimeout(() => setPrivacySaving('idle'), 3000);
+    } catch {
+      setPrivacySaving('error');
+      setTimeout(() => setPrivacySaving('idle'), 3000);
+    }
   }
 
   // ─── Typing emit ──────────────────────────────────────────────────────────
@@ -1436,6 +1519,74 @@ export default function App() {
   async function handleReactComment(commentId: number, emoji: string) {
     if (!session) return;
     await reactToChannelComment(session.token, commentId, emoji).catch(console.error);
+  }
+
+  // ─── Sticker / GIF picker ─────────────────────────────────────────────────
+
+  async function openStickerPicker() {
+    setShowPicker('sticker');
+    if (!stickerPacksLoaded && session) {
+      const packs = await loadStickerPacks(session.token);
+      setStickerPacks(packs);
+      setStickerPacksLoaded(true);
+      if (packs.length > 0) setActiveStickerPack(packs[0].id);
+    }
+  }
+
+  async function handleSendSticker(url: string) {
+    if (!session || !selectedChat) return;
+    setShowPicker(null);
+    await sendStickerMessage(session.token, selectedChat.user_id, url).catch(console.error);
+    const r = await loadMessages(session.token, selectedChat.user_id);
+    setMessages(await Promise.all((r.messages ?? []).map(tryDecryptMessage)));
+  }
+
+  async function openGifPicker() {
+    setShowPicker('gif');
+    if (gifResults.length === 0) {
+      const gifs = await loadTrendingGifs();
+      setGifResults(gifs);
+    }
+  }
+
+  async function handleGifSearch(q: string) {
+    setGifQuery(q);
+    if (gifDebounceRef.current) clearTimeout(gifDebounceRef.current);
+    gifDebounceRef.current = setTimeout(async () => {
+      const gifs = await searchGifs(q);
+      setGifResults(gifs);
+    }, 400);
+  }
+
+  async function handleSendGif(url: string) {
+    if (!session || !selectedChat) return;
+    setShowPicker(null);
+    await sendGifMessage(session.token, selectedChat.user_id, url).catch(console.error);
+    const r = await loadMessages(session.token, selectedChat.user_id);
+    setMessages(await Promise.all((r.messages ?? []).map(tryDecryptMessage)));
+  }
+
+  // ─── Bot search ───────────────────────────────────────────────────────────
+
+  function handleBotQueryChange(q: string) {
+    setBotQuery(q);
+    if (botDebounceRef.current) clearTimeout(botDebounceRef.current);
+    botDebounceRef.current = setTimeout(async () => {
+      if (q.trim().length < 2) { setBotResults([]); return; }
+      const bots = await searchBots(q);
+      setBotResults(bots);
+    }, 400);
+  }
+
+  function openBotChat(bot: BotItem) {
+    const chatItem: ChatItem = {
+      user_id: bot.bot_id,
+      name:    bot.display_name || bot.username,
+      avatar:  bot.avatar,
+    };
+    selectChat(chatItem);
+    setShowBotSearch(false);
+    setSection('chats');
   }
 
   // ─── Groups ───────────────────────────────────────────────────────────────
@@ -1890,6 +2041,33 @@ export default function App() {
                   </div>
                 ))
             )}
+
+            {/* ── Bot search ─────────────────────────────────────────────── */}
+            <button className="archived-toggle" onClick={() => { setShowBotSearch(v => !v); setBotQuery(''); setBotResults([]); }}>
+              <span>🤖 {t('sidebar.bots')}</span>
+            </button>
+            {showBotSearch && (
+              <div>
+                <input className="search-input" style={{margin: '0 8px 6px', width: 'calc(100% - 16px)'}}
+                  placeholder={t('sidebar.searchBots')}
+                  value={botQuery} onChange={e => handleBotQueryChange(e.target.value)} />
+                {botResults.map(bot => (
+                  <div key={bot.bot_id} className="chat-item" style={{paddingRight: 8, gap: 8}}>
+                    <Avatar name={bot.display_name || bot.username} src={bot.avatar} size={36} />
+                    <div style={{flex:1, minWidth:0}}>
+                      <div className="chat-name">{bot.display_name || bot.username}</div>
+                      {bot.description && <div className="chat-last" style={{fontSize:11}}>{bot.description.slice(0,60)}</div>}
+                    </div>
+                    <div style={{display:'flex', gap:4, flexShrink:0}}>
+                      {bot.web_app_url && (
+                        <button className="btn-sm" title="Mini App" onClick={() => window.open(bot.web_app_url, '_blank')}>🌐</button>
+                      )}
+                      <button className="btn-sm" onClick={() => openBotChat(bot)}>{t('sidebar.chat')}</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1999,15 +2177,68 @@ export default function App() {
         {/* ── Calls ─────────────────────────────────────────────────────── */}
         {section === 'calls' && (
           <div className="list-scroll">
-            {selectedChat ? (
+            {selectedChat && (
               <div className="call-controls">
                 <p className="call-target">{t('call.callLabel')} <strong>{selectedChat.name}</strong></p>
                 <button className="call-pill audio" onClick={() => startCall('audio')}>🎙 {t('call.voiceCall')}</button>
                 <button className="call-pill video" onClick={() => startCall('video')}>📹 {t('call.videoCall')}</button>
               </div>
-            ) : (
-              <div className="empty-state">{t('call.selectChatFirst')}</div>
             )}
+            <div className="call-history-header">
+              <span className="call-history-title">{t('calls.history')}</span>
+              <div className="call-filter-tabs">
+                {(['all','missed','incoming','outgoing'] as const).map(f => (
+                  <button key={f}
+                    className={callHistoryFilter === f ? 'tab active' : 'tab'}
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    onClick={() => {
+                      setCallHistoryFilter(f);
+                      setCallHistoryLoaded(false);
+                      handleLoadCallHistory(f);
+                    }}
+                  >{t(`calls.${f}`)}</button>
+                ))}
+              </div>
+              {callHistory.length > 0 && (
+                <button className="btn-sm btn-outline" style={{ fontSize: 11 }} onClick={handleClearCallHistory}>
+                  {t('calls.clearHistory')}
+                </button>
+              )}
+            </div>
+            {!callHistoryLoaded ? (
+              <div className="empty-state" style={{ cursor: 'pointer' }} onClick={() => handleLoadCallHistory(callHistoryFilter)}>
+                {t('calls.loadHistory')}
+              </div>
+            ) : callHistory.length === 0 ? (
+              <div className="empty-state">{t('calls.noHistory')}</div>
+            ) : callHistory.map(c => {
+              const isOut = c.direction === 'outgoing';
+              const isMissed = !isOut && (c.status === 'missed' || c.status === 'rejected' || c.status === 'failed');
+              const name = c.call_category === 'personal'
+                ? (c.other_user?.name || c.other_user?.username || `User ${c.other_user?.user_id}`)
+                : (c.group_data?.group_name || `Group`);
+              const avatar = c.call_category === 'personal' ? c.other_user?.avatar : c.group_data?.avatar;
+              const icon = c.call_type === 'video' ? '📹' : '🎙';
+              const dirIcon = isOut ? '↗' : isMissed ? '✕' : '↙';
+              const durStr = c.duration > 0
+                ? `${Math.floor(c.duration / 60)}:${String(c.duration % 60).padStart(2, '0')}`
+                : '';
+              const dateStr = new Date(c.timestamp * 1000).toLocaleDateString();
+              return (
+                <div key={c.id} className="call-history-item">
+                  <div className="call-history-avatar"><Avatar name={name} src={avatar} size={36} /></div>
+                  <div className="call-history-info">
+                    <div className="call-history-name">{name}</div>
+                    <div className={`call-history-meta${isMissed ? ' missed' : ''}`}>
+                      <span>{dirIcon} {icon}</span>
+                      <span>{dateStr}</span>
+                      {durStr && <span>{durStr}</span>}
+                    </div>
+                  </div>
+                  <button className="call-history-delete" title="Delete" onClick={() => handleDeleteCall(c.id)}>✕</button>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -2073,6 +2304,64 @@ export default function App() {
                     </div>
                   ))
               )}
+            </div>
+
+            {/* ── Privacy ──────────────────────────────────────────────── */}
+            <div className="settings-section">
+              <div className="settings-label" style={{ cursor: privacyLoaded ? 'default' : 'pointer' }}
+                onClick={() => !privacyLoaded && handleLoadPrivacy()}>
+                {t('settings.privacy')}
+              </div>
+              {!privacyLoaded ? (
+                <button className="btn-secondary" style={{ fontSize: 12, padding: '4px 10px' }} onClick={handleLoadPrivacy}>
+                  {t('settings.loadPrivacy')}
+                </button>
+              ) : privacySettings && (<>
+                <div className="privacy-row">
+                  <span className="privacy-label">{t('settings.showLastSeen')}</span>
+                  <select className="privacy-select" value={privacySettings.showlastseen}
+                    onChange={e => setPrivacySettings(p => p ? { ...p, showlastseen: e.target.value } : p)}>
+                    <option value="1">{t('settings.show')}</option>
+                    <option value="0">{t('settings.hide')}</option>
+                  </select>
+                </div>
+                <div className="privacy-row">
+                  <span className="privacy-label">{t('settings.messagePrivacy')}</span>
+                  <select className="privacy-select" value={privacySettings.message_privacy}
+                    onChange={e => setPrivacySettings(p => p ? { ...p, message_privacy: e.target.value } : p)}>
+                    <option value="0">{t('settings.everyone')}</option>
+                    <option value="1">{t('settings.following')}</option>
+                    <option value="2">{t('settings.nobody')}</option>
+                  </select>
+                </div>
+                <div className="privacy-row">
+                  <span className="privacy-label">{t('settings.followPrivacy')}</span>
+                  <select className="privacy-select" value={privacySettings.follow_privacy}
+                    onChange={e => setPrivacySettings(p => p ? { ...p, follow_privacy: e.target.value } : p)}>
+                    <option value="0">{t('settings.everyone')}</option>
+                    <option value="1">{t('settings.onlyMe')}</option>
+                  </select>
+                </div>
+                <div className="privacy-row">
+                  <span className="privacy-label">{t('settings.confirmFollowers')}</span>
+                  <select className="privacy-select" value={privacySettings.confirm_followers}
+                    onChange={e => setPrivacySettings(p => p ? { ...p, confirm_followers: e.target.value } : p)}>
+                    <option value="0">{t('settings.no')}</option>
+                    <option value="1">{t('settings.yes')}</option>
+                  </select>
+                </div>
+                <button
+                  className={privacySaving === 'done' ? 'btn-success' : privacySaving === 'error' ? 'btn-danger' : 'btn-primary'}
+                  disabled={privacySaving === 'saving'}
+                  style={{ marginTop: 8 }}
+                  onClick={handleSavePrivacy}
+                >
+                  {privacySaving === 'saving' ? t('settings.saving') :
+                   privacySaving === 'done'   ? t('settings.saved') :
+                   privacySaving === 'error'  ? t('settings.errorRetry') :
+                   t('settings.saveProfile')}
+                </button>
+              </>)}
             </div>
 
             <div className="settings-section">
@@ -2655,6 +2944,58 @@ export default function App() {
               <div className="send-error-banner">{sendError}</div>
             )}
 
+            {/* ── Sticker / GIF picker ──────────────────────────────────── */}
+            {showPicker && (
+              <div className="sticker-gif-picker">
+                <div className="picker-tabs">
+                  <button className={showPicker === 'sticker' ? 'tab active' : 'tab'} onClick={openStickerPicker}>{t('chat.stickers')}</button>
+                  <button className={showPicker === 'gif' ? 'tab active' : 'tab'} onClick={openGifPicker}>GIF</button>
+                  <button className="picker-close" onClick={() => setShowPicker(null)}>✕</button>
+                </div>
+
+                {showPicker === 'sticker' && (
+                  <>
+                    <div className="sticker-pack-tabs">
+                      {stickerPacks.map(pack => (
+                        <button key={pack.id}
+                          className={`sticker-pack-tab ${activeStickerPack === pack.id ? 'active' : ''}`}
+                          onClick={() => setActiveStickerPack(pack.id)}
+                          title={pack.name}
+                        >
+                          {pack.icon_url ? <img src={pack.icon_url} alt={pack.name} width={24} height={24} /> : '🎭'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="sticker-grid">
+                      {(stickerPacks.find(p => p.id === activeStickerPack)?.stickers ?? []).map(s => (
+                        <button key={s.id} className="sticker-item" onClick={() => handleSendSticker(s.file_url)}>
+                          <img src={s.thumbnail_url ?? s.file_url} alt={s.emoji ?? ''} />
+                        </button>
+                      ))}
+                      {stickerPacks.length === 0 && stickerPacksLoaded && (
+                        <div className="empty-state" style={{gridColumn:'1/-1'}}>{t('chat.noStickers')}</div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {showPicker === 'gif' && (
+                  <>
+                    <input className="chat-search-input" placeholder={t('chat.searchGif')}
+                      value={gifQuery} onChange={e => handleGifSearch(e.target.value)} />
+                    <div className="gif-grid">
+                      {gifResults.map(g => (
+                        <button key={g.id} className="gif-item" onClick={() => handleSendGif(g.url)}>
+                          <img src={g.previewUrl} alt={g.title} loading="lazy" />
+                        </button>
+                      ))}
+                    </div>
+                    <div className="giphy-footer">Powered by GIPHY</div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* ── Composer ──────────────────────────────────────────────── */}
             <div className="composer">
               {/* Reply/edit banner */}
@@ -2714,6 +3055,14 @@ export default function App() {
                   >
                     🎤
                   </button>
+                )}
+
+                {/* Sticker / GIF buttons (hidden when text typed) */}
+                {!newMessage.trim() && !pendingMedia && !editingMsg && (
+                  <>
+                    <button className="icon-btn" title={t('chat.stickerPicker')} onClick={() => showPicker === 'sticker' ? setShowPicker(null) : openStickerPicker()}>🎭</button>
+                    <button className="icon-btn" title={t('chat.gifPicker')} onClick={() => showPicker === 'gif' ? setShowPicker(null) : openGifPicker()}>GIF</button>
+                  </>
                 )}
 
                 {/* Send button */}

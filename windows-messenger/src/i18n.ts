@@ -182,6 +182,44 @@ const translations: Record<Lang, Record<string, string>> = {
     'lang.ru': 'Русский',
     'lang.uk': 'Українська',
     'lang.en': 'English',
+
+    // Call history
+    'calls.history':     'История звонков',
+    'calls.loadHistory': 'Загрузить историю',
+    'calls.noHistory':   'Нет записей звонков',
+    'calls.clearHistory':'Очистить всё',
+    'calls.all':         'Все',
+    'calls.missed':      'Пропущенные',
+    'calls.incoming':    'Входящие',
+    'calls.outgoing':    'Исходящие',
+
+    // Privacy settings
+    'settings.privacy':         'Приватность',
+    'settings.loadPrivacy':     'Загрузить настройки',
+    'settings.showLastSeen':    'Последнее посещение',
+    'settings.messagePrivacy':  'Кто может писать мне',
+    'settings.followPrivacy':   'Кто может подписаться',
+    'settings.confirmFollowers':'Подтверждать подписчиков',
+    'settings.everyone':        'Все',
+    'settings.following':       'Те, на кого я подписан',
+    'settings.nobody':          'Никто',
+    'settings.onlyMe':          'Только я',
+    'settings.show':            'Показывать',
+    'settings.hide':            'Скрывать',
+    'settings.yes':             'Да',
+    'settings.no':              'Нет',
+
+    // Sticker / GIF picker
+    'chat.stickerPicker': 'Стикеры',
+    'chat.gifPicker':     'GIF',
+    'chat.stickers':      'Стикеры',
+    'chat.searchGif':     'Поиск GIF…',
+    'chat.noStickers':    'Нет стикеров',
+
+    // Bot search
+    'sidebar.bots':       'Боты',
+    'sidebar.searchBots': 'Поиск ботов…',
+    'sidebar.chat':       'Написать',
   },
 
   // ── Ukrainian ────────────────────────────────────────────────────────────────
@@ -343,6 +381,44 @@ const translations: Record<Lang, Record<string, string>> = {
     'lang.ru': 'Русский',
     'lang.uk': 'Українська',
     'lang.en': 'English',
+
+    // Call history
+    'calls.history':     'Історія дзвінків',
+    'calls.loadHistory': 'Завантажити історію',
+    'calls.noHistory':   'Немає записів дзвінків',
+    'calls.clearHistory':'Очистити все',
+    'calls.all':         'Усі',
+    'calls.missed':      'Пропущені',
+    'calls.incoming':    'Вхідні',
+    'calls.outgoing':    'Вихідні',
+
+    // Privacy settings
+    'settings.privacy':         'Приватність',
+    'settings.loadPrivacy':     'Завантажити налаштування',
+    'settings.showLastSeen':    'Останнє відвідування',
+    'settings.messagePrivacy':  'Хто може писати мені',
+    'settings.followPrivacy':   'Хто може підписатися',
+    'settings.confirmFollowers':'Підтверджувати підписників',
+    'settings.everyone':        'Всі',
+    'settings.following':       'На кого я підписаний',
+    'settings.nobody':          'Ніхто',
+    'settings.onlyMe':          'Тільки я',
+    'settings.show':            'Показувати',
+    'settings.hide':            'Приховувати',
+    'settings.yes':             'Так',
+    'settings.no':              'Ні',
+
+    // Sticker / GIF picker
+    'chat.stickerPicker': 'Стікери',
+    'chat.gifPicker':     'GIF',
+    'chat.stickers':      'Стікери',
+    'chat.searchGif':     'Пошук GIF…',
+    'chat.noStickers':    'Немає стікерів',
+
+    // Bot search
+    'sidebar.bots':       'Боти',
+    'sidebar.searchBots': 'Пошук ботів…',
+    'sidebar.chat':       'Написати',
   },
 
   // ── English ──────────────────────────────────────────────────────────────────
@@ -503,6 +579,44 @@ const translations: Record<Lang, Record<string, string>> = {
     'lang.ru': 'Русский',
     'lang.uk': 'Українська',
     'lang.en': 'English',
+
+    // Call history
+    'calls.history':     'Call history',
+    'calls.loadHistory': 'Load history',
+    'calls.noHistory':   'No call records',
+    'calls.clearHistory':'Clear all',
+    'calls.all':         'All',
+    'calls.missed':      'Missed',
+    'calls.incoming':    'Incoming',
+    'calls.outgoing':    'Outgoing',
+
+    // Privacy settings
+    'settings.privacy':         'Privacy',
+    'settings.loadPrivacy':     'Load settings',
+    'settings.showLastSeen':    'Last seen',
+    'settings.messagePrivacy':  'Who can message me',
+    'settings.followPrivacy':   'Who can follow me',
+    'settings.confirmFollowers':'Approve followers',
+    'settings.everyone':        'Everyone',
+    'settings.following':       'People I follow',
+    'settings.nobody':          'Nobody',
+    'settings.onlyMe':          'Only me',
+    'settings.show':            'Show',
+    'settings.hide':            'Hide',
+    'settings.yes':             'Yes',
+    'settings.no':              'No',
+
+    // Sticker / GIF picker
+    'chat.stickerPicker': 'Stickers',
+    'chat.gifPicker':     'GIF',
+    'chat.stickers':      'Stickers',
+    'chat.searchGif':     'Search GIF…',
+    'chat.noStickers':    'No stickers',
+
+    // Bot search
+    'sidebar.bots':       'Bots',
+    'sidebar.searchBots': 'Search bots…',
+    'sidebar.chat':       'Chat',
   },
 };
 

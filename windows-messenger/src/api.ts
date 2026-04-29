@@ -9,6 +9,8 @@
 
 import type {
   AuthResponse,
+  BotItem,
+  CallHistoryItem,
   ChannelComment,
   ChannelItem,
   ChannelPoll,
@@ -17,12 +19,16 @@ import type {
   ChatItem,
   ChatListResponse,
   GenericListResponse,
+  GifItem,
   GroupItem,
   MediaUploadResponse,
   MessageItem,
   MessageReaction,
   MessagesResponse,
   PollOption,
+  PrivacySettings,
+  Sticker,
+  StickerPack,
   StoryItem
 } from './types';
 import type { NodeApiShim, PreKeyBundle } from './signalService';
@@ -940,4 +946,127 @@ export function createNodeApiShim(token: string): NodeApiShim {
     replenishSignalPreKeys:(prekeys) => replenishSignalPreKeys(token, prekeys),
     getSignalIdentityKey:  (userId)  => getSignalIdentityKey(token, userId)
   };
+}
+
+// ─── Call history (PHP v2 API) ────────────────────────────────────────────────
+
+async function phpPost<T>(path: string, token: string, data: Record<string, string>): Promise<T> {
+  const p = new URLSearchParams({ access_token: token, ...data });
+  const text = await doRequest(`${API_BASE_URL.replace(/\/api\/v2\/$/, '')}${path}`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    p.toString()
+  });
+  return parseJson<T>(text);
+}
+
+export async function loadCallHistory(token: string, filter = 'all'): Promise<CallHistoryItem[]> {
+  try {
+    const resp = await phpPost<{ calls?: CallHistoryItem[] }>(
+      '/api/v2/call_history.php', token,
+      { type: 'get_history', filter, limit: '50', offset: '0' }
+    );
+    return resp.calls ?? [];
+  } catch { return []; }
+}
+
+export async function deleteCallRecord(token: string, callId: number): Promise<void> {
+  await phpPost('/api/v2/call_history.php', token, { type: 'delete_call', call_id: String(callId) });
+}
+
+export async function clearCallHistory(token: string): Promise<void> {
+  await phpPost('/api/v2/call_history.php', token, { type: 'clear_history' });
+}
+
+// ─── Privacy settings ─────────────────────────────────────────────────────────
+
+export async function loadPrivacySettings(token: string): Promise<PrivacySettings> {
+  const resp = await nodeGet<Record<string, unknown>>('/api/node/users/me', token);
+  const u = (resp.user_data ?? resp) as Record<string, unknown>;
+  return {
+    follow_privacy:          toStr(u.follow_privacy,          '0'),
+    friend_privacy:          toStr(u.friend_privacy,          '0'),
+    post_privacy:            toStr(u.post_privacy,            'everyone'),
+    message_privacy:         toStr(u.message_privacy,         '0'),
+    confirm_followers:       toStr(u.confirm_followers,       '0'),
+    show_activities_privacy: toStr(u.show_activities_privacy, '1'),
+    birth_privacy:           toStr(u.birth_privacy,           '0'),
+    visit_privacy:           toStr(u.visit_privacy,           '0'),
+    showlastseen:            toStr(u.showlastseen,            '1'),
+  };
+}
+
+export async function updatePrivacySettings(token: string, settings: Partial<PrivacySettings>): Promise<void> {
+  await phpPost('/api/v2/index.php', token, { type: 'update-privacy-settings', ...(settings as Record<string, string>) });
+}
+
+// ─── Stickers ─────────────────────────────────────────────────────────────────
+
+export async function loadStickerPacks(token: string): Promise<StickerPack[]> {
+  try {
+    const resp = await nodeGet<{ packs?: StickerPack[] }>('/api/node/stickers', token);
+    return resp.packs ?? [];
+  } catch { return []; }
+}
+
+export async function sendStickerMessage(token: string, recipientId: number, url: string): Promise<void> {
+  await nodePost('/api/node/chat/send', token, { recipient_id: recipientId, media: url, media_type: 'sticker', text: '' });
+}
+
+export async function sendGifMessage(token: string, recipientId: number, url: string): Promise<void> {
+  await nodePost('/api/node/chat/send', token, { recipient_id: recipientId, media: url, media_type: 'gif', text: '' });
+}
+
+// ─── GIFs (GIPHY) ────────────────────────────────────────────────────────────
+
+const GIPHY_KEY = '6jkmmXp7Pjkxl4uvXO5AUcL4pl22QrWA';
+
+function normaliseGiphy(data: Record<string, unknown>[]): GifItem[] {
+  return data.map(g => {
+    const imgs = (g.images ?? {}) as Record<string, Record<string, string>>;
+    return {
+      id:         String(g.id ?? ''),
+      title:      String(g.title ?? ''),
+      url:        imgs.original?.url ?? '',
+      previewUrl: imgs.fixed_width?.url ?? imgs.original?.url ?? '',
+    };
+  });
+}
+
+export async function loadTrendingGifs(limit = 20): Promise<GifItem[]> {
+  try {
+    const url  = `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=${limit}&rating=g`;
+    const res  = await fetch(url);
+    const data = await res.json() as { data?: Record<string, unknown>[] };
+    return normaliseGiphy(data.data ?? []);
+  } catch { return []; }
+}
+
+export async function searchGifs(query: string, limit = 20): Promise<GifItem[]> {
+  if (!query.trim()) return loadTrendingGifs(limit);
+  try {
+    const url  = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`;
+    const res  = await fetch(url);
+    const data = await res.json() as { data?: Record<string, unknown>[] };
+    return normaliseGiphy(data.data ?? []);
+  } catch { return []; }
+}
+
+// ─── Bot search ───────────────────────────────────────────────────────────────
+
+export async function searchBots(query: string, limit = 20): Promise<BotItem[]> {
+  try {
+    const text = await doRequest(`${NODE_BASE_URL}/api/node/bots/search?q=${encodeURIComponent(query)}&limit=${limit}&offset=0`, {
+      method: 'GET', headers: {}
+    });
+    const resp = await parseJson<{ bots?: Record<string, unknown>[] }>(text);
+    return (resp.bots ?? []).map(b => ({
+      bot_id:       Number(b.bot_id ?? b.id ?? 0),
+      username:     String(b.username ?? ''),
+      display_name: String(b.display_name ?? b.displayName ?? b.username ?? ''),
+      avatar:       b.avatar ? String(b.avatar) : undefined,
+      description:  b.description ? String(b.description) : undefined,
+      web_app_url:  b.web_app_url ? String(b.web_app_url) : undefined,
+    }));
+  } catch { return []; }
 }

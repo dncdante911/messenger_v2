@@ -209,6 +209,33 @@ export type CallRecord = {
   time_unix?: number;
 };
 
+export type CallHistoryItem = {
+  id: number;
+  call_category: 'personal' | 'group';
+  call_type: 'audio' | 'video';
+  status: string;
+  direction: 'incoming' | 'outgoing';
+  created_at: string;
+  accepted_at?: string;
+  ended_at?: string;
+  duration: number;
+  timestamp: number;
+  other_user?: { user_id: number; username: string; name: string; avatar: string };
+  group_data?: { group_id: number; group_name: string; avatar: string };
+};
+
+export type PrivacySettings = {
+  follow_privacy: string;
+  friend_privacy: string;
+  post_privacy: string;
+  message_privacy: string;
+  confirm_followers: string;
+  show_activities_privacy: string;
+  birth_privacy: string;
+  visit_privacy: string;
+  showlastseen: string;
+};
+
 export type CallState =
   | { phase: 'idle' }
   | { phase: 'outgoing'; peer: ChatItem; type: 'audio' | 'video' }
@@ -324,4 +351,39 @@ export type ReplyTarget = {
   from_id: number;
   text:    string;
   media?:  string;
+};
+
+export type Sticker = {
+  id: number;
+  pack_id: number;
+  file_url: string;
+  thumbnail_url?: string;
+  emoji?: string;
+  format?: string;
+};
+
+export type StickerPack = {
+  id: number;
+  name: string;
+  icon_url?: string;
+  author?: string;
+  is_active: boolean;
+  sticker_count?: number;
+  stickers?: Sticker[];
+};
+
+export type GifItem = {
+  id: string;
+  title: string;
+  url: string;
+  previewUrl: string;
+};
+
+export type BotItem = {
+  bot_id: number;
+  username: string;
+  display_name: string;
+  avatar?: string;
+  description?: string;
+  web_app_url?: string;
 };
