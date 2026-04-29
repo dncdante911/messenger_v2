@@ -209,6 +209,33 @@ export type CallRecord = {
   time_unix?: number;
 };
 
+export type CallHistoryItem = {
+  id: number;
+  call_category: 'personal' | 'group';
+  call_type: 'audio' | 'video';
+  status: string;
+  direction: 'incoming' | 'outgoing';
+  created_at: string;
+  accepted_at?: string;
+  ended_at?: string;
+  duration: number;
+  timestamp: number;
+  other_user?: { user_id: number; username: string; name: string; avatar: string };
+  group_data?: { group_id: number; group_name: string; avatar: string };
+};
+
+export type PrivacySettings = {
+  follow_privacy: string;
+  friend_privacy: string;
+  post_privacy: string;
+  message_privacy: string;
+  confirm_followers: string;
+  show_activities_privacy: string;
+  birth_privacy: string;
+  visit_privacy: string;
+  showlastseen: string;
+};
+
 export type CallState =
   | { phase: 'idle' }
   | { phase: 'outgoing'; peer: ChatItem; type: 'audio' | 'video' }

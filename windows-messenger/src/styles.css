@@ -1529,3 +1529,23 @@ body {
 .comment-time { font-size: 11px; color: var(--text-2); }
 .comment-text { font-size: 13px; line-height: 1.5; margin: 0 0 4px; white-space: pre-wrap; word-break: break-word; }
 .comment-actions { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+/* ─── Call history ──────────────────────────────────────────────────────────── */
+.call-history-header { padding: 10px 12px 6px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--border-light); }
+.call-history-title { font-size: 13px; font-weight: 600; }
+.call-filter-tabs { display: flex; gap: 3px; flex-wrap: wrap; }
+.call-history-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border-light); }
+.call-history-item:hover { background: var(--bg-hover); }
+.call-history-avatar { flex-shrink: 0; }
+.call-history-info { flex: 1; min-width: 0; }
+.call-history-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.call-history-meta { font-size: 12px; color: var(--text-2); display: flex; gap: 8px; margin-top: 2px; }
+.call-history-meta.missed { color: #e53935; }
+.call-history-delete { background: none; border: none; color: var(--text-2); cursor: pointer; font-size: 12px; padding: 2px 6px; opacity: 0; transition: opacity .15s; }
+.call-history-item:hover .call-history-delete { opacity: 1; }
+.call-history-delete:hover { color: #e53935; }
+
+/* ─── Privacy settings ──────────────────────────────────────────────────────── */
+.privacy-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-light); gap: 12px; }
+.privacy-label { font-size: 13px; flex: 1; }
+.privacy-select { font-size: 12px; padding: 4px 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-2); color: var(--text); cursor: pointer; min-width: 120px; }

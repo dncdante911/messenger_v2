@@ -9,6 +9,7 @@
 
 import type {
   AuthResponse,
+  CallHistoryItem,
   ChannelComment,
   ChannelItem,
   ChannelPoll,
@@ -23,6 +24,7 @@ import type {
   MessageReaction,
   MessagesResponse,
   PollOption,
+  PrivacySettings,
   StoryItem
 } from './types';
 import type { NodeApiShim, PreKeyBundle } from './signalService';
@@ -940,4 +942,56 @@ export function createNodeApiShim(token: string): NodeApiShim {
     replenishSignalPreKeys:(prekeys) => replenishSignalPreKeys(token, prekeys),
     getSignalIdentityKey:  (userId)  => getSignalIdentityKey(token, userId)
   };
+}
+
+// ─── Call history (PHP v2 API) ────────────────────────────────────────────────
+
+async function phpPost<T>(path: string, token: string, data: Record<string, string>): Promise<T> {
+  const p = new URLSearchParams({ access_token: token, ...data });
+  const text = await doRequest(`${API_BASE_URL.replace(/\/api\/v2\/$/, '')}${path}`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    p.toString()
+  });
+  return parseJson<T>(text);
+}
+
+export async function loadCallHistory(token: string, filter = 'all'): Promise<CallHistoryItem[]> {
+  try {
+    const resp = await phpPost<{ calls?: CallHistoryItem[] }>(
+      '/api/v2/call_history.php', token,
+      { type: 'get_history', filter, limit: '50', offset: '0' }
+    );
+    return resp.calls ?? [];
+  } catch { return []; }
+}
+
+export async function deleteCallRecord(token: string, callId: number): Promise<void> {
+  await phpPost('/api/v2/call_history.php', token, { type: 'delete_call', call_id: String(callId) });
+}
+
+export async function clearCallHistory(token: string): Promise<void> {
+  await phpPost('/api/v2/call_history.php', token, { type: 'clear_history' });
+}
+
+// ─── Privacy settings ─────────────────────────────────────────────────────────
+
+export async function loadPrivacySettings(token: string): Promise<PrivacySettings> {
+  const resp = await nodeGet<Record<string, unknown>>('/api/node/users/me', token);
+  const u = (resp.user_data ?? resp) as Record<string, unknown>;
+  return {
+    follow_privacy:          toStr(u.follow_privacy,          '0'),
+    friend_privacy:          toStr(u.friend_privacy,          '0'),
+    post_privacy:            toStr(u.post_privacy,            'everyone'),
+    message_privacy:         toStr(u.message_privacy,         '0'),
+    confirm_followers:       toStr(u.confirm_followers,       '0'),
+    show_activities_privacy: toStr(u.show_activities_privacy, '1'),
+    birth_privacy:           toStr(u.birth_privacy,           '0'),
+    visit_privacy:           toStr(u.visit_privacy,           '0'),
+    showlastseen:            toStr(u.showlastseen,            '1'),
+  };
+}
+
+export async function updatePrivacySettings(token: string, settings: Partial<PrivacySettings>): Promise<void> {
+  await phpPost('/api/v2/index.php', token, { type: 'update-privacy-settings', ...(settings as Record<string, string>) });
 }
