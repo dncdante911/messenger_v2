@@ -10,6 +10,7 @@
 import type {
   AuthResponse,
   ChannelItem,
+  ChannelPoll,
   ChannelPost,
   ChannelPostsResponse,
   ChatItem,
@@ -20,6 +21,7 @@ import type {
   MessageItem,
   MessageReaction,
   MessagesResponse,
+  PollOption,
   StoryItem
 } from './types';
 import type { NodeApiShim, PreKeyBundle } from './signalService';
@@ -199,7 +201,13 @@ export function normaliseMessage(m: Record<string, unknown>): MessageItem {
     time_text:      toStr(m.time_text ?? m.time, ''),
     time:           m.time ? Number(m.time) : undefined,
     media:          m.media ? toStr(m.media) : undefined,
-    media_type:     m.media_type as MessageItem['media_type'],
+    // Server may use `type` field (not `media_type`) for voice/image/video/audio messages
+    media_type:     (() => {
+      const mt = toStr(m.media_type, '').toLowerCase();
+      if (mt) return mt as MessageItem['media_type'];
+      const t = toStr(m.type, '').toLowerCase();
+      return (['image','video','audio','voice','file','sticker','gif'].includes(t) ? t : undefined) as MessageItem['media_type'];
+    })(),
     media_filename: m.media_file_name as string | undefined,
     reply_to:       m.reply as MessageItem['reply_to'],
     reactions:      m.reactions as MessageItem['reactions'],
@@ -595,14 +603,47 @@ export async function createChannel(token: string, name: string, description: st
   await nodePost('/api/node/channel/create', token, { name, description });
 }
 
+function normalisePostMediaType(t: string): string {
+  const s = t.toLowerCase();
+  return s === 'photo' ? 'image' : s;
+}
+
 function normaliseChannelPost(raw: Record<string, unknown>): ChannelPost {
   // Server returns media as List<PostMedia> each with {url, type, filename}
-  const mediaList = (raw.media ?? []) as Record<string, unknown>[];
-  const firstMedia = Array.isArray(mediaList) && mediaList.length > 0 ? mediaList[0] : null;
-  const mediaUrl   = firstMedia ? toStr(firstMedia.url ?? firstMedia.file_url ?? firstMedia.filename, '') : undefined;
-  const rawType    = firstMedia ? toStr(firstMedia.type, '').toLowerCase() : undefined;
-  // Normalise type: "photo"→"image", "audio"→"audio", etc.
-  const mediaType  = rawType === 'photo' ? 'image' : (rawType || undefined);
+  const rawMedia   = raw.media;
+  const mediaList: Record<string, unknown>[] = Array.isArray(rawMedia) ? rawMedia : [];
+  const mediaItems = mediaList.map(m => ({
+    url:  toStr(m.url ?? m.file_url ?? m.filename, ''),
+    type: normalisePostMediaType(toStr(m.type, 'file')),
+  })).filter(m => m.url.length > 0);
+
+  const first     = mediaItems[0];
+  const mediaUrl  = first?.url;
+  const mediaType = first ? normalisePostMediaType(first.type) : undefined;
+
+  // Poll normalization
+  let poll: ChannelPoll | undefined;
+  if (raw.poll && typeof raw.poll === 'object') {
+    const p = raw.poll as Record<string, unknown>;
+    const opts = (p.options ?? []) as Record<string, unknown>[];
+    poll = {
+      id:                      Number(p.id ?? 0),
+      question:                toStr(p.question, ''),
+      poll_type:               toStr(p.poll_type, 'regular'),
+      is_anonymous:            Boolean(p.is_anonymous ?? true),
+      allows_multiple_answers: Boolean(p.allows_multiple_answers),
+      is_closed:               Boolean(p.is_closed),
+      total_votes:             Number(p.total_votes ?? 0),
+      options: Array.isArray(opts) ? opts.map(o => ({
+        id:         Number(o.id ?? 0),
+        text:       toStr(o.text, ''),
+        vote_count: Number(o.vote_count ?? 0),
+        percent:    Number(o.percent ?? 0),
+        is_voted:   Boolean(o.is_voted),
+      } as PollOption)) : [],
+    };
+  }
+
   return {
     id:             Number(raw.id ?? 0),
     channel_id:     Number(raw.channel_id ?? 0),
@@ -610,6 +651,8 @@ function normaliseChannelPost(raw: Record<string, unknown>): ChannelPost {
     text:           toStr(raw.text, ''),
     media:          mediaUrl && mediaUrl.length > 0 ? mediaUrl : undefined,
     media_type:     mediaType,
+    media_items:    mediaItems.length > 0 ? mediaItems : undefined,
+    poll,
     reactions:      (raw.reactions as MessageReaction[] | undefined),
     comments_count: Number(raw.comments_count ?? 0),
     views_count:    Number(raw.views_count ?? raw.view_count ?? 0),
@@ -617,6 +660,13 @@ function normaliseChannelPost(raw: Record<string, unknown>): ChannelPost {
     time_unix:      raw.created_time ? Number(raw.created_time) : undefined,
     is_pinned:      Boolean(raw.is_pinned),
   };
+}
+
+export async function voteChannelPoll(token: string, pollId: number, optionIds: number[]): Promise<void> {
+  await nodePost('/api/node/channel/poll/vote', token, {
+    poll_id:    pollId,
+    option_ids: optionIds.join(','),
+  });
 }
 
 export async function loadChannelPosts(token: string, channelId: number): Promise<ChannelPostsResponse> {

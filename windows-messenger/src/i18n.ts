@@ -148,6 +148,10 @@ const translations: Record<Lang, Record<string, string>> = {
     'misc.noMessages':  'Нет сообщений',
     'misc.sendError':   'Не удалось отправить сообщение. Сервер недоступен.',
     'misc.downloadFile':'Скачать файл',
+    'channel.totalVotes':  'голосов',
+    'channel.anonymous':   'Анонимный',
+    'channel.pollClosed':  'Опрос закрыт',
+    'channel.vote':        'Проголосовать',
 
     // Socket status translations
     'socket.connected':      'Подключено',
@@ -306,6 +310,10 @@ const translations: Record<Lang, Record<string, string>> = {
     'misc.noMessages':   'Немає повідомлень',
     'misc.sendError':    'Не вдалося надіслати повідомлення. Сервер недоступний.',
     'misc.downloadFile': 'Завантажити файл',
+    'channel.totalVotes':  'голосів',
+    'channel.anonymous':   'Анонімне',
+    'channel.pollClosed':  'Опитування закрито',
+    'channel.vote':        'Проголосувати',
 
     'socket.connected':      "З'єднано",
     'socket.offline':        'Не в мережі',
@@ -461,6 +469,10 @@ const translations: Record<Lang, Record<string, string>> = {
     'misc.noMessages':   'No messages',
     'misc.sendError':    'Failed to send message. Server may be unavailable.',
     'misc.downloadFile': 'Download file',
+    'channel.totalVotes':  'votes',
+    'channel.anonymous':   'Anonymous',
+    'channel.pollClosed':  'Poll closed',
+    'channel.vote':        'Vote',
 
     'socket.connected':      'Connected',
     'socket.offline':        'Offline',
