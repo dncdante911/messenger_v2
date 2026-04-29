@@ -352,3 +352,38 @@ export type ReplyTarget = {
   text:    string;
   media?:  string;
 };
+
+export type Sticker = {
+  id: number;
+  pack_id: number;
+  file_url: string;
+  thumbnail_url?: string;
+  emoji?: string;
+  format?: string;
+};
+
+export type StickerPack = {
+  id: number;
+  name: string;
+  icon_url?: string;
+  author?: string;
+  is_active: boolean;
+  sticker_count?: number;
+  stickers?: Sticker[];
+};
+
+export type GifItem = {
+  id: string;
+  title: string;
+  url: string;
+  previewUrl: string;
+};
+
+export type BotItem = {
+  bot_id: number;
+  username: string;
+  display_name: string;
+  avatar?: string;
+  description?: string;
+  web_app_url?: string;
+};

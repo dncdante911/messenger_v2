@@ -9,6 +9,7 @@
 
 import type {
   AuthResponse,
+  BotItem,
   CallHistoryItem,
   ChannelComment,
   ChannelItem,
@@ -18,6 +19,7 @@ import type {
   ChatItem,
   ChatListResponse,
   GenericListResponse,
+  GifItem,
   GroupItem,
   MediaUploadResponse,
   MessageItem,
@@ -25,6 +27,8 @@ import type {
   MessagesResponse,
   PollOption,
   PrivacySettings,
+  Sticker,
+  StickerPack,
   StoryItem
 } from './types';
 import type { NodeApiShim, PreKeyBundle } from './signalService';
@@ -994,4 +998,75 @@ export async function loadPrivacySettings(token: string): Promise<PrivacySetting
 
 export async function updatePrivacySettings(token: string, settings: Partial<PrivacySettings>): Promise<void> {
   await phpPost('/api/v2/index.php', token, { type: 'update-privacy-settings', ...(settings as Record<string, string>) });
+}
+
+// ─── Stickers ─────────────────────────────────────────────────────────────────
+
+export async function loadStickerPacks(token: string): Promise<StickerPack[]> {
+  try {
+    const resp = await nodeGet<{ packs?: StickerPack[] }>('/api/node/stickers', token);
+    return resp.packs ?? [];
+  } catch { return []; }
+}
+
+export async function sendStickerMessage(token: string, recipientId: number, url: string): Promise<void> {
+  await nodePost('/api/node/chat/send', token, { recipient_id: recipientId, media: url, media_type: 'sticker', text: '' });
+}
+
+export async function sendGifMessage(token: string, recipientId: number, url: string): Promise<void> {
+  await nodePost('/api/node/chat/send', token, { recipient_id: recipientId, media: url, media_type: 'gif', text: '' });
+}
+
+// ─── GIFs (GIPHY) ────────────────────────────────────────────────────────────
+
+const GIPHY_KEY = '6jkmmXp7Pjkxl4uvXO5AUcL4pl22QrWA';
+
+function normaliseGiphy(data: Record<string, unknown>[]): GifItem[] {
+  return data.map(g => {
+    const imgs = (g.images ?? {}) as Record<string, Record<string, string>>;
+    return {
+      id:         String(g.id ?? ''),
+      title:      String(g.title ?? ''),
+      url:        imgs.original?.url ?? '',
+      previewUrl: imgs.fixed_width?.url ?? imgs.original?.url ?? '',
+    };
+  });
+}
+
+export async function loadTrendingGifs(limit = 20): Promise<GifItem[]> {
+  try {
+    const url  = `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=${limit}&rating=g`;
+    const res  = await fetch(url);
+    const data = await res.json() as { data?: Record<string, unknown>[] };
+    return normaliseGiphy(data.data ?? []);
+  } catch { return []; }
+}
+
+export async function searchGifs(query: string, limit = 20): Promise<GifItem[]> {
+  if (!query.trim()) return loadTrendingGifs(limit);
+  try {
+    const url  = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`;
+    const res  = await fetch(url);
+    const data = await res.json() as { data?: Record<string, unknown>[] };
+    return normaliseGiphy(data.data ?? []);
+  } catch { return []; }
+}
+
+// ─── Bot search ───────────────────────────────────────────────────────────────
+
+export async function searchBots(query: string, limit = 20): Promise<BotItem[]> {
+  try {
+    const text = await doRequest(`${NODE_BASE_URL}/api/node/bots/search?q=${encodeURIComponent(query)}&limit=${limit}&offset=0`, {
+      method: 'GET', headers: {}
+    });
+    const resp = await parseJson<{ bots?: Record<string, unknown>[] }>(text);
+    return (resp.bots ?? []).map(b => ({
+      bot_id:       Number(b.bot_id ?? b.id ?? 0),
+      username:     String(b.username ?? ''),
+      display_name: String(b.display_name ?? b.displayName ?? b.username ?? ''),
+      avatar:       b.avatar ? String(b.avatar) : undefined,
+      description:  b.description ? String(b.description) : undefined,
+      web_app_url:  b.web_app_url ? String(b.web_app_url) : undefined,
+    }));
+  } catch { return []; }
 }
