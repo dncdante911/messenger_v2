@@ -140,3 +140,8 @@
 | 13 | Картинки открываются в браузере, нет lightbox | Low | ✅ iter-3 |
 | 14 | Настройки приватности отсутствуют | Medium | ⚠️ iter-4 частично |
 | 15 | Блокировка пользователей — нет UI | Medium | ✅ iter-4 |
+| 16 | Голосовые отображаются как видео на Android | High | ⚠️ частично: имя VOICE_, fallback video_src, normaliseMessage type-field fix; root cause — сервер может игнорировать media_type для WebM |
+| 17 | Голосовые «Скачать файл» в Windows чате | High | ✅ bugfix: normaliseMessage теперь читает m.type как fallback |
+| 18 | Каналы: только 1 медиа на пост | Medium | ✅ bugfix: gallery из media_items[] |
+| 19 | Каналы: опросы не отображаются | Medium | ✅ bugfix: PollWidget с голосованием |
+| 20 | Группы: call-JSON видно как текст | Medium | ✅ bugfix: CallBubble рендер |

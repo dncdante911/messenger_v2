@@ -132,6 +132,25 @@ export type ChannelItem = {
   time?: string;
 };
 
+export type PollOption = {
+  id: number;
+  text: string;
+  vote_count: number;
+  percent: number;
+  is_voted: boolean;
+};
+
+export type ChannelPoll = {
+  id: number;
+  question: string;
+  poll_type: string;
+  is_anonymous: boolean;
+  allows_multiple_answers: boolean;
+  is_closed: boolean;
+  total_votes: number;
+  options: PollOption[];
+};
+
 export type ChannelPost = {
   id: number;
   channel_id: number;
@@ -139,6 +158,8 @@ export type ChannelPost = {
   text: string;
   media?: string;
   media_type?: string;
+  media_items?: Array<{ url: string; type: string }>;
+  poll?: ChannelPoll;
   reactions?: MessageReaction[];
   comments_count?: number;
   views_count?: number;

@@ -4,7 +4,7 @@ import type { Socket } from 'socket.io-client';
 import {
   archiveChat, AuthError, clearHistory,
   blockUser, unblockUser, loadBlockedUsers,
-  createChannel, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost, searchChannels,
+  createChannel, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost, searchChannels, voteChannelPoll,
   createGroup, createStory, searchGroups,
   createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
   getIceServers, initiateCall, endCall, loadChannels, loadChats, loadArchivedChats,
@@ -18,7 +18,7 @@ import {
   uploadMedia,
   type UserProfile,
 } from './api';
-import type { ChannelPost } from './types';
+import type { ChannelPost, ChannelPoll, PollOption } from './types';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
@@ -310,6 +310,38 @@ function parseCallMessage(text: string): CallMsgPayload | null {
   } catch { return null; }
 }
 
+function PollWidget({
+  poll, postId, onVote,
+}: { poll: ChannelPoll; postId: number; onVote: (pollId: number, optionId: number) => void }) {
+  const hasVoted = poll.options.some(o => o.is_voted);
+  const showResults = hasVoted || poll.is_closed;
+  const maxPct = Math.max(...poll.options.map(o => o.percent), 1);
+  return (
+    <div className="post-poll">
+      <div className="poll-question">{poll.question}</div>
+      {poll.options.map(opt => (
+        <button
+          key={opt.id}
+          className={`poll-option ${opt.is_voted ? 'voted' : ''} ${poll.is_closed ? 'closed' : ''}`}
+          disabled={showResults || poll.is_closed}
+          onClick={() => onVote(poll.id, opt.id)}
+        >
+          {showResults && (
+            <div className="poll-bar" style={{ width: `${(opt.percent / maxPct) * 100}%` }} />
+          )}
+          <span className="poll-option-text">{opt.text}</span>
+          {showResults && <span className="poll-option-pct">{opt.percent}%</span>}
+        </button>
+      ))}
+      <div className="poll-footer">
+        {poll.total_votes} {t('channel.totalVotes')}
+        {poll.is_anonymous && <span> · {t('channel.anonymous')}</span>}
+        {poll.is_closed && <span> · {t('channel.pollClosed')}</span>}
+      </div>
+    </div>
+  );
+}
+
 function CallBubble({ call }: { call: CallMsgPayload }) {
   return (
     <div className="bubble-call">
@@ -447,6 +479,7 @@ export default function App() {
   const [channelHasMore, setChannelHasMore]       = useState(false);
   const [newChannelPost, setNewChannelPost]       = useState('');
   const [channelPostMedia, setChannelPostMedia]   = useState<File | null>(null);
+  const [votingPollId, setVotingPollId]           = useState<number | null>(null);
   const selectedChannelRef = useRef<ChannelItem | null>(null);
 
   // ── Story viewer ──────────────────────────────────────────────────────────
@@ -1097,7 +1130,8 @@ export default function App() {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(voiceChunksRef.current, { type: mimeType });
         const ext  = mimeType.includes('ogg') ? 'ogg' : 'webm';
-        const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: mimeType });
+        // Uppercase VOICE_ prefix so Android's mediaFileName.startsWith("VOICE_") check matches
+        const file = new File([blob], `VOICE_${Date.now()}.${ext}`, { type: mimeType });
         try {
           await sendVoiceMessage(session.token, selectedChat.user_id, file);
         } catch { /* ignore send error for voice */ }
@@ -1329,6 +1363,19 @@ export default function App() {
     if (!session) return;
     await deleteChannelPost(session.token, postId).catch(console.error);
     setChannelPosts(prev => prev.filter(p => p.id !== postId));
+  }
+
+  async function handleVotePoll(pollId: number, optionId: number) {
+    if (!session || votingPollId === pollId) return;
+    setVotingPollId(pollId);
+    try {
+      await voteChannelPoll(session.token, pollId, [optionId]);
+      if (selectedChannel) {
+        const r = await loadChannelPosts(session.token, selectedChannel.id);
+        setChannelPosts(r.posts ?? []);
+      }
+    } catch { /* ignore */ }
+    setVotingPollId(null);
   }
 
   async function handleLoadMoreChannelPosts() {
@@ -2247,15 +2294,25 @@ export default function App() {
                         onClick={() => handleDeleteChannelPost(post.id)}>🗑</button>
                     )}
                   </div>
-                  {post.media && (
-                    <div className="bubble-media" style={{ marginBottom: 8 }}>
-                      {post.media_type === 'image' || (!post.media_type && /\.(jpg|jpeg|png|gif|webp)$/i.test(post.media))
-                        ? <img src={post.media} alt="media" className="media-img" style={{ maxWidth: '100%' }} onClick={() => setLightboxSrc(post.media!)} />
-                        : post.media_type === 'video'
-                          ? <video src={post.media} controls className="media-video" style={{ maxWidth: '100%' }} />
-                          : <a href={post.media} target="_blank" rel="noreferrer" className="media-file">📎 {t('misc.downloadFile')}</a>
-                      }
+                  {/* Multi-media gallery */}
+                  {(post.media_items && post.media_items.length > 0) && (
+                    <div className={`post-gallery count-${Math.min(post.media_items.length, 4)}`}>
+                      {post.media_items.map((item, i) => (
+                        <div key={i} className="post-gallery-item">
+                          {item.type === 'video'
+                            ? <video src={item.url} controls className="post-gallery-media" />
+                            : item.type === 'image'
+                              ? <img src={item.url} alt="" className="post-gallery-media" onClick={() => setLightboxSrc(item.url)} />
+                              : <a href={item.url} target="_blank" rel="noreferrer" className="media-file">📎 {t('misc.downloadFile')}</a>
+                          }
+                        </div>
+                      ))}
                     </div>
+                  )}
+                  {/* Poll widget */}
+                  {post.poll && (
+                    <PollWidget poll={post.poll} postId={post.id}
+                      onVote={(pollId, optId) => handleVotePoll(pollId, optId)} />
                   )}
                   {post.text && <p className="channel-post-text">{post.text}</p>}
                   <div className="channel-post-footer">
