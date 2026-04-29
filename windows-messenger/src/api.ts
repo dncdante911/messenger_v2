@@ -9,6 +9,7 @@
 
 import type {
   AuthResponse,
+  ChannelComment,
   ChannelItem,
   ChannelPoll,
   ChannelPost,
@@ -667,6 +668,28 @@ export async function voteChannelPoll(token: string, pollId: number, optionIds: 
     poll_id:    pollId,
     option_ids: optionIds.join(','),
   });
+}
+
+export async function loadChannelComments(token: string, postId: number, offset = 0): Promise<ChannelComment[]> {
+  const resp = await nodePost<Record<string, unknown>>('/api/node/channel/comments', token, {
+    post_id: postId, limit: 50, offset
+  });
+  const raw = (resp.comments ?? resp.data ?? []) as ChannelComment[];
+  return Array.isArray(raw) ? raw : [];
+}
+
+export async function addChannelComment(token: string, postId: number, text: string, replyToId?: number): Promise<void> {
+  const body: Record<string, unknown> = { post_id: postId, text, write_as: 'user' };
+  if (replyToId) body.reply_to_id = replyToId;
+  await nodePost('/api/node/channel/add-comment', token, body);
+}
+
+export async function deleteChannelComment(token: string, commentId: number): Promise<void> {
+  await nodePost('/api/node/channel/delete-comment', token, { comment_id: commentId });
+}
+
+export async function reactToChannelComment(token: string, commentId: number, emoji: string): Promise<void> {
+  await nodePost('/api/node/channel/comment-reaction', token, { comment_id: commentId, reaction: emoji });
 }
 
 export async function loadChannelPosts(token: string, channelId: number): Promise<ChannelPostsResponse> {

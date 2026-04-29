@@ -168,6 +168,18 @@ export type ChannelPost = {
   is_pinned?: boolean;
 };
 
+export type ChannelComment = {
+  id: number;
+  user_id: number;
+  username?: string;
+  user_name?: string;
+  user_avatar?: string;
+  text: string;
+  time: number;
+  reply_to_comment_id?: number;
+  reactions_count?: number;
+};
+
 // ─── Stories ──────────────────────────────────────────────────────────────────
 
 export type StoryItem = {
