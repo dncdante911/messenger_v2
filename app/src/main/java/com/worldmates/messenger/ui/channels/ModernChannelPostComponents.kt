@@ -2494,18 +2494,18 @@ fun PostDetailDialog(
                             }
                         }
                     } else {
-                        items(comments) { comment ->
-                            PremiumCommentItem(
+                        items(comments, key = { it.id }) { comment ->
+                            WMCommentBubble(
                                 comment = comment,
+                                isOwn = comment.userId == currentUserId,
                                 canDelete = isAdmin || comment.userId == currentUserId,
-                                onDeleteClick = { onDeleteComment(comment.id) },
-                                onReactionClick = { emoji -> onCommentReaction(comment.id, emoji) },
-                                onReply = { replyingToCommentDetail = it },
-                                onUserMenu = { userActionsCommentDetail = it },
                                 replyToComment = comment.replyToCommentId?.let { rid ->
                                     comments.find { it.id == rid }
                                 },
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                onReply = { replyingToCommentDetail = it },
+                                onDelete = { onDeleteComment(comment.id) },
+                                onReaction = { emoji -> onCommentReaction(comment.id, emoji) },
+                                onUserMenu = { userActionsCommentDetail = comment }
                             )
                         }
                     }
@@ -2516,6 +2516,7 @@ fun PostDetailDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surface)
+                        .navigationBarsPadding()
                 ) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)

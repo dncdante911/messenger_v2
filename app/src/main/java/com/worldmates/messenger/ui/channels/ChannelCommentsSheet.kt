@@ -1911,6 +1911,495 @@ private fun WMPostPreviewCard(
     }
 }
 
+// ==================== PREMIUM POST DETAIL SCREEN ====================
+
+/**
+ * Full-screen premium post detail + comments.
+ * Obsidian dark background, gold accents, Telegram-style bubbles.
+ * Layout:
+ *   TopBar (back + title + views)
+ *   LazyColumn:
+ *     • Post hero (avatar, media, text, reactions)
+ *     • Gold hairline
+ *     • Comments header with count chip
+ *     • PremiumCommentBubble items (own right/blue-gold, other left/glass)
+ *   Reply banner (animated)
+ *   PremiumCommentInputBar (always pinned at bottom)
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PremiumPostDetailScreen(
+    post: ChannelPost,
+    channelName: String,
+    channelAvatarUrl: String?,
+    comments: List<ChannelComment>,
+    isLoadingComments: Boolean,
+    currentUserId: Long,
+    isAdmin: Boolean,
+    onDismiss: () -> Unit,
+    onReactionClick: (String) -> Unit,
+    onAddCommentWithReply: (String, Long?) -> Unit,
+    onDeleteComment: (Long) -> Unit,
+    onCommentReaction: (commentId: Long, emoji: String) -> Unit = { _, _ -> },
+    modifier: Modifier = Modifier
+) {
+    PremiumTheme {
+        val design = PremiumDesign.current
+        var commentText by remember { mutableStateOf("") }
+        var showEmojiPicker by remember { mutableStateOf(false) }
+        var replyingToComment by remember { mutableStateOf<ChannelComment?>(null) }
+        var userActionsComment by remember { mutableStateOf<ChannelComment?>(null) }
+        val listState = rememberLazyListState()
+        val coroutineScope = rememberCoroutineScope()
+
+        LaunchedEffect(comments.size) {
+            if (comments.isNotEmpty()) {
+                coroutineScope.launch { listState.animateScrollToItem(comments.size - 1) }
+            }
+        }
+
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = onDismiss,
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(design.colors.background)
+                    .systemBarsPadding()
+            ) {
+                Column(modifier = Modifier.fillMaxSize().imePadding()) {
+
+                    // ── TopBar ──────────────────────────────────────────────
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(design.colors.surface)
+                            .padding(start = 4.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = null,
+                                tint = design.colors.onPrimary
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = channelName.ifEmpty { stringResource(R.string.post_detail_title) },
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = design.colors.onPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (post.viewsCount > 0) {
+                                Text(
+                                    text = "${post.viewsCount} views",
+                                    fontSize = 12.sp,
+                                    color = design.colors.onMuted
+                                )
+                            }
+                        }
+                        if (post.commentsCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(PremiumBrushes.matteGoldLinear())
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "${post.commentsCount}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = design.colors.onAccent
+                                )
+                            }
+                        }
+                    }
+                    Box(
+                        Modifier.fillMaxWidth().height(0.6.dp)
+                            .background(PremiumBrushes.goldHairline())
+                    )
+
+                    // ── Content + comments ──────────────────────────────────
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.weight(1f).fillMaxWidth()
+                    ) {
+                        // Post header (avatar + name + time)
+                        item {
+                            PremiumDetailPostHeader(post = post, channelName = channelName, channelAvatarUrl = channelAvatarUrl, design = design)
+                        }
+
+                        // Media
+                        if (!post.media.isNullOrEmpty()) {
+                            item { PremiumDetailMediaGallery(media = post.media!!, design = design) }
+                        }
+
+                        // Post text
+                        if (post.text.isNotBlank()) {
+                            item {
+                                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                                    com.worldmates.messenger.ui.components.formatting.FormattedText(
+                                        text = post.text,
+                                        fontSize = 15.sp,
+                                        lineHeight = 22.sp,
+                                        color = design.colors.onPrimary,
+                                        quoteBarColor = design.colors.accent,
+                                        quoteBackgroundColor = design.colors.glassFill,
+                                        quoteBarWidth = 3.dp,
+                                        quoteCornerRadius = 6.dp,
+                                        settings = com.worldmates.messenger.ui.components.formatting.FormattingSettings(allowQuotes = true)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Reaction chips row
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf("👍", "❤️", "🔥", "😂", "😮", "😢").forEach { emoji ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50))
+                                            .background(design.colors.glassFill)
+                                            .border(0.6.dp, PremiumBrushes.goldHairline(), RoundedCornerShape(50))
+                                            .clickable { onReactionClick(emoji) }
+                                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(emoji, fontSize = 18.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Gold hairline + comments header
+                        item {
+                            Box(
+                                Modifier.fillMaxWidth().height(0.6.dp).padding(top = 4.dp)
+                                    .background(PremiumBrushes.goldHairline())
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    stringResource(R.string.ch_comments),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = design.colors.onPrimary
+                                )
+                                if (comments.isNotEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50))
+                                            .background(PremiumBrushes.matteGoldLinear())
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            "${comments.size}", fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold, color = design.colors.onAccent
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Loading / empty / comments
+                        when {
+                            isLoadingComments -> item { PremiumCommentsLoadingState(design) }
+                            comments.isEmpty() -> item {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(64.dp).clip(CircleShape)
+                                            .background(design.colors.glassFill)
+                                            .border(1.dp, PremiumBrushes.goldHairline(), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.ChatBubbleOutline, null,
+                                            modifier = Modifier.size(30.dp), tint = design.colors.accent
+                                        )
+                                    }
+                                    Spacer(Modifier.height(12.dp))
+                                    Text(
+                                        stringResource(R.string.ch_no_comments),
+                                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                                        color = design.colors.onPrimary
+                                    )
+                                    Text(
+                                        stringResource(R.string.ch_no_comments_sub),
+                                        fontSize = 13.sp, color = design.colors.onMuted
+                                    )
+                                }
+                            }
+                            else -> items(comments, key = { it.id }) { comment ->
+                                PremiumCommentBubble(
+                                    comment = comment,
+                                    isOwn = comment.userId == currentUserId,
+                                    canDelete = isAdmin || comment.userId == currentUserId,
+                                    replyToComment = comment.replyToCommentId?.let { rid ->
+                                        comments.find { it.id == rid }
+                                    },
+                                    design = design,
+                                    onReply = { replyingToComment = it },
+                                    onDelete = { onDeleteComment(comment.id) },
+                                    onReaction = { emoji -> onCommentReaction(comment.id, emoji) },
+                                    onUserMenu = { userActionsComment = comment }
+                                )
+                            }
+                        }
+
+                        item { Spacer(Modifier.height(8.dp)) }
+                    }
+
+                    // ── Reply banner ─────────────────────────────────────────
+                    AnimatedVisibility(
+                        visible = replyingToComment != null,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        replyingToComment?.let { replying ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(design.colors.surface)
+                                    .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier.width(3.dp).height(34.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(design.colors.accent)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        replying.userName ?: replying.username ?: "",
+                                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                        color = design.colors.accent
+                                    )
+                                    Text(
+                                        replying.text, fontSize = 12.sp, maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis, color = design.colors.onMuted
+                                    )
+                                }
+                                IconButton(onClick = { replyingToComment = null }, Modifier.size(32.dp)) {
+                                    Icon(Icons.Default.Close, null, tint = design.colors.onMuted, modifier = Modifier.size(15.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Emoji picker ─────────────────────────────────────────
+                    AnimatedVisibility(
+                        visible = showEmojiPicker,
+                        enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
+                        exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut()
+                    ) {
+                        com.worldmates.messenger.ui.components.EmojiPicker(
+                            onEmojiSelected = { emoji -> commentText += emoji },
+                            onDismiss = { showEmojiPicker = false }
+                        )
+                    }
+
+                    // ── Input bar (always visible, never scrolls away) ───────
+                    Box(
+                        Modifier.fillMaxWidth().height(0.6.dp)
+                            .background(PremiumBrushes.goldHairline())
+                    )
+                    PremiumCommentInputBar(
+                        text = commentText,
+                        onTextChange = { commentText = it },
+                        design = design,
+                        showEmojiPicker = showEmojiPicker,
+                        onEmojiToggle = { showEmojiPicker = !showEmojiPicker },
+                        onSend = {
+                            if (commentText.isNotBlank()) {
+                                onAddCommentWithReply(commentText, replyingToComment?.id)
+                                commentText = ""
+                                replyingToComment = null
+                                showEmojiPicker = false
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        // User actions sheet
+        userActionsComment?.let { target ->
+            com.worldmates.messenger.ui.components.CommentUserActionsSheet(
+                userId = target.userId,
+                username = target.userName ?: target.username ?: "User",
+                avatar = target.userAvatar,
+                isOwnComment = target.userId == currentUserId,
+                isAdmin = isAdmin,
+                context = "channel",
+                commentText = target.text,
+                onDismiss = { userActionsComment = null },
+                onAction = { action ->
+                    when (action) {
+                        is com.worldmates.messenger.ui.components.CommentUserAction.Reply ->
+                            replyingToComment = target
+                        is com.worldmates.messenger.ui.components.CommentUserAction.Mention ->
+                            commentText = "@${target.username ?: ""} $commentText"
+                        else -> {}
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun PremiumDetailPostHeader(
+    post: ChannelPost,
+    channelName: String,
+    channelAvatarUrl: String?,
+    design: PremiumDesign
+) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        val displayAvatar = if (post.isAd) post.authorAvatar else channelAvatarUrl
+        val displayName = channelName.ifEmpty { post.authorName ?: post.authorUsername ?: "" }
+
+        if (!displayAvatar.isNullOrEmpty()) {
+            AsyncImage(
+                model = displayAvatar.toFullMediaUrl(),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, PremiumBrushes.goldHairline(), CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(PremiumBrushes.matteGoldLinear()),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    displayName.take(1).uppercase(),
+                    color = design.colors.onAccent,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = displayName,
+                fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                color = design.colors.onPrimary,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = formatPostTime(post.createdTime, context),
+                fontSize = 12.sp, color = design.colors.onMuted
+            )
+        }
+
+        if (post.isPinned) {
+            Icon(
+                Icons.Default.PushPin, null,
+                tint = design.colors.accent,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PremiumDetailMediaGallery(
+    media: List<com.worldmates.messenger.data.model.PostMedia>,
+    design: PremiumDesign
+) {
+    when (media.size) {
+        1 -> AsyncImage(
+            model = media[0].url.toFullMediaUrl(),
+            contentDescription = null,
+            modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+            contentScale = ContentScale.Crop
+        )
+        2 -> Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            media.forEach { item ->
+                AsyncImage(
+                    model = item.url.toFullMediaUrl(), contentDescription = null,
+                    modifier = Modifier.weight(1f).height(190.dp),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+        else -> Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            AsyncImage(
+                model = media[0].url.toFullMediaUrl(), contentDescription = null,
+                modifier = Modifier.fillMaxWidth().height(190.dp),
+                contentScale = ContentScale.Crop
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                media.drop(1).take(3).forEachIndexed { i, item ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        AsyncImage(
+                            model = item.url.toFullMediaUrl(), contentDescription = null,
+                            modifier = Modifier.fillMaxWidth().height(110.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                        if (i == 2 && media.size > 4) {
+                            Box(
+                                modifier = Modifier.fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.55f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "+${media.size - 4}", fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold, color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ==================== PREMIUM COMMENTS SHEET ====================
 
 @OptIn(ExperimentalMaterial3Api::class)
