@@ -380,7 +380,8 @@ export type GifItem = {
 };
 
 export type BotItem = {
-  bot_id: number;
+  bot_id_str: string;    // server string id e.g. "wallybot_bot"
+  user_id: number;       // linked_user_id (numeric) for opening chat, 0 until resolved
   username: string;
   display_name: string;
   avatar?: string;

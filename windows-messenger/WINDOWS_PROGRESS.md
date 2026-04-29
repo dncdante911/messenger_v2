@@ -196,3 +196,27 @@
 | 18 | Каналы: только 1 медиа на пост | Medium | ✅ bugfix: gallery из media_items[] |
 | 19 | Каналы: опросы не отображаются | Medium | ✅ bugfix: PollWidget с голосованием |
 | 20 | Группы: call-JSON видно как текст | Medium | ✅ bugfix: CallBubble рендер |
+| 21 | Настройки не листаются | High | ✅ bugfix: min-height:0 на .list-scroll |
+| 22 | Сторисы — битые изображения (relative path) | High | ✅ bugfix: storyAbsUrl() в api.ts |
+| 23 | GIF — горизонтальные полосы вместо сетки | High | ✅ bugfix: auto-fill minmax + aspect-ratio:1 |
+| 24 | Эмодзи полностью отсутствуют | High | ✅ bugfix: emoji picker 😊 в композере, 7 категорий × ~80 эмодзи |
+| 25 | Бот не открывает чат (NaN user_id) | High | ✅ bugfix: BotItem.bot_id_str + getBotLinkedUser() |
+
+---
+
+### Итерация 8 — Исправление багов (сторис, GIF, эмодзи, боты, прокрутка)
+**Статус:** ✅ Завершено (сборка: `✓ built in 1.43s`, TSC: 0 ошибок)
+
+**Исправлено:**
+- **Скролл настроек** — `min-height: 0` добавлен к `.list-scroll`; теперь flex-потомок с `overflow-y: auto` правильно создаёт контекст прокрутки
+- **Сторисы (битые пути)** — добавлена `storyAbsUrl()` в `api.ts`: если путь не начинается с `http`, к нему добавляется `https://worldmates.club`; применяется к `file` и `thumbnail` в `loadStories`
+- **GIF-сетка** — исправлено с 2 широких колонок на `repeat(auto-fill, minmax(130px, 1fr))` + `aspect-ratio: 1` на `.gif-item`; GIF теперь отображаются как квадратные миниатюры
+- **Эмодзи-пикер** — кнопка 😊 в composer-row; 7 категорий (😀 Смайлики, 👋 Жесты, 🐶 Животные, 🍕 Еда, ✈️ Путешествия, 💡 Объекты, ❤️ Символы) по ~80–100 эмодзи каждая; вставка по позиции курсора
+- **Боты** — исправлен тип `BotItem`: `bot_id_str: string` + `user_id: number`; добавлена `getBotLinkedUser(token, botIdStr)` в api.ts; `openBotChat` теперь делает fallback-запрос к `/api/node/bots/:id` если `user_id === 0`
+
+**Файлы:**
+- `src/api.ts` — `storyAbsUrl()` + `getBotLinkedUser()` + исправлен `searchBots`
+- `src/types.ts` — `BotItem.bot_id → bot_id_str: string, user_id: number`
+- `src/App.tsx` — импорт `getBotLinkedUser`, состояние `showEmojiComposer/emojiCatIdx`, эмодзи-пикер UI, `handleInsertEmoji()`, исправлен `openBotChat`, исправлен `key={bot.bot_id_str}`
+- `src/i18n.ts` — ключ `chat.emoji` × 3 локали
+- `src/styles.css` — `min-height:0` для `.list-scroll`, GIF auto-fill, emoji picker CSS

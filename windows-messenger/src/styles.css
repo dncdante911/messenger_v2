@@ -376,6 +376,7 @@ body {
 
 .list-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 0 12px;
 }
@@ -1551,7 +1552,7 @@ body {
 .privacy-select { font-size: 12px; padding: 4px 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-2); color: var(--text); cursor: pointer; min-width: 120px; }
 
 /* ─── Sticker / GIF picker ──────────────────────────────────────────────────── */
-.sticker-gif-picker { background: var(--bg-2); border-top: 1px solid var(--border); display: flex; flex-direction: column; height: 280px; flex-shrink: 0; }
+.sticker-gif-picker { background: var(--bg-2); border-top: 1px solid var(--border); display: flex; flex-direction: column; height: 320px; flex-shrink: 0; max-width: 640px; width: 100%; }
 .picker-tabs { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
 .picker-close { margin-left: auto; background: none; border: none; color: var(--text-2); font-size: 14px; cursor: pointer; padding: 2px 6px; }
 .picker-close:hover { color: var(--text); }
@@ -1562,12 +1563,21 @@ body {
 .sticker-item { background: none; border: 1px solid transparent; border-radius: var(--r-sm); padding: 4px; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; }
 .sticker-item:hover { background: var(--bg-hover); border-color: var(--border-light); }
 .sticker-item img { width: 60px; height: 60px; object-fit: contain; }
-.gif-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 8px; }
-.gif-item { background: none; border: none; padding: 0; cursor: pointer; border-radius: var(--r-sm); overflow: hidden; }
-.gif-item img { width: 100%; height: 100px; object-fit: cover; display: block; transition: opacity .15s; }
+.gif-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 4px; padding: 8px; align-content: start; }
+.gif-item { background: none; border: none; padding: 0; cursor: pointer; border-radius: var(--r-sm); overflow: hidden; aspect-ratio: 1; }
+.gif-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .15s; }
 .gif-item:hover img { opacity: 0.85; }
 .giphy-footer { font-size: 10px; color: var(--text-2); text-align: center; padding: 4px; flex-shrink: 0; }
 
 /* ─── Sticker / GIF bubbles ─────────────────────────────────────────────────── */
 .bubble-sticker { width: 140px; height: 140px; object-fit: contain; display: block; }
 .bubble-gif { max-width: 280px; max-height: 200px; object-fit: contain; border-radius: var(--r-sm); cursor: pointer; display: block; }
+
+/* ─── Emoji picker (composer) ────────────────────────────────────────────────── */
+.emoji-composer-picker { position: absolute; bottom: calc(100% + 4px); left: 0; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 8px; z-index: 50; box-shadow: 0 4px 20px rgba(0,0,0,.4); width: 300px; }
+.emoji-cats { display: flex; gap: 2px; margin-bottom: 6px; border-bottom: 1px solid var(--border-light); padding-bottom: 6px; }
+.emoji-cat-btn { background: none; border: none; font-size: 16px; padding: 3px 5px; cursor: pointer; border-radius: var(--r-sm); opacity: 0.6; transition: opacity .15s; }
+.emoji-cat-btn.active, .emoji-cat-btn:hover { opacity: 1; background: var(--bg-3); }
+.emoji-compose-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; max-height: 180px; overflow-y: auto; }
+.emoji-compose-btn { background: none; border: none; font-size: 20px; padding: 3px; cursor: pointer; border-radius: var(--r-sm); line-height: 1; text-align: center; transition: background .1s; }
+.emoji-compose-btn:hover { background: var(--bg-3); }

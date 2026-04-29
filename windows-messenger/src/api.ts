@@ -742,6 +742,14 @@ export async function markChannelPostViewed(token: string, postId: number): Prom
 
 // ─── Stories ──────────────────────────────────────────────────────────────────
 
+// Server stores story media as relative paths — prefix with site base
+const SITE_BASE = NODE_BASE_URL.replace(':449', ''); // https://worldmates.club
+function storyAbsUrl(path: string | undefined): string {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `${SITE_BASE}/${path.replace(/^\//, '')}`;
+}
+
 export async function loadStories(token: string): Promise<GenericListResponse<StoryItem>> {
   const resp = await nodePost<Record<string, unknown>>('/api/node/stories/get', token, { limit: 35 });
   const raw  = (resp.stories ?? resp.data ?? []) as Record<string, unknown>[];
@@ -752,8 +760,8 @@ export async function loadStories(token: string): Promise<GenericListResponse<St
     const mItems  = (s.mediaItems   ?? []) as Record<string, unknown>[];
     const vidItem = videos[0] ?? mItems.find(m => m.type === 'video');
     const imgItem = images[0] ?? mItems.find(m => m.type === 'image');
-    // thumbnail is always a full URL from the server; filename may be relative so use thumbnail first
-    const file    = toStr(s.thumbnail ?? vidItem?.filename ?? imgItem?.filename, '');
+    const rawFile = toStr(s.thumbnail ?? vidItem?.filename ?? imgItem?.filename, '');
+    const file    = storyAbsUrl(rawFile);
     const fileType: 'image' | 'video' = vidItem ? 'video' : 'image';
     const firstName = toStr(ud.first_name, '');
     const lastName  = toStr(ud.last_name, '');
@@ -765,7 +773,7 @@ export async function loadStories(token: string): Promise<GenericListResponse<St
       user_name:   displayName,
       user_avatar: toStr(ud.avatar, undefined),
       file,
-      thumbnail:   toStr(s.thumbnail, undefined),
+      thumbnail:   storyAbsUrl(toStr(s.thumbnail, undefined)),
       file_type:   fileType,
       created_at:  s.posted ? new Date(Number(s.posted) * 1000).toLocaleDateString() : '',
       expire_time: Number(s.expire ?? 0),
@@ -1061,7 +1069,8 @@ export async function searchBots(query: string, limit = 20): Promise<BotItem[]> 
     });
     const resp = await parseJson<{ bots?: Record<string, unknown>[] }>(text);
     return (resp.bots ?? []).map(b => ({
-      bot_id:       Number(b.bot_id ?? b.id ?? 0),
+      bot_id_str:   String(b.bot_id ?? ''),
+      user_id:      Number(b.linked_user_id ?? 0),
       username:     String(b.username ?? ''),
       display_name: String(b.display_name ?? b.displayName ?? b.username ?? ''),
       avatar:       b.avatar ? String(b.avatar) : undefined,
@@ -1069,4 +1078,11 @@ export async function searchBots(query: string, limit = 20): Promise<BotItem[]> 
       web_app_url:  b.web_app_url ? String(b.web_app_url) : undefined,
     }));
   } catch { return []; }
+}
+
+export async function getBotLinkedUser(token: string, botIdStr: string): Promise<number> {
+  try {
+    const resp = await nodeGet<Record<string, unknown>>(`/api/node/bots/${encodeURIComponent(botIdStr)}`, token);
+    return Number(resp.linked_user_id ?? resp.user_id ?? 0);
+  } catch { return 0; }
 }
