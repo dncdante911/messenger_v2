@@ -20,6 +20,7 @@ import {
   sendMessage, sendGroupMessage, sendMessageWithMedia, sendVoiceMessage, TURN_FALLBACK,
   uploadMedia,
   loadStickerPacks, sendStickerMessage, sendGifMessage, loadTrendingGifs, searchGifs, searchBots,
+  getBotLinkedUser,
   type UserProfile,
 } from './api';
 import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack, GifItem, BotItem } from './types';
@@ -40,6 +41,16 @@ import type {
 const SESSION_KEY = 'wm_windows_session';
 
 const EMOJI_QUICK = ['👍','❤️','😂','😮','😢','😡','🔥','👏','🎉','💯'];
+
+const EMOJI_CATEGORIES: { label: string; icon: string; emojis: string[] }[] = [
+  { label: 'Smileys', icon: '😀', emojis: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿'] },
+  { label: 'Gestures', icon: '👋', emojis: ['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🫀','🫁','🧠','🦷','🦴','👀','👁','👅','👄','💋','🩸'] },
+  { label: 'Animals', icon: '🐶', emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🦣','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐕‍🦺','🐈','🐈‍⬛','🐓','🦃','🦤','🦚','🦜','🦢','🦩','🕊','🐇','🦝','🦨','🦡','🦫','🦦','🦥','🐁','🐀','🐿','🦔'] },
+  { label: 'Food', icon: '🍕', emojis: ['🍎','🍊','🍋','🍇','🍓','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🫐','🍆','🥑','🥦','🧄','🧅','🥔','🌽','🥕','🫛','🌶','🫑','🥒','🥬','🧇','🧆','🧀','🍳','🥚','🍖','🍗','🥩','🍔','🍟','🌭','🍕','🫓','🥪','🌮','🌯','🫔','🥙','🧆','🥗','🫕','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🥮','🍡','🥟','🥠','🥡','🦀','🦞','🦐','🦑','🦪','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','☕','🍵','🧃','🥤','🧋','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧉','🍾'] },
+  { label: 'Travel', icon: '✈️', emojis: ['🚗','🚕','🚙','🚌','🚎','🏎','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🏍','🛵','🚲','🛴','🛺','🚨','🚥','🚦','🛑','🚧','⛽','🚤','⛵','🛥','🚢','✈️','🛩','🛫','🛬','🪂','💺','🚁','🚟','🚠','🚡','🛰','🚀','🛸','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪','🕌','🛕','⛩','🕍','⛲','🗺','🌁','🌃','🏙','🌄','🌅','🌆','🌇','🌉','🎠','🎡','🎢','💈','🎪','🌍','🌎','🌏','🗾','🧭'] },
+  { label: 'Objects', icon: '💡', emojis: ['⌚','📱','💻','⌨️','🖥','🖨','🖱','🖲','💽','💾','💿','📀','📷','📸','📹','🎥','📞','☎️','📟','📠','📺','📻','🎙','🎚','🎛','🧭','⏱','⏲','⏰','🕰','⌛','⏳','📡','🔋','🔌','💡','🔦','🕯','🪔','🧯','🛢','💸','💵','💴','💶','💷','💰','💳','💎','⚙️','🔧','🔨','🪛','🔩','🪚','🗜','⚖️','🔗','⛓','🧲','🔫','💣','🪖','🛡','🪓','🔪','🗡','⚔️','🪃','🏹','🪤','🪣','🪝','🧰','🧲','🪜'] },
+  { label: 'Symbols', icon: '❤️', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉','☸️','✡️','🔯','🕎','☯️','☦️','🛐','⛎','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓','🆔','⚛️','🉑','☢️','☣️','📴','📳','🈶','🈚','🈸','🈺','🈷️','✴️','🆚','💮','🉐','㊙️','㊗️','🈴','🈵','🈹','🈲','🅰️','🅱️','🆎','🆑','🅾️','🆘','❌','⭕','🛑','⛔','📛','🚫','💯','💢','♨️','🚷','🚯','🚳','🚱','🔞','📵','🚭','❗','❕','❓','❔','‼️','⁉️','🔅','🔆','📶','🛜','📳','📴'] },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -501,7 +512,9 @@ export default function App() {
   const [commentReplyTo,   setCommentReplyTo]   = useState<{ id: number; text: string } | null>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
-  // ── Sticker / GIF picker ──────────────────────────────────────────────────
+  // ── Emoji / Sticker / GIF picker ─────────────────────────────────────────
+  const [showEmojiComposer, setShowEmojiComposer] = useState(false);
+  const [emojiCatIdx,      setEmojiCatIdx]      = useState(0);
   const [showPicker,       setShowPicker]       = useState<'sticker'|'gif'|null>(null);
   const [stickerPacks,     setStickerPacks]     = useState<StickerPack[]>([]);
   const [stickerPacksLoaded, setStickerPacksLoaded] = useState(false);
@@ -1331,6 +1344,23 @@ export default function App() {
     typingTimer.current = setTimeout(() => emitTyping(socket, selectedChat.user_id, true), 3000);
   }
 
+  function handleInsertEmoji(emoji: string) {
+    const ta = composerRef.current;
+    if (ta) {
+      const start = ta.selectionStart ?? newMessage.length;
+      const end   = ta.selectionEnd   ?? newMessage.length;
+      const next  = newMessage.slice(0, start) + emoji + newMessage.slice(end);
+      handleComposerInput(next);
+      // Restore cursor after emoji
+      requestAnimationFrame(() => {
+        ta.selectionStart = ta.selectionEnd = start + emoji.length;
+        ta.focus();
+      });
+    } else {
+      handleComposerInput(newMessage + emoji);
+    }
+  }
+
   // ─── Load more messages ───────────────────────────────────────────────────
 
   async function handleLoadMore() {
@@ -1578,9 +1608,13 @@ export default function App() {
     }, 400);
   }
 
-  function openBotChat(bot: BotItem) {
+  async function openBotChat(bot: BotItem) {
+    if (!session) return;
+    let uid = bot.user_id;
+    if (!uid) uid = await getBotLinkedUser(session.token, bot.bot_id_str);
+    if (!uid) return;
     const chatItem: ChatItem = {
-      user_id: bot.bot_id,
+      user_id: uid,
       name:    bot.display_name || bot.username,
       avatar:  bot.avatar,
     };
@@ -2052,7 +2086,7 @@ export default function App() {
                   placeholder={t('sidebar.searchBots')}
                   value={botQuery} onChange={e => handleBotQueryChange(e.target.value)} />
                 {botResults.map(bot => (
-                  <div key={bot.bot_id} className="chat-item" style={{paddingRight: 8, gap: 8}}>
+                  <div key={bot.bot_id_str} className="chat-item" style={{paddingRight: 8, gap: 8}}>
                     <Avatar name={bot.display_name || bot.username} src={bot.avatar} size={36} />
                     <div style={{flex:1, minWidth:0}}>
                       <div className="chat-name">{bot.display_name || bot.username}</div>
@@ -3022,7 +3056,7 @@ export default function App() {
                 </div>
               )}
 
-              <div className="composer-row">
+              <div className="composer-row" style={{position:'relative'}}>
                 {/* Attach button */}
                 <label className="icon-btn attach-btn" title={t('chat.attachFile')}>
                   📎
@@ -3030,6 +3064,31 @@ export default function App() {
                     accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
                     onChange={e => setPendingMedia(e.target.files?.[0] ?? null)} />
                 </label>
+
+                {/* Emoji picker button */}
+                <button
+                  className={`icon-btn ${showEmojiComposer ? 'active' : ''}`}
+                  title={t('chat.emoji')}
+                  onClick={() => { setShowEmojiComposer(v => !v); setShowPicker(null); }}
+                >😊</button>
+
+                {/* Inline emoji picker panel */}
+                {showEmojiComposer && (
+                  <div className="emoji-composer-picker">
+                    <div className="emoji-cats">
+                      {EMOJI_CATEGORIES.map((cat, i) => (
+                        <button key={i} className={`emoji-cat-btn ${emojiCatIdx === i ? 'active' : ''}`}
+                          title={cat.label} onClick={() => setEmojiCatIdx(i)}>{cat.icon}</button>
+                      ))}
+                    </div>
+                    <div className="emoji-compose-grid">
+                      {EMOJI_CATEGORIES[emojiCatIdx].emojis.map((em, i) => (
+                        <button key={i} className="emoji-compose-btn"
+                          onClick={() => handleInsertEmoji(em)}>{em}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Message input */}
                 <textarea
@@ -3060,8 +3119,8 @@ export default function App() {
                 {/* Sticker / GIF buttons (hidden when text typed) */}
                 {!newMessage.trim() && !pendingMedia && !editingMsg && (
                   <>
-                    <button className="icon-btn" title={t('chat.stickerPicker')} onClick={() => showPicker === 'sticker' ? setShowPicker(null) : openStickerPicker()}>🎭</button>
-                    <button className="icon-btn" title={t('chat.gifPicker')} onClick={() => showPicker === 'gif' ? setShowPicker(null) : openGifPicker()}>GIF</button>
+                    <button className="icon-btn" title={t('chat.stickerPicker')} onClick={() => { setShowEmojiComposer(false); showPicker === 'sticker' ? setShowPicker(null) : openStickerPicker(); }}>🎭</button>
+                    <button className="icon-btn" title={t('chat.gifPicker')} onClick={() => { setShowEmojiComposer(false); showPicker === 'gif' ? setShowPicker(null) : openGifPicker(); }}>GIF</button>
                   </>
                 )}
 

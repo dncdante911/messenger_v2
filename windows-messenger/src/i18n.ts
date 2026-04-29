@@ -215,6 +215,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'chat.stickers':      'Стикеры',
     'chat.searchGif':     'Поиск GIF…',
     'chat.noStickers':    'Нет стикеров',
+    'chat.emoji':         'Эмодзи',
 
     // Bot search
     'sidebar.bots':       'Боты',
@@ -414,6 +415,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'chat.stickers':      'Стікери',
     'chat.searchGif':     'Пошук GIF…',
     'chat.noStickers':    'Немає стікерів',
+    'chat.emoji':         'Емодзі',
 
     // Bot search
     'sidebar.bots':       'Боти',
@@ -612,6 +614,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'chat.stickers':      'Stickers',
     'chat.searchGif':     'Search GIF…',
     'chat.noStickers':    'No stickers',
+    'chat.emoji':         'Emoji',
 
     // Bot search
     'sidebar.bots':       'Bots',
