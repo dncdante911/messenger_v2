@@ -208,6 +208,18 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.hide':            'Скрывать',
     'settings.yes':             'Да',
     'settings.no':              'Нет',
+
+    // Sticker / GIF picker
+    'chat.stickerPicker': 'Стикеры',
+    'chat.gifPicker':     'GIF',
+    'chat.stickers':      'Стикеры',
+    'chat.searchGif':     'Поиск GIF…',
+    'chat.noStickers':    'Нет стикеров',
+
+    // Bot search
+    'sidebar.bots':       'Боты',
+    'sidebar.searchBots': 'Поиск ботов…',
+    'sidebar.chat':       'Написать',
   },
 
   // ── Ukrainian ────────────────────────────────────────────────────────────────
@@ -395,6 +407,18 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.hide':            'Приховувати',
     'settings.yes':             'Так',
     'settings.no':              'Ні',
+
+    // Sticker / GIF picker
+    'chat.stickerPicker': 'Стікери',
+    'chat.gifPicker':     'GIF',
+    'chat.stickers':      'Стікери',
+    'chat.searchGif':     'Пошук GIF…',
+    'chat.noStickers':    'Немає стікерів',
+
+    // Bot search
+    'sidebar.bots':       'Боти',
+    'sidebar.searchBots': 'Пошук ботів…',
+    'sidebar.chat':       'Написати',
   },
 
   // ── English ──────────────────────────────────────────────────────────────────
@@ -581,6 +605,18 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.hide':            'Hide',
     'settings.yes':             'Yes',
     'settings.no':              'No',
+
+    // Sticker / GIF picker
+    'chat.stickerPicker': 'Stickers',
+    'chat.gifPicker':     'GIF',
+    'chat.stickers':      'Stickers',
+    'chat.searchGif':     'Search GIF…',
+    'chat.noStickers':    'No stickers',
+
+    // Bot search
+    'sidebar.bots':       'Bots',
+    'sidebar.searchBots': 'Search bots…',
+    'sidebar.chat':       'Chat',
   },
 };
 
