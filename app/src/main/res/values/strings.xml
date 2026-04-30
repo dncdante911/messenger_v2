@@ -882,7 +882,7 @@
     <!-- Bot chat components -->
     <string name="bot_commands_menu_title">Команди бота</string>
     <string name="bot_badge_label">бот</string>
-    <string name="bot_start_button">СТАРТ</string>
+    <string name="bot_start_button">ПОЧАТИ</string>
     <string name="bot_poll">Опитування</string>
     <string name="bot_poll_closed">Опитування закрито</string>
     <string name="bot_poll_votes">%d голосів</string>

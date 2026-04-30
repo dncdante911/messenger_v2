@@ -857,7 +857,7 @@
 
     <string name="bot_commands_menu_title">Команды бота</string>
     <string name="bot_badge_label">бот</string>
-    <string name="bot_start_button">СТАРТ</string>
+    <string name="bot_start_button">НАЧАТЬ</string>
     <string name="bot_poll">Опрос</string>
     <string name="bot_poll_closed">Опрос закрыт</string>
     <string name="bot_poll_votes">%d голосов</string>
