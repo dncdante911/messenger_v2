@@ -8,7 +8,7 @@ import {
   loadChannelComments, addChannelComment, deleteChannelComment, reactToChannelComment,
   createGroup, createStory, joinGroup, subscribeChannel, searchGroups,
   createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
-  initiateCall, endCall, loadChannels, loadChats, loadArchivedChats,
+  endCall, loadChannels, loadChats, loadArchivedChats,
   loadGroups, loadGroupMessages, loadMoreGroupMessages, loadMessages, loadMoreMessages, loadStories,
   login, loginByPhone, markGroupSeen, markSeen, markStorySeen,
   muteChat, normaliseMessage, pinChat, pinMessage,
@@ -18,6 +18,7 @@ import {
   reactToMessage, reactToGroupMessage, registerAccount,
   searchMessages, searchUsers,
   sendMessage, sendGroupMessage, sendMessageWithMedia, sendVoiceMessage, TURN_FALLBACK,
+  createTurnIceServers,
   type UserSearchResult,
   uploadMedia,
   loadStickerPacks, sendStickerMessage, sendGifMessage, loadTrendingGifs, searchGifs, searchBots,
@@ -1844,22 +1845,10 @@ export default function App() {
     return { type, sdp: raw };
   }
 
-  function requestIceServersViaSocket(userId: number): Promise<RTCIceServer[]> {
-    return new Promise<RTCIceServer[]>((resolve) => {
-      if (!socket?.connected) { resolve(TURN_FALLBACK); return; }
-      const timer = setTimeout(() => resolve(TURN_FALLBACK), 3000);
-      socket.emit('ice:request', { userId }, (resp: { success: boolean; iceServers: RTCIceServer[] }) => {
-        clearTimeout(timer);
-        const servers = resp?.iceServers;
-        resolve(Array.isArray(servers) && servers.length > 0 ? servers : TURN_FALLBACK);
-      });
-    });
-  }
-
   async function startCall(type: 'audio' | 'video') {
     if (!session || !selectedChat) return;
     const roomName = `call_${session.userId}_${selectedChat.user_id}_${Date.now()}`;
-    const servers  = await requestIceServersViaSocket(session.userId);
+    const servers  = await createTurnIceServers(session.userId);
     const pc       = await createPeerConnection(servers);
     peerRef.current = pc;
 
@@ -1881,7 +1870,7 @@ export default function App() {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     emitCallInitiate(socket, { fromId: session.userId, toId: selectedChat.user_id, callType: type, roomName, sdpOffer: offer.sdp ?? '' });
-    await initiateCall(session.token, selectedChat.user_id, type).catch(console.error);
+    socket?.emit('call:join_room', { roomName, userId: session.userId });
     setCallState({ phase: 'outgoing', peer: selectedChat, type, roomName });
   }
 
@@ -1889,7 +1878,8 @@ export default function App() {
     const cs = callState;
     if (cs.phase !== 'incoming') return;
     const { peer, type, roomName, iceServers, sdpOffer } = cs;
-    const pc = await createPeerConnection(iceServers.length ? iceServers : TURN_FALLBACK);
+    const fallback = iceServers.length ? iceServers : await createTurnIceServers(session!.userId);
+    const pc = await createPeerConnection(fallback);
 
     peerRef.current = pc;
 

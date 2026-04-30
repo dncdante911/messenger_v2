@@ -48,6 +48,48 @@ export const TURN_FALLBACK: RTCIceServer[] = [
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
 
+// coturn static-auth-secret — matches worldmates.club server config and Android client
+const TURN_SECRET  = 'ad8a76d057d6ba0d6fd79bbc84504e320c8538b92db5c9b84fc3bd18d1c511b9';
+const TURN_IPS     = ['195.22.131.11', '46.232.232.38', '93.171.188.229'];
+const TURNS_DOMAIN = 'worldmates.club';
+
+/**
+ * Generate time-limited TURN credentials client-side using coturn HMAC-SHA1.
+ * Exact port of Android CallsViewModel.buildHmacTurnServers().
+ * username = "<expiry>:<userId>", credential = Base64(HMAC-SHA1(secret, username))
+ */
+export async function createTurnIceServers(userId: number): Promise<RTCIceServer[]> {
+  try {
+    const expiry   = Math.floor(Date.now() / 1000) + 86400;        // valid 24 h
+    const username = `${expiry}:${userId}`;
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(TURN_SECRET),
+      { name: 'HMAC', hash: 'SHA-1' },
+      false,
+      ['sign']
+    );
+    const sig        = await crypto.subtle.sign('HMAC', keyMaterial, new TextEncoder().encode(username));
+    const credential = btoa(String.fromCharCode(...new Uint8Array(sig)));
+
+    return [
+      ...TURN_IPS.map(ip => ({ urls: `stun:${ip}:3478` } as RTCIceServer)),
+      ...TURN_IPS.map(ip => ({
+        urls:       [`turn:${ip}:3478?transport=udp`, `turn:${ip}:3478?transport=tcp`],
+        username,
+        credential,
+      } as RTCIceServer)),
+      {
+        urls:       `turns:${TURNS_DOMAIN}:5349?transport=tcp`,
+        username,
+        credential,
+      } as RTCIceServer,
+    ];
+  } catch {
+    return TURN_FALLBACK;
+  }
+}
+
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
 export class AuthError extends Error {

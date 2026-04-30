@@ -2,7 +2,12 @@ import { TURN_FALLBACK } from './config';
 
 export async function createPeerConnection(servers: RTCIceServer[]) {
   const iceServers = servers.length > 0 ? servers : TURN_FALLBACK;
-  return new RTCPeerConnection({ iceServers });
+  return new RTCPeerConnection({
+    iceServers,
+    bundlePolicy:  'max-bundle',
+    rtcpMuxPolicy: 'require',
+    iceTransportPolicy: 'all',
+  });
 }
 
 export async function createLocalAudioStream() {
