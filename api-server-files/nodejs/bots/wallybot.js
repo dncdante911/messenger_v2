@@ -230,6 +230,23 @@ const MESSENGER_KB_SEED = [
         keyword: 'как купить premium',
         response: 'Настройки → WorldMates PRO → выбери план подписки → оплати. Доступны ежемесячная и годовая подписки.'
     },
+    // ── SDK и внешние боты ────────────────────────────────────────────────────
+    {
+        keyword: 'как подключить внешний бот через sdk',
+        response: '1. Создай бота: /newbot → получи bot_id и token.\n2. Установи SDK: node randomizerBot.js (пример в api-server-files/nodejs/bots/).\n3. В коде: const { WorldMatesBot } = require("./WorldMatesBotSDK"); const bot = new WorldMatesBot({ botId, token, apiUrl });\n4. Запусти polling: bot.start() — или настрой webhook: bot.setWebhook(url).'
+    },
+    {
+        keyword: 'как бот получает сообщения polling',
+        response: 'Polling: bot.start() или bot.startPolling() — бот каждые N секунд спрашивает сервер /api/node/bot/getUpdates и забирает новые сообщения. Плюс: просто, не нужен публичный сервер. Минус: небольшая задержка.'
+    },
+    {
+        keyword: 'как настроить webhook для бота',
+        response: 'Webhook: бот получает сообщения мгновенно. Нужен HTTPS-сервер. В боте: await bot.setWebhook("https://my-server.com/hook"); затем app.post("/hook", bot.webhookHandler()). Или через WallyBot: /token → скопируй bot_id, затем POST /api/node/bot/setWebhook.'
+    },
+    {
+        keyword: 'що таке sdk для ботів',
+        response: 'SDK для ботів WallyMates — це готова Node.js бібліотека (WorldMatesBotSDK.js). Підключаєш бота за 5 рядків: реєструєш обробники команд (onCommand), тексту (onMessage), кнопок (onCallbackQuery) — і запускаєш polling або webhook.'
+    },
     // ── Настройки — общий обзор ───────────────────────────────────────────────
     {
         keyword: 'где найти настройки',
@@ -2246,7 +2263,7 @@ async function sendBotDiagnosis(ctx, io, userId, bot) {
     const issues = [];
     if (!hasDesc)              issues.push('• Нет описания — добавь через /setdesc или кнопку ниже');
     if (!hasCmds)              issues.push('• Мало команд — добавь через /setcommands или кнопку ниже');
-    if (!bot.webhook_enabled)  issues.push('• Webhook не настроен — бот не будет получать сообщения без webhook или Socket.IO интеграции');
+    if (!bot.webhook_enabled)  issues.push('• Webhook не настроен — бот работает в режиме "заглушки" (/start /help). Для полноценной логики подключи SDK (polling) или настрой Webhook: /guide → 🤖 Боты');
     if (!hasUsers)             issues.push('• Пока нет пользователей — поделись ссылкой @' + bot.username);
 
     const shortDesc = bot.description
