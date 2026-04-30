@@ -47,7 +47,8 @@ const { registerUserRoutes }    = require('./routes/users')
 const { registerProfileRoutes } = require('./routes/users/profile')
 const { registerRatingRoutes }  = require('./routes/users/rating')
 const { registerCallRoutes }    = require('./routes/calls')
-const { initializeWallyBot }    = require('./bots/wallybot')
+const { initializeWallyBot }         = require('./bots/wallybot')
+const { initializeRandomizerBot }    = require('./bots/randomizerBotServer')
 const { registerSignalRoutes }       = require('./routes/signal')
 const { registerSubscriptionRoutes } = require('./routes/subscription')
 const registerLivestreamRoutes       = require('./routes/channels/livestream')
@@ -1445,6 +1446,7 @@ async function main() {
     // All DB operations inside initializeWallyBot are idempotent (findOrCreate /
     // update-if-changed), so running them on every worker is safe.
     initializeWallyBot(ctx, io).catch(e => console.error('[WallyBot] Init error:', e));
+    initializeRandomizerBot(ctx, io).catch(e => console.error('[RandBot] Init error:', e));
   });
 }
 
