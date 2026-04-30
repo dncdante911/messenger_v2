@@ -544,6 +544,9 @@ export default function App() {
   const [privacyLoaded,   setPrivacyLoaded]   = useState(false);
   const [privacySaving,   setPrivacySaving]   = useState<'idle'|'saving'|'done'|'error'>('idle');
 
+  // ── Settings nav tab ──────────────────────────────────────────────────────
+  const [settingsTab, setSettingsTab] = useState<'profile'|'privacy'|'blocked'|'language'|'security'>('profile');
+
   // ── Send error banner ─────────────────────────────────────────────────────
   const [sendError, setSendError]           = useState('');
   const [signalResetStatus, setSignalResetStatus] = useState<'idle'|'working'|'done'|'error'>('idle');
@@ -1225,6 +1228,14 @@ export default function App() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section]);
+
+  // Auto-load privacy / blocked when their settings tab opens
+  useEffect(() => {
+    if (!session) return;
+    if (settingsTab === 'privacy' && !privacyLoaded) handleLoadPrivacy();
+    if (settingsTab === 'blocked' && !blockedLoaded) handleLoadBlocked();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsTab]);
 
   async function handleSaveProfile() {
     if (!session) return;
@@ -2276,9 +2287,9 @@ export default function App() {
           </div>
         )}
 
-        {/* ── Settings ──────────────────────────────────────────────────── */}
+        {/* ── Settings: content moved to <main> ──────────────────────── */}
         {section === 'settings' && (
-          <div className="list-scroll settings-panel">
+          <div className="list-scroll settings-panel" style={{display:'none'}}>
             {/* ── Profile header ──────────────────────────────────────── */}
             <div className="settings-item">
               <label className="avatar-upload-label" title={t('settings.uploadAvatar')}>
@@ -2513,6 +2524,204 @@ export default function App() {
 
       {/* ── Main chat view ────────────────────────────────────────────────── */}
       <main className="chat-main">
+        {/* ── Settings full-width view ───────────────────────────────────── */}
+        {section === 'settings' ? (
+          <div className="settings-main-view">
+            {/* Left nav column */}
+            <div className="settings-nav-col">
+              <div className="settings-profile-card">
+                <label className="avatar-upload-label" title={t('settings.uploadAvatar')} style={{cursor:'pointer'}}>
+                  <Avatar name={session.username} src={myProfile?.avatar} size={56} />
+                  <span className="avatar-upload-badge">📷</span>
+                  <input type="file" accept="image/*" style={{display:'none'}}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); }} />
+                </label>
+                <div>
+                  <div className="settings-profile-name">
+                    {myProfile ? `${myProfile.first_name ?? ''} ${myProfile.last_name ?? ''}`.trim() || session.username : session.username}
+                  </div>
+                  <div className="settings-profile-meta">@{session.username}</div>
+                  <div className="settings-profile-meta">{t('settings.userId')} {session.userId}</div>
+                </div>
+              </div>
+
+              {(([
+                { id: 'profile',  icon: '👤', key: 'settings.editProfile',  badge: undefined },
+                { id: 'privacy',  icon: '🔒', key: 'settings.privacy',       badge: undefined },
+                { id: 'blocked',  icon: '🚫', key: 'settings.blockedUsers',  badge: blockedUsers.length > 0 ? blockedUsers.length : undefined },
+                { id: 'language', icon: '🌐', key: 'settings.language',      badge: undefined },
+                { id: 'security', icon: '🔐', key: 'settings.security',      badge: undefined },
+              ]) as { id: typeof settingsTab; icon: string; key: string; badge: number | undefined }[]).map(row => (
+                <button key={row.id}
+                  className={`settings-nav-row ${settingsTab === row.id ? 'active' : ''}`}
+                  onClick={() => setSettingsTab(row.id)}>
+                  <span className="settings-nav-icon">{row.icon}</span>
+                  <span className="settings-nav-label">{t(row.key)}</span>
+                  {row.badge ? <span className="settings-nav-badge">{row.badge}</span> : null}
+                  <span className="settings-nav-chevron">›</span>
+                </button>
+              ))}
+
+              <div style={{flex:1}} />
+
+              <div className="settings-nav-footer">
+                <div className="settings-nav-status">
+                  <span>📡 {t('settings.socketStatus')}</span>
+                  <span style={{color: socketStatus === 'green' ? 'var(--online)' : 'var(--text-2)'}}>{translateSocketStatus(socketStatus)}</span>
+                </div>
+                <button className="btn-danger" style={{width:'100%'}} onClick={logout}>{t('settings.signOut')}</button>
+              </div>
+            </div>
+
+            {/* Right content column */}
+            <div className="settings-content-col">
+              {settingsTab === 'profile' && (
+                <>
+                  <h2 className="settings-content-title">{t('settings.editProfile')}</h2>
+                  <div className="settings-field">
+                    <label className="settings-field-label">{t('settings.firstName')}</label>
+                    <input className="settings-field-input" value={profileFirst} onChange={e => setProfileFirst(e.target.value)} />
+                  </div>
+                  <div className="settings-field">
+                    <label className="settings-field-label">{t('settings.lastName')}</label>
+                    <input className="settings-field-input" value={profileLast} onChange={e => setProfileLast(e.target.value)} />
+                  </div>
+                  <div className="settings-field">
+                    <label className="settings-field-label">{t('settings.username')}</label>
+                    <input className="settings-field-input" value={profileUser} onChange={e => setProfileUser(e.target.value)} />
+                  </div>
+                  <div className="settings-field">
+                    <label className="settings-field-label">{t('settings.about')}</label>
+                    <textarea className="settings-field-input settings-field-textarea" rows={4} value={profileAbout} onChange={e => setProfileAbout(e.target.value)} />
+                  </div>
+                  <button
+                    className={profileSaving === 'done' ? 'btn-success' : profileSaving === 'error' ? 'btn-danger' : 'btn-primary'}
+                    disabled={profileSaving === 'saving'}
+                    onClick={handleSaveProfile}
+                  >
+                    {profileSaving === 'saving' ? t('settings.saving') : profileSaving === 'done' ? t('settings.saved') : profileSaving === 'error' ? t('settings.errorRetry') : t('settings.saveProfile')}
+                  </button>
+                </>
+              )}
+
+              {settingsTab === 'privacy' && (
+                <>
+                  <h2 className="settings-content-title">{t('settings.privacy')}</h2>
+                  {!privacyLoaded ? (
+                    <div className="settings-loading">{t('settings.loadingDots')}</div>
+                  ) : privacySettings ? (
+                    <>
+                      {([
+                        { field: 'showlastseen',          labelKey: 'settings.showLastSeen',    options: [['1', t('settings.show')], ['0', t('settings.hide')]] },
+                        { field: 'message_privacy',        labelKey: 'settings.messagePrivacy',  options: [['0', t('settings.everyone')], ['1', t('settings.following')], ['2', t('settings.nobody')]] },
+                        { field: 'follow_privacy',         labelKey: 'settings.followPrivacy',   options: [['0', t('settings.everyone')], ['1', t('settings.onlyMe')]] },
+                        { field: 'confirm_followers',      labelKey: 'settings.confirmFollowers',options: [['0', t('settings.no')], ['1', t('settings.yes')]] },
+                        { field: 'friend_privacy',         labelKey: 'settings.friendPrivacy',   options: [['0', t('settings.everyone')], ['1', t('settings.following')], ['2', t('settings.onlyMe')]] },
+                        { field: 'post_privacy',           labelKey: 'settings.postPrivacy',     options: [['0', t('settings.everyone')], ['1', t('settings.following')], ['2', t('settings.onlyMe')]] },
+                        { field: 'show_activities_privacy',labelKey: 'settings.showActivities',  options: [['0', t('settings.show')], ['1', t('settings.hide')]] },
+                        { field: 'birth_privacy',          labelKey: 'settings.birthPrivacy',    options: [['0', t('settings.show')], ['1', t('settings.hide')]] },
+                        { field: 'visit_privacy',          labelKey: 'settings.visitPrivacy',    options: [['0', t('settings.show')], ['1', t('settings.hide')]] },
+                      ] as { field: keyof PrivacySettings; labelKey: string; options: [string, string][] }[]).map(row => (
+                        <div key={row.field} className="settings-privacy-row">
+                          <span className="settings-privacy-label">{t(row.labelKey)}</span>
+                          <select className="settings-privacy-select"
+                            value={privacySettings[row.field]}
+                            onChange={e => setPrivacySettings(p => p ? { ...p, [row.field]: e.target.value } : p)}>
+                            {row.options.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                      <button style={{marginTop:16}}
+                        className={privacySaving === 'done' ? 'btn-success' : privacySaving === 'error' ? 'btn-danger' : 'btn-primary'}
+                        disabled={privacySaving === 'saving'}
+                        onClick={handleSavePrivacy}
+                      >
+                        {privacySaving === 'saving' ? t('settings.saving') : privacySaving === 'done' ? t('settings.saved') : privacySaving === 'error' ? t('settings.errorRetry') : t('settings.saveProfile')}
+                      </button>
+                    </>
+                  ) : null}
+                </>
+              )}
+
+              {settingsTab === 'blocked' && (
+                <>
+                  <h2 className="settings-content-title">{t('settings.blockedUsers')}</h2>
+                  {!blockedLoaded ? (
+                    <div className="settings-loading">{t('settings.loadingDots')}</div>
+                  ) : blockedUsers.length === 0 ? (
+                    <div className="empty-state">{t('settings.noBlocked')}</div>
+                  ) : (
+                    blockedUsers.map(u => (
+                      <div key={u.id} className="settings-blocked-row">
+                        <Avatar name={u.first_name ?? u.username} src={u.avatar} size={36} />
+                        <span className="settings-blocked-name">
+                          {u.first_name ? `${u.first_name} ${u.last_name ?? ''}`.trim() : u.username}
+                        </span>
+                        <button className="btn-sm btn-outline" onClick={() => handleUnblock(u.id)}>
+                          {t('settings.unblock')}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </>
+              )}
+
+              {settingsTab === 'language' && (
+                <>
+                  <h2 className="settings-content-title">{t('settings.language')}</h2>
+                  <div className="settings-lang-grid">
+                    {(['ru', 'uk', 'en'] as Lang[]).map(l => (
+                      <button key={l}
+                        className={`settings-lang-btn ${lang === l ? 'active' : ''}`}
+                        onClick={() => handleLangChange(l)}>
+                        {l === 'ru' ? '🇷🇺 Русский' : l === 'uk' ? '🇺🇦 Українська' : '🇬🇧 English'}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {settingsTab === 'security' && (
+                <>
+                  <h2 className="settings-content-title">{t('settings.security')}</h2>
+                  <div className="settings-security-card">
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>
+                      <span style={{fontSize:14}}>{t('settings.e2ee')}</span>
+                      <span className="badge-green">{t('settings.signalBadge')}</span>
+                    </div>
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14}}>
+                      <span style={{fontSize:14}}>{t('settings.keysReg')}</span>
+                      <span className="badge-green">✓</span>
+                    </div>
+                    <p style={{fontSize:12, color:'var(--text-2)', marginBottom:14, lineHeight:1.5}}>{t('settings.e2eeHint')}</p>
+                    <button
+                      className={signalResetStatus === 'done' ? 'btn-success' : 'btn-secondary'}
+                      disabled={signalResetStatus === 'working'}
+                      onClick={async () => {
+                        const svc = signalRef.current;
+                        if (!svc) return;
+                        setSignalResetStatus('working');
+                        try {
+                          svc.clearAllSignalState();
+                          await svc.ensureRegistered();
+                          setSignalResetStatus('done');
+                          signalRef.current = SignalService.getInstance(createNodeApiShim(session.token));
+                          setTimeout(() => setSignalResetStatus('idle'), 4000);
+                        } catch {
+                          setSignalResetStatus('error');
+                          setTimeout(() => setSignalResetStatus('idle'), 4000);
+                        }
+                      }}
+                    >
+                      {signalResetStatus === 'working' ? t('settings.resetting') : signalResetStatus === 'done' ? t('settings.keysReset') : signalResetStatus === 'error' ? t('settings.errorRetry') : t('settings.resetKeys')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        ) : null}
+
         {/* ── Group chat ──────────────────────────────────────────────────── */}
         {section === 'groups' && selectedGroup ? (
           <>
@@ -2978,60 +3187,65 @@ export default function App() {
               <div className="send-error-banner">{sendError}</div>
             )}
 
-            {/* ── Sticker / GIF picker ──────────────────────────────────── */}
-            {showPicker && (
-              <div className="sticker-gif-picker">
-                <div className="picker-tabs">
-                  <button className={showPicker === 'sticker' ? 'tab active' : 'tab'} onClick={openStickerPicker}>{t('chat.stickers')}</button>
-                  <button className={showPicker === 'gif' ? 'tab active' : 'tab'} onClick={openGifPicker}>GIF</button>
-                  <button className="picker-close" onClick={() => setShowPicker(null)}>✕</button>
-                </div>
-
-                {showPicker === 'sticker' && (
-                  <>
-                    <div className="sticker-pack-tabs">
-                      {stickerPacks.map(pack => (
-                        <button key={pack.id}
-                          className={`sticker-pack-tab ${activeStickerPack === pack.id ? 'active' : ''}`}
-                          onClick={() => setActiveStickerPack(pack.id)}
-                          title={pack.name}
-                        >
-                          {pack.icon_url ? <img src={pack.icon_url} alt={pack.name} width={24} height={24} /> : '🎭'}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="sticker-grid">
-                      {(stickerPacks.find(p => p.id === activeStickerPack)?.stickers ?? []).map(s => (
-                        <button key={s.id} className="sticker-item" onClick={() => handleSendSticker(s.file_url)}>
-                          <img src={s.thumbnail_url ?? s.file_url} alt={s.emoji ?? ''} />
-                        </button>
-                      ))}
-                      {stickerPacks.length === 0 && stickerPacksLoaded && (
-                        <div className="empty-state" style={{gridColumn:'1/-1'}}>{t('chat.noStickers')}</div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {showPicker === 'gif' && (
-                  <>
-                    <input className="chat-search-input" placeholder={t('chat.searchGif')}
-                      value={gifQuery} onChange={e => handleGifSearch(e.target.value)} />
-                    <div className="gif-grid">
-                      {gifResults.map(g => (
-                        <button key={g.id} className="gif-item" onClick={() => handleSendGif(g.url)}>
-                          <img src={g.previewUrl} alt={g.title} loading="lazy" />
-                        </button>
-                      ))}
-                    </div>
-                    <div className="giphy-footer">Powered by GIPHY</div>
-                  </>
-                )}
-              </div>
-            )}
-
             {/* ── Composer ──────────────────────────────────────────────── */}
-            <div className="composer">
+            <div className="composer" style={{position:'relative'}}>
+              {/* ── Sticker / GIF picker popup ─────────────────────────── */}
+              {showPicker && (
+                <div className="sticker-gif-picker">
+                  <div className="picker-tabs">
+                    <button className={showPicker === 'sticker' ? 'tab active' : 'tab'} onClick={openStickerPicker}>{t('chat.stickers')}</button>
+                    <button className={showPicker === 'gif' ? 'tab active' : 'tab'} onClick={openGifPicker}>GIF</button>
+                    <button className="picker-close" onClick={() => setShowPicker(null)}>✕</button>
+                  </div>
+
+                  {showPicker === 'sticker' && (
+                    <>
+                      <div className="sticker-pack-tabs">
+                        {stickerPacks.map(pack => (
+                          <button key={pack.id}
+                            className={`sticker-pack-tab ${activeStickerPack === pack.id ? 'active' : ''}`}
+                            onClick={() => setActiveStickerPack(pack.id)}
+                            title={pack.name}
+                          >
+                            {pack.icon_url ? <img src={pack.icon_url} alt={pack.name} width={24} height={24} /> : '🎭'}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="sticker-grid">
+                        {(stickerPacks.find(p => p.id === activeStickerPack)?.stickers ?? []).map(s => (
+                          <button key={s.id} className="sticker-item" onClick={() => handleSendSticker(s.file_url)}>
+                            <img src={s.thumbnail_url ?? s.file_url} alt={s.emoji ?? ''} />
+                          </button>
+                        ))}
+                        {stickerPacks.length === 0 && stickerPacksLoaded && (
+                          <div className="empty-state" style={{gridColumn:'1/-1'}}>{t('chat.noStickers')}</div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {showPicker === 'gif' && (
+                    <>
+                      <input className="gif-search-input" placeholder={t('chat.searchGif')}
+                        value={gifQuery} onChange={e => handleGifSearch(e.target.value)} />
+                      <div className="gif-grid">
+                        {gifResults.map(g => (
+                          <button key={g.id} className="gif-item" onClick={() => handleSendGif(g.url)}>
+                            <img src={g.previewUrl} alt={g.title} loading="lazy" />
+                          </button>
+                        ))}
+                        {gifResults.length === 0 && (
+                          <div style={{gridColumn:'1/-1', color:'var(--text-2)', fontSize:13, padding:12, textAlign:'center'}}>
+                            {gifQuery ? '…' : t('chat.gifTrending')}
+                          </div>
+                        )}
+                      </div>
+                      <div className="giphy-footer">Powered by GIPHY</div>
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* Reply/edit banner */}
               {(replyTarget || editingMsg) && (
                 <div className="composer-banner">
@@ -3056,7 +3270,7 @@ export default function App() {
                 </div>
               )}
 
-              <div className="composer-row" style={{position:'relative'}}>
+              <div className="composer-row">
                 {/* Attach button */}
                 <label className="icon-btn attach-btn" title={t('chat.attachFile')}>
                   📎

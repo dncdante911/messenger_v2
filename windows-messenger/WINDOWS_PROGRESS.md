@@ -220,3 +220,19 @@
 - `src/App.tsx` — импорт `getBotLinkedUser`, состояние `showEmojiComposer/emojiCatIdx`, эмодзи-пикер UI, `handleInsertEmoji()`, исправлен `openBotChat`, исправлен `key={bot.bot_id_str}`
 - `src/i18n.ts` — ключ `chat.emoji` × 3 локали
 - `src/styles.css` — `min-height:0` для `.list-scroll`, GIF auto-fill, emoji picker CSS
+
+---
+
+### Итерация 9 — Редизайн настроек, плавающий GIF-пикер, починка ботов
+**Статус:** ✅ Завершено (сборка: `✓ built in 1.44s`, TSC: 0 ошибок)
+
+**Исправлено:**
+- **Настройки (полный редизайн)** — перенесены из 300px сайдбара в главную область; двухколоночный layout: левая навигация (280px) + правая область контента (1fr); 5 разделов: Профиль, Приватность, Заблокированные, Язык, Безопасность; приватность загружается автоматически при открытии вкладки; показываются все 9 полей приватности (showlastseen, message_privacy, follow_privacy, confirm_followers, friend_privacy, post_privacy, show_activities_privacy, birth_privacy, visit_privacy)
+- **GIF-пикер** — переведён с inline-элемента в `position: absolute; bottom: 100%; right: 0; width: 380px; height: 300px;` над кнопками composer; 3 колонки квадратных миниатюр; `display: block` на `.gif-item` для работы `aspect-ratio: 1`; отдельный `.gif-search-input`; стикер-пикер тоже использует тот же popup
+- **Боты** — исправлен `getBotLinkedUser`: данные вложены в `resp.bot.linked_user_id`, а не `resp.linked_user_id`; кнопка «Написать» теперь работает
+
+**Файлы:**
+- `src/api.ts` — фикс `getBotLinkedUser` (читает `resp.bot.linked_user_id`)
+- `src/App.tsx` — `settingsTab` state, useEffect авто-загрузки приватности/блока, настройки в `<main>`, стикер/GIF пикер внутри `.composer`
+- `src/i18n.ts` — 7 новых ключей × 3 локали (friendPrivacy, postPrivacy, showActivities, birthPrivacy, visitPrivacy, loadingDots, gifTrending)
+- `src/styles.css` — `.settings-main-view` + `.settings-nav-col` + `.settings-content-col` + доп. правила; `.sticker-gif-picker` как абсолютный popup; `.gif-item { display: block }`
