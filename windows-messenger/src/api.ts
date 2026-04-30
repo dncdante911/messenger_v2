@@ -46,13 +46,6 @@ export const SERVER_KEY           = '';
 export const TURN_FALLBACK: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  {
-    urls: [
-      'turn:worldmates.club:3478?transport=udp',
-      'turn:worldmates.club:3478?transport=tcp',
-      'turns:worldmates.club:5349?transport=tcp'
-    ]
-  }
 ];
 
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
@@ -493,6 +486,39 @@ export async function createGroup(token: string, groupName: string): Promise<voi
   await nodePost('/api/node/group/create', token, { group_name: groupName, parts: '' });
 }
 
+export async function joinGroup(token: string, groupId: number): Promise<void> {
+  await nodePost('/api/node/group/join', token, { group_id: groupId });
+}
+
+export async function subscribeChannel(token: string, channelId: number): Promise<void> {
+  await nodePost('/api/node/channel/subscribe', token, { channel_id: channelId });
+}
+
+export type UserSearchResult = {
+  id: number;
+  username: string;
+  first_name?: string;
+  last_name?: string;
+  avatar?: string;
+};
+
+export async function searchUsers(token: string, query: string): Promise<UserSearchResult[]> {
+  const params = new URLSearchParams({ q: query, limit: '30', offset: '0' });
+  const text = await doRequest(`${NODE_BASE_URL}/api/node/users/search?${params}`, {
+    method: 'GET',
+    headers: { 'access-token': token },
+  });
+  const payload = await parseJson<Record<string, unknown>>(text);
+  const raw = (payload.users ?? payload.data ?? []) as Record<string, unknown>[];
+  return Array.isArray(raw) ? raw.map(u => ({
+    id:         Number(u.user_id ?? u.id ?? 0),
+    username:   toStr(u.username, ''),
+    first_name: toStr(u.first_name, ''),
+    last_name:  toStr(u.last_name, ''),
+    avatar:     toStr(u.avatar, ''),
+  })) : [];
+}
+
 export async function searchGroups(token: string, query: string): Promise<GenericListResponse<GroupItem>> {
   const resp = await nodePost<Record<string, unknown>>('/api/node/group/search', token, { query, limit: 30, offset: 0 });
   const raw  = (resp.groups ?? resp.data ?? []) as Record<string, unknown>[];
@@ -870,11 +896,15 @@ export async function loadBlockedUsers(token: string): Promise<UserProfile[]> {
 
 // ─── Calls / ICE servers ──────────────────────────────────────────────────────
 
-export async function getIceServers(_userId: number): Promise<RTCIceServer[]> {
+export async function getIceServers(token: string, _userId: number): Promise<RTCIceServer[]> {
   try {
-    const text = await doRequest(`${NODE_BASE_URL}/api/ice-servers/`, { method: 'GET' });
+    const text = await doRequest(`${NODE_BASE_URL}/api/ice-servers/`, {
+      method: 'GET',
+      headers: { 'access-token': token },
+    });
     const payload = await parseJson<{ iceServers?: RTCIceServer[] } | RTCIceServer[]>(text);
-    return Array.isArray(payload) ? payload : (payload.iceServers ?? []);
+    const servers = Array.isArray(payload) ? payload : (payload.iceServers ?? []);
+    return servers.length > 0 ? servers : TURN_FALLBACK;
   } catch {
     return TURN_FALLBACK;
   }

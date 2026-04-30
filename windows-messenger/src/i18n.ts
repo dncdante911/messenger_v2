@@ -229,6 +229,13 @@ const translations: Record<Lang, Record<string, string>> = {
     'sidebar.searchBots': 'Поиск ботов…',
     'sidebar.chat':       'Написать',
 
+    // User / group / channel discovery
+    'sidebar.searchPeople':      'Найти людей…',
+    'sidebar.noPeopleFound':     'Никого не найдено',
+    'sidebar.joinGroup':         'Вступить',
+    'sidebar.requestJoin':       'Запросить',
+    'sidebar.subscribeChannel':  'Подписаться',
+
     // Call controls
     'call.mute':           '🔇 Микрофон',
     'call.unmute':         '🎙 Микрофон',
@@ -465,6 +472,13 @@ const translations: Record<Lang, Record<string, string>> = {
     'sidebar.searchBots': 'Пошук ботів…',
     'sidebar.chat':       'Написати',
 
+    // User / group / channel discovery
+    'sidebar.searchPeople':      'Знайти людей…',
+    'sidebar.noPeopleFound':     'Нікого не знайдено',
+    'sidebar.joinGroup':         'Вступити',
+    'sidebar.requestJoin':       'Запросити',
+    'sidebar.subscribeChannel':  'Підписатись',
+
     // Call controls
     'call.mute':           '🔇 Мікрофон',
     'call.unmute':         '🎙 Мікрофон',
@@ -699,6 +713,13 @@ const translations: Record<Lang, Record<string, string>> = {
     'sidebar.bots':       'Bots',
     'sidebar.searchBots': 'Search bots…',
     'sidebar.chat':       'Chat',
+
+    // User / group / channel discovery
+    'sidebar.searchPeople':      'Find people…',
+    'sidebar.noPeopleFound':     'No people found',
+    'sidebar.joinGroup':         'Join',
+    'sidebar.requestJoin':       'Request',
+    'sidebar.subscribeChannel':  'Subscribe',
 
     // Call controls
     'call.mute':           '🔇 Mic',
