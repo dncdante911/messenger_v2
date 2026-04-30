@@ -6,7 +6,7 @@ import {
   blockUser, unblockUser, loadBlockedUsers,
   createChannel, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost, searchChannels, voteChannelPoll,
   loadChannelComments, addChannelComment, deleteChannelComment, reactToChannelComment,
-  createGroup, createStory, searchGroups,
+  createGroup, createStory, joinGroup, subscribeChannel, searchGroups,
   createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
   getIceServers, initiateCall, endCall, loadChannels, loadChats, loadArchivedChats,
   loadGroups, loadGroupMessages, loadMoreGroupMessages, loadMessages, loadMoreMessages, loadStories,
@@ -16,8 +16,9 @@ import {
   loadCallHistory, deleteCallRecord, clearCallHistory,
   loadPrivacySettings, updatePrivacySettings,
   reactToMessage, reactToGroupMessage, registerAccount,
-  searchMessages,
+  searchMessages, searchUsers,
   sendMessage, sendGroupMessage, sendMessageWithMedia, sendVoiceMessage, TURN_FALLBACK,
+  type UserSearchResult,
   uploadMedia,
   loadStickerPacks, sendStickerMessage, sendGifMessage, loadTrendingGifs, searchGifs, searchBots,
   getBotLinkedUser,
@@ -469,8 +470,11 @@ export default function App() {
   const [channelSearch, setChannelSearch] = useState('');
   const [groupSearchResults, setGroupSearchResults]     = useState<GroupItem[] | null>(null);
   const [channelSearchResults, setChannelSearchResults] = useState<ChannelItem[] | null>(null);
+  const [userSearchQuery,   setUserSearchQuery]   = useState('');
+  const [userSearchResults, setUserSearchResults] = useState<UserSearchResult[] | null>(null);
   const groupSearchTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const channelSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userSearchTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── In-chat message search ────────────────────────────────────────────────
   const [chatSearchOpen, setChatSearchOpen]       = useState(false);
@@ -831,7 +835,7 @@ export default function App() {
         const cs = callStateRef.current;
         if (cs.phase !== 'outgoing' || !peerRef.current) return;
         try {
-          await peerRef.current.setRemoteDescription(JSON.parse(data.sdpAnswer) as RTCSessionDescriptionInit);
+          await peerRef.current.setRemoteDescription(parseSdp(data.sdpAnswer, 'answer'));
           setCallState({ phase: 'connected', peer: cs.peer, type: cs.type, roomName: cs.roomName, duration: 0 });
           startCallTimer();
         } catch (e) { console.error('[Call] setAnswer failed:', e); }
@@ -880,17 +884,17 @@ export default function App() {
         pc.onicecandidate = ({ candidate }) => {
           if (candidate) s.emit('group_call:ice_candidate', { roomName, toUserId: data.fromUserId, candidate: candidate.toJSON() });
         };
-        await pc.setRemoteDescription(JSON.parse(data.sdpOffer) as RTCSessionDescriptionInit);
+        await pc.setRemoteDescription(parseSdp(data.sdpOffer, 'offer'));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        s.emit('group_call:answer', { roomName, toUserId: data.fromUserId, sdpAnswer: JSON.stringify(answer) });
+        s.emit('group_call:answer', { roomName, toUserId: data.fromUserId, sdpAnswer: answer.sdp ?? '' });
         groupPeersRef.current.set(data.fromUserId, peer);
         setGroupPeers([...groupPeersRef.current.values()]);
       },
 
       onGroupCallAnswer: async (data) => {
         const peer = groupPeersRef.current.get(data.fromUserId);
-        if (peer) await peer.pc.setRemoteDescription(JSON.parse(data.sdpAnswer) as RTCSessionDescriptionInit).catch(console.error);
+        if (peer) await peer.pc.setRemoteDescription(parseSdp(data.sdpAnswer, 'answer')).catch(console.error);
       },
 
       onGroupCallIceCandidate: async (data) => {
@@ -1833,11 +1837,18 @@ export default function App() {
 
   // ─── 1-on-1 calls ─────────────────────────────────────────────────────────
 
+  function parseSdp(raw: string, type: 'offer' | 'answer'): RTCSessionDescriptionInit {
+    if (raw.startsWith('{')) {
+      try { return JSON.parse(raw) as RTCSessionDescriptionInit; } catch { /* fall through */ }
+    }
+    return { type, sdp: raw };
+  }
+
   async function startCall(type: 'audio' | 'video') {
     if (!session || !selectedChat) return;
     const roomName = `call_${session.userId}_${selectedChat.user_id}_${Date.now()}`;
-    const servers  = await getIceServers(session.userId).catch(() => TURN_FALLBACK);
-    const pc       = await createPeerConnection(servers.length ? servers : TURN_FALLBACK);
+    const servers  = await getIceServers(session.token, session.userId).catch(() => TURN_FALLBACK);
+    const pc       = await createPeerConnection(servers);
     peerRef.current = pc;
 
     try {
@@ -1857,7 +1868,7 @@ export default function App() {
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    emitCallInitiate(socket, { fromId: session.userId, toId: selectedChat.user_id, callType: type, roomName, sdpOffer: JSON.stringify(offer) });
+    emitCallInitiate(socket, { fromId: session.userId, toId: selectedChat.user_id, callType: type, roomName, sdpOffer: offer.sdp ?? '' });
     await initiateCall(session.token, selectedChat.user_id, type).catch(console.error);
     setCallState({ phase: 'outgoing', peer: selectedChat, type, roomName });
   }
@@ -1867,6 +1878,7 @@ export default function App() {
     if (cs.phase !== 'incoming') return;
     const { peer, type, roomName, iceServers, sdpOffer } = cs;
     const pc = await createPeerConnection(iceServers.length ? iceServers : TURN_FALLBACK);
+
     peerRef.current = pc;
 
     try {
@@ -1884,10 +1896,10 @@ export default function App() {
         emitIceCandidate(socket, { roomName, toUserId: peer.user_id, fromUserId: session!.userId, candidate: candidate.toJSON() });
     };
 
-    await pc.setRemoteDescription(JSON.parse(sdpOffer) as RTCSessionDescriptionInit);
+    await pc.setRemoteDescription(parseSdp(sdpOffer, 'offer'));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    emitCallAccept(socket, { roomName, userId: session!.userId, sdpAnswer: JSON.stringify(answer) });
+    emitCallAccept(socket, { roomName, userId: session!.userId, sdpAnswer: answer.sdp ?? '' });
     setCallState({ phase: 'connected', peer, type, roomName, duration: 0 });
     startCallTimer();
   }
@@ -2051,6 +2063,55 @@ export default function App() {
         setChannelSearchResults(r.data ?? []);
       } catch { /* keep local filter on error */ }
     }, 400);
+  }
+
+  function handleUserSearch(q: string) {
+    setUserSearchQuery(q);
+    setUserSearchResults(null);
+    if (userSearchTimer.current) clearTimeout(userSearchTimer.current);
+    if (q.trim().length < 2 || !session) return;
+    userSearchTimer.current = setTimeout(async () => {
+      try {
+        const results = await searchUsers(session.token, q.trim());
+        setUserSearchResults(results);
+      } catch { setUserSearchResults([]); }
+    }, 400);
+  }
+
+  async function handleJoinGroup(groupId: number) {
+    if (!session) return;
+    try {
+      await joinGroup(session.token, groupId);
+      const updated = await loadGroups(session.token);
+      setGroups(updated.data ?? []);
+    } catch (e) { console.error('[JoinGroup]', e); }
+  }
+
+  async function handleSubscribeChannel(channelId: number) {
+    if (!session) return;
+    try {
+      await subscribeChannel(session.token, channelId);
+      const updated = await loadChannels(session.token);
+      setChannels(updated.data ?? []);
+    } catch (e) { console.error('[SubscribeChannel]', e); }
+  }
+
+  function openUserChat(user: UserSearchResult) {
+    const existing = chats.find(c => c.user_id === user.id);
+    if (existing) {
+      setSelectedChat(existing);
+    } else {
+      const synthetic: ChatItem = {
+        user_id: user.id,
+        name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username,
+        avatar: user.avatar,
+      };
+      setChats(prev => [synthetic, ...prev]);
+      setSelectedChat(synthetic);
+    }
+    setSection('chats');
+    setUserSearchQuery('');
+    setUserSearchResults(null);
   }
 
   // ─── In-chat search ───────────────────────────────────────────────────────
@@ -2431,6 +2492,44 @@ export default function App() {
           </div>
         )}
 
+        {/* Find people (chats section) */}
+        {section === 'chats' && (
+          <div className="search-box" style={{ borderTop: 'none', paddingTop: 0 }}>
+            <span className="search-icon">👤</span>
+            <input
+              placeholder={t('sidebar.searchPeople')}
+              value={userSearchQuery}
+              onChange={e => handleUserSearch(e.target.value)}
+            />
+          </div>
+        )}
+
+        {/* ── People search results ──────────────────────────────────────── */}
+        {section === 'chats' && userSearchQuery.trim().length >= 2 && (
+          <div className="list-scroll" style={{ maxHeight: 240, borderBottom: '1px solid var(--border)' }}>
+            {userSearchResults === null && (
+              <div className="empty-state" style={{ fontSize: 12 }}>…</div>
+            )}
+            {userSearchResults !== null && userSearchResults.length === 0 && (
+              <div className="empty-state">{t('sidebar.noPeopleFound')}</div>
+            )}
+            {(userSearchResults ?? []).map(u => (
+              <div key={u.id} className="chat-item" style={{ paddingRight: 8 }}>
+                <Avatar name={u.first_name || u.username} src={u.avatar} size={36} />
+                <div className="chat-item-body" style={{ flex: 1, minWidth: 0 }}>
+                  <div className="chat-item-row">
+                    <span className="chat-item-name">{[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username}</span>
+                  </div>
+                  <div className="chat-item-row">
+                    <span className="chat-item-preview" style={{ fontSize: 11 }}>@{u.username}</span>
+                  </div>
+                </div>
+                <button className="btn-sm" onClick={() => openUserChat(u)}>{t('sidebar.chat')}</button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ── Chats list ─────────────────────────────────────────────────── */}
         {section === 'chats' && (
           <div className="list-scroll">
@@ -2531,25 +2630,35 @@ export default function App() {
               <button type="submit" className="btn-sm">{t('sidebar.create')}</button>
             </form>
             {filteredGroups.length === 0 && <div className="empty-state">{t('sidebar.noGroups')}</div>}
-            {filteredGroups.map(g => (
-              <button key={g.id}
-                className={`chat-item ${selectedGroup?.id === g.id ? 'active' : ''}`}
-                onClick={() => setSelectedGroup(g)}
-              >
-                <Avatar name={asText(g.group_name, 'G')} src={g.avatar} size={44} />
-                <div className="chat-item-body">
-                  <div className="chat-item-row">
-                    <span className="chat-item-name">{asText(g.group_name, t('nav.groups'))}</span>
-                    <span className="chat-item-time">{g.time ? formatChatTime(g.time as string) : ''}</span>
+            {filteredGroups.map(g => {
+              const alreadyIn = groups.some(og => og.id === g.id);
+              const isSearch  = groupSearchResults !== null;
+              return (
+                <div key={g.id} className={`chat-item ${selectedGroup?.id === g.id ? 'active' : ''}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => { if (alreadyIn || !isSearch) setSelectedGroup(g); }}
+                >
+                  <Avatar name={asText(g.group_name, 'G')} src={g.avatar} size={44} />
+                  <div className="chat-item-body" style={{ flex: 1, minWidth: 0 }}>
+                    <div className="chat-item-row">
+                      <span className="chat-item-name">{asText(g.group_name, t('nav.groups'))}</span>
+                      <span className="chat-item-time">{g.time ? formatChatTime(g.time as string) : ''}</span>
+                    </div>
+                    <div className="chat-item-row">
+                      <span className="chat-item-preview">
+                        {g.last_message ? previewLastMessage(g.last_message) : `${g.members_count ?? 0} ${t('sidebar.members')}`}
+                      </span>
+                    </div>
                   </div>
-                  <div className="chat-item-row">
-                    <span className="chat-item-preview">
-                      {g.last_message ? previewLastMessage(g.last_message) : `${g.members_count ?? 0} ${t('sidebar.members')}`}
-                    </span>
-                  </div>
+                  {isSearch && !alreadyIn && (
+                    <button className="btn-sm" style={{ flexShrink: 0 }}
+                      onClick={e => { e.stopPropagation(); handleJoinGroup(g.id); }}>
+                      {t('sidebar.joinGroup')}
+                    </button>
+                  )}
                 </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -2569,25 +2678,36 @@ export default function App() {
               <button type="submit" className="btn-sm">{t('sidebar.create')}</button>
             </form>
             {filteredChannels.length === 0 && <div className="empty-state">{t('sidebar.noChannels')}</div>}
-            {filteredChannels.map(c => (
-              <button key={c.id}
-                className={`chat-item ${selectedChannel?.id === c.id ? 'active' : ''}`}
-                onClick={() => setSelectedChannel(c)}
-              >
-                <Avatar name={asText(c.name, 'C')} src={c.avatar_url} size={44} />
-                <div className="chat-item-body">
-                  <div className="chat-item-row">
-                    <span className="chat-item-name">{asText(c.name, t('nav.channels'))}</span>
-                    <span className="chat-item-time">{c.time ? formatChatTime(c.time) : ''}</span>
+            {filteredChannels.map(c => {
+              const alreadySubscribed = channels.some(oc => oc.id === c.id);
+              const isSearch = channelSearchResults !== null;
+              return (
+                <div key={c.id}
+                  className={`chat-item ${selectedChannel?.id === c.id ? 'active' : ''}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => { if (alreadySubscribed || !isSearch) setSelectedChannel(c); }}
+                >
+                  <Avatar name={asText(c.name, 'C')} src={c.avatar_url} size={44} />
+                  <div className="chat-item-body" style={{ flex: 1, minWidth: 0 }}>
+                    <div className="chat-item-row">
+                      <span className="chat-item-name">{asText(c.name, t('nav.channels'))}</span>
+                      <span className="chat-item-time">{c.time ? formatChatTime(c.time) : ''}</span>
+                    </div>
+                    <div className="chat-item-row">
+                      <span className="chat-item-preview">
+                        {c.last_post ?? `${c.subscribers_count ?? 0} ${t('sidebar.subscribers')}`}
+                      </span>
+                    </div>
                   </div>
-                  <div className="chat-item-row">
-                    <span className="chat-item-preview">
-                      {c.last_post ?? `${c.subscribers_count ?? 0} ${t('sidebar.subscribers')}`}
-                    </span>
-                  </div>
+                  {isSearch && !alreadySubscribed && (
+                    <button className="btn-sm" style={{ flexShrink: 0 }}
+                      onClick={e => { e.stopPropagation(); handleSubscribeChannel(c.id); }}>
+                      {t('sidebar.subscribeChannel')}
+                    </button>
+                  )}
                 </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -3515,10 +3635,10 @@ export default function App() {
                 <button className="icon-btn" title={t('chat.search')} onClick={openChatSearch}>
                   🔍
                 </button>
-                <button className="icon-btn" title={t('call.voiceCall')} onClick={() => { setSection('calls'); startCall('audio'); }}>
+                <button className="icon-btn" title={t('call.voiceCall')} onClick={() => startCall('audio')}>
                   🎙
                 </button>
-                <button className="icon-btn" title={t('call.videoCall')} onClick={() => { setSection('calls'); startCall('video'); }}>
+                <button className="icon-btn" title={t('call.videoCall')} onClick={() => startCall('video')}>
                   📹
                 </button>
                 <button className="icon-btn" title={t('chat.mute')} onClick={() => muteChat(session.token, selectedChat.user_id, true)}>

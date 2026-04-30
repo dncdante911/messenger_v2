@@ -258,3 +258,33 @@
 - `src/App.tsx` — `callStateRef`, `stopCallEverything`, `startCallTimer/stopCallTimer/stopLocalStream/formatCallDuration`, полный `startCall`/`acceptCall`/`rejectIncomingCall`/`endActiveCall`, `handleMute`/`handleCamToggle`, `acceptGroupCall`, PIN-функции (`hashPin/checkPin/enablePin/disablePin/handleUnlockPin/handleSetPin`), переработан оверлей вызова (video PiP, audio card, incoming, group grid), PIN overlay, PIN в настройках Безопасности
 - `src/i18n.ts` — 28 новых ключей × 3 локали
 - `src/styles.css` — `.call-overlay` (video/audio/incoming/group layouts), `.call-ctrl-btn`, `.group-call-grid/peer`, `.pin-overlay`, `.settings-pin-card/row/form`, `.call-btn-round`
+
+---
+
+### Итерация 11 — Фикс звонков (SDP/TURN), поиск людей, вступление в группы, подписка на каналы
+**Статус:** ✅ Завершено (сборка: `✓ built in 1.69s`, TSC: 0 ошибок)
+
+**Исправлено:**
+- **SDP формат (критический баг)** — Android шлёт сырые SDP-строки (`"v=0\r\n…"`), а не JSON. Windows пытался `JSON.parse()` → `SyntaxError`. Добавлен `parseSdp(raw, type)`: если строка начинается с `{` — пробует JSON.parse, иначе — создаёт `{ type, sdp: raw }`. Затронуто 4 места: `acceptCall`, `onCallAnswer`, `onGroupCallOffer`, `onGroupCallAnswer`. При отправке тоже исправлено: `sdpOffer: offer.sdp ?? ''` (вместо `JSON.stringify(offer)`), `sdpAnswer: answer.sdp ?? ''`
+- **TURN credentials (критический баг)** — `TURN_FALLBACK` содержал TURN-серверы без `username`/`credential` → `InvalidAccessError: Both username and credential are required`. Убраны TURN-записи из fallback — теперь только 2 STUN (Google). Настоящие TURN с HMAC-кредами приходят с сервера в `call:incoming` → `iceServers`
+- **getIceServers с токеном** — добавлен параметр `token`; теперь запрос к `/api/ice-servers/` отправляется с заголовком `access-token`, и сервер возвращает правильно сформированные TURN-кред
+- **Кнопки видеозвонка** — убран `setSection('calls')` из обработчиков кнопок 🎙/📹 в шапке чата; теперь звонок запускается прямо из чата без смены раздела
+
+**Добавлено:**
+- **Поиск пользователей** — второй search-box в сайдбаре чатов (👤 «Найти людей»); дебаунс 400 мс; минимум 2 символа; вызывает `GET /api/node/users/search?q=`; список результатов с аватаром, именем, @username и кнопкой «Написать»; клик открывает чат
+- **Вступление в группы** — при поиске групп (`groupSearchResults !== null`) рядом с каждой незнакомой группой показывается кнопка «Вступить»; вызывает `POST /api/node/group/join`; после успеха перезагружает список групп
+- **Подписка на каналы** — при поиске каналов (`channelSearchResults !== null`) рядом с каждым неподписанным каналом показывается кнопка «Подписаться»; вызывает `POST /api/node/channel/subscribe`; после успеха перезагружает список каналов
+
+**Новые API (api.ts):**
+- `searchUsers(token, query)` — `GET /api/node/users/search?q=`
+- `joinGroup(token, groupId)` — `POST /api/node/group/join`
+- `subscribeChannel(token, channelId)` — `POST /api/node/channel/subscribe`
+- `type UserSearchResult` — `{ id, username, first_name?, last_name?, avatar? }`
+
+**i18n — 5 новых ключей × 3 локали:**
+- `sidebar.searchPeople`, `sidebar.noPeopleFound`, `sidebar.joinGroup`, `sidebar.requestJoin`, `sidebar.subscribeChannel`
+
+**Файлы:**
+- `src/api.ts` — TURN_FALLBACK (только STUN), `getIceServers` с токеном, `searchUsers`, `joinGroup`, `subscribeChannel`, `UserSearchResult`
+- `src/App.tsx` — `parseSdp()`, все JSON.parse на SDP заменены, sdpOffer/sdpAnswer отправляются как raw, состояния `userSearchQuery/userSearchResults/userSearchTimer`, `handleUserSearch`, `handleJoinGroup`, `handleSubscribeChannel`, `openUserChat`, UI поиска людей, кнопки Join/Subscribe в группах/каналах
+- `src/i18n.ts` — 5 новых ключей × 3 локали
