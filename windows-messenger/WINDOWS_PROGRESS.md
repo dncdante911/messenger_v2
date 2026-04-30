@@ -21,9 +21,9 @@
 | Черновики | ✅ | ✅ iter-2 | Готово |
 | Форматирование текста | ✅ | ✅ iter-2 | Готово |
 | Загрузка медиа (сторисы/посты) | ✅ | ✅ iter-2 | Исправлено |
-| Звонки — 1-на-1 | ✅ | ✅ 30% | Базово |
+| Звонки — 1-на-1 | ✅ | ✅ iter-10 | Готово |
 | Звонки — история | ✅ | ✅ iter-6 | Готово |
-| Звонки — группа | ✅ | ❌ | Нет |
+| Звонки — группа | ✅ | ✅ iter-10 | Готово |
 | Голосовые сообщения | ✅ | ✅ iter-3 | Готово |
 | Редактирование профиля | ✅ | ✅ iter-4 | Готово |
 | Настройки приватности | ✅ | ✅ iter-6 | Готово |
@@ -31,7 +31,7 @@
 | Архив чатов (список) | ✅ | ✅ iter-4 | Готово |
 | Стикеры / GIF | ✅ | ✅ iter-7 | Готово |
 | Боты | ✅ | ✅ iter-7 | Готово |
-| Безопасность (PIN/2FA) | ✅ | ❌ | Нет |
+| Безопасность (PIN/2FA) | ✅ | ✅ iter-10 | PIN готово, 2FA — серверная |
 | Медиапросмотрщик (лайтбокс) | ✅ | ✅ iter-3 | Готово |
 | Демонстрация экрана | ✅ | ❌ | Нет |
 
@@ -236,3 +236,25 @@
 - `src/App.tsx` — `settingsTab` state, useEffect авто-загрузки приватности/блока, настройки в `<main>`, стикер/GIF пикер внутри `.composer`
 - `src/i18n.ts` — 7 новых ключей × 3 локали (friendPrivacy, postPrivacy, showActivities, birthPrivacy, visitPrivacy, loadingDots, gifTrending)
 - `src/styles.css` — `.settings-main-view` + `.settings-nav-col` + `.settings-content-col` + доп. правила; `.sticker-gif-picker` как абсолютный popup; `.gif-item { display: block }`
+
+---
+
+### Итерация 10 — Звонки (WebRTC), Групповые звонки, PIN-блокировка
+**Статус:** ✅ Завершено (сборка: `✓ built in 1.43s`, TSC: 0 ошибок)
+
+**Сделано:**
+- **1-на-1 звонки (полный WebRTC)** — исправлен протокол сигнализации: `call:initiate` → `call:incoming` → `call:accept` → `call:answer` + `ice:candidate` ↔ `ice:candidate` → `call:end/reject`. Полная реализация: создание `RTCPeerConnection`, захват локального потока (`createLocalAudioStream`/`createLocalVideoStream`), обработчики `ontrack` для удалённого потока, `onicecandidate` для обмена ICE, функции `startCall`, `acceptCall`, `rejectIncomingCall`, `endActiveCall`, таймер длительности
+- **Видео-оверлей** — удалённое видео занимает весь экран (full-size), локальное видео — PiP-окошко 120×90px в правом нижнем углу; для аудиозвонков — аватар + таймер по центру
+- **Управление звонком** — кнопки Mute (🎙/🔇), камера (📹/📷), завершить (📵); треки включаются/отключаются через `track.enabled`; состояние кнопок синхронизировано с `callMuted`/`callCamOff`
+- **Групповые звонки (mesh WebRTC)** — mesh-топология: отдельный `RTCPeerConnection` на каждого участника; обработчики `onGroupCallOffer`, `onGroupCallAnswer`, `onGroupCallIceCandidate`, `onGroupCallParticipantLeft`, `onGroupCallEnded`; грид-сетка тайлов видео с `group-call-grid`; принятие/отклонение через `acceptGroupCall`/`endActiveCall`
+- **Сигналы сокета** — обновлён `socket.ts`: добавлены типы `IncomingCallData`, `CallAnswerData`, `IceCandidateData`, `GroupCallIncomingData/OfferData/AnswerData`; 15+ новых `socket.on` обработчиков; emitters: `emitCallInitiate`, `emitCallAccept`, `emitCallEnd`, `emitCallReject`, `emitIceCandidate`, `emitGroupCallJoin`, `emitGroupCallEnd`; типы расширены в `types.ts` (`CallState` с `roomName`, фазы `group_incoming`/`group_connected`, `GroupCallPeer`)
+- **PIN-блокировка** — полноэкранный оверлей с 4 точками индикации и паролем при запуске если PIN включён; SHA-256 хэш пароля в `localStorage['wm_pin_hash']`; функции `hashPin`, `checkPin`, `enablePin`, `disablePin`; раздел в настройках Безопасности: статус, кнопки Установить/Изменить/Отключить, форма с подтверждением; ошибки: «Неверный PIN», «PIN слишком короткий», «PIN-коды не совпадают»
+- **Фикс z-index GIF/стикер** — `.composer { position: relative; z-index: 10 }` → пикер больше не перекрывается сообщениями
+- **i18n** — 28 новых строк × 3 локали: звонковые кнопки (mute, cam, speaker, groupCall, groupIncoming) + PIN строки (lock, enter, wrong, tooShort, mismatch, unlock, newPin, confirmPin, oldPin) + настройки PIN (pinLock, pinHint, pinEnabled, pinDisabled, setPinCode, changePinCode, disablePinCode)
+
+**Файлы:**
+- `src/socket.ts` — 6 новых типов, 15+ новых `socket.on` событий, 10+ новых `emit` хелперов
+- `src/types.ts` — `CallState` расширен (`roomName`, `group_incoming`, `group_connected`), добавлен `GroupCallPeer`
+- `src/App.tsx` — `callStateRef`, `stopCallEverything`, `startCallTimer/stopCallTimer/stopLocalStream/formatCallDuration`, полный `startCall`/`acceptCall`/`rejectIncomingCall`/`endActiveCall`, `handleMute`/`handleCamToggle`, `acceptGroupCall`, PIN-функции (`hashPin/checkPin/enablePin/disablePin/handleUnlockPin/handleSetPin`), переработан оверлей вызова (video PiP, audio card, incoming, group grid), PIN overlay, PIN в настройках Безопасности
+- `src/i18n.ts` — 28 новых ключей × 3 локали
+- `src/styles.css` — `.call-overlay` (video/audio/incoming/group layouts), `.call-ctrl-btn`, `.group-call-grid/peer`, `.pin-overlay`, `.settings-pin-card/row/form`, `.call-btn-round`

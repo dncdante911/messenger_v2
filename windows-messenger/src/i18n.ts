@@ -228,6 +228,35 @@ const translations: Record<Lang, Record<string, string>> = {
     'sidebar.bots':       'Боты',
     'sidebar.searchBots': 'Поиск ботов…',
     'sidebar.chat':       'Написать',
+
+    // Call controls
+    'call.mute':           '🔇 Микрофон',
+    'call.unmute':         '🎙 Микрофон',
+    'call.camOff':         '📷 Камера',
+    'call.camOn':          '📹 Камера',
+    'call.groupCall':      'Групповой звонок',
+    'call.groupIncoming':  'Входящий групповой звонок',
+    'call.speaker':        '🔊 Динамик',
+
+    // PIN lock
+    'pin.lock':      'Приложение заблокировано',
+    'pin.enter':     'Введите PIN-код',
+    'pin.wrong':     'Неверный PIN-код',
+    'pin.tooShort':  'PIN слишком короткий (мин. 4 цифры)',
+    'pin.mismatch':  'PIN-коды не совпадают',
+    'pin.unlock':    'Разблокировать',
+    'pin.newPin':    'Новый PIN-код',
+    'pin.confirmPin':'Подтвердить PIN',
+    'pin.oldPin':    'Текущий PIN-код',
+
+    // Security tab PIN
+    'settings.pinLock':        'Блокировка PIN',
+    'settings.pinHint':        'Защитите приложение PIN-кодом',
+    'settings.pinEnabled':     'PIN включён',
+    'settings.pinDisabled':    'PIN отключён',
+    'settings.setPinCode':     'Установить PIN',
+    'settings.changePinCode':  'Изменить PIN',
+    'settings.disablePinCode': 'Отключить PIN',
   },
 
   // ── Ukrainian ────────────────────────────────────────────────────────────────
@@ -435,6 +464,35 @@ const translations: Record<Lang, Record<string, string>> = {
     'sidebar.bots':       'Боти',
     'sidebar.searchBots': 'Пошук ботів…',
     'sidebar.chat':       'Написати',
+
+    // Call controls
+    'call.mute':           '🔇 Мікрофон',
+    'call.unmute':         '🎙 Мікрофон',
+    'call.camOff':         '📷 Камера',
+    'call.camOn':          '📹 Камера',
+    'call.groupCall':      'Груповий дзвінок',
+    'call.groupIncoming':  'Вхідний груповий дзвінок',
+    'call.speaker':        '🔊 Динамік',
+
+    // PIN lock
+    'pin.lock':      'Застосунок заблоковано',
+    'pin.enter':     'Введіть PIN-код',
+    'pin.wrong':     'Невірний PIN-код',
+    'pin.tooShort':  'PIN занадто короткий (мін. 4 цифри)',
+    'pin.mismatch':  'PIN-коди не збігаються',
+    'pin.unlock':    'Розблокувати',
+    'pin.newPin':    'Новий PIN-код',
+    'pin.confirmPin':'Підтвердити PIN',
+    'pin.oldPin':    'Поточний PIN-код',
+
+    // Security tab PIN
+    'settings.pinLock':        'Блокування PIN',
+    'settings.pinHint':        'Захистіть застосунок PIN-кодом',
+    'settings.pinEnabled':     'PIN увімкнено',
+    'settings.pinDisabled':    'PIN вимкнено',
+    'settings.setPinCode':     'Встановити PIN',
+    'settings.changePinCode':  'Змінити PIN',
+    'settings.disablePinCode': 'Вимкнути PIN',
   },
 
   // ── English ──────────────────────────────────────────────────────────────────
@@ -641,6 +699,35 @@ const translations: Record<Lang, Record<string, string>> = {
     'sidebar.bots':       'Bots',
     'sidebar.searchBots': 'Search bots…',
     'sidebar.chat':       'Chat',
+
+    // Call controls
+    'call.mute':           '🔇 Mic',
+    'call.unmute':         '🎙 Mic',
+    'call.camOff':         '📷 Camera',
+    'call.camOn':          '📹 Camera',
+    'call.groupCall':      'Group call',
+    'call.groupIncoming':  'Incoming group call',
+    'call.speaker':        '🔊 Speaker',
+
+    // PIN lock
+    'pin.lock':      'App is locked',
+    'pin.enter':     'Enter PIN',
+    'pin.wrong':     'Wrong PIN',
+    'pin.tooShort':  'PIN too short (min 4 digits)',
+    'pin.mismatch':  "PINs don't match",
+    'pin.unlock':    'Unlock',
+    'pin.newPin':    'New PIN',
+    'pin.confirmPin':'Confirm PIN',
+    'pin.oldPin':    'Current PIN',
+
+    // Security tab PIN
+    'settings.pinLock':        'PIN lock',
+    'settings.pinHint':        'Protect the app with a PIN code',
+    'settings.pinEnabled':     'PIN enabled',
+    'settings.pinDisabled':    'PIN disabled',
+    'settings.setPinCode':     'Set PIN code',
+    'settings.changePinCode':  'Change PIN',
+    'settings.disablePinCode': 'Disable PIN',
   },
 };
 

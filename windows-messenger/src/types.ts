@@ -238,9 +238,19 @@ export type PrivacySettings = {
 
 export type CallState =
   | { phase: 'idle' }
-  | { phase: 'outgoing'; peer: ChatItem; type: 'audio' | 'video' }
-  | { phase: 'incoming'; peer: ChatItem; type: 'audio' | 'video'; offerSdp: string }
-  | { phase: 'connected'; peer: ChatItem; type: 'audio' | 'video'; duration: number };
+  | { phase: 'outgoing';       peer: ChatItem; type: 'audio' | 'video'; roomName: string }
+  | { phase: 'incoming';       peer: ChatItem; type: 'audio' | 'video'; roomName: string; fromId: number; iceServers: RTCIceServer[]; sdpOffer: string }
+  | { phase: 'connected';      peer: ChatItem; type: 'audio' | 'video'; roomName: string; duration: number }
+  | { phase: 'group_incoming'; groupId: number; groupName: string; type: 'audio' | 'video'; roomName: string; fromName: string; iceServers: RTCIceServer[] }
+  | { phase: 'group_connected';groupId: number; groupName: string; type: 'audio' | 'video'; roomName: string; duration: number };
+
+export type GroupCallPeer = {
+  userId:  number;
+  name:    string;
+  avatar?: string;
+  pc:      RTCPeerConnection;
+  stream?: MediaStream;
+};
 
 // ─── Socket / real-time events ────────────────────────────────────────────────
 

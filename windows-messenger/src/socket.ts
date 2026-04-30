@@ -35,19 +35,86 @@ export type SocketHandlers = {
   onPinned?:              (event: MessagePinnedEvent) => void;
   onUserOnline?:          (event: UserPresenceEvent) => void;
   onUserOffline?:         (event: UserPresenceEvent) => void;
-  onCallSignal?:          (payload: CallSignalPayload) => void;
+  onCallSignal?:          (payload: CallSignalPayload) => void;  // legacy
+  // ── New call protocol ──────────────────────────────────────────────────────
+  onCallIncoming?:        (data: IncomingCallData) => void;
+  onCallAnswer?:          (data: CallAnswerData) => void;
+  onCallEnded?:           (data: { roomName: string }) => void;
+  onCallRejected?:        (data: { roomName: string }) => void;
+  onCallError?:           (data: { message: string; status?: string }) => void;
+  onIceCandidate?:        (data: IceCandidateData) => void;
+  // ── Group calls ───────────────────────────────────────────────────────────
+  onGroupCallIncoming?:         (data: GroupCallIncomingData) => void;
+  onGroupCallOffer?:            (data: GroupCallOfferData) => void;
+  onGroupCallAnswer?:           (data: GroupCallAnswerData) => void;
+  onGroupCallIceCandidate?:     (data: IceCandidateData) => void;
+  onGroupCallParticipantJoined?:(data: { userId: number; userName: string; roomName: string }) => void;
+  onGroupCallParticipantLeft?:  (data: { userId: number; roomName: string }) => void;
+  onGroupCallEnded?:            (data: { roomName: string }) => void;
   onIdentityChanged?:     (event: { user_id: number }) => void;
   /** Server relays this when a remote peer's decryption failed —
    *  we must clear our outgoing session so the next send includes X3DH. */
   onSessionResetRequest?: (event: { from_user_id: number }) => void;
 };
 
+// ─── Call payload types ───────────────────────────────────────────────────────
+
+/** Legacy — kept for backward compat, no longer used for signaling */
 export type CallSignalPayload = {
   type:    'offer' | 'answer' | 'ice' | 'end' | 'ringing';
   to:      number;
   from:    number;
   sdp?:    RTCSessionDescriptionInit;
   ice?:    RTCIceCandidateInit;
+};
+
+export type IncomingCallData = {
+  fromId:     number;
+  fromName:   string;
+  fromAvatar?: string;
+  callType:   'audio' | 'video';
+  roomName:   string;
+  sdpOffer:   string;
+  iceServers: RTCIceServer[];
+};
+
+export type CallAnswerData = {
+  roomName:   string;
+  sdpAnswer:  string;
+  acceptedBy: number;
+  iceServers: RTCIceServer[];
+};
+
+export type IceCandidateData = {
+  roomName:      string;
+  fromUserId:    number;
+  toUserId?:     number;
+  candidate:     RTCIceCandidateInit;
+  sdpMLineIndex?: number | null;
+  sdpMid?:        string | null;
+};
+
+export type GroupCallIncomingData = {
+  fromId:       number;
+  fromName:     string;
+  fromAvatar?:  string;
+  callType:     'audio' | 'video';
+  roomName:     string;
+  groupId:      number;
+  groupName:    string;
+  iceServers:   RTCIceServer[];
+};
+
+export type GroupCallOfferData = {
+  fromUserId: number;
+  sdpOffer:   string;
+  roomName:   string;
+};
+
+export type GroupCallAnswerData = {
+  fromUserId: number;
+  sdpAnswer:  string;
+  roomName:   string;
 };
 
 // ─── Socket factory ───────────────────────────────────────────────────────────
@@ -143,9 +210,25 @@ export function createChatSocket(token: string, handlers: SocketHandlers): Socke
   socket.on('ping_for_lastseen', (data: UserPresenceEvent) =>
     handlers.onUserOnline?.({ ...data, is_online: true }));
 
-  // ── WebRTC call signals ────────────────────────────────────────────────────
-
+  // ── WebRTC call signals (legacy) ──────────────────────────────────────────
   socket.on('call_signal', (payload: CallSignalPayload) => handlers.onCallSignal?.(payload));
+
+  // ── New call protocol ─────────────────────────────────────────────────────
+  socket.on('call:incoming',         (d: IncomingCallData)    => handlers.onCallIncoming?.(d));
+  socket.on('call:answer',           (d: CallAnswerData)      => handlers.onCallAnswer?.(d));
+  socket.on('call:ended',            (d: { roomName: string })=> handlers.onCallEnded?.(d));
+  socket.on('call:rejected',         (d: { roomName: string })=> handlers.onCallRejected?.(d));
+  socket.on('call:error',            (d: { message: string; status?: string }) => handlers.onCallError?.(d));
+  socket.on('ice:candidate',         (d: IceCandidateData)    => handlers.onIceCandidate?.(d));
+
+  // ── Group call events ─────────────────────────────────────────────────────
+  socket.on('group_call:incoming',          (d: GroupCallIncomingData)  => handlers.onGroupCallIncoming?.(d));
+  socket.on('group_call:offer',             (d: GroupCallOfferData)     => handlers.onGroupCallOffer?.(d));
+  socket.on('group_call:answer',            (d: GroupCallAnswerData)    => handlers.onGroupCallAnswer?.(d));
+  socket.on('group_call:ice_candidate',     (d: IceCandidateData)       => handlers.onGroupCallIceCandidate?.(d));
+  socket.on('group_call:participant_joined',(d: { userId: number; userName: string; roomName: string }) => handlers.onGroupCallParticipantJoined?.(d));
+  socket.on('group_call:participant_left',  (d: { userId: number; roomName: string }) => handlers.onGroupCallParticipantLeft?.(d));
+  socket.on('group_call:ended',             (d: { roomName: string })   => handlers.onGroupCallEnded?.(d));
 
   // ── Signal identity change (sender reinstalled / changed device) ───────────
   // Server emits this when a contact re-registers their Signal keys.
@@ -196,4 +279,66 @@ export function emitChatClose(socket: Socket | null, chatUserId: number): void {
 export function emitCallSignal(socket: Socket | null, payload: CallSignalPayload): void {
   if (!socket?.connected) return;
   socket.emit('call_signal', payload);
+}
+
+// ── New call protocol emitters ────────────────────────────────────────────────
+
+export function emitCallInitiate(socket: Socket | null, data: {
+  fromId: number; toId?: number; groupId?: number;
+  callType: 'audio' | 'video'; roomName: string; sdpOffer: string;
+}): void {
+  socket?.emit('call:initiate', data);
+}
+
+export function emitCallAccept(socket: Socket | null, data: {
+  roomName: string; userId: number; sdpAnswer: string;
+}): void {
+  socket?.emit('call:accept', data);
+}
+
+export function emitCallEnd(socket: Socket | null, roomName: string): void {
+  socket?.emit('call:end', { roomName });
+}
+
+export function emitCallReject(socket: Socket | null, roomName: string): void {
+  socket?.emit('call:reject', { roomName });
+}
+
+export function emitIceCandidate(socket: Socket | null, data: {
+  roomName: string; toUserId: number; fromUserId: number;
+  candidate: RTCIceCandidateInit;
+}): void {
+  socket?.emit('ice:candidate', data);
+}
+
+export function emitGroupCallJoin(socket: Socket | null, data: {
+  roomName: string; userId: number;
+}): void {
+  socket?.emit('group_call:join', data);
+}
+
+export function emitGroupCallOffer(socket: Socket | null, data: {
+  roomName: string; toUserId: number; sdpOffer: string;
+}): void {
+  socket?.emit('group_call:offer', data);
+}
+
+export function emitGroupCallAnswer(socket: Socket | null, data: {
+  roomName: string; toUserId: number; sdpAnswer: string;
+}): void {
+  socket?.emit('group_call:answer', data);
+}
+
+export function emitGroupCallIce(socket: Socket | null, data: {
+  roomName: string; toUserId: number; candidate: RTCIceCandidateInit;
+}): void {
+  socket?.emit('group_call:ice_candidate', data);
+}
+
+export function emitGroupCallLeave(socket: Socket | null, roomName: string, userId: number): void {
+  socket?.emit('group_call:leave', { roomName, userId });
+}
+
+export function emitGroupCallEnd(socket: Socket | null, roomName: string): void {
+  socket?.emit('group_call:end', { roomName });
 }
