@@ -47,7 +47,9 @@ data class Chat(
     @SerializedName("is_muted") val isMuted: Boolean = false,
     @SerializedName("pinned_message_id") val pinnedMessageId: Long? = null,
     @SerializedName("last_activity") val lastActivity: Long? = null,
-    @SerializedName("is_online") val isOnline: Boolean = false
+    @SerializedName("is_online") val isOnline: Boolean = false,
+    @SerializedName("is_bot") val isBot: Boolean = false,
+    @SerializedName("bot_description") val botDescription: String? = null
 )
 
 data class Message(

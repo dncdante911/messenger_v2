@@ -66,6 +66,15 @@ $array = array();
 if (!empty($messages)) {
     foreach ($messages as $value) {
         $value['chat_type'] = 'user';
+        $value['is_bot'] = false;
+        $value['bot_description'] = null;
+        // Detect bot chats: check if the other user is registered as a bot
+        $bot_check = $db->where('linked_user_id', $value['user_id'])->getOne('Wo_Bots', ['bot_id', 'description', 'status']);
+        if (!empty($bot_check)) {
+            $value['is_bot'] = true;
+            $value['chat_type'] = 'bot';
+            $value['bot_description'] = $bot_check['description'] ?? null;
+        }
         $value['mute'] = array('notify' => 'yes',
                                'call_chat' => 'yes',
                                'archive' => 'no',

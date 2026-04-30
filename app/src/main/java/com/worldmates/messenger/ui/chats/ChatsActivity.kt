@@ -340,6 +340,12 @@ class ChatsActivity : AppCompatActivity() {
             if (chat.chatType == "business") {
                 putExtra("is_business_chat", true)
             }
+            if (chat.isBot || chat.chatType == "bot") {
+                putExtra("is_bot", true)
+                if (!chat.botDescription.isNullOrEmpty()) {
+                    putExtra("bot_description", chat.botDescription)
+                }
+            }
         })
     }
 
