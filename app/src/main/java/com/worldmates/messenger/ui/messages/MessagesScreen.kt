@@ -182,13 +182,15 @@ fun MessagesScreen(
     val effectiveIsBotChat = isBotChat || hasMessagesWithBotId
 
     // Track whether the user has already started the bot (any messages loaded → yes).
-    // Local state: starts false, becomes true once messages load or START is pressed.
-    var botStarted by remember { mutableStateOf(false) }
+    // rememberSaveable persists across recompositions; becomes true once messages load or START pressed.
+    var botStarted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(messages, isLoading) {
         if (!isLoading && messages.isNotEmpty()) botStarted = true
     }
-    // Show the bottom START bar when: bot chat + not yet started + not in selection mode
-    val showBotStart = effectiveIsBotChat && !botStarted
+    // Show START bar only when: bot chat + not started + no messages + finished loading.
+    // The !isLoading && messages.isEmpty() guard prevents a flash for returning users
+    // whose messages are still loading when the screen first renders.
+    val showBotStart = effectiveIsBotChat && !botStarted && !isLoading && messages.isEmpty()
 
     // 📝 Draft state
     val currentDraft by viewModel.currentDraft.collectAsState()
