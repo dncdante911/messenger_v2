@@ -27,13 +27,16 @@ import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack,
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
-  createChatSocket, emitChatClose, emitChatOpen, emitCallSignal,
-  emitTyping, type CallSignalPayload
+  createChatSocket, emitChatClose, emitChatOpen,
+  emitCallInitiate, emitCallAccept, emitCallEnd, emitCallReject,
+  emitIceCandidate,
+  emitGroupCallJoin, emitGroupCallEnd,
+  emitTyping,
 } from './socket';
-import { createLocalVideoStream, createPeerConnection } from './webrtc';
+import { createLocalVideoStream, createLocalAudioStream, createPeerConnection } from './webrtc';
 import type {
   ActiveSection, CallHistoryItem, CallState, ChatItem, ChannelItem, GroupItem,
-  MessageItem, PrivacySettings, ReplyTarget, Session, StoryItem
+  GroupCallPeer, MessageItem, PrivacySettings, ReplyTarget, Session, StoryItem
 } from './types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -439,7 +442,26 @@ export default function App() {
 
   // ── Call ──────────────────────────────────────────────────────────────────
   const [callState, setCallState]   = useState<CallState>({ phase: 'idle' });
-  const peerRef                     = useRef<RTCPeerConnection | null>(null);
+  const [callMuted,  setCallMuted]  = useState(false);
+  const [callCamOff, setCallCamOff] = useState(false);
+  const peerRef         = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef  = useRef<MediaStream | null>(null);
+  const localVideoRef   = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef  = useRef<HTMLVideoElement | null>(null);
+  const callTimerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const callStateRef    = useRef<CallState>({ phase: 'idle' });
+  // Group call peers (mesh WebRTC — one PC per participant)
+  const groupPeersRef   = useRef<Map<number, GroupCallPeer>>(new Map());
+  const [groupPeers,  setGroupPeers]  = useState<GroupCallPeer[]>([]);
+
+  // ── PIN lock ──────────────────────────────────────────────────────────────
+  const [pinLocked,   setPinLocked]   = useState(false);
+  const [pinInput,    setPinInput]    = useState('');
+  const [pinError,    setPinError]    = useState('');
+  const [pinEnabled,  setPinEnabled]  = useState(false);
+  const [showSetPin,  setShowSetPin]  = useState(false);
+  const [newPin1,     setNewPin1]     = useState('');
+  const [newPin2,     setNewPin2]     = useState('');
 
   // ── Sidebar search ────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery]   = useState('');
@@ -573,7 +595,13 @@ export default function App() {
     if (!raw) return;
     try {
       const s = JSON.parse(raw) as Session;
-      if (s.token) setSession(s);
+      if (s.token) {
+        setSession(s);
+        // Restore PIN state
+        const pinOn = localStorage.getItem('wm_pin_enabled') === '1';
+        setPinEnabled(pinOn);
+        if (pinOn && localStorage.getItem('wm_pin_hash')) setPinLocked(true);
+      }
     } catch { localStorage.removeItem(SESSION_KEY); }
   }, []);
 
@@ -787,7 +815,102 @@ export default function App() {
         setMessages(prev => prev.map(m => m.id === e.msg_id ? { ...m, is_pinned: e.pinned } : m));
       },
 
-      onCallSignal: handleCallSignal,
+      // ── New call protocol ───────────────────────────────────────────────────
+      onCallIncoming: (data) => {
+        const caller: ChatItem = chatsRef.current.find(c => c.user_id === data.fromId)
+          ?? { user_id: data.fromId, name: data.fromName, avatar: data.fromAvatar };
+        setCallState({
+          phase: 'incoming', peer: caller, type: data.callType,
+          roomName: data.roomName, fromId: data.fromId,
+          iceServers: data.iceServers, sdpOffer: data.sdpOffer,
+        });
+        playNotificationBeep();
+      },
+
+      onCallAnswer: async (data) => {
+        const cs = callStateRef.current;
+        if (cs.phase !== 'outgoing' || !peerRef.current) return;
+        try {
+          await peerRef.current.setRemoteDescription(JSON.parse(data.sdpAnswer) as RTCSessionDescriptionInit);
+          setCallState({ phase: 'connected', peer: cs.peer, type: cs.type, roomName: cs.roomName, duration: 0 });
+          startCallTimer();
+        } catch (e) { console.error('[Call] setAnswer failed:', e); }
+      },
+
+      onCallEnded: () => {
+        stopCallEverything();
+        setCallState({ phase: 'idle' });
+      },
+
+      onCallRejected: () => {
+        stopCallEverything();
+        setCallState({ phase: 'idle' });
+      },
+
+      onIceCandidate: async (data) => {
+        const pc = peerRef.current ?? groupPeersRef.current.get(data.fromUserId)?.pc;
+        if (!pc) return;
+        try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch { /* ignore */ }
+      },
+
+      onGroupCallIncoming: (data) => {
+        setCallState({
+          phase: 'group_incoming',
+          groupId: data.groupId, groupName: data.groupName,
+          type: data.callType, roomName: data.roomName,
+          fromName: data.fromName, iceServers: data.iceServers,
+        });
+        playNotificationBeep();
+      },
+
+      onGroupCallOffer: async (data) => {
+        const cs = callStateRef.current;
+        if (cs.phase !== 'group_connected') return;
+        const { roomName } = cs;
+        const servers = TURN_FALLBACK;
+        const pc = await createPeerConnection(servers);
+        const existing = groupPeersRef.current.get(data.fromUserId);
+        if (existing) existing.pc.close();
+        const peer: GroupCallPeer = { userId: data.fromUserId, name: `User ${data.fromUserId}`, pc };
+        localStreamRef.current?.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current!));
+        pc.ontrack = (ev) => {
+          const gp = groupPeersRef.current.get(data.fromUserId);
+          if (gp) { gp.stream = ev.streams[0]; setGroupPeers([...groupPeersRef.current.values()]); }
+        };
+        pc.onicecandidate = ({ candidate }) => {
+          if (candidate) s.emit('group_call:ice_candidate', { roomName, toUserId: data.fromUserId, candidate: candidate.toJSON() });
+        };
+        await pc.setRemoteDescription(JSON.parse(data.sdpOffer) as RTCSessionDescriptionInit);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        s.emit('group_call:answer', { roomName, toUserId: data.fromUserId, sdpAnswer: JSON.stringify(answer) });
+        groupPeersRef.current.set(data.fromUserId, peer);
+        setGroupPeers([...groupPeersRef.current.values()]);
+      },
+
+      onGroupCallAnswer: async (data) => {
+        const peer = groupPeersRef.current.get(data.fromUserId);
+        if (peer) await peer.pc.setRemoteDescription(JSON.parse(data.sdpAnswer) as RTCSessionDescriptionInit).catch(console.error);
+      },
+
+      onGroupCallIceCandidate: async (data) => {
+        const peer = groupPeersRef.current.get(data.fromUserId);
+        if (peer) await peer.pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(console.error);
+      },
+
+      onGroupCallParticipantLeft: (data) => {
+        const peer = groupPeersRef.current.get(data.userId);
+        if (peer) { peer.pc.close(); groupPeersRef.current.delete(data.userId); }
+        setGroupPeers([...groupPeersRef.current.values()]);
+      },
+
+      onGroupCallEnded: () => {
+        groupPeersRef.current.forEach(p => p.pc.close());
+        groupPeersRef.current.clear();
+        setGroupPeers([]);
+        stopCallEverything();
+        setCallState({ phase: 'idle' });
+      },
 
       onIdentityChanged: (e) => {
         // Contact reinstalled their app — their old DR session is now invalid.
@@ -822,6 +945,7 @@ export default function App() {
   useEffect(() => { chatsRef.current = chats; }, [chats]);
   useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
   useEffect(() => { selectedChannelRef.current = selectedChannel; }, [selectedChannel]);
+  useEffect(() => { callStateRef.current = callState; }, [callState]);
 
   // ─── Badge count (tray + taskbar overlay) ───────────────────────────────
   useEffect(() => {
@@ -1668,77 +1792,208 @@ export default function App() {
     setNewStoryFile(null);
   }
 
-  // ─── WebRTC calls ─────────────────────────────────────────────────────────
+  // ─── WebRTC call helpers ───────────────────────────────────────────────────
+
+  function startCallTimer() {
+    if (callTimerRef.current) clearInterval(callTimerRef.current);
+    callTimerRef.current = setInterval(() => {
+      setCallState(prev => {
+        if (prev.phase === 'connected')       return { ...prev, duration: prev.duration + 1 };
+        if (prev.phase === 'group_connected') return { ...prev, duration: prev.duration + 1 };
+        return prev;
+      });
+    }, 1000);
+  }
+
+  function stopCallTimer() {
+    if (callTimerRef.current) { clearInterval(callTimerRef.current); callTimerRef.current = null; }
+  }
+
+  function stopLocalStream() {
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    localStreamRef.current = null;
+    if (localVideoRef.current)  localVideoRef.current.srcObject  = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+  }
+
+  function stopCallEverything() {
+    peerRef.current?.close();
+    peerRef.current = null;
+    stopLocalStream();
+    stopCallTimer();
+    setCallMuted(false);
+    setCallCamOff(false);
+  }
+
+  function formatCallDuration(secs: number): string {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  // ─── 1-on-1 calls ─────────────────────────────────────────────────────────
 
   async function startCall(type: 'audio' | 'video') {
     if (!session || !selectedChat) return;
-    const servers = await getIceServers(session.userId);
-    const peer    = await createPeerConnection(servers.length ? servers : TURN_FALLBACK);
-    peerRef.current = peer;
+    const roomName = `call_${session.userId}_${selectedChat.user_id}_${Date.now()}`;
+    const servers  = await getIceServers(session.userId).catch(() => TURN_FALLBACK);
+    const pc       = await createPeerConnection(servers.length ? servers : TURN_FALLBACK);
+    peerRef.current = pc;
 
-    if (type === 'video') {
-      try {
-        const stream = await createLocalVideoStream();
-        stream.getTracks().forEach(t => peer.addTrack(t, stream));
-      } catch { /* no camera */ }
-    }
+    try {
+      const stream = type === 'video' ? await createLocalVideoStream() : await createLocalAudioStream();
+      localStreamRef.current = stream;
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      if (localVideoRef.current && type === 'video') localVideoRef.current.srcObject = stream;
+    } catch { /* no mic/cam */ }
 
-    peer.onicecandidate = ({ candidate }) => {
-      if (candidate && socket) {
-        emitCallSignal(socket, { type: 'ice', to: selectedChat.user_id, from: session.userId, ice: candidate.toJSON() });
-      }
+    pc.ontrack = (ev) => {
+      if (remoteVideoRef.current && ev.streams[0]) remoteVideoRef.current.srcObject = ev.streams[0];
+    };
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate && socket)
+        emitIceCandidate(socket, { roomName, toUserId: selectedChat.user_id, fromUserId: session.userId, candidate: candidate.toJSON() });
     };
 
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
-    emitCallSignal(socket, { type: 'offer', to: selectedChat.user_id, from: session.userId, sdp: offer });
-
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    emitCallInitiate(socket, { fromId: session.userId, toId: selectedChat.user_id, callType: type, roomName, sdpOffer: JSON.stringify(offer) });
     await initiateCall(session.token, selectedChat.user_id, type).catch(console.error);
-    setCallState({ phase: 'outgoing', peer: selectedChat, type });
+    setCallState({ phase: 'outgoing', peer: selectedChat, type, roomName });
   }
 
-  async function handleCallSignal(payload: CallSignalPayload) {
-    if (!session) return;
+  async function acceptCall() {
+    const cs = callState;
+    if (cs.phase !== 'incoming') return;
+    const { peer, type, roomName, iceServers, sdpOffer } = cs;
+    const pc = await createPeerConnection(iceServers.length ? iceServers : TURN_FALLBACK);
+    peerRef.current = pc;
 
-    if (payload.type === 'offer') {
-      const peer    = await createPeerConnection(await getIceServers(session.userId));
-      peerRef.current = peer;
-      await peer.setRemoteDescription(payload.sdp!);
-      const answer = await peer.createAnswer();
-      await peer.setLocalDescription(answer);
-      emitCallSignal(socket, { type: 'answer', to: payload.from, from: session.userId, sdp: answer });
+    try {
+      const stream = type === 'video' ? await createLocalVideoStream() : await createLocalAudioStream();
+      localStreamRef.current = stream;
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      if (localVideoRef.current && type === 'video') localVideoRef.current.srcObject = stream;
+    } catch { /* no mic/cam */ }
 
-      const caller: ChatItem = chats.find(c => c.user_id === payload.from) ?? {
-        user_id: payload.from, name: `User ${payload.from}`
-      };
-      setCallState({ phase: 'incoming', peer: caller, type: 'video', offerSdp: JSON.stringify(payload.sdp) });
-    }
+    pc.ontrack = (ev) => {
+      if (remoteVideoRef.current && ev.streams[0]) remoteVideoRef.current.srcObject = ev.streams[0];
+    };
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate && socket)
+        emitIceCandidate(socket, { roomName, toUserId: peer.user_id, fromUserId: session!.userId, candidate: candidate.toJSON() });
+    };
 
-    if (payload.type === 'answer' && peerRef.current) {
-      await peerRef.current.setRemoteDescription(payload.sdp!);
-    }
+    await pc.setRemoteDescription(JSON.parse(sdpOffer) as RTCSessionDescriptionInit);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    emitCallAccept(socket, { roomName, userId: session!.userId, sdpAnswer: JSON.stringify(answer) });
+    setCallState({ phase: 'connected', peer, type, roomName, duration: 0 });
+    startCallTimer();
+  }
 
-    if (payload.type === 'ice' && peerRef.current && payload.ice) {
-      await peerRef.current.addIceCandidate(payload.ice).catch(console.error);
-    }
-
-    if (payload.type === 'end') {
-      peerRef.current?.close();
-      peerRef.current = null;
-      setCallState({ phase: 'idle' });
-    }
+  function rejectIncomingCall() {
+    const cs = callState;
+    if (cs.phase !== 'incoming') return;
+    emitCallReject(socket, cs.roomName);
+    stopCallEverything();
+    setCallState({ phase: 'idle' });
   }
 
   async function endActiveCall() {
-    if (!session) return;
-    const peer = callState.phase !== 'idle' ? (callState as { peer: ChatItem }).peer : null;
-    peerRef.current?.close();
-    peerRef.current = null;
-    setCallState({ phase: 'idle' });
-    if (peer) {
-      emitCallSignal(socket, { type: 'end', to: peer.user_id, from: session.userId });
-      await endCall(session.token, peer.user_id).catch(console.error);
+    const cs = callStateRef.current;
+    if (cs.phase === 'idle') return;
+    if (cs.phase === 'group_connected') {
+      emitGroupCallEnd(socket, cs.roomName);
+      groupPeersRef.current.forEach(p => p.pc.close());
+      groupPeersRef.current.clear();
+      setGroupPeers([]);
+    } else if (cs.phase === 'outgoing' || cs.phase === 'connected') {
+      emitCallEnd(socket, cs.roomName);
+      await endCall(session!.token, cs.peer.user_id).catch(console.error);
+    } else if (cs.phase === 'incoming') {
+      emitCallReject(socket, cs.roomName);
     }
+    stopCallEverything();
+    setCallState({ phase: 'idle' });
+  }
+
+  function handleMute() {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    const next = !callMuted;
+    stream.getAudioTracks().forEach(t => { t.enabled = !next; });
+    setCallMuted(next);
+  }
+
+  function handleCamToggle() {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    const next = !callCamOff;
+    stream.getVideoTracks().forEach(t => { t.enabled = !next; });
+    setCallCamOff(next);
+  }
+
+  // ─── Group calls ───────────────────────────────────────────────────────────
+
+  async function acceptGroupCall() {
+    const cs = callState;
+    if (cs.phase !== 'group_incoming') return;
+    const { groupId, groupName, type, roomName } = cs;
+
+    try {
+      const stream = type === 'video' ? await createLocalVideoStream() : await createLocalAudioStream();
+      localStreamRef.current = stream;
+      if (localVideoRef.current && type === 'video') localVideoRef.current.srcObject = stream;
+    } catch { /* no mic/cam */ }
+
+    emitGroupCallJoin(socket, { roomName, userId: session!.userId });
+    setCallState({ phase: 'group_connected', groupId, groupName, type, roomName, duration: 0 });
+    startCallTimer();
+  }
+
+  // ─── PIN lock ──────────────────────────────────────────────────────────────
+
+  async function hashPin(pin: string): Promise<string> {
+    const buf  = new TextEncoder().encode(pin);
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function checkPin(pin: string): Promise<boolean> {
+    const stored = localStorage.getItem('wm_pin_hash');
+    if (!stored) return false;
+    return (await hashPin(pin)) === stored;
+  }
+
+  async function enablePin(pin: string): Promise<boolean> {
+    if (pin.length < 4) return false;
+    localStorage.setItem('wm_pin_hash', await hashPin(pin));
+    localStorage.setItem('wm_pin_enabled', '1');
+    setPinEnabled(true);
+    return true;
+  }
+
+  function disablePin() {
+    localStorage.removeItem('wm_pin_hash');
+    localStorage.removeItem('wm_pin_enabled');
+    setPinEnabled(false);
+    setPinLocked(false);
+  }
+
+  async function handleUnlockPin() {
+    const ok = await checkPin(pinInput);
+    if (ok) { setPinLocked(false); setPinInput(''); setPinError(''); }
+    else    { setPinError(t('pin.wrong')); setPinInput(''); }
+  }
+
+  async function handleSetPin(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPin1.length < 4) { setPinError(t('pin.tooShort')); return; }
+    if (newPin1 !== newPin2) { setPinError(t('pin.mismatch')); return; }
+    await enablePin(newPin1);
+    setShowSetPin(false);
+    setNewPin1(''); setNewPin2(''); setPinError('');
   }
 
   // ─── Select chat (resets unread badge for that chat) ─────────────────────
@@ -1955,29 +2210,174 @@ export default function App() {
   return (
     <div className="layout">
 
+      {/* ── PIN lock overlay ─────────────────────────────────────────────── */}
+      {pinLocked && session && (
+        <div className="pin-overlay">
+          <div className="pin-overlay-logo">🔐</div>
+          <div className="pin-overlay-title">{t('pin.lock')}</div>
+          <div className="pin-overlay-sub">{t('pin.enter')}</div>
+          <div className="pin-dots">
+            {[0,1,2,3].map(i => (
+              <div key={i} className={`pin-dot ${pinInput.length > i ? 'filled' : ''}`} />
+            ))}
+          </div>
+          <input
+            className="pin-input-field"
+            type="password"
+            inputMode="numeric"
+            maxLength={8}
+            autoFocus
+            value={pinInput}
+            onChange={e => { setPinInput(e.target.value.replace(/\D/g, '')); setPinError(''); }}
+            onKeyDown={e => { if (e.key === 'Enter') handleUnlockPin(); }}
+            placeholder="····"
+          />
+          {pinError && <div className="pin-error">{pinError}</div>}
+          <button className="btn-primary" onClick={handleUnlockPin}>{t('pin.unlock')}</button>
+        </div>
+      )}
+
       {/* ── Call overlay ─────────────────────────────────────────────────── */}
       {callState.phase !== 'idle' && (
         <div className="call-overlay">
-          <div className="call-card">
-            <Avatar name={(callState as { peer: ChatItem }).peer.name} size={72} />
-            <h2>{(callState as { peer: ChatItem }).peer.name}</h2>
-            <p className="call-status">
-              {callState.phase === 'outgoing' ? t('call.calling') :
-               callState.phase === 'incoming' ? t('call.incoming') : t('call.connected')}
-            </p>
-            <div className="call-actions">
-              {callState.phase === 'incoming' && (
-                <button className="call-btn accept" onClick={() => {
-                  setCallState(prev => ({ ...prev, phase: 'connected', duration: 0 } as CallState));
-                }}>
-                  {t('call.accept')}
-                </button>
+
+          {/* Incoming 1-on-1 */}
+          {callState.phase === 'incoming' && (
+            <>
+              <div className="call-incoming-card">
+                <Avatar name={callState.peer.name} src={callState.peer.avatar} size={88} />
+                <h2>{callState.peer.name}</h2>
+                <div className="call-incoming-type">
+                  {callState.type === 'video' ? t('call.videoCall') : t('call.voiceCall')}
+                </div>
+                <div className="call-incoming-actions">
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+                    <button className="call-btn-round decline" onClick={rejectIncomingCall}>✕</button>
+                    <span className="call-btn-round-label">{t('call.decline')}</span>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+                    <button className="call-btn-round accept" onClick={acceptCall}>✓</button>
+                    <span className="call-btn-round-label">{t('call.accept')}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Outgoing 1-on-1 */}
+          {callState.phase === 'outgoing' && (
+            <>
+              <div className="call-audio-card">
+                <Avatar name={callState.peer.name} src={callState.peer.avatar} size={88} />
+                <h2>{callState.peer.name}</h2>
+                <p className="call-status">{t('call.calling')}</p>
+              </div>
+              <div className="call-controls-bar">
+                <button className="call-ctrl-btn end-btn" onClick={endActiveCall}>📵</button>
+              </div>
+            </>
+          )}
+
+          {/* Connected 1-on-1 */}
+          {callState.phase === 'connected' && (
+            <>
+              {callState.type === 'video' ? (
+                <div className="call-video-wrap">
+                  <video ref={remoteVideoRef} className="call-remote-video" autoPlay playsInline />
+                  <video ref={localVideoRef}  className="call-local-video"  autoPlay playsInline muted />
+                  <div style={{position:'absolute',top:16,left:16,display:'flex',flexDirection:'column',gap:4}}>
+                    <span style={{color:'#fff',fontWeight:600,fontSize:16,textShadow:'0 1px 4px rgba(0,0,0,.8)'}}>{callState.peer.name}</span>
+                    <span style={{color:'rgba(255,255,255,.7)',fontSize:13}}>{formatCallDuration(callState.duration)}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="call-audio-card">
+                  <Avatar name={callState.peer.name} src={callState.peer.avatar} size={88} />
+                  <h2>{callState.peer.name}</h2>
+                  <p className="call-duration">{formatCallDuration(callState.duration)}</p>
+                </div>
               )}
-              <button className="call-btn decline" onClick={endActiveCall}>
-                {callState.phase === 'incoming' ? t('call.decline') : t('call.end')}
-              </button>
-            </div>
-          </div>
+              <div className="call-controls-bar">
+                <button className={`call-ctrl-btn ${callMuted ? 'active' : ''}`} onClick={handleMute}>
+                  {callMuted ? '🔇' : '🎙'}
+                </button>
+                {callState.type === 'video' && (
+                  <button className={`call-ctrl-btn ${callCamOff ? 'active' : ''}`} onClick={handleCamToggle}>
+                    {callCamOff ? '📷' : '📹'}
+                  </button>
+                )}
+                <button className="call-ctrl-btn end-btn" onClick={endActiveCall}>📵</button>
+              </div>
+            </>
+          )}
+
+          {/* Incoming group call */}
+          {callState.phase === 'group_incoming' && (
+            <>
+              <div className="call-incoming-card">
+                <div style={{fontSize:56}}>👥</div>
+                <h2>{callState.groupName}</h2>
+                <div className="call-incoming-type">
+                  {t('call.groupIncoming')} · {callState.fromName}
+                </div>
+                <div className="call-incoming-actions">
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+                    <button className="call-btn-round decline" onClick={endActiveCall}>✕</button>
+                    <span className="call-btn-round-label">{t('call.decline')}</span>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+                    <button className="call-btn-round accept" onClick={acceptGroupCall}>✓</button>
+                    <span className="call-btn-round-label">{t('call.accept')}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Connected group call */}
+          {callState.phase === 'group_connected' && (
+            <>
+              {groupPeers.length > 0 ? (
+                <div className="group-call-grid">
+                  {/* local tile */}
+                  <div className="group-call-peer">
+                    {callState.type === 'video'
+                      ? <video ref={localVideoRef} autoPlay playsInline muted style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                      : <div style={{fontSize:40}}>🎙</div>
+                    }
+                    <span className="group-call-peer-label">You</span>
+                  </div>
+                  {groupPeers.map(p => (
+                    <div key={p.userId} className="group-call-peer">
+                      {p.stream
+                        ? <video autoPlay playsInline ref={el => { if (el && p.stream) el.srcObject = p.stream; }} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                        : <div style={{fontSize:40}}>🎙</div>
+                      }
+                      <span className="group-call-peer-label">{p.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="call-audio-card">
+                  <div style={{fontSize:56}}>👥</div>
+                  <h2>{callState.groupName}</h2>
+                  <p className="call-status">{t('call.connected')}</p>
+                  <p className="call-duration">{formatCallDuration(callState.duration)}</p>
+                </div>
+              )}
+              <div className="call-controls-bar">
+                <button className={`call-ctrl-btn ${callMuted ? 'active' : ''}`} onClick={handleMute}>
+                  {callMuted ? '🔇' : '🎙'}
+                </button>
+                {callState.type === 'video' && (
+                  <button className={`call-ctrl-btn ${callCamOff ? 'active' : ''}`} onClick={handleCamToggle}>
+                    {callCamOff ? '📷' : '📹'}
+                  </button>
+                )}
+                <button className="call-ctrl-btn end-btn" onClick={endActiveCall}>📵</button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -2684,6 +3084,68 @@ export default function App() {
               {settingsTab === 'security' && (
                 <>
                   <h2 className="settings-content-title">{t('settings.security')}</h2>
+
+                  {/* ── PIN lock ──────────────────────────────────────────── */}
+                  <div className="settings-pin-card">
+                    <div className="settings-pin-row">
+                      <div>
+                        <div style={{fontSize:15,fontWeight:600,marginBottom:4}}>{t('settings.pinLock')}</div>
+                        <div className="settings-pin-hint">{t('settings.pinHint')}</div>
+                      </div>
+                      <span className={`settings-pin-status ${pinEnabled ? 'on' : 'off'}`}>
+                        {pinEnabled ? t('settings.pinEnabled') : t('settings.pinDisabled')}
+                      </span>
+                    </div>
+                    {pinError && <div className="pin-error" style={{marginBottom:8}}>{pinError}</div>}
+                    {!showSetPin ? (
+                      <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+                        {!pinEnabled && (
+                          <button className="btn-primary" onClick={() => { setShowSetPin(true); setPinError(''); setNewPin1(''); setNewPin2(''); }}>
+                            {t('settings.setPinCode')}
+                          </button>
+                        )}
+                        {pinEnabled && (
+                          <>
+                            <button className="btn-secondary" onClick={() => { setShowSetPin(true); setPinError(''); setNewPin1(''); setNewPin2(''); }}>
+                              {t('settings.changePinCode')}
+                            </button>
+                            <button className="btn-danger" onClick={disablePin}>
+                              {t('settings.disablePinCode')}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <form className="settings-pin-form" onSubmit={handleSetPin}>
+                        <input
+                          className="settings-pin-input"
+                          type="password"
+                          inputMode="numeric"
+                          maxLength={8}
+                          placeholder={t('pin.newPin')}
+                          value={newPin1}
+                          onChange={e => { setNewPin1(e.target.value.replace(/\D/g,'')); setPinError(''); }}
+                        />
+                        <input
+                          className="settings-pin-input"
+                          type="password"
+                          inputMode="numeric"
+                          maxLength={8}
+                          placeholder={t('pin.confirmPin')}
+                          value={newPin2}
+                          onChange={e => { setNewPin2(e.target.value.replace(/\D/g,'')); setPinError(''); }}
+                        />
+                        <div style={{display:'flex',gap:10}}>
+                          <button type="submit" className="btn-primary">{t('settings.saveProfile')}</button>
+                          <button type="button" className="btn-secondary" onClick={() => { setShowSetPin(false); setPinError(''); }}>
+                            {t('call.decline').replace('✕ ','')}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+
+                  {/* ── E2EE ─────────────────────────────────────────────── */}
                   <div className="settings-security-card">
                     <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>
                       <span style={{fontSize:14}}>{t('settings.e2ee')}</span>
@@ -3188,7 +3650,7 @@ export default function App() {
             )}
 
             {/* ── Composer ──────────────────────────────────────────────── */}
-            <div className="composer" style={{position:'relative'}}>
+            <div className="composer">
               {/* ── Sticker / GIF picker popup ─────────────────────────── */}
               {showPicker && (
                 <div className="sticker-gif-picker">
