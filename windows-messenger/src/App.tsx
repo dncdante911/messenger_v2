@@ -8,7 +8,7 @@ import {
   loadChannelComments, addChannelComment, deleteChannelComment, reactToChannelComment,
   createGroup, createStory, joinGroup, subscribeChannel, searchGroups,
   createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
-  getIceServers, initiateCall, endCall, loadChannels, loadChats, loadArchivedChats,
+  initiateCall, endCall, loadChannels, loadChats, loadArchivedChats,
   loadGroups, loadGroupMessages, loadMoreGroupMessages, loadMessages, loadMoreMessages, loadStories,
   login, loginByPhone, markGroupSeen, markSeen, markStorySeen,
   muteChat, normaliseMessage, pinChat, pinMessage,
@@ -871,7 +871,7 @@ export default function App() {
         const cs = callStateRef.current;
         if (cs.phase !== 'group_connected') return;
         const { roomName } = cs;
-        const servers = TURN_FALLBACK;
+        const servers = data.iceServers?.length ? data.iceServers : TURN_FALLBACK;
         const pc = await createPeerConnection(servers);
         const existing = groupPeersRef.current.get(data.fromUserId);
         if (existing) existing.pc.close();
@@ -1844,10 +1844,22 @@ export default function App() {
     return { type, sdp: raw };
   }
 
+  function requestIceServersViaSocket(userId: number): Promise<RTCIceServer[]> {
+    return new Promise<RTCIceServer[]>((resolve) => {
+      if (!socket?.connected) { resolve(TURN_FALLBACK); return; }
+      const timer = setTimeout(() => resolve(TURN_FALLBACK), 3000);
+      socket.emit('ice:request', { userId }, (resp: { success: boolean; iceServers: RTCIceServer[] }) => {
+        clearTimeout(timer);
+        const servers = resp?.iceServers;
+        resolve(Array.isArray(servers) && servers.length > 0 ? servers : TURN_FALLBACK);
+      });
+    });
+  }
+
   async function startCall(type: 'audio' | 'video') {
     if (!session || !selectedChat) return;
     const roomName = `call_${session.userId}_${selectedChat.user_id}_${Date.now()}`;
-    const servers  = await getIceServers(session.token, session.userId).catch(() => TURN_FALLBACK);
+    const servers  = await requestIceServersViaSocket(session.userId);
     const pc       = await createPeerConnection(servers);
     peerRef.current = pc;
 
