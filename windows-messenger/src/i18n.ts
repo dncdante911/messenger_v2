@@ -200,6 +200,11 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.messagePrivacy':  'Кто может писать мне',
     'settings.followPrivacy':   'Кто может подписаться',
     'settings.confirmFollowers':'Подтверждать подписчиков',
+    'settings.friendPrivacy':   'Запросы дружбы',
+    'settings.postPrivacy':     'Видимость постов',
+    'settings.showActivities':  'Статус активности',
+    'settings.birthPrivacy':    'Дата рождения',
+    'settings.visitPrivacy':    'История посещений профиля',
     'settings.everyone':        'Все',
     'settings.following':       'Те, на кого я подписан',
     'settings.nobody':          'Никто',
@@ -208,11 +213,13 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.hide':            'Скрывать',
     'settings.yes':             'Да',
     'settings.no':              'Нет',
+    'settings.loadingDots':     'Загрузка…',
 
     // Sticker / GIF picker
     'chat.stickerPicker': 'Стикеры',
     'chat.gifPicker':     'GIF',
     'chat.stickers':      'Стикеры',
+    'chat.gifTrending':   'Популярные GIF',
     'chat.searchGif':     'Поиск GIF…',
     'chat.noStickers':    'Нет стикеров',
     'chat.emoji':         'Эмодзи',
@@ -400,6 +407,11 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.messagePrivacy':  'Хто може писати мені',
     'settings.followPrivacy':   'Хто може підписатися',
     'settings.confirmFollowers':'Підтверджувати підписників',
+    'settings.friendPrivacy':   'Запити дружби',
+    'settings.postPrivacy':     'Видимість постів',
+    'settings.showActivities':  'Статус активності',
+    'settings.birthPrivacy':    'Дата народження',
+    'settings.visitPrivacy':    'Історія відвідувань профілю',
     'settings.everyone':        'Всі',
     'settings.following':       'На кого я підписаний',
     'settings.nobody':          'Ніхто',
@@ -408,12 +420,14 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.hide':            'Приховувати',
     'settings.yes':             'Так',
     'settings.no':              'Ні',
+    'settings.loadingDots':     'Завантаження…',
 
     // Sticker / GIF picker
     'chat.stickerPicker': 'Стікери',
     'chat.gifPicker':     'GIF',
     'chat.stickers':      'Стікери',
     'chat.searchGif':     'Пошук GIF…',
+    'chat.gifTrending':   'Популярні GIF',
     'chat.noStickers':    'Немає стікерів',
     'chat.emoji':         'Емодзі',
 
@@ -599,6 +613,11 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.messagePrivacy':  'Who can message me',
     'settings.followPrivacy':   'Who can follow me',
     'settings.confirmFollowers':'Approve followers',
+    'settings.friendPrivacy':   'Friend requests',
+    'settings.postPrivacy':     'Post visibility',
+    'settings.showActivities':  'Activity status',
+    'settings.birthPrivacy':    'Birthday',
+    'settings.visitPrivacy':    'Profile visit history',
     'settings.everyone':        'Everyone',
     'settings.following':       'People I follow',
     'settings.nobody':          'Nobody',
@@ -607,6 +626,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.hide':            'Hide',
     'settings.yes':             'Yes',
     'settings.no':              'No',
+    'settings.loadingDots':     'Loading…',
 
     // Sticker / GIF picker
     'chat.stickerPicker': 'Stickers',
@@ -614,6 +634,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'chat.stickers':      'Stickers',
     'chat.searchGif':     'Search GIF…',
     'chat.noStickers':    'No stickers',
+    'chat.gifTrending':   'Trending GIFs',
     'chat.emoji':         'Emoji',
 
     // Bot search

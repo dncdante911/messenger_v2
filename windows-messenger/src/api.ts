@@ -1083,6 +1083,8 @@ export async function searchBots(query: string, limit = 20): Promise<BotItem[]> 
 export async function getBotLinkedUser(token: string, botIdStr: string): Promise<number> {
   try {
     const resp = await nodeGet<Record<string, unknown>>(`/api/node/bots/${encodeURIComponent(botIdStr)}`, token);
-    return Number(resp.linked_user_id ?? resp.user_id ?? 0);
+    // Server wraps bot data under resp.bot
+    const bot = (resp.bot as Record<string, unknown> | undefined) ?? resp;
+    return Number(bot.linked_user_id ?? bot.user_id ?? resp.linked_user_id ?? 0);
   } catch { return 0; }
 }
