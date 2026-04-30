@@ -867,6 +867,7 @@
     <string name="bot_stat_category">Категорія</string>
     <string name="bot_start_chat">Почати чат</string>
     <string name="bot_description_label">Опис</string>
+    <string name="bot_about_label">Про бота</string>
     <string name="bot_commands_count">Команди (%d)</string>
     <!-- Bot categories -->
     <string name="bot_category_general">Загальне</string>

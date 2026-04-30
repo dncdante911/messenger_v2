@@ -932,7 +932,8 @@ async function handleHelp(ctx, io, userId) {
         `/forget — забыть ответ\n` +
         `/ask — задать вопрос\n` +
         `/messenger — справка по мессенджеру\n\n` +
-        `📖 */guide — гид по WallyMates* (что где найти)\n\n` +
+        `📖 */guide — гид по WallyMates* (что где найти)\n` +
+        `📱 */about — описание приложения* и навигация\n\n` +
         `📊 /stats — статистика ботов\n` +
         `/checkbot — диагностика бота (@username или выбор из списка)\n` +
         `/rss — управление RSS-лентами\n\n` +
@@ -1413,6 +1414,53 @@ async function handleGuideSectionUk(ctx, io, userId, sectionKey) {
     ], 2);
 
     await sendToUser(ctx, io, userId, text, kb);
+}
+
+// ─── /about — описание приложения WallyMates и навигация ─────────────────────
+
+async function handleAbout(ctx, io, userId) {
+    clearState(userId);
+    const text =
+        `📱 *WallyMates — мессенджер нового поколения*\n\n` +
+        `WallyMates — это защищённый мессенджер с богатым функционалом:\n` +
+        `сквозное шифрование, боты, группы, каналы, звонки, сторис и мини-приложения.\n\n` +
+
+        `*📌 Где что находится:*\n\n` +
+
+        `💬 *Чаты* (вкладка 1)\n` +
+        `   Личные переписки, боты, сохранённые сообщения.\n` +
+        `   Иконка 🤖 — Bot Store (найти/запустить бота)\n\n` +
+
+        `👥 *Группы* (вкладка 2)\n` +
+        `   Групповые чаты и публичные каналы.\n` +
+        `   Кнопка ✏️ — создать группу или канал\n\n` +
+
+        `📞 *Звонки* (вкладка 3)\n` +
+        `   Аудио и видео звонки, история вызовов.\n` +
+        `   Поддержка групповых звонков\n\n` +
+
+        `📖 *Истории* (вкладка 4)\n` +
+        `   Сторис контактов, создай свою через кнопку +\n\n` +
+
+        `⚙️ *Настройки* (вкладка 5)\n` +
+        `   Профиль, темы, язык, конфиденциальность,\n` +
+        `   уведомления, безопасность, WorldMates PRO\n\n` +
+
+        `*🔧 Быстрые действия:*\n` +
+        `🔍 Поиск — иконка лупы в Чатах\n` +
+        `✏️ Новый чат/группа — иконка карандаша\n` +
+        `📎 Отправить файл/фото — в поле ввода\n` +
+        `🎤 Голосовое — удержи иконку микрофона\n\n` +
+
+        `Отправь /guide для подробного интерактивного гида по разделам.`;
+
+    await sendToUser(ctx, io, userId, text, inlineKeyboard([
+        btn('📖 Интерактивный гид', 'cmd_guide'),
+        btn('💬 Чаты и сообщения',  'guide_section_chats'),
+        btn('🤖 Боты',              'guide_section_bots'),
+        btn('⚙️ Настройки',        'guide_section_settings'),
+        btn('🏠 Главное меню',      'cmd_start')
+    ], 2));
 }
 
 async function handleCancel(ctx, io, userId) {
@@ -2357,6 +2405,7 @@ async function handleCallback(ctx, io, userId, callbackData, callbackId) {
     if (callbackData === 'cmd_ask')       return handleAsk(ctx, io, userId);
     if (callbackData === 'cmd_messenger_guide') return handleMessengerGuide(ctx, io, userId);
     if (callbackData === 'cmd_guide')     return handleGuide(ctx, io, userId);
+    if (callbackData === 'cmd_about')     return handleAbout(ctx, io, userId);
     if (callbackData.startsWith('guide_section_')) {
         const sectionKey = callbackData.replace('guide_section_', '');
         return handleGuideSection(ctx, io, userId, sectionKey);
@@ -2800,6 +2849,7 @@ async function handleMessage(ctx, io, data) {
             ask:         () => handleAsk(ctx, io, userId),
             messenger:   () => handleMessengerGuide(ctx, io, userId),
             guide:       () => handleGuide(ctx, io, userId),
+            about:       () => handleAbout(ctx, io, userId),
             cancel:      () => handleCancel(ctx, io, userId),
             stats:       () => {
                 // /stats @botname — per-bot stats; /stats — global
@@ -2903,7 +2953,7 @@ async function initializeWallyBot(ctx, io) {
                 password:        crypto.randomBytes(20).toString('hex'),
                 first_name:      'WallyBot',
                 last_name:       '',
-                about:           'Официальный бот-менеджер WorldMates. Создавай своих ботов прямо в чате!',
+                about:           'Офіційний помічник WallyMates. /guide — гід, /about — опис додатку, /newbot — створити бота.',
                 type:            'bot',
                 active:          '1',
                 verified:        '0',
@@ -2928,8 +2978,8 @@ async function initializeWallyBot(ctx, io) {
                 bot_token:       token,
                 username:        'wallybot',
                 display_name:    'WallyBot',
-                description:     'Официальный бот-менеджер WorldMates. Создавайте своих ботов прямо в чате!',
-                about:           'Помогает создавать и управлять ботами WorldMates. Также обучаем — пишите /learn!',
+                description:     'Официальный помощник WallyMates. Создавай ботов, получай гид по приложению (/guide), задавай вопросы (/ask).',
+                about:           'WallyBot — встроенный помощник мессенджера WallyMates.\n\n/guide — интерактивный гид по приложению\n/about — описание WallyMates и навигация\n/newbot — создать своего бота\n/ask — задать вопрос\n/messenger — справка по функциям',
                 category:        'system',
                 bot_type:        'system',
                 status:          'active',
@@ -2976,8 +3026,9 @@ async function initializeWallyBot(ctx, io) {
             { command: 'forget',      description: 'Удалить ответ из базы знаний',                 sort_order: 18 },
             { command: 'ask',         description: 'Задать вопрос WallyBot',                       sort_order: 19 },
             { command: 'messenger',   description: 'Справка по функциям мессенджера',              sort_order: 20 },
-            { command: 'checkbot',    description: 'Диагностика бота (@username)',                 sort_order: 21 },
-            { command: 'rss',         description: 'Управление RSS-лентами бота',                  sort_order: 22 }
+            { command: 'about',       description: 'Описание WallyMates — что где найти',           sort_order: 21 },
+            { command: 'checkbot',    description: 'Диагностика бота (@username)',                  sort_order: 22 },
+            { command: 'rss',         description: 'Управление RSS-лентами бота',                   sort_order: 23 }
         ];
 
         for (const cmd of extraCommands) {
