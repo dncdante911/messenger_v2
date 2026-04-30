@@ -106,9 +106,10 @@ export type GroupCallIncomingData = {
 };
 
 export type GroupCallOfferData = {
-  fromUserId: number;
-  sdpOffer:   string;
-  roomName:   string;
+  fromUserId:  number;
+  sdpOffer:    string;
+  roomName:    string;
+  iceServers?: RTCIceServer[];
 };
 
 export type GroupCallAnswerData = {

@@ -533,7 +533,7 @@ export async function searchGroups(token: string, query: string): Promise<Generi
 }
 
 export async function searchChannels(token: string, query: string): Promise<GenericListResponse<ChannelItem>> {
-  const resp = await nodePost<Record<string, unknown>>('/api/node/channel/list', token, { limit: 50, offset: 0, query });
+  const resp = await nodePost<Record<string, unknown>>('/api/node/channel/list', token, { type: 'search', query, limit: 50, offset: 0 });
   const raw  = (resp.channels ?? resp.data ?? []) as Record<string, unknown>[];
   const data: ChannelItem[] = Array.isArray(raw) ? raw.map(c => ({
     id:                Number(c.id ?? c.channel_id),
