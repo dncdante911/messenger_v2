@@ -645,6 +645,23 @@ fun BotDetailScreen(
                     }
                 }
 
+                // About (extended description — shown when bot has an about field)
+                if (!bot.about.isNullOrBlank() && bot.about != bot.description) {
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    stringResource(R.string.bot_about_label),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(bot.about, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
+
                 // Commands
                 if (state.commands.isNotEmpty()) {
                     item {
