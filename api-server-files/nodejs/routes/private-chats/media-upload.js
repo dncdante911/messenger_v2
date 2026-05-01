@@ -30,17 +30,18 @@
  *                                       compression_pending=true in response.
  *                                       Socket.IO emits 'media_compressed' when done.
  *
- * File size limits:
- *   Images : 25 MB
- *   Videos : 1 GB   (Android pre-compresses, so this is the post-compression ceiling)
- *   Audio  : 100 MB
- *   Files  : 10 GB  (allows full movie uploads)
+ * File size limits (subscription-aware):
+ *   Free  – Images: 25 MB | Videos: 1 GB | Audio: 100 MB | Files: 1 GB
+ *   Pro   – Images: 25 MB | Videos: 4 GB | Audio: 100 MB | Files: 4 GB
+ *             + 10 large files (>1 GB) per calendar month
+ *             Pro-uploaded large files persist on disk even after subscription expires.
  */
 
 const path   = require('path');
 const fs     = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
+const { QueryTypes } = require('sequelize');
 
 const {
     DECISION,
@@ -57,13 +58,29 @@ const {
 
 const SITE_ROOT = path.resolve(__dirname, '..', '..', '..');
 
-const LIMITS = {
-    image: 25   * 1024 * 1024,          //  25 MB
-    video: 1024 * 1024 * 1024,          //   1 GB (Android pre-compresses)
-    audio: 100  * 1024 * 1024,          // 100 MB
-    voice: 100  * 1024 * 1024,          // 100 MB
-    file:  10   * 1024 * 1024 * 1024,   //  10 GB (full movies)
+// File size limits per subscription tier
+const FREE_LIMITS = {
+    image: 25  * 1024 * 1024,          //  25 MB
+    video: 1   * 1024 * 1024 * 1024,   //   1 GB
+    audio: 100 * 1024 * 1024,          // 100 MB
+    voice: 100 * 1024 * 1024,          // 100 MB
+    file:  1   * 1024 * 1024 * 1024,   //   1 GB
 };
+
+const PRO_LIMITS = {
+    image: 25  * 1024 * 1024,          //  25 MB  (same)
+    video: 4   * 1024 * 1024 * 1024,   //   4 GB
+    audio: 100 * 1024 * 1024,          // 100 MB  (same)
+    voice: 100 * 1024 * 1024,          // 100 MB  (same)
+    file:  4   * 1024 * 1024 * 1024,   //   4 GB
+};
+
+// Alias used for multer's hard cap (the highest possible limit across all tiers)
+const LIMITS = PRO_LIMITS;
+
+// Files above this threshold count against the pro monthly quota (10 per month)
+const PRO_LARGE_FILE_THRESHOLD = 1 * 1024 * 1024 * 1024; // 1 GB
+const PRO_MONTHLY_LARGE_FILE_LIMIT = 10;
 
 const UPLOAD_DIRS = {
     image: 'upload/photos',
@@ -206,6 +223,53 @@ function scheduleBackgroundCompression(absPath, url, userId, io) {
     });
 }
 
+// ─── Subscription helpers ─────────────────────────────────────────────────────
+
+async function getUserSubscription(ctx, userId) {
+    if (!userId) return { isPro: false };
+    try {
+        const rows = await ctx.sequelize.query(
+            'SELECT is_pro, pro_time FROM wo_users WHERE user_id = ? LIMIT 1',
+            { replacements: [userId], type: QueryTypes.SELECT }
+        );
+        const user = rows[0];
+        if (!user) return { isPro: false };
+        const now = Math.floor(Date.now() / 1000);
+        const isPro = parseInt(user.is_pro) === 1 && user.pro_time > now;
+        return { isPro };
+    } catch (e) {
+        console.warn('[ChatUpload] subscription check failed:', e.message);
+        return { isPro: false };
+    }
+}
+
+// Returns current large-file count for user in YYYY-MM. Returns -1 on DB error.
+async function getLargeFileCount(ctx, userId, yearMonth) {
+    try {
+        const rows = await ctx.sequelize.query(
+            'SELECT large_file_count FROM wo_upload_quota WHERE user_id = ? AND year_month = ?',
+            { replacements: [userId, yearMonth], type: QueryTypes.SELECT }
+        );
+        return rows[0] ? (rows[0].large_file_count || 0) : 0;
+    } catch (e) {
+        console.warn('[ChatUpload] quota read failed:', e.message);
+        return -1;
+    }
+}
+
+async function incrementLargeFileCount(ctx, userId, yearMonth) {
+    try {
+        await ctx.sequelize.query(
+            `INSERT INTO wo_upload_quota (user_id, year_month, large_file_count)
+             VALUES (?, ?, 1)
+             ON DUPLICATE KEY UPDATE large_file_count = large_file_count + 1`,
+            { replacements: [userId, yearMonth], type: QueryTypes.INSERT }
+        );
+    } catch (e) {
+        console.warn('[ChatUpload] quota increment failed:', e.message);
+    }
+}
+
 // ─── POST /api/node/chat/upload ────────────────────────────────────────────────
 
 function uploadChatMedia(ctx, io) {
@@ -227,14 +291,44 @@ function uploadChatMedia(ctx, io) {
             const tmpPath      = uploadedFile.path; // disk path from multer
 
             try {
-                let mediaType = (req.body.type || uploadedFile.fieldname || 'file').toLowerCase();
-                if (!LIMITS[mediaType]) mediaType = 'file';
+                const userId   = req.user?.user_id || 0;
+                const chatType = (req.body.chat_type  || 'private').toLowerCase();
+                const entityId = parseInt(req.body.entity_id || '0', 10);
 
-                if (uploadedFile.size > LIMITS[mediaType]) {
+                let mediaType = (req.body.type || uploadedFile.fieldname || 'file').toLowerCase();
+                if (!FREE_LIMITS[mediaType]) mediaType = 'file';
+
+                // ── Subscription-aware size limits ──────────────────────────────
+                const { isPro } = await getUserSubscription(ctx, userId);
+                const limits    = isPro ? PRO_LIMITS : FREE_LIMITS;
+
+                if (uploadedFile.size > limits[mediaType]) {
                     cleanupTemp(tmpPath);
-                    const limitMb = Math.round(LIMITS[mediaType] / 1024 / 1024);
-                    return res.json({ status: 400, error: `File too large. Max ${limitMb} MB for type "${mediaType}"` });
+                    const limitGb = (limits[mediaType] / 1024 / 1024 / 1024).toFixed(0);
+                    const limitMb = Math.round(limits[mediaType] / 1024 / 1024);
+                    const limitStr = limits[mediaType] >= 1024 * 1024 * 1024 ? `${limitGb} GB` : `${limitMb} MB`;
+                    const hint = !isPro && uploadedFile.size <= PRO_LIMITS[mediaType]
+                        ? ' Upgrade to Pro to upload larger files.'
+                        : '';
+                    return res.json({ status: 400, error: `File too large. Max ${limitStr} for type "${mediaType}".${hint}` });
                 }
+
+                // ── Pro monthly large-file quota ─────────────────────────────────
+                const isLargeFile = uploadedFile.size > PRO_LARGE_FILE_THRESHOLD;
+                let yearMonth = null;
+                if (isPro && isLargeFile) {
+                    const now = new Date();
+                    yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                    const usedCount = await getLargeFileCount(ctx, userId, yearMonth);
+                    if (usedCount >= PRO_MONTHLY_LARGE_FILE_LIMIT) {
+                        cleanupTemp(tmpPath);
+                        return res.json({
+                            status: 429,
+                            error:  `Monthly large-file limit reached (${PRO_MONTHLY_LARGE_FILE_LIMIT} files >1 GB per month).`
+                        });
+                    }
+                }
+                // ── End size / quota checks ─────────────────────────────────────
 
                 // ── Magic bytes check (reads 16 bytes from disk, no RAM buffer) ──
                 const magicCheck = checkMagicBytesFromDisk(tmpPath);
@@ -246,9 +340,6 @@ function uploadChatMedia(ctx, io) {
 
                 // ── Content Moderation ──────────────────────────────────────────
                 // Stream-based SHA-256 for videos/files; full buffer only for images (≤25 MB)
-                const chatType = (req.body.chat_type  || 'private').toLowerCase();
-                const entityId = parseInt(req.body.entity_id || '0', 10);
-                const userId   = req.user?.user_id || 0;
 
                 const moderationResult = await checkContentFromFile(
                     ctx, tmpPath, mediaType,
@@ -288,6 +379,11 @@ function uploadChatMedia(ctx, io) {
                 // rename() = atomic, zero-copy on same volume.
                 // Falls back to copyFile+unlink if tmp and dest are on different mounts.
                 await moveTempFile(tmpPath, absPath);
+
+                // Record large-file quota usage now that the file is safely on disk
+                if (isPro && isLargeFile && yearMonth) {
+                    await incrementLargeFileCount(ctx, userId, yearMonth);
+                }
 
                 // ── Moderation queue ────────────────────────────────────────────
                 if (moderationResult.decision === DECISION.HOLD) {
@@ -333,6 +429,7 @@ function uploadChatMedia(ctx, io) {
                     is_sensitive:        moderationResult.isSensitive,
                     moderation:          moderationResult.decision,
                     compression_pending: compressionPending,
+                    is_pro_upload:       isPro && isLargeFile,
                 };
 
                 switch (mediaType) {
