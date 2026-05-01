@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopApp', {
   platform: process.platform,
@@ -9,9 +9,49 @@ contextBridge.exposeInMainWorld('desktopApp', {
 
   /**
    * Upload a file via multipart/form-data through the main process (bypasses CORS).
+   * Reads the entire file into an ArrayBuffer — suitable for files up to ~50 MB.
    * @param {{ urlStr, token, fields, fileName, fileMime, fileData: ArrayBuffer }} payload
    */
   upload: (payload) => ipcRenderer.invoke('wm:upload', payload),
+
+  /**
+   * Get the real filesystem path for a File object (Electron 28+).
+   * Call this before transferring the File through any async boundary.
+   * @param {File} file
+   * @returns {string}
+   */
+  getFilePath: (file) => webUtils.getPathForFile(file),
+
+  /**
+   * Stream a large file to the server without copying it into renderer memory.
+   * Requires filePath from getFilePath(). Used for files > 50 MB.
+   * @param {{ urlStr, token, fields, fileName, fileMime, filePath: string }} payload
+   */
+  uploadLargeFile: (payload) => ipcRenderer.invoke('wm:upload-large', payload),
+
+  /**
+   * Check if a remote URL is already in the local media cache.
+   * @param {string} url
+   * @returns {Promise<string | null>}  wm-cache:///key or null
+   */
+  cacheGet: (url) => ipcRenderer.invoke('wm:cache-get', url),
+
+  /**
+   * Download a remote URL into the local media cache and return its local URL.
+   * The download happens entirely in the main process.
+   * @param {string} url
+   * @returns {Promise<string | null>}  wm-cache:///key or null on error
+   */
+  cachePut: (url) => ipcRenderer.invoke('wm:cache-put', url),
+
+  /**
+   * Return cache statistics: { count, totalBytes, maxBytes }.
+   * @returns {Promise<{ count: number; totalBytes: number; maxBytes: number }>}
+   */
+  cacheStats: () => ipcRenderer.invoke('wm:cache-stats'),
+
+  /** Delete all cached media files. */
+  cacheClear: () => ipcRenderer.invoke('wm:cache-clear'),
 
   /**
    * Show a native desktop notification.

@@ -186,8 +186,36 @@ export function absMediaUrl(u: string | undefined): string {
 const VOICE_BAR_HEIGHTS = [0.4, 0.7, 0.55, 0.9, 0.6, 0.8, 0.45, 0.75, 0.5, 0.65,
   0.85, 0.55, 0.7, 0.4, 0.6, 0.8, 0.5, 0.9, 0.65, 0.45];
 
+// ─── Local media cache hook ───────────────────────────────────────────────────
+// On first render, starts with the original remote URL so media loads immediately.
+// In the background, checks the local cache (hit → switch to wm-cache:// for free
+// instant playback on subsequent mounts; miss → download in main process for next time).
+function useCachedUrl(url: string): string {
+  const [src, setSrc] = useState<string>(url);
+
+  useEffect(() => {
+    if (!url || !window.desktopApp?.cacheGet) return;
+    let alive = true;
+
+    window.desktopApp.cacheGet(url).then(cached => {
+      if (!alive) return;
+      if (cached) {
+        setSrc(cached);
+      } else {
+        // Download to cache silently; don't change src now — use local URL next mount
+        window.desktopApp?.cachePut?.(url).catch(() => {});
+      }
+    }).catch(() => {});
+
+    return () => { alive = false; };
+  }, [url]);
+
+  return src;
+}
+
 // ─── VoicePlayer — custom player matching Android's AudioAlbumComponent ───────
 function VoicePlayer({ src, filename }: { src: string; filename?: string }) {
+  const cachedSrc = useCachedUrl(src);
   const audioRef  = useRef<HTMLAudioElement>(null);
   const [playing,  setPlaying]  = useState(false);
   const [progress, setProgress] = useState(0);   // 0..1
@@ -231,7 +259,7 @@ function VoicePlayer({ src, filename }: { src: string; filename?: string }) {
 
   return (
     <div className="voice-player">
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio ref={audioRef} src={cachedSrc} preload="metadata" />
       <button className="voice-play-btn" onClick={togglePlay} title={playing ? 'Пауза' : 'Відтворити'}>
         {playing ? '⏸' : '▶'}
       </button>
@@ -307,6 +335,9 @@ function Bubble({
   const isVideo = msg.media_type === 'video'
     || (!msg.media_type && msg.media && /\.(mp4|webm|mov|mkv|m4v|avi)$/i.test(msg.media));
 
+  // Cache thumbnails and stickers locally for instant re-renders
+  const cachedMediaUrl = useCachedUrl(mediaIsImage || msg.media_type === 'sticker' || msg.media_type === 'gif' ? mediaUrl : '');
+
   return (
     <div
       className={`bubble-row ${isOwn ? 'own' : ''}`}
@@ -345,11 +376,11 @@ function Bubble({
         {msg.media && (
           <div className="bubble-media">
             {msg.media_type === 'sticker'
-              ? <img src={mediaUrl} alt="sticker" className="bubble-sticker" />
+              ? <img src={cachedMediaUrl || mediaUrl} alt="sticker" className="bubble-sticker" />
               : msg.media_type === 'gif'
-                ? <img src={mediaUrl} alt="gif" className="bubble-gif" onClick={() => onOpenMedia(mediaUrl)} />
+                ? <img src={cachedMediaUrl || mediaUrl} alt="gif" className="bubble-gif" onClick={() => onOpenMedia(mediaUrl)} />
                 : mediaIsImage
-                  ? <img src={mediaUrl} alt="media" className="media-img" onClick={() => onOpenMedia(mediaUrl)} />
+                  ? <img src={cachedMediaUrl || mediaUrl} alt="media" className="media-img" onClick={() => onOpenMedia(mediaUrl)} />
                   : isVideo
                     ? <video src={mediaUrl} controls className="media-video" />
                     : isVoice

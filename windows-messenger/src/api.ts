@@ -153,6 +153,38 @@ async function doUpload(
   return text;
 }
 
+// Large-file upload: gets the OS path via webUtils.getPathForFile, then streams
+// the file from disk in the main process — renderer stays responsive.
+const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50 MB
+
+async function doUploadLarge(
+  url:    string,
+  token:  string,
+  fields: Record<string, string>,
+  file:   File
+): Promise<string> {
+  const ipcLarge    = window.desktopApp?.uploadLargeFile;
+  const getFilePath = window.desktopApp?.getFilePath;
+  if (ipcLarge && getFilePath) {
+    const filePath = getFilePath(file);
+    if (filePath) {
+      const result = await ipcLarge({
+        urlStr:   url,
+        token,
+        fields,
+        fileName: file.name,
+        fileMime: file.type || 'application/octet-stream',
+        filePath,
+      });
+      if (result.status === 401) throw new AuthError();
+      if (!result.ok) throw new Error(`HTTP ${result.status}`);
+      return result.text;
+    }
+  }
+  // Fallback: use the in-memory path (will OOM on very large files, but handles all envs)
+  return doUpload(url, token, fields, file);
+}
+
 async function parseJson<T>(text: string): Promise<T> {
   try { return JSON.parse(text) as T; }
   catch { throw new Error(`Non-JSON response: ${text.slice(0, 200)}`); }
@@ -440,7 +472,9 @@ export async function uploadMedia(token: string, file: File): Promise<MediaUploa
     : AUDIO_EXTS.has(ext) ? 'audio'
     : VIDEO_EXTS.has(ext) ? 'video'
     : 'file';
-  const text = await doUpload(`${NODE_BASE_URL}/api/node/chat/upload`, token, { type }, file);
+  // Route files > 50 MB through the streaming path so the renderer doesn't freeze
+  const uploadFn = file.size > LARGE_FILE_THRESHOLD ? doUploadLarge : doUpload;
+  const text = await uploadFn(`${NODE_BASE_URL}/api/node/chat/upload`, token, { type }, file);
   return parseJson<MediaUploadResponse>(text);
 }
 
