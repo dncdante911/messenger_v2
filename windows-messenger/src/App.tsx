@@ -413,6 +413,7 @@ export default function App() {
 
   // ── Real-time ─────────────────────────────────────────────────────────────
   const [socket, setSocket]         = useState<Socket | null>(null);
+  const socketRef                   = useRef<Socket | null>(null);
   const [socketStatus, setSocketStatus] = useState('Offline');
   const [typingUsers, setTypingUsers]   = useState<Set<number>>(new Set());
   const [onlineUsers, setOnlineUsers]   = useState<Set<number>>(new Set());
@@ -632,6 +633,9 @@ export default function App() {
       onStatus: setSocketStatus,
 
       onConnected: () => {
+        // Join the numeric userId room so the server can route call events to us
+        s.emit('call:register', { userId: session.userId, user_id: session.userId });
+
         // ── Flush pending session reset requests ────────────────────────────
         // If we tried to emit session_reset_request while the socket was down,
         // the user IDs were queued.  Emit them all now.
@@ -852,10 +856,23 @@ export default function App() {
         setCallState({ phase: 'idle' });
       },
 
+      onCallError: (data) => {
+        console.warn('[Call] Server error:', data.message, data.status);
+        stopCallEverything();
+        setCallState({ phase: 'idle' });
+      },
+
       onIceCandidate: async (data) => {
         const pc = peerRef.current ?? groupPeersRef.current.get(data.fromUserId)?.pc;
         if (!pc) return;
-        try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch { /* ignore */ }
+        try {
+          // Android/server sends candidate as a plain SDP string with sdpMLineIndex/sdpMid
+          // as separate top-level fields.  RTCIceCandidate expects an init object.
+          const init: RTCIceCandidateInit = typeof data.candidate === 'string'
+            ? { candidate: data.candidate, sdpMLineIndex: data.sdpMLineIndex ?? 0, sdpMid: data.sdpMid ?? null }
+            : data.candidate;
+          if (init.candidate) await pc.addIceCandidate(new RTCIceCandidate(init));
+        } catch { /* ignore stale candidates */ }
       },
 
       onGroupCallIncoming: (data) => {
@@ -883,7 +900,10 @@ export default function App() {
           if (gp) { gp.stream = ev.streams[0]; setGroupPeers([...groupPeersRef.current.values()]); }
         };
         pc.onicecandidate = ({ candidate }) => {
-          if (candidate) s.emit('group_call:ice_candidate', { roomName, toUserId: data.fromUserId, candidate: candidate.toJSON() });
+          if (candidate) s.emit('group_call:ice_candidate', {
+            roomName, toUserId: data.fromUserId, fromUserId: session!.userId,
+            candidate: candidate.candidate ?? '', sdpMLineIndex: candidate.sdpMLineIndex ?? 0, sdpMid: candidate.sdpMid ?? null,
+          });
         };
         await pc.setRemoteDescription(parseSdp(data.sdpOffer, 'offer'));
         const answer = await pc.createAnswer();
@@ -900,7 +920,11 @@ export default function App() {
 
       onGroupCallIceCandidate: async (data) => {
         const peer = groupPeersRef.current.get(data.fromUserId);
-        if (peer) await peer.pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(console.error);
+        if (!peer) return;
+        const init: RTCIceCandidateInit = typeof data.candidate === 'string'
+          ? { candidate: data.candidate, sdpMLineIndex: data.sdpMLineIndex ?? 0, sdpMid: data.sdpMid ?? null }
+          : data.candidate;
+        if (init.candidate) await peer.pc.addIceCandidate(new RTCIceCandidate(init)).catch(console.error);
       },
 
       onGroupCallParticipantLeft: (data) => {
@@ -938,8 +962,9 @@ export default function App() {
       },
     });
 
+    socketRef.current = s;
     setSocket(s);
-    return () => { s.disconnect(); };
+    return () => { s.disconnect(); socketRef.current = null; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
@@ -1863,14 +1888,14 @@ export default function App() {
       if (remoteVideoRef.current && ev.streams[0]) remoteVideoRef.current.srcObject = ev.streams[0];
     };
     pc.onicecandidate = ({ candidate }) => {
-      if (candidate && socket)
-        emitIceCandidate(socket, { roomName, toUserId: selectedChat.user_id, fromUserId: session.userId, candidate: candidate.toJSON() });
+      if (candidate)
+        emitIceCandidate(socketRef.current, { roomName, toUserId: selectedChat.user_id, fromUserId: session.userId, candidate: candidate.toJSON() });
     };
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    emitCallInitiate(socket, { fromId: session.userId, toId: selectedChat.user_id, callType: type, roomName, sdpOffer: offer.sdp ?? '' });
-    socket?.emit('call:join_room', { roomName, userId: session.userId });
+    emitCallInitiate(socketRef.current, { fromId: session.userId, toId: selectedChat.user_id, callType: type, roomName, sdpOffer: offer.sdp ?? '' });
+    socketRef.current?.emit('call:join_room', { roomName, userId: session.userId });
     setCallState({ phase: 'outgoing', peer: selectedChat, type, roomName });
   }
 
@@ -1894,14 +1919,14 @@ export default function App() {
       if (remoteVideoRef.current && ev.streams[0]) remoteVideoRef.current.srcObject = ev.streams[0];
     };
     pc.onicecandidate = ({ candidate }) => {
-      if (candidate && socket)
-        emitIceCandidate(socket, { roomName, toUserId: peer.user_id, fromUserId: session!.userId, candidate: candidate.toJSON() });
+      if (candidate)
+        emitIceCandidate(socketRef.current, { roomName, toUserId: peer.user_id, fromUserId: session!.userId, candidate: candidate.toJSON() });
     };
 
     await pc.setRemoteDescription(parseSdp(sdpOffer, 'offer'));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    emitCallAccept(socket, { roomName, userId: session!.userId, sdpAnswer: answer.sdp ?? '' });
+    emitCallAccept(socketRef.current, { roomName, userId: session!.userId, sdpAnswer: answer.sdp ?? '' });
     setCallState({ phase: 'connected', peer, type, roomName, duration: 0 });
     startCallTimer();
   }

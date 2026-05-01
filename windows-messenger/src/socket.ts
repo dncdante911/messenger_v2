@@ -89,7 +89,8 @@ export type IceCandidateData = {
   roomName:      string;
   fromUserId:    number;
   toUserId?:     number;
-  candidate:     RTCIceCandidateInit;
+  /** Plain SDP string when received from Android/server; RTCIceCandidateInit when generated locally */
+  candidate:     string | RTCIceCandidateInit;
   sdpMLineIndex?: number | null;
   sdpMid?:        string | null;
 };
@@ -305,11 +306,23 @@ export function emitCallReject(socket: Socket | null, roomName: string): void {
   socket?.emit('call:reject', { roomName });
 }
 
+/**
+ * Emit ice:candidate in the flat format the server and Android expect:
+ *   { candidate: "<sdp string>", sdpMLineIndex: 0, sdpMid: "0" }  (top-level fields)
+ * NOT nested as an RTCIceCandidateInit object.
+ */
 export function emitIceCandidate(socket: Socket | null, data: {
   roomName: string; toUserId: number; fromUserId: number;
   candidate: RTCIceCandidateInit;
 }): void {
-  socket?.emit('ice:candidate', data);
+  if (!socket?.connected) return;
+  const { candidate, ...rest } = data;
+  socket.emit('ice:candidate', {
+    ...rest,
+    candidate:     candidate.candidate     ?? '',
+    sdpMLineIndex: candidate.sdpMLineIndex ?? 0,
+    sdpMid:        candidate.sdpMid        ?? null,
+  });
 }
 
 export function emitGroupCallJoin(socket: Socket | null, data: {
@@ -331,9 +344,16 @@ export function emitGroupCallAnswer(socket: Socket | null, data: {
 }
 
 export function emitGroupCallIce(socket: Socket | null, data: {
-  roomName: string; toUserId: number; candidate: RTCIceCandidateInit;
+  roomName: string; toUserId: number; fromUserId: number; candidate: RTCIceCandidateInit;
 }): void {
-  socket?.emit('group_call:ice_candidate', data);
+  if (!socket?.connected) return;
+  const { candidate, ...rest } = data;
+  socket.emit('group_call:ice_candidate', {
+    ...rest,
+    candidate:     candidate.candidate     ?? '',
+    sdpMLineIndex: candidate.sdpMLineIndex ?? 0,
+    sdpMid:        candidate.sdpMid        ?? null,
+  });
 }
 
 export function emitGroupCallLeave(socket: Socket | null, roomName: string, userId: number): void {
