@@ -179,10 +179,25 @@ function Bubble({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const isEncrypted = msg.cipher_version === CIPHER_VERSION_SIGNAL;
-  const mediaIsImage = msg.media_type === 'image' || (!msg.media_type && msg.media && /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.media));
+
+  const absUrl = (u: string | undefined): string => {
+    if (!u) return '';
+    if (u.startsWith('http')) return u;
+    return `https://worldmates.club/${u.replace(/^\//, '')}`;
+  };
+
+  const mediaUrl = absUrl(msg.media);
+
+  const mediaIsImage = msg.media_type === 'image'
+    || (!msg.media_type && msg.media && /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.media));
+
   const isVoice = msg.media_type === 'voice' || msg.media_type === 'audio'
     || !!(msg.media_filename?.match(/^VOICE_/i))
-    || !!(msg.media && /\/VOICE_[^/]*\.(webm|ogg|m4a|opus|aac)/i.test(msg.media));
+    || !!(msg.media && /\/VOICE_[^/]*\.(webm|ogg|m4a|opus|aac)/i.test(msg.media))
+    || !!(msg.media && /\.(ogg|mp3|m4a|aac|opus|flac|wav)$/i.test(msg.media));
+
+  const isVideo = msg.media_type === 'video'
+    || (!msg.media_type && msg.media && /\.(mp4|webm|mov|mkv|m4v|avi)$/i.test(msg.media));
 
   return (
     <div
@@ -222,16 +237,16 @@ function Bubble({
         {msg.media && (
           <div className="bubble-media">
             {msg.media_type === 'sticker'
-              ? <img src={msg.media} alt="sticker" className="bubble-sticker" />
+              ? <img src={mediaUrl} alt="sticker" className="bubble-sticker" />
               : msg.media_type === 'gif'
-                ? <img src={msg.media} alt="gif" className="bubble-gif" onClick={() => onOpenMedia(msg.media!)} />
+                ? <img src={mediaUrl} alt="gif" className="bubble-gif" onClick={() => onOpenMedia(mediaUrl)} />
                 : mediaIsImage
-                  ? <img src={msg.media} alt="media" className="media-img" onClick={() => onOpenMedia(msg.media!)} />
-                  : msg.media_type === 'video'
-                    ? <video src={msg.media} controls className="media-video" />
+                  ? <img src={mediaUrl} alt="media" className="media-img" onClick={() => onOpenMedia(mediaUrl)} />
+                  : isVideo
+                    ? <video src={mediaUrl} controls className="media-video" style={{ maxWidth: '100%' }} />
                     : isVoice
-                      ? <audio src={msg.media} controls className="media-audio" />
-                      : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">
+                      ? <audio src={mediaUrl} controls className="media-audio" style={{ width: '100%' }} />
+                      : <a href={mediaUrl} target="_blank" rel="noreferrer" className="media-file">
                           📎 {msg.media_filename ?? t('misc.downloadFile')}
                         </a>
             }
