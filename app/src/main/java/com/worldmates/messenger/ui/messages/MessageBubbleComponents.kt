@@ -517,6 +517,7 @@ fun MessageBubbleComposable(
                                             videoUrl = effectiveMediaUrl,
                                             showTextAbove = false,
                                             enablePiP = true,
+                                            onLongPress = { onLongPress(); onToggleSelection(message.id) },
                                             modifier = Modifier
                                         )
                                     }
@@ -756,6 +757,7 @@ fun MessageBubbleComposable(
                                 videoUrl = effectiveMediaUrl,
                                 showTextAbove = shouldShowText,
                                 enablePiP = true,
+                                onLongPress = { onLongPress(); onToggleSelection(message.id) },
                                 modifier = Modifier
                             )
                         }

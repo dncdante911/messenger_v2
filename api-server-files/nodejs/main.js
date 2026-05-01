@@ -940,6 +940,28 @@ async function runMigrations(ctx) {
 
   console.log('[Migration] All background migrations complete');
 
+  // ── wo_channel_posts — create if missing (used by thread routes) ─────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wo_channel_posts (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        page_id     INT UNSIGNED NOT NULL,
+        user_id     INT UNSIGNED NOT NULL DEFAULT 0,
+        postText    TEXT,
+        postFile    VARCHAR(512) DEFAULT NULL,
+        media_type  VARCHAR(32)  DEFAULT NULL,
+        time        INT UNSIGNED NOT NULL DEFAULT 0,
+        is_published TINYINT(1)  NOT NULL DEFAULT 1,
+        PRIMARY KEY (id),
+        KEY idx_page (page_id),
+        KEY idx_time (time)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[Migration] wo_channel_posts table ensured');
+  } catch (e) {
+    console.warn('[Migration] wo_channel_posts create:', e.message);
+  }
+
   // ── wo_channel_comments — create if missing, then add sticker column ────────
   try {
     await ctx.sequelize.query(`

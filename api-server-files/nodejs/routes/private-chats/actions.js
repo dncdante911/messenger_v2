@@ -373,12 +373,13 @@ function getMediaAutoDeleteSetting(ctx) {
             let seconds = 0;
             try {
                 const seq = ctx.sequelize;
-                const [rows] = await seq.query(
+                const rows = await seq.query(
                     `SELECT media_auto_delete_seconds FROM wm_chat_media_settings
                      WHERE user_id = :uid AND chat_id = :cid LIMIT 1`,
                     { replacements: { uid: userId, cid: chatId }, type: seq.constructor.QueryTypes.SELECT }
                 );
-                const setting = Array.isArray(rows[0]) ? rows[0][0] : rows[0];
+                // QueryTypes.SELECT returns the rows array directly (no [rows, meta] destructuring)
+                const setting = rows[0];
                 seconds = setting ? (setting.media_auto_delete_seconds || 0) : 0;
             } catch (dbErr) {
                 // Table may not exist yet (migration pending) — return default 0
