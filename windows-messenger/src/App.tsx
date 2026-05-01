@@ -186,24 +186,65 @@ export function absMediaUrl(u: string | undefined): string {
 const VOICE_BAR_HEIGHTS = [0.4, 0.7, 0.55, 0.9, 0.6, 0.8, 0.45, 0.75, 0.5, 0.65,
   0.85, 0.55, 0.7, 0.4, 0.6, 0.8, 0.5, 0.9, 0.65, 0.45];
 
+// ─── Module-level message cache ──────────────────────────────────────────────
+// Keeps the last fetched message list per chat so switching tabs is instant.
+const _msgCache = new Map<number, MessageItem[]>();
+
 // ─── Local media cache hook ───────────────────────────────────────────────────
-// On first render, starts with the original remote URL so media loads immediately.
-// In the background, checks the local cache (hit → switch to wm-cache:// for free
-// instant playback on subsequent mounts; miss → download in main process for next time).
+// Deduplicates concurrent IPC calls (many bubbles mounting at once) and queues
+// cache-put downloads so we never flood the main process.
+
+/** Already-resolved local paths: url → wm-cache:// URL. Avoids IPC on re-render. */
+const _cacheHits   = new Map<string, string>();
+/** In-flight cache-get IPC calls: url → Promise. Prevents N identical calls. */
+const _cacheChecks = new Map<string, Promise<string | null>>();
+const _putQueue: string[] = [];
+let   _putRunning = 0;
+const PUT_CONCURRENCY = 3;
+
+function _drainPutQueue() {
+  while (_putRunning < PUT_CONCURRENCY && _putQueue.length > 0) {
+    const url = _putQueue.shift()!;
+    _putRunning++;
+    window.desktopApp?.cachePut?.(url)
+      .then(local => { if (local) _cacheHits.set(url, local); })
+      .catch(() => {})
+      .finally(() => { _putRunning--; _drainPutQueue(); });
+  }
+}
+
+function _schedulePut(url: string) {
+  if (_cacheHits.has(url) || _putQueue.includes(url)) return;
+  _putQueue.push(url);
+  _drainPutQueue();
+}
+
 function useCachedUrl(url: string): string {
-  const [src, setSrc] = useState<string>(url);
+  // Synchronous hit from module-level map — no IPC, no re-render needed
+  const [src, setSrc] = useState<string>(() => _cacheHits.get(url) ?? url);
 
   useEffect(() => {
     if (!url || !window.desktopApp?.cacheGet) return;
-    let alive = true;
+    // Already resolved in this session
+    const hit = _cacheHits.get(url);
+    if (hit) { setSrc(hit); return; }
 
-    window.desktopApp.cacheGet(url).then(cached => {
+    let alive = true;
+    // Deduplicate: share the same Promise if multiple bubbles check the same URL
+    let p = _cacheChecks.get(url);
+    if (!p) {
+      p = window.desktopApp.cacheGet(url);
+      _cacheChecks.set(url, p);
+      p.finally(() => _cacheChecks.delete(url));
+    }
+
+    p.then(cached => {
       if (!alive) return;
       if (cached) {
+        _cacheHits.set(url, cached);
         setSrc(cached);
       } else {
-        // Download to cache silently; don't change src now — use local URL next mount
-        window.desktopApp?.cachePut?.(url).catch(() => {});
+        _schedulePut(url); // download quietly in background, queued 3-at-a-time
       }
     }).catch(() => {});
 
@@ -307,7 +348,7 @@ function TypingDots() {
   );
 }
 
-function Bubble({
+const Bubble = React.memo(function Bubble({
   msg, isOwn, onReply, onEdit, onDelete, onReact, onOpenMedia, userId
 }: {
   msg: MessageItem; isOwn: boolean; userId: number;
@@ -376,11 +417,11 @@ function Bubble({
         {msg.media && (
           <div className="bubble-media">
             {msg.media_type === 'sticker'
-              ? <img src={cachedMediaUrl || mediaUrl} alt="sticker" className="bubble-sticker" />
+              ? <img src={cachedMediaUrl || mediaUrl} alt="sticker" className="bubble-sticker" loading="lazy" />
               : msg.media_type === 'gif'
-                ? <img src={cachedMediaUrl || mediaUrl} alt="gif" className="bubble-gif" onClick={() => onOpenMedia(mediaUrl)} />
+                ? <img src={cachedMediaUrl || mediaUrl} alt="gif" className="bubble-gif" loading="lazy" onClick={() => onOpenMedia(mediaUrl)} />
                 : mediaIsImage
-                  ? <img src={cachedMediaUrl || mediaUrl} alt="media" className="media-img" onClick={() => onOpenMedia(mediaUrl)} />
+                  ? <img src={cachedMediaUrl || mediaUrl} alt="media" className="media-img" loading="lazy" onClick={() => onOpenMedia(mediaUrl)} />
                   : isVideo
                     ? <video src={mediaUrl} controls className="media-video" />
                     : isVoice
@@ -428,7 +469,7 @@ function Bubble({
       </div>
     </div>
   );
-}
+});
 
 // ─── Text formatting (Markdown-lite) ──────────────────────────────────────────
 // Supports: **bold**, _italic_, `code`, ||spoiler||
@@ -1306,8 +1347,16 @@ export default function App() {
 
     emitChatOpen(socket, selectedChat.user_id);
     setMsgLoadError(false);
-    setMessagesLoading(true);
-    setMessages([]);
+
+    // Show cached messages immediately — no spinner, no layout jump
+    const cached = _msgCache.get(selectedChat.user_id);
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      setMessagesLoading(false);
+    } else {
+      setMessages([]);
+      setMessagesLoading(true);
+    }
 
     let cancelled = false;
 
@@ -1324,6 +1373,7 @@ export default function App() {
           const decrypted = await Promise.all((r.messages ?? []).map(tryDecryptMessage));
           if (cancelled) return;
           setMessages(decrypted);
+          _msgCache.set(selectedChat.user_id, decrypted); // update in-memory cache
           setHasMore(decrypted.length >= 40);
           const lastMsg = decrypted[decrypted.length - 1];
           if (lastMsg) markSeen(session.token, selectedChat.user_id, lastMsg.id).catch(() => {});
@@ -1340,6 +1390,13 @@ export default function App() {
     return () => { cancelled = true; emitChatClose(socket, selectedChat.user_id); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, selectedChat?.user_id]);
+
+  // Keep the module-level message cache in sync so socket messages are cached too
+  useEffect(() => {
+    if (selectedChat && messages.length > 0) {
+      _msgCache.set(selectedChat.user_id, messages);
+    }
+  }, [messages, selectedChat?.user_id]);
 
   // ─── Auto-scroll to bottom ────────────────────────────────────────────────
   // Direct scrollTop assignment on the container is reliable in Electron;
@@ -3600,7 +3657,7 @@ export default function App() {
                         {msg.media && (
                           <div className="bubble-media">
                             {msg.media_type === 'image' || (!msg.media_type && /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.media))
-                              ? <img src={msg.media} alt="media" className="media-img" onClick={() => setLightboxSrc(msg.media!)} />
+                              ? <img src={absMediaUrl(msg.media)} alt="media" className="media-img" loading="lazy" onClick={() => setLightboxSrc(absMediaUrl(msg.media!))} />
                               : msg.media_type === 'video'
                                 ? <video src={msg.media} controls className="media-video" />
                                 : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">📎 {msg.media_filename ?? t('misc.downloadFile')}</a>
@@ -3765,7 +3822,7 @@ export default function App() {
                                 {item.type === 'video'
                                   ? <video src={item.url} controls className="post-gallery-media" />
                                   : item.type === 'image'
-                                    ? <img src={item.url} alt="" className="post-gallery-media" onClick={() => setLightboxSrc(item.url)} />
+                                    ? <img src={item.url} alt="" className="post-gallery-media" loading="lazy" onClick={() => setLightboxSrc(item.url)} />
                                     : <a href={item.url} target="_blank" rel="noreferrer" className="media-file">📎 {t('misc.downloadFile')}</a>
                                 }
                               </div>
