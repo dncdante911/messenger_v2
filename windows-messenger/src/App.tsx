@@ -980,11 +980,17 @@ export default function App() {
   useEffect(() => { callStateRef.current = callState; }, [callState]);
 
   // When the call transitions to 'connected' the video/audio elements mount.
-  // If ontrack already fired and stored the stream in remoteStreamRef, attach it now.
+  // When phase transitions to 'connected' the video elements mount — attach stored streams.
   useEffect(() => {
-    if (callState.phase === 'connected' && remoteStreamRef.current) {
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStreamRef.current;
-      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStreamRef.current;
+    if (callState.phase === 'connected') {
+      if (remoteStreamRef.current) {
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStreamRef.current;
+        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStreamRef.current;
+      }
+      // Local video element also mounts at this point — re-attach local stream
+      if (localStreamRef.current && localVideoRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+      }
     }
     if (callState.phase === 'idle') {
       remoteStreamRef.current = null;
