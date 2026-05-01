@@ -12,21 +12,54 @@
  * For large file uploads (movies):
  *   compressInPlace() saves original → compresses to temp → replaces original.
  *   The URL in the message stays the same; the file on disk shrinks.
+ *
+ * ── Upload vs compression concurrency ────────────────────────────────────────
+ *   UPLOADS (100+ simultaneous):
+ *     Handled by multer diskStorage — pure disk I/O, no ffmpeg, no limit.
+ *     100 users can upload 4 GB files at the same time without touching ffmpeg.
+ *     The server responds to each upload IMMEDIATELY, before any compression.
+ *
+ *   BACKGROUND COMPRESSION (queue):
+ *     Starts after the HTTP response is sent. Limited by CPU/RAM, not by users.
+ *     Rule of thumb: each ffmpeg job uses ~1-2 CPU cores (see MAX_THREADS).
+ *     Safe default = floor(cpuCount / MAX_THREADS).
+ *     Example: 8-core server, 4 threads/job → 2 jobs in parallel.
+ *     Example: 32-core server, 4 threads/job → 8 jobs in parallel.
+ *
+ *     If 100 users upload large videos at once, all 100 files are saved
+ *     immediately. Compression runs in background — earlier jobs finish first,
+ *     later ones wait in queue. Users get their file URL right away;
+ *     the compressed version replaces it silently when done.
+ *
+ *   Tuning (env vars, no code changes):
+ *     FFMPEG_THREADS=4          threads per ffmpeg process (default 4)
+ *     FFMPEG_MAX_CONCURRENT=N   parallel compressions (default: cpuCount/4, min 1)
  */
 
+const os     = require('os');
 const path   = require('path');
 const fs     = require('fs');
 const { spawn } = require('child_process');
 
 // ─── Server-load protection ───────────────────────────────────────────────────
 
-// Maximum CPU threads per ffmpeg process. Keeps the server responsive when
-// multiple compression jobs run concurrently. Override with FFMPEG_THREADS env.
+// Threads per ffmpeg process. 4 is a safe default that leaves room for other
+// Node.js work on the same server. Override: FFMPEG_THREADS env.
 const MAX_THREADS = Math.max(1, parseInt(process.env.FFMPEG_THREADS || '4', 10));
 
-// Maximum number of ffmpeg processes allowed to run at the same time.
-// Extra jobs queue up and start as soon as a slot opens.
-const MAX_CONCURRENT = Math.max(1, parseInt(process.env.FFMPEG_MAX_CONCURRENT || '2', 10));
+// Parallel background compressions. Automatically scales with server CPU count
+// so the setting is correct on both a 2-core VPS and a 32-core dedicated box.
+// Formula: floor(cpuCount / MAX_THREADS), minimum 1.
+// Override: FFMPEG_MAX_CONCURRENT env (e.g. set to 8 on a powerful server).
+const _defaultConcurrent = Math.max(1, Math.floor(os.cpus().length / MAX_THREADS));
+const MAX_CONCURRENT = Math.max(1, parseInt(
+    process.env.FFMPEG_MAX_CONCURRENT || String(_defaultConcurrent), 10
+));
+
+console.log(
+    `[VideoCompressor] CPU cores: ${os.cpus().length} | ` +
+    `threads/job: ${MAX_THREADS} | max parallel jobs: ${MAX_CONCURRENT}`
+);
 
 let _activeJobs = 0;
 const _jobQueue  = [];

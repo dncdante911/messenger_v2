@@ -1048,6 +1048,23 @@ async function runMigrations(ctx) {
   } catch (e) {
     console.warn('[Migration] wm_scheduled_messages:', e.message);
   }
+
+  // ── wo_upload_quota — monthly large-file quota for pro users ─────────────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wo_upload_quota (
+        id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id          INT UNSIGNED NOT NULL,
+        year_month       CHAR(7)      NOT NULL,
+        large_file_count INT UNSIGNED NOT NULL DEFAULT 0,
+        PRIMARY KEY (id),
+        UNIQUE KEY uniq_user_month (user_id, year_month)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[Migration] wo_upload_quota table ensured');
+  } catch (e) {
+    console.warn('[Migration] wo_upload_quota:', e.message);
+  }
 }
 
 
