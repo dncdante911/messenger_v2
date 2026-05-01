@@ -62,7 +62,9 @@ object NodeRetrofitClient {
     // ── Logging ──────────────────────────────────────────────────────────────
     private val loggingInterceptor = HttpLoggingInterceptor { msg ->
         Log.d("NODE_API", msg)
-    }.apply { level = HttpLoggingInterceptor.Level.BODY }
+    // BODY level reads the entire request/response body into a String — causes OOM on
+    // large uploads (e.g. 450 MB video). HEADERS is safe and still useful for debugging.
+    }.apply { level = HttpLoggingInterceptor.Level.HEADERS }
 
     // ── Token refresh interceptor ─────────────────────────────────────────────
     // Transparently rotates the access token when it expires (HTTP 401).
