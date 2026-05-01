@@ -18,6 +18,43 @@ const path   = require('path');
 const fs     = require('fs');
 const { spawn } = require('child_process');
 
+// ─── Server-load protection ───────────────────────────────────────────────────
+
+// Maximum CPU threads per ffmpeg process. Keeps the server responsive when
+// multiple compression jobs run concurrently. Override with FFMPEG_THREADS env.
+const MAX_THREADS = Math.max(1, parseInt(process.env.FFMPEG_THREADS || '4', 10));
+
+// Maximum number of ffmpeg processes allowed to run at the same time.
+// Extra jobs queue up and start as soon as a slot opens.
+const MAX_CONCURRENT = Math.max(1, parseInt(process.env.FFMPEG_MAX_CONCURRENT || '2', 10));
+
+let _activeJobs = 0;
+const _jobQueue  = [];
+
+function acquireSlot() {
+    return new Promise((resolve) => {
+        const tryAcquire = () => {
+            if (_activeJobs < MAX_CONCURRENT) {
+                _activeJobs++;
+                resolve();
+            } else {
+                _jobQueue.push(tryAcquire);
+            }
+        };
+        tryAcquire();
+    });
+}
+
+function releaseSlot() {
+    _activeJobs--;
+    if (_jobQueue.length > 0) {
+        const next = _jobQueue.shift();
+        next();
+    }
+}
+
+// ─── Resolve ffmpeg binary ────────────────────────────────────────────────────
+
 // Resolve ffmpeg binary: bundled ffmpeg-static → system PATH fallback
 let ffmpegBin = 'ffmpeg';
 try {
@@ -114,6 +151,9 @@ async function compressVideo(inputPath, outputPath, opts = {}) {
 
     const args = [
         '-i', inputPath,
+        // Limit CPU threads so the server stays responsive under concurrent jobs.
+        // Default: 4. Override: FFMPEG_THREADS env var.
+        '-threads', String(MAX_THREADS),
         '-c:v', 'libx264',
         '-crf', String(tier.crf),
         '-preset', tier.preset,
@@ -130,6 +170,13 @@ async function compressVideo(inputPath, outputPath, opts = {}) {
         '-y',
         outputPath,
     ];
+
+    // Wait for a free slot before spawning ffmpeg (max MAX_CONCURRENT processes)
+    await acquireSlot();
+    console.log(
+        `[VideoCompressor] Slot acquired (active=${_activeJobs}/${MAX_CONCURRENT}) ` +
+        `threads=${MAX_THREADS}`
+    );
 
     return new Promise((resolve) => {
         const proc = spawn(ffmpegBin, args);
@@ -150,12 +197,14 @@ async function compressVideo(inputPath, outputPath, opts = {}) {
         });
 
         proc.on('close', (code) => {
+            releaseSlot();
             if (code === 0 && fs.existsSync(outputPath)) {
                 const outSize = fs.statSync(outputPath).size;
                 const saved = inputSize > 0 ? Math.round((1 - outSize / inputSize) * 100) : 0;
                 console.log(
                     `[VideoCompressor] Done: ${(inputSize / 1024 / 1024).toFixed(1)}MB → ` +
-                    `${(outSize / 1024 / 1024).toFixed(1)}MB (−${saved}%)`
+                    `${(outSize / 1024 / 1024).toFixed(1)}MB (−${saved}%) ` +
+                    `(active=${_activeJobs}/${MAX_CONCURRENT})`
                 );
                 resolve({ success: true, outputPath, originalSize: inputSize, compressedSize: outSize });
             } else {
@@ -166,6 +215,7 @@ async function compressVideo(inputPath, outputPath, opts = {}) {
         });
 
         proc.on('error', (err) => {
+            releaseSlot();
             console.error('[VideoCompressor] spawn error:', err.message);
             resolve({ success: false, error: err.message });
         });
