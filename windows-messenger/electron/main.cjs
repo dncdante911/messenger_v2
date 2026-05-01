@@ -1,9 +1,17 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage } = require('electron');
-const path = require('node:path');
-const https = require('node:https');
-const zlib  = require('node:zlib');
+const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, nativeImage, protocol, net } = require('electron');
+const path   = require('node:path');
+const https  = require('node:https');
+const zlib   = require('node:zlib');
+const fs     = require('node:fs');
+const crypto = require('node:crypto');
+const { pathToFileURL } = require('node:url');
+
+// wm-cache:// serves local cached media files; must register before app is ready.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'wm-cache', privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } },
+]);
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -243,6 +251,105 @@ function buildMultipartBody(fields, fileName, fileMime, fileData) {
   return Buffer.concat(parts);
 }
 
+/** Builds only the multipart preamble (fields + file header). Used by the streaming upload. */
+function buildMultipartHeader(fields, fileName, fileMime) {
+  const parts = [];
+  for (const [name, value] of Object.entries(fields || {})) {
+    parts.push(Buffer.from(
+      `--${UPLOAD_BOUNDARY}\r\n` +
+      `Content-Disposition: form-data; name="${name}"\r\n\r\n` +
+      `${value}\r\n`
+    ));
+  }
+  parts.push(Buffer.from(
+    `--${UPLOAD_BOUNDARY}\r\n` +
+    `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+    `Content-Type: ${fileMime}\r\n\r\n`
+  ));
+  return Buffer.concat(parts);
+}
+
+const MULTIPART_FOOTER = Buffer.from(`\r\n--${UPLOAD_BOUNDARY}--\r\n`);
+
+/** Stream a large file to the server without loading it into memory. */
+function uploadStreamVia(endpoint, url, headers, headerBuf, filePath, footerBuf) {
+  return new Promise((resolve, reject) => {
+    const reqHeaders = Object.assign({}, headers);
+    if (endpoint.sni) reqHeaders['Host'] = url.hostname;
+
+    const agent = new https.Agent({
+      keepAlive: false,
+      rejectUnauthorized: false,
+      ...(endpoint.sni ? { servername: endpoint.sni } : {}),
+    });
+
+    const req = https.request(
+      {
+        hostname: endpoint.host,
+        port:     parseInt(url.port) || 443,
+        path:     url.pathname + url.search,
+        method:   'POST',
+        headers:  reqHeaders,
+        agent,
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data',  c => chunks.push(c));
+        res.on('end',   () => {
+          const text = Buffer.concat(chunks).toString('utf8');
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, text });
+        });
+        res.on('error', reject);
+      }
+    );
+
+    req.on('error', reject);
+    req.write(headerBuf);
+
+    const stream = fs.createReadStream(filePath);
+    stream.on('data',  chunk => { if (!req.write(chunk)) stream.pause(); });
+    req.on('drain',    ()    => stream.resume());
+    stream.on('end',   ()    => { req.write(footerBuf); req.end(); });
+    stream.on('error', err   => { req.destroy(err); reject(err); });
+  });
+}
+
+/**
+ * wm:upload-large  { urlStr, token, fields, fileName, fileMime, filePath }
+ * Streams a file from the local filesystem to the server using fs.createReadStream.
+ * filePath comes from webUtils.getPathForFile() in the preload — never from user text input.
+ */
+ipcMain.handle('wm:upload-large', async (_event, { urlStr, token, fields, fileName, fileMime, filePath }) => {
+  if (!path.isAbsolute(filePath)) throw new Error('filePath must be absolute');
+
+  let url;
+  try { url = new URL(urlStr); } catch (e) { throw e; }
+
+  const stat       = fs.statSync(filePath);
+  const headerBuf  = buildMultipartHeader(fields, fileName, fileMime);
+  const footerBuf  = MULTIPART_FOOTER;
+  const totalSize  = headerBuf.length + stat.size + footerBuf.length;
+
+  const headers = {
+    'access-token': token,
+    'Content-Type': `multipart/form-data; boundary=${UPLOAD_BOUNDARY}`,
+    'Content-Length': String(totalSize),
+  };
+
+  let lastErr;
+  for (const endpoint of WM_ENDPOINTS) {
+    try {
+      return await uploadStreamVia(endpoint, url, headers, headerBuf, filePath, footerBuf);
+    } catch (e) {
+      const code = e.code ?? '';
+      console.error(`[wm:upload-large] ${endpoint.host} → ${code || e.message}`);
+      if (RETRY_CODES.has(code)) { lastErr = e; continue; }
+      throw e;
+    }
+  }
+  throw lastErr;
+});
+
 ipcMain.handle('wm:upload', async (_event, { urlStr, token, fields, fileName, fileMime, fileData }) => {
   let url;
   try { url = new URL(urlStr); } catch (e) { throw e; }
@@ -316,6 +423,160 @@ ipcMain.handle('wm:set-language', (_e, lang) => {
   }
 });
 
+// ─── Media cache ─────────────────────────────────────────────────────────────
+// Files cached in <userData>/media-cache/, keyed by MD5(url)+ext.
+// LRU eviction by atime when total exceeds 2 GB.
+
+const CACHE_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+/** @type {string | null} */
+let CACHE_DIR = null;
+
+function urlToCacheKey(urlStr) {
+  const hash = crypto.createHash('md5').update(urlStr).digest('hex');
+  let ext = '';
+  try { ext = path.extname(new URL(urlStr).pathname); } catch {}
+  return hash + (ext || '');
+}
+
+function wmCacheUrl(key) {
+  return `wm-cache:///${encodeURIComponent(key)}`;
+}
+
+function evictCacheIfNeeded() {
+  if (!CACHE_DIR) return;
+  try {
+    const entries = fs.readdirSync(CACHE_DIR).map(f => {
+      const fp = path.join(CACHE_DIR, f);
+      const s  = fs.statSync(fp);
+      return { fp, size: s.size, atime: s.atimeMs };
+    }).sort((a, b) => a.atime - b.atime);  // oldest first
+
+    let total = entries.reduce((s, e) => s + e.size, 0);
+    for (const entry of entries) {
+      if (total <= CACHE_MAX_BYTES) break;
+      try { fs.unlinkSync(entry.fp); } catch {}
+      total -= entry.size;
+    }
+  } catch {}
+}
+
+/** Binary GET through the endpoint failover chain. */
+function downloadBinaryVia(endpoint, url) {
+  return new Promise((resolve, reject) => {
+    const reqHeaders = {};
+    if (endpoint.sni) reqHeaders['Host'] = url.hostname;
+
+    const agent = new https.Agent({
+      keepAlive: false,
+      rejectUnauthorized: false,
+      ...(endpoint.sni ? { servername: endpoint.sni } : {}),
+    });
+
+    const req = https.request(
+      {
+        hostname: endpoint.host,
+        port:     parseInt(url.port) || 443,
+        path:     url.pathname + url.search,
+        method:   'GET',
+        headers:  reqHeaders,
+        agent,
+      },
+      (res) => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          res.resume();
+          reject(new Error(`HTTP ${res.statusCode}`));
+          return;
+        }
+        const chunks = [];
+        res.on('data',  c => chunks.push(c));
+        res.on('end',   () => resolve(Buffer.concat(chunks)));
+        res.on('error', reject);
+      }
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+async function downloadBinary(urlStr) {
+  let url;
+  try { url = new URL(urlStr); } catch (e) { throw e; }
+  let lastErr;
+  for (const endpoint of WM_ENDPOINTS) {
+    try {
+      return await downloadBinaryVia(endpoint, url);
+    } catch (e) {
+      const code = e.code ?? '';
+      if (RETRY_CODES.has(code)) { lastErr = e; continue; }
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * wm:cache-get  urlStr → wm-cache:///key  or  null
+ * Returns the local cache URL if the asset is already cached, null otherwise.
+ */
+ipcMain.handle('wm:cache-get', (_e, urlStr) => {
+  if (!CACHE_DIR || !urlStr) return null;
+  const key = urlToCacheKey(urlStr);
+  const fp  = path.join(CACHE_DIR, key);
+  if (!fs.existsSync(fp)) return null;
+  try {
+    const now = new Date();
+    fs.utimesSync(fp, now, fs.statSync(fp).mtime);
+  } catch {}
+  return wmCacheUrl(key);
+});
+
+/**
+ * wm:cache-put  urlStr → wm-cache:///key  or  null
+ * Downloads the asset from the server (in the main process) and writes it to cache.
+ */
+ipcMain.handle('wm:cache-put', async (_e, urlStr) => {
+  if (!CACHE_DIR || !urlStr) return null;
+  const key = urlToCacheKey(urlStr);
+  const fp  = path.join(CACHE_DIR, key);
+  if (fs.existsSync(fp)) {
+    try { const now = new Date(); fs.utimesSync(fp, now, fs.statSync(fp).mtime); } catch {}
+    return wmCacheUrl(key);
+  }
+  try {
+    const buf = await downloadBinary(urlStr);
+    fs.writeFileSync(fp, buf);
+    evictCacheIfNeeded();
+    return wmCacheUrl(key);
+  } catch (e) {
+    console.error('[wm:cache-put]', urlStr, e.message);
+    return null;
+  }
+});
+
+/** wm:cache-stats → { count, totalBytes, maxBytes } */
+ipcMain.handle('wm:cache-stats', () => {
+  if (!CACHE_DIR) return { count: 0, totalBytes: 0, maxBytes: CACHE_MAX_BYTES };
+  try {
+    const files      = fs.readdirSync(CACHE_DIR);
+    const totalBytes = files.reduce((s, f) => {
+      try { return s + fs.statSync(path.join(CACHE_DIR, f)).size; } catch { return s; }
+    }, 0);
+    return { count: files.length, totalBytes, maxBytes: CACHE_MAX_BYTES };
+  } catch {
+    return { count: 0, totalBytes: 0, maxBytes: CACHE_MAX_BYTES };
+  }
+});
+
+/** wm:cache-clear — deletes all cached files. */
+ipcMain.handle('wm:cache-clear', () => {
+  if (!CACHE_DIR) return;
+  try {
+    for (const f of fs.readdirSync(CACHE_DIR)) {
+      try { fs.unlinkSync(path.join(CACHE_DIR, f)); } catch {}
+    }
+  } catch {}
+});
+
 // ─── Window creation ──────────────────────────────────────────────────────────
 
 function createWindow() {
@@ -348,7 +609,6 @@ function createWindow() {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     const distPath = path.join(__dirname, '../dist/index.html');
-    const fs = require('node:fs');
     if (!fs.existsSync(distPath)) {
       mainWindow.loadURL(
         `data:text/html,<body style="font-family:sans-serif;padding:40px;background:#0d1117;color:#e6edf3">` +
@@ -369,6 +629,17 @@ function createWindow() {
 // ─── App lifecycle ────────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
+  // Initialise cache directory
+  CACHE_DIR = path.join(app.getPath('userData'), 'media-cache');
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+
+  // Serve cached media as wm-cache:///key — stays local, never hits the network
+  protocol.handle('wm-cache', (request) => {
+    const filename = decodeURIComponent(new URL(request.url).pathname.slice(1));
+    const filePath = path.join(CACHE_DIR, filename);
+    return net.fetch(pathToFileURL(filePath).toString());
+  });
+
   setupTray();
   createWindow();
 

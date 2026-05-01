@@ -697,6 +697,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  will-change: scroll-position;
 }
 
 .load-more {
@@ -754,6 +755,8 @@ body {
   align-items: flex-end;
   gap: 6px;
   padding: 1px 0;
+  content-visibility: auto;
+  contain-intrinsic-block-size: 48px;
 }
 .msg-row.own { flex-direction: row-reverse; }
 
@@ -1879,7 +1882,7 @@ body {
 
 /* ─── Compact channel posts ─────────────────────────────────────────────────── */
 .channel-feed { max-width: 680px; margin: 0 auto; padding: 12px 0; }
-.cp { background: var(--bg-2); border-radius: var(--r-md); margin-bottom: 10px; overflow: hidden; }
+.cp { background: var(--bg-2); border-radius: var(--r-md); margin-bottom: 10px; overflow: hidden; content-visibility: auto; contain-intrinsic-block-size: 180px; }
 .cp-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px; }
 .cp-author { font-size: 13px; font-weight: 600; flex: 1; }
 .cp-time { font-size: 11px; color: var(--text-2); }
