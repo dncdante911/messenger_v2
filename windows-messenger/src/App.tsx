@@ -449,8 +449,10 @@ export default function App() {
   const [callCamOff, setCallCamOff] = useState(false);
   const peerRef         = useRef<RTCPeerConnection | null>(null);
   const localStreamRef  = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const localVideoRef   = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef  = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef  = useRef<HTMLAudioElement | null>(null);
   const callTimerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const callStateRef    = useRef<CallState>({ phase: 'idle' });
   // Group call peers (mesh WebRTC — one PC per participant)
@@ -976,6 +978,18 @@ export default function App() {
   useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
   useEffect(() => { selectedChannelRef.current = selectedChannel; }, [selectedChannel]);
   useEffect(() => { callStateRef.current = callState; }, [callState]);
+
+  // When the call transitions to 'connected' the video/audio elements mount.
+  // If ontrack already fired and stored the stream in remoteStreamRef, attach it now.
+  useEffect(() => {
+    if (callState.phase === 'connected' && remoteStreamRef.current) {
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStreamRef.current;
+      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStreamRef.current;
+    }
+    if (callState.phase === 'idle') {
+      remoteStreamRef.current = null;
+    }
+  }, [callState.phase]);
 
   // ─── Badge count (tray + taskbar overlay) ───────────────────────────────
   useEffect(() => {
@@ -1841,9 +1855,11 @@ export default function App() {
 
   function stopLocalStream() {
     localStreamRef.current?.getTracks().forEach(t => t.stop());
-    localStreamRef.current = null;
+    localStreamRef.current  = null;
+    remoteStreamRef.current = null;
     if (localVideoRef.current)  localVideoRef.current.srcObject  = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
   }
 
   function stopCallEverything() {
@@ -1885,7 +1901,11 @@ export default function App() {
     } catch { /* no mic/cam */ }
 
     pc.ontrack = (ev) => {
-      if (remoteVideoRef.current && ev.streams[0]) remoteVideoRef.current.srcObject = ev.streams[0];
+      const stream = ev.streams[0];
+      if (!stream) return;
+      remoteStreamRef.current = stream;
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
+      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = stream;
     };
     pc.onicecandidate = ({ candidate }) => {
       if (candidate)
@@ -1916,7 +1936,11 @@ export default function App() {
     } catch { /* no mic/cam */ }
 
     pc.ontrack = (ev) => {
-      if (remoteVideoRef.current && ev.streams[0]) remoteVideoRef.current.srcObject = ev.streams[0];
+      const stream = ev.streams[0];
+      if (!stream) return;
+      remoteStreamRef.current = stream;
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
+      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = stream;
     };
     pc.onicecandidate = ({ candidate }) => {
       if (candidate)
@@ -2328,6 +2352,9 @@ export default function App() {
       {/* ── Call overlay ─────────────────────────────────────────────────── */}
       {callState.phase !== 'idle' && (
         <div className="call-overlay">
+          {/* Hidden audio element — always mounted so ontrack can attach the remote stream
+              for both audio and video calls before the visible UI elements exist */}
+          <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
 
           {/* Incoming 1-on-1 */}
           {callState.phase === 'incoming' && (
