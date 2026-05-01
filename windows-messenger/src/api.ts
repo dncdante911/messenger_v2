@@ -1201,3 +1201,70 @@ export async function getBotLinkedUser(token: string, botIdStr: string): Promise
     return Number(bot.linked_user_id ?? bot.user_id ?? resp.linked_user_id ?? 0);
   } catch { return 0; }
 }
+
+// ─── Saved Messages ───────────────────────────────────────────────────────────
+
+export interface SavedMessageItem {
+  id?:           number;
+  message_id:    number;
+  chat_type:     'chat' | 'group' | 'channel';
+  chat_id:       number;
+  chat_name:     string;
+  sender_name:   string;
+  text:          string;
+  media_url?:    string;
+  media_type?:   string;
+  saved_at:      number;
+  original_time: number;
+}
+
+export async function listSaved(token: string): Promise<SavedMessageItem[]> {
+  try {
+    const resp = await nodeGet<Record<string, unknown>>('/api/node/saved/list', token);
+    const raw = (resp.saved ?? resp.items ?? []) as Record<string, unknown>[];
+    return raw.map(s => ({
+      id:            Number(s.id ?? 0)  || undefined,
+      message_id:    Number(s.message_id ?? s.messageId ?? 0),
+      chat_type:     String(s.chat_type ?? s.chatType ?? 'chat') as SavedMessageItem['chat_type'],
+      chat_id:       Number(s.chat_id ?? s.chatId ?? 0),
+      chat_name:     String(s.chat_name ?? s.chatName ?? ''),
+      sender_name:   String(s.sender_name ?? s.senderName ?? ''),
+      text:          String(s.text ?? ''),
+      media_url:     s.media_url ? String(s.media_url) : undefined,
+      media_type:    s.media_type ? String(s.media_type) : undefined,
+      saved_at:      Number(s.saved_at ?? s.savedAt ?? 0),
+      original_time: Number(s.original_time ?? s.originalTime ?? 0),
+    }));
+  } catch { return []; }
+}
+
+export async function saveMessage(
+  token:        string,
+  item: Omit<SavedMessageItem, 'id' | 'saved_at'>
+): Promise<boolean> {
+  try {
+    await nodePost('/api/node/saved/save', token, {
+      message_id:    item.message_id,
+      chat_type:     item.chat_type,
+      chat_id:       item.chat_id,
+      chat_name:     item.chat_name,
+      sender_name:   item.sender_name,
+      text:          item.text,
+      media_url:     item.media_url,
+      media_type:    item.media_type,
+      original_time: item.original_time,
+    });
+    return true;
+  } catch { return false; }
+}
+
+export async function unsaveMessage(token: string, messageId: number, chatType: string): Promise<boolean> {
+  try {
+    await nodePost('/api/node/saved/unsave', token, { message_id: messageId, chat_type: chatType });
+    return true;
+  } catch { return false; }
+}
+
+export async function clearSaved(token: string): Promise<void> {
+  await nodePost('/api/node/saved/clear', token, {}).catch(() => {});
+}

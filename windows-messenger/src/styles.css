@@ -1,35 +1,36 @@
 /* ─── Design tokens ────────────────────────────────────────────────────────── */
 :root {
-  --bg:            #17212b;
-  --bg-2:          #1e2c3a;
-  --bg-3:          #243342;
-  --bg-4:          #182533;
-  --bg-sidebar:    #17212b;
-  --bg-chat:       #0e1621;
-  --bg-hover:      rgba(255,255,255,0.06);
-  --border:        rgba(255,255,255,0.08);
+  /* Midnight Indigo — warm dark theme with vibrant violet accent */
+  --bg:            #1c1929;   /* warm dark indigo base        */
+  --bg-2:          #231f34;   /* cards / panels               */
+  --bg-3:          #2c2845;   /* hover / elevated             */
+  --bg-4:          #181526;   /* deepest layer                */
+  --bg-sidebar:    #1c1929;
+  --bg-chat:       #17132e;   /* chat area base               */
+  --bg-hover:      rgba(255,255,255,0.07);
+  --border:        rgba(255,255,255,0.09);
   --border-light:  rgba(255,255,255,0.05);
 
-  --text:          #c8d0d8;
-  --text-2:        #6d8fa3;
-  --text-3:        #3d5a70;
-  --text-link:     #5db3f5;
+  --text:          #ddd8f5;   /* soft lavender-white          */
+  --text-2:        #7a72b0;   /* muted violet                 */
+  --text-3:        #4a436e;   /* dimmed                       */
+  --text-link:     #a78bfa;   /* violet hyperlink             */
 
-  --accent:        #3390ec;
-  --accent-h:      #5aacf2;
-  --accent-dim:    rgba(51,144,236,0.18);
-  --accent-active: #2079d5;
+  --accent:        #7c6af5;   /* vibrant indigo               */
+  --accent-h:      #9d8ef8;   /* hover                        */
+  --accent-dim:    rgba(124,106,245,0.2);
+  --accent-active: #6555e8;   /* pressed                      */
 
-  --own-bg:        #2b5278;
-  --own-bg-dark:   #1e3d5a;
-  --other-bg:      #182533;
+  --own-bg:        #3e2d94;   /* deep indigo own bubble       */
+  --own-bg-dark:   #2f2170;
+  --other-bg:      #231f34;
 
-  --online:        #4dcd5e;
-  --offline:       #3d5a70;
+  --online:        #4ade80;   /* vivid green                  */
+  --offline:       #4a436e;
 
-  --danger:        #e05c65;
-  --warn:          #e8b450;
-  --success:       #4dcd5e;
+  --danger:        #f87171;   /* soft coral-red               */
+  --warn:          #fbbf24;   /* amber                        */
+  --success:       #4ade80;
 
   --r-sm:   8px;
   --r-md:  12px;
@@ -37,9 +38,9 @@
   --r-xl:  20px;
   --r-max: 9999px;
 
-  --shadow-sm:  0 1px 3px rgba(0,0,0,.35);
-  --shadow-md:  0 4px 16px rgba(0,0,0,.45);
-  --shadow-lg:  0 12px 40px rgba(0,0,0,.6);
+  --shadow-sm:  0 1px 4px rgba(0,0,0,.4);
+  --shadow-md:  0 4px 20px rgba(0,0,0,.5);
+  --shadow-lg:  0 12px 48px rgba(0,0,0,.65);
 
   font-family: 'Segoe UI Variable', 'Segoe UI', Inter, system-ui, sans-serif;
   font-size: 14px;
@@ -411,6 +412,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative; /* needed for global search overlay */
 }
 
 .sidebar-head {
@@ -640,8 +642,9 @@ body {
   grid-template-rows: auto 1fr auto;
   background-color: var(--bg-chat);
   background-image:
-    radial-gradient(circle at 25% 25%, rgba(51,144,236,.04) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(43,82,120,.06) 0%, transparent 50%);
+    radial-gradient(ellipse at 85% 10%, rgba(124,106,245,.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 15% 90%, rgba(62,45,148,.18) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(124,106,245,.04) 0%, transparent 70%);
   overflow: hidden;
   position: relative;
 }
@@ -2070,3 +2073,106 @@ body {
 .settings-lang-btn:hover:not(.active) { border-color: var(--border); background: var(--bg-3); }
 .settings-security-card { background: var(--bg-2); border-radius: var(--r-md); padding: 18px; max-width: 520px; }
 .settings-loading { color: var(--text-2); font-size: 14px; padding: 24px 0; text-align: center; }
+
+/* ─── Global Search ──────────────────────────────────────────────────────────── */
+.search-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+}
+.search-panel-head {
+  padding: 14px 16px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.search-panel-back {
+  width: 32px; height: 32px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-2); font-size: 18px;
+  border-radius: var(--r-max); display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.search-panel-back:hover { background: var(--bg-hover); color: var(--text); }
+.search-panel-input {
+  flex: 1; background: var(--bg-3); border: none; outline: none;
+  border-radius: var(--r-max); padding: 8px 14px; font-size: 14px;
+  color: var(--text); font-family: inherit;
+}
+.search-panel-input::placeholder { color: var(--text-3); }
+.search-tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.search-tab {
+  flex: 1; padding: 9px 4px; background: none; border: none; cursor: pointer;
+  color: var(--text-2); font-size: 12px; font-weight: 600; letter-spacing: .3px;
+  border-bottom: 2px solid transparent; transition: all .15s; font-family: inherit;
+  text-transform: uppercase;
+}
+.search-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.search-tab:hover:not(.active) { color: var(--text); background: var(--bg-hover); }
+.search-results {
+  flex: 1; overflow-y: auto; padding: 8px 0;
+  display: flex; flex-direction: column;
+}
+.search-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; color: var(--text-2); padding: 40px;
+}
+.search-empty-icon { font-size: 44px; opacity: .4; }
+.search-result-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; cursor: pointer; transition: background .12s;
+}
+.search-result-row:hover { background: var(--bg-hover); }
+.search-result-info { flex: 1; min-width: 0; }
+.search-result-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-result-sub  { font-size: 12px; color: var(--text-2); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-result-type { font-size: 10px; font-weight: 700; letter-spacing: .5px; padding: 2px 7px; border-radius: var(--r-max); flex-shrink: 0; }
+.search-result-type.people   { background: rgba(124,106,245,.2); color: var(--accent-h); }
+.search-result-type.group    { background: rgba(74,222,128,.15); color: #4ade80; }
+.search-result-type.channel  { background: rgba(251,191,36,.15); color: #fbbf24; }
+.search-loading { text-align: center; padding: 24px; color: var(--text-2); font-size: 13px; }
+
+/* ─── Saved Messages ─────────────────────────────────────────────────────────── */
+.saved-panel {
+  display: flex; flex-direction: column; height: 100%;
+}
+.saved-panel-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px; height: 56px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(28,25,41,.8); backdrop-filter: blur(12px);
+}
+.saved-panel-title { font-size: 16px; font-weight: 700; flex: 1; }
+.saved-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.saved-item {
+  background: var(--bg-2); border-radius: var(--r-md); padding: 12px 14px;
+  border: 1px solid var(--border); transition: border-color .15s;
+  cursor: pointer;
+}
+.saved-item:hover { border-color: var(--accent-dim); }
+.saved-item-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.saved-item-source { font-size: 12px; font-weight: 600; color: var(--accent); }
+.saved-item-sender { font-size: 12px; color: var(--text-2); }
+.saved-item-time   { font-size: 11px; color: var(--text-3); margin-left: auto; }
+.saved-item-text   { font-size: 13px; color: var(--text); line-height: 1.5; word-break: break-word; }
+.saved-item-media  { margin-top: 8px; }
+.saved-item-media img { max-width: 200px; border-radius: var(--r-sm); }
+.saved-item-unsave {
+  float: right; background: none; border: none; cursor: pointer;
+  color: var(--text-3); font-size: 16px; padding: 0 0 0 8px;
+  transition: color .15s;
+}
+.saved-item-unsave:hover { color: var(--danger); }
+.saved-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 14px; color: var(--text-2);
+}
+.saved-empty-icon { font-size: 52px; opacity: .35; }
+.saved-empty h3 { font-size: 17px; font-weight: 600; color: var(--text); }
+.saved-empty p { font-size: 13px; max-width: 260px; text-align: center; line-height: 1.6; }

@@ -24,6 +24,7 @@ import {
   loadStickerPacks, sendStickerMessage, sendGifMessage, loadTrendingGifs, searchGifs, searchBots,
   getBotLinkedUser,
   type UserProfile,
+  listSaved, saveMessage as apiSaveMessage, unsaveMessage, type SavedMessageItem,
 } from './api';
 import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack, GifItem, BotItem } from './types';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
@@ -349,14 +350,15 @@ function TypingDots() {
 }
 
 const Bubble = React.memo(function Bubble({
-  msg, isOwn, onReply, onEdit, onDelete, onReact, onOpenMedia, userId
+  msg, isOwn, onReply, onEdit, onDelete, onReact, onOpenMedia, onSave, isSaved, userId
 }: {
-  msg: MessageItem; isOwn: boolean; userId: number;
+  msg: MessageItem; isOwn: boolean; userId: number; isSaved: boolean;
   onReply: (m: MessageItem) => void;
   onEdit:  (m: MessageItem) => void;
   onDelete: (m: MessageItem) => void;
   onReact: (m: MessageItem, emoji: string) => void;
   onOpenMedia: (src: string) => void;
+  onSave: (m: MessageItem) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -389,6 +391,7 @@ const Bubble = React.memo(function Bubble({
         <div className={`bubble-actions ${isOwn ? 'actions-left' : 'actions-right'}`}>
           <button className="action-btn" title={t('bubble.reply')} onClick={() => onReply(msg)}>↩</button>
           <button className="action-btn" title={t('bubble.react')} onClick={() => setShowEmojiPicker(v => !v)}>😀</button>
+          <button className="action-btn" title={isSaved ? 'Убрать из сохранённых' : 'Сохранить'} onClick={() => onSave(msg)} style={{ color: isSaved ? 'var(--accent)' : undefined }}>{isSaved ? '🔖' : '🏷️'}</button>
           {isOwn && <button className="action-btn" title={t('bubble.edit')} onClick={() => onEdit(msg)}>✎</button>}
           {isOwn && <button className="action-btn" title={t('bubble.delete')} onClick={() => onDelete(msg)}>🗑</button>}
           {showEmojiPicker && (
@@ -702,6 +705,22 @@ export default function App() {
   // ── Blocked users ─────────────────────────────────────────────────────────
   const [blockedUsers,   setBlockedUsers]   = useState<UserProfile[]>([]);
   const [blockedLoaded,  setBlockedLoaded]  = useState(false);
+
+  // ── Global search panel ────────────────────────────────────────────────────
+  const [showGlobalSearch, setShowGlobalSearch]   = useState(false);
+  const [globalSearchQ,    setGlobalSearchQ]      = useState('');
+  const [globalSearchTab,  setGlobalSearchTab]    = useState<'people' | 'groups' | 'channels'>('people');
+  const [globalSearchRes,  setGlobalSearchRes]    = useState<{
+    people: UserSearchResult[]; groups: GroupItem[]; channels: ChannelItem[];
+  }>({ people: [], groups: [], channels: [] });
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+  const globalSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Saved messages ─────────────────────────────────────────────────────────
+  const [showSaved,    setShowSaved]    = useState(false);
+  const [savedItems,   setSavedItems]  = useState<SavedMessageItem[]>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [savedSet,     setSavedSet]    = useState<Set<number>>(new Set());
 
   // ── Voice recording ───────────────────────────────────────────────────────
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -1759,6 +1778,65 @@ export default function App() {
     }
   }
 
+  // ─── Global search ────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!session || !globalSearchQ.trim()) {
+      setGlobalSearchRes({ people: [], groups: [], channels: [] });
+      return;
+    }
+    setGlobalSearchLoading(true);
+    if (globalSearchTimer.current) clearTimeout(globalSearchTimer.current);
+    globalSearchTimer.current = setTimeout(async () => {
+      const q = globalSearchQ.trim();
+      try {
+        const [people, groups, channels] = await Promise.all([
+          searchUsers(session.token, q),
+          searchGroups(session.token, q).then(r => r.data ?? []),
+          searchChannels(session.token, q).then(r => r.data ?? []),
+        ]);
+        setGlobalSearchRes({ people, groups, channels });
+      } catch { /* keep previous */ }
+      setGlobalSearchLoading(false);
+    }, 350);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalSearchQ]);
+
+  // ─── Saved messages ───────────────────────────────────────────────────────
+
+  async function handleOpenSaved() {
+    if (!session) return;
+    setShowSaved(true);
+    setSavedLoading(true);
+    try {
+      const items = await listSaved(session.token);
+      setSavedItems(items);
+      setSavedSet(new Set(items.map(i => i.message_id)));
+    } catch { /* keep previous */ }
+    setSavedLoading(false);
+  }
+
+  async function handleSaveMessage(msg: MessageItem, chatName: string, senderName: string) {
+    if (!session) return;
+    const already = savedSet.has(msg.id);
+    if (already) {
+      setSavedSet(prev => { const s = new Set(prev); s.delete(msg.id); return s; });
+      setSavedItems(prev => prev.filter(i => i.message_id !== msg.id));
+      await unsaveMessage(session.token, msg.id, 'chat');
+    } else {
+      setSavedSet(prev => new Set(prev).add(msg.id));
+      const item: Omit<SavedMessageItem, 'id' | 'saved_at'> = {
+        message_id: msg.id, chat_type: 'chat',
+        chat_id: selectedChat?.user_id ?? 0, chat_name: chatName,
+        sender_name: senderName, text: msg.text ?? '',
+        media_url: msg.media, media_type: msg.media_type,
+        original_time: msg.time ?? 0,
+      };
+      setSavedItems(prev => [{ ...item, saved_at: Date.now() / 1000 }, ...prev]);
+      await apiSaveMessage(session.token, item);
+    }
+  }
+
   // ─── Load more messages ───────────────────────────────────────────────────
 
   async function handleLoadMore() {
@@ -2739,6 +2817,13 @@ export default function App() {
 
           <div className="drawer-divider" />
 
+          <button className="drawer-item" onClick={() => { handleOpenSaved(); setDrawerOpen(false); }}>
+            <span className="drawer-item-icon">🔖</span>
+            <span className="drawer-item-label">Сохранённые</span>
+          </button>
+
+          <div className="drawer-divider" />
+
           {/* Night mode toggle (visual only for now) */}
           <div className="drawer-toggle-row">
             <span className="drawer-item-icon">🌙</span>
@@ -2775,13 +2860,101 @@ export default function App() {
              section === 'stories'  ? t('sidebar.stories')  :
              section === 'calls'    ? t('sidebar.calls')    : t('sidebar.settings')}
           </h2>
+          <button className="hamburger-btn" title="Поиск" style={{ fontSize: 17 }}
+            onClick={() => { setShowGlobalSearch(true); setGlobalSearchQ(''); }}>🔍</button>
           <div className="socket-badge" title={socketStatus}>
             <span className={`dot ${socketStatus.startsWith('Connected') ? 'green' : 'grey'}`} />
           </div>
         </div>
 
+        {/* ── Global search overlay ──────────────────────────────────────── */}
+        {showGlobalSearch && (
+          <div className="search-panel" style={{ position: 'absolute', inset: 0, zIndex: 10 }}>
+            <div className="search-panel-head">
+              <button className="search-panel-back" onClick={() => { setShowGlobalSearch(false); setGlobalSearchQ(''); }}>←</button>
+              <input
+                autoFocus
+                className="search-panel-input"
+                placeholder="Поиск людей, групп, каналов…"
+                value={globalSearchQ}
+                onChange={e => setGlobalSearchQ(e.target.value)}
+              />
+            </div>
+            <div className="search-tabs">
+              {(['people', 'groups', 'channels'] as const).map(tab => (
+                <button key={tab} className={`search-tab ${globalSearchTab === tab ? 'active' : ''}`}
+                  onClick={() => setGlobalSearchTab(tab)}>
+                  {tab === 'people' ? '👤 Люди' : tab === 'groups' ? '👥 Группы' : '📢 Каналы'}
+                </button>
+              ))}
+            </div>
+            <div className="search-results">
+              {globalSearchLoading && <div className="search-loading">Поиск…</div>}
+              {!globalSearchLoading && globalSearchQ.trim() === '' && (
+                <div className="search-empty">
+                  <div className="search-empty-icon">🔍</div>
+                  <span>Введите запрос для поиска</span>
+                </div>
+              )}
+              {!globalSearchLoading && globalSearchQ.trim() !== '' && globalSearchTab === 'people' && globalSearchRes.people.map(u => (
+                <div key={u.id} className="search-result-row" onClick={() => {
+                  setShowGlobalSearch(false);
+                  setGlobalSearchQ('');
+                  const found = chats.find(c => c.user_id === u.id);
+                  if (found) selectChat(found);
+                }}>
+                  <Avatar name={u.username} src={u.avatar} size={40} />
+                  <div className="search-result-info">
+                    <div className="search-result-name">{u.first_name ?? ''} {u.last_name ?? ''} {!u.first_name && !u.last_name ? u.username : ''}</div>
+                    <div className="search-result-sub">@{u.username}</div>
+                  </div>
+                  <span className="search-result-type people">Чат</span>
+                </div>
+              ))}
+              {!globalSearchLoading && globalSearchQ.trim() !== '' && globalSearchTab === 'groups' && globalSearchRes.groups.map(g => (
+                <div key={g.id} className="search-result-row" onClick={() => {
+                  setShowGlobalSearch(false); setGlobalSearchQ('');
+                  setSection('groups');
+                  setSelectedGroup(g);
+                }}>
+                  <Avatar name={g.group_name} size={40} />
+                  <div className="search-result-info">
+                    <div className="search-result-name">{g.group_name}</div>
+                    <div className="search-result-sub">{g.members_count ?? ''} участников</div>
+                  </div>
+                  <span className="search-result-type group">Группа</span>
+                </div>
+              ))}
+              {!globalSearchLoading && globalSearchQ.trim() !== '' && globalSearchTab === 'channels' && globalSearchRes.channels.map(c => (
+                <div key={c.id} className="search-result-row" onClick={() => {
+                  setShowGlobalSearch(false); setGlobalSearchQ('');
+                  setSection('channels');
+                  setSelectedChannel(c);
+                }}>
+                  <Avatar name={c.name} src={c.avatar_url} size={40} />
+                  <div className="search-result-info">
+                    <div className="search-result-name">{c.name}</div>
+                    <div className="search-result-sub">{c.description ?? ''}</div>
+                  </div>
+                  <span className="search-result-type channel">Канал</span>
+                </div>
+              ))}
+              {!globalSearchLoading && globalSearchQ.trim() !== '' && (
+                globalSearchTab === 'people'   && globalSearchRes.people.length   === 0 ||
+                globalSearchTab === 'groups'   && globalSearchRes.groups.length   === 0 ||
+                globalSearchTab === 'channels' && globalSearchRes.channels.length === 0
+              ) && (
+                <div className="search-empty">
+                  <div className="search-empty-icon">😶</div>
+                  <span>Ничего не найдено</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Search (chats only) */}
-        {section === 'chats' && (
+        {!showGlobalSearch && section === 'chats' && (
           <div className="search-box">
             <span className="search-icon">🔍</span>
             <input placeholder={t('sidebar.search')} value={searchQuery}
@@ -3341,8 +3514,69 @@ export default function App() {
 
       {/* ── Main chat view ────────────────────────────────────────────────── */}
       <main className="chat-main">
+
+        {/* ── Saved messages panel ─────────────────────────────────────────── */}
+        {showSaved && (
+          <div className="saved-panel">
+            <div className="saved-panel-head">
+              <button className="search-panel-back" onClick={() => setShowSaved(false)}>←</button>
+              <span className="saved-panel-title">🔖 Сохранённые сообщения</span>
+              {savedItems.length > 0 && (
+                <button className="action-btn" title="Очистить всё" style={{ marginLeft: 'auto', color: 'var(--danger)' }}
+                  onClick={async () => {
+                    if (!session || !window.confirm('Очистить все сохранённые?')) return;
+                    setSavedItems([]); setSavedSet(new Set());
+                    await unsaveMessage(session.token, 0, 'clear_all').catch(async () => {
+                      await import('./api').then(m => m.clearSaved(session.token));
+                    });
+                  }}>🗑</button>
+              )}
+            </div>
+            <div className="saved-list">
+              {savedLoading && <div className="search-loading">Загрузка…</div>}
+              {!savedLoading && savedItems.length === 0 && (
+                <div className="saved-empty">
+                  <div className="saved-empty-icon">🔖</div>
+                  <h3>Нет сохранённых</h3>
+                  <p>Нажмите 🏷️ под любым сообщением, чтобы сохранить его здесь</p>
+                </div>
+              )}
+              {savedItems.map((item, i) => (
+                <div key={i} className="saved-item">
+                  <button className="saved-item-unsave" title="Убрать"
+                    onClick={async () => {
+                      if (!session) return;
+                      setSavedItems(prev => prev.filter((_, j) => j !== i));
+                      setSavedSet(prev => { const s = new Set(prev); s.delete(item.message_id); return s; });
+                      await unsaveMessage(session.token, item.message_id, item.chat_type);
+                    }}>✕</button>
+                  <div className="saved-item-meta">
+                    <span className="saved-item-source">{item.chat_name || 'Чат'}</span>
+                    <span className="saved-item-sender">· {item.sender_name}</span>
+                    <span className="saved-item-time">{item.original_time ? new Date(item.original_time * 1000).toLocaleDateString('ru') : ''}</span>
+                  </div>
+                  {item.text && <div className="saved-item-text">{item.text}</div>}
+                  {item.media_url && item.media_type === 'image' && (
+                    <div className="saved-item-media">
+                      <img src={absMediaUrl(item.media_url)} alt="media" loading="lazy"
+                        onClick={() => setLightboxSrc(absMediaUrl(item.media_url!))} />
+                    </div>
+                  )}
+                  {item.media_url && item.media_type !== 'image' && (
+                    <div className="saved-item-meta" style={{ marginTop: 6 }}>
+                      <a href={absMediaUrl(item.media_url)} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
+                        📎 {item.media_type ?? 'Файл'}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Settings full-width view ───────────────────────────────────── */}
-        {section === 'settings' ? (
+        {!showSaved && section === 'settings' ? (
           <div className="settings-main-view">
             {/* Left nav column */}
             <div className="settings-nav-col">
@@ -4039,11 +4273,13 @@ export default function App() {
                       msg={msg}
                       isOwn={isOwn}
                       userId={session.userId}
+                      isSaved={savedSet.has(msg.id)}
                       onReply={handleReply}
                       onEdit={handleEditStart}
                       onDelete={handleDelete}
                       onReact={handleReact}
                       onOpenMedia={setLightboxSrc}
+                      onSave={m => handleSaveMessage(m, selectedChat.name, isOwn ? (session.username ?? '') : selectedChat.name)}
                     />
                   </div>
                 );
