@@ -430,9 +430,16 @@ export async function searchMessages(token: string, recipientId: number, query: 
 // ─── Media ────────────────────────────────────────────────────────────────────
 
 export async function uploadMedia(token: string, file: File): Promise<MediaUploadResponse> {
+  // Detect type by MIME first, then fall back to extension (handles .mp3/.m4a with octet-stream MIME)
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const AUDIO_EXTS = new Set(['mp3','ogg','m4a','aac','opus','flac','wav','webm']);
+  const VIDEO_EXTS = new Set(['mp4','mov','mkv','m4v','avi','3gp']);
   const type = file.type.startsWith('image') ? 'image'
     : file.type.startsWith('video') ? 'video'
-    : file.type.startsWith('audio') ? 'audio' : 'file';
+    : file.type.startsWith('audio') ? 'audio'
+    : AUDIO_EXTS.has(ext) ? 'audio'
+    : VIDEO_EXTS.has(ext) ? 'video'
+    : 'file';
   const text = await doUpload(`${NODE_BASE_URL}/api/node/chat/upload`, token, { type }, file);
   return parseJson<MediaUploadResponse>(text);
 }
