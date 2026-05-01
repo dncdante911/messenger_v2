@@ -11,17 +11,18 @@
  *   type        – media type: "image" | "video" | "audio" | "voice" | "file"
  *   quality     – video quality: "video_message" | "compressed" | "high" | "original" | "auto"
  *                 Defaults to "auto". "original" skips server-side compression entirely.
- *   chat_type   – 'private' | 'group' | 'channel' (для политики контента)
+ *   chat_type   – 'private' | 'group' | 'channel'
  *   entity_id   – ID группы или канала (0 для приватного чата)
  *
- * Response (compatible with Android XhrUploadResponse):
- *   { status: 200, image: "url", image_src: "path", is_sensitive: false }
- *   { status: 200, video: "url", video_src: "path", compression_pending: false }
- *   { status: 200, audio: "url", audio_src: "path" }
- *   { status: 200, file:  "url", file_src:  "path", compression_pending: true }
+ * Storage strategy:
+ *   multer.diskStorage → write directly to upload/tmp/<random_name>
+ *   Magic bytes check  → read 16 bytes from disk (no buffer in RAM)
+ *   Content moderation → stream SHA-256 for large files; buffer only for images (≤25 MB)
+ *   Final placement    → fs.rename (same volume) or copyFile+unlink (cross-volume)
+ *   Temp cleanup       → always removed on error
  *
  * Video compression strategy (Telegram-like):
- *   type=video, quality=video_message → Android already compressed; server skips (< 50 MB expected)
+ *   type=video, quality=video_message → Android already compressed; server skips
  *   type=video, quality=compressed    → Android compressed to 720p; server skips
  *   type=video, quality=high          → Android compressed to 1080p; server skips
  *   type=video, quality=original      → No compression anywhere; stored as-is
@@ -43,7 +44,7 @@ const multer = require('multer');
 
 const {
     DECISION,
-    checkContent,
+    checkContentFromFile,
     addToModerationQueue
 } = require('../../helpers/content-moderator');
 
@@ -89,16 +90,26 @@ const BLOCKED_SIGNATURES = [
     { sig: Buffer.from([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07]),       label: 'RAR archive'         },
 ];
 
-function checkMagicBytes(buffer) {
-    if (!buffer || buffer.length < 4) {
-        return { ok: false, reason: 'File too small to validate' };
-    }
-    for (const { sig, label } of BLOCKED_SIGNATURES) {
-        if (buffer.length >= sig.length && buffer.slice(0, sig.length).equals(sig)) {
-            return { ok: false, reason: `Rejected file type: ${label}` };
+// Reads the first 16 bytes from disk — no full buffer in memory
+function checkMagicBytesFromDisk(filePath) {
+    let fd;
+    try {
+        fd = fs.openSync(filePath, 'r');
+        const header = Buffer.alloc(16);
+        const bytesRead = fs.readSync(fd, header, 0, 16, 0);
+        if (bytesRead < 4) return { ok: false, reason: 'File too small to validate' };
+
+        for (const { sig, label } of BLOCKED_SIGNATURES) {
+            if (bytesRead >= sig.length && header.slice(0, sig.length).equals(sig)) {
+                return { ok: false, reason: `Rejected file type: ${label}` };
+            }
         }
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, reason: `Cannot read file header: ${e.message}` };
+    } finally {
+        if (fd !== undefined) try { fs.closeSync(fd); } catch {}
     }
-    return { ok: true };
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -120,20 +131,50 @@ function fullUrl(ctx, relPath) {
     return `${base}/${relPath}`;
 }
 
-// ─── multer — memory storage for validation, then write to disk ───────────────
+// Move temp file to final destination.
+// Uses rename (atomic, same volume). Falls back to copyFile+unlink if cross-device.
+async function moveTempFile(tmpPath, destPath) {
+    try {
+        await fs.promises.rename(tmpPath, destPath);
+    } catch (e) {
+        if (e.code === 'EXDEV') {
+            // Different filesystems — copy then delete
+            await fs.promises.copyFile(tmpPath, destPath);
+            await fs.promises.unlink(tmpPath);
+        } else {
+            throw e;
+        }
+    }
+}
+
+// Always try to delete temp file, swallow errors
+function cleanupTemp(tmpPath) {
+    if (!tmpPath) return;
+    fs.unlink(tmpPath, () => {});
+}
+
+// ─── multer — disk storage (no RAM buffer) ────────────────────────────────────
+
+const TMP_DIR = path.join(SITE_ROOT, 'upload/tmp');
+ensureDir(TMP_DIR);
+
+const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => {
+        ensureDir(TMP_DIR);
+        cb(null, TMP_DIR);
+    },
+    filename: (_req, file, cb) => {
+        cb(null, generateFilename(file.originalname));
+    }
+});
 
 const upload = multer({
-    storage: multer.memoryStorage(),
-    limits:  { fileSize: Math.max(...Object.values(LIMITS)) },
+    storage,
+    limits: { fileSize: Math.max(...Object.values(LIMITS)) },
 }).any();
 
 // ─── Background compression for large video files (movies) ───────────────────
 
-/**
- * Kick off background ffmpeg compression for a large file-type video.
- * The file URL stays the same; the on-disk file is replaced with a smaller one.
- * Notifies the uploader via Socket.IO when done.
- */
 function scheduleBackgroundCompression(absPath, url, userId, io) {
     const fileSizeBytes = fs.existsSync(absPath) ? fs.statSync(absPath).size : 0;
 
@@ -149,12 +190,11 @@ function scheduleBackgroundCompression(absPath, url, userId, io) {
             const pct    = Math.round((1 - result.compressedSize / result.originalSize) * 100);
             console.log(`[ChatUpload] Background compression done: ${origMb}MB → ${compMb}MB (−${pct}%)`);
 
-            // Notify the uploader so they can show a "file compressed" indicator
             if (io && userId) {
                 io.to(String(userId)).emit('media_compressed', {
                     url,
-                    original_size:    result.originalSize,
-                    compressed_size:  result.compressedSize,
+                    original_size:     result.originalSize,
+                    compressed_size:   result.compressedSize,
                     reduction_percent: pct,
                 });
             }
@@ -178,38 +218,40 @@ function uploadChatMedia(ctx, io) {
                 return res.json({ status: 500, error: 'Server error during upload' });
             }
 
+            const files = req.files || [];
+            if (files.length === 0) {
+                return res.json({ status: 400, error: 'No file uploaded' });
+            }
+
+            const uploadedFile = files[0];
+            const tmpPath      = uploadedFile.path; // disk path from multer
+
             try {
-                const files = req.files || [];
-                if (files.length === 0) {
-                    return res.json({ status: 400, error: 'No file uploaded' });
-                }
-
-                const uploadedFile = files[0];
-
                 let mediaType = (req.body.type || uploadedFile.fieldname || 'file').toLowerCase();
                 if (!LIMITS[mediaType]) mediaType = 'file';
 
                 if (uploadedFile.size > LIMITS[mediaType]) {
+                    cleanupTemp(tmpPath);
                     const limitMb = Math.round(LIMITS[mediaType] / 1024 / 1024);
                     return res.json({ status: 400, error: `File too large. Max ${limitMb} MB for type "${mediaType}"` });
                 }
 
-                // Magic bytes check
-                const magicCheck = checkMagicBytes(uploadedFile.buffer);
+                // ── Magic bytes check (reads 16 bytes from disk, no RAM buffer) ──
+                const magicCheck = checkMagicBytesFromDisk(tmpPath);
                 if (!magicCheck.ok) {
                     console.warn(`[ChatUpload] Blocked dangerous file from ${req.ip}: ${magicCheck.reason}`);
+                    cleanupTemp(tmpPath);
                     return res.json({ status: 400, error: `Upload rejected: ${magicCheck.reason}` });
                 }
 
-                // ── Content Moderation ──────────────────────────────────────
+                // ── Content Moderation ──────────────────────────────────────────
+                // Stream-based SHA-256 for videos/files; full buffer only for images (≤25 MB)
                 const chatType = (req.body.chat_type  || 'private').toLowerCase();
                 const entityId = parseInt(req.body.entity_id || '0', 10);
                 const userId   = req.user?.user_id || 0;
 
-                const moderationResult = await checkContent(
-                    ctx,
-                    uploadedFile.buffer,
-                    mediaType,
+                const moderationResult = await checkContentFromFile(
+                    ctx, tmpPath, mediaType,
                     { senderId: userId, chatType, entityId }
                 );
 
@@ -218,13 +260,14 @@ function uploadChatMedia(ctx, io) {
                         `[ChatUpload] BLOCK: user=${userId} reason=${moderationResult.reason} ` +
                         `sha256=${moderationResult.sha256.slice(0, 12)}...`
                     );
+                    cleanupTemp(tmpPath);
                     return res.json({
                         status: 451,
                         error:  'Загрузка запрещена: контент нарушает правила платформы',
                         reason: moderationResult.reason
                     });
                 }
-                // ── End Content Moderation ──────────────────────────────────
+                // ── End Content Moderation ──────────────────────────────────────
 
                 // Build output path
                 let subDir = UPLOAD_DIRS[mediaType];
@@ -241,9 +284,12 @@ function uploadChatMedia(ctx, io) {
                 const relPath  = `${subDir}/${filename}`;
                 const url      = fullUrl(ctx, relPath);
 
-                await fs.promises.writeFile(absPath, uploadedFile.buffer);
+                // ── Move temp file to final destination ─────────────────────────
+                // rename() = atomic, zero-copy on same volume.
+                // Falls back to copyFile+unlink if tmp and dest are on different mounts.
+                await moveTempFile(tmpPath, absPath);
 
-                // ── Moderation queue ────────────────────────────────────────
+                // ── Moderation queue ────────────────────────────────────────────
                 if (moderationResult.decision === DECISION.HOLD) {
                     console.log(`[ChatUpload] HOLD: файл сохранён, добавлен в очередь модерации: ${relPath}`);
                     await addToModerationQueue(ctx, {
@@ -260,12 +306,9 @@ function uploadChatMedia(ctx, io) {
                         reason:        moderationResult.reason
                     });
                 }
-                // ── End Moderation queue ────────────────────────────────────
+                // ── End Moderation queue ────────────────────────────────────────
 
-                // ── Background video compression for large file uploads ─────
-                // "file" type = user sent video as file (movie).
-                // We compress in-place asynchronously so the URL stays valid.
-                // "video" type = Android already compressed before upload — skip.
+                // ── Background video compression for large file uploads ─────────
                 const qualityParam = (req.body.quality || 'auto').toLowerCase();
                 let compressionPending = false;
 
@@ -276,12 +319,10 @@ function uploadChatMedia(ctx, io) {
                     isVideoFile(filename)
                 ) {
                     compressionPending = true;
-                    // Non-blocking: respond immediately, compress in background
                     setImmediate(() => scheduleBackgroundCompression(absPath, url, userId, io));
                 }
-                // ── End compression ─────────────────────────────────────────
+                // ── End compression ─────────────────────────────────────────────
 
-                // Build XhrUploadResponse-compatible JSON
                 const resp = {
                     status:              200,
                     image:               null, image_src: null,
@@ -322,6 +363,7 @@ function uploadChatMedia(ctx, io) {
                 return res.json(resp);
 
             } catch (e) {
+                cleanupTemp(tmpPath);
                 console.error('[ChatUpload]', e.message);
                 return res.json({ status: 500, error: 'Failed to save uploaded file' });
             }

@@ -30,6 +30,7 @@
  */
 
 const crypto = require('crypto');
+const fs     = require('fs');
 const http   = require('http');
 const https  = require('https');
 
@@ -336,14 +337,100 @@ async function checkContent(ctx, buffer, mediaType, context = {}) {
     return { decision, sha256, phashInt, isSensitive, reason, nudeNet: nudeNetResult };
 }
 
+// ─── Stream-based SHA-256 (не читает весь файл в память) ─────────────────────
+
+function sha256hexFromFile(filePath) {
+    return new Promise((resolve, reject) => {
+        const hash   = crypto.createHash('sha256');
+        const stream = fs.createReadStream(filePath);
+        stream.on('error', reject);
+        stream.on('data',  chunk => hash.update(chunk));
+        stream.on('end',   ()    => resolve(hash.digest('hex')));
+    });
+}
+
+/**
+ * Версия checkContent для дисковых файлов — не загружает весь файл в RAM.
+ * Для не-изображений (video/audio/file) SHA-256 считается потоком.
+ * Для изображений (≤25 MB) файл читается в Buffer и передаётся в NudeNet.
+ *
+ * @param {object} ctx
+ * @param {string} filePath   — абсолютный путь к файлу на диске
+ * @param {string} mediaType  — 'image' | 'video' | 'audio' | 'file'
+ * @param {object} context    — { senderId, chatType, entityId }
+ */
+async function checkContentFromFile(ctx, filePath, mediaType, context = {}) {
+    const { senderId = 0, chatType = 'private', entityId = 0 } = context;
+
+    // SHA-256 через стрим — не тратим RAM на большие файлы
+    const sha256 = await sha256hexFromFile(filePath);
+
+    // Блэклист — быстрая проверка до NudeNet
+    const quickCheck = await checkHashBlacklist(ctx, sha256, null);
+    if (quickCheck.blocked) {
+        console.warn(`[ContentModerator] SHA-256 блэклист: sha256=${sha256.slice(0, 12)}... reason=${quickCheck.reason}`);
+        return {
+            decision:    DECISION.BLOCK,
+            sha256,
+            isSensitive: false,
+            reason:      `blacklisted:${quickCheck.reason}`,
+            nudeNet:     null
+        };
+    }
+
+    // Видео/аудио/файлы — только хэш, NudeNet не нужен
+    if (mediaType !== 'image') {
+        return {
+            decision:    DECISION.ALLOW,
+            sha256,
+            isSensitive: false,
+            reason:      `non_image_type:${mediaType}`,
+            nudeNet:     null
+        };
+    }
+
+    // Изображения (≤25 MB): читаем в Buffer для NudeNet
+    const buffer       = await fs.promises.readFile(filePath);
+    const contentLevel = await getContentLevel(ctx, chatType, entityId);
+    const nudeNetResult = await callNudeNet(buffer);
+
+    const phashInt = nudeNetResult?.phash_int ?? null;
+    if (phashInt !== null) {
+        const phashCheck = await checkHashBlacklist(ctx, sha256, phashInt);
+        if (phashCheck.blocked) {
+            console.warn(
+                `[ContentModerator] pHash блэклист: dist=${phashCheck.distance ?? '?'} ` +
+                `sha256=${sha256.slice(0, 12)}...`
+            );
+            return {
+                decision:    DECISION.BLOCK,
+                sha256,
+                phashInt,
+                isSensitive: false,
+                reason:      `phash_blacklisted:${phashCheck.reason}`,
+                nudeNet:     nudeNetResult
+            };
+        }
+    }
+
+    const { decision, reason, isSensitive } = makeDecision(contentLevel, nudeNetResult);
+    console.log(
+        `[ContentModerator] sha256=${sha256.slice(0, 12)}... ` +
+        `level=${contentLevel} decision=${decision} reason=${reason}`
+    );
+    return { decision, sha256, phashInt, isSensitive, reason, nudeNet: nudeNetResult };
+}
+
 // ─── Экспорт ──────────────────────────────────────────────────────────────────
 
 module.exports = {
     DECISION,
     checkContent,
+    checkContentFromFile,
     addToHashBlacklist,
     addToModerationQueue,
     getContentLevel,
     sha256hex,
+    sha256hexFromFile,
     hammingDistanceBigInt
 };
