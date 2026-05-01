@@ -533,6 +533,7 @@ export default function App() {
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const [section, setSection]       = useState<ActiveSection>('chats');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // ── Real-time ─────────────────────────────────────────────────────────────
   const [socket, setSocket]         = useState<Socket | null>(null);
@@ -2626,35 +2627,59 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Navigation rail ───────────────────────────────────────────────── */}
-      <nav className="rail">
-        <div className="rail-top">
-          <div className="rail-brand">W</div>
+      {/* ── Side drawer backdrop ─────────────────────────────────────────────── */}
+      {drawerOpen && <div className="drawer-backdrop" onClick={() => setDrawerOpen(false)} />}
+
+      {/* ── Side drawer ──────────────────────────────────────────────────────── */}
+      <div className={`side-drawer ${drawerOpen ? 'open' : ''}`}>
+        {/* Profile */}
+        <div className="drawer-profile">
+          <Avatar name={session.username} size={56} />
+          <div className="drawer-profile-name">{session.username}</div>
+          <div className="drawer-profile-sub">WorldMates</div>
+        </div>
+
+        {/* Nav items */}
+        <nav className="drawer-nav">
           {navItems.map(({ key, icon, label }) => (
-            <button key={key}
-              className={`rail-btn ${section === key ? 'active' : ''}`}
-              onClick={() => setSection(key)}
-              title={label}
-            >
-              {icon}
+            <button key={key} className={`drawer-item ${section === key ? 'active' : ''}`}
+              onClick={() => { setSection(key); setDrawerOpen(false); }}>
+              <span className="drawer-item-icon">{icon}</span>
+              <span className="drawer-item-label">{label}</span>
             </button>
           ))}
-        </div>
-        <div className="rail-bottom">
-          <button className="rail-btn" title={t('nav.logout')} onClick={logout}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
+
+          <div className="drawer-divider" />
+
+          {/* Night mode toggle (visual only for now) */}
+          <div className="drawer-toggle-row">
+            <span className="drawer-item-icon">🌙</span>
+            <span className="drawer-toggle-label">{t('nav.nightMode')}</span>
+            <label className="tg-toggle">
+              <input type="checkbox" readOnly checked />
+              <div className="tg-toggle-track" />
+              <div className="tg-toggle-thumb" />
+            </label>
+          </div>
+        </nav>
+
+        {/* Footer */}
+        <div className="drawer-footer">
+          <button className="drawer-item" style={{width:'100%', color:'var(--danger)'}}
+            onClick={() => { setDrawerOpen(false); logout(); }}>
+            <span className="drawer-item-icon">🚪</span>
+            <span className="drawer-item-label">{t('nav.logout')}</span>
           </button>
-          <Avatar name={session.username} size={34} />
+          <div className="drawer-version">WallyMates · v2.0</div>
         </div>
-      </nav>
+      </div>
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
       <aside className="sidebar">
         <div className="sidebar-head">
+          <button className="hamburger-btn" onClick={() => setDrawerOpen(true)} title="Меню">
+            ☰
+          </button>
           <h2 className="sidebar-title">
             {section === 'chats'    ? t('sidebar.messages') :
              section === 'groups'   ? t('sidebar.groups')   :
