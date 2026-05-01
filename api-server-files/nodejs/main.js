@@ -940,6 +940,27 @@ async function runMigrations(ctx) {
 
   console.log('[Migration] All background migrations complete');
 
+  // ── wo_channel_comments — create if missing, then add sticker column ────────
+  try {
+    await ctx.sequelize.query(`
+      CREATE TABLE IF NOT EXISTS wo_channel_comments (
+        id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        post_id     INT UNSIGNED NOT NULL,
+        user_id     INT UNSIGNED NOT NULL,
+        text        TEXT,
+        time        INT UNSIGNED NOT NULL DEFAULT 0,
+        reply_to_id INT UNSIGNED DEFAULT NULL,
+        sticker     VARCHAR(512) DEFAULT NULL,
+        PRIMARY KEY (id),
+        KEY idx_post (post_id),
+        KEY idx_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[Migration] wo_channel_comments table ensured');
+  } catch (e) {
+    console.warn('[Migration] wo_channel_comments create:', e.message);
+  }
+
   // ── Sticker support for channel comments, thread messages, story comments ──
   try {
     await ctx.sequelize.query("ALTER TABLE wo_channel_comments ADD COLUMN IF NOT EXISTS sticker VARCHAR(512) DEFAULT NULL");
