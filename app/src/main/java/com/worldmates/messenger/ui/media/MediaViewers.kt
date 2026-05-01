@@ -638,7 +638,8 @@ fun InlineVideoPlayer(
     shape: Shape = RoundedCornerShape(12.dp),
     isCircularFrame: Boolean = false,
     progressBrush: Brush? = null,
-    onFullscreenClick: (() -> Unit)? = null
+    onFullscreenClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
@@ -698,6 +699,10 @@ fun InlineVideoPlayer(
                     player = exoPlayer
                     useController = false
                     setOnClickListener { showControls = !showControls }
+                    // PlayerView is a native Android View that swallows all touch events
+                    // before Compose's combinedClickable can see them. Forward long press
+                    // explicitly so message selection works on video bubbles.
+                    setOnLongClickListener { onLongClick?.invoke(); true }
                 }
             },
             modifier = Modifier.fillMaxSize()

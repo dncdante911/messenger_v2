@@ -47,6 +47,7 @@ fun VideoMessageComponent(
     videoUrl: String,
     showTextAbove: Boolean = false,
     enablePiP: Boolean = true,
+    onLongPress: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (videoUrl == "deleted") {
@@ -219,7 +220,8 @@ fun VideoMessageComponent(
                         isCircularFrame = isCircle,
                         progressBrush = progressBrush,
                         modifier = Modifier.fillMaxWidth(),
-                        onFullscreenClick = { showVideoPlayer = true }
+                        onFullscreenClick = { showVideoPlayer = true },
+                        onLongClick = onLongPress
                     )
                 }
 
