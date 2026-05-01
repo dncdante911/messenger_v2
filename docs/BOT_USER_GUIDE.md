@@ -1,243 +1,177 @@
-# WorldMates Bots - User Guide
+# WallyMates — Гид по ботам для пользователей
 
-Everything you need to know about using bots in WorldMates Messenger.
-
----
-
-## What Are Bots?
-
-Bots are automated assistants inside WorldMates Messenger that can help you with various tasks. They look like regular chats but are powered by programs instead of real people.
-
-**What can bots do?**
-- Send you news and weather updates
-- Help you track tasks and to-do lists
-- Create polls and votes in group chats
-- Answer frequently asked questions
-- Provide customer support
-- And much more!
+Всё что нужно знать об использовании ботов в WallyMates Messenger.
 
 ---
 
-## Finding Bots
+## Что такое боты?
 
-### Method 1: Bot Store
+Боты — это автоматические помощники внутри WallyMates. Выглядят как обычные чаты, но отвечает программа, а не человек.
 
-1. Open WorldMates Messenger
-2. Go to the **Chats** tab
-3. Tap the **robot icon** button in the bottom right corner
-4. Browse bots by category or use the search bar
-
-### Method 2: Search
-
-1. Tap the **Search** icon in the top right corner
-2. Type the bot's name or @username
-3. Bot results will appear with a "BOT" badge
-
-### Method 3: Shared Links
-
-Other users can share bot links with you. Simply tap the link to open the bot chat.
+**Что умеют боты:**
+- Генерировать случайные числа, подбрасывать монету, бросать кубики
+- Отвечать на вопросы и давать справку по приложению
+- Создавать опросы и голосования в группах
+- Присылать новости из RSS-лент
+- Работать как персональный ассистент
 
 ---
 
-## Starting a Bot
+## Как найти бота
 
-1. Open the bot from the Bot Store or search
-2. You'll see the bot's profile: name, description, and available commands
-3. Tap the **START** button to begin interacting
-4. The bot will send you a welcome message with instructions
+### Способ 1 — Bot Store (каталог ботов)
 
----
+1. Открой WallyMates
+2. Перейди на вкладку **Чаты**
+3. Нажми кнопку **с иконкой робота** (справа внизу)
+4. Листай каталог или используй поиск
 
-## Talking to Bots
+### Способ 2 — Поиск
 
-### Text Messages
+1. Нажми иконку **поиска** вверху
+2. Введи имя бота или `@username`
+3. Боты отображаются со значком **BOT**
 
-Just type your message and send it, like chatting with a regular user. The bot will understand and respond.
+### Способ 3 — Через WallyBot
 
-### Commands
-
-Bots support special commands that start with `/` (slash):
-
-1. Tap the **`/`** button next to the text input
-2. A list of available commands will appear
-3. Tap a command to send it
-4. Or type it manually: `/help`, `/start`, `/weather London`
-
-**Common commands most bots support:**
-- `/start` - Start or restart the bot
-- `/help` - Show available commands and instructions
-- `/settings` - Bot settings (if available)
-
-### Buttons
-
-Some bots send messages with **buttons underneath**:
-
-- **Action buttons** - Tap to perform an action (vote, select option, navigate)
-- **Link buttons** - Tap to open a website (marked with an arrow icon)
-
-After tapping an action button, the bot will process your choice and respond.
+Напиши в чат `@wallybot` команду `/mybots` — WallyBot покажет список ботов или помоги найти нужный.
 
 ---
 
-## Bot Features
+## Встроенные боты WallyMates
 
-### Polls & Voting
+### @wallybot — официальный помощник
+Главный бот мессенджера. Умеет всё: справка по приложению, создание своих ботов, обучение.
 
-Some bots can create polls:
-1. The bot sends a question with answer options
-2. Tap your choice to vote
-3. Results update in real-time for all participants
-4. Some polls allow multiple answers
+| Команда | Что делает |
+|---------|-----------|
+| `/start` | Приветствие и главное меню |
+| `/guide` | Интерактивный гид по WallyMates |
+| `/about` | Описание разделов и навигация |
+| `/ask` | Задать любой вопрос |
+| `/newbot` | Создать своего бота |
+| `/mybots` | Список твоих ботов |
+| `/help` | Все команды |
 
-### Inline Keyboards
+### @randomizerbot — генератор случайностей 🎲
+Развлекательный бот: числа, монета, кубики, Магический шар.
 
-Bots can show interactive menus with buttons. Use them to:
-- Navigate through options
-- Select items from a list
-- Confirm or cancel actions
-- View paginated content (previous/next)
-
-### Task Tracking
-
-Task bots help you manage to-do lists:
-- Create tasks with priorities and due dates
-- Mark tasks as completed
-- Get reminders for upcoming deadlines
-- View statistics of your productivity
-
-### News & Updates
-
-News bots deliver content automatically:
-- Subscribe to topics or sources
-- Receive articles as they're published
-- Customize frequency of updates
-- Manage your subscriptions
+| Команда | Что делает |
+|---------|-----------|
+| `/start` | Главное меню с кнопками |
+| `/random` | Случайное число 1–100 |
+| `/random 1 6` | Число в своём диапазоне |
+| `/flip` | Орёл или решка 🪙 |
+| `/dice` | Бросок кубика d6 🎲 |
+| `/dice 20` | Бросок d20 🎰 |
+| `/choose вар1 вар2 вар3` | Выбрать один вариант |
+| `/magic8 вопрос?` | Магический шар 🎱 |
 
 ---
 
-## Available Bots
+## Начало работы с ботом
 
-### RSS News Bot
-Get news from your favorite sources (BBC, Reuters, TechCrunch, and more).
-- `/sources` - View available news sources
-- `/add` - Add a custom RSS feed
-- `/latest` - Get latest news
-- `/list` - View your subscriptions
-
-### Weather Bot
-Real-time weather forecasts for any city.
-- `/weather London` - Current weather
-- `/forecast Berlin` - 5-day forecast
-- `/setcity Kyiv` - Set default city
-
-### Support Bot
-Customer support with FAQ and ticketing system.
-- Browse FAQ categories with buttons
-- Create support tickets
-- Rate your support experience
-
-### Task Tracker Bot
-Personal task management.
-- `/new Buy groceries` - Create a task
-- `/list` - View all tasks
-- `/done 1` - Complete task #1
-- `/stats` - View your statistics
-
-### Poll Bot
-Create polls and quizzes for groups.
-- `/poll` - Start creating a poll
-- `/quiz` - Create a quiz with correct answers
-- Supports anonymous voting
+1. Открой бота из каталога или поиска
+2. Прочитай описание и доступные команды
+3. Нажми кнопку **НАЧАТЬ / START** — бот пришлёт приветствие
+4. Используй команды или кнопки под сообщениями
 
 ---
 
-## Managing Bots
+## Как общаться с ботами
 
-### Blocking a Bot
+### Текстом
 
-If you want to stop receiving messages from a bot:
-1. Open the bot chat
-2. Tap the bot's name at the top
-3. Select **Block Bot**
-4. The bot will no longer be able to send you messages
+Просто пиши сообщение. Многие боты понимают свободный текст. Например, @randomizerbot автоматически отвечает на вопросы заканчивающиеся на `?`.
 
-### Unblocking a Bot
+### Командами
 
-1. Go to **Settings** > **Privacy**
-2. Find the bot in your blocked list
-3. Tap **Unblock**
+Команды начинаются с `/`:
 
-### Reporting a Bot
+1. Нажми кнопку **`/`** рядом с полем ввода
+2. Появится список команд бота
+3. Нажми нужную или напечатай вручную: `/help`, `/start`
 
-If a bot sends spam or inappropriate content:
-1. Open the bot chat
-2. Tap the bot's name at the top
-3. Select **Report**
-4. Choose a reason and submit
+### Inline-кнопками
+
+Боты присылают сообщения с **кнопками внизу**. Просто нажимай — никаких команд вводить не нужно.
 
 ---
 
-## Creating Your Own Bot
+## Управление ботами
 
-Want to build your own bot? Here's how:
+### Заблокировать бота
 
-### Simple Way (No Coding)
+1. Открой чат с ботом
+2. Нажми имя бота вверху
+3. Выбери **Заблокировать**
+4. Бот больше не сможет писать тебе
 
-1. Go to the **Bot Store**
-2. Tap **My Bots**
-3. Tap **Create Bot**
-4. Fill in:
-   - **Username** - Unique name (e.g., `my_cool_bot`)
-   - **Display Name** - What users will see
-   - **Description** - What your bot does
-   - **Category** - Choose from the list
-5. Tap **Create**
-6. Copy your **Bot Token** - you'll need it!
+### Разблокировать
 
-### Advanced (With Code)
+1. **Настройки** → **Приватность**
+2. Найди бота в списке заблокированных
+3. Нажми **Разблокировать**
 
-See the [Developer Guide](BOT_API_DEVELOPER_GUIDE.md) for:
-- Full API documentation
-- PHP SDK with code examples
-- Socket.IO real-time integration
-- Webhook setup
-- Example bots with source code
+### Пожаловаться
+
+1. Открой чат с ботом
+2. Нажми имя бота вверху
+3. Выбери **Пожаловаться** → укажи причину
 
 ---
 
-## FAQ
+## Создать своего бота
 
-**Q: Are bots free to use?**
-A: Yes! All bots on WorldMates are free for users.
+### Через приложение (без кода)
 
-**Q: Can bots read my private messages?**
-A: No. Bots can only see messages you send directly to them. They cannot access your other chats.
+1. Открой **Bot Store** (иконка робота на вкладке Чаты)
+2. Нажми **Мои боты** → **Создать бота**
+3. Заполни:
+   - **Username** — уникальное имя (например `weather_bot`)
+   - **Отображаемое имя** — что увидят пользователи
+   - **Описание** — что делает бот
+4. Нажми **Создать** и скопируй **bot_token**
 
-**Q: Can I add bots to group chats?**
-A: Some bots support group chats (if the bot creator enabled it). Look for the "Can join groups" indicator in the bot profile.
+### Через @wallybot (удобнее)
 
-**Q: How do I know if I'm talking to a bot?**
-A: Bots always have a "BOT" badge next to their name. They also have a different icon in the chat list.
+Напиши в чат `@wallybot` команду `/newbot` — бот проведёт пошагово.
 
-**Q: Can I create multiple bots?**
-A: Yes! There's no limit on how many bots you can create.
+### Подключить внешнего бота с кодом
 
-**Q: My bot isn't responding. What should I do?**
-A: The bot might be temporarily offline. Try again later or contact the bot creator.
-
-**Q: Are my conversations with bots private?**
-A: Yes. Your conversations with bots are private, just like regular chats. The bot creator may process your messages to provide the service, but they're stored securely.
+Смотри [Руководство разработчика](BOT_API_DEVELOPER_GUIDE.md).
 
 ---
 
-## Tips & Tricks
+## Часто задаваемые вопросы
 
-1. **Use `/start` if confused** - It restarts the bot and shows the welcome message
-2. **Check `/help` first** - Most bots list all available features there
-3. **Tap buttons instead of typing** - It's faster and avoids typos
-4. **Save useful bots** - Pin bot chats for quick access
-5. **Try different bots** - Browse categories in the Bot Store to discover new ones
+**Боты бесплатны?**
+Да. Все боты в WallyMates бесплатны для пользователей.
+
+**Бот может читать мои личные чаты?**
+Нет. Бот видит только сообщения, которые ты пишешь именно ему.
+
+**Можно добавить бота в группу?**
+Да, если разработчик включил эту возможность. Смотри «Может войти в группы» в профиле бота.
+
+**Как понять что это бот, а не человек?**
+У ботов есть значок **BOT** рядом с именем и отдельная иконка в списке чатов.
+
+**Бот не отвечает — что делать?**
+Попробуй `/start`. Если не помогает — бот может быть временно недоступен.
+
+**Можно создать несколько ботов?**
+Да, ограничений нет.
 
 ---
 
-*WorldMates Messenger - Making communication smarter with bots*
+## Советы
+
+1. **`/start`** — перезапускает бота если что-то пошло не так
+2. **`/help`** — полный список команд любого бота
+3. **Кнопки быстрее команд** — используй их для навигации
+4. **@wallybot знает всё** — задай любой вопрос через `/ask`
+
+---
+
+*WallyMates Messenger — умное общение с ботами*
