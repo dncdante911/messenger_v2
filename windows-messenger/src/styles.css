@@ -764,6 +764,96 @@ body {
 .media-audio { width: 220px; display: block; }
 .media-file  { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-link); text-decoration: none; background: rgba(255,255,255,.05); padding: 6px 10px; border-radius: var(--r-sm); }
 
+/* ── Voice player (mirrors Android AudioAlbumComponent) ─────────────────────── */
+.voice-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+  max-width: 280px;
+  padding: 6px 4px;
+}
+
+.voice-play-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-h, #5865f2);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.voice-play-btn:hover { background: var(--accent-active, #4752c4); }
+
+.voice-waveform-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.voice-waveform {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 3px;
+}
+
+.voice-waveform-progress {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: rgba(255,255,255,.12);
+  pointer-events: none;
+  border-radius: 3px;
+  transition: width .1s linear;
+}
+
+.voice-bar {
+  flex: 1;
+  border-radius: 2px;
+  background: rgba(255,255,255,.5);
+  height: calc(var(--bar-h, 0.5) * 100%);
+  transition: height .1s;
+  transform-origin: bottom;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes voiceBarPulse {
+  0%, 100% { transform: scaleY(0.55); }
+  50%       { transform: scaleY(1); }
+}
+
+.voice-bar.playing {
+  background: var(--accent-h, #5865f2);
+  animation: voiceBarPulse calc(0.5s + var(--bar-i, 0) * 0.04s) ease-in-out infinite alternate;
+  animation-delay: calc(var(--bar-i, 0) * 0.05s);
+}
+
+.voice-filename {
+  font-size: 11px;
+  color: rgba(255,255,255,.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-time {
+  font-size: 11px;
+  color: rgba(255,255,255,.6);
+  flex-shrink: 0;
+  min-width: 32px;
+  text-align: right;
+}
+
 .bubble-text { font-size: 14px; line-height: 1.45; color: inherit; }
 .edited-mark { font-size: 11px; color: rgba(255,255,255,.45); }
 .decrypt-msg { font-size: 13px; color: rgba(255,255,255,.5); font-style: italic; }

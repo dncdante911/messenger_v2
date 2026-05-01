@@ -139,6 +139,120 @@ function playNotificationBeep(): void {
   } catch { /* AudioContext unavailable */ }
 }
 
+// ─── Media helpers ───────────────────────────────────────────────────────────
+
+/** Compress an image to 80 % JPEG quality at max 1920 px — same as Android's
+ *  IMAGE_COMPRESSION_QUALITY=80. GIFs and non-images pass through unchanged. */
+async function compressImageIfNeeded(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1920;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+        else        { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve(file); return; }
+        const name = file.name.replace(/\.[^.]+$/, '.jpg');
+        resolve(new File([blob], name, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.80);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+/** Resolve a relative server path to a full URL — mirrors Android's
+ *  EncryptedMediaHandler.getFullMediaUrl().
+ *  Server stores paths like: upload/photos/YYYY/MM/file.jpg
+ *                            upload/videos/file.mp4
+ *                            upload/audios/VOICE_xxx.ogg
+ *                            upload/files/file.pdf     */
+export function absMediaUrl(u: string | undefined): string {
+  if (!u) return '';
+  if (u.startsWith('http')) return u;
+  return `https://worldmates.club/${u.replace(/^\//, '')}`;
+}
+
+// ─── Waveform bars (matching Android AudioAlbumComponent) ─────────────────────
+const VOICE_BAR_HEIGHTS = [0.4, 0.7, 0.55, 0.9, 0.6, 0.8, 0.45, 0.75, 0.5, 0.65,
+  0.85, 0.55, 0.7, 0.4, 0.6, 0.8, 0.5, 0.9, 0.65, 0.45];
+
+// ─── VoicePlayer — custom player matching Android's AudioAlbumComponent ───────
+function VoicePlayer({ src, filename }: { src: string; filename?: string }) {
+  const audioRef  = useRef<HTMLAudioElement>(null);
+  const [playing,  setPlaying]  = useState(false);
+  const [progress, setProgress] = useState(0);   // 0..1
+  const [duration, setDuration] = useState(0);
+  const [current,  setCurrent]  = useState(0);
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onMeta   = () => setDuration(a.duration || 0);
+    const onTime   = () => { if (a.duration) { setProgress(a.currentTime / a.duration); setCurrent(a.currentTime); } };
+    const onEnded  = () => { setPlaying(false); setProgress(0); setCurrent(0); };
+    a.addEventListener('loadedmetadata', onMeta);
+    a.addEventListener('timeupdate',     onTime);
+    a.addEventListener('ended',          onEnded);
+    return () => {
+      a.removeEventListener('loadedmetadata', onMeta);
+      a.removeEventListener('timeupdate',     onTime);
+      a.removeEventListener('ended',          onEnded);
+    };
+  }, [src]);
+
+  function togglePlay() {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) { a.pause(); setPlaying(false); }
+    else         { a.play().catch(() => {}); setPlaying(true); }
+  }
+
+  function seek(e: React.MouseEvent<HTMLDivElement>) {
+    const a = audioRef.current;
+    if (!a || !a.duration) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    a.currentTime = x * a.duration;
+    setProgress(x);
+  }
+
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const displayTime = current > 0 ? fmt(current) : duration > 0 ? fmt(duration) : '0:00';
+
+  return (
+    <div className="voice-player">
+      <audio ref={audioRef} src={src} preload="metadata" />
+      <button className="voice-play-btn" onClick={togglePlay} title={playing ? 'Пауза' : 'Відтворити'}>
+        {playing ? '⏸' : '▶'}
+      </button>
+      <div className="voice-waveform-wrap">
+        <div className="voice-waveform" onClick={seek}>
+          <div className="voice-waveform-progress" style={{ width: `${progress * 100}%` }} />
+          {VOICE_BAR_HEIGHTS.map((h, i) => (
+            <div
+              key={i}
+              className={`voice-bar${playing ? ' playing' : ''}`}
+              style={{ '--bar-h': h, '--bar-i': i } as React.CSSProperties}
+            />
+          ))}
+        </div>
+        {filename && <span className="voice-filename">{filename}</span>}
+      </div>
+      <span className="voice-time">{displayTime}</span>
+    </div>
+  );
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Avatar({ name, src, size = 40, online }: { name: string; src?: string; size?: number; online?: boolean }) {
@@ -180,13 +294,7 @@ function Bubble({
 
   const isEncrypted = msg.cipher_version === CIPHER_VERSION_SIGNAL;
 
-  const absUrl = (u: string | undefined): string => {
-    if (!u) return '';
-    if (u.startsWith('http')) return u;
-    return `https://worldmates.club/${u.replace(/^\//, '')}`;
-  };
-
-  const mediaUrl = absUrl(msg.media);
+  const mediaUrl = absMediaUrl(msg.media);
 
   const mediaIsImage = msg.media_type === 'image'
     || (!msg.media_type && msg.media && /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.media));
@@ -243,9 +351,9 @@ function Bubble({
                 : mediaIsImage
                   ? <img src={mediaUrl} alt="media" className="media-img" onClick={() => onOpenMedia(mediaUrl)} />
                   : isVideo
-                    ? <video src={mediaUrl} controls className="media-video" style={{ maxWidth: '100%' }} />
+                    ? <video src={mediaUrl} controls className="media-video" />
                     : isVoice
-                      ? <audio src={mediaUrl} controls className="media-audio" style={{ width: '100%' }} />
+                      ? <VoicePlayer src={mediaUrl} filename={msg.media_filename} />
                       : <a href={mediaUrl} target="_blank" rel="noreferrer" className="media-file">
                           📎 {msg.media_filename ?? t('misc.downloadFile')}
                         </a>
@@ -1326,7 +1434,8 @@ export default function App() {
 
     try {
       if (pendingMedia) {
-        await sendMessageWithMedia(session.token, selectedChat.user_id, text, pendingMedia, session.userId);
+        const mediaToSend = await compressImageIfNeeded(pendingMedia);
+        await sendMessageWithMedia(session.token, selectedChat.user_id, text, mediaToSend, session.userId);
       } else {
         // Try Signal encryption
         let signalPayload: Parameters<typeof sendMessage>[4] = undefined;
@@ -3932,7 +4041,7 @@ export default function App() {
                 <label className="icon-btn attach-btn" title={t('chat.attachFile')}>
                   📎
                   <input type="file" style={{ display: 'none' }}
-                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
+                    accept="image/*,video/*,audio/*,.mp3,.ogg,.m4a,.aac,.opus,.flac,.wav,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
                     onChange={e => setPendingMedia(e.target.files?.[0] ?? null)} />
                 </label>
 
