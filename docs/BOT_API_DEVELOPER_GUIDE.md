@@ -1,395 +1,459 @@
-# WorldMates Bot API - Developer Guide
+# WallyMates Bot API — Руководство разработчика
 
-Complete guide for creating, managing, and extending bots on WorldMates Messenger.
+Полное руководство по созданию, подключению и расширению ботов.
 
----
-
-## Table of Contents
-
-1. [Quick Start](#quick-start)
-2. [Creating Your First Bot](#creating-your-first-bot)
-3. [Bot API Reference](#bot-api-reference)
-4. [PHP SDK](#php-sdk)
-5. [Socket.IO Integration](#socketio-integration)
-6. [Webhooks](#webhooks)
-7. [Commands & Menus](#commands--menus)
-8. [Inline Keyboards](#inline-keyboards)
-9. [Polls & Voting](#polls--voting)
-10. [User State (FSM)](#user-state-fsm)
-11. [Example Bots](#example-bots)
-12. [Extending & Updating Bots](#extending--updating-bots)
-13. [Best Practices](#best-practices)
-14. [Database Schema](#database-schema)
-15. [Troubleshooting](#troubleshooting)
+> **Стек:** Node.js + WorldMatesBotSDK. Никакого PHP — бэкенд 100% чистый Node.js.
 
 ---
 
-## Quick Start
+## Содержание
 
-### Prerequisites
-- WorldMates Messenger account
-- Access to Bot API endpoint: `POST /api/v2/endpoints/bot_api.php`
-- PHP 7.4+ (for SDK) or any language (for REST API)
+1. [Типы ботов](#типы-ботов)
+2. [Быстрый старт — внешний бот](#быстрый-старт--внешний-бот)
+3. [WorldMatesBotSDK](#worldmatesbotsdk)
+4. [REST API Reference](#rest-api-reference)
+5. [Команды и меню](#команды-и-меню)
+6. [Inline-клавиатуры](#inline-клавиатуры)
+7. [Callback-запросы](#callback-запросы)
+8. [State Machine (FSM)](#state-machine-fsm)
+9. [Webhook-режим](#webhook-режим)
+10. [Встроенные серверные боты](#встроенные-серверные-боты)
+11. [Пример бота — randomizerBot](#пример-бота--randomizerbot)
+12. [Лучшие практики](#лучшие-практики)
+13. [Схема базы данных](#схема-базы-данных)
+14. [Устранение неполадок](#устранение-неполадок)
 
-### 30-Second Setup
+---
+
+## Типы ботов
+
+В WallyMates есть два типа ботов:
+
+| Тип | Где работает | Кто создаёт |
+|-----|-------------|------------|
+| **Встроенный (серверный)** | Внутри процесса Node.js-сервера | Команда WallyMates |
+| **Внешний** | Отдельный процесс / VPS / облако | Сторонние разработчики |
+
+Внешние боты работают по той же схеме что в Telegram BotFather:
+1. Регистрируешь бота через `@wallybot` → получаешь `bot_id` и `bot_token`
+2. Копируешь SDK-файл к себе в проект
+3. Запускаешь свой скрипт — он опрашивает сервер или принимает webhook-запросы
+4. Бот появляется в Bot Store для других пользователей
+
+---
+
+## Быстрый старт — внешний бот
+
+### Шаг 1 — Зарегистрировать бота
+
+Напиши в чат `@wallybot` в приложении:
+
+```
+/newbot
+```
+
+WallyBot проведёт пошагово: попросит username, название, описание и вернёт:
+
+```
+✅ Бот создан!
+Bot ID:    bot_abc123def456
+Bot Token: bot_abc123def456:a1b2c3...длинная_строка
+API URL:   https://worldmates.club
+```
+
+Сохрани `bot_id` и `bot_token` — они нужны для всех запросов.
+
+### Шаг 2 — Скопировать SDK
 
 ```bash
-# 1. Create a bot via API
-curl -X POST "https://your-domain.com/api/v2/endpoints/bot_api.php?type=create_bot" \
-  -d "access_token=YOUR_ACCESS_TOKEN" \
-  -d "username=my_first_bot" \
-  -d "display_name=My First Bot" \
-  -d "description=A test bot"
+# В директорию своего проекта
+cp /path/to/api-server-files/nodejs/bot-sdk/WorldMatesBotSDK.js ./WorldMatesBotSDK.js
+```
 
-# Response:
-# { "status": 200, "bot_id": "bot_abc123", "bot_token": "wmb_..." }
+Или скачай с сервера по пути `api-server-files/nodejs/bot-sdk/WorldMatesBotSDK.js`.
 
-# 2. Set commands
-curl -X POST "https://your-domain.com/api/v2/endpoints/bot_api.php?type=set_commands" \
-  -d "bot_token=wmb_YOUR_BOT_TOKEN" \
-  -d "commands=[{\"command\":\"start\",\"description\":\"Start the bot\"},{\"command\":\"help\",\"description\":\"Get help\"}]"
+### Шаг 3 — Минимальный бот (50 строк)
 
-# 3. Send a message
-curl -X POST "https://your-domain.com/api/v2/endpoints/bot_api.php?type=send_message" \
-  -d "bot_token=wmb_YOUR_BOT_TOKEN" \
-  -d "chat_id=12345" \
-  -d "text=Hello from my bot!"
+```javascript
+'use strict';
+
+const { WorldMatesBot } = require('./WorldMatesBotSDK');
+
+const bot = new WorldMatesBot({
+    botId:  'bot_abc123def456',          // из /newbot
+    token:  'bot_abc123def456:...',      // из /newbot
+    apiUrl: 'https://worldmates.club',   // или http://localhost:449 для локальной разработки
+});
+
+bot.onCommand('start', async ({ message, bot }) => {
+    const userId = message.from.id;
+    await bot.sendMessageWithKeyboard(userId,
+        'Привет! Я твой бот 👋\n\nНажми /help для команд.',
+        WorldMatesBot.buildInlineKeyboard([
+            WorldMatesBot.callbackButton('❓ Помощь', 'help'),
+        ])
+    );
+});
+
+bot.onCommand('help', async ({ message, bot }) => {
+    await bot.sendMessage(message.from.id,
+        '/start — начать\n/help — помощь'
+    );
+});
+
+bot.onCallbackQuery(async ({ callback, bot }) => {
+    if (callback.data === 'help') {
+        await bot.sendMessage(callback.from.id, 'Это помощь!');
+    }
+});
+
+bot.on('error', (err) => console.error('[Bot]', err.message));
+
+// Запуск: long-polling (опрашивает сервер каждые 5 секунд)
+bot.start(5);
+console.log('Бот запущен. Ctrl+C для остановки.');
+```
+
+### Шаг 4 — Запустить
+
+```bash
+# Обычный запуск
+node my_bot.js
+
+# Или с переменными окружения (рекомендуется)
+BOT_ID=bot_abc123 BOT_TOKEN=bot_abc123:... node my_bot.js
+
+# Или через .env файл (нужен dotenv)
+node -r dotenv/config my_bot.js
+```
+
+### Шаг 5 — Найти бота в приложении
+
+После запуска бот появится в Bot Store (`is_public=1` устанавливается при создании через `/newbot`). Найди его через поиск `@username`.
+
+---
+
+## WorldMatesBotSDK
+
+Файл: `api-server-files/nodejs/bot-sdk/WorldMatesBotSDK.js`
+
+### Конструктор
+
+```javascript
+const bot = new WorldMatesBot({
+    botId:    'bot_abc123',              // обязательно
+    token:    'bot_abc123:secret_hash', // обязательно
+    apiUrl:   'https://worldmates.club', // по умолчанию
+    nodePort: 449,                       // порт Node.js-сервера
+    debug:    false,                     // логировать все запросы
+});
+```
+
+### Методы отправки
+
+```javascript
+// Простое текстовое сообщение
+await bot.sendMessage(userId, 'Привет!');
+
+// Сообщение с inline-клавиатурой
+await bot.sendMessageWithKeyboard(userId, 'Выбери:', keyboard);
+
+// Установить webhook
+await bot.setWebhook('https://my-server.com/webhook');
+
+// Снять webhook
+await bot.deleteWebhook();
+
+// Получить информацию о боте
+const me = await bot.getMe();
+// → { api_status: 200, username: 'my_bot', display_name: '...' }
+```
+
+### Обработчики событий
+
+```javascript
+// Конкретная команда
+bot.onCommand('start', async ({ message, args, bot }) => {
+    // message.from.id — user_id отправителя
+    // args — строка после команды: "/weather Kyiv" → args="Kyiv"
+});
+
+// Все текстовые сообщения (не команды)
+bot.onMessage(async ({ message, bot }) => {
+    console.log(message.text);
+});
+
+// Нажатие inline-кнопки
+bot.onCallbackQuery(async ({ callback, bot }) => {
+    // callback.data — строка callback_data кнопки
+    // callback.from.id — user_id нажавшего
+});
+
+// Состояние (FSM) — см. раздел State Machine
+bot.onState('waiting_input', async ({ message, bot }) => { ... });
+
+// Ошибки SDK
+bot.on('error', (err) => console.error(err));
+```
+
+### Построение клавиатур
+
+```javascript
+// Статические хелперы — не нужен экземпляр bot
+WorldMatesBot.buildInlineKeyboard(buttons, columns = 2)
+WorldMatesBot.callbackButton(text, callbackData)
+
+// Пример:
+const keyboard = WorldMatesBot.buildInlineKeyboard([
+    WorldMatesBot.callbackButton('🎲 Кубик',  'dice'),
+    WorldMatesBot.callbackButton('🪙 Монета', 'flip'),
+    WorldMatesBot.callbackButton('❓ Помощь', 'help'),
+], 2);  // 2 кнопки в ряд
+```
+
+### Режим запуска
+
+```javascript
+// Polling — бот сам спрашивает сервер (для локальной разработки и VPS)
+bot.start(timeout_seconds);  // timeout=5 рекомендуется
+
+// Webhook — сервер шлёт запросы к тебе (для продакшена с HTTPS)
+const express = require('express');
+const app = express();
+app.use(express.json());
+app.post('/webhook', bot.webhookHandler());
+app.listen(3001);
+await bot.setWebhook('https://my-server.com/webhook');
 ```
 
 ---
 
-## Creating Your First Bot
+## REST API Reference
 
-### Method 1: Via API (recommended for developers)
+**Базовый URL:** `https://worldmates.club:449/api/node/`
 
-```php
-<?php
-$response = file_get_contents('https://your-domain.com/api/v2/endpoints/bot_api.php?type=create_bot', false,
-    stream_context_create([
-        'http' => [
-            'method' => 'POST',
-            'header' => 'Content-Type: application/x-www-form-urlencoded',
-            'content' => http_build_query([
-                'access_token' => 'YOUR_USER_TOKEN',
-                'username' => 'weather_bot',
-                'display_name' => 'Weather Bot',
-                'description' => 'Get weather forecasts for any city',
-                'category' => 'tools',
-                'is_public' => 1,
-                'can_join_groups' => 1
-            ])
-        ]
-    ])
-);
+**Авторизация:** заголовок `Authorization: Bearer <bot_token>` или параметр `bot_token`.
 
-$data = json_decode($response, true);
-echo "Bot Token: " . $data['bot_token'];
-// Save this token! You'll need it for all API calls.
+### Управление ботом
+
+| Метод | Путь | Описание |
+|-------|------|---------|
+| `GET` | `/bots/me` | Информация о боте |
+| `POST` | `/bots/set-commands` | Зарегистрировать команды |
+| `GET` | `/bots/get-commands` | Список команд |
+| `POST` | `/bots/set-webhook` | Установить webhook |
+| `POST` | `/bots/delete-webhook` | Убрать webhook |
+
+### Сообщения
+
+| Метод | Путь | Описание |
+|-------|------|---------|
+| `POST` | `/bots/send-message` | Отправить сообщение |
+| `GET` | `/bots/get-updates` | Long polling (новые сообщения) |
+
+### Поиск
+
+| Метод | Путь | Описание |
+|-------|------|---------|
+| `GET` | `/bots/search?q=query` | Поиск публичных ботов |
+
+### Пример — отправить сообщение напрямую через curl
+
+```bash
+curl -X POST "https://worldmates.club:449/api/node/bots/send-message" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer bot_abc123:secret..." \
+  -d '{
+    "chat_id": 12345,
+    "text": "Привет из curl!",
+    "reply_markup": {
+      "inline_keyboard": [[
+        {"text": "OK", "callback_data": "ok"}
+      ]]
+    }
+  }'
 ```
 
-### Method 2: Via Mobile App
+### Пример — получить обновления (polling вручную)
 
-1. Open WorldMates Messenger
-2. Tap the **Bot icon** (FAB) on the Chats tab
-3. Go to **My Bots** > **Create Bot**
-4. Fill in username, name, description
-5. Copy the generated **bot_token**
-
-### Method 3: Via PHP SDK
-
-```php
-<?php
-require_once 'bot-sdk/WorldMatesBotSDK.php';
-
-// The SDK handles creation internally
-$bot = new WorldMatesBot('wmb_YOUR_BOT_TOKEN', 'https://your-domain.com');
+```bash
+curl "https://worldmates.club:449/api/node/bots/get-updates?bot_token=bot_abc123:secret&offset=0&limit=10"
 ```
 
 ---
 
-## Bot API Reference
+## Команды и меню
 
-**Base URL:** `POST /api/v2/endpoints/bot_api.php?type={action}`
+### Зарегистрировать команды
 
-**Authentication:** All requests require `bot_token` parameter (except `create_bot` which uses `access_token`).
-
-### Bot Management
-
-| Action | Description | Required Params |
-|--------|-------------|----------------|
-| `create_bot` | Create new bot | `access_token`, `username`, `display_name` |
-| `get_my_bots` | List your bots | `access_token` |
-| `update_bot` | Update bot info | `bot_token`, fields to update |
-| `delete_bot` | Delete bot | `bot_token`, `confirm=DELETE` |
-| `regenerate_token` | New token | `bot_token` |
-| `get_bot_info` | Public bot info | `bot_token` or `bot_id` |
-
-### Messaging
-
-| Action | Description | Required Params |
-|--------|-------------|----------------|
-| `send_message` | Send text/media | `bot_token`, `chat_id`, `text` |
-| `edit_message` | Edit sent message | `bot_token`, `message_id`, `text` |
-| `delete_message` | Delete message | `bot_token`, `message_id` |
-| `get_updates` | Long polling | `bot_token`, optional `offset`, `limit` |
-
-### Commands
-
-| Action | Description | Required Params |
-|--------|-------------|----------------|
-| `set_commands` | Register commands | `bot_token`, `commands` (JSON array) |
-| `get_commands` | Get command list | `bot_token` |
-
-### Interactive
-
-| Action | Description | Required Params |
-|--------|-------------|----------------|
-| `answer_callback_query` | Answer button click | `bot_token`, `callback_query_id` |
-| `send_poll` | Create poll | `bot_token`, `chat_id`, `question`, `options` |
-| `stop_poll` | Close poll | `bot_token`, `poll_id` |
-
-### Webhooks
-
-| Action | Description | Required Params |
-|--------|-------------|----------------|
-| `set_webhook` | Set webhook URL | `bot_token`, `url` |
-| `delete_webhook` | Remove webhook | `bot_token` |
-| `get_webhook_info` | Get webhook status | `bot_token` |
-
-### User State
-
-| Action | Description | Required Params |
-|--------|-------------|----------------|
-| `set_user_state` | Set FSM state | `bot_token`, `user_id`, `state` |
-| `get_user_state` | Get FSM state | `bot_token`, `user_id` |
-
-### Search
-
-| Action | Description | Required Params |
-|--------|-------------|----------------|
-| `search_bots` | Search public bots | `access_token`, `query` |
-| `get_chat_member` | Get user info | `bot_token`, `chat_id`, `user_id` |
-
----
-
-## PHP SDK
-
-### Installation
-
-Copy `bot-sdk/WorldMatesBotSDK.php` to your project.
-
-### Basic Usage
-
-```php
-<?php
-require_once 'WorldMatesBotSDK.php';
-
-$bot = new WorldMatesBot('wmb_YOUR_BOT_TOKEN', 'https://your-domain.com');
-
-// Register command handlers
-$bot->onCommand('start', function($message) use ($bot) {
-    $bot->sendMessage($message['user_id'],
-        "Welcome! I'm your bot. Type /help for commands.");
-});
-
-$bot->onCommand('help', function($message) use ($bot) {
-    $bot->sendMessage($message['user_id'],
-        "/start - Start bot\n/help - Show help\n/weather <city> - Get weather");
-});
-
-// Handle any text message
-$bot->onMessage(function($message) use ($bot) {
-    $bot->sendMessage($message['user_id'],
-        "You said: " . $message['text']);
-});
-
-// Start long polling
-$bot->startPolling();
-```
-
-### Sending Messages with Keyboards
-
-```php
-// Inline keyboard (buttons under message)
-$keyboard = [
-    [
-        ['text' => 'Option A', 'callback_data' => 'opt_a'],
-        ['text' => 'Option B', 'callback_data' => 'opt_b']
-    ],
-    [
-        ['text' => 'Visit Website', 'url' => 'https://example.com']
-    ]
-];
-
-$bot->sendMessageWithKeyboard($chatId, "Choose an option:", [
-    'inline_keyboard' => $keyboard
+```javascript
+const result = await bot.setCommands([
+    { command: 'start',   description: 'Начать / главное меню' },
+    { command: 'help',    description: 'Список команд' },
+    { command: 'weather', description: 'Погода: /weather Киев' },
+    { command: 'settings',description: 'Настройки' },
 ]);
-
-// Reply keyboard (replaces user's keyboard)
-$replyKeyboard = [
-    [
-        ['text' => 'Share Location', 'request_location' => true],
-        ['text' => 'Share Contact', 'request_contact' => true]
-    ],
-    [
-        ['text' => 'Cancel']
-    ]
-];
-
-$bot->sendMessageWithKeyboard($chatId, "What would you like to share?", [
-    'keyboard' => $replyKeyboard,
-    'resize_keyboard' => true,
-    'one_time_keyboard' => true
-]);
 ```
 
-### Handling Callback Queries
+Команды появятся в приложении когда пользователь нажмёт `/` рядом с полем ввода.
 
-```php
-$bot->onCallbackQuery(function($query) use ($bot) {
-    $data = $query['data'];
-    $userId = $query['user_id'];
+### Области применения (scope)
 
-    switch ($data) {
-        case 'opt_a':
-            $bot->answerCallbackQuery($query['id'], 'You chose Option A!');
-            $bot->sendMessage($userId, 'Processing Option A...');
-            break;
-        case 'opt_b':
-            $bot->answerCallbackQuery($query['id'], 'You chose Option B!');
-            break;
+```javascript
+{ command: 'admin', description: 'Панель администратора', scope: 'admin' }
+```
+
+Доступные значения: `all`, `private`, `group`, `admin`.
+
+---
+
+## Inline-клавиатуры
+
+### Структура
+
+```javascript
+const keyboard = {
+    inline_keyboard: [
+        [
+            { text: 'Вариант А', callback_data: 'opt_a' },
+            { text: 'Вариант Б', callback_data: 'opt_b' },
+        ],
+        [
+            { text: 'Открыть сайт', url: 'https://example.com' },
+        ],
+    ]
+};
+
+await bot.sendMessageWithKeyboard(userId, 'Выбери:', keyboard);
+```
+
+### Через хелперы SDK
+
+```javascript
+const keyboard = WorldMatesBot.buildInlineKeyboard([
+    WorldMatesBot.callbackButton('🔢 Число', 'random'),
+    WorldMatesBot.callbackButton('🪙 Монета', 'flip'),
+    WorldMatesBot.callbackButton('❓ Помощь', 'help'),
+], 2);  // 2 кнопки в ряд → [[random, flip], [help]]
+```
+
+### Ограничения
+
+- `callback_data` — максимум 64 байта (лучше держать до 32)
+- Максимум 8 кнопок в ряду, 100 кнопок всего
+- Не храни чувствительные данные в `callback_data` — они видны клиенту
+
+---
+
+## Callback-запросы
+
+```javascript
+bot.onCallbackQuery(async ({ callback, bot }) => {
+    const userId = callback.from.id;
+    const data   = callback.data;
+
+    if (data === 'confirm') {
+        await bot.sendMessage(userId, '✅ Подтверждено!');
+        return;
+    }
+
+    if (data.startsWith('page_')) {
+        const page = parseInt(data.replace('page_', ''));
+        await showPage(bot, userId, page);
+        return;
+    }
+
+    // Пагинация
+    if (data === 'prev' || data === 'next') {
+        // ...
     }
 });
 ```
 
-### State Machine (FSM)
-
-```php
-// Set user to "waiting for city" state
-$bot->setUserState($userId, 'waiting_city');
-
-// Handle based on state
-$bot->onState('waiting_city', function($message) use ($bot) {
-    $city = $message['text'];
-    $weather = getWeather($city);
-    $bot->sendMessage($message['user_id'], "Weather in $city: $weather");
-    $bot->setUserState($message['user_id'], null); // Clear state
-});
-```
-
-### Webhook Mode
-
-```php
-// Instead of long polling, set a webhook:
-$bot->setWebhook('https://your-server.com/bot-webhook.php');
-
-// In bot-webhook.php:
-$bot = new WorldMatesBot('wmb_YOUR_TOKEN', 'https://your-domain.com');
-$bot->onCommand('start', function($msg) use ($bot) { /* ... */ });
-$bot->handleWebhook(); // Processes incoming webhook data
-```
-
 ---
 
-## Socket.IO Integration
+## State Machine (FSM)
 
-Bots can connect via Socket.IO for real-time message delivery.
-
-### Bot-Side Connection (namespace: `/bots`)
+Для многошаговых диалогов (анкеты, регистрация, настройки):
 
 ```javascript
-const io = require('socket.io-client');
-
-const socket = io('https://your-domain.com/bots', {
-    transports: ['websocket']
+// Шаг 1: начать сбор данных
+bot.onCommand('register', async ({ message, bot }) => {
+    await bot.sendMessage(message.from.id, 'Как тебя зовут?');
+    bot.setState(message.from.id, 'register_name');
 });
 
-// 1. Authenticate
-socket.emit('bot_auth', {
-    bot_id: 'bot_abc123',
-    bot_token: 'wmb_your_token'
+// Шаг 2: получить имя, спросить email
+bot.onState('register_name', async ({ message, bot }) => {
+    const name = message.text;
+    bot.setStateData(message.from.id, { name });
+    await bot.sendMessage(message.from.id, `Отлично, ${name}! Введи email:`);
+    bot.setState(message.from.id, 'register_email');
 });
 
-socket.on('auth_success', (data) => {
-    console.log('Bot authenticated:', data.display_name);
+// Шаг 3: завершить регистрацию
+bot.onState('register_email', async ({ message, bot }) => {
+    const { name } = bot.getStateData(message.from.id);
+    const email = message.text;
+    // ... сохранить в БД ...
+    await bot.sendMessage(message.from.id,
+        `✅ Готово!\nИмя: ${name}\nEmail: ${email}`
+    );
+    bot.clearState(message.from.id);
 });
-
-// 2. Listen for user messages
-socket.on('user_message', (data) => {
-    console.log(`User ${data.user_id}: ${data.text}`);
-
-    // Respond
-    socket.emit('bot_message', {
-        bot_id: 'bot_abc123',
-        chat_id: data.user_id,
-        text: 'Got your message!'
-    });
-});
-
-// 3. Listen for callback queries (inline button clicks)
-socket.on('callback_query', (data) => {
-    console.log(`Button clicked: ${data.data}`);
-
-    socket.emit('callback_answer', {
-        bot_id: 'bot_abc123',
-        callback_query_id: data.callback_query_id,
-        user_id: data.user_id,
-        text: 'Processing...'
-    });
-});
-
-// 4. Typing indicator
-socket.emit('bot_typing', {
-    bot_id: 'bot_abc123',
-    chat_id: '12345',
-    is_typing: true
-});
-```
-
-### User-Side Events (main namespace)
-
-These events are handled automatically by the mobile app:
-
-| Event | Direction | Description |
-|-------|-----------|-------------|
-| `subscribe_bot` | Client -> Server | User opens bot chat |
-| `unsubscribe_bot` | Client -> Server | User leaves bot chat |
-| `user_to_bot` | Client -> Server | User sends message to bot |
-| `bot_callback_query` | Client -> Server | User clicks inline button |
-| `bot_poll_vote` | Client -> Server | User votes in poll |
-| `bot_message` | Server -> Client | Bot message received |
-| `bot_typing` | Server -> Client | Bot is typing |
-| `callback_answer` | Server -> Client | Bot answers button click |
-| `update_markup` | Server -> Client | Bot updates keyboard |
-| `bot_poll_update` | Server -> Client | Poll results updated |
-
-### REST API for Pushing Messages
-
-```bash
-# Push bot message via Node.js REST API (used by PHP backend)
-curl -X POST "https://your-domain.com:PORT/api/bots/push-message" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "bot_id": "bot_abc123",
-    "chat_id": "12345",
-    "text": "Hello!",
-    "reply_markup": {"inline_keyboard": [[{"text": "OK", "callback_data": "ok"}]]}
-  }'
 ```
 
 ---
 
-## Webhooks
+## Webhook-режим
 
-### Setting Up
+Webhook подходит для продакшена: сервер сам шлёт обновления к тебе — не нужно постоянно опрашивать.
 
-```php
-$bot->setWebhook('https://your-server.com/webhook.php', 'your_secret_key');
+**Требования:** HTTPS, публично доступный URL, ответ за 10 секунд.
+
+```javascript
+const express = require('express');
+const app     = express();
+
+app.use(express.json());
+
+// Подключить обработчики бота
+bot.onCommand('start', async ({ message, bot }) => { ... });
+bot.onCallbackQuery(async ({ callback, bot }) => { ... });
+
+// Зарегистрировать endpoint
+app.post('/webhook', bot.webhookHandler());
+
+app.listen(3001, async () => {
+    console.log('Webhook сервер запущен на порту 3001');
+    await bot.setWebhook('https://my-server.com/webhook');
+    console.log('Webhook установлен');
+});
 ```
 
-### Webhook Payload
+### Проверка подписи вручную
 
-Your server receives POST requests with JSON:
+```javascript
+const crypto = require('crypto');
+
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+    const signature = req.headers['x-bot-signature'] || '';
+    const expected  = crypto
+        .createHmac('sha256', BOT_TOKEN)
+        .update(req.body)
+        .digest('hex');
+
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+        return res.status(403).send('Bad signature');
+    }
+
+    const update = JSON.parse(req.body);
+    // Обрабатываем update...
+    res.json({ ok: true });
+});
+```
+
+### Payload входящего webhook
 
 ```json
 {
@@ -397,409 +461,303 @@ Your server receives POST requests with JSON:
     "bot_id": "bot_abc123",
     "event_type": "message",
     "timestamp": 1707660000,
-    "signature": "hmac_sha256_signature",
+    "signature": "hmac_sha256_...",
     "data": {
         "message_id": 789,
         "user_id": 12345,
         "text": "/start",
         "is_command": true,
-        "command_name": "start"
+        "command_name": "start",
+        "command_args": ""
     }
 }
 ```
 
-### Verifying Signature
+---
 
-```php
-$signature = $_SERVER['HTTP_X_BOT_SIGNATURE'] ?? '';
-$payload = file_get_contents('php://input');
-$expected = hash_hmac('sha256', $payload, $webhookSecret);
+## Встроенные серверные боты
 
-if (!hash_equals($expected, $signature)) {
-    http_response_code(403);
-    die('Invalid signature');
+Это боты которые живут **внутри серверного процесса** — без отдельного сервера, без polling, без отдельного деплоя. Они автоматически появляются в Bot Store при старте сервера.
+
+Такой подход используется для `@wallybot` и `@randomizerbot`.
+
+### Архитектура
+
+```
+PrivateMessageController
+       │
+       ├─ ctx.botSockets.has(bot_id)?  ──YES──► internalHandler.emit('user_message', payload)
+       │                                                │
+       │                                         handleMessage(ctx, io, payload)
+       │                                                │
+       │                                         send(ctx, io, userId, text, markup)
+       │                                                │
+       │                                   ┌──────────────────────┐
+       │                                   │ wo_bot_messages       │
+       │                                   │ wo_messages           │
+       │                                   │ io.emit('private_msg')│
+       │                                   └──────────────────────┘
+       └─ NO webhook? ──► defaultBotShell (WallyBot обрабатывает)
+```
+
+### Создать встроенный бот
+
+**Файл:** `api-server-files/nodejs/bots/myBot.js`
+
+```javascript
+'use strict';
+const crypto = require('crypto');
+
+const BOT_ID   = 'bot_mybot_001';
+const BOT_NAME = 'MyBot';
+const USERNAME = 'mybot';
+let   BOT_USER_ID = null;
+
+function generateToken(botId) {
+    const rand = crypto.randomBytes(32).toString('hex');
+    return `${botId}:${crypto.createHmac('sha256', botId).update(rand).digest('hex')}`;
 }
-```
 
-### Retry Policy
+function ik(rows) { return { inline_keyboard: rows }; }
+function btn(text, cb) { return { text, callback_data: cb }; }
 
-Failed deliveries are retried with exponential backoff:
-- Attempt 1: immediate
-- Attempt 2: after 10 seconds
-- Attempt 3: after 30 seconds
-- Attempt 4: after 90 seconds
-- Attempt 5: after 270 seconds
-
----
-
-## Commands & Menus
-
-### Registering Commands
-
-```php
-$bot->setCommands([
-    ['command' => 'start', 'description' => 'Start the bot'],
-    ['command' => 'help', 'description' => 'Show help'],
-    ['command' => 'settings', 'description' => 'Bot settings'],
-    ['command' => 'weather', 'description' => 'Get weather forecast'],
-    ['command' => 'subscribe', 'description' => 'Subscribe to updates'],
-    ['command' => 'unsubscribe', 'description' => 'Unsubscribe']
-]);
-```
-
-### Command Scopes
-
-```json
-{
-    "command": "admin",
-    "description": "Admin panel",
-    "scope": "admin"
-}
-```
-
-Available scopes: `all`, `private`, `group`, `admin`
-
-### How Commands Appear
-
-In the mobile app, commands appear:
-1. When user taps the **"/"** button next to the text input
-2. As suggestion chips above the keyboard
-3. In the bot profile/info screen
-
----
-
-## Inline Keyboards
-
-### Button Types
-
-```php
-// Callback button (triggers callback_query)
-['text' => 'Like', 'callback_data' => 'like_post_123']
-
-// URL button (opens browser)
-['text' => 'Open Website', 'url' => 'https://example.com']
-```
-
-### Dynamic Keyboard Updates
-
-```php
-// Update keyboard after button click (e.g., toggle like)
-$bot->editMessageMarkup($messageId, $chatId, [
-    'inline_keyboard' => [
-        [['text' => 'Liked! (5)', 'callback_data' => 'unlike_123']]
-    ]
-]);
-```
-
-### Pagination Example
-
-```php
-function getPaginationKeyboard($page, $totalPages) {
-    $buttons = [];
-    if ($page > 1) $buttons[] = ['text' => '< Prev', 'callback_data' => "page_" . ($page - 1)];
-    $buttons[] = ['text' => "$page/$totalPages", 'callback_data' => 'noop'];
-    if ($page < $totalPages) $buttons[] = ['text' => 'Next >', 'callback_data' => "page_" . ($page + 1)];
-    return ['inline_keyboard' => [$buttons]];
-}
-```
-
----
-
-## Polls & Voting
-
-### Creating a Poll
-
-```php
-$bot->sendPoll($chatId, 'What is your favorite language?', [
-    'options' => ['PHP', 'JavaScript', 'Python', 'Kotlin'],
-    'is_anonymous' => true,
-    'allows_multiple_answers' => false
-]);
-```
-
-### Quiz Mode
-
-```php
-$bot->sendPoll($chatId, 'Capital of France?', [
-    'options' => ['London', 'Berlin', 'Paris', 'Madrid'],
-    'type' => 'quiz',
-    'correct_option_id' => 2,
-    'explanation' => 'Paris is the capital of France'
-]);
-```
-
----
-
-## User State (FSM)
-
-Finite State Machine for multi-step conversations:
-
-```php
-// Step 1: User starts registration
-$bot->onCommand('register', function($msg) use ($bot) {
-    $bot->sendMessage($msg['user_id'], 'What is your name?');
-    $bot->setUserState($msg['user_id'], 'register_name');
-});
-
-// Step 2: User enters name
-$bot->onState('register_name', function($msg) use ($bot) {
-    $name = $msg['text'];
-    $bot->setUserState($msg['user_id'], 'register_email', json_encode(['name' => $name]));
-    $bot->sendMessage($msg['user_id'], "Nice, $name! Now enter your email:");
-});
-
-// Step 3: User enters email
-$bot->onState('register_email', function($msg) use ($bot) {
-    $stateData = json_decode($bot->getUserState($msg['user_id'])['state_data'], true);
-    $name = $stateData['name'];
-    $email = $msg['text'];
-
-    // Save to database...
-    $bot->sendMessage($msg['user_id'], "Registration complete!\nName: $name\nEmail: $email");
-    $bot->setUserState($msg['user_id'], null); // Clear state
-});
-```
-
----
-
-## Example Bots
-
-### 1. RSS News Bot
-**File:** `bot-examples/RSSNewsBot.php`
-
-Features:
-- Subscribe to RSS feeds (BBC, Reuters, TechCrunch, etc.)
-- Auto-post new articles at configurable intervals
-- Commands: `/start`, `/add <url>`, `/remove`, `/list`, `/latest`, `/sources`
-
-### 2. Weather Bot
-**File:** `bot-examples/WeatherBot.php`
-
-Features:
-- Current weather and forecasts via OpenWeatherMap
-- City saving for quick access
-- Commands: `/weather <city>`, `/forecast <city>`, `/setcity <city>`
-
-### 3. Support Bot
-**File:** `bot-examples/SupportBot.php`
-
-Features:
-- FAQ with category navigation (inline keyboards)
-- Ticket creation with auto-numbering
-- Feedback collection with star ratings
-
-### 4. Task Tracker Bot
-**File:** `bot-examples/TaskTrackerBot.php`
-
-Features:
-- Create/edit/delete tasks with priorities
-- Due dates and reminders
-- Progress tracking with visual statistics
-
-### 5. Poll Bot
-**File:** `bot-examples/PollBot.php`
-
-Features:
-- Create polls and quizzes
-- Anonymous/public voting
-- Auto-close by date
-- Visual results with bar charts
-
----
-
-## Extending & Updating Bots
-
-### Adding a New Command
-
-```php
-// 1. Add handler in your bot code
-$bot->onCommand('newcommand', function($message) use ($bot) {
-    $bot->sendMessage($message['user_id'], 'New command response!');
-});
-
-// 2. Register with API so it shows in command menu
-$currentCommands = $bot->getCommands();
-$currentCommands[] = ['command' => 'newcommand', 'description' => 'My new command'];
-$bot->setCommands($currentCommands);
-```
-
-### Adding Inline Keyboard Support
-
-```php
-// Before: simple text response
-$bot->sendMessage($chatId, "Choose a color");
-
-// After: with inline buttons
-$bot->sendMessageWithKeyboard($chatId, "Choose a color:", [
-    'inline_keyboard' => [
-        [
-            ['text' => 'Red', 'callback_data' => 'color_red'],
-            ['text' => 'Blue', 'callback_data' => 'color_blue'],
-            ['text' => 'Green', 'callback_data' => 'color_green']
-        ]
-    ]
-]);
-
-// Handle the callback
-$bot->onCallbackQuery(function($query) use ($bot) {
-    if (strpos($query['data'], 'color_') === 0) {
-        $color = str_replace('color_', '', $query['data']);
-        $bot->answerCallbackQuery($query['id'], "You chose $color!");
+async function send(ctx, io, userId, text, markup = null) {
+    const now = Math.floor(Date.now() / 1000);
+    const botMsg = await ctx.wo_bot_messages.create({
+        bot_id: BOT_ID, chat_id: String(userId), chat_type: 'private',
+        direction: 'outgoing', text,
+        reply_markup: markup ? JSON.stringify(markup) : null,
+        processed: 1, processed_at: new Date()
+    });
+    if (BOT_USER_ID) {
+        try {
+            const woMsg = await ctx.wo_messages.create({
+                from_id: BOT_USER_ID, to_id: userId, text, seen: 0, time: now
+            });
+            if (io) io.to(String(userId)).emit('private_message', {
+                status: 200, id: woMsg.id,
+                from_id: BOT_USER_ID, to_id: userId,
+                text, message: text, message_id: woMsg.id,
+                time: now, time_api: now,
+                username: BOT_NAME, avatar: 'upload/photos/d-avatar.jpg',
+                receiver: userId, sender: BOT_USER_ID,
+                cipher_version: 1, media: '', isMedia: false, isRecord: false,
+                reply_markup: markup || null, bot_id: BOT_ID
+            });
+        } catch (e) { console.warn('[MyBot/msg]', e.message); }
     }
-});
-```
-
-### Adding Multi-Language Support
-
-```php
-$translations = [
-    'en' => ['welcome' => 'Welcome!', 'help' => 'Available commands:'],
-    'uk' => ['welcome' => 'Ласкаво просимо!', 'help' => 'Доступні команди:'],
-    'ru' => ['welcome' => 'Добро пожаловать!', 'help' => 'Доступные команды:']
-];
-
-function t($key, $lang = 'en') {
-    global $translations;
-    return $translations[$lang][$key] ?? $translations['en'][$key] ?? $key;
 }
 
-$bot->onCommand('start', function($msg) use ($bot) {
-    $lang = getUserLanguage($msg['user_id']); // your function
-    $bot->sendMessage($msg['user_id'], t('welcome', $lang));
-});
+async function handleMessage(ctx, io, payload) {
+    const userId = payload.user_id;
+    if (!userId) return;
+
+    if (payload.callback_data) {
+        if (payload.callback_data === 'menu') {
+            return send(ctx, io, userId, 'Главное меню', ik([[btn('ОК', 'ok')]]));
+        }
+        return;
+    }
+
+    const cmd = payload.command_name || '';
+    const args = payload.command_args || '';
+
+    if (cmd === 'start') {
+        return send(ctx, io, userId, `Привет! Я ${BOT_NAME}.`, ik([[btn('Меню', 'menu')]]));
+    }
+    await send(ctx, io, userId, 'Попробуй /start');
+}
+
+async function initializeMyBot(ctx, io) {
+    const now = Math.floor(Date.now() / 1000);
+
+    const [user] = await ctx.wo_users.findOrCreate({
+        where: { username: USERNAME },
+        defaults: {
+            email: `${USERNAME}@bots.internal`,
+            password: crypto.randomBytes(20).toString('hex'),
+            first_name: BOT_NAME, last_name: '',
+            about: 'Мой первый встроенный бот.',
+            type: 'bot', active: '1', verified: '0',
+            lastseen: now, registered: new Date().toLocaleDateString('en-US'),
+            joined: now, message_privacy: '0'
+        }
+    });
+    BOT_USER_ID = user.user_id;
+
+    const existing = await ctx.wo_bots.findOne({ where: { bot_id: BOT_ID } });
+    if (!existing) {
+        await ctx.wo_bots.create({
+            bot_id: BOT_ID, owner_id: 1, bot_token: generateToken(BOT_ID),
+            username: USERNAME, display_name: BOT_NAME,
+            description: 'Мой бот', about: 'Подробное описание',
+            category: 'tools', bot_type: 'standard',   // ← ENUM: standard / system / verified
+            status: 'active', is_public: 1,
+            can_join_groups: 0, supports_commands: 1,
+            linked_user_id: BOT_USER_ID,
+            created_at: new Date(), updated_at: new Date()
+        });
+    }
+
+    // Команды
+    const commands = [
+        { command: 'start', description: 'Начать', sort_order: 1 },
+        { command: 'help',  description: 'Помощь',  sort_order: 2 },
+    ];
+    for (const cmd of commands) {
+        await ctx.wo_bot_commands.findOrCreate({
+            where: { bot_id: BOT_ID, command: cmd.command },
+            defaults: { bot_id: BOT_ID, ...cmd, scope: 'all', is_hidden: 0 }
+        });
+    }
+
+    // Регистрируем внутренний обработчик
+    if (ctx.botSockets) {
+        ctx.botSockets.set(BOT_ID, {
+            isInternal: true, botId: BOT_ID,
+            emit: (event, data) => {
+                if (event === 'user_message') {
+                    handleMessage(ctx, io, data).catch(e =>
+                        console.error('[MyBot]', e.message));
+                }
+                if (event === 'callback_query') {
+                    handleMessage(ctx, io, {
+                        user_id: data.user_id, text: '',
+                        callback_data: data.data
+                    }).catch(e => console.error('[MyBot/cb]', e.message));
+                }
+            }
+        });
+    }
+
+    console.log(`[MyBot] Ready @${USERNAME}`);
+}
+
+module.exports = { initializeMyBot };
 ```
 
-### Adding Media Support
+**Подключить в `main.js`:**
 
-```php
-// Send image
-$bot->sendMessage($chatId, "Check out this photo!", [
-    'media_type' => 'image',
-    'media_url' => 'https://example.com/photo.jpg'
-]);
+```javascript
+const { initializeMyBot } = require('./bots/myBot');
 
-// Send file
-$bot->sendMessage($chatId, "Here's your report:", [
-    'media_type' => 'file',
-    'media_url' => 'https://example.com/report.pdf'
-]);
+// В обработчике 'connection' рядом с WallyBot:
+initializeMyBot(ctx, io).catch(e => console.error('[MyBot] Init error:', e));
 ```
 
-### Migrating from Long Polling to Webhooks
+### Важные ограничения
 
-```php
-// Before: Long polling (blocks script)
-$bot->startPolling();
+- `bot_type` в модели — ENUM: `'standard'`, `'system'`, `'verified'`. Значение `'external'` не существует.
+- `linked_user_id` должен совпадать с `user_id` в `Wo_Users` — иначе Android не покажет чат.
+- `ctx.botSockets` — in-memory Map. В кластере PM2 каждый воркер инициализирует бота отдельно (это нормально — DB-операции идемпотентны через `findOrCreate`).
 
-// After: Webhook (event-driven)
-// 1. Set webhook URL
-$bot->setWebhook('https://your-server.com/webhook.php');
+---
 
-// 2. Create webhook.php
-$bot = new WorldMatesBot('wmb_TOKEN', 'https://domain.com');
-$bot->onCommand('start', function($msg) use ($bot) { /* ... */ });
-$bot->onCallbackQuery(function($q) use ($bot) { /* ... */ });
-$bot->handleWebhook();
+## Пример бота — randomizerBot
+
+Два варианта одного бота. Изучи исходники:
+
+### Внешний (через SDK)
+**Файл:** `api-server-files/nodejs/bots/randomizerBot.js`
+
+Запускается отдельно. Требует `bot_id` и `bot_token` после создания через `/newbot`.
+
+```bash
+BOT_ID=bot_xxx BOT_TOKEN=bot_xxx:secret node randomizerBot.js
 ```
 
-### Scaling Your Bot
+### Встроенный (серверный)
+**Файл:** `api-server-files/nodejs/bots/randomizerBotServer.js`
 
-1. **Add database persistence** for user data instead of using bot state
-2. **Use webhooks** instead of polling for lower latency
-3. **Add rate limiting awareness** - check `X-RateLimit-Remaining` headers
-4. **Cache responses** - don't call APIs for static data on every message
-5. **Use Redis** for session/state storage in high-traffic bots
+Запускается автоматически с сервером. Бот `@randomizerbot` — живой пример встроенного бота.
 
 ---
 
-## Best Practices
+## Лучшие практики
 
-### Do's
-- Always respond to `/start` - it's the first thing users see
-- Keep responses concise - users expect quick bot replies
-- Use inline keyboards for navigation (don't make users type everything)
-- Handle errors gracefully - send user-friendly messages
-- Set descriptive command descriptions
-- Update `last_active_at` to show bot is alive
+### Делай
 
-### Don'ts
-- Don't spam users - only send messages they expect
-- Don't store sensitive data in `callback_data` (it's visible)
-- Don't ignore rate limits (30 req/sec, 1500 req/min by default)
-- Don't forget to answer callback queries (users see a loading spinner)
-- Don't make users wait - use typing indicators for long operations
+- Всегда обрабатывай `/start` — это первое что видит пользователь
+- Используй inline-кнопки для навигации (не заставляй печатать)
+- Используй `command_name` / `command_args` из payload (они уже распарсены сервером)
+- Для продакшена используй webhook вместо polling
+- Храни токены в переменных окружения, не в коде
 
-### Security
-- Never expose your `bot_token` in client-side code
-- Verify webhook signatures
-- Sanitize all user input
-- Use HTTPS for webhook URLs
-- Rotate bot tokens periodically
+### Не делай
 
----
+- Не пиши `bot_type: 'external'` — нет такого значения в ENUM
+- Не храни чувствительные данные в `callback_data`
+- Не игнорируй rate limits (30 запросов/сек)
+- Не блокируй event loop в обработчиках (используй async/await)
+- Не забывай обрабатывать ошибки (`try/catch` или `.catch()`)
 
-## Database Schema
+### Безопасность
 
-15 tables support the Bot API:
-
-| Table | Purpose |
-|-------|---------|
-| `Wo_Bots` | Bot accounts (tokens, settings, stats) |
-| `Wo_Bot_Commands` | Registered slash commands |
-| `Wo_Bot_Messages` | Message history (incoming/outgoing) |
-| `Wo_Bot_Users` | Users who interact with bots |
-| `Wo_Bot_Callbacks` | Inline button click tracking |
-| `Wo_Bot_Polls` | Polls created by bots |
-| `Wo_Bot_Poll_Options` | Poll answer options |
-| `Wo_Bot_Poll_Votes` | User votes |
-| `Wo_Bot_Webhook_Log` | Webhook delivery log |
-| `Wo_Bot_Keyboards` | Reusable keyboard templates |
-| `Wo_Bot_Tasks` | Task tracker bot data |
-| `Wo_Bot_RSS_Feeds` | RSS bot subscriptions |
-| `Wo_Bot_RSS_Items` | Posted RSS items (deduplication) |
-| `Wo_Bot_Rate_Limits` | Rate limiting tracking |
-| `Wo_Bot_Api_Keys` | Third-party developer API keys |
-
-SQL migration file: `sql-DB-newver/add_bot_api_tables.sql`
+- Никогда не публикуй `bot_token` в репозитории
+- Проверяй подпись webhook-запросов
+- Санитизируй пользовательский ввод перед сохранением в БД
+- Webhook URL должен быть HTTPS
 
 ---
 
-## Troubleshooting
+## Схема базы данных
 
-### Bot doesn't receive messages
-1. Check bot status is `active` in Wo_Bots
-2. Verify `bot_token` is correct
-3. If using webhooks, check `Wo_Bot_Webhook_Log` for errors
-4. If using polling, check `processed` field in `Wo_Bot_Messages`
+| Таблица | Назначение |
+|---------|-----------|
+| `Wo_Bots` | Аккаунты ботов (токены, настройки, статистика) |
+| `Wo_Bot_Commands` | Зарегистрированные slash-команды |
+| `Wo_Bot_Messages` | История сообщений (входящие/исходящие) |
+| `Wo_Bot_Users` | Пользователи, взаимодействующие с ботом |
+| `Wo_Bot_Callbacks` | Клики по inline-кнопкам |
+| `Wo_Bot_Tasks` | База знаний WallyBot (KV-хранилище) |
+| `Wo_Bot_Webhook_Log` | Лог доставки webhook |
 
-### Inline keyboard not showing
-1. Verify `reply_markup` JSON format
-2. Check `callback_data` is under 256 characters
-3. Ensure the message was sent successfully (check response)
+### Ключевые поля `Wo_Bots`
 
-### Rate limiting
-- Default: 30 requests/second, 1500 requests/minute
-- Check `Wo_Bot_Rate_Limits` table
-- Contact admin to increase limits
-
-### Webhook not delivering
-1. Check URL is HTTPS and publicly accessible
-2. Verify signature calculation
-3. Check `Wo_Bot_Webhook_Log` for HTTP response codes
-4. Webhook must respond within 10 seconds
-
----
-
-## API Rate Limits
-
-| Resource | Limit |
-|----------|-------|
-| API calls per second | 30 |
-| API calls per minute | 1500 |
-| Messages per chat per minute | 20 |
-| Callback answers per second | 10 |
-| Webhook max connections | 40 |
+| Поле | Тип | Описание |
+|------|-----|---------|
+| `bot_id` | VARCHAR(64) | Уникальный ID бота |
+| `bot_token` | VARCHAR(128) | Секретный токен |
+| `username` | VARCHAR(64) | @username для поиска |
+| `linked_user_id` | INTEGER | ID в Wo_Users — нужен для DM |
+| `is_public` | TINYINT | 1 = виден в Bot Store |
+| `status` | ENUM | `active` / `disabled` / `suspended` |
+| `bot_type` | ENUM | `standard` / `system` / `verified` |
+| `webhook_url` | VARCHAR(512) | URL для webhook-режима |
+| `webhook_enabled` | TINYINT | 0 = polling, 1 = webhook |
 
 ---
 
-*WorldMates Bot API v1.0 - Built with love for developers*
+## Устранение неполадок
+
+### Бот не получает сообщения
+
+1. Проверь что `status = 'active'` в `Wo_Bots`
+2. Убедись что `bot_token` правильный
+3. Для polling — проверь поле `processed` в `Wo_Bot_Messages` (должно становиться 1)
+4. Для webhook — смотри `Wo_Bot_Webhook_Log`
+5. Для встроенного бота — убедись что `ctx.botSockets.has(bot_id)` возвращает `true`
+
+### Ошибка `Data truncated for column 'bot_type'`
+
+Используй только допустимые значения ENUM: `'standard'`, `'system'`, `'verified'`. Значения `'external'`, `'custom'` и другие не существуют.
+
+### Inline-кнопки не отображаются
+
+1. Проверь формат `reply_markup` — должен быть объект `{ inline_keyboard: [[...]] }`
+2. `callback_data` — максимум 64 символа
+3. `linked_user_id` в `Wo_Bots` должен указывать на реальный `user_id` в `Wo_Users`
+
+### Бот появился в сокете но не в Bot Store
+
+Проверь что `is_public = 1` и `status = 'active'` в `Wo_Bots`.
+
+### Webhook не доставляется
+
+1. URL должен быть HTTPS с валидным сертификатом
+2. Сервер должен отвечать за 10 секунд
+3. Проверь `Wo_Bot_Webhook_Log` для статус-кодов ответа
+
+---
+
+*WallyMates Bot API v2.0 — Node.js, чистый и быстрый*

@@ -294,11 +294,17 @@ async function handleMessage(ctx, io, payload) {
         return handleCallback(ctx, io, userId, callbackData);
     }
 
-    // Команды
-    if (text.startsWith('/')) {
-        const [cmd, ...rest] = text.slice(1).split(/\s+/);
-        const cmdClean = cmd.toLowerCase().replace(/@\S+$/, '');
-        const args     = rest.join(' ');
+    // Команды — используем pre-parsed поля от PrivateMessageController если есть
+    if (payload.is_command || text.startsWith('/')) {
+        let cmdClean, args;
+        if (payload.command_name) {
+            cmdClean = payload.command_name.toLowerCase();
+            args     = payload.command_args || '';
+        } else {
+            const [cmd, ...rest] = text.slice(1).split(/\s+/);
+            cmdClean = cmd.toLowerCase().replace(/@\S+$/, '');
+            args     = rest.join(' ');
+        }
 
         if (cmdClean === 'start')   return cmdStart(ctx, io, userId);
         if (cmdClean === 'help')    return cmdHelp(ctx, io, userId);
@@ -367,7 +373,7 @@ async function initializeRandomizerBot(ctx, io) {
                 description:       'Генератор случайностей: числа, монета, кубики, Магический шар 🎱',
                 about:             'RandBot умеет:\n• 🔢 Случайные числа (/random)\n• 🪙 Монета (/flip)\n• 🎲 Кубики (/dice)\n• 🃏 Выбор из вариантов (/choose)\n• 🎱 Магический шар (/magic8)\n\nПример внешнего бота на WorldMatesBotSDK.',
                 category:          'entertainment',
-                bot_type:          'external',
+                bot_type:          'standard',
                 status:            'active',
                 is_public:         1,
                 can_join_groups:   0,
