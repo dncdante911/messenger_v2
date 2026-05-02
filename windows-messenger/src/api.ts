@@ -577,6 +577,14 @@ export async function subscribeChannel(token: string, channelId: number): Promis
   await nodePost('/api/node/channel/subscribe', token, { channel_id: channelId });
 }
 
+export async function unsubscribeChannel(token: string, channelId: number): Promise<void> {
+  await nodePost('/api/node/channel/unsubscribe', token, { channel_id: channelId });
+}
+
+export async function deleteChannel(token: string, channelId: number): Promise<void> {
+  await nodePost('/api/node/channel/delete', token, { channel_id: channelId });
+}
+
 export type UserSearchResult = {
   id: number;
   username: string;

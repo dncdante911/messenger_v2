@@ -128,6 +128,7 @@ export type ChannelItem = {
   description?: string;
   is_subscribed?: boolean;
   is_owner?: boolean;
+  is_admin?: boolean;
   last_post?: string;
   time?: string;
 };

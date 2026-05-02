@@ -208,10 +208,17 @@ const translations: Record<Lang, Record<string, string>> = {
     'grAdmin.topContributors':   'Топ участников',
     'grAdmin.adminLogs':         'Журнал действий',
     'grAdmin.noLogs':            'Нет записей',
+    'grAdmin.manageGroup':       'Управление группой',
 
-    // Channel create
+    // Channel create & info drawer
     'channel.createTitle':       'Создать канал',
     'channel.private':           'Приватный канал',
+    'channel.info':              'Информация о канале',
+    'channel.subscribe':         'Подписаться',
+    'channel.unsubscribe':       'Отписаться',
+    'channel.delete':            'Удалить канал',
+    'channel.deleteConfirm':     'Удалить этот канал? Это действие необратимо.',
+    'chAdmin.manageChannel':     'Управление каналом',
 
     // Calls
     'call.calling':          'Звоним…',
@@ -614,8 +621,16 @@ const translations: Record<Lang, Record<string, string>> = {
     'grAdmin.topContributors':   'Топ учасників',
     'grAdmin.adminLogs':         'Журнал дій',
     'grAdmin.noLogs':            'Немає записів',
+    'grAdmin.manageGroup':       'Управління групою',
+
     'channel.createTitle':       'Створити канал',
     'channel.private':           'Приватний канал',
+    'channel.info':              'Інформація про канал',
+    'channel.subscribe':         'Підписатись',
+    'channel.unsubscribe':       'Відписатись',
+    'channel.delete':            'Видалити канал',
+    'channel.deleteConfirm':     'Видалити цей канал? Це незворотна дія.',
+    'chAdmin.manageChannel':     'Управління каналом',
 
     'call.calling':         'Дзвонимо…',
     'call.incoming':        'Вхідний дзвінок',
@@ -1007,8 +1022,16 @@ const translations: Record<Lang, Record<string, string>> = {
     'grAdmin.topContributors':   'Top contributors',
     'grAdmin.adminLogs':         'Audit log',
     'grAdmin.noLogs':            'No records',
+    'grAdmin.manageGroup':       'Manage group',
+
     'channel.createTitle':       'Create channel',
     'channel.private':           'Private channel',
+    'channel.info':              'Channel info',
+    'channel.subscribe':         'Subscribe',
+    'channel.unsubscribe':       'Unsubscribe',
+    'channel.delete':            'Delete channel',
+    'channel.deleteConfirm':     'Delete this channel? This action cannot be undone.',
+    'chAdmin.manageChannel':     'Manage channel',
 
     'call.calling':         'Calling…',
     'call.incoming':        'Incoming call',
