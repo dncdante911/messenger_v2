@@ -6,7 +6,7 @@ import {
   blockUser, unblockUser, loadBlockedUsers,
   createChannelFull, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost, searchChannels, voteChannelPoll,
   loadChannelComments, addChannelComment, deleteChannelComment, reactToChannelComment,
-  createGroup, createStory, joinGroup, subscribeChannel, searchGroups,
+  createGroup, createStory, joinGroup, subscribeChannel, unsubscribeChannel, deleteChannel, searchGroups,
   createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
   endCall, loadChannels, loadChats, loadArchivedChats,
   loadGroups, loadGroupMessages, loadMoreGroupMessages, loadMessages, loadMoreMessages, loadStories,
@@ -858,9 +858,11 @@ export default function App() {
 
   // ── Channel admin panel ───────────────────────────────────────────────────
   const [showChannelAdmin, setShowChannelAdmin] = useState(false);
+  const [showChannelInfo,  setShowChannelInfo]  = useState(false);
 
   // ── Group admin panel ─────────────────────────────────────────────────────
   const [showGroupAdmin, setShowGroupAdmin] = useState(false);
+  const [showGroupInfo,  setShowGroupInfo]  = useState(false);
 
   // ── Create channel modal (enhanced) ──────────────────────────────────────
   const [createChannelUsername, setCreateChannelUsername] = useState('');
@@ -4622,18 +4624,22 @@ export default function App() {
           <>
             <div className="chat-header">
               <div className="chat-header-left">
-                <Avatar name={asText(selectedGroup.group_name, 'G')} src={selectedGroup.avatar} size={38} />
-                <div className="chat-header-info">
-                  <span className="chat-header-name">{asText(selectedGroup.group_name, t('nav.groups'))}</span>
-                  <span className="chat-header-status">{selectedGroup.members_count ?? 0} {t('sidebar.members')}</span>
-                </div>
+                <button className="channel-header-clickable" onClick={() => setShowGroupInfo(v => !v)}>
+                  <Avatar name={asText(selectedGroup.group_name, 'G')} src={selectedGroup.avatar} size={38} />
+                  <div className="chat-header-info">
+                    <span className="chat-header-name">{asText(selectedGroup.group_name, t('nav.groups'))}</span>
+                    <span className="chat-header-status">{selectedGroup.members_count ?? 0} {t('sidebar.members')}</span>
+                  </div>
+                </button>
               </div>
-              {selectedGroup.is_admin && (
-                <div className="chat-header-actions">
+              <div className="chat-header-actions">
+                <button className={`icon-btn ${showGroupInfo ? 'active' : ''}`}
+                  title={t('channel.info')} onClick={() => setShowGroupInfo(v => !v)}>ℹ️</button>
+                {selectedGroup.is_admin && (
                   <button className="icon-btn admin-panel-btn" title={t('grAdmin.panelTitle')}
                     onClick={() => setShowGroupAdmin(true)}>⚙️</button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
             <div className="messages-scroll" ref={messagesScrollRef}>
               {groupHasMore && (
@@ -4746,6 +4752,34 @@ export default function App() {
                 </button>
               </form>
             </div>
+
+            {/* ── Group info drawer ─────────────────────────────────────── */}
+            {showGroupInfo && (
+              <div className="channel-info-drawer">
+                <div className="cid-hero">
+                  <div className="cid-avatar-wrap">
+                    <Avatar name={selectedGroup.group_name} src={selectedGroup.avatar} size={80} />
+                  </div>
+                  <h2 className="cid-name">{selectedGroup.group_name}</h2>
+                  <div className="cid-stats-row">
+                    <div className="cid-stat">
+                      <span className="cid-stat-val">{(selectedGroup.members_count ?? 0).toLocaleString()}</span>
+                      <span className="cid-stat-lbl">{t('sidebar.members')}</span>
+                    </div>
+                  </div>
+                </div>
+                {selectedGroup.is_admin && (
+                  <div className="cid-section">
+                    <button className="cid-btn cid-btn-manage" onClick={() => {
+                      setShowGroupAdmin(true);
+                      setShowGroupInfo(false);
+                    }}>
+                      ⚙️ {t('grAdmin.manageGroup')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : section === 'groups' ? (
           <div className="chat-empty"><div className="chat-empty-icon">👥</div><h3>{t('sidebar.groups')}</h3><p>{t('sidebar.noGroups')}</p></div>
@@ -4759,19 +4793,28 @@ export default function App() {
                   ? <button className="icon-btn" onClick={() => setCommentPost(null)}>←</button>
                   : null
                 }
-                <Avatar name={asText(selectedChannel.name, 'C')} src={selectedChannel.avatar_url} size={38} />
-                <div className="chat-header-info">
-                  <span className="chat-header-name">{asText(selectedChannel.name, t('nav.channels'))}</span>
-                  <span className="chat-header-status">{selectedChannel.subscribers_count ?? 0} {t('sidebar.subscribers')}</span>
-                </div>
+                {/* Clickable channel info — opens right info drawer like Telegram */}
+                <button className="channel-header-clickable" onClick={() => setShowChannelInfo(v => !v)}>
+                  <Avatar name={asText(selectedChannel.name, 'C')} src={selectedChannel.avatar_url} size={38} />
+                  <div className="chat-header-info">
+                    <span className="chat-header-name">{asText(selectedChannel.name, t('nav.channels'))}</span>
+                    <span className="chat-header-status">
+                      {selectedChannel.subscribers_count ?? 0} {t('sidebar.subscribers')}
+                    </span>
+                  </div>
+                </button>
               </div>
-              {selectedChannel.is_owner && (
-                <div className="chat-header-actions">
-                  <button className="icon-btn admin-panel-btn" title={t('chAdmin.panelTitle')}
-                    onClick={() => setShowChannelAdmin(true)}>⚙️</button>
-                </div>
-              )}
+              <div className="chat-header-actions">
+                {/* Search always visible */}
+                <button className="icon-btn" title={t('chat.search')} onClick={() => {}}>🔍</button>
+                {/* Info toggle */}
+                <button className={`icon-btn ${showChannelInfo ? 'active' : ''}`}
+                  title={t('channel.info')} onClick={() => setShowChannelInfo(v => !v)}>ℹ️</button>
+              </div>
             </div>
+            {/* ── Channel info drawer (Telegram-style right panel) ───────── */}
+            <div className={`channel-layout ${showChannelInfo ? 'with-info' : ''}`}>
+              <div className="channel-feed-column">
             {commentPost ? (
               /* ── Comments panel ─────────────────────────────────────────── */
               <div className="comments-panel">
@@ -4929,6 +4972,90 @@ export default function App() {
                 </div>
               </>
             )}
+              </div>{/* end channel-feed-column */}
+
+              {/* ── Info drawer ────────────────────────────────────────────── */}
+              {showChannelInfo && (
+                <div className="channel-info-drawer">
+                  {/* Avatar + name */}
+                  <div className="cid-hero">
+                    <div className="cid-avatar-wrap">
+                      <Avatar name={selectedChannel.name} src={selectedChannel.avatar_url} size={80} />
+                    </div>
+                    <h2 className="cid-name">{selectedChannel.name}</h2>
+                    {selectedChannel.username && (
+                      <span className="cid-username">@{selectedChannel.username}</span>
+                    )}
+                    <div className="cid-stats-row">
+                      <div className="cid-stat">
+                        <span className="cid-stat-val">{(selectedChannel.subscribers_count ?? 0).toLocaleString()}</span>
+                        <span className="cid-stat-lbl">{t('sidebar.subscribers')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {selectedChannel.description && (
+                    <div className="cid-section">
+                      <span className="cid-section-label">{t('chAdmin.description')}</span>
+                      <p className="cid-description">{selectedChannel.description}</p>
+                    </div>
+                  )}
+
+                  {/* Subscribe / Unsubscribe — only for non-owners */}
+                  {!selectedChannel.is_owner && !selectedChannel.is_admin && (
+                    <div className="cid-section">
+                      {selectedChannel.is_subscribed ? (
+                        <button className="cid-btn cid-btn-secondary" onClick={async () => {
+                          if (!session) return;
+                          await unsubscribeChannel(session.token, selectedChannel.id).catch(console.error);
+                          setSelectedChannel(c => c ? { ...c, is_subscribed: false } : c);
+                          setChannels(prev => prev.filter(c => c.id !== selectedChannel.id));
+                        }}>
+                          {t('channel.unsubscribe')}
+                        </button>
+                      ) : (
+                        <button className="cid-btn cid-btn-primary" onClick={async () => {
+                          if (!session) return;
+                          await subscribeChannel(session.token, selectedChannel.id).catch(console.error);
+                          setSelectedChannel(c => c ? { ...c, is_subscribed: true } : c);
+                        }}>
+                          {t('channel.subscribe')}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Manage Channel — only for admins/owners */}
+                  {(selectedChannel.is_owner || selectedChannel.is_admin) && (
+                    <div className="cid-section">
+                      <button className="cid-btn cid-btn-manage" onClick={() => {
+                        setShowChannelAdmin(true);
+                        setShowChannelInfo(false);
+                      }}>
+                        ⚙️ {t('chAdmin.manageChannel')}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Delete channel — only for owner */}
+                  {selectedChannel.is_owner && (
+                    <div className="cid-section">
+                      <button className="cid-btn cid-btn-danger" onClick={async () => {
+                        if (!session || !window.confirm(t('channel.deleteConfirm'))) return;
+                        await deleteChannel(session.token, selectedChannel.id).catch(console.error);
+                        setSelectedChannel(null);
+                        const r = await loadChannels(session.token);
+                        setChannels(r.data ?? []);
+                        setShowChannelInfo(false);
+                      }}>
+                        🗑 {t('channel.delete')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>{/* end channel-layout */}
           </>
         ) : section === 'channels' ? (
           <div className="chat-empty"><div className="chat-empty-icon">📢</div><h3>{t('sidebar.channels')}</h3><p>{t('sidebar.noChannels')}</p></div>
