@@ -28,8 +28,6 @@ import { getMediaUrl } from '../../utils/mediaUtils';
 import { formatLastSeen } from '../../utils/dateUtils';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import type { User, CallHistory } from '../../api/types';
-import { nodeGet } from '../../api/apiClient';
-import { NODE_PROFILE_ME } from '../../constants/api';
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -277,11 +275,13 @@ const UserProfileScreen: React.FC<Props> = ({ route, navigation }) => {
 
         {/* Avatar — half overlapping cover bottom */}
         <View style={styles.avatarWrapper}>
-          <Image
-            source={avatarUri ? { uri: avatarUri } : require('../../assets/default-avatar.png')}
-            style={styles.avatar}
-            defaultSource={require('../../assets/default-avatar.png')}
-          />
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <Feather name="user" size={36} color={COLORS.secondary} />
+            </View>
+          )}
           {profile.isVerified && (
             <View style={styles.verifiedBadgeContainer}>
               <VerifiedBadge level={profile.verificationLevel} />
@@ -505,6 +505,10 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: COLORS.white,
     backgroundColor: COLORS.card,
+  },
+  avatarPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   verifiedBadgeContainer: {
     position: 'absolute',
