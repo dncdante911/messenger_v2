@@ -1,34 +1,13 @@
 import React, { useEffect } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { AuthNavigator } from './AuthNavigator';
+import { MainNavigator } from './MainNavigator';
 import { useAuthStore } from '../store/authStore';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
-
-function MainNavigator() {
-  return (
-    <View style={mainStyles.container}>
-      <Text style={mainStyles.text}>Main coming soon</Text>
-    </View>
-  );
-}
-
-const mainStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1A1B2E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '500',
-  },
-});
 
 function LoadingScreen() {
   return (
