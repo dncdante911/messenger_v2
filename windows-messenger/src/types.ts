@@ -422,3 +422,199 @@ export type BotItem = {
   description?: string;
   web_app_url?: string;
 };
+
+// ─── Batch 5: Channel admin panel ─────────────────────────────────────────────
+
+export type ChannelStatistics = {
+  // Subscribers
+  subscribers_count:     number;
+  new_subscribers_today: number;
+  new_subscribers_week:  number;
+  left_subscribers_week: number;
+  growth_rate:           number;   // % change this week
+  active_subscribers_24h: number;
+  subscribers_by_day?:   number[]; // 7 values
+
+  // Posts
+  posts_count:       number;
+  posts_today:       number;
+  posts_last_week:   number;
+  posts_this_month:  number;
+
+  // Views
+  views_total:        number;
+  views_last_week:    number;
+  avg_views_per_post: number;
+  views_by_day?:      number[]; // 7 values
+
+  // Engagement
+  reactions_total: number;
+  comments_total:  number;
+  engagement_rate: number; // %
+
+  // Content breakdown
+  media_posts_count: number;
+  text_posts_count:  number;
+
+  // Activity
+  peak_hours?:    number[]; // active hour indices 0-23
+  hourly_views?:  number[]; // views per hour [0..23]
+
+  // Top content
+  top_posts?: TopPostStat[];
+};
+
+export type TopPostStat = {
+  id:             number;
+  text:           string;
+  views:          number;
+  reactions:      number;
+  comments:       number;
+  published_time: number;
+  has_media:      boolean;
+};
+
+export type ChannelAdmin = {
+  user_id:    number;
+  username:   string;
+  avatar?:    string;
+  role:       'owner' | 'admin' | 'moderator';
+  added_time: number;
+  permissions?: {
+    can_post:            boolean;
+    can_edit_posts:      boolean;
+    can_delete_posts:    boolean;
+    can_edit_info:       boolean;
+    can_ban_users:       boolean;
+    can_add_admins:      boolean;
+    can_view_statistics: boolean;
+    can_manage_comments: boolean;
+  };
+};
+
+export type ChannelSettings = {
+  allow_comments:               boolean;
+  allow_reactions:              boolean;
+  allow_shares:                 boolean;
+  allow_forwarding:             boolean;
+  show_statistics:              boolean;
+  show_views_count:             boolean;
+  notify_subscribers_new_post:  boolean;
+  signature_enabled:            boolean;
+  comments_moderation:          boolean;
+  comment_identity:             'user' | 'channel' | 'user_with_signature';
+  slow_mode_seconds?:           number;
+  auto_delete_posts_days?:      number;
+};
+
+export type ChannelSubscriber = {
+  user_id?:        number;
+  username?:       string;
+  name?:           string;
+  avatar?:         string;
+  subscribed_time?: number;
+  is_muted:        boolean;
+  is_banned:       boolean;
+  role?:           string;
+};
+
+export type ChannelBannedMember = {
+  user_id:       number;
+  username?:     string;
+  name?:         string;
+  avatar?:       string;
+  reason?:       string;
+  banned_until?: number; // unix ts; null/0 = permanent
+  banned_time?:  number;
+};
+
+export type ActiveMember = {
+  user_id:        number;
+  username?:      string;
+  name?:          string;
+  avatar_url?:    string;
+  comment_count:  number;
+  reaction_count: number;
+  score:          number;
+};
+
+// ─── Batch 5: Group admin panel ───────────────────────────────────────────────
+
+export type GroupMemberFull = {
+  user_id:     number;
+  username:    string;
+  avatar?:     string;
+  role:        'owner' | 'admin' | 'moderator' | 'member';
+  joined_time: number;
+  is_muted:    boolean;
+  is_blocked:  boolean;
+  permissions?: string[];
+};
+
+export type GroupSettings = {
+  allow_members_invite:          boolean;
+  allow_members_pin:             boolean;
+  allow_members_delete_messages: boolean;
+  allow_voice_calls:             boolean;
+  allow_video_calls:             boolean;
+  slow_mode_seconds:             number;
+  history_visible_for_new_members: boolean;
+  allow_members_send_media:      boolean;
+  allow_members_send_stickers:   boolean;
+  allow_members_send_gifs:       boolean;
+  allow_members_send_links:      boolean;
+  allow_members_send_polls:      boolean;
+  anti_spam_enabled:             boolean;
+  max_messages_per_minute:       number;
+  auto_mute_spammers:            boolean;
+  block_new_users_media:         boolean;
+};
+
+export type GroupStatistics = {
+  group_id:            number;
+  members_count:       number;
+  messages_count:      number;
+  messages_today:      number;
+  messages_this_week:  number;
+  messages_this_month: number;
+  active_members_24h:  number;
+  active_members_week: number;
+  media_count:         number;
+  links_count:         number;
+  new_members_today:   number;
+  new_members_week:    number;
+  left_members_week:   number;
+  top_contributors?:   TopContributor[];
+  peak_hours?:         number[];
+  growth_rate:         number;
+};
+
+export type TopContributor = {
+  user_id:       number;
+  username:      string;
+  name?:         string;
+  avatar?:       string;
+  messages_count: number;
+};
+
+export type GroupJoinRequest = {
+  id:           number;
+  group_id:     number;
+  user_id:      number;
+  username:     string;
+  user_avatar?: string;
+  message?:     string;
+  status:       'pending' | 'approved' | 'rejected';
+  created_time: number;
+};
+
+export type AdminLogEntry = {
+  id?:              number;
+  admin_id?:        number;
+  admin_name:       string;
+  admin_avatar?:    string;
+  action:           string;
+  target_user_name?: string;
+  details?:         string;
+  created_at:       string;
+};

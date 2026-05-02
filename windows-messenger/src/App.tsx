@@ -4,7 +4,7 @@ import type { Socket } from 'socket.io-client';
 import {
   archiveChat, AuthError, clearHistory,
   blockUser, unblockUser, loadBlockedUsers,
-  createChannel, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost, searchChannels, voteChannelPoll,
+  createChannelFull, createChannelPost, deleteChannelPost, loadChannelPosts, loadMoreChannelPosts, markChannelPostViewed, reactToChannelPost, searchChannels, voteChannelPoll,
   loadChannelComments, addChannelComment, deleteChannelComment, reactToChannelComment,
   createGroup, createStory, joinGroup, subscribeChannel, searchGroups,
   createNodeApiShim, deleteConversation, deleteMessage, deleteGroupMessage, editMessage, editGroupMessage,
@@ -34,6 +34,8 @@ import {
   type ScheduledMessage,
 } from './api';
 import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack, GifItem, BotItem, StoryComment } from './types';
+import ChannelAdminPanel from './ChannelAdminPanel';
+import GroupAdminPanel from './GroupAdminPanel';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
@@ -853,6 +855,16 @@ export default function App() {
   const [showScheduledList,   setShowScheduledList]   = useState(false);
   const [showSchedulePicker,  setShowSchedulePicker]  = useState(false);
   const [scheduleDateTime,    setScheduleDateTime]    = useState('');
+
+  // ── Channel admin panel ───────────────────────────────────────────────────
+  const [showChannelAdmin, setShowChannelAdmin] = useState(false);
+
+  // ── Group admin panel ─────────────────────────────────────────────────────
+  const [showGroupAdmin, setShowGroupAdmin] = useState(false);
+
+  // ── Create channel modal (enhanced) ──────────────────────────────────────
+  const [createChannelUsername, setCreateChannelUsername] = useState('');
+  const [createChannelIsPrivate, setCreateChannelIsPrivate] = useState(false);
 
   // ── Send error banner ─────────────────────────────────────────────────────
   const [sendError, setSendError]           = useState('');
@@ -2346,11 +2358,19 @@ export default function App() {
   async function handleCreateChannel(e: FormEvent) {
     e.preventDefault();
     if (!session || !newChannelName.trim()) return;
-    await createChannel(session.token, newChannelName.trim(), newChannelDesc.trim()).catch(console.error);
+    await createChannelFull(
+      session.token,
+      newChannelName.trim(),
+      newChannelDesc.trim(),
+      createChannelUsername.trim() || undefined,
+      createChannelIsPrivate,
+    ).catch(console.error);
     const r = await loadChannels(session.token);
     setChannels(r.data ?? []);
     setNewChannelName('');
     setNewChannelDesc('');
+    setCreateChannelUsername('');
+    setCreateChannelIsPrivate(false);
   }
 
   // ─── Stories ──────────────────────────────────────────────────────────────
@@ -3476,10 +3496,32 @@ export default function App() {
                 placeholder={t('sidebar.searchChannels')}
               />
             </div>
-            <form className="create-form" onSubmit={handleCreateChannel}>
-              <input value={newChannelName} onChange={e => setNewChannelName(e.target.value)} placeholder={t('sidebar.channelName')} />
-              <input value={newChannelDesc} onChange={e => setNewChannelDesc(e.target.value)} placeholder={t('sidebar.description')} />
-              <button type="submit" className="btn-sm">{t('sidebar.create')}</button>
+            <form className="create-form create-channel-form" onSubmit={handleCreateChannel}>
+              <div className="create-channel-header">
+                <span className="create-channel-icon">📡</span>
+                <span className="create-channel-title">{t('channel.createTitle')}</span>
+              </div>
+              <input className="create-channel-input" value={newChannelName}
+                onChange={e => setNewChannelName(e.target.value)}
+                placeholder={t('sidebar.channelName')} />
+              <input className="create-channel-input" value={createChannelUsername}
+                onChange={e => setCreateChannelUsername(e.target.value)}
+                placeholder="@username (optional)" />
+              <textarea className="create-channel-input create-channel-textarea" rows={2}
+                value={newChannelDesc}
+                onChange={e => setNewChannelDesc(e.target.value)}
+                placeholder={t('sidebar.description')} />
+              <div className="create-channel-privacy">
+                <span>{t('channel.private')}</span>
+                <button type="button"
+                  className={`toggle-btn ${createChannelIsPrivate ? 'on' : ''}`}
+                  onClick={() => setCreateChannelIsPrivate(p => !p)}>
+                  <span className="toggle-knob" />
+                </button>
+              </div>
+              <button type="submit" className="btn-primary create-channel-submit" disabled={!newChannelName.trim()}>
+                {t('sidebar.create')}
+              </button>
             </form>
             {filteredChannels.length === 0 && <div className="empty-state">{t('sidebar.noChannels')}</div>}
             {filteredChannels.map(c => {
@@ -4586,6 +4628,12 @@ export default function App() {
                   <span className="chat-header-status">{selectedGroup.members_count ?? 0} {t('sidebar.members')}</span>
                 </div>
               </div>
+              {selectedGroup.is_admin && (
+                <div className="chat-header-actions">
+                  <button className="icon-btn admin-panel-btn" title={t('grAdmin.panelTitle')}
+                    onClick={() => setShowGroupAdmin(true)}>⚙️</button>
+                </div>
+              )}
             </div>
             <div className="messages-scroll" ref={messagesScrollRef}>
               {groupHasMore && (
@@ -4717,6 +4765,12 @@ export default function App() {
                   <span className="chat-header-status">{selectedChannel.subscribers_count ?? 0} {t('sidebar.subscribers')}</span>
                 </div>
               </div>
+              {selectedChannel.is_owner && (
+                <div className="chat-header-actions">
+                  <button className="icon-btn admin-panel-btn" title={t('chAdmin.panelTitle')}
+                    onClick={() => setShowChannelAdmin(true)}>⚙️</button>
+                </div>
+              )}
             </div>
             {commentPost ? (
               /* ── Comments panel ─────────────────────────────────────────── */
@@ -5292,6 +5346,32 @@ export default function App() {
           </>
         )}
       </main>
+
+      {/* ── Channel Admin Panel ─────────────────���──────────────────────── */}
+      {showChannelAdmin && selectedChannel && session && (
+        <ChannelAdminPanel
+          channel={selectedChannel}
+          session={session}
+          onClose={() => setShowChannelAdmin(false)}
+          onChannelUpdated={async () => {
+            const r = await loadChannels(session.token);
+            setChannels(r.data ?? []);
+          }}
+        />
+      )}
+
+      {/* ── Group Admin Panel ────────────────────────���──────────────────── */}
+      {showGroupAdmin && selectedGroup && session && (
+        <GroupAdminPanel
+          group={selectedGroup}
+          session={session}
+          onClose={() => setShowGroupAdmin(false)}
+          onGroupUpdated={async () => {
+            const r = await loadGroups(session.token);
+            setGroups(r.data ?? []);
+          }}
+        />
+      )}
     </div>
   );
 }

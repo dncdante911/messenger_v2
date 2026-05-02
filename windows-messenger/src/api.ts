@@ -1537,3 +1537,263 @@ export async function deleteScheduledMessage(token: string, id: number): Promise
 export async function sendScheduledNow(token: string, id: number): Promise<void> {
   await nodePost(`/api/node/scheduled/${id}/send-now`, token, {}).catch(() => {});
 }
+
+// ─── Batch 5: Channel admin API ────────────────────────────────────────────────
+
+import type {
+  ChannelStatistics, ChannelAdmin, ChannelSettings,
+  ChannelSubscriber, ChannelBannedMember, ActiveMember,
+  GroupMemberFull, GroupSettings, GroupStatistics,
+  GroupJoinRequest, AdminLogEntry,
+} from './types';
+
+export async function getChannelStatistics(token: string, channelId: number): Promise<ChannelStatistics | null> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/channel/statistics', token, { channel_id: channelId });
+    const s = (r.statistics ?? r) as Record<string, unknown>;
+    return {
+      subscribers_count:      Number(s.subscribers_count ?? 0),
+      new_subscribers_today:  Number(s.new_subscribers_today ?? 0),
+      new_subscribers_week:   Number(s.new_subscribers_week ?? 0),
+      left_subscribers_week:  Number(s.left_subscribers_week ?? 0),
+      growth_rate:            Number(s.growth_rate ?? 0),
+      active_subscribers_24h: Number(s.active_subscribers_24h ?? 0),
+      subscribers_by_day:     Array.isArray(s.subscribers_by_day) ? (s.subscribers_by_day as number[]) : undefined,
+      posts_count:            Number(s.posts_count ?? 0),
+      posts_today:            Number(s.posts_today ?? 0),
+      posts_last_week:        Number(s.posts_last_week ?? 0),
+      posts_this_month:       Number(s.posts_this_month ?? 0),
+      views_total:            Number(s.views_total ?? 0),
+      views_last_week:        Number(s.views_last_week ?? 0),
+      avg_views_per_post:     Number(s.avg_views_per_post ?? 0),
+      views_by_day:           Array.isArray(s.views_by_day) ? (s.views_by_day as number[]) : undefined,
+      reactions_total:        Number(s.reactions_total ?? 0),
+      comments_total:         Number(s.comments_total ?? 0),
+      engagement_rate:        Number(s.engagement_rate ?? 0),
+      media_posts_count:      Number(s.media_posts_count ?? 0),
+      text_posts_count:       Number(s.text_posts_count ?? 0),
+      peak_hours:             Array.isArray(s.peak_hours) ? (s.peak_hours as number[]) : undefined,
+      hourly_views:           Array.isArray(s.hourly_views) ? (s.hourly_views as number[]) : undefined,
+      top_posts:              Array.isArray(s.top_posts) ? (s.top_posts as Record<string, unknown>[]).map(p => ({
+        id: Number(p.id ?? 0), text: String(p.text ?? ''),
+        views: Number(p.views ?? 0), reactions: Number(p.reactions ?? 0),
+        comments: Number(p.comments ?? 0), published_time: Number(p.published_time ?? 0),
+        has_media: Boolean(p.has_media),
+      })) : undefined,
+    };
+  } catch { return null; }
+}
+
+export async function loadChannelAdmins(token: string, channelId: number): Promise<ChannelAdmin[]> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/channel/admins', token, { channel_id: channelId });
+    const list = (r.admins ?? r.data ?? []) as Record<string, unknown>[];
+    return list.map(a => ({
+      user_id: Number(a.user_id ?? 0), username: String(a.username ?? ''),
+      avatar: a.avatar ? String(a.avatar) : undefined,
+      role: (['owner','admin','moderator'].includes(String(a.role)) ? a.role : 'admin') as ChannelAdmin['role'],
+      added_time: Number(a.added_time ?? 0),
+    }));
+  } catch { return []; }
+}
+
+export async function addChannelAdmin(token: string, channelId: number, userId: number, role: string): Promise<void> {
+  await nodePost('/api/node/channel/add-admin', token, { channel_id: channelId, user_id: userId, role });
+}
+
+export async function removeChannelAdmin(token: string, channelId: number, userId: number): Promise<void> {
+  await nodePost('/api/node/channel/remove-admin', token, { channel_id: channelId, user_id: userId });
+}
+
+export async function loadChannelSubscribers(token: string, channelId: number, limit = 50, offset = 0): Promise<ChannelSubscriber[]> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/channel/subscribers', token, { channel_id: channelId, limit, offset });
+    const list = (r.subscribers ?? r.data ?? []) as Record<string, unknown>[];
+    return list.map(s => ({
+      user_id: s.user_id ? Number(s.user_id) : undefined,
+      username: s.username ? String(s.username) : undefined,
+      name: s.name ? String(s.name) : undefined,
+      avatar: s.avatar ? String(s.avatar) : undefined,
+      subscribed_time: s.subscribed_time ? Number(s.subscribed_time) : undefined,
+      is_muted: Boolean(s.is_muted), is_banned: Boolean(s.is_banned),
+      role: s.role ? String(s.role) : undefined,
+    }));
+  } catch { return []; }
+}
+
+export async function loadChannelBanned(token: string, channelId: number, limit = 50, offset = 0): Promise<ChannelBannedMember[]> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/channel/banned', token, { channel_id: channelId, limit, offset });
+    const list = (r.banned ?? r.data ?? []) as Record<string, unknown>[];
+    return list.map(b => ({
+      user_id: Number(b.user_id ?? 0), username: b.username ? String(b.username) : undefined,
+      name: b.name ? String(b.name) : undefined, avatar: b.avatar ? String(b.avatar) : undefined,
+      reason: b.reason ? String(b.reason) : undefined,
+      banned_until: b.banned_until ? Number(b.banned_until) : undefined,
+      banned_time: b.banned_time ? Number(b.banned_time) : undefined,
+    }));
+  } catch { return []; }
+}
+
+export async function banChannelMember(token: string, channelId: number, userId: number, reason?: string, durationSeconds?: number): Promise<void> {
+  await nodePost('/api/node/channel/ban-member', token, {
+    channel_id: channelId, user_id: userId,
+    ...(reason ? { reason } : {}),
+    ...(durationSeconds ? { duration_seconds: durationSeconds } : {}),
+  });
+}
+
+export async function unbanChannelMember(token: string, channelId: number, userId: number): Promise<void> {
+  await nodePost('/api/node/channel/unban-member', token, { channel_id: channelId, user_id: userId });
+}
+
+export async function kickChannelMember(token: string, channelId: number, userId: number): Promise<void> {
+  await nodePost('/api/node/channel/kick-member', token, { channel_id: channelId, user_id: userId });
+}
+
+export async function updateChannelInfo(token: string, channelId: number, name: string, description: string, username?: string): Promise<void> {
+  await nodePost('/api/node/channel/update', token, {
+    channel_id: channelId, name, description,
+    ...(username ? { username } : {}),
+  });
+}
+
+export async function updateChannelSettings(token: string, channelId: number, settings: Partial<ChannelSettings>): Promise<void> {
+  await nodePost('/api/node/channel/settings', token, { channel_id: channelId, settings_json: JSON.stringify(settings) });
+}
+
+export async function getChannelActiveMembers(token: string, channelId: number, periodDays = 30): Promise<ActiveMember[]> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/channel/active-members', token, { channel_id: channelId, period_days: periodDays });
+    const list = (r.members ?? r.data ?? []) as Record<string, unknown>[];
+    return list.map(m => ({
+      user_id: Number(m.user_id ?? 0), username: m.username ? String(m.username) : undefined,
+      name: m.name ? String(m.name) : undefined, avatar_url: m.avatar_url ? String(m.avatar_url) : undefined,
+      comment_count: Number(m.comment_count ?? 0), reaction_count: Number(m.reaction_count ?? 0),
+      score: Number(m.score ?? 0),
+    }));
+  } catch { return []; }
+}
+
+export async function createChannelFull(token: string, name: string, description: string, username?: string, isPrivate?: boolean): Promise<number | null> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/channel/create', token, {
+      name, description,
+      ...(username ? { username } : {}),
+      ...(isPrivate !== undefined ? { is_private: isPrivate } : {}),
+    });
+    return r.channel_id ? Number(r.channel_id) : (r.id ? Number(r.id) : null);
+  } catch { return null; }
+}
+
+// ─── Batch 5: Group admin API ──────────────────────────────────────────────────
+
+export async function loadGroupMembers(token: string, groupId: number, limit = 100): Promise<GroupMemberFull[]> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/group/members', token, { group_id: groupId, limit, offset: 0 });
+    const list = (r.members ?? r.data ?? []) as Record<string, unknown>[];
+    return list.map(m => ({
+      user_id: Number(m.user_id ?? 0), username: String(m.username ?? ''),
+      avatar: m.avatar ? String(m.avatar) : undefined,
+      role: (['owner','admin','moderator','member'].includes(String(m.role)) ? m.role : 'member') as GroupMemberFull['role'],
+      joined_time: Number(m.joined_time ?? 0),
+      is_muted: Boolean(m.is_muted), is_blocked: Boolean(m.is_blocked),
+      permissions: Array.isArray(m.permissions) ? (m.permissions as string[]) : undefined,
+    }));
+  } catch { return []; }
+}
+
+export async function setGroupMemberRole(token: string, groupId: number, userId: number, role: string): Promise<void> {
+  await nodePost('/api/node/group/set-role', token, { group_id: groupId, user_id: userId, role });
+}
+
+export async function removeGroupMember(token: string, groupId: number, userId: number): Promise<void> {
+  await nodePost('/api/node/group/remove-member', token, { group_id: groupId, user_id: userId });
+}
+
+export async function banGroupMember(token: string, groupId: number, userId: number, reason?: string): Promise<void> {
+  await nodePost('/api/node/group/ban-member', token, { group_id: groupId, user_id: userId, ...(reason ? { reason } : {}) });
+}
+
+export async function unbanGroupMember(token: string, groupId: number, userId: number): Promise<void> {
+  await nodePost('/api/node/group/unban-member', token, { group_id: groupId, user_id: userId });
+}
+
+export async function loadGroupJoinRequests(token: string, groupId: number): Promise<GroupJoinRequest[]> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/group/join-requests', token, { group_id: groupId });
+    const list = (r.requests ?? r.data ?? []) as Record<string, unknown>[];
+    return list.map(req => ({
+      id: Number(req.id ?? 0), group_id: groupId, user_id: Number(req.user_id ?? 0),
+      username: String(req.username ?? ''), user_avatar: req.user_avatar ? String(req.user_avatar) : undefined,
+      message: req.message ? String(req.message) : undefined,
+      status: (['pending','approved','rejected'].includes(String(req.status)) ? req.status : 'pending') as GroupJoinRequest['status'],
+      created_time: Number(req.created_time ?? 0),
+    }));
+  } catch { return []; }
+}
+
+export async function approveGroupJoinRequest(token: string, groupId: number, requestId: number): Promise<void> {
+  await nodePost('/api/node/group/approve-join', token, { group_id: groupId, request_id: requestId });
+}
+
+export async function rejectGroupJoinRequest(token: string, groupId: number, requestId: number): Promise<void> {
+  await nodePost('/api/node/group/reject-join', token, { group_id: groupId, request_id: requestId });
+}
+
+export async function updateGroupSettings(token: string, groupId: number, settings: Partial<GroupSettings>): Promise<void> {
+  await nodePost('/api/node/group/settings', token, { group_id: groupId, ...settings });
+}
+
+export async function updateGroupInfo(token: string, groupId: number, name: string, description: string, isPrivate: boolean): Promise<void> {
+  await nodePost('/api/node/group/update', token, { group_id: groupId, group_name: name, description, is_private: isPrivate });
+}
+
+export async function getGroupStatistics(token: string, groupId: number): Promise<GroupStatistics | null> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/group/statistics', token, { group_id: groupId });
+    const s = (r.statistics ?? r.data ?? r) as Record<string, unknown>;
+    return {
+      group_id:            Number(s.group_id ?? groupId),
+      members_count:       Number(s.members_count ?? 0),
+      messages_count:      Number(s.messages_count ?? 0),
+      messages_today:      Number(s.messages_today ?? 0),
+      messages_this_week:  Number(s.messages_this_week ?? 0),
+      messages_this_month: Number(s.messages_this_month ?? 0),
+      active_members_24h:  Number(s.active_members_24h ?? 0),
+      active_members_week: Number(s.active_members_week ?? 0),
+      media_count:         Number(s.media_count ?? 0),
+      links_count:         Number(s.links_count ?? 0),
+      new_members_today:   Number(s.new_members_today ?? 0),
+      new_members_week:    Number(s.new_members_week ?? 0),
+      left_members_week:   Number(s.left_members_week ?? 0),
+      top_contributors:    Array.isArray(s.top_contributors) ? (s.top_contributors as Record<string, unknown>[]).map(c => ({
+        user_id: Number(c.user_id ?? 0), username: String(c.username ?? ''),
+        name: c.name ? String(c.name) : undefined, avatar: c.avatar ? String(c.avatar) : undefined,
+        messages_count: Number(c.messages_count ?? 0),
+      })) : undefined,
+      peak_hours: Array.isArray(s.peak_hours) ? (s.peak_hours as number[]) : undefined,
+      growth_rate: Number(s.growth_rate ?? 0),
+    };
+  } catch { return null; }
+}
+
+export async function loadGroupAdminLogs(token: string, groupId: number, page = 1): Promise<{ logs: AdminLogEntry[]; total: number }> {
+  try {
+    const r = await nodePost<Record<string, unknown>>('/api/node/group/admin-logs', token, { group_id: groupId, page, limit: 50 });
+    const list = (r.logs ?? r.data ?? []) as Record<string, unknown>[];
+    return {
+      total: Number(r.total ?? list.length),
+      logs: list.map(l => ({
+        id: l.id ? Number(l.id) : undefined,
+        admin_id: l.admin_id ? Number(l.admin_id) : undefined,
+        admin_name: String(l.admin_name ?? l.adminName ?? ''),
+        admin_avatar: l.admin_avatar ? String(l.admin_avatar) : undefined,
+        action: String(l.action ?? ''),
+        target_user_name: l.target_user_name ? String(l.target_user_name) : undefined,
+        details: l.details ? String(l.details) : undefined,
+        created_at: String(l.created_at ?? l.createdAt ?? ''),
+      })),
+    };
+  } catch { return { logs: [], total: 0 }; }
+}
