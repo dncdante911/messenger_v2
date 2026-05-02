@@ -1,0 +1,153 @@
+{
+  "expo": {
+    "name": "WorldMates Messenger",
+    "slug": "worldmates-messenger",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.worldmates.messenger",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "WorldMates Messenger uses your camera for video calls and sending photos in chats.",
+        "NSMicrophoneUsageDescription": "WorldMates Messenger uses your microphone for voice and video calls.",
+        "NSPhotoLibraryUsageDescription": "WorldMates Messenger accesses your photo library so you can share images and videos in chats.",
+        "NSPhotoLibraryAddUsageDescription": "WorldMates Messenger saves photos and videos to your photo library.",
+        "NSLocationWhenInUseUsageDescription": "WorldMates Messenger uses your location to share it with contacts and find people nearby.",
+        "NSLocationAlwaysUsageDescription": "WorldMates Messenger uses your location in the background to update your presence and deliver location-based notifications.",
+        "NSFaceIDUsageDescription": "WorldMates Messenger uses Face ID to securely authenticate you and protect your messages.",
+        "NSContactsUsageDescription": "WorldMates Messenger accesses your contacts to help you find and invite friends.",
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification",
+          "voip",
+          "audio",
+          "location",
+          "processing"
+        ]
+      },
+      "entitlements": {
+        "aps-environment": "production",
+        "com.apple.developer.associated-domains": [
+          "applinks:worldmates.com"
+        ]
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.worldmates.messenger",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "READ_CONTACTS",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4F46E5",
+          "sounds": [
+            "./assets/sounds/message.wav",
+            "./assets/sounds/call.wav"
+          ],
+          "mode": "production"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "WorldMates Messenger uses your location to share it with contacts and find people nearby.",
+          "locationAlwaysPermission": "WorldMates Messenger uses your location in the background to update your presence.",
+          "locationWhenInUsePermission": "WorldMates Messenger uses your location to share it with contacts and find people nearby.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+        }
+      ],
+      [
+        "@react-native-firebase/app",
+        {
+          "android_task_executor_maximum_pool_size": 10,
+          "android_task_executor_keep_alive_seconds": 3
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "WorldMates Messenger uses your camera for video calls and sending photos in chats."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "WorldMates Messenger accesses your photo library so you can share images and videos in chats.",
+          "cameraPermission": "WorldMates Messenger uses your camera for video calls and sending photos in chats."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "WorldMates Messenger uses Face ID to securely authenticate you and protect your messages."
+        }
+      ],
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true,
+          "useSQLCipher": false,
+          "android": {
+            "enableFTS": true
+          }
+        }
+      ],
+      "expo-secure-store",
+      "expo-av",
+      "expo-document-picker"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "worldmates",
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID_HERE"
+      }
+    }
+  }
+}
