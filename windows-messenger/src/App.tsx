@@ -30,6 +30,8 @@ import {
   listNotes, createNote, deleteNote, getNotesStorage, type NoteItem, type NotesStorageInfo,
   deleteStory, reactToStory as apiReactToStory,
   getStoryComments, createStoryComment, deleteStoryComment,
+  listScheduledMessages, createScheduledMessage, deleteScheduledMessage, sendScheduledNow,
+  type ScheduledMessage,
 } from './api';
 import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack, GifItem, BotItem, StoryComment } from './types';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
@@ -388,6 +390,7 @@ const Bubble = React.memo(function Bubble({
 
   return (
     <div
+      id={`msg-${msg.id}`}
       className={`bubble-row ${isOwn ? 'own' : ''}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setShowEmojiPicker(false); }}
@@ -837,6 +840,19 @@ export default function App() {
   const [storyCommentInput,    setStoryCommentInput]    = useState('');
   const [showStoryComments,    setShowStoryComments]    = useState(false);
   const [storyPaused,          setStoryPaused]          = useState(false);
+  const storyPausedRef = useRef(false);   // ref keeps timer in sync without re-creating interval
+
+  // ── Drafts ────────────────────────────────────────────────────────────────
+  const [chatDrafts, setChatDrafts] = useState<Record<number, string>>({});
+
+  // ── Pinned message banner ─────────────────────────────────────────────────
+  const [pinnedMessage, setPinnedMessage] = useState<MessageItem | null>(null);
+
+  // ── Scheduled messages ────────────────────────────────────────────────────
+  const [scheduledMessages,   setScheduledMessages]   = useState<ScheduledMessage[]>([]);
+  const [showScheduledList,   setShowScheduledList]   = useState(false);
+  const [showSchedulePicker,  setShowSchedulePicker]  = useState(false);
+  const [scheduleDateTime,    setScheduleDateTime]    = useState('');
 
   // ── Send error banner ─────────────────────────────────────────────────────
   const [sendError, setSendError]           = useState('');
@@ -1237,6 +1253,12 @@ export default function App() {
   useEffect(() => { selectedChatRef.current = selectedChat; }, [selectedChat]);
   useEffect(() => { chatsRef.current = chats; }, [chats]);
   useEffect(() => { selectedGroupRef.current = selectedGroup; }, [selectedGroup]);
+
+  // Keep pinnedMessage in sync with messages list
+  useEffect(() => {
+    const pinned = messages.find(m => m.is_pinned && !m.is_deleted) ?? null;
+    setPinnedMessage(pinned);
+  }, [messages]);
   useEffect(() => { selectedChannelRef.current = selectedChannel; }, [selectedChannel]);
   useEffect(() => { callStateRef.current = callState; }, [callState]);
 
@@ -1356,18 +1378,18 @@ export default function App() {
       if (storyTimerRef.current) { clearInterval(storyTimerRef.current); storyTimerRef.current = null; }
       setStoryProgress(0);
       setShowStoryComments(false);
-      setStoryPaused(false);
+      setStoryPaused(false); storyPausedRef.current = false;
       setStoryComments([]);
       return;
     }
     setStoryProgress(0);
     setShowStoryComments(false);
-    setStoryPaused(false);
+    setStoryPaused(false); storyPausedRef.current = false;
     if (storyTimerRef.current) clearInterval(storyTimerRef.current);
     const duration = 7000;
     const step = 100;
     storyTimerRef.current = setInterval(() => {
-      if (storyPaused) return;
+      if (storyPausedRef.current) return;
       setStoryProgress(p => {
         const next = p + (step / duration) * 100;
         if (next >= 100) {
@@ -1393,7 +1415,7 @@ export default function App() {
   function closeStory() {
     setViewingStoryIdx(null);
     setShowStoryComments(false);
-    setStoryPaused(false);
+    setStoryPaused(false); storyPausedRef.current = false;
     setStoryComments([]);
     setStoryCommentInput('');
   }
@@ -1597,6 +1619,9 @@ export default function App() {
     setNewMessage('');
     setPendingMedia(null);
     setReplyTarget(null);
+    // Clear draft on send
+    localStorage.removeItem(draftKey(selectedChat.user_id));
+    setChatDrafts(prev => { const n = { ...prev }; delete n[selectedChat.user_id]; return n; });
 
     try {
       if (pendingMedia) {
@@ -2048,6 +2073,42 @@ export default function App() {
     setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, is_pinned: !m.is_pinned } : m));
   }
 
+  // ─── Scheduled messages ───────────────────────────────────────────────────
+
+  async function handleOpenScheduledList() {
+    if (!session || !selectedChat) return;
+    const list = await listScheduledMessages(session.token, selectedChat.user_id);
+    setScheduledMessages(list);
+    setShowScheduledList(true);
+  }
+
+  async function handleScheduleMessage() {
+    if (!session || !selectedChat || !scheduleDateTime || !newMessage.trim()) return;
+    const sendAt = Math.floor(new Date(scheduleDateTime).getTime() / 1000);
+    if (isNaN(sendAt) || sendAt <= Date.now() / 1000) return;
+    const msg = await createScheduledMessage(session.token, selectedChat.user_id, newMessage.trim(), sendAt);
+    if (msg) {
+      setScheduledMessages(prev => [...prev, msg]);
+      setNewMessage('');
+      localStorage.removeItem(draftKey(selectedChat.user_id));
+      setChatDrafts(prev => { const n = { ...prev }; delete n[selectedChat.user_id]; return n; });
+    }
+    setShowSchedulePicker(false);
+    setScheduleDateTime('');
+  }
+
+  async function handleDeleteScheduled(id: number) {
+    if (!session) return;
+    await deleteScheduledMessage(session.token, id);
+    setScheduledMessages(prev => prev.filter(m => m.id !== id));
+  }
+
+  async function handleSendScheduledNow(id: number) {
+    if (!session) return;
+    await sendScheduledNow(session.token, id);
+    setScheduledMessages(prev => prev.filter(m => m.id !== id));
+  }
+
   // ─── Group chat actions ───────────────────────────────────────────────────
 
   async function handleSendGroupMessage(e?: React.FormEvent) {
@@ -2337,7 +2398,7 @@ export default function App() {
     const s = stories[viewingStoryIdx];
     if (!s) return;
     setShowStoryComments(true);
-    setStoryPaused(true);
+    setStoryPaused(true); storyPausedRef.current = true;
     setStoryCommentsLoading(true);
     const comments = await getStoryComments(session.token, s.id);
     setStoryComments(comments);
@@ -2738,10 +2799,29 @@ export default function App() {
   function handleComposerInputWithDraft(text: string) {
     handleComposerInput(text);
     if (selectedChat) {
-      if (text) localStorage.setItem(draftKey(selectedChat.user_id), text);
-      else localStorage.removeItem(draftKey(selectedChat.user_id));
+      if (text) {
+        localStorage.setItem(draftKey(selectedChat.user_id), text);
+        setChatDrafts(prev => ({ ...prev, [selectedChat.user_id]: text }));
+      } else {
+        localStorage.removeItem(draftKey(selectedChat.user_id));
+        setChatDrafts(prev => { const n = { ...prev }; delete n[selectedChat.user_id]; return n; });
+      }
     }
   }
+
+  // Load all drafts from localStorage into state on init
+  useEffect(() => {
+    const drafts: Record<number, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('wm_draft_')) {
+        const uid = Number(key.replace('wm_draft_', ''));
+        const val = localStorage.getItem(key);
+        if (uid && val) drafts[uid] = val;
+      }
+    }
+    setChatDrafts(drafts);
+  }, []);
 
   // ─── Render: Auth ─────────────────────────────────────────────────────────
 
@@ -3266,7 +3346,13 @@ export default function App() {
                     <span className="chat-item-time">{formatChatTime(chat.time)}</span>
                   </div>
                   <div className="chat-item-row">
-                    <span className="chat-item-preview">{previewLastMessage(chat.last_message)}</span>
+                    {chatDrafts[chat.user_id] ? (
+                      <span className="chat-item-preview">
+                        <span className="draft-label">{t('draft.label')}:</span> {chatDrafts[chat.user_id]}
+                      </span>
+                    ) : (
+                      <span className="chat-item-preview">{previewLastMessage(chat.last_message)}</span>
+                    )}
                     {(chat.unread_count ?? 0) > 0 && (
                       <span className="unread-badge">{chat.unread_count}</span>
                     )}
@@ -3800,8 +3886,8 @@ export default function App() {
 
             {/* ── Media card ── */}
             <div className="story-viewer-card"
-              onMouseEnter={() => setStoryPaused(true)}
-              onMouseLeave={() => { if (!showStoryComments) setStoryPaused(false); }}
+              onMouseEnter={() => { setStoryPaused(true); storyPausedRef.current = true; }}
+              onMouseLeave={() => { if (!showStoryComments) { setStoryPaused(false); storyPausedRef.current = false; } }}
               onClick={e => e.stopPropagation()}
             >
               <div className="story-viewer-media">
@@ -3837,8 +3923,18 @@ export default function App() {
                 })}
               </div>
 
-              {/* ── Footer: views + comments ── */}
+              {/* ── Footer: pause/play + views + comment button ── */}
               <div className="story-viewer-footer" onClick={e => e.stopPropagation()}>
+                {/* Pause / play toggle */}
+                <button className="story-pause-btn"
+                  title={storyPaused ? t('story.play') : t('story.pause')}
+                  onClick={() => {
+                    const next = !storyPaused;
+                    setStoryPaused(next); storyPausedRef.current = next;
+                  }}>
+                  {storyPaused ? '▶' : '⏸'}
+                </button>
+
                 {(s.views_count ?? 0) > 0 && (
                   <span className="story-footer-stat">👁 {s.views_count}</span>
                 )}
@@ -3846,9 +3942,19 @@ export default function App() {
                   <span className="story-footer-stat">💫 {totalReactions}</span>
                 )}
                 <div style={{flex:1}} />
-                <button className="story-comment-toggle"
-                  onClick={() => showStoryComments ? (setShowStoryComments(false), setStoryPaused(false)) : handleOpenStoryComments()}>
-                  💬 {s.comment_count ?? 0}
+
+                {/* Big visible comment button */}
+                <button className={`story-comment-toggle ${showStoryComments ? 'active' : ''}`}
+                  onClick={() => {
+                    if (showStoryComments) {
+                      setShowStoryComments(false);
+                      setStoryPaused(false); storyPausedRef.current = false;
+                    } else {
+                      handleOpenStoryComments();
+                    }
+                  }}>
+                  💬 {t('story.comments')}
+                  {(s.comment_count ?? 0) > 0 && <span className="story-comment-count-badge">{s.comment_count}</span>}
                 </button>
               </div>
 
@@ -3856,9 +3962,12 @@ export default function App() {
               {showStoryComments && (
                 <div className="story-comments-panel" onClick={e => e.stopPropagation()}>
                   <div className="story-comments-head">
-                    <span style={{fontWeight:600,fontSize:14}}>Комментарии</span>
+                    <span style={{fontWeight:600,fontSize:14}}>{t('story.comments')}</span>
                     <button className="story-viewer-close" style={{fontSize:12,width:24,height:24}}
-                      onClick={() => { setShowStoryComments(false); setStoryPaused(false); }}>✕</button>
+                      onClick={() => {
+                        setShowStoryComments(false);
+                        setStoryPaused(false); storyPausedRef.current = false;
+                      }}>✕</button>
                   </div>
                   <div className="story-comments-list">
                     {storyCommentsLoading && <div className="search-loading">Загрузка…</div>}
@@ -3880,9 +3989,10 @@ export default function App() {
                     ))}
                   </div>
                   <div className="story-comment-composer">
-                    <input className="story-comment-input" placeholder="Комментарий…"
+                    <input className="story-comment-input" placeholder={t('story.commentPlaceholder')}
                       value={storyCommentInput}
                       onChange={e => setStoryCommentInput(e.target.value)}
+                      onFocus={() => { setStoryPaused(true); storyPausedRef.current = true; }}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendStoryComment(); } }}
                     />
                     <button className="story-comment-send" disabled={!storyCommentInput.trim()}
@@ -4844,6 +4954,22 @@ export default function App() {
               </div>
             )}
 
+            {/* ── Pinned message banner ─────────────────────────────── */}
+            {pinnedMessage && (
+              <div className="pinned-banner" onClick={() => {
+                const el = document.getElementById(`msg-${pinnedMessage.id}`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}>
+                <span className="pinned-banner-icon">📌</span>
+                <div className="pinned-banner-body">
+                  <span className="pinned-banner-label">{t('pinned.banner')}</span>
+                  <span className="pinned-banner-text">{pinnedMessage.text || t('bubble.media')}</span>
+                </div>
+                <button className="pinned-banner-close" title={t('pinned.unpin')}
+                  onClick={e => { e.stopPropagation(); handlePin(pinnedMessage); }}>✕</button>
+              </div>
+            )}
+
             {/* ── Messages ─────────────────────────────────────────────── */}
             <div className="messages-scroll" ref={messagesScrollRef}>
               {hasMore && (
@@ -5083,6 +5209,13 @@ export default function App() {
                   </>
                 )}
 
+                {/* Scheduled message button */}
+                <button
+                  className="icon-btn"
+                  title={t('scheduled.openList')}
+                  onClick={() => newMessage.trim() ? setShowSchedulePicker(true) : handleOpenScheduledList()}
+                >🕐</button>
+
                 {/* Send button */}
                 <button
                   className={`send-btn ${newMessage.trim() || pendingMedia ? 'active' : ''}`}
@@ -5095,6 +5228,66 @@ export default function App() {
                   </svg>
                 </button>
               </div>
+
+              {/* ── Schedule picker modal ─────────────────────────────── */}
+              {showSchedulePicker && (
+                <div className="schedule-overlay" onClick={() => setShowSchedulePicker(false)}>
+                  <div className="schedule-modal" onClick={e => e.stopPropagation()}>
+                    <h3 className="schedule-modal-title">🕐 {t('scheduled.schedule')}</h3>
+                    <p className="schedule-modal-preview">"{newMessage.trim().slice(0, 80)}{newMessage.trim().length > 80 ? '…' : ''}"</p>
+                    <label className="schedule-field-label">{t('scheduled.pickDate')}</label>
+                    <input
+                      type="datetime-local"
+                      className="schedule-datetime-input"
+                      value={scheduleDateTime}
+                      onChange={e => setScheduleDateTime(e.target.value)}
+                      min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                    />
+                    <div className="schedule-modal-actions">
+                      <button className="btn-secondary" onClick={() => setShowSchedulePicker(false)}>✕</button>
+                      <button className="btn-primary" disabled={!scheduleDateTime} onClick={handleScheduleMessage}>
+                        {t('scheduled.confirm')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Scheduled messages list ────────────────────────────── */}
+              {showScheduledList && (
+                <div className="schedule-overlay" onClick={() => setShowScheduledList(false)}>
+                  <div className="schedule-modal" onClick={e => e.stopPropagation()}>
+                    <div className="schedule-list-header">
+                      <h3 className="schedule-modal-title">🕐 {t('scheduled.title')}</h3>
+                      <button className="icon-btn" onClick={() => setShowScheduledList(false)}>✕</button>
+                    </div>
+                    {scheduledMessages.length === 0 ? (
+                      <p className="schedule-empty">{t('scheduled.noMessages')}</p>
+                    ) : (
+                      <div className="schedule-list">
+                        {scheduledMessages.map(msg => (
+                          <div key={msg.id} className="schedule-item">
+                            <div className="schedule-item-body">
+                              <p className="schedule-item-text">{msg.text}</p>
+                              <time className="schedule-item-time">
+                                {new Date(msg.send_at * 1000).toLocaleString()}
+                              </time>
+                            </div>
+                            <div className="schedule-item-actions">
+                              <button className="btn-xs btn-primary" onClick={() => handleSendScheduledNow(msg.id)}>
+                                {t('scheduled.sendNow')}
+                              </button>
+                              <button className="btn-xs btn-danger" onClick={() => handleDeleteScheduled(msg.id)}>
+                                {t('scheduled.delete')}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

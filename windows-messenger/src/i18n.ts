@@ -59,6 +59,33 @@ const translations: Record<Lang, Record<string, string>> = {
     'sidebar.chooseMedia': 'Выберите фото / видео',
     'sidebar.uploadStory': 'Опубликовать',
 
+    // Stories viewer
+    'story.pause':             '⏸ Пауза',
+    'story.play':              '▶ Продолжить',
+    'story.comments':          'Комментарии',
+    'story.commentPlaceholder':'Написать комментарий…',
+    'story.deleteStory':       'Удалить историю',
+    'story.deleteConfirm':     'Удалить эту историю?',
+    'story.noComments':        'Нет комментариев',
+
+    // Drafts
+    'draft.label':    'Черновик',
+
+    // Pinned messages
+    'pinned.banner':  'Закреплённое сообщение',
+    'pinned.unpin':   'Открепить',
+    'pinned.scrollTo':'Перейти',
+
+    // Scheduled messages
+    'scheduled.title':      'Запланированные',
+    'scheduled.schedule':   'Запланировать',
+    'scheduled.sendNow':    'Отправить сейчас',
+    'scheduled.delete':     'Удалить',
+    'scheduled.noMessages': 'Нет запланированных сообщений',
+    'scheduled.pickDate':   'Дата и время отправки',
+    'scheduled.confirm':    'Запланировать',
+    'scheduled.openList':   'Запланированные сообщения',
+
     // Calls
     'call.calling':          'Звоним…',
     'call.incoming':         'Входящий звонок',
@@ -313,6 +340,33 @@ const translations: Record<Lang, Record<string, string>> = {
     'sidebar.chooseMedia': 'Оберіть фото / відео',
     'sidebar.uploadStory': 'Опублікувати',
 
+    // Stories viewer
+    'story.pause':             '⏸ Пауза',
+    'story.play':              '▶ Продовжити',
+    'story.comments':          'Коментарі',
+    'story.commentPlaceholder':'Написати коментар…',
+    'story.deleteStory':       'Видалити історію',
+    'story.deleteConfirm':     'Видалити цю історію?',
+    'story.noComments':        'Немає коментарів',
+
+    // Drafts
+    'draft.label':    'Чернетка',
+
+    // Pinned messages
+    'pinned.banner':  'Закріплене повідомлення',
+    'pinned.unpin':   'Відкріпити',
+    'pinned.scrollTo':'Перейти',
+
+    // Scheduled messages
+    'scheduled.title':      'Заплановані',
+    'scheduled.schedule':   'Запланувати',
+    'scheduled.sendNow':    'Відправити зараз',
+    'scheduled.delete':     'Видалити',
+    'scheduled.noMessages': 'Немає запланованих повідомлень',
+    'scheduled.pickDate':   'Дата та час відправки',
+    'scheduled.confirm':    'Запланувати',
+    'scheduled.openList':   'Заплановані повідомлення',
+
     'call.calling':         'Дзвонимо…',
     'call.incoming':        'Вхідний дзвінок',
     'call.connected':       "З'єднано",
@@ -555,6 +609,33 @@ const translations: Record<Lang, Record<string, string>> = {
     'sidebar.subscribers': 'subscribers',
     'sidebar.chooseMedia': 'Choose image / video',
     'sidebar.uploadStory': 'Upload story',
+
+    // Stories viewer
+    'story.pause':             '⏸ Pause',
+    'story.play':              '▶ Resume',
+    'story.comments':          'Comments',
+    'story.commentPlaceholder':'Write a comment…',
+    'story.deleteStory':       'Delete story',
+    'story.deleteConfirm':     'Delete this story?',
+    'story.noComments':        'No comments yet',
+
+    // Drafts
+    'draft.label':    'Draft',
+
+    // Pinned messages
+    'pinned.banner':  'Pinned message',
+    'pinned.unpin':   'Unpin',
+    'pinned.scrollTo':'Go to',
+
+    // Scheduled messages
+    'scheduled.title':      'Scheduled',
+    'scheduled.schedule':   'Schedule',
+    'scheduled.sendNow':    'Send now',
+    'scheduled.delete':     'Delete',
+    'scheduled.noMessages': 'No scheduled messages',
+    'scheduled.pickDate':   'Date and time to send',
+    'scheduled.confirm':    'Schedule',
+    'scheduled.openList':   'Scheduled messages',
 
     'call.calling':         'Calling…',
     'call.incoming':        'Incoming call',

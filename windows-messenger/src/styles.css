@@ -1474,6 +1474,22 @@ body {
   transition: background .15s;
 }
 .story-comment-toggle:hover { background: rgba(255,255,255,.25); }
+.story-comment-toggle.active { background: rgba(77,157,224,.35); border: 1px solid rgba(77,157,224,.6); }
+.story-comment-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff;
+  border-radius: 999px; font-size: 11px; font-weight: 700;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 5px;
+}
+.story-pause-btn {
+  background: rgba(255,255,255,.15);
+  border: none; border-radius: 50%;
+  color: #fff; font-size: 16px;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .15s; flex-shrink: 0;
+}
+.story-pause-btn:hover { background: rgba(255,255,255,.3); }
 
 /* Comments slide-up panel */
 .story-comments-panel {
@@ -2725,3 +2741,181 @@ body {
   max-width: 180px;
 }
 .drawer-profile-status:hover { opacity: 1; }
+
+/* ── Batch 4: Draft badge ─────────────────────────────────────────────────── */
+.draft-label {
+  color: #e06c4d;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ── Batch 4: Pinned message banner ──────────────────────────────────────── */
+.pinned-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, rgba(77,157,224,.15), rgba(77,157,224,.08));
+  border-bottom: 1px solid rgba(77,157,224,.25);
+  cursor: pointer;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.pinned-banner:hover { background: linear-gradient(135deg, rgba(77,157,224,.22), rgba(77,157,224,.12)); }
+.pinned-banner-icon { font-size: 14px; flex-shrink: 0; }
+.pinned-banner-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+.pinned-banner-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.pinned-banner-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pinned-banner-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+}
+.pinned-banner-close:hover { color: var(--text); background: rgba(255,255,255,.07); }
+
+/* ── Batch 4: Scheduled messages ─────────────────────────────────────────── */
+.schedule-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(4px);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.schedule-modal {
+  background: var(--sidebar-bg);
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(255,255,255,.08);
+  padding: 24px;
+  width: 380px;
+  max-width: 94vw;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+}
+.schedule-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+.schedule-modal-preview {
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: rgba(255,255,255,.04);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  margin: 0;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.schedule-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.schedule-datetime-input {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--r-md);
+  color: var(--text);
+  font-size: 14px;
+  padding: 10px 12px;
+  width: 100%;
+  box-sizing: border-box;
+  color-scheme: dark;
+  transition: border-color .15s;
+}
+.schedule-datetime-input:focus { outline: none; border-color: var(--accent); }
+.schedule-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.schedule-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.schedule-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 24px 0;
+  margin: 0;
+}
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.schedule-item {
+  background: rgba(255,255,255,.04);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid rgba(255,255,255,.06);
+}
+.schedule-item-body { flex: 1; min-width: 0; }
+.schedule-item-text {
+  font-size: 13px;
+  color: var(--text);
+  margin: 0 0 4px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.schedule-item-time {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.schedule-item-actions { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+.btn-xs {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  border: none;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-xs:hover { opacity: .85; }
+.btn-xs.btn-primary { background: var(--accent); color: #fff; }
+.btn-xs.btn-danger  { background: #e05555; color: #fff; }
