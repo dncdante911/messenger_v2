@@ -1,6 +1,7 @@
 // ============================================================
 // WorldMates Messenger — API Constants
-// Ported from Android Constants.kt
+// Ported 1:1 from Android Constants.kt
+// Backend: Node.js @ https://worldmates.club:449/ (REST + Socket.IO v4)
 // ============================================================
 
 // ==================== BASE URLs ====================
