@@ -25,7 +25,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { useAuthStore } from '../../store/authStore';
 import { profileApi } from '../../api/profileApi';
 import { getMediaUrl } from '../../utils/mediaUtils';
-import { formatLastSeen } from '../../utils/dateUtils';
+import { formatCallDuration } from '../../utils/dateUtils';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import type { User, CallHistory } from '../../api/types';
 
@@ -432,6 +432,7 @@ const UserProfileScreen: React.FC<Props> = ({ route, navigation }) => {
                 <Text style={styles.callMeta}>
                   {call.direction === 'incoming' ? 'Incoming' : 'Outgoing'} ·{' '}
                   {call.status}
+                  {call.duration > 0 ? ` · ${formatCallDuration(call.duration)}` : ''}
                 </Text>
               </View>
             </View>

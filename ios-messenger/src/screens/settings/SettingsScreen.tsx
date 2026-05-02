@@ -351,6 +351,10 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: COLORS.separator,
   },
+  profileAvatarPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   profileInfo: {
     flex: 1,
     marginLeft: 14,
