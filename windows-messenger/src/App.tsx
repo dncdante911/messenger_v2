@@ -13,6 +13,8 @@ import {
   login, loginByPhone, markGroupSeen, markSeen, markStorySeen,
   muteChat, normaliseMessage, pinChat, pinMessage,
   getMyProfile, updateMyProfile, uploadAvatar,
+  setCustomStatus,
+  loadNotificationSettings, updateNotificationSettings, type NotificationSettings,
   loadCallHistory, deleteCallRecord, clearCallHistory,
   loadPrivacySettings, updatePrivacySettings,
   reactToMessage, reactToGroupMessage, registerAccount,
@@ -26,8 +28,10 @@ import {
   type UserProfile,
   listSaved, saveMessage as apiSaveMessage, unsaveMessage, type SavedMessageItem,
   listNotes, createNote, deleteNote, getNotesStorage, type NoteItem, type NotesStorageInfo,
+  deleteStory, reactToStory as apiReactToStory,
+  getStoryComments, createStoryComment, deleteStoryComment,
 } from './api';
-import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack, GifItem, BotItem } from './types';
+import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack, GifItem, BotItem, StoryComment } from './types';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
@@ -697,6 +701,31 @@ export default function App() {
   const [profileAbout,   setProfileAbout]   = useState('');
   const [profileUser,    setProfileUser]    = useState('');
   const [profileSaving,  setProfileSaving]  = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  // Extended profile fields
+  const [profileBirthday, setProfileBirthday] = useState('');
+  const [profileCity,     setProfileCity]     = useState('');
+  const [profileWebsite,  setProfileWebsite]  = useState('');
+  const [profileGender,   setProfileGender]   = useState('');
+  const [profileWorking,  setProfileWorking]  = useState('');
+  const [profileSchool,   setProfileSchool]   = useState('');
+  const [profilePhone,    setProfilePhone]    = useState('');
+  // Social links
+  const [profileFb,   setProfileFb]   = useState('');
+  const [profileTw,   setProfileTw]   = useState('');
+  const [profileIg,   setProfileIg]   = useState('');
+  const [profileLi,   setProfileLi]   = useState('');
+  const [profileYt,   setProfileYt]   = useState('');
+
+  // ── Custom status ─────────────────────────────────────────────────────────
+  const [statusEmoji,       setStatusEmoji]       = useState('');
+  const [statusText,        setStatusText]        = useState('');
+  const [showStatusModal,   setShowStatusModal]   = useState(false);
+  const [statusSaving,      setStatusSaving]      = useState<'idle'|'saving'|'done'|'error'>('idle');
+
+  // ── Notification settings ─────────────────────────────────────────────────
+  const [notifSettings,  setNotifSettings]  = useState<NotificationSettings | null>(null);
+  const [notifLoaded,    setNotifLoaded]    = useState(false);
+  const [notifSaving,    setNotifSaving]    = useState<'idle'|'saving'|'done'|'error'>('idle');
 
   // ── Archived chats ────────────────────────────────────────────────────────
   const [archivedChats,  setArchivedChats]  = useState<ChatItem[]>([]);
@@ -799,8 +828,15 @@ export default function App() {
   const [privacySaving,   setPrivacySaving]   = useState<'idle'|'saving'|'done'|'error'>('idle');
 
   // ── Settings nav tab ──────────────────────────────────────────────────────
-  const [settingsTab,  setSettingsTab]  = useState<'profile'|'privacy'|'blocked'|'language'|'security'>('profile');
+  const [settingsTab,  setSettingsTab]  = useState<'profile'|'privacy'|'blocked'|'language'|'security'|'notifications'|'social'>('profile');
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // ── Story interactions ────────────────────────────────────────────────────
+  const [storyComments,        setStoryComments]        = useState<StoryComment[]>([]);
+  const [storyCommentsLoading, setStoryCommentsLoading] = useState(false);
+  const [storyCommentInput,    setStoryCommentInput]    = useState('');
+  const [showStoryComments,    setShowStoryComments]    = useState(false);
+  const [storyPaused,          setStoryPaused]          = useState(false);
 
   // ── Send error banner ─────────────────────────────────────────────────────
   const [sendError, setSendError]           = useState('');
@@ -1319,13 +1355,19 @@ export default function App() {
     if (viewingStoryIdx === null) {
       if (storyTimerRef.current) { clearInterval(storyTimerRef.current); storyTimerRef.current = null; }
       setStoryProgress(0);
+      setShowStoryComments(false);
+      setStoryPaused(false);
+      setStoryComments([]);
       return;
     }
     setStoryProgress(0);
+    setShowStoryComments(false);
+    setStoryPaused(false);
     if (storyTimerRef.current) clearInterval(storyTimerRef.current);
-    const duration = 5000;
+    const duration = 7000;
     const step = 100;
     storyTimerRef.current = setInterval(() => {
+      if (storyPaused) return;
       setStoryProgress(p => {
         const next = p + (step / duration) * 100;
         if (next >= 100) {
@@ -1348,7 +1390,13 @@ export default function App() {
     if (session && stories[idx]) markStorySeen(session.token, stories[idx].id);
   }
 
-  function closeStory() { setViewingStoryIdx(null); }
+  function closeStory() {
+    setViewingStoryIdx(null);
+    setShowStoryComments(false);
+    setStoryPaused(false);
+    setStoryComments([]);
+    setStoryCommentInput('');
+  }
 
   function nextStory() {
     setViewingStoryIdx(idx => {
@@ -1631,9 +1679,23 @@ export default function App() {
     getMyProfile(session.token).then(p => {
       setMyProfile(p);
       setProfileFirst(p.first_name ?? '');
-      setProfileLast(p.last_name  ?? '');
-      setProfileAbout(p.about     ?? '');
-      setProfileUser(p.username   ?? '');
+      setProfileLast(p.last_name   ?? '');
+      setProfileAbout(p.about      ?? '');
+      setProfileUser(p.username    ?? '');
+      setProfileBirthday(p.birthday ?? '');
+      setProfileCity(p.city        ?? '');
+      setProfileWebsite(p.website  ?? '');
+      setProfileGender(p.gender    ?? '');
+      setProfileWorking(p.working  ?? '');
+      setProfileSchool(p.school    ?? '');
+      setProfilePhone(p.phone      ?? '');
+      setProfileFb(p.facebook      ?? '');
+      setProfileTw(p.twitter       ?? '');
+      setProfileIg(p.instagram     ?? '');
+      setProfileLi(p.linkedin      ?? '');
+      setProfileYt(p.youtube       ?? '');
+      setStatusEmoji(p.status_emoji ?? '');
+      setStatusText(p.status_text   ?? '');
     }).catch(() => {});
   }, [settingsOpen, myProfile, session]);
 
@@ -1648,8 +1710,9 @@ export default function App() {
   // Auto-load privacy / blocked when their settings tab opens
   useEffect(() => {
     if (!session) return;
-    if (settingsTab === 'privacy' && !privacyLoaded) handleLoadPrivacy();
-    if (settingsTab === 'blocked' && !blockedLoaded) handleLoadBlocked();
+    if (settingsTab === 'privacy'       && !privacyLoaded) handleLoadPrivacy();
+    if (settingsTab === 'blocked'       && !blockedLoaded) handleLoadBlocked();
+    if (settingsTab === 'notifications' && !notifLoaded)  handleLoadNotifSettings();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsTab]);
 
@@ -1658,17 +1721,81 @@ export default function App() {
     setProfileSaving('saving');
     try {
       await updateMyProfile(session.token, {
-        first_name: profileFirst,
-        last_name:  profileLast,
-        about:      profileAbout,
-        username:   profileUser,
+        first_name:   profileFirst,
+        last_name:    profileLast,
+        about:        profileAbout,
+        username:     profileUser,
+        birthday:     profileBirthday,
+        city:         profileCity,
+        website:      profileWebsite,
+        gender:       profileGender,
+        working:      profileWorking,
+        school:       profileSchool,
+        phone_number: profilePhone,
       });
-      setMyProfile(prev => prev ? { ...prev, first_name: profileFirst, last_name: profileLast, about: profileAbout, username: profileUser } : prev);
+      setMyProfile(prev => prev ? {
+        ...prev,
+        first_name: profileFirst, last_name: profileLast,
+        about: profileAbout, username: profileUser,
+        birthday: profileBirthday, city: profileCity,
+        website: profileWebsite, gender: profileGender,
+        working: profileWorking, school: profileSchool, phone: profilePhone,
+      } : prev);
       setProfileSaving('done');
       setTimeout(() => setProfileSaving('idle'), 2500);
     } catch {
       setProfileSaving('error');
       setTimeout(() => setProfileSaving('idle'), 2500);
+    }
+  }
+
+  async function handleSaveSocialLinks() {
+    if (!session) return;
+    setProfileSaving('saving');
+    try {
+      await updateMyProfile(session.token, {
+        facebook: profileFb, twitter: profileTw,
+        instagram: profileIg, linkedin: profileLi, youtube: profileYt,
+      });
+      setProfileSaving('done');
+      setTimeout(() => setProfileSaving('idle'), 2500);
+    } catch {
+      setProfileSaving('error');
+      setTimeout(() => setProfileSaving('idle'), 2500);
+    }
+  }
+
+  async function handleSaveCustomStatus() {
+    if (!session) return;
+    setStatusSaving('saving');
+    try {
+      await setCustomStatus(session.token, statusEmoji, statusText);
+      setMyProfile(prev => prev ? { ...prev, status_emoji: statusEmoji, status_text: statusText } : prev);
+      setStatusSaving('done');
+      setTimeout(() => { setStatusSaving('idle'); setShowStatusModal(false); }, 1500);
+    } catch {
+      setStatusSaving('error');
+      setTimeout(() => setStatusSaving('idle'), 2500);
+    }
+  }
+
+  async function handleLoadNotifSettings() {
+    if (!session || notifLoaded) return;
+    const s = await loadNotificationSettings(session.token);
+    setNotifSettings(s);
+    setNotifLoaded(true);
+  }
+
+  async function handleSaveNotifSettings() {
+    if (!session || !notifSettings) return;
+    setNotifSaving('saving');
+    try {
+      await updateNotificationSettings(session.token, notifSettings);
+      setNotifSaving('done');
+      setTimeout(() => setNotifSaving('idle'), 2500);
+    } catch {
+      setNotifSaving('error');
+      setTimeout(() => setNotifSaving('idle'), 2500);
     }
   }
 
@@ -2174,6 +2301,66 @@ export default function App() {
     const r = await loadStories(session.token);
     setStories(r.data ?? []);
     setNewStoryFile(null);
+  }
+
+  async function handleDeleteStory(storyId: number) {
+    if (!session) return;
+    setStories(prev => prev.filter(s => s.id !== storyId));
+    closeStory();
+    await deleteStory(session.token, storyId);
+  }
+
+  async function handleReactToStory(reaction: string) {
+    if (!session || viewingStoryIdx === null) return;
+    const s = stories[viewingStoryIdx];
+    if (!s) return;
+    await apiReactToStory(session.token, s.id, reaction);
+    setStories(prev => prev.map((st, i) => {
+      if (i !== viewingStoryIdx) return st;
+      const r = st.reaction ?? { like:0, love:0, haha:0, wow:0, sad:0, angry:0, is_reacted:false };
+      const alreadyThisReaction = r.is_reacted && r.reacted_type === reaction;
+      const newCount = (r[reaction as keyof typeof r] as number) + (alreadyThisReaction ? -1 : 1);
+      return {
+        ...st,
+        reaction: {
+          ...r,
+          [reaction]: Math.max(0, newCount),
+          is_reacted: !alreadyThisReaction,
+          reacted_type: alreadyThisReaction ? undefined : reaction,
+        },
+      };
+    }));
+  }
+
+  async function handleOpenStoryComments() {
+    if (!session || viewingStoryIdx === null) return;
+    const s = stories[viewingStoryIdx];
+    if (!s) return;
+    setShowStoryComments(true);
+    setStoryPaused(true);
+    setStoryCommentsLoading(true);
+    const comments = await getStoryComments(session.token, s.id);
+    setStoryComments(comments);
+    setStoryCommentsLoading(false);
+  }
+
+  async function handleSendStoryComment() {
+    if (!session || viewingStoryIdx === null || !storyCommentInput.trim()) return;
+    const s = stories[viewingStoryIdx];
+    if (!s) return;
+    const text = storyCommentInput.trim();
+    setStoryCommentInput('');
+    const created = await createStoryComment(session.token, s.id, text);
+    if (created) setStoryComments(prev => [...prev, created]);
+    setStories(prev => prev.map((st, i) =>
+      i === viewingStoryIdx ? { ...st, comment_count: (st.comment_count ?? 0) + 1 } : st
+    ));
+  }
+
+  async function handleDeleteStoryComment(commentId: number) {
+    if (!session) return;
+    setStoryComments(prev => prev.filter(c => c.id !== commentId));
+    await deleteStoryComment(session.token, commentId);
   }
 
   // ─── WebRTC call helpers ───────────────────────────────────────────────────
@@ -2844,7 +3031,14 @@ export default function App() {
         <div className="drawer-profile">
           <Avatar name={session.username} size={56} />
           <div className="drawer-profile-name">{session.username}</div>
-          <div className="drawer-profile-sub">WorldMates</div>
+          {myProfile?.status_emoji || myProfile?.status_text
+            ? <div className="drawer-profile-status" onClick={() => { setShowStatusModal(true); setDrawerOpen(false); }}>
+                {myProfile.status_emoji} {myProfile.status_text}
+              </div>
+            : <div className="drawer-profile-sub" style={{cursor:'pointer'}} onClick={() => { setShowStatusModal(true); setDrawerOpen(false); }}>
+                WorldMates · Установить статус
+              </div>
+          }
         </div>
 
         {/* Nav items */}
@@ -3237,29 +3431,82 @@ export default function App() {
 
         {/* ── Stories ───────────────────────────────────────────────────── */}
         {section === 'stories' && (
-          <div className="list-scroll">
-            <form className="create-form" onSubmit={handleCreateStory}>
-              <label className="file-label">
-                {newStoryFile ? newStoryFile.name : t('sidebar.chooseMedia')}
-                <input type="file" accept="image/*,video/*" style={{ display: 'none' }}
+          <div className="stories-section">
+            {/* Upload zone */}
+            <form className="story-upload-zone" onSubmit={handleCreateStory}>
+              <label className="story-upload-label" title="Добавить историю">
+                <div className="story-upload-circle">
+                  {newStoryFile
+                    ? <span style={{fontSize:28}}>✅</span>
+                    : <span className="story-upload-plus">+</span>
+                  }
+                </div>
+                <span className="story-upload-caption">{newStoryFile ? newStoryFile.name.slice(0,14)+'…' : 'Ваша история'}</span>
+                <input type="file" accept="image/*,video/*" style={{display:'none'}}
                   onChange={e => setNewStoryFile(e.target.files?.[0] ?? null)} />
               </label>
-              <button type="submit" className="btn-sm" disabled={!newStoryFile}>{t('sidebar.uploadStory')}</button>
+              {newStoryFile && (
+                <button type="submit" className="story-upload-btn">
+                  Опубликовать
+                </button>
+              )}
             </form>
-            <div className="stories-grid">
+
+            {/* Stories grid — Instagram style circles */}
+            <div className="stories-circles-header">Истории</div>
+            {stories.length === 0 && (
+              <div className="stories-empty">
+                <div style={{fontSize:52,opacity:.25}}>⭕</div>
+                <p>Историй пока нет</p>
+              </div>
+            )}
+            <div className="stories-circles-row">
               {stories.map((s, idx) => (
-                <button key={s.id} className={`story-thumb ${s.is_seen ? 'story-seen' : ''}`} onClick={() => openStory(idx)}>
-                  {s.file
-                    ? s.file_type === 'video'
-                      ? <video src={s.file} className="story-media" />
-                      : <img src={s.file} alt="story" className="story-media" />
-                    : <div className="story-placeholder">{s.user_name?.[0] ?? '?'}</div>
-                  }
-                  <span className="story-label">{s.user_name ?? `Story #${s.id}`}</span>
-                  {!s.is_seen && <div className="story-unseen-ring" />}
+                <button key={s.id}
+                  className={`story-circle-btn ${s.is_seen ? 'seen' : 'unseen'}`}
+                  onClick={() => openStory(idx)}
+                  title={s.user_name}>
+                  <div className="story-circle-ring">
+                    <div className="story-circle-avatar">
+                      {s.user_avatar
+                        ? <img src={s.user_avatar} alt={s.user_name} />
+                        : <span>{(s.user_name ?? '?')[0].toUpperCase()}</span>
+                      }
+                    </div>
+                  </div>
+                  <span className="story-circle-name">{s.user_name?.split(' ')[0] ?? `#${s.id}`}</span>
                 </button>
               ))}
             </div>
+
+            {/* Story cards grid */}
+            {stories.length > 0 && (
+              <>
+                <div className="stories-circles-header" style={{marginTop:20}}>Все истории</div>
+                <div className="stories-cards-grid">
+                  {stories.map((s, idx) => (
+                    <button key={s.id}
+                      className={`story-card ${s.is_seen ? 'seen' : ''}`}
+                      onClick={() => openStory(idx)}>
+                      <div className="story-card-media">
+                        {s.file
+                          ? s.file_type === 'video'
+                            ? <video src={s.file} />
+                            : <img src={s.file} alt="" />
+                          : <div className="story-card-placeholder">{(s.user_name ?? '?')[0].toUpperCase()}</div>
+                        }
+                        {!s.is_seen && <div className="story-card-unseen-dot" />}
+                      </div>
+                      <div className="story-card-footer">
+                        <Avatar name={s.user_name ?? '?'} src={s.user_avatar} size={22} />
+                        <span className="story-card-name">{s.user_name?.split(' ')[0] ?? `#${s.id}`}</span>
+                        {(s.views_count ?? 0) > 0 && <span className="story-card-views">👁 {s.views_count}</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -3521,32 +3768,131 @@ export default function App() {
       {/* ── Story viewer overlay ──────────────────────────────────────────── */}
       {viewingStoryIdx !== null && stories[viewingStoryIdx] && (() => {
         const s = stories[viewingStoryIdx];
+        const totalReactions = s.reaction
+          ? s.reaction.like + s.reaction.love + s.reaction.haha + s.reaction.wow + s.reaction.sad + s.reaction.angry
+          : 0;
         return (
-          <div className="story-viewer" onClick={closeStory}>
+          <div className="story-viewer" onClick={e => { if (e.target === e.currentTarget) closeStory(); }}>
+            {/* ── Progress bars ── */}
             <div className="story-viewer-progress">
               {stories.map((_, i) => (
                 <div key={i} className="story-progress-track">
-                  <div
-                    className="story-progress-fill"
+                  <div className="story-progress-fill"
                     style={{ width: i < viewingStoryIdx ? '100%' : i === viewingStoryIdx ? `${storyProgress}%` : '0%' }}
                   />
                 </div>
               ))}
             </div>
+
+            {/* ── Header ── */}
             <div className="story-viewer-header">
-              <Avatar name={s.user_name ?? '?'} src={s.user_avatar} size={36} />
-              <span className="story-viewer-name">{s.user_name ?? `Story #${s.id}`}</span>
-              <span className="story-viewer-time">{s.created_at ?? ''}</span>
+              <Avatar name={s.user_name ?? '?'} src={s.user_avatar} size={38} />
+              <div className="story-viewer-meta">
+                <span className="story-viewer-name">{s.user_name ?? `Story #${s.id}`}</span>
+                <span className="story-viewer-time">{s.created_at ?? ''}</span>
+              </div>
+              {s.is_owner && (
+                <button className="story-viewer-delete" title="Удалить историю"
+                  onClick={e => { e.stopPropagation(); handleDeleteStory(s.id); }}>🗑</button>
+              )}
               <button className="story-viewer-close" onClick={e => { e.stopPropagation(); closeStory(); }}>✕</button>
             </div>
-            <div className="story-viewer-media" onClick={e => e.stopPropagation()}>
-              {s.file
-                ? s.file_type === 'video'
-                  ? <video src={s.file} autoPlay loop className="story-viewer-img" />
-                  : <img src={s.file} alt="story" className="story-viewer-img" />
-                : <div className="story-viewer-placeholder">{s.user_name?.[0] ?? '?'}</div>
-              }
+
+            {/* ── Media card ── */}
+            <div className="story-viewer-card"
+              onMouseEnter={() => setStoryPaused(true)}
+              onMouseLeave={() => { if (!showStoryComments) setStoryPaused(false); }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="story-viewer-media">
+                {s.file
+                  ? s.file_type === 'video'
+                    ? <video src={s.file} autoPlay loop className="story-viewer-img" />
+                    : <img src={s.file} alt="story" className="story-viewer-img" />
+                  : <div className="story-viewer-placeholder">{(s.user_name ?? '?')[0].toUpperCase()}</div>
+                }
+              </div>
+
+              {/* ── Reactions bar ── */}
+              <div className="story-reactions-bar" onClick={e => e.stopPropagation()}>
+                {([
+                  { emoji: '❤️', key: 'like'  },
+                  { emoji: '😍', key: 'love'  },
+                  { emoji: '😂', key: 'haha'  },
+                  { emoji: '😮', key: 'wow'   },
+                  { emoji: '😢', key: 'sad'   },
+                  { emoji: '😡', key: 'angry' },
+                ] as { emoji: string; key: string }[]).map(r => {
+                  const count = s.reaction?.[r.key as keyof typeof s.reaction] as number ?? 0;
+                  const isActive = s.reaction?.is_reacted && s.reaction?.reacted_type === r.key;
+                  return (
+                    <button key={r.key}
+                      className={`story-reaction-btn ${isActive ? 'active' : ''}`}
+                      onClick={() => handleReactToStory(r.key)}
+                      title={r.key}>
+                      <span className="story-reaction-emoji">{r.emoji}</span>
+                      {count > 0 && <span className="story-reaction-count">{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ── Footer: views + comments ── */}
+              <div className="story-viewer-footer" onClick={e => e.stopPropagation()}>
+                {(s.views_count ?? 0) > 0 && (
+                  <span className="story-footer-stat">👁 {s.views_count}</span>
+                )}
+                {totalReactions > 0 && (
+                  <span className="story-footer-stat">💫 {totalReactions}</span>
+                )}
+                <div style={{flex:1}} />
+                <button className="story-comment-toggle"
+                  onClick={() => showStoryComments ? (setShowStoryComments(false), setStoryPaused(false)) : handleOpenStoryComments()}>
+                  💬 {s.comment_count ?? 0}
+                </button>
+              </div>
+
+              {/* ── Comments panel ── */}
+              {showStoryComments && (
+                <div className="story-comments-panel" onClick={e => e.stopPropagation()}>
+                  <div className="story-comments-head">
+                    <span style={{fontWeight:600,fontSize:14}}>Комментарии</span>
+                    <button className="story-viewer-close" style={{fontSize:12,width:24,height:24}}
+                      onClick={() => { setShowStoryComments(false); setStoryPaused(false); }}>✕</button>
+                  </div>
+                  <div className="story-comments-list">
+                    {storyCommentsLoading && <div className="search-loading">Загрузка…</div>}
+                    {!storyCommentsLoading && storyComments.length === 0 && (
+                      <div className="story-comments-empty">Будьте первым, кто прокомментирует</div>
+                    )}
+                    {storyComments.map(c => (
+                      <div key={c.id} className="story-comment-row">
+                        <Avatar name={c.user_name ?? '?'} src={c.user_avatar} size={28} />
+                        <div className="story-comment-body">
+                          <span className="story-comment-author">{c.user_name}</span>
+                          <span className="story-comment-text">{c.text}</span>
+                        </div>
+                        {c.user_id === session?.userId && (
+                          <button className="note-delete-btn"
+                            onClick={() => handleDeleteStoryComment(c.id)}>✕</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="story-comment-composer">
+                    <input className="story-comment-input" placeholder="Комментарий…"
+                      value={storyCommentInput}
+                      onChange={e => setStoryCommentInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendStoryComment(); } }}
+                    />
+                    <button className="story-comment-send" disabled={!storyCommentInput.trim()}
+                      onClick={handleSendStoryComment}>→</button>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* ── Nav arrows ── */}
             <button className="story-nav story-nav-prev" onClick={e => { e.stopPropagation(); prevStory(); }}>‹</button>
             <button className="story-nav story-nav-next" onClick={e => { e.stopPropagation(); nextStory(); }}>›</button>
           </div>
@@ -3696,6 +4042,46 @@ export default function App() {
           </div>
         )}
 
+        {/* ── Custom status modal ───────────────────────────────────────── */}
+        {showStatusModal && (
+          <div className="status-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowStatusModal(false); }}>
+            <div className="status-modal">
+              <div className="status-modal-head">
+                <span className="status-modal-title">✨ Кастомный статус</span>
+                <button className="settings-close-btn" style={{position:'static',width:28,height:28,fontSize:13}} onClick={() => setShowStatusModal(false)}>✕</button>
+              </div>
+              <div className="status-modal-preview">
+                <span className="status-preview-emoji">{statusEmoji || '😶'}</span>
+                <span className="status-preview-text">{statusText || 'Мой статус'}</span>
+              </div>
+              <div className="status-emoji-grid">
+                {['😊','🔥','❄️','🎵','💻','🚀','🌙','☕','📚','🎮','💪','✈️','🍕','🎯','🤫','💡'].map(e => (
+                  <button key={e} className={`status-emoji-btn ${statusEmoji === e ? 'active' : ''}`} onClick={() => setStatusEmoji(e)}>{e}</button>
+                ))}
+              </div>
+              <input
+                className="settings-field-input"
+                placeholder="Что вы делаете? (макс. 60 символов)"
+                maxLength={60}
+                value={statusText}
+                onChange={e => setStatusText(e.target.value)}
+                style={{margin:'12px 0 16px'}}
+              />
+              <div style={{display:'flex',gap:10}}>
+                <button className="btn-secondary" onClick={() => { setStatusEmoji(''); setStatusText(''); }}>Сбросить</button>
+                <button
+                  className={statusSaving==='done' ? 'btn-success' : statusSaving==='error' ? 'btn-danger' : 'btn-primary'}
+                  style={{flex:1}}
+                  disabled={statusSaving==='saving'}
+                  onClick={handleSaveCustomStatus}
+                >
+                  {statusSaving==='saving' ? 'Сохраняю…' : statusSaving==='done' ? '✓ Сохранено' : statusSaving==='error' ? 'Ошибка' : 'Установить статус'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Settings full-screen overlay ──────────────────────────────── */}
         {settingsOpen ? (
           <div className="settings-overlay" onClick={e => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
@@ -3720,18 +4106,20 @@ export default function App() {
                 </div>
               </div>
 
-              {(([
-                { id: 'profile',  icon: '👤', key: 'settings.editProfile',  badge: undefined },
-                { id: 'privacy',  icon: '🔒', key: 'settings.privacy',       badge: undefined },
-                { id: 'blocked',  icon: '🚫', key: 'settings.blockedUsers',  badge: blockedUsers.length > 0 ? blockedUsers.length : undefined },
-                { id: 'language', icon: '🌐', key: 'settings.language',      badge: undefined },
-                { id: 'security', icon: '🔐', key: 'settings.security',      badge: undefined },
-              ]) as { id: typeof settingsTab; icon: string; key: string; badge: number | undefined }[]).map(row => (
+              {([
+                { id: 'profile'       as typeof settingsTab, icon: '👤', label: t('settings.editProfile'),  badge: undefined as number|undefined },
+                { id: 'social'        as typeof settingsTab, icon: '🔗', label: 'Соцсети',                  badge: undefined as number|undefined },
+                { id: 'privacy'       as typeof settingsTab, icon: '🔒', label: t('settings.privacy'),       badge: undefined as number|undefined },
+                { id: 'notifications' as typeof settingsTab, icon: '🔔', label: 'Уведомления',              badge: undefined as number|undefined },
+                { id: 'blocked'       as typeof settingsTab, icon: '🚫', label: t('settings.blockedUsers'), badge: blockedUsers.length > 0 ? blockedUsers.length : undefined },
+                { id: 'language'      as typeof settingsTab, icon: '🌐', label: t('settings.language'),      badge: undefined as number|undefined },
+                { id: 'security'      as typeof settingsTab, icon: '🔐', label: t('settings.security'),      badge: undefined as number|undefined },
+              ]).map(row => (
                 <button key={row.id}
                   className={`settings-nav-row ${settingsTab === row.id ? 'active' : ''}`}
                   onClick={() => setSettingsTab(row.id)}>
                   <span className="settings-nav-icon">{row.icon}</span>
-                  <span className="settings-nav-label">{t(row.key)}</span>
+                  <span className="settings-nav-label">{row.label}</span>
                   {row.badge ? <span className="settings-nav-badge">{row.badge}</span> : null}
                   <span className="settings-nav-chevron">›</span>
                 </button>
@@ -3753,21 +4141,66 @@ export default function App() {
               {settingsTab === 'profile' && (
                 <>
                   <h2 className="settings-content-title">{t('settings.editProfile')}</h2>
-                  <div className="settings-field">
-                    <label className="settings-field-label">{t('settings.firstName')}</label>
-                    <input className="settings-field-input" value={profileFirst} onChange={e => setProfileFirst(e.target.value)} />
+
+                  {/* Status shortcut */}
+                  <div className="settings-status-card" onClick={() => setShowStatusModal(true)}>
+                    <span className="settings-status-emoji">{myProfile?.status_emoji || '😶'}</span>
+                    <div>
+                      <div className="settings-status-label">Кастомный статус</div>
+                      <div className="settings-status-value">{myProfile?.status_text || myProfile?.status_emoji ? `${myProfile.status_emoji} ${myProfile.status_text}`.trim() : 'Нажмите, чтобы установить'}</div>
+                    </div>
+                    <span className="settings-nav-chevron" style={{marginLeft:'auto'}}>›</span>
                   </div>
-                  <div className="settings-field">
-                    <label className="settings-field-label">{t('settings.lastName')}</label>
-                    <input className="settings-field-input" value={profileLast} onChange={e => setProfileLast(e.target.value)} />
+
+                  <div className="settings-fields-grid">
+                    <div className="settings-field">
+                      <label className="settings-field-label">{t('settings.firstName')}</label>
+                      <input className="settings-field-input" value={profileFirst} onChange={e => setProfileFirst(e.target.value)} />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-field-label">{t('settings.lastName')}</label>
+                      <input className="settings-field-input" value={profileLast} onChange={e => setProfileLast(e.target.value)} />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-field-label">{t('settings.username')}</label>
+                      <input className="settings-field-input" value={profileUser} onChange={e => setProfileUser(e.target.value)} />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-field-label">Телефон</label>
+                      <input className="settings-field-input" placeholder="+7 (999) 000-00-00" value={profilePhone} onChange={e => setProfilePhone(e.target.value)} />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-field-label">Дата рождения</label>
+                      <input className="settings-field-input" type="date" value={profileBirthday} onChange={e => setProfileBirthday(e.target.value)} />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-field-label">Город</label>
+                      <input className="settings-field-input" placeholder="Москва" value={profileCity} onChange={e => setProfileCity(e.target.value)} />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-field-label">Пол</label>
+                      <select className="settings-field-input" value={profileGender} onChange={e => setProfileGender(e.target.value)}>
+                        <option value="">Не указан</option>
+                        <option value="male">Мужской</option>
+                        <option value="female">Женский</option>
+                      </select>
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-field-label">Место работы</label>
+                      <input className="settings-field-input" placeholder="Компания" value={profileWorking} onChange={e => setProfileWorking(e.target.value)} />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-field-label">Учебное заведение</label>
+                      <input className="settings-field-input" placeholder="Университет" value={profileSchool} onChange={e => setProfileSchool(e.target.value)} />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-field-label">Сайт</label>
+                      <input className="settings-field-input" placeholder="https://example.com" value={profileWebsite} onChange={e => setProfileWebsite(e.target.value)} />
+                    </div>
                   </div>
-                  <div className="settings-field">
-                    <label className="settings-field-label">{t('settings.username')}</label>
-                    <input className="settings-field-input" value={profileUser} onChange={e => setProfileUser(e.target.value)} />
-                  </div>
-                  <div className="settings-field">
+                  <div className="settings-field" style={{marginTop:6}}>
                     <label className="settings-field-label">{t('settings.about')}</label>
-                    <textarea className="settings-field-input settings-field-textarea" rows={4} value={profileAbout} onChange={e => setProfileAbout(e.target.value)} />
+                    <textarea className="settings-field-input settings-field-textarea" rows={3} value={profileAbout} onChange={e => setProfileAbout(e.target.value)} />
                   </div>
                   <button
                     className={profileSaving === 'done' ? 'btn-success' : profileSaving === 'error' ? 'btn-danger' : 'btn-primary'}
@@ -3776,6 +4209,78 @@ export default function App() {
                   >
                     {profileSaving === 'saving' ? t('settings.saving') : profileSaving === 'done' ? t('settings.saved') : profileSaving === 'error' ? t('settings.errorRetry') : t('settings.saveProfile')}
                   </button>
+                </>
+              )}
+
+              {settingsTab === 'social' && (
+                <>
+                  <h2 className="settings-content-title">Социальные сети</h2>
+                  <p style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>Добавьте ссылки на профили. Они будут видны в вашем профиле.</p>
+                  {([
+                    { icon: '🌐', label: 'Facebook',  val: profileFb,  set: setProfileFb,  ph: 'https://facebook.com/username' },
+                    { icon: '🐦', label: 'Twitter/X', val: profileTw,  set: setProfileTw,  ph: 'https://x.com/username' },
+                    { icon: '📸', label: 'Instagram', val: profileIg,  set: setProfileIg,  ph: 'https://instagram.com/username' },
+                    { icon: '💼', label: 'LinkedIn',  val: profileLi,  set: setProfileLi,  ph: 'https://linkedin.com/in/username' },
+                    { icon: '▶️', label: 'YouTube',   val: profileYt,  set: setProfileYt,  ph: 'https://youtube.com/@channel' },
+                  ] as { icon:string; label:string; val:string; set:(v:string)=>void; ph:string }[]).map(s => (
+                    <div key={s.label} className="settings-social-row">
+                      <span className="settings-social-icon">{s.icon}</span>
+                      <div className="settings-field" style={{flex:1,margin:0}}>
+                        <label className="settings-field-label">{s.label}</label>
+                        <input className="settings-field-input" placeholder={s.ph} value={s.val} onChange={e => s.set(e.target.value)} />
+                      </div>
+                    </div>
+                  ))}
+                  <button style={{marginTop:20}}
+                    className={profileSaving === 'done' ? 'btn-success' : profileSaving === 'error' ? 'btn-danger' : 'btn-primary'}
+                    disabled={profileSaving === 'saving'}
+                    onClick={handleSaveSocialLinks}
+                  >
+                    {profileSaving === 'saving' ? t('settings.saving') : profileSaving === 'done' ? t('settings.saved') : profileSaving === 'error' ? t('settings.errorRetry') : 'Сохранить ссылки'}
+                  </button>
+                </>
+              )}
+
+              {settingsTab === 'notifications' && (
+                <>
+                  <h2 className="settings-content-title">Уведомления</h2>
+                  {!notifLoaded ? (
+                    <div className="settings-loading">{t('settings.loadingDots')}</div>
+                  ) : notifSettings ? (
+                    <>
+                      {([
+                        { field: 'email_notification',  label: 'Email-уведомления',        icon: '📧' },
+                        { field: 'e_liked',             label: 'Лайки на мои посты',        icon: '❤️' },
+                        { field: 'e_commented',         label: 'Комментарии',               icon: '💬' },
+                        { field: 'e_followed',          label: 'Новые подписчики',           icon: '👤' },
+                        { field: 'e_mentioned',         label: 'Упоминания',                icon: '📣' },
+                        { field: 'e_joined_group',      label: 'Вступление в группу',       icon: '👥' },
+                        { field: 'e_accepted',          label: 'Принятые запросы',           icon: '✅' },
+                        { field: 'e_profile_wall_post', label: 'Записи на стене профиля',   icon: '📌' },
+                        { field: 'e_shared',            label: 'Репосты',                   icon: '🔁' },
+                        { field: 'e_visited',           label: 'Просмотры профиля',         icon: '👁️' },
+                      ] as { field: keyof NotificationSettings; label: string; icon: string }[]).map(row => (
+                        <div key={row.field} className="settings-notif-row">
+                          <span className="settings-notif-icon">{row.icon}</span>
+                          <span className="settings-notif-label">{row.label}</span>
+                          <label className="tg-toggle">
+                            <input type="checkbox"
+                              checked={notifSettings[row.field] === 1}
+                              onChange={e => setNotifSettings(p => p ? { ...p, [row.field]: e.target.checked ? 1 : 0 } : p)} />
+                            <div className="tg-toggle-track" />
+                            <div className="tg-toggle-thumb" />
+                          </label>
+                        </div>
+                      ))}
+                      <button style={{marginTop:20}}
+                        className={notifSaving === 'done' ? 'btn-success' : notifSaving === 'error' ? 'btn-danger' : 'btn-primary'}
+                        disabled={notifSaving === 'saving'}
+                        onClick={handleSaveNotifSettings}
+                      >
+                        {notifSaving === 'saving' ? t('settings.saving') : notifSaving === 'done' ? t('settings.saved') : notifSaving === 'error' ? t('settings.errorRetry') : 'Сохранить'}
+                      </button>
+                    </>
+                  ) : null}
                 </>
               )}
 

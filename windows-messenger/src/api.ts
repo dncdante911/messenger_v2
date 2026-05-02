@@ -885,9 +885,24 @@ export async function loadStories(token: string): Promise<GenericListResponse<St
       thumbnail:   storyAbsUrl(toStr(s.thumbnail, undefined)),
       file_type:   fileType,
       created_at:  s.posted ? new Date(Number(s.posted) * 1000).toLocaleDateString() : '',
-      expire_time: Number(s.expire ?? 0),
-      is_seen:     Number(s.is_viewed ?? 0) === 1,
-      views_count: Number(s.view_count ?? 0),
+      expire_time:   Number(s.expire ?? 0),
+      is_seen:       Number(s.is_viewed ?? 0) === 1,
+      views_count:   Number(s.view_count ?? 0),
+      comment_count: Number(s.comment_count ?? 0),
+      is_owner:      Boolean(s.is_owner),
+      reaction: (() => {
+        const r = (s.reaction ?? {}) as Record<string, unknown>;
+        return {
+          like:         Number(r.like  ?? 0),
+          love:         Number(r.love  ?? 0),
+          haha:         Number(r.haha  ?? 0),
+          wow:          Number(r.wow   ?? 0),
+          sad:          Number(r.sad   ?? 0),
+          angry:        Number(r.angry ?? 0),
+          is_reacted:   Boolean(r.is_reacted),
+          reacted_type: toStr(r.type, undefined),
+        };
+      })(),
     };
   }) : [];
   return { api_status: '200', data };
@@ -902,37 +917,163 @@ export async function createStory(token: string, file: File, fileType: 'image' |
   await doUpload(`${NODE_BASE_URL}/api/node/stories/create`, token, { file_type: fileType }, file);
 }
 
+export async function deleteStory(token: string, storyId: number): Promise<void> {
+  await nodePost('/api/node/stories/delete', token, { story_id: storyId }).catch(() => {});
+}
+
+export async function reactToStory(token: string, storyId: number, reaction: string): Promise<void> {
+  await nodePost('/api/node/stories/react', token, { story_id: storyId, reaction }).catch(() => {});
+}
+
+export async function getStoryComments(token: string, storyId: number): Promise<import('./types').StoryComment[]> {
+  try {
+    const resp = await nodePost<Record<string, unknown>>('/api/node/stories/get-comments', token, { story_id: storyId, limit: 50 });
+    const raw = (resp.comments ?? resp.data ?? []) as Record<string, unknown>[];
+    return raw.map(c => {
+      const ud = (c.user_data ?? {}) as Record<string, unknown>;
+      return {
+        id:          Number(c.id ?? 0),
+        story_id:    Number(c.story_id ?? storyId),
+        user_id:     Number(c.user_id ?? 0),
+        text:        toStr(c.text, ''),
+        time:        Number(c.time ?? 0),
+        user_name:   toStr(ud.first_name ? `${ud.first_name} ${ud.last_name ?? ''}`.trim() : ud.username, undefined),
+        user_avatar: toStr(ud.avatar, undefined),
+      };
+    });
+  } catch { return []; }
+}
+
+export async function createStoryComment(token: string, storyId: number, text: string): Promise<import('./types').StoryComment | null> {
+  try {
+    const resp = await nodePost<Record<string, unknown>>('/api/node/stories/create-comment', token, { story_id: storyId, text });
+    const c = (resp.comment as Record<string, unknown> | undefined) ?? resp;
+    if (!c?.id) return null;
+    return {
+      id:       Number(c.id),
+      story_id: Number(c.story_id ?? storyId),
+      user_id:  Number(c.user_id ?? 0),
+      text:     toStr(c.text, text),
+      time:     Number(c.time ?? Math.floor(Date.now() / 1000)),
+    };
+  } catch { return null; }
+}
+
+export async function deleteStoryComment(token: string, commentId: number): Promise<void> {
+  await nodePost('/api/node/stories/delete-comment', token, { comment_id: commentId }).catch(() => {});
+}
+
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
 export type UserProfile = {
-  id: number;
-  username: string;
-  first_name?: string;
-  last_name?: string;
-  about?: string;
-  avatar?: string;
-  email?: string;
+  id:           number;
+  username:     string;
+  first_name?:  string;
+  last_name?:   string;
+  about?:       string;
+  avatar?:      string;
+  email?:       string;
+  birthday?:    string;
+  website?:     string;
+  city?:        string;
+  gender?:      string;
+  working?:     string;
+  school?:      string;
+  phone?:       string;
+  facebook?:    string;
+  twitter?:     string;
+  instagram?:   string;
+  linkedin?:    string;
+  youtube?:     string;
+  status_emoji?: string;
+  status_text?:  string;
 };
 
 export async function getMyProfile(token: string): Promise<UserProfile> {
   const resp = await nodeGet<Record<string, unknown>>('/api/node/users/me', token);
   const u = (resp.user_data ?? resp) as Record<string, unknown>;
   return {
-    id:         Number(u.user_id ?? u.id ?? 0),
-    username:   toStr(u.username, ''),
-    first_name: toStr(u.first_name, ''),
-    last_name:  toStr(u.last_name, ''),
-    about:      toStr(u.about, ''),
-    avatar:     toStr(u.avatar, ''),
-    email:      toStr(u.email, ''),
+    id:           Number(u.user_id ?? u.id ?? 0),
+    username:     toStr(u.username, ''),
+    first_name:   toStr(u.first_name, ''),
+    last_name:    toStr(u.last_name, ''),
+    about:        toStr(u.about, ''),
+    avatar:       toStr(u.avatar, ''),
+    email:        toStr(u.email, ''),
+    birthday:     toStr(u.birthday, ''),
+    website:      toStr(u.website, ''),
+    city:         toStr(u.city, ''),
+    gender:       toStr(u.gender, ''),
+    working:      toStr(u.working, ''),
+    school:       toStr(u.school, ''),
+    phone:        toStr(u.phone_number ?? u.phone, ''),
+    facebook:     toStr(u.facebook, ''),
+    twitter:      toStr(u.twitter, ''),
+    instagram:    toStr(u.instagram, ''),
+    linkedin:     toStr(u.linkedin, ''),
+    youtube:      toStr(u.youtube, ''),
+    status_emoji: toStr(u.status_emoji, ''),
+    status_text:  toStr(u.status_text, ''),
   };
 }
 
 export async function updateMyProfile(
   token: string,
-  fields: { first_name?: string; last_name?: string; about?: string; username?: string }
+  fields: {
+    first_name?: string; last_name?: string; about?: string; username?: string;
+    birthday?: string; website?: string; city?: string; gender?: string;
+    working?: string; school?: string; phone_number?: string;
+    facebook?: string; twitter?: string; instagram?: string;
+    linkedin?: string; youtube?: string;
+  }
 ): Promise<void> {
   await nodePut('/api/node/users/me', token, fields as Record<string, unknown>);
+}
+
+export async function setCustomStatus(token: string, emoji: string, text: string): Promise<void> {
+  await nodePut('/api/node/users/me/status', token, {
+    status_emoji: emoji || null,
+    status_text:  text  || null,
+  } as Record<string, unknown>).catch(() => {});
+}
+
+export interface NotificationSettings {
+  email_notification:  number;
+  e_liked:             number;
+  e_commented:         number;
+  e_followed:          number;
+  e_mentioned:         number;
+  e_joined_group:      number;
+  e_accepted:          number;
+  e_profile_wall_post: number;
+  e_shared:            number;
+  e_visited:           number;
+}
+
+export async function loadNotificationSettings(token: string): Promise<NotificationSettings> {
+  try {
+    const resp = await nodeGet<Record<string, unknown>>('/api/node/users/me', token);
+    const u = (resp.user_data ?? resp) as Record<string, unknown>;
+    const g = (n: unknown) => (Number(n ?? 1));
+    return {
+      email_notification:  g(u.email_notification),
+      e_liked:             g(u.e_liked),
+      e_commented:         g(u.e_commented),
+      e_followed:          g(u.e_followed),
+      e_mentioned:         g(u.e_mentioned),
+      e_joined_group:      g(u.e_joined_group),
+      e_accepted:          g(u.e_accepted),
+      e_profile_wall_post: g(u.e_profile_wall_post),
+      e_shared:            g(u.e_shared),
+      e_visited:           g(u.e_visited),
+    };
+  } catch {
+    return { email_notification:1, e_liked:1, e_commented:1, e_followed:1, e_mentioned:1, e_joined_group:1, e_accepted:1, e_profile_wall_post:1, e_shared:1, e_visited:1 };
+  }
+}
+
+export async function updateNotificationSettings(token: string, s: Partial<NotificationSettings>): Promise<void> {
+  await nodePut('/api/node/users/me/notifications', token, s as Record<string, unknown>).catch(() => {});
 }
 
 export async function uploadAvatar(token: string, file: File): Promise<string> {

@@ -182,18 +182,42 @@ export type ChannelComment = {
 
 // ─── Stories ──────────────────────────────────────────────────────────────────
 
-export type StoryItem = {
-  id: number;
-  user_id: number;
-  user_name?: string;
+export type StoryReaction = {
+  like:       number;
+  love:       number;
+  haha:       number;
+  wow:        number;
+  sad:        number;
+  angry:      number;
+  is_reacted: boolean;
+  reacted_type?: string;
+};
+
+export type StoryComment = {
+  id:           number;
+  story_id:     number;
+  user_id:      number;
+  text:         string;
+  time:         number;
+  user_name?:   string;
   user_avatar?: string;
-  file?: string;
-  thumbnail?: string;
-  file_type?: 'image' | 'video';
-  created_at?: string;
-  expire_time?: number;
-  is_seen?: boolean;
-  views_count?: number;
+};
+
+export type StoryItem = {
+  id:            number;
+  user_id:       number;
+  user_name?:    string;
+  user_avatar?:  string;
+  file?:         string;
+  thumbnail?:    string;
+  file_type?:    'image' | 'video';
+  created_at?:   string;
+  expire_time?:  number;
+  is_seen?:      boolean;
+  views_count?:  number;
+  comment_count?: number;
+  is_owner?:     boolean;
+  reaction?:     StoryReaction;
 };
 
 // ─── Calls ────────────────────────────────────────────────────────────────────
