@@ -1475,3 +1475,65 @@ export async function getNotesStorage(token: string): Promise<NotesStorageInfo> 
     };
   } catch { return { used_bytes: 0, quota_bytes: 0 }; }
 }
+
+// ─── Scheduled Messages ────────────────────────────────────────────────────────
+
+export interface ScheduledMessage {
+  id:          number;
+  recipient_id: number;
+  text:        string;
+  media?:      string;
+  media_type?: string;
+  send_at:     number;   // unix timestamp
+  created_at:  number;
+}
+
+export async function listScheduledMessages(token: string, recipientId: number): Promise<ScheduledMessage[]> {
+  try {
+    const resp = await nodeGet<Record<string, unknown>>(
+      `/api/node/scheduled/list?recipient_id=${recipientId}`, token
+    );
+    const raw = (resp.messages ?? resp.data ?? []) as Record<string, unknown>[];
+    return raw.map(m => ({
+      id:           Number(m.id ?? 0),
+      recipient_id: Number(m.recipient_id ?? recipientId),
+      text:         String(m.text ?? ''),
+      media:        m.media ? String(m.media) : undefined,
+      media_type:   m.media_type ? String(m.media_type) : undefined,
+      send_at:      Number(m.send_at ?? m.scheduled_at ?? 0),
+      created_at:   Number(m.created_at ?? 0),
+    }));
+  } catch { return []; }
+}
+
+export async function createScheduledMessage(
+  token: string,
+  recipientId: number,
+  text: string,
+  sendAt: number
+): Promise<ScheduledMessage | null> {
+  try {
+    const resp = await nodePost<Record<string, unknown>>('/api/node/scheduled/create', token, {
+      recipient_id: recipientId,
+      text,
+      send_at: sendAt,
+    });
+    const m = (resp.message ?? resp.data ?? resp) as Record<string, unknown>;
+    if (!m || !m.id) return null;
+    return {
+      id:           Number(m.id),
+      recipient_id: recipientId,
+      text:         String(m.text ?? text),
+      send_at:      Number(m.send_at ?? sendAt),
+      created_at:   Number(m.created_at ?? Date.now() / 1000),
+    };
+  } catch { return null; }
+}
+
+export async function deleteScheduledMessage(token: string, id: number): Promise<void> {
+  await nodePost(`/api/node/scheduled/${id}/delete`, token, {}).catch(() => {});
+}
+
+export async function sendScheduledNow(token: string, id: number): Promise<void> {
+  await nodePost(`/api/node/scheduled/${id}/send-now`, token, {}).catch(() => {});
+}
