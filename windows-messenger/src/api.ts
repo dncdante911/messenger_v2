@@ -1268,3 +1268,69 @@ export async function unsaveMessage(token: string, messageId: number, chatType: 
 export async function clearSaved(token: string): Promise<void> {
   await nodePost('/api/node/saved/clear', token, {}).catch(() => {});
 }
+
+// ─── Notes ────────────────────────────────────────────────────────────────────
+
+export interface NoteItem {
+  id:          number;
+  type:        'text' | 'image' | 'video' | 'audio' | 'file';
+  text?:       string;
+  file_name?:  string;
+  file_size:   number;
+  mime_type?:  string;
+  created_at:  number;
+}
+
+export interface NotesStorageInfo {
+  used_bytes:  number;
+  quota_bytes: number;
+}
+
+export async function listNotes(token: string, limit = 50, offset = 0): Promise<NoteItem[]> {
+  try {
+    const resp = await nodeGet<Record<string, unknown>>(
+      `/api/node/notes?limit=${limit}&offset=${offset}`, token
+    );
+    const raw = (resp.notes ?? resp.items ?? []) as Record<string, unknown>[];
+    return raw.map(n => ({
+      id:         Number(n.id ?? 0),
+      type:       (String(n.type ?? 'text')) as NoteItem['type'],
+      text:       n.text ? String(n.text) : undefined,
+      file_name:  n.file_name ?? n.fileName ? String(n.file_name ?? n.fileName) : undefined,
+      file_size:  Number(n.file_size ?? n.fileSize ?? 0),
+      mime_type:  n.mime_type ?? n.mimeType ? String(n.mime_type ?? n.mimeType) : undefined,
+      created_at: Number(n.created_at ?? n.createdAt ?? 0),
+    }));
+  } catch { return []; }
+}
+
+export async function createNote(token: string, text: string): Promise<NoteItem | null> {
+  try {
+    const resp = await nodePost<Record<string, unknown>>('/api/node/notes/create', token, { text });
+    const n = (resp.note as Record<string, unknown> | undefined) ?? resp;
+    if (!n || !n.id) return null;
+    return {
+      id:         Number(n.id),
+      type:       (String(n.type ?? 'text')) as NoteItem['type'],
+      text:       n.text ? String(n.text) : undefined,
+      file_name:  undefined,
+      file_size:  0,
+      mime_type:  undefined,
+      created_at: Number(n.created_at ?? n.createdAt ?? Date.now() / 1000),
+    };
+  } catch { return null; }
+}
+
+export async function deleteNote(token: string, id: number): Promise<void> {
+  await nodePost(`/api/node/notes/${id}/delete`, token, {}).catch(() => {});
+}
+
+export async function getNotesStorage(token: string): Promise<NotesStorageInfo> {
+  try {
+    const resp = await nodeGet<Record<string, unknown>>('/api/node/notes/storage', token);
+    return {
+      used_bytes:  Number(resp.used_bytes  ?? resp.usedBytes  ?? 0),
+      quota_bytes: Number(resp.quota_bytes ?? resp.quotaBytes ?? 0),
+    };
+  } catch { return { used_bytes: 0, quota_bytes: 0 }; }
+}
