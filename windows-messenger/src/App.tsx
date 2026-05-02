@@ -25,6 +25,7 @@ import {
   getBotLinkedUser,
   type UserProfile,
   listSaved, saveMessage as apiSaveMessage, unsaveMessage, type SavedMessageItem,
+  listNotes, createNote, deleteNote, getNotesStorage, type NoteItem, type NotesStorageInfo,
 } from './api';
 import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack, GifItem, BotItem } from './types';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
@@ -722,6 +723,14 @@ export default function App() {
   const [savedLoading, setSavedLoading] = useState(false);
   const [savedSet,     setSavedSet]    = useState<Set<number>>(new Set());
 
+  // ── Notes ──────────────────────────────────────────────────────────────────
+  const [showNotes,     setShowNotes]     = useState(false);
+  const [notes,         setNotes]         = useState<NoteItem[]>([]);
+  const [notesLoading,  setNotesLoading]  = useState(false);
+  const [noteInput,     setNoteInput]     = useState('');
+  const [noteSending,   setNoteSending]   = useState(false);
+  const [notesStorage,  setNotesStorage]  = useState<NotesStorageInfo | null>(null);
+
   // ── Voice recording ───────────────────────────────────────────────────────
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -790,7 +799,8 @@ export default function App() {
   const [privacySaving,   setPrivacySaving]   = useState<'idle'|'saving'|'done'|'error'>('idle');
 
   // ── Settings nav tab ──────────────────────────────────────────────────────
-  const [settingsTab, setSettingsTab] = useState<'profile'|'privacy'|'blocked'|'language'|'security'>('profile');
+  const [settingsTab,  setSettingsTab]  = useState<'profile'|'privacy'|'blocked'|'language'|'security'>('profile');
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // ── Send error banner ─────────────────────────────────────────────────────
   const [sendError, setSendError]           = useState('');
@@ -1617,7 +1627,7 @@ export default function App() {
   // ─── Profile ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (section !== 'settings' || myProfile || !session) return;
+    if (!settingsOpen || myProfile || !session) return;
     getMyProfile(session.token).then(p => {
       setMyProfile(p);
       setProfileFirst(p.first_name ?? '');
@@ -1625,7 +1635,7 @@ export default function App() {
       setProfileAbout(p.about     ?? '');
       setProfileUser(p.username   ?? '');
     }).catch(() => {});
-  }, [section, myProfile, session]);
+  }, [settingsOpen, myProfile, session]);
 
   // Auto-load call history when entering Calls section
   useEffect(() => {
@@ -1806,6 +1816,7 @@ export default function App() {
 
   async function handleOpenSaved() {
     if (!session) return;
+    setShowNotes(false);
     setShowSaved(true);
     setSavedLoading(true);
     try {
@@ -1814,6 +1825,38 @@ export default function App() {
       setSavedSet(new Set(items.map(i => i.message_id)));
     } catch { /* keep previous */ }
     setSavedLoading(false);
+  }
+
+  async function handleOpenNotes() {
+    if (!session) return;
+    setShowSaved(false);
+    setShowNotes(true);
+    setNotesLoading(true);
+    try {
+      const [items, storage] = await Promise.all([
+        listNotes(session.token),
+        getNotesStorage(session.token),
+      ]);
+      setNotes(items);
+      setNotesStorage(storage);
+    } catch { /* keep previous */ }
+    setNotesLoading(false);
+  }
+
+  async function handleCreateNote() {
+    if (!session || !noteInput.trim() || noteSending) return;
+    setNoteSending(true);
+    const text = noteInput.trim();
+    setNoteInput('');
+    const created = await createNote(session.token, text);
+    if (created) setNotes(prev => [created, ...prev]);
+    setNoteSending(false);
+  }
+
+  async function handleDeleteNote(id: number) {
+    if (!session) return;
+    setNotes(prev => prev.filter(n => n.id !== id));
+    await deleteNote(session.token, id);
   }
 
   async function handleSaveMessage(msg: MessageItem, chatName: string, senderName: string) {
@@ -2613,7 +2656,6 @@ export default function App() {
     { key: 'channels', icon: '📢', label: t('nav.channels') },
     { key: 'stories',  icon: '⭕', label: t('nav.stories')  },
     { key: 'calls',    icon: '📞', label: t('nav.calls')    },
-    { key: 'settings', icon: '⚙️', label: t('nav.settings') },
   ];
 
   return (
@@ -2820,6 +2862,18 @@ export default function App() {
           <button className="drawer-item" onClick={() => { handleOpenSaved(); setDrawerOpen(false); }}>
             <span className="drawer-item-icon">🔖</span>
             <span className="drawer-item-label">Сохранённые</span>
+          </button>
+
+          <button className="drawer-item" onClick={() => { handleOpenNotes(); setDrawerOpen(false); }}>
+            <span className="drawer-item-icon">📝</span>
+            <span className="drawer-item-label">Заметки</span>
+          </button>
+
+          <div className="drawer-divider" />
+
+          <button className="drawer-item" onClick={() => { setSettingsOpen(true); setDrawerOpen(false); }}>
+            <span className="drawer-item-icon">⚙️</span>
+            <span className="drawer-item-label">{t('nav.settings')}</span>
           </button>
 
           <div className="drawer-divider" />
@@ -3575,9 +3629,79 @@ export default function App() {
           </div>
         )}
 
-        {/* ── Settings full-width view ───────────────────────────────────── */}
-        {!showSaved && section === 'settings' ? (
+        {/* ── Notes panel ──────────────────────────────────────────────── */}
+        {showNotes && (
+          <div className="notes-panel">
+            <div className="notes-panel-head">
+              <button className="search-panel-back" onClick={() => setShowNotes(false)}>←</button>
+              <span className="notes-panel-title">📝 Заметки</span>
+              {notesStorage && (
+                <span className="notes-storage-badge">
+                  {(notesStorage.used_bytes / 1048576).toFixed(1)} МБ
+                  {notesStorage.quota_bytes > 0 && ` / ${(notesStorage.quota_bytes / 1073741824).toFixed(1)} ГБ`}
+                </span>
+              )}
+            </div>
+
+            <div className="notes-list">
+              {notesLoading && <div className="search-loading">Загрузка…</div>}
+              {!notesLoading && notes.length === 0 && (
+                <div className="saved-empty">
+                  <div className="saved-empty-icon">📝</div>
+                  <h3>Нет заметок</h3>
+                  <p>Напишите что-нибудь в поле ниже, чтобы создать первую заметку</p>
+                </div>
+              )}
+              {notes.map(note => (
+                <div key={note.id} className="note-card">
+                  <div className="note-card-head">
+                    <span className="note-type-icon">
+                      {note.type === 'image' ? '🖼️' : note.type === 'video' ? '🎬' : note.type === 'audio' ? '🎵' : note.type === 'file' ? '📎' : '📝'}
+                    </span>
+                    <span className="note-card-time">
+                      {note.created_at ? new Date(note.created_at * 1000).toLocaleString('ru', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : ''}
+                    </span>
+                    <button className="note-delete-btn" title="Удалить" onClick={() => handleDeleteNote(note.id)}>✕</button>
+                  </div>
+                  {note.text && <div className="note-card-text">{note.text}</div>}
+                  {note.file_name && (
+                    <div className="note-card-file">
+                      <span className="note-card-fname">{note.file_name}</span>
+                      {note.file_size > 0 && (
+                        <span className="note-card-fsize">{(note.file_size / 1024).toFixed(1)} КБ</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="notes-composer">
+              <textarea
+                className="notes-composer-input"
+                placeholder="Написать заметку…"
+                rows={3}
+                value={noteInput}
+                onChange={e => setNoteInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleCreateNote(); } }}
+              />
+              <button
+                className="notes-composer-send btn-primary"
+                disabled={!noteInput.trim() || noteSending}
+                onClick={handleCreateNote}
+              >
+                {noteSending ? '…' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Settings full-screen overlay ──────────────────────────────── */}
+        {settingsOpen ? (
+          <div className="settings-overlay" onClick={e => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
           <div className="settings-main-view">
+            {/* Close button */}
+            <button className="settings-close-btn" onClick={() => setSettingsOpen(false)} title="Закрыть">✕</button>
             {/* Left nav column */}
             <div className="settings-nav-col">
               <div className="settings-profile-card">
@@ -3832,6 +3956,7 @@ export default function App() {
                 </>
               )}
             </div>
+          </div>
           </div>
         ) : null}
 

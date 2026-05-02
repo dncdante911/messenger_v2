@@ -1,32 +1,32 @@
 /* ─── Design tokens ────────────────────────────────────────────────────────── */
 :root {
-  /* Midnight Indigo — warm dark theme with vibrant violet accent */
-  --bg:            #1c1929;   /* warm dark indigo base        */
-  --bg-2:          #231f34;   /* cards / panels               */
-  --bg-3:          #2c2845;   /* hover / elevated             */
-  --bg-4:          #181526;   /* deepest layer                */
-  --bg-sidebar:    #1c1929;
-  --bg-chat:       #17132e;   /* chat area base               */
-  --bg-hover:      rgba(255,255,255,0.07);
-  --border:        rgba(255,255,255,0.09);
+  /* Ocean Night — soft dark navy theme with sky-blue accent */
+  --bg:            #1a2332;   /* deep navy base               */
+  --bg-2:          #1f2b3a;   /* cards / panels               */
+  --bg-3:          #263447;   /* hover / elevated             */
+  --bg-4:          #151d29;   /* deepest layer                */
+  --bg-sidebar:    #1a2332;
+  --bg-chat:       #18202f;   /* chat area base               */
+  --bg-hover:      rgba(255,255,255,0.06);
+  --border:        rgba(255,255,255,0.08);
   --border-light:  rgba(255,255,255,0.05);
 
-  --text:          #ddd8f5;   /* soft lavender-white          */
-  --text-2:        #7a72b0;   /* muted violet                 */
-  --text-3:        #4a436e;   /* dimmed                       */
-  --text-link:     #a78bfa;   /* violet hyperlink             */
+  --text:          #e2eaf5;   /* cool soft white              */
+  --text-2:        #7e9ab8;   /* muted blue-gray              */
+  --text-3:        #4a6070;   /* dimmed                       */
+  --text-link:     #74b8e8;   /* sky blue link                */
 
-  --accent:        #7c6af5;   /* vibrant indigo               */
-  --accent-h:      #9d8ef8;   /* hover                        */
-  --accent-dim:    rgba(124,106,245,0.2);
-  --accent-active: #6555e8;   /* pressed                      */
+  --accent:        #4d9de0;   /* soft sky blue                */
+  --accent-h:      #6aafe8;   /* hover                        */
+  --accent-dim:    rgba(77,157,224,0.18);
+  --accent-active: #3d8fcc;   /* pressed                      */
 
-  --own-bg:        #3e2d94;   /* deep indigo own bubble       */
-  --own-bg-dark:   #2f2170;
-  --other-bg:      #231f34;
+  --own-bg:        #1a4875;   /* deep navy own bubble         */
+  --own-bg-dark:   #133561;
+  --other-bg:      #1f2b3a;
 
   --online:        #4ade80;   /* vivid green                  */
-  --offline:       #4a436e;
+  --offline:       #4a6070;
 
   --danger:        #f87171;   /* soft coral-red               */
   --warn:          #fbbf24;   /* amber                        */
@@ -68,7 +68,7 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: linear-gradient(150deg, #060b16 0%, #090e1c 45%, #070b16 100%);
+  background: linear-gradient(150deg, #0a1220 0%, #0d1828 45%, #0a1220 100%);
   position: relative;
   overflow: hidden;
   padding: 20px;
@@ -79,7 +79,7 @@ body {
   content: '';
   position: absolute;
   width: 800px; height: 800px;
-  background: radial-gradient(circle at center, rgba(31,111,235,.18) 0%, transparent 60%);
+  background: radial-gradient(circle at center, rgba(77,157,224,.18) 0%, transparent 60%);
   top: -300px; left: -260px;
   pointer-events: none;
 }
@@ -87,7 +87,7 @@ body {
   content: '';
   position: absolute;
   width: 600px; height: 600px;
-  background: radial-gradient(circle at center, rgba(99,102,241,.13) 0%, transparent 60%);
+  background: radial-gradient(circle at center, rgba(26,72,117,.15) 0%, transparent 60%);
   bottom: -200px; right: -160px;
   pointer-events: none;
 }
@@ -642,9 +642,10 @@ body {
   grid-template-rows: auto 1fr auto;
   background-color: var(--bg-chat);
   background-image:
-    radial-gradient(ellipse at 85% 10%, rgba(124,106,245,.12) 0%, transparent 55%),
-    radial-gradient(ellipse at 15% 90%, rgba(62,45,148,.18) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(124,106,245,.04) 0%, transparent 70%);
+    radial-gradient(circle, rgba(77,157,224,0.06) 1px, transparent 1px),
+    radial-gradient(ellipse at 80% 15%, rgba(77,157,224,0.07) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 85%, rgba(26,72,117,0.1) 0%, transparent 50%);
+  background-size: 24px 24px, 100% 100%, 100% 100%;
   overflow: hidden;
   position: relative;
 }
@@ -1980,8 +1981,46 @@ body {
 .emoji-compose-btn { background: none; border: none; font-size: 20px; padding: 3px; cursor: pointer; border-radius: var(--r-sm); line-height: 1; text-align: center; transition: background .1s; }
 .emoji-compose-btn:hover { background: var(--bg-3); }
 
-/* ─── Settings full-width main view ─────────────────────────────────────────── */
-.settings-main-view { display: flex; height: 100%; overflow: hidden; background: var(--bg); }
+/* ─── Settings full-screen overlay ──────────────────────────────────────────── */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  animation: fadeIn .15s ease;
+}
+.settings-main-view {
+  display: flex;
+  width: 100%;
+  max-width: 960px;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+.settings-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 10;
+  background: var(--bg-3);
+  border: none;
+  color: var(--text-2);
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, color .12s;
+}
+.settings-close-btn:hover { background: var(--bg-hover); color: var(--text); }
 
 /* Left nav column */
 .settings-nav-col {
@@ -2176,3 +2215,111 @@ body {
 .saved-empty-icon { font-size: 52px; opacity: .35; }
 .saved-empty h3 { font-size: 17px; font-weight: 600; color: var(--text); }
 .saved-empty p { font-size: 13px; max-width: 260px; text-align: center; line-height: 1.6; }
+
+/* ─── Notes panel ────────────────────────────────────────────────────────────── */
+.notes-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-chat);
+}
+.notes-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.notes-panel-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.notes-storage-badge {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-2);
+  background: var(--bg-2);
+  padding: 3px 8px;
+  border-radius: var(--r-max);
+}
+.notes-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.note-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+}
+.note-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.note-type-icon { font-size: 16px; flex-shrink: 0; }
+.note-card-time { font-size: 11px; color: var(--text-2); flex: 1; }
+.note-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  line-height: 1;
+  transition: color .12s, background .12s;
+}
+.note-delete-btn:hover { color: var(--danger); background: rgba(248,113,113,.1); }
+.note-card-text {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.note-card-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.note-card-fname { color: var(--text-link); }
+.note-card-fsize { color: var(--text-3); }
+.notes-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-2);
+  flex-shrink: 0;
+}
+.notes-composer-input {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  resize: none;
+  outline: none;
+  transition: border-color .15s;
+}
+.notes-composer-input:focus { border-color: var(--accent); }
+.notes-composer-input::placeholder { color: var(--text-3); }
+.notes-composer-send {
+  align-self: flex-end;
+  padding: 8px 20px;
+}
