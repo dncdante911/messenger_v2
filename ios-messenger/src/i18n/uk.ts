@@ -318,6 +318,54 @@ const uk = {
   settings_appearance: 'ЗОВНІШНІЙ ВИГЛЯД',
   settings_storage: 'СХОВИЩЕ',
   settings_about: 'ПРО ПРОГРАМУ',
+
+  // Calls screen
+  call_history: 'Журнал дзвінків',
+  call_filter_all: 'Всі',
+  call_filter_missed: 'Пропущені',
+  call_filter_incoming: 'Вхідні',
+  call_filter_outgoing: 'Вихідні',
+  clear_history: 'Очистити журнал',
+  clear_history_confirm: 'Очистити всю історію дзвінків? Це неможливо скасувати.',
+  clear: 'Очистити',
+  no_calls: 'Немає дзвінків',
+  no_missed_calls: 'Немає пропущених дзвінків',
+  call_duration: 'Тривалість',
+  group_call: 'Груповий дзвінок',
+  call_back: 'Передзвонити',
+  delete_call: 'Видалити із журналу',
+
+  // Stories screen
+  my_story: 'Моя сторіс',
+  add_to_story: 'Додати',
+  no_stories: 'Немає сторіс',
+  story_views: 'переглядів',
+  stories_from_contacts: 'Від контактів',
+  view_all: 'Всі',
+  seen: 'Переглянуто',
+
+  // Groups screen
+  my_groups: 'Мої групи',
+  no_groups: 'Немає груп',
+  group_members_count: 'учасників',
+  group_online_count: 'онлайн',
+  join_group: 'Приєднатися',
+  create_group_btn: 'Створити групу',
+  group_public: 'Публічна',
+  group_private: 'Приватна',
+  search_groups: 'Пошук у групах',
+
+  // Channel details screen
+  channel_info: 'Про канал',
+  channel_posts_label: 'Публікації',
+  channel_subscribers_count: 'підписників',
+  join_channel: 'Приєднатися',
+  channel_link: 'Посилання',
+  channel_description: 'Опис',
+  no_posts: 'Немає публікацій',
+  views: 'переглядів',
+  share: 'Поділитися',
+  language: 'Мова',
 } as const;
 
 export type TranslationKeys = keyof typeof uk;

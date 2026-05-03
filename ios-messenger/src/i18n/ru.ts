@@ -318,6 +318,54 @@ const ru = {
   settings_appearance: 'ВНЕШНИЙ ВИД',
   settings_storage: 'ХРАНИЛИЩЕ',
   settings_about: 'О ПРОГРАММЕ',
+
+  // Calls screen
+  call_history: 'История звонков',
+  call_filter_all: 'Все',
+  call_filter_missed: 'Пропущенные',
+  call_filter_incoming: 'Входящие',
+  call_filter_outgoing: 'Исходящие',
+  clear_history: 'Очистить историю',
+  clear_history_confirm: 'Очистить всю историю звонков? Это нельзя отменить.',
+  clear: 'Очистить',
+  no_calls: 'Нет звонков',
+  no_missed_calls: 'Нет пропущенных звонков',
+  call_duration: 'Длительность',
+  group_call: 'Групповой звонок',
+  call_back: 'Перезвонить',
+  delete_call: 'Удалить из журнала',
+
+  // Stories screen
+  my_story: 'Моя история',
+  add_to_story: 'Добавить',
+  no_stories: 'Нет историй',
+  story_views: 'просмотров',
+  stories_from_contacts: 'От контактов',
+  view_all: 'Все',
+  seen: 'Просмотрено',
+
+  // Groups screen
+  my_groups: 'Мои группы',
+  no_groups: 'Нет групп',
+  group_members_count: 'участников',
+  group_online_count: 'онлайн',
+  join_group: 'Присоединиться',
+  create_group_btn: 'Создать группу',
+  group_public: 'Публичная',
+  group_private: 'Приватная',
+  search_groups: 'Поиск по группам',
+
+  // Channel details screen
+  channel_info: 'О канале',
+  channel_posts_label: 'Публикации',
+  channel_subscribers_count: 'подписчиков',
+  join_channel: 'Присоединиться',
+  channel_link: 'Ссылка',
+  channel_description: 'Описание',
+  no_posts: 'Нет публикаций',
+  views: 'просмотров',
+  share: 'Поделиться',
+  language: 'Язык',
 } as const;
 
 export default ru;

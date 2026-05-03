@@ -318,6 +318,54 @@ const en = {
   settings_appearance: 'APPEARANCE',
   settings_storage: 'STORAGE',
   settings_about: 'ABOUT',
+
+  // Calls screen
+  call_history: 'Call History',
+  call_filter_all: 'All',
+  call_filter_missed: 'Missed',
+  call_filter_incoming: 'Incoming',
+  call_filter_outgoing: 'Outgoing',
+  clear_history: 'Clear History',
+  clear_history_confirm: 'Clear all call history? This cannot be undone.',
+  clear: 'Clear',
+  no_calls: 'No calls',
+  no_missed_calls: 'No missed calls',
+  call_duration: 'Duration',
+  group_call: 'Group call',
+  call_back: 'Call back',
+  delete_call: 'Delete from history',
+
+  // Stories screen
+  my_story: 'My Story',
+  add_to_story: 'Add',
+  no_stories: 'No stories',
+  story_views: 'views',
+  stories_from_contacts: 'From contacts',
+  view_all: 'All',
+  seen: 'Seen',
+
+  // Groups screen
+  my_groups: 'My Groups',
+  no_groups: 'No groups',
+  group_members_count: 'members',
+  group_online_count: 'online',
+  join_group: 'Join',
+  create_group_btn: 'Create Group',
+  group_public: 'Public',
+  group_private: 'Private',
+  search_groups: 'Search groups',
+
+  // Channel details screen
+  channel_info: 'About Channel',
+  channel_posts_label: 'Posts',
+  channel_subscribers_count: 'subscribers',
+  join_channel: 'Join Channel',
+  channel_link: 'Link',
+  channel_description: 'Description',
+  no_posts: 'No posts yet',
+  views: 'views',
+  share: 'Share',
+  language: 'Language',
 } as const;
 
 export default en;
