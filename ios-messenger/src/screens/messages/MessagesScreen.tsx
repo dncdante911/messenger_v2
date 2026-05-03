@@ -25,6 +25,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../../navigation/types';
 import { useAuthStore } from '../../store/authStore';
+import { useTheme } from '../../theme';
+import { useTranslation } from '../../i18n';
 import { socketService } from '../../services/socketService';
 import {
   SOCKET_EVENT_PRIVATE_MESSAGE,
@@ -57,6 +59,8 @@ const TYPING_DEBOUNCE_MS = 500;
 
 const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
   const { chatName, chatAvatar, userId = '' } = route.params;
+  const theme = useTheme();
+  const { t } = useTranslation();
 
   const currentUser = useAuthStore((s) => s.user);
   const currentUserId = currentUser?.id ?? '';
@@ -94,7 +98,7 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
       chatApi.markSeen(userId).catch(() => null);
     } catch {
       if (!isMounted.current) return;
-      Alert.alert('Error', 'Could not load messages. Please try again.');
+      Alert.alert(t('error'), t('error_load_messages'));
     } finally {
       if (isMounted.current) setIsLoading(false);
     }
@@ -275,7 +279,7 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
               : m,
           ),
         );
-        Alert.alert('Error', 'Failed to send message. Please try again.');
+        Alert.alert(t('error'), t('error_send_message'));
       }
     },
     [currentUserId, userId, replyTo],
@@ -306,12 +310,12 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
   // ─────────────────────────────────────────────────────────
 
   const handleVoiceCall = useCallback(() => {
-    Alert.alert('Voice Call', 'Voice call coming soon');
-  }, []);
+    Alert.alert(t('voice_call'), t('coming_soon'));
+  }, [t]);
 
   const handleVideoCall = useCallback(() => {
-    Alert.alert('Video Call', 'Video call coming soon');
-  }, []);
+    Alert.alert(t('video_call'), t('coming_soon'));
+  }, [t]);
 
   // ─────────────────────────────────────────────────────────
   // MESSAGE INTERACTIONS
@@ -355,7 +359,7 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
     return (
       <ActivityIndicator
         size="small"
-        color="#7C83FD"
+        color={theme.primary}
         style={styles.loadMoreSpinner}
       />
     );
@@ -365,30 +369,30 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
   // STATUS SUBTITLE
   // ─────────────────────────────────────────────────────────
 
-  const statusSubtitle = isOnline ? 'online' : lastSeen ? `last seen ${lastSeen}` : '';
+  const statusSubtitle = isOnline ? t('online') : lastSeen ? `${t('last_seen')} ${lastSeen}` : '';
 
   // ─────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       {/* ── Header ──────────────────────────────────────────── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: theme.divider, backgroundColor: theme.background }]}>
         {/* Back */}
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={styles.headerBack}
         >
-          <Feather name="chevron-left" size={26} color="#FFFFFF" />
+          <Feather name="chevron-left" size={26} color={theme.text} />
         </TouchableOpacity>
 
         {/* Avatar + name + status */}
         <TouchableOpacity
           style={styles.headerCenter}
           activeOpacity={0.75}
-          onPress={() => Alert.alert('Profile', 'User profile view coming soon')}
+          onPress={() => Alert.alert(t('profile'), t('coming_soon'))}
         >
           <Avatar
             uri={chatAvatar}
@@ -398,11 +402,11 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
             isOnline={isOnline}
           />
           <View style={styles.headerTextBlock}>
-            <Text style={styles.headerName} numberOfLines={1}>
+            <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
               {chatName}
             </Text>
             {statusSubtitle.length > 0 && (
-              <Text style={styles.headerStatus} numberOfLines={1}>
+              <Text style={[styles.headerStatus, { color: isOnline ? theme.online : theme.textSecondary }]} numberOfLines={1}>
                 {statusSubtitle}
               </Text>
             )}
@@ -416,14 +420,14 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             style={styles.headerActionBtn}
           >
-            <Feather name="phone" size={20} color="#FFFFFF" />
+            <Feather name="phone" size={20} color={theme.text} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleVideoCall}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             style={styles.headerActionBtn}
           >
-            <Feather name="video" size={20} color="#FFFFFF" />
+            <Feather name="video" size={20} color={theme.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -431,7 +435,7 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
       {/* ── Message list ────────────────────────────────────── */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7C83FD" />
+          <ActivityIndicator size="large" color={theme.primary} />
         </View>
       ) : (
         <FlatList
@@ -475,7 +479,6 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
   },
 
   // Header
@@ -485,8 +488,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#2A2B3D',
-    backgroundColor: '#1A1B2E',
   },
   headerBack: {
     marginRight: 2,
@@ -504,12 +505,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerName: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
   headerStatus: {
-    color: '#8E8E93',
     fontSize: 12,
     marginTop: 1,
   },

@@ -1,22 +1,5 @@
-// ============================================================
-// WorldMates Messenger — Main (Authenticated) Navigator
-//
-// Layout:
-//   RootStack (headerShown: false)
-//     └── BottomTabs
-//           ├── Chats      → ChatsScreen
-//           ├── Calls      → CallsScreen (placeholder)
-//           ├── Stories    → StoriesScreen (placeholder)
-//           └── Settings   → SettingsScreen (placeholder)
-//     ── Messages          → MessagesScreen (full-screen overlay)
-//     ── UserProfile       → placeholder
-//     ── GlobalSearch      → placeholder
-//     ── SavedMessages     → placeholder
-//     ── Notes             → placeholder
-// ============================================================
-
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
@@ -24,62 +7,57 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatsScreen } from '../screens/chats/ChatsScreen';
 import { MessagesScreen } from '../screens/messages/MessagesScreen';
+import { useTheme } from '../theme';
+import { useTranslation } from '../i18n';
 import type { MainTabParamList, RootStackParamList } from './types';
 
-// ─────────────────────────────────────────────────────────────
-// PLACEHOLDER SCREENS
-// ─────────────────────────────────────────────────────────────
-
 function PlaceholderScreen({ title }: { title: string }) {
+  const theme = useTheme();
   return (
-    <SafeAreaView style={placeholderStyles.root} edges={['top']}>
-      <View style={placeholderStyles.inner}>
-        <Feather name="clock" size={48} color="#3A3B4D" />
-        <Text style={placeholderStyles.title}>{title}</Text>
-        <Text style={placeholderStyles.subtitle}>Coming soon</Text>
+    <SafeAreaView style={[styles.placeholderRoot, { backgroundColor: theme.background }]} edges={['top']}>
+      <View style={styles.placeholderInner}>
+        <Feather name="clock" size={48} color={theme.divider} />
+        <Text style={[styles.placeholderTitle, { color: theme.text }]}>{title}</Text>
+        <Text style={[styles.placeholderSubtitle, { color: theme.textSecondary }]}>Незабаром</Text>
       </View>
     </SafeAreaView>
   );
 }
 
-const placeholderStyles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#1A1B2E' },
-  inner: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  title: { color: '#FFFFFF', fontSize: 20, fontWeight: '600' },
-  subtitle: { color: '#8E8E93', fontSize: 14 },
-});
-
 function CallsScreen() {
-  return <PlaceholderScreen title="Calls" />;
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('calls')} />;
 }
 
 function StoriesScreen() {
-  return <PlaceholderScreen title="Stories" />;
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('stories')} />;
 }
 
-function SettingsScreen() {
-  return <PlaceholderScreen title="Settings" />;
+function SettingsPlaceholderScreen() {
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('settings')} />;
 }
 
-function UserProfileScreen() {
-  return <PlaceholderScreen title="User Profile" />;
+function UserProfilePlaceholderScreen() {
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('profile')} />;
 }
 
 function GlobalSearchScreen() {
-  return <PlaceholderScreen title="Search" />;
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('search')} />;
 }
 
 function SavedMessagesScreen() {
-  return <PlaceholderScreen title="Saved Messages" />;
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('saved_messages')} />;
 }
 
 function NotesScreen() {
-  return <PlaceholderScreen title="Notes" />;
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('notes')} />;
 }
-
-// ─────────────────────────────────────────────────────────────
-// TAB NAVIGATOR
-// ─────────────────────────────────────────────────────────────
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -93,6 +71,9 @@ const TAB_ICONS: Record<keyof MainTabParamList, FeatherIconName> = {
 };
 
 function TabNavigator() {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -100,10 +81,10 @@ function TabNavigator() {
         tabBarIcon: ({ color, size }) => (
           <Feather name={TAB_ICONS[route.name]} size={size} color={color} />
         ),
-        tabBarActiveTintColor: '#7C83FD',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textTertiary,
         tabBarStyle: {
-          backgroundColor: '#1A1B2E',
+          backgroundColor: theme.tabBar,
           borderTopWidth: 0,
           shadowOpacity: 0,
           elevation: 0,
@@ -115,27 +96,20 @@ function TabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Chats" component={ChatsScreen} />
-      <Tab.Screen name="Calls" component={CallsScreen} />
-      <Tab.Screen name="Stories" component={StoriesScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Chats" component={ChatsScreen} options={{ tabBarLabel: t('chats') }} />
+      <Tab.Screen name="Calls" component={CallsScreen} options={{ tabBarLabel: t('calls') }} />
+      <Tab.Screen name="Stories" component={StoriesScreen} options={{ tabBarLabel: t('stories') }} />
+      <Tab.Screen name="Settings" component={SettingsPlaceholderScreen} options={{ tabBarLabel: t('settings') }} />
     </Tab.Navigator>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// ROOT STACK (tabs + overlay screens)
-// ─────────────────────────────────────────────────────────────
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function MainNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {/* Tab bar host */}
       <Stack.Screen name="Main" component={TabNavigator} />
-
-      {/* Full-screen overlays (slide over tabs) */}
       <Stack.Screen
         name="Messages"
         component={MessagesScreen}
@@ -143,7 +117,7 @@ export function MainNavigator() {
       />
       <Stack.Screen
         name="UserProfile"
-        component={UserProfileScreen}
+        component={UserProfilePlaceholderScreen}
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
@@ -164,3 +138,10 @@ export function MainNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  placeholderRoot: { flex: 1 },
+  placeholderInner: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  placeholderTitle: { fontSize: 20, fontWeight: '600' },
+  placeholderSubtitle: { fontSize: 14 },
+});

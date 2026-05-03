@@ -6,21 +6,22 @@ import type { RootStackParamList } from './types';
 import { AuthNavigator } from './AuthNavigator';
 import { MainNavigator } from './MainNavigator';
 import { useAuthStore } from '../store/authStore';
+import { useTheme } from '../theme';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 function LoadingScreen() {
+  const theme = useTheme();
   return (
-    <View style={loadingStyles.container}>
-      <ActivityIndicator size="large" color="#7C83FD" />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <ActivityIndicator size="large" color={theme.primary} />
     </View>
   );
 }
 
-const loadingStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
     alignItems: 'center',
     justifyContent: 'center',
   },

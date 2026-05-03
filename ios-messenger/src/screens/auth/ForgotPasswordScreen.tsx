@@ -16,6 +16,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
+import { useTranslation } from '../../i18n';
+import { useTheme } from '../../theme';
 
 type ForgotPasswordNavigationProp = NativeStackNavigationProp<
   AuthStackParamList,
@@ -23,6 +25,8 @@ type ForgotPasswordNavigationProp = NativeStackNavigationProp<
 >;
 
 export function ForgotPasswordScreen() {
+  const { t } = useTranslation();
+  const theme = useTheme();
   const navigation = useNavigation<ForgotPasswordNavigationProp>();
 
   const [email, setEmail] = useState('');
@@ -41,7 +45,7 @@ export function ForgotPasswordScreen() {
     setError(null);
 
     if (!email.trim()) {
-      setError('Email address is required.');
+      setError(t('error_required_field'));
       Animated.timing(errorOpacity, {
         toValue: 1,
         duration: 300,
@@ -51,7 +55,7 @@ export function ForgotPasswordScreen() {
     }
 
     if (!validateEmail(email.trim())) {
-      setError('Please enter a valid email address.');
+      setError(t('error_email_invalid'));
       Animated.timing(errorOpacity, {
         toValue: 1,
         duration: 300,
@@ -64,9 +68,8 @@ export function ForgotPasswordScreen() {
 
     try {
       // Simulate API call — real implementation would call authApi.forgotPassword(email)
-      await new Promise<void>((resolve, reject) => {
+      await new Promise<void>((resolve, _reject) => {
         setTimeout(() => {
-          // Succeed for valid-looking emails
           resolve();
         }, 1200);
       });
@@ -84,7 +87,7 @@ export function ForgotPasswordScreen() {
       const message =
         err?.response?.data?.message ||
         err?.message ||
-        'Failed to send reset link. Please try again.';
+        t('error_network');
       setError(message);
       Animated.timing(errorOpacity, {
         toValue: 1,
@@ -103,8 +106,8 @@ export function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1B2E" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -122,23 +125,22 @@ export function ForgotPasswordScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.7}
           >
-            <Text style={styles.backArrow}>←</Text>
-            <Text style={styles.backText}>Back</Text>
+            <Text style={[styles.backArrow, { color: theme.primary }]}>←</Text>
+            <Text style={[styles.backText, { color: theme.primary }]}>{t('back')}</Text>
           </TouchableOpacity>
 
           {!isSuccess ? (
             <>
               <View style={styles.iconContainer}>
-                <View style={styles.iconCircle}>
+                <View style={[styles.iconCircle, { backgroundColor: theme.inputBackground, borderColor: theme.primary, shadowColor: theme.primary }]}>
                   <Text style={styles.iconEmoji}>🔒</Text>
                 </View>
               </View>
 
               <View style={styles.header}>
-                <Text style={styles.title}>Forgot Password?</Text>
-                <Text style={styles.subtitle}>
-                  No worries! Enter your email address and we'll send you a link to reset your
-                  password.
+                <Text style={[styles.title, { color: theme.text }]}>{t('forgot_password')}</Text>
+                <Text style={[styles.subtitle, { color: theme.textTertiary }]}>
+                  {t('check_email_desc')}
                 </Text>
               </View>
 
@@ -149,11 +151,15 @@ export function ForgotPasswordScreen() {
               ) : null}
 
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputLabel}>Email Address</Text>
+                <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('email')}</Text>
                 <TextInput
-                  style={[styles.input, error ? styles.inputError : null]}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#4A4E6A"
+                  style={[
+                    styles.input,
+                    { backgroundColor: theme.inputBackground, color: theme.text },
+                    error ? styles.inputError : null,
+                  ]}
+                  placeholder={t('email')}
+                  placeholderTextColor={theme.textTertiary}
                   value={email}
                   onChangeText={handleEmailChange}
                   keyboardType="email-address"
@@ -162,40 +168,44 @@ export function ForgotPasswordScreen() {
                   autoComplete="email"
                   returnKeyType="done"
                   onSubmitEditing={handleSend}
-                  selectionColor="#7C83FD"
+                  selectionColor={theme.primary}
                   autoFocus
                 />
               </View>
 
               <TouchableOpacity
-                style={[styles.sendButton, isLoading && styles.sendButtonDisabled]}
+                style={[
+                  styles.sendButton,
+                  { backgroundColor: theme.primary, shadowColor: theme.primary },
+                  isLoading && styles.sendButtonDisabled,
+                ]}
                 onPress={handleSend}
                 activeOpacity={0.85}
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={theme.white} size="small" />
                 ) : (
-                  <Text style={styles.sendButtonText}>Send Reset Link</Text>
+                  <Text style={[styles.sendButtonText, { color: theme.white }]}>{t('send_reset_link')}</Text>
                 )}
               </TouchableOpacity>
             </>
           ) : (
             <Animated.View style={[styles.successContainer, { opacity: successOpacity }]}>
-              <View style={styles.successIconCircle}>
-                <Text style={styles.successCheckmark}>✓</Text>
+              <View style={[styles.successIconCircle, { backgroundColor: 'rgba(76, 175, 130, 0.15)', borderColor: theme.success }]}>
+                <Text style={[styles.successCheckmark, { color: theme.success }]}>✓</Text>
               </View>
-              <Text style={styles.successTitle}>Check your email</Text>
-              <Text style={styles.successMessage}>
-                We've sent a password reset link to{'\n'}
-                <Text style={styles.successEmail}>{email.trim().toLowerCase()}</Text>
+              <Text style={[styles.successTitle, { color: theme.text }]}>{t('check_email')}</Text>
+              <Text style={[styles.successMessage, { color: theme.textTertiary }]}>
+                {t('check_email_desc')}{'\n'}
+                <Text style={[styles.successEmail, { color: theme.primary }]}>{email.trim().toLowerCase()}</Text>
               </Text>
-              <Text style={styles.successHint}>
-                Didn't receive the email? Check your spam folder or try again.
+              <Text style={[styles.successHint, { color: theme.textTertiary }]}>
+                {t('check_email_desc')}
               </Text>
 
               <TouchableOpacity
-                style={styles.resendButton}
+                style={[styles.resendButton, { borderColor: theme.primary }]}
                 onPress={() => {
                   setIsSuccess(false);
                   successOpacity.setValue(0);
@@ -203,18 +213,18 @@ export function ForgotPasswordScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={styles.resendButtonText}>Try a different email</Text>
+                <Text style={[styles.resendButtonText, { color: theme.primary }]}>{t('try_different_email')}</Text>
               </TouchableOpacity>
             </Animated.View>
           )}
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Remember your password? </Text>
+            <Text style={[styles.footerText, { color: theme.textTertiary }]}>{t('already_have_account')} </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
               activeOpacity={0.7}
             >
-              <Text style={styles.footerLink}>Sign In</Text>
+              <Text style={[styles.footerLink, { color: theme.primary }]}>{t('sign_in')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -226,7 +236,6 @@ export function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
   },
   flex: {
     flex: 1,
@@ -244,12 +253,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   backArrow: {
-    color: '#7C83FD',
     fontSize: 20,
     fontWeight: '500',
   },
   backText: {
-    color: '#7C83FD',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -262,12 +269,9 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#2A2B3D',
     borderWidth: 2,
-    borderColor: '#7C83FD',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#7C83FD',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -280,13 +284,11 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   title: {
-    color: '#FFFFFF',
     fontSize: 26,
     fontWeight: '700',
     marginBottom: 10,
   },
   subtitle: {
-    color: '#8A8FA8',
     fontSize: 15,
     lineHeight: 22,
   },
@@ -308,31 +310,26 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   inputLabel: {
-    color: '#8A8FA8',
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: '#2A2B3D',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    color: '#FFFFFF',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#3A3B52',
+    borderColor: 'transparent',
   },
   inputError: {
     borderColor: '#FF5C5C',
   },
   sendButton: {
-    backgroundColor: '#7C83FD',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#7C83FD',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -344,7 +341,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   sendButtonText: {
-    color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -359,43 +355,35 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(76, 175, 130, 0.15)',
     borderWidth: 2,
-    borderColor: '#4CAF82',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 28,
-    shadowColor: '#4CAF82',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
   successCheckmark: {
-    color: '#4CAF82',
     fontSize: 44,
     fontWeight: '700',
   },
   successTitle: {
-    color: '#FFFFFF',
     fontSize: 26,
     fontWeight: '700',
     marginBottom: 14,
     textAlign: 'center',
   },
   successMessage: {
-    color: '#8A8FA8',
     fontSize: 15,
     lineHeight: 24,
     textAlign: 'center',
     marginBottom: 16,
   },
   successEmail: {
-    color: '#7C83FD',
     fontWeight: '600',
   },
   successHint: {
-    color: '#5A5F78',
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 20,
@@ -407,10 +395,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#7C83FD',
   },
   resendButtonText: {
-    color: '#7C83FD',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -422,11 +408,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   footerText: {
-    color: '#8A8FA8',
     fontSize: 15,
   },
   footerLink: {
-    color: '#7C83FD',
     fontSize: 15,
     fontWeight: '600',
   },

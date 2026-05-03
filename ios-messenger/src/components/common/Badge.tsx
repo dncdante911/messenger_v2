@@ -1,14 +1,6 @@
-// ============================================================
-// WorldMates Messenger — Unread Count Badge
-//
-// Pill badge displayed on chat list items.
-// Hidden when count === 0.
-// Displays "99+" when count exceeds 99.
-// Gray when muted, accent (#7C83FD) otherwise.
-// ============================================================
-
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../../theme';
 
 export interface BadgeProps {
   count: number;
@@ -16,6 +8,8 @@ export interface BadgeProps {
 }
 
 export const Badge: React.FC<BadgeProps> = ({ count, muted = false }) => {
+  const theme = useTheme();
+
   if (count === 0) return null;
 
   const label = count > 99 ? '99+' : String(count);
@@ -25,7 +19,7 @@ export const Badge: React.FC<BadgeProps> = ({ count, muted = false }) => {
     <View
       style={[
         styles.pill,
-        { backgroundColor: muted ? '#8E8E93' : '#7C83FD' },
+        { backgroundColor: muted ? theme.textTertiary : theme.primary },
         isWide && styles.pillWide,
       ]}
     >

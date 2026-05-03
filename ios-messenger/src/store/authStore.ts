@@ -3,6 +3,8 @@ import { immer } from 'zustand/middleware/immer';
 import { authApi } from '../api/authApi';
 import { storageService } from '../services/storageService';
 import { socketService } from '../services/socketService';
+import { useThemeStore } from '../theme';
+import { useI18nStore } from '../i18n';
 import type { User, RegisterData } from '../api/types';
 
 interface AuthState {
@@ -138,6 +140,8 @@ export const useAuthStore = create<AuthState>()(
         }
         // Verify token is still valid
         const verifiedUser = await authApi.verifyToken(token);
+        await useThemeStore.getState()._hydrate();
+        await useI18nStore.getState()._hydrate();
         socketService.connect(token);
         set((state) => {
           state.user = verifiedUser;
