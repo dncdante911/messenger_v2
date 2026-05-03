@@ -5,6 +5,119 @@
 
 ---
 
+## ⚠️ ОБЯЗАТЕЛЬНЫЕ ПРАВИЛА РАЗРАБОТКИ (нарушать запрещено)
+
+### 🌐 Правило 1: НИКАКИХ хардкоженных строк
+
+**Каждая** видимая пользователю строка ОБЯЗАНА находиться в файлах локализации.
+
+```
+ios-messenger/src/i18n/uk.ts   ← украинский (ЯЗЫК ПО УМОЛЧАНИЮ)
+ios-messenger/src/i18n/ru.ts   ← русский
+ios-messenger/src/i18n/en.ts   ← английский
+```
+
+**Правила:**
+- Добавляешь новый текст? → сначала добавь ключ в **все три файла** (`uk.ts`, `ru.ts`, `en.ts`)
+- В коде используй ТОЛЬКО `t('ключ')` — никаких `'Текст'` прямо в JSX
+- Имена ключей — snake_case, на английском: `send_message`, `delete_chat`, `error_network`
+- Один ключ = один смысл. Не переиспользуй ключи с похожим, но другим значением
+
+**Пример (ПРАВИЛЬНО):**
+```typescript
+import { useTranslation } from '../../i18n';
+const { t } = useTranslation();
+
+// В JSX:
+<Text>{t('send_message')}</Text>
+<TouchableOpacity onPress={...}><Text>{t('cancel')}</Text></TouchableOpacity>
+Alert.alert(t('error'), t('error_network'));
+```
+
+**Пример (ЗАПРЕЩЕНО):**
+```typescript
+// ❌ Никогда так:
+<Text>Send Message</Text>
+<Text>Відправити</Text>
+Alert.alert('Error', 'Network error');
+```
+
+**Для класс-компонентов** (например, ErrorBoundary) — использовать `getTranslation(key)`:
+```typescript
+import { getTranslation } from '../../i18n';
+const text = getTranslation('something_went_wrong'); // без хука
+```
+
+---
+
+### 🎨 Правило 2: НИКАКИХ хардкоженных цветов
+
+**Каждый** цвет ОБЯЗАН приходить из темы через `useTheme()`.
+
+```
+ios-messenger/src/theme/colors.ts  ← BaseColors + ThemePalettes (7 вариантов)
+ios-messenger/src/theme/index.ts   ← useTheme() hook, buildTheme(), defaultTheme
+```
+
+**Правила:**
+- Добавляешь цвет в JSX? → только через `theme.propertyName`
+- Статический `StyleSheet.create` НЕ может содержать цвета из темы — используй **inline styles**
+- Для класс-компонентов — `defaultTheme.propertyName` (импорт из `'../../theme'`)
+
+**Цветовые токены темы Classic Blue (дефолт, как в Android):**
+
+| Токен | Значение | Применение |
+|-------|----------|------------|
+| `theme.primary` | `#1565C0` | Кнопки, ссылки, акцент |
+| `theme.background` | `#0D1B3E` | Фон экранов |
+| `theme.surface` | `#1A2B4A` | Карточки, айтемы |
+| `theme.surfaceElevated` | `#1E3250` | Приподнятые элементы |
+| `theme.inputBackground` | `#1C2333` | Поле ввода |
+| `theme.tabBar` | `#0D1B3E` | Нижняя навигация |
+| `theme.text` | `#F0F2F5` | Основной текст |
+| `theme.textSecondary` | `#B0BEC5` | Вторичный текст |
+| `theme.textTertiary` | `#8E8E93` | Плейсхолдеры, метки |
+| `theme.messageBubbleOwn` | `#1976D2` | Пузырь своего сообщения |
+| `theme.messageBubbleOther` | `#1A2B4A` | Пузырь чужого сообщения |
+| `theme.accent` | `#4FC3F7` | Ссылки, двойная галочка |
+| `theme.divider` | `#2F3336` | Разделители, рамки |
+| `theme.online` | `#00C851` | Статус онлайн |
+| `theme.error` | `#FF4444` | Ошибки |
+| `theme.success` | `#4CAF50` | Успех |
+
+**Пример (ПРАВИЛЬНО):**
+```typescript
+import { useTheme } from '../../theme';
+const theme = useTheme();
+
+// В JSX:
+<View style={{ backgroundColor: theme.background }}>
+  <Text style={{ color: theme.text }}>...</Text>
+  <ActivityIndicator color={theme.primary} />
+</View>
+```
+
+**Пример (ЗАПРЕЩЕНО):**
+```typescript
+// ❌ Никогда так:
+<View style={{ backgroundColor: '#1A1B2E' }}>
+<Text style={{ color: '#7C83FD' }}>
+const styles = StyleSheet.create({ root: { backgroundColor: '#0D1B3E' } });
+```
+
+---
+
+### 📋 Чеклист перед каждым коммитом
+
+Перед коммитом обязательно проверить:
+- [ ] `grep -r "'[А-Яа-яіїєІЇЄ]" src/` → должно быть 0 результатов (нет украинского/русского текста в коде)
+- [ ] `grep -r '"[A-Z][a-z]' src/screens/` → проверить нет ли английских фраз вместо `t()`
+- [ ] `grep -r "#[0-9A-Fa-f]\{6\}" src/` → цвета только в `colors.ts` и для исключений типа `#FFFFFF`/`rgba(...)`
+- [ ] Все новые ключи добавлены в `uk.ts`, `ru.ts` И `en.ts`
+- [ ] Приложение корректно работает при смене языка (uk → ru → en)
+
+---
+
 ## Часть 1. Полный аудит Android-приложения
 
 ### 1.1 Общая архитектура
