@@ -6,42 +6,29 @@ import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatsScreen } from '../screens/chats/ChatsScreen';
+import { CallsScreen } from '../screens/calls/CallsScreen';
+import { StoriesScreen } from '../screens/stories/StoriesScreen';
 import { MessagesScreen } from '../screens/messages/MessagesScreen';
+import { GroupsScreen } from '../screens/groups/GroupsScreen';
+import { ChannelDetailsScreen } from '../screens/channels/ChannelDetailsScreen';
+import UserProfileScreen from '../screens/profile/UserProfileScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
 import { useTheme } from '../theme';
 import { useTranslation } from '../i18n';
 import type { MainTabParamList, RootStackParamList } from './types';
 
 function PlaceholderScreen({ title }: { title: string }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   return (
     <SafeAreaView style={[styles.placeholderRoot, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.placeholderInner}>
         <Feather name="clock" size={48} color={theme.divider} />
         <Text style={[styles.placeholderTitle, { color: theme.text }]}>{title}</Text>
-        <Text style={[styles.placeholderSubtitle, { color: theme.textSecondary }]}>Незабаром</Text>
+        <Text style={[styles.placeholderSubtitle, { color: theme.textSecondary }]}>{t('coming_soon')}</Text>
       </View>
     </SafeAreaView>
   );
-}
-
-function CallsScreen() {
-  const { t } = useTranslation();
-  return <PlaceholderScreen title={t('calls')} />;
-}
-
-function StoriesScreen() {
-  const { t } = useTranslation();
-  return <PlaceholderScreen title={t('stories')} />;
-}
-
-function SettingsPlaceholderScreen() {
-  const { t } = useTranslation();
-  return <PlaceholderScreen title={t('settings')} />;
-}
-
-function UserProfilePlaceholderScreen() {
-  const { t } = useTranslation();
-  return <PlaceholderScreen title={t('profile')} />;
 }
 
 function GlobalSearchScreen() {
@@ -57,6 +44,11 @@ function SavedMessagesScreen() {
 function NotesScreen() {
   const { t } = useTranslation();
   return <PlaceholderScreen title={t('notes')} />;
+}
+
+function GroupMessagesScreen() {
+  const { t } = useTranslation();
+  return <PlaceholderScreen title={t('groups')} />;
 }
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -99,7 +91,7 @@ function TabNavigator() {
       <Tab.Screen name="Chats" component={ChatsScreen} options={{ tabBarLabel: t('chats') }} />
       <Tab.Screen name="Calls" component={CallsScreen} options={{ tabBarLabel: t('calls') }} />
       <Tab.Screen name="Stories" component={StoriesScreen} options={{ tabBarLabel: t('stories') }} />
-      <Tab.Screen name="Settings" component={SettingsPlaceholderScreen} options={{ tabBarLabel: t('settings') }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: t('settings') }} />
     </Tab.Navigator>
   );
 }
@@ -116,8 +108,23 @@ export function MainNavigator() {
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
+        name="GroupMessages"
+        component={GroupMessagesScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="Groups"
+        component={GroupsScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="ChannelDetails"
+        component={ChannelDetailsScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
         name="UserProfile"
-        component={UserProfilePlaceholderScreen}
+        component={UserProfileScreen}
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen

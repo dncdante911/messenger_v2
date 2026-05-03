@@ -32,6 +32,7 @@ export type RootStackParamList = {
     groupAvatar?: string;
   };
   ChannelDetails: { channelId: string };
+  Groups: undefined;
   UserProfile: { userId: string };
   GlobalSearch: undefined;
   SavedMessages: undefined;
