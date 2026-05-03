@@ -18,6 +18,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { useAuthStore } from '../../store/authStore';
+import { useTranslation } from '../../i18n';
+import { useTheme } from '../../theme';
 
 type LoginNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -25,6 +27,8 @@ const { width } = Dimensions.get('window');
 const LOGO_SIZE = width * 0.2;
 
 export function LoginScreen() {
+  const { t } = useTranslation();
+  const theme = useTheme();
   const navigation = useNavigation<LoginNavigationProp>();
 
   const isLoading = useAuthStore((state) => state.isLoading);
@@ -60,11 +64,11 @@ export function LoginScreen() {
 
   const validate = (): boolean => {
     if (!email.trim()) {
-      setLocalError('Email or phone number is required.');
+      setLocalError(t('error_required_field'));
       return false;
     }
     if (!password) {
-      setLocalError('Password is required.');
+      setLocalError(t('error_required_field'));
       return false;
     }
     setLocalError(null);
@@ -85,8 +89,8 @@ export function LoginScreen() {
   const displayError = localError || error;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1B2E" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -99,16 +103,16 @@ export function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.logoSection}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>WM</Text>
+            <View style={[styles.logoCircle, { backgroundColor: theme.primary, shadowColor: theme.primary }]}>
+              <Text style={[styles.logoText, { color: theme.white }]}>WM</Text>
             </View>
-            <Text style={styles.appName}>WorldMates</Text>
-            <Text style={styles.appTagline}>Connect. Share. Belong.</Text>
+            <Text style={[styles.appName, { color: theme.text }]}>{t('app_name')}</Text>
+            <Text style={[styles.appTagline, { color: theme.textTertiary }]}>{t('login_world_subtitle')}</Text>
           </View>
 
           <View style={styles.formContainer}>
-            <Text style={styles.welcomeTitle}>Welcome back</Text>
-            <Text style={styles.welcomeSubtitle}>Sign in to continue</Text>
+            <Text style={[styles.welcomeTitle, { color: theme.text }]}>{t('login_title')}</Text>
+            <Text style={[styles.welcomeSubtitle, { color: theme.textTertiary }]}>{t('login_subtitle')}</Text>
 
             {displayError ? (
               <Animated.View style={[styles.errorBanner, { opacity: errorOpacity }]}>
@@ -117,11 +121,11 @@ export function LoginScreen() {
             ) : null}
 
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Email or Phone</Text>
+              <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('username_or_email')}</Text>
               <TextInput
-                style={styles.input}
-                placeholder="Enter your email or phone"
-                placeholderTextColor="#4A4E6A"
+                style={[styles.input, { backgroundColor: theme.inputBackground, color: theme.text }]}
+                placeholder={t('username_or_email')}
+                placeholderTextColor={theme.textTertiary}
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
@@ -134,18 +138,18 @@ export function LoginScreen() {
                 autoComplete="email"
                 returnKeyType="next"
                 onSubmitEditing={() => passwordRef.current?.focus()}
-                selectionColor="#7C83FD"
+                selectionColor={theme.primary}
               />
             </View>
 
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.passwordContainer}>
+              <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('password')}</Text>
+              <View style={[styles.passwordContainer, { backgroundColor: theme.inputBackground }]}>
                 <TextInput
                   ref={passwordRef}
-                  style={styles.passwordInput}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#4A4E6A"
+                  style={[styles.passwordInput, { color: theme.text }]}
+                  placeholder={t('enter_password_hint')}
+                  placeholderTextColor={theme.textTertiary}
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
@@ -158,7 +162,7 @@ export function LoginScreen() {
                   autoComplete="current-password"
                   returnKeyType="done"
                   onSubmitEditing={handleLogin}
-                  selectionColor="#7C83FD"
+                  selectionColor={theme.primary}
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
@@ -175,28 +179,32 @@ export function LoginScreen() {
               onPress={() => navigation.navigate('ForgotPassword')}
               activeOpacity={0.7}
             >
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+              <Text style={[styles.forgotPasswordText, { color: theme.primary }]}>{t('forgot_password')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.signInButton, isLoading && styles.signInButtonDisabled]}
+              style={[
+                styles.signInButton,
+                { backgroundColor: theme.primary, shadowColor: theme.primary },
+                isLoading && styles.signInButtonDisabled,
+              ]}
               onPress={handleLogin}
               activeOpacity={0.85}
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={theme.white} size="small" />
               ) : (
-                <Text style={styles.signInButtonText}>Sign In</Text>
+                <Text style={[styles.signInButtonText, { color: theme.white }]}>{t('sign_in')}</Text>
               )}
             </TouchableOpacity>
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Text style={[styles.footerText, { color: theme.textTertiary }]}>{t('no_account')} </Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
-            <Text style={styles.footerLink}>Register</Text>
+            <Text style={[styles.footerLink, { color: theme.primary }]}>{t('register')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -207,7 +215,6 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
   },
   flex: {
     flex: 1,
@@ -226,44 +233,37 @@ const styles = StyleSheet.create({
     width: LOGO_SIZE,
     height: LOGO_SIZE,
     borderRadius: LOGO_SIZE / 2,
-    backgroundColor: '#7C83FD',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
-    shadowColor: '#7C83FD',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
   },
   logoText: {
-    color: '#FFFFFF',
     fontSize: LOGO_SIZE * 0.36,
     fontWeight: '800',
     letterSpacing: 1,
   },
   appName: {
-    color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '700',
     letterSpacing: 0.3,
     marginBottom: 4,
   },
   appTagline: {
-    color: '#8A8FA8',
     fontSize: 13,
   },
   formContainer: {
     flex: 1,
   },
   welcomeTitle: {
-    color: '#FFFFFF',
     fontSize: 26,
     fontWeight: '700',
     marginBottom: 6,
   },
   welcomeSubtitle: {
-    color: '#8A8FA8',
     fontSize: 15,
     marginBottom: 28,
   },
@@ -285,35 +285,30 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   inputLabel: {
-    color: '#8A8FA8',
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: '#2A2B3D',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    color: '#FFFFFF',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#3A3B52',
+    borderColor: 'transparent',
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2A2B3D',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#3A3B52',
+    borderColor: 'transparent',
   },
   passwordInput: {
     flex: 1,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    color: '#FFFFFF',
     fontSize: 16,
   },
   eyeButton: {
@@ -328,16 +323,13 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   forgotPasswordText: {
-    color: '#7C83FD',
     fontSize: 14,
     fontWeight: '500',
   },
   signInButton: {
-    backgroundColor: '#7C83FD',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#7C83FD',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -349,7 +341,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   signInButtonText: {
-    color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -362,11 +353,9 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   footerText: {
-    color: '#8A8FA8',
     fontSize: 15,
   },
   footerLink: {
-    color: '#7C83FD',
     fontSize: 15,
     fontWeight: '600',
   },

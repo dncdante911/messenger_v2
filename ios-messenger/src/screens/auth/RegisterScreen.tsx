@@ -18,6 +18,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { useAuthStore } from '../../store/authStore';
 import type { RegisterData } from '../../api/types';
+import { useTranslation } from '../../i18n';
+import { useTheme } from '../../theme';
 
 type RegisterNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
@@ -32,22 +34,23 @@ interface FieldErrors {
   confirmPassword?: string;
 }
 
-function getPasswordStrength(password: string): { score: number; label: string; color: string } {
-  if (password.length === 0) return { score: 0, label: '', color: '#3A3B52' };
+function getPasswordStrengthScore(password: string): number {
+  if (password.length === 0) return 0;
   let score = 0;
   if (password.length >= 8) score++;
   if (password.length >= 12) score++;
   if (/[A-Z]/.test(password)) score++;
   if (/[0-9]/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
-
-  if (score <= 1) return { score: 1, label: 'Weak', color: '#FF5C5C' };
-  if (score === 2) return { score: 2, label: 'Fair', color: '#FFAA33' };
-  if (score === 3) return { score: 3, label: 'Good', color: '#7C83FD' };
-  return { score: 4, label: 'Strong', color: '#4CAF82' };
+  if (score <= 1) return 1;
+  if (score === 2) return 2;
+  if (score === 3) return 3;
+  return 4;
 }
 
 export function RegisterScreen() {
+  const { t } = useTranslation();
+  const theme = useTheme();
   const navigation = useNavigation<RegisterNavigationProp>();
 
   const isLoading = useAuthStore((state) => state.isLoading);
@@ -92,7 +95,26 @@ export function RegisterScreen() {
     }
   }, [storeError, errorOpacity]);
 
-  const passwordStrength = getPasswordStrength(password);
+  const passwordScore = getPasswordStrengthScore(password);
+
+  const getStrengthLabel = (score: number): string => {
+    if (score === 0) return '';
+    if (score === 1) return t('password_strength_weak');
+    if (score === 2) return t('password_strength_fair');
+    if (score === 3) return t('password_strength_good');
+    return t('password_strength_strong');
+  };
+
+  const getStrengthColor = (score: number): string => {
+    if (score === 0) return theme.divider;
+    if (score === 1) return '#FF5C5C';
+    if (score === 2) return '#FFAA33';
+    if (score === 3) return theme.primary;
+    return theme.success;
+  };
+
+  const strengthLabel = getStrengthLabel(passwordScore);
+  const strengthColor = getStrengthColor(passwordScore);
 
   const validateEmail = (value: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -101,29 +123,29 @@ export function RegisterScreen() {
   const validate = (): boolean => {
     const errors: FieldErrors = {};
 
-    if (!firstName.trim()) errors.firstName = 'First name is required.';
-    if (!lastName.trim()) errors.lastName = 'Last name is required.';
+    if (!firstName.trim()) errors.firstName = t('error_required_field');
+    if (!lastName.trim()) errors.lastName = t('error_required_field');
     if (!username.trim()) {
-      errors.username = 'Username is required.';
+      errors.username = t('error_required_field');
     } else if (username.trim().length < 3) {
-      errors.username = 'Username must be at least 3 characters.';
+      errors.username = t('error_username_short');
     } else if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) {
-      errors.username = 'Username can only contain letters, numbers, and underscores.';
+      errors.username = t('error_required_field');
     }
     if (!email.trim()) {
-      errors.email = 'Email is required.';
+      errors.email = t('error_required_field');
     } else if (!validateEmail(email.trim())) {
-      errors.email = 'Please enter a valid email address.';
+      errors.email = t('error_email_invalid');
     }
     if (!password) {
-      errors.password = 'Password is required.';
+      errors.password = t('error_required_field');
     } else if (password.length < 8) {
-      errors.password = 'Password must be at least 8 characters.';
+      errors.password = t('password_min_8');
     }
     if (!confirmPassword) {
-      errors.confirmPassword = 'Please confirm your password.';
+      errors.confirmPassword = t('error_required_field');
     } else if (password !== confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match.';
+      errors.confirmPassword = t('passwords_mismatch');
     }
 
     setFieldErrors(errors);
@@ -157,9 +179,15 @@ export function RegisterScreen() {
     if (storeError) clearError();
   };
 
+  const genderLabel = (g: Gender): string => {
+    if (g === 'male') return t('gender_male');
+    if (g === 'female') return t('gender_female');
+    return t('gender_other');
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1B2E" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -172,8 +200,8 @@ export function RegisterScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join WorldMates today</Text>
+            <Text style={[styles.title, { color: theme.text }]}>{t('create_account_title')}</Text>
+            <Text style={[styles.subtitle, { color: theme.textTertiary }]}>{t('join_worldmates')}</Text>
           </View>
 
           {storeError ? (
@@ -184,11 +212,15 @@ export function RegisterScreen() {
 
           <View style={styles.nameRow}>
             <View style={[styles.inputWrapper, styles.nameField]}>
-              <Text style={styles.inputLabel}>First Name</Text>
+              <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('first_name')}</Text>
               <TextInput
-                style={[styles.input, fieldErrors.firstName ? styles.inputError : null]}
-                placeholder="First name"
-                placeholderTextColor="#4A4E6A"
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.inputBackground, color: theme.text },
+                  fieldErrors.firstName ? styles.inputError : null,
+                ]}
+                placeholder={t('first_name')}
+                placeholderTextColor={theme.textTertiary}
                 value={firstName}
                 onChangeText={(text) => {
                   setFirstName(text);
@@ -198,7 +230,7 @@ export function RegisterScreen() {
                 autoCorrect={false}
                 returnKeyType="next"
                 onSubmitEditing={() => lastNameRef.current?.focus()}
-                selectionColor="#7C83FD"
+                selectionColor={theme.primary}
               />
               {fieldErrors.firstName ? (
                 <Text style={styles.fieldError}>{fieldErrors.firstName}</Text>
@@ -206,12 +238,16 @@ export function RegisterScreen() {
             </View>
 
             <View style={[styles.inputWrapper, styles.nameField]}>
-              <Text style={styles.inputLabel}>Last Name</Text>
+              <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('last_name')}</Text>
               <TextInput
                 ref={lastNameRef}
-                style={[styles.input, fieldErrors.lastName ? styles.inputError : null]}
-                placeholder="Last name"
-                placeholderTextColor="#4A4E6A"
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.inputBackground, color: theme.text },
+                  fieldErrors.lastName ? styles.inputError : null,
+                ]}
+                placeholder={t('last_name')}
+                placeholderTextColor={theme.textTertiary}
                 value={lastName}
                 onChangeText={(text) => {
                   setLastName(text);
@@ -221,7 +257,7 @@ export function RegisterScreen() {
                 autoCorrect={false}
                 returnKeyType="next"
                 onSubmitEditing={() => usernameRef.current?.focus()}
-                selectionColor="#7C83FD"
+                selectionColor={theme.primary}
               />
               {fieldErrors.lastName ? (
                 <Text style={styles.fieldError}>{fieldErrors.lastName}</Text>
@@ -230,12 +266,16 @@ export function RegisterScreen() {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Username</Text>
+            <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('username')}</Text>
             <TextInput
               ref={usernameRef}
-              style={[styles.input, fieldErrors.username ? styles.inputError : null]}
-              placeholder="Choose a username"
-              placeholderTextColor="#4A4E6A"
+              style={[
+                styles.input,
+                { backgroundColor: theme.inputBackground, color: theme.text },
+                fieldErrors.username ? styles.inputError : null,
+              ]}
+              placeholder={t('username')}
+              placeholderTextColor={theme.textTertiary}
               value={username}
               onChangeText={(text) => {
                 setUsername(text);
@@ -245,7 +285,7 @@ export function RegisterScreen() {
               autoCorrect={false}
               returnKeyType="next"
               onSubmitEditing={() => emailRef.current?.focus()}
-              selectionColor="#7C83FD"
+              selectionColor={theme.primary}
             />
             {fieldErrors.username ? (
               <Text style={styles.fieldError}>{fieldErrors.username}</Text>
@@ -253,12 +293,16 @@ export function RegisterScreen() {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('email')}</Text>
             <TextInput
               ref={emailRef}
-              style={[styles.input, fieldErrors.email ? styles.inputError : null]}
-              placeholder="Enter your email"
-              placeholderTextColor="#4A4E6A"
+              style={[
+                styles.input,
+                { backgroundColor: theme.inputBackground, color: theme.text },
+                fieldErrors.email ? styles.inputError : null,
+              ]}
+              placeholder={t('email')}
+              placeholderTextColor={theme.textTertiary}
               value={email}
               onChangeText={(text) => {
                 setEmail(text);
@@ -270,7 +314,7 @@ export function RegisterScreen() {
               autoComplete="email"
               returnKeyType="next"
               onSubmitEditing={() => passwordRef.current?.focus()}
-              selectionColor="#7C83FD"
+              selectionColor={theme.primary}
             />
             {fieldErrors.email ? (
               <Text style={styles.fieldError}>{fieldErrors.email}</Text>
@@ -278,18 +322,19 @@ export function RegisterScreen() {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Password</Text>
+            <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('password')}</Text>
             <View
               style={[
                 styles.passwordContainer,
+                { backgroundColor: theme.inputBackground },
                 fieldErrors.password ? styles.passwordContainerError : null,
               ]}
             >
               <TextInput
                 ref={passwordRef}
-                style={styles.passwordInput}
-                placeholder="Create a password"
-                placeholderTextColor="#4A4E6A"
+                style={[styles.passwordInput, { color: theme.text }]}
+                placeholder={t('password')}
+                placeholderTextColor={theme.textTertiary}
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
@@ -300,7 +345,7 @@ export function RegisterScreen() {
                 autoCorrect={false}
                 returnKeyType="next"
                 onSubmitEditing={() => confirmPasswordRef.current?.focus()}
-                selectionColor="#7C83FD"
+                selectionColor={theme.primary}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
@@ -320,17 +365,17 @@ export function RegisterScreen() {
                         styles.strengthBar,
                         {
                           backgroundColor:
-                            bar <= passwordStrength.score
-                              ? passwordStrength.color
-                              : '#3A3B52',
+                            bar <= passwordScore
+                              ? strengthColor
+                              : theme.divider,
                         },
                       ]}
                     />
                   ))}
                 </View>
-                {passwordStrength.label ? (
-                  <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
-                    {passwordStrength.label}
+                {strengthLabel ? (
+                  <Text style={[styles.strengthLabel, { color: strengthColor }]}>
+                    {strengthLabel}
                   </Text>
                 ) : null}
               </View>
@@ -341,18 +386,19 @@ export function RegisterScreen() {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Confirm Password</Text>
+            <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('confirm_password')}</Text>
             <View
               style={[
                 styles.passwordContainer,
+                { backgroundColor: theme.inputBackground },
                 fieldErrors.confirmPassword ? styles.passwordContainerError : null,
               ]}
             >
               <TextInput
                 ref={confirmPasswordRef}
-                style={styles.passwordInput}
-                placeholder="Confirm your password"
-                placeholderTextColor="#4A4E6A"
+                style={[styles.passwordInput, { color: theme.text }]}
+                placeholder={t('confirm_password')}
+                placeholderTextColor={theme.textTertiary}
                 value={confirmPassword}
                 onChangeText={(text) => {
                   setConfirmPassword(text);
@@ -363,7 +409,7 @@ export function RegisterScreen() {
                 autoCorrect={false}
                 returnKeyType="done"
                 onSubmitEditing={handleRegister}
-                selectionColor="#7C83FD"
+                selectionColor={theme.primary}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
@@ -379,17 +425,21 @@ export function RegisterScreen() {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Gender</Text>
+            <Text style={[styles.inputLabel, { color: theme.textTertiary }]}>{t('gender')}</Text>
             <View style={styles.genderRow}>
               {(['male', 'female', 'other'] as Gender[]).map((g) => (
                 <TouchableOpacity
                   key={g}
-                  style={[styles.genderOption, gender === g && styles.genderOptionSelected]}
+                  style={[
+                    styles.genderOption,
+                    { backgroundColor: theme.inputBackground, borderColor: theme.divider },
+                    gender === g && { backgroundColor: theme.surfaceElevated, borderColor: theme.primary },
+                  ]}
                   onPress={() => setGender(g)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.genderText, gender === g && styles.genderTextSelected]}>
-                    {g.charAt(0).toUpperCase() + g.slice(1)}
+                  <Text style={[styles.genderText, { color: theme.textTertiary }, gender === g && { color: theme.primary }]}>
+                    {genderLabel(g)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -397,25 +447,29 @@ export function RegisterScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.createButton, isLoading && styles.createButtonDisabled]}
+            style={[
+              styles.createButton,
+              { backgroundColor: theme.primary, shadowColor: theme.primary },
+              isLoading && styles.createButtonDisabled,
+            ]}
             onPress={handleRegister}
             activeOpacity={0.85}
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={theme.white} size="small" />
             ) : (
-              <Text style={styles.createButtonText}>Create Account</Text>
+              <Text style={[styles.createButtonText, { color: theme.white }]}>{t('sign_up')}</Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
+            <Text style={[styles.footerText, { color: theme.textTertiary }]}>{t('already_have_account')} </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
               activeOpacity={0.7}
             >
-              <Text style={styles.footerLink}>Sign In</Text>
+              <Text style={[styles.footerLink, { color: theme.primary }]}>{t('sign_in')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -427,7 +481,6 @@ export function RegisterScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
   },
   flex: {
     flex: 1,
@@ -442,13 +495,11 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   title: {
-    color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '700',
     marginBottom: 6,
   },
   subtitle: {
-    color: '#8A8FA8',
     fontSize: 15,
   },
   errorBanner: {
@@ -476,21 +527,18 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   inputLabel: {
-    color: '#8A8FA8',
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: '#2A2B3D',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    color: '#FFFFFF',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#3A3B52',
+    borderColor: 'transparent',
   },
   inputError: {
     borderColor: '#FF5C5C',
@@ -498,10 +546,9 @@ const styles = StyleSheet.create({
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2A2B3D',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#3A3B52',
+    borderColor: 'transparent',
   },
   passwordContainerError: {
     borderColor: '#FF5C5C',
@@ -510,7 +557,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    color: '#FFFFFF',
     fontSize: 16,
   },
   eyeButton: {
@@ -553,29 +599,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#2A2B3D',
     borderWidth: 1,
-    borderColor: '#3A3B52',
     alignItems: 'center',
   },
-  genderOptionSelected: {
-    backgroundColor: '#2E2F4A',
-    borderColor: '#7C83FD',
-  },
   genderText: {
-    color: '#8A8FA8',
     fontSize: 14,
     fontWeight: '600',
   },
-  genderTextSelected: {
-    color: '#7C83FD',
-  },
   createButton: {
-    backgroundColor: '#7C83FD',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#7C83FD',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -588,7 +622,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   createButtonText: {
-    color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -600,11 +633,9 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   footerText: {
-    color: '#8A8FA8',
     fontSize: 15,
   },
   footerLink: {
-    color: '#7C83FD',
     fontSize: 15,
     fontWeight: '600',
   },

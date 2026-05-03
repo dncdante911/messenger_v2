@@ -1,11 +1,7 @@
-// ============================================================
-// WorldMates Messenger — ErrorBoundary
-// Class-based React error boundary for catching render errors.
-// ============================================================
-
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { defaultTheme } from '../../theme';
 
 interface Props {
   children: React.ReactNode;
@@ -27,7 +23,6 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    // Log for crash reporting integrations (e.g. Sentry)
     console.error('[ErrorBoundary] Caught render error:', error, info.componentStack);
   }
 
@@ -40,17 +35,15 @@ class ErrorBoundary extends React.Component<Props, State> {
       return this.props.children;
     }
 
-    const isDev = __DEV__;
-
     return (
       <View style={styles.container}>
-        <Feather name="alert-circle" size={64} color="#FF4D4F" />
-        <Text style={styles.title}>Something went wrong</Text>
-        {isDev && this.state.error ? (
+        <Feather name="alert-circle" size={64} color={defaultTheme.error} />
+        <Text style={styles.title}>Щось пішло не так</Text>
+        {__DEV__ && this.state.error ? (
           <Text style={styles.message}>{this.state.error.message}</Text>
         ) : null}
         <TouchableOpacity style={styles.button} onPress={this.handleRetry} activeOpacity={0.8}>
-          <Text style={styles.buttonText}>Try Again</Text>
+          <Text style={styles.buttonText}>Спробувати знову</Text>
         </TouchableOpacity>
       </View>
     );
@@ -60,20 +53,20 @@ class ErrorBoundary extends React.Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
+    backgroundColor: defaultTheme.background,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
   },
   title: {
-    color: '#FFFFFF',
+    color: defaultTheme.text,
     fontSize: 20,
     fontWeight: '700',
     marginTop: 20,
     textAlign: 'center',
   },
   message: {
-    color: '#8E8E93',
+    color: defaultTheme.textSecondary,
     fontSize: 13,
     marginTop: 12,
     textAlign: 'center',
@@ -81,7 +74,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 32,
-    backgroundColor: '#7C83FD',
+    backgroundColor: defaultTheme.primary,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 12,

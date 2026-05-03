@@ -13,6 +13,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { storageService } from '../../services/storageService';
+import { useTranslation } from '../../i18n';
+import { useTheme } from '../../theme';
 
 type LanguageNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'LanguageSelection'>;
 
@@ -35,6 +37,8 @@ const LANGUAGES: Language[] = [
 ];
 
 export function LanguageSelectionScreen() {
+  const { t } = useTranslation();
+  const theme = useTheme();
   const navigation = useNavigation<LanguageNavigationProp>();
   const [selectedCode, setSelectedCode] = useState<string>('en');
   const [isSaving, setIsSaving] = useState(false);
@@ -55,20 +59,24 @@ export function LanguageSelectionScreen() {
     const isSelected = item.code === selectedCode;
     return (
       <TouchableOpacity
-        style={[styles.languageItem, isSelected && styles.languageItemSelected]}
+        style={[
+          styles.languageItem,
+          { backgroundColor: theme.surface },
+          isSelected && { backgroundColor: theme.surfaceElevated, borderWidth: 1.5, borderColor: theme.primary },
+        ]}
         onPress={() => setSelectedCode(item.code)}
         activeOpacity={0.7}
       >
         <Text style={styles.flag}>{item.flag}</Text>
         <View style={styles.languageTextContainer}>
-          <Text style={styles.languageName}>{item.name}</Text>
+          <Text style={[styles.languageName, { color: theme.text }]}>{item.name}</Text>
           {item.name !== item.nativeName && (
-            <Text style={styles.nativeName}>{item.nativeName}</Text>
+            <Text style={[styles.nativeName, { color: theme.textTertiary }]}>{item.nativeName}</Text>
           )}
         </View>
         {isSelected && (
-          <View style={styles.checkmark}>
-            <Text style={styles.checkmarkText}>✓</Text>
+          <View style={[styles.checkmark, { backgroundColor: theme.primary }]}>
+            <Text style={[styles.checkmarkText, { color: theme.white }]}>✓</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -76,12 +84,12 @@ export function LanguageSelectionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1B2E" />
-      <View style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>Choose your language</Text>
-          <Text style={styles.subtitle}>Виберіть мову</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{t('language_selection_title')}</Text>
+          <Text style={[styles.subtitle, { color: theme.textTertiary }]}>{t('language_selection_subtitle')}</Text>
         </View>
 
         <FlatList
@@ -96,12 +104,16 @@ export function LanguageSelectionScreen() {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.continueButton, isSaving && styles.continueButtonDisabled]}
+            style={[
+              styles.continueButton,
+              { backgroundColor: theme.primary, shadowColor: theme.primary },
+              isSaving && styles.continueButtonDisabled,
+            ]}
             onPress={handleContinue}
             activeOpacity={0.85}
             disabled={isSaving}
           >
-            <Text style={styles.continueButtonText}>Continue</Text>
+            <Text style={[styles.continueButtonText, { color: theme.white }]}>{t('language_continue')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -112,11 +124,9 @@ export function LanguageSelectionScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
   },
   container: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
   },
   header: {
     paddingHorizontal: 24,
@@ -124,13 +134,11 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   title: {
-    color: '#FFFFFF',
     fontSize: 26,
     fontWeight: '700',
     marginBottom: 6,
   },
   subtitle: {
-    color: '#8A8FA8',
     fontSize: 16,
     fontWeight: '400',
   },
@@ -147,12 +155,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderRadius: 14,
-    backgroundColor: '#23243A',
-  },
-  languageItemSelected: {
-    backgroundColor: '#2E2F4A',
-    borderWidth: 1.5,
-    borderColor: '#7C83FD',
   },
   flag: {
     fontSize: 28,
@@ -162,12 +164,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   languageName: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
   nativeName: {
-    color: '#8A8FA8',
     fontSize: 13,
     marginTop: 2,
   },
@@ -175,12 +175,10 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#7C83FD',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkmarkText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -193,11 +191,9 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   continueButton: {
-    backgroundColor: '#7C83FD',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#7C83FD',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -207,7 +203,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   continueButtonText: {
-    color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,

@@ -1,26 +1,15 @@
-// ============================================================
-// WorldMates Messenger — Avatar Component
-//
-// Shows a rounded user photo (via expo-image).
-// Falls back to coloured initials when no URI is provided.
-// Optionally overlays a green online-status dot.
-// ============================================================
-
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { MEDIA_BASE_URL } from '../../constants/api';
-
-// ─────────────────────────────────────────────────────────────
-// PALETTE — deterministic background colours from name hash
-// ─────────────────────────────────────────────────────────────
+import { useTheme } from '../../theme';
 
 const AVATAR_COLORS = [
   '#F28B82',
   '#FBBC04',
   '#34A853',
   '#4ECDC4',
-  '#7C83FD',
+  '#4FC3F7',
   '#FF7EB3',
   '#56A0D3',
   '#A37CC8',
@@ -49,7 +38,6 @@ function getInitials(name: string): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-/** Resolve a potentially relative URL to an absolute one. */
 function resolveUri(uri: string): string {
   if (!uri) return '';
   if (uri.startsWith('http://') || uri.startsWith('https://') || uri.startsWith('file://')) {
@@ -57,10 +45,6 @@ function resolveUri(uri: string): string {
   }
   return `${MEDIA_BASE_URL}${uri.startsWith('/') ? uri.slice(1) : uri}`;
 }
-
-// ─────────────────────────────────────────────────────────────
-// PROPS
-// ─────────────────────────────────────────────────────────────
 
 export interface AvatarProps {
   uri?: string;
@@ -71,10 +55,6 @@ export interface AvatarProps {
   style?: StyleProp<ViewStyle>;
 }
 
-// ─────────────────────────────────────────────────────────────
-// COMPONENT
-// ─────────────────────────────────────────────────────────────
-
 export const Avatar: React.FC<AvatarProps> = ({
   uri,
   name = '',
@@ -83,6 +63,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   isOnline = false,
   style,
 }) => {
+  const theme = useTheme();
   const resolvedUri = useMemo(() => (uri ? resolveUri(uri) : ''), [uri]);
   const bgColor = useMemo(() => getAvatarColor(name), [name]);
   const initials = useMemo(() => getInitials(name), [name]);
@@ -96,7 +77,7 @@ export const Avatar: React.FC<AvatarProps> = ({
       {resolvedUri ? (
         <Image
           source={{ uri: resolvedUri }}
-          style={[styles.image, { width: size, height: size, borderRadius: size / 2 }]}
+          style={[styles.image, { width: size, height: size, borderRadius: size / 2, backgroundColor: theme.surface }]}
           contentFit="cover"
           transition={150}
           cachePolicy="memory-disk"
@@ -122,7 +103,8 @@ export const Avatar: React.FC<AvatarProps> = ({
               borderRadius: dotSize / 2,
               bottom: dotOffset,
               right: dotOffset,
-              backgroundColor: isOnline ? '#34C759' : '#8E8E93',
+              backgroundColor: isOnline ? theme.online : theme.textTertiary,
+              borderColor: theme.background,
             },
           ]}
         />
@@ -131,14 +113,8 @@ export const Avatar: React.FC<AvatarProps> = ({
   );
 };
 
-// ─────────────────────────────────────────────────────────────
-// STYLES
-// ─────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  image: {
-    backgroundColor: '#2A2B3D',
-  },
+  image: {},
   fallback: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -151,6 +127,5 @@ const styles = StyleSheet.create({
   onlineDot: {
     position: 'absolute',
     borderWidth: 2,
-    borderColor: '#1A1B2E',
   },
 });

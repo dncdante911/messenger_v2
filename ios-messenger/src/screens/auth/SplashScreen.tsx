@@ -11,6 +11,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { storageService } from '../../services/storageService';
+import { useTranslation } from '../../i18n';
+import { useTheme } from '../../theme';
 
 type SplashNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Splash'>;
 
@@ -18,6 +20,8 @@ const { width } = Dimensions.get('window');
 const LOGO_SIZE = width * 0.32;
 
 export function SplashScreen() {
+  const { t } = useTranslation();
+  const theme = useTheme();
   const navigation = useNavigation<SplashNavigationProp>();
   const scaleAnim = useRef(new Animated.Value(0.4)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -58,8 +62,8 @@ export function SplashScreen() {
   }, [navigation, scaleAnim, opacityAnim, textOpacityAnim]);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1B2E" />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
       <Animated.View
         style={[
           styles.logoContainer,
@@ -69,15 +73,15 @@ export function SplashScreen() {
           },
         ]}
       >
-        <View style={styles.logoCircle}>
-          <Text style={styles.logoText}>WM</Text>
+        <View style={[styles.logoCircle, { backgroundColor: theme.primary, shadowColor: theme.primary }]}>
+          <Text style={[styles.logoText, { color: theme.white }]}>WM</Text>
         </View>
-        <View style={styles.logoGlow} pointerEvents="none" />
+        <View style={[styles.logoGlow, { backgroundColor: 'rgba(124, 131, 253, 0.15)' }]} pointerEvents="none" />
       </Animated.View>
 
       <Animated.View style={{ opacity: textOpacityAnim, alignItems: 'center' }}>
-        <Text style={styles.appName}>WorldMates</Text>
-        <Text style={styles.tagline}>Connect. Share. Belong.</Text>
+        <Text style={[styles.appName, { color: theme.text }]}>{t('app_name')}</Text>
+        <Text style={[styles.tagline, { color: theme.textTertiary }]}>{t('login_world_subtitle')}</Text>
       </Animated.View>
     </View>
   );
@@ -86,7 +90,6 @@ export function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 28,
@@ -100,10 +103,8 @@ const styles = StyleSheet.create({
     width: LOGO_SIZE,
     height: LOGO_SIZE,
     borderRadius: LOGO_SIZE / 2,
-    backgroundColor: '#7C83FD',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#7C83FD',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 24,
@@ -114,23 +115,19 @@ const styles = StyleSheet.create({
     width: LOGO_SIZE + 32,
     height: LOGO_SIZE + 32,
     borderRadius: (LOGO_SIZE + 32) / 2,
-    backgroundColor: 'rgba(124, 131, 253, 0.15)',
   },
   logoText: {
-    color: '#FFFFFF',
     fontSize: LOGO_SIZE * 0.38,
     fontWeight: '800',
     letterSpacing: 2,
   },
   appName: {
-    color: '#FFFFFF',
     fontSize: 32,
     fontWeight: '700',
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   tagline: {
-    color: '#8A8FA8',
     fontSize: 15,
     fontWeight: '400',
     letterSpacing: 0.3,

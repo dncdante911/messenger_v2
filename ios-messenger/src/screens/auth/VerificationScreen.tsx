@@ -15,6 +15,8 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
+import { useTranslation } from '../../i18n';
+import { useTheme } from '../../theme';
 
 type VerificationScreenProps = NativeStackScreenProps<AuthStackParamList, 'Verification'>;
 type VerificationNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Verification'>;
@@ -22,6 +24,8 @@ type VerificationNavigationProp = NativeStackNavigationProp<AuthStackParamList, 
 const CODE_LENGTH = 6;
 
 export function VerificationScreen() {
+  const { t } = useTranslation();
+  const theme = useTheme();
   const navigation = useNavigation<VerificationNavigationProp>();
   const route = useRoute<VerificationScreenProps['route']>();
   const { email } = route.params;
@@ -92,7 +96,7 @@ export function VerificationScreen() {
   const handleVerify = async (codeString?: string) => {
     const verifyCode = codeString ?? code.join('');
     if (verifyCode.length < CODE_LENGTH) {
-      setError(`Please enter the full ${CODE_LENGTH}-digit code.`);
+      setError(t('invalid_code'));
       return;
     }
 
@@ -104,7 +108,7 @@ export function VerificationScreen() {
       await new Promise<void>((resolve, reject) => {
         setTimeout(() => {
           if (verifyCode === '000000') {
-            reject(new Error('Invalid verification code.'));
+            reject(new Error(t('invalid_code')));
           } else {
             resolve();
           }
@@ -124,7 +128,7 @@ export function VerificationScreen() {
     } catch (err: any) {
       setIsLoading(false);
       const message =
-        err?.response?.data?.message || err?.message || 'Invalid verification code.';
+        err?.response?.data?.message || err?.message || t('invalid_code');
       setError(message);
       setCode(Array(CODE_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
@@ -154,7 +158,7 @@ export function VerificationScreen() {
         });
       }, 1000);
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Failed to resend code. Try again.';
+      const message = err?.response?.data?.message || t('error_network');
       setError(message);
     } finally {
       setIsResending(false);
@@ -165,8 +169,8 @@ export function VerificationScreen() {
   const filledCount = code.filter((d) => d !== '').length;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1B2E" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.background} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -178,20 +182,20 @@ export function VerificationScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             activeOpacity={0.7}
           >
-            <Text style={styles.backArrow}>←</Text>
-            <Text style={styles.backText}>Back</Text>
+            <Text style={[styles.backArrow, { color: theme.primary }]}>←</Text>
+            <Text style={[styles.backText, { color: theme.primary }]}>{t('back')}</Text>
           </TouchableOpacity>
 
           <View style={styles.iconContainer}>
-            <View style={styles.iconCircle}>
+            <View style={[styles.iconCircle, { backgroundColor: theme.inputBackground, borderColor: theme.primary, shadowColor: theme.primary }]}>
               <Text style={styles.iconEmoji}>✉️</Text>
             </View>
           </View>
 
-          <Text style={styles.title}>Verify your email</Text>
-          <Text style={styles.subtitle}>
-            We sent a {CODE_LENGTH}-digit code to{'\n'}
-            <Text style={styles.emailHighlight}>{email}</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{t('verification_code')}</Text>
+          <Text style={[styles.subtitle, { color: theme.textTertiary }]}>
+            {t('enter_verification_code')}{'\n'}
+            <Text style={[styles.emailHighlight, { color: theme.primary }]}>{email}</Text>
           </Text>
 
           {error ? (
@@ -211,7 +215,8 @@ export function VerificationScreen() {
                   }}
                   style={[
                     styles.codeInput,
-                    code[i] ? styles.codeInputFilled : null,
+                    { backgroundColor: theme.inputBackground, color: theme.text },
+                    code[i] ? { borderColor: theme.primary, backgroundColor: theme.surfaceElevated } : null,
                     error ? styles.codeInputError : null,
                   ]}
                   value={code[i]}
@@ -219,7 +224,7 @@ export function VerificationScreen() {
                   onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
                   keyboardType="number-pad"
                   maxLength={1}
-                  selectionColor="#7C83FD"
+                  selectionColor={theme.primary}
                   autoFocus={i === 0}
                   selectTextOnFocus
                 />
@@ -229,6 +234,7 @@ export function VerificationScreen() {
           <TouchableOpacity
             style={[
               styles.verifyButton,
+              { backgroundColor: theme.primary, shadowColor: theme.primary },
               (isLoading || filledCount < CODE_LENGTH) && styles.verifyButtonDisabled,
             ]}
             onPress={() => handleVerify()}
@@ -236,32 +242,34 @@ export function VerificationScreen() {
             disabled={isLoading || filledCount < CODE_LENGTH}
           >
             {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={theme.white} size="small" />
             ) : (
-              <Text style={styles.verifyButtonText}>Verify</Text>
+              <Text style={[styles.verifyButtonText, { color: theme.white }]}>{t('verify')}</Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.resendContainer}>
-            <Text style={styles.resendText}>Didn't receive the code? </Text>
+            <Text style={[styles.resendText, { color: theme.textTertiary }]}>{t('resend_code')} </Text>
             {canResend ? (
               <TouchableOpacity onPress={handleResend} activeOpacity={0.7} disabled={isResending}>
                 {isResending ? (
-                  <ActivityIndicator color="#7C83FD" size="small" />
+                  <ActivityIndicator color={theme.primary} size="small" />
                 ) : (
-                  <Text style={styles.resendLink}>Resend</Text>
+                  <Text style={[styles.resendLink, { color: theme.primary }]}>{t('resend_code')}</Text>
                 )}
               </TouchableOpacity>
             ) : (
-              <Text style={styles.resendCooldown}>Resend in {resendCooldown}s</Text>
+              <Text style={[styles.resendCooldown, { color: theme.textTertiary }]}>
+                {t('resend_in')} {resendCooldown}{t('seconds')}
+              </Text>
             )}
           </View>
 
-          <Animated.View style={[styles.successOverlay, { opacity: successOpacity }]}>
-            <View style={styles.successIconCircle}>
-              <Text style={styles.successCheckmark}>✓</Text>
+          <Animated.View style={[styles.successOverlay, { opacity: successOpacity, backgroundColor: theme.background }]}>
+            <View style={[styles.successIconCircle, { backgroundColor: 'rgba(76, 175, 130, 0.15)', borderColor: theme.success }]}>
+              <Text style={[styles.successCheckmark, { color: theme.success }]}>✓</Text>
             </View>
-            <Text style={styles.successText}>Verified!</Text>
+            <Text style={[styles.successText, { color: theme.text }]}>{t('login_success')}</Text>
           </Animated.View>
         </View>
       </KeyboardAvoidingView>
@@ -272,7 +280,6 @@ export function VerificationScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A1B2E',
   },
   flex: {
     flex: 1,
@@ -290,12 +297,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   backArrow: {
-    color: '#7C83FD',
     fontSize: 20,
     fontWeight: '500',
   },
   backText: {
-    color: '#7C83FD',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -308,12 +313,9 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#2A2B3D',
     borderWidth: 2,
-    borderColor: '#7C83FD',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#7C83FD',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -323,21 +325,18 @@ const styles = StyleSheet.create({
     fontSize: 36,
   },
   title: {
-    color: '#FFFFFF',
     fontSize: 26,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 12,
   },
   subtitle: {
-    color: '#8A8FA8',
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 28,
   },
   emailHighlight: {
-    color: '#7C83FD',
     fontWeight: '600',
   },
   errorBanner: {
@@ -364,27 +363,19 @@ const styles = StyleSheet.create({
     width: 48,
     height: 56,
     borderRadius: 12,
-    backgroundColor: '#2A2B3D',
     borderWidth: 1.5,
-    borderColor: '#3A3B52',
-    color: '#FFFFFF',
+    borderColor: 'transparent',
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  codeInputFilled: {
-    borderColor: '#7C83FD',
-    backgroundColor: '#2E2F4A',
   },
   codeInputError: {
     borderColor: '#FF5C5C',
   },
   verifyButton: {
-    backgroundColor: '#7C83FD',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#7C83FD',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -397,7 +388,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   verifyButtonText: {
-    color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -408,22 +398,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resendText: {
-    color: '#8A8FA8',
     fontSize: 14,
   },
   resendLink: {
-    color: '#7C83FD',
     fontSize: 14,
     fontWeight: '600',
   },
   resendCooldown: {
-    color: '#5A5F78',
     fontSize: 14,
     fontWeight: '500',
   },
   successOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#1A1B2E',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -431,25 +417,20 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(76, 175, 130, 0.15)',
     borderWidth: 2,
-    borderColor: '#4CAF82',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-    shadowColor: '#4CAF82',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
   successCheckmark: {
-    color: '#4CAF82',
     fontSize: 48,
     fontWeight: '700',
   },
   successText: {
-    color: '#FFFFFF',
     fontSize: 26,
     fontWeight: '700',
   },
