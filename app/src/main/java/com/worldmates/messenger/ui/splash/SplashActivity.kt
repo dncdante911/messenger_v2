@@ -21,7 +21,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.airbnb.lottie.compose.*
 import com.worldmates.messenger.R
 import com.worldmates.messenger.ui.login.LoginActivity
 import kotlinx.coroutines.delay
@@ -85,22 +84,13 @@ private fun SplashScreen(onFinished: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Иконка приложения (маскот) с bounce-анимацией
-            // После добавления реального PNG маскота замени на Image(painterResource(R.drawable.mascot_splash))
-            Box(
+            Image(
+                painter = painterResource(R.drawable.mascot_splash),
+                contentDescription = "WorldMates Mascot",
                 modifier = Modifier
                     .size(160.dp)
-                    .scale(iconScale.value),
-                contentAlignment = Alignment.Center
-            ) {
-                // TODO: замени на реальное изображение маскота:
-                // Image(
-                //     painter = painterResource(R.drawable.mascot_splash),
-                //     contentDescription = "WallyMates Mascot",
-                //     modifier = Modifier.fillMaxSize()
-                // )
-                MascotPlaceholder()
-            }
+                    .scale(iconScale.value)
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -175,21 +165,3 @@ fun BouncingDots(
     }
 }
 
-/** Placeholder пока нет реальной иконки маскота */
-@Composable
-private fun MascotPlaceholder() {
-    Box(
-        modifier = Modifier
-            .size(160.dp)
-            .background(
-                Color.White.copy(alpha = 0.25f),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(40.dp)
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "🐶",
-            fontSize = 80.sp
-        )
-    }
-}
