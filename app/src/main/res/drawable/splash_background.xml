@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Splash screen for Android 12+ (uses SplashScreen API).
+     Apply via theme: <style name="Theme.App.Starting" parent="Theme.SplashScreen"> -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#F2FBF8"
+                android:endColor="#E2F4E8" />
+        </shape>
+    </item>
+    <item android:gravity="center">
+        <bitmap android:src="@drawable/splash_logo" />
+    </item>
+</layer-list>

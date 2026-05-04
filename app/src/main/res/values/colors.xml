@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Primary Colors -->
+ <!-- Primary Colors -->
     <color name="primary">#0084FF</color>
     <color name="primary_dark">#0066CC</color>
     <color name="primary_light">#4DA6FF</color>
@@ -40,4 +40,11 @@
     <color name="transparent">#00000000</color>
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
+
+    <color name="ic_launcher_background_solid">#4ECDC4</color>
+    <color name="splash_background">#F2FBF8</color>
+    <color name="splash_text">#0F1A24</color>
+    <color name="brand_teal">#4ECDC4</color>
+    <color name="brand_mint">#95E1A3</color>
+    <color name="brand_teal_deep">#2BA39B</color>
 </resources>

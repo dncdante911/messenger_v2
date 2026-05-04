@@ -85,4 +85,18 @@
         <item name="android:textColorHint">@color/text_tertiary</item>
     </style>
 
+    <!-- Android 12+ Splash Screen API theme -->
+    <style name="Theme.WorldMates.Starting" parent="Theme.SplashScreen">
+        <!-- Window background: light gradient (drawable) -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <!-- Centered logo (must be 288×288 dp area; safe 192×192) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <!-- Optional: extend duration for the icon animation (ms, max 1000) -->
+        <item name="windowSplashScreenAnimationDuration">600</item>
+        <!-- Branding image at bottom (optional) -->
+        <item name="android:windowSplashScreenBrandingImage" tools:targetApi="31">@drawable/splash_branding</item>
+        <!-- After splash -->
+        <item name="postSplashScreenTheme">@style/Theme.WorldMates</item>
+    </style>
+
 </resources>
