@@ -37,7 +37,7 @@
         <item name="android:windowFullscreen">true</item>
         <item name="android:statusBarColor">#4ECDC4</item>
         <item name="android:navigationBarColor">#95E1A3</item>
-        <item name="android:windowBackground">@drawable/ic_launcher_background</item>
+        <item name="android:windowBackground">@color/brand_teal</item>
     </style>
     
     <!-- Typography -->
