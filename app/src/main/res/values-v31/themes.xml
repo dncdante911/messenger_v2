@@ -12,7 +12,7 @@
         <!-- Branding image at bottom (optional) -->
         <item name="android:windowSplashScreenBrandingImage" tools:targetApi="31">@drawable/splash_branding</item>
         <!-- After splash -->
-        <item name="postSplashScreenTheme">@style/Theme.WorldMates</item>
+        <item name="postSplashScreenTheme">@style/Theme.WorldMatesMessenger</item>
     </style>
 
 </resources>
