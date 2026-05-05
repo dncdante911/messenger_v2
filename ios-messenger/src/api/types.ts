@@ -897,6 +897,92 @@ export interface RegisterData {
 }
 
 // ─────────────────────────────────────────────────────────────
+// NODE.JS AUTH RESPONSE TYPES
+// Ported from Android NodeAuthModels.kt / NodeAuthRepository.kt
+// ─────────────────────────────────────────────────────────────
+
+/** Raw user object embedded in Node.js auth responses */
+export interface NodeAuthUserRaw {
+  user_id: string | number;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar?: string;
+  cover?: string;
+  email?: string;
+  is_pro?: number | string;
+  verified?: number | string;
+  verification_level?: number | string;
+  followers_count?: string | number;
+  following_count?: string | number;
+  about?: string;
+  is_founder?: number;
+}
+
+/** POST /api/node/auth/login */
+export interface NodeLoginResponseData {
+  access_token: string;
+  refresh_token: string;
+  /** Unix timestamp seconds */
+  expires_at?: number;
+  /** Seconds until expiry (alternative to expires_at) */
+  expires_in?: number;
+  user: NodeAuthUserRaw;
+  success_type?: string;
+}
+
+/** POST /api/node/auth/register */
+export interface NodeRegisterResponseData {
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number;
+  expires_in?: number;
+  user?: NodeAuthUserRaw;
+  /** "verification" when server requires email/phone confirm before login */
+  success_type?: string;
+  /** Present when success_type === "verification" */
+  user_id?: string | number;
+  verification_type?: string;
+  contact_info?: string;
+}
+
+/** POST /api/node/auth/verify-code */
+export interface NodeVerifyCodeResponseData {
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number;
+  expires_in?: number;
+  user?: NodeAuthUserRaw;
+  success_type?: string;
+}
+
+/** POST /api/node/auth/send-code */
+export interface NodeSendCodeResponseData {
+  success?: boolean;
+  message?: string;
+}
+
+/** POST /api/node/auth/request-password-reset */
+export interface NodePasswordResetRequestData {
+  success?: boolean;
+  message?: string;
+}
+
+/** POST /api/node/auth/reset-password */
+export interface NodePasswordResetData {
+  success?: boolean;
+  message?: string;
+}
+
+/** POST /api/node/auth/refresh */
+export interface NodeTokenRefreshData {
+  access_token: string;
+  refresh_token: string;
+  expires_at?: number;
+  expires_in?: number;
+}
+
+// ─────────────────────────────────────────────────────────────
 // MEDIA
 // ─────────────────────────────────────────────────────────────
 

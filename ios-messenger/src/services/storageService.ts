@@ -11,6 +11,7 @@ import type { User } from '../api/types';
 // ─── Keychain keys ────────────────────────────────────────────
 const KEY_TOKEN = 'wm_access_token';
 const KEY_USER_ID = 'wm_user_id';
+const KEY_TOKEN_EXPIRES_AT = 'wm_token_expires_at';
 
 // ─── AsyncStorage keys ───────────────────────────────────────
 const KEY_LANGUAGE = 'wm_language';
@@ -18,6 +19,9 @@ const KEY_THEME = 'wm_theme';
 const KEY_FIRST_LAUNCH = 'wm_first_launch_done';
 const KEY_USER = 'wm_user_object';
 const KEY_REFRESH_TOKEN = 'wm_refresh_token';
+
+// Token expires within 60s → proactive refresh (mirrors Android TokenRefreshInterceptor)
+const TOKEN_EXPIRY_MARGIN_MS = 60_000;
 
 // ─────────────────────────────────────────────────────────────
 // SECURE (Keychain via expo-secure-store)
@@ -72,6 +76,62 @@ async function setRefreshToken(token: string): Promise<void> {
  */
 async function clearRefreshToken(): Promise<void> {
   await SecureStore.deleteItemAsync(KEY_REFRESH_TOKEN);
+}
+
+/**
+ * Store the Unix timestamp (ms) at which the access token expires.
+ */
+async function setTokenExpiresAt(expiresAtMs: number): Promise<void> {
+  await SecureStore.setItemAsync(KEY_TOKEN_EXPIRES_AT, String(expiresAtMs));
+}
+
+/**
+ * Retrieve the token expiry timestamp (ms).  Returns 0 if not set.
+ */
+async function getTokenExpiresAt(): Promise<number> {
+  try {
+    const raw = await SecureStore.getItemAsync(KEY_TOKEN_EXPIRES_AT);
+    return raw ? parseInt(raw, 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Delete the stored token expiry timestamp.
+ */
+async function clearTokenExpiresAt(): Promise<void> {
+  await SecureStore.deleteItemAsync(KEY_TOKEN_EXPIRES_AT).catch(() => {});
+}
+
+/**
+ * Returns true when the stored token will expire within TOKEN_EXPIRY_MARGIN_MS (60 s).
+ * Matches Android `UserSession.isTokenExpiringSoon`.
+ */
+async function isTokenExpiringSoon(): Promise<boolean> {
+  const expiresAt = await getTokenExpiresAt();
+  if (!expiresAt) return true;
+  return expiresAt - Date.now() < TOKEN_EXPIRY_MARGIN_MS;
+}
+
+/**
+ * Atomic session save — persists all three token-related values together.
+ * Use after login / token refresh to avoid partially-updated state.
+ */
+async function saveFullSession(
+  accessToken: string,
+  refreshToken: string,
+  expiresAtMs: number,
+  userId: string,
+  user: User,
+): Promise<void> {
+  await Promise.all([
+    SecureStore.setItemAsync(KEY_TOKEN, accessToken),
+    SecureStore.setItemAsync(KEY_REFRESH_TOKEN, refreshToken),
+    SecureStore.setItemAsync(KEY_TOKEN_EXPIRES_AT, String(expiresAtMs)),
+    SecureStore.setItemAsync(KEY_USER_ID, userId),
+    AsyncStorage.setItem(KEY_USER, JSON.stringify(user)),
+  ]);
 }
 
 /**
@@ -198,6 +258,7 @@ async function clearAll(): Promise<void> {
     SecureStore.deleteItemAsync(KEY_TOKEN).catch(() => {}),
     SecureStore.deleteItemAsync(KEY_REFRESH_TOKEN).catch(() => {}),
     SecureStore.deleteItemAsync(KEY_USER_ID).catch(() => {}),
+    SecureStore.deleteItemAsync(KEY_TOKEN_EXPIRES_AT).catch(() => {}),
     AsyncStorage.multiRemove([KEY_LANGUAGE, KEY_THEME, KEY_FIRST_LAUNCH, KEY_USER]),
   ]);
 }
@@ -207,13 +268,19 @@ async function clearAll(): Promise<void> {
 // ─────────────────────────────────────────────────────────────
 
 export const storageService = {
-  // Keychain
+  // Keychain — tokens
   getToken,
   setToken,
   clearToken,
   getRefreshToken,
   setRefreshToken,
   clearRefreshToken,
+  getTokenExpiresAt,
+  setTokenExpiresAt,
+  clearTokenExpiresAt,
+  isTokenExpiringSoon,
+  saveFullSession,
+  // Keychain — user identity
   getUserId,
   setUserId,
   clearUserId,
