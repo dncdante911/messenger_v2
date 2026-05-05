@@ -75,7 +75,16 @@ jobs:
           IPA_PATH: /tmp/WorldMatesMessenger.ipa
         run: |
           set -eo pipefail
-          APP=$(find "$ARCHIVE_PATH/Products/Applications" -name "*.app" -maxdepth 1 | head -1)
+
+          echo "=== Archive structure ==="
+          find "$ARCHIVE_PATH" -maxdepth 4 | head -40
+
+          # Ищем .app по всей структуре архива (не только в Products/Applications)
+          APP=$(find "$ARCHIVE_PATH" -name "*.app" -type d | head -1)
+          if [ -z "$APP" ]; then
+            echo "ERROR: no .app found in archive"
+            exit 1
+          fi
           echo "App bundle: $APP"
 
           rm -rf /tmp/ipa_payload
