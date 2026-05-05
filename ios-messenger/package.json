@@ -51,12 +51,12 @@
     "@noble/curves": "^1.6.0",
     "@noble/hashes": "^1.5.0",
     "@noble/ciphers": "^1.0.0",
-    "eventemitter3": "^5.0.1"
+    "eventemitter3": "^5.0.1",
+    "immer": "^10.1.1"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "@types/react": "~18.3.0",
-    "@types/react-native": "~0.76.0",
     "typescript": "^5.3.0"
   }
 }
