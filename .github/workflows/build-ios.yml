@@ -1,0 +1,123 @@
+name: Build iOS IPA
+
+# Запускается при пуше в основную ветку или вручную через GitHub → Actions
+on:
+  push:
+    branches:
+      - claude/port-messenger-ios-HGsXM
+  workflow_dispatch:   # кнопка "Run workflow" в GitHub Actions
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 90   # подстраховка от зависания
+
+    steps:
+      # ── 1. Получить код ──────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js 20 ─────────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── 3. Ruby 3.2 для CocoaPods ─────────────────────────────────────
+      - name: Setup Ruby 3.2
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      # ── 4. Установить CocoaPods ───────────────────────────────────────
+      - name: Install CocoaPods
+        run: gem install cocoapods --no-document
+
+      # ── 5. npm install ───────────────────────────────────────────────
+      - name: Install JS dependencies
+        working-directory: ios-messenger
+        run: npm install
+
+      # ── 6. expo prebuild — генерирует папку ios/ с Xcode-проектом ────
+      - name: Expo prebuild (generate Xcode project)
+        working-directory: ios-messenger
+        run: npx expo prebuild --platform ios --clean
+
+      # ── 7. pod install ───────────────────────────────────────────────
+      - name: CocoaPods install
+        working-directory: ios-messenger/ios
+        run: pod install
+
+      # ── 8. Найти имя workspace и scheme (expo генерирует автоматически)
+      - name: Detect Xcode workspace and scheme
+        working-directory: ios-messenger/ios
+        run: |
+          WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" | head -1 | xargs basename)
+          SCHEME="${WORKSPACE%.xcworkspace}"
+          echo "WORKSPACE=$WORKSPACE" >> $GITHUB_ENV
+          echo "SCHEME=$SCHEME"       >> $GITHUB_ENV
+          echo "Workspace: $WORKSPACE"
+          echo "Scheme:    $SCHEME"
+          xcodebuild -workspace "$WORKSPACE" -list 2>/dev/null || true
+
+      # ── 9. Собрать .xcarchive без подписи ────────────────────────────
+      #       CODE_SIGN_IDENTITY=""  — Sideloadly подпишет сам при установке
+      - name: Build Xcode archive (unsigned)
+        working-directory: ios-messenger/ios
+        run: |
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/WorldMatesMessenger.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            | tee /tmp/xcodebuild.log | grep -E "error:|warning:|Build succeeded|Build FAILED" || true
+
+          # Проверить результат отдельной командой без pipe (pipe скрывает exit code)
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/WorldMatesMessenger.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      # ── 10. Упаковать .app → .ipa вручную ────────────────────────────
+      #        Sideloadly принимает неподписанный .ipa и подписывает его
+      #        твоим бесплатным Apple ID при установке
+      - name: Package unsigned .ipa
+        run: |
+          APP_PATH=$(find "$RUNNER_TEMP/WorldMatesMessenger.xcarchive" \
+            -name "*.app" -maxdepth 4 | head -1)
+          echo "App path: $APP_PATH"
+
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -r "$APP_PATH" "$RUNNER_TEMP/ipa/Payload/"
+
+          cd "$RUNNER_TEMP/ipa"
+          zip -r "$RUNNER_TEMP/WorldMatesMessenger.ipa" Payload
+
+          echo "IPA size: $(du -sh $RUNNER_TEMP/WorldMatesMessenger.ipa)"
+
+      # ── 11. Выгрузить .ipa как артефакт ───────────────────────────────
+      #        Скачать: GitHub → Actions → последний запуск → Artifacts
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WorldMates-Messenger-IPA
+          path: ${{ runner.temp }}/WorldMatesMessenger.ipa
+          retention-days: 14   # хранится 14 дней
+
+      # ── 12. Логи при ошибке ───────────────────────────────────────────
+      - name: Show build log on failure
+        if: failure()
+        run: |
+          echo "=== Last 100 lines of xcodebuild log ==="
+          tail -100 /tmp/xcodebuild.log 2>/dev/null || echo "No log file"
