@@ -366,6 +366,9 @@ const ru = {
   views: 'просмотров',
   share: 'Поделиться',
   language: 'Язык',
+  delete_message_confirm: 'Удалить это сообщение?',
+  error_delete_message: 'Не удалось удалить сообщение.',
+  error_edit_message: 'Не удалось изменить сообщение.',
 } as const;
 
 export default ru;

@@ -366,6 +366,9 @@ const uk = {
   views: 'переглядів',
   share: 'Поділитися',
   language: 'Мова',
+  delete_message_confirm: 'Видалити це повідомлення?',
+  error_delete_message: 'Не вдалося видалити повідомлення.',
+  error_edit_message: 'Не вдалося змінити повідомлення.',
 } as const;
 
 export type TranslationKeys = keyof typeof uk;

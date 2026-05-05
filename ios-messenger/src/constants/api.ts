@@ -438,7 +438,11 @@ export const WRITE_TIMEOUT_SECONDS = 30;
 export const VOICE_CALL_TIMEOUT = 60;
 export const VIDEO_CALL_TIMEOUT = 120;
 
-// ==================== COMPRESSION ====================
+// ==================== ENCRYPTION ====================
+/** AES-256-GCM server-side encryption (cipher_version=2) */
+export const CIPHER_VERSION_AES = 2;
+/** Signal Protocol Double Ratchet E2EE (cipher_version=3) */
+export const CIPHER_VERSION_SIGNAL = 3;
 export const IMAGE_COMPRESSION_QUALITY = 80;
 export const VIDEO_COMPRESSION_BITRATE = 5_000_000;
 
