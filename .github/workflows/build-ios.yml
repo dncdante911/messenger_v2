@@ -50,10 +50,11 @@ jobs:
           echo "scheme=$SC"    >> $GITHUB_OUTPUT
           echo "Workspace: $WS  |  Scheme: $SC"
 
-      - name: Build Xcode archive (unsigned)
+      # xcodebuild BUILD (не archive) — создаёт .app без подписи
+      # Archive требует сертификат; build работает без него.
+      # Sideloadly сам подпишет .app при установке.
+      - name: Build .app (unsigned, iphoneos)
         working-directory: ios-messenger/ios
-        env:
-          ARCHIVE_PATH: /tmp/WorldMatesMessenger.xcarchive
         run: |
           set -eo pipefail
           xcodebuild \
@@ -61,39 +62,32 @@ jobs:
             -scheme    "${{ steps.xcode.outputs.scheme }}" \
             -configuration Release \
             -sdk iphoneos \
-            -archivePath "$ARCHIVE_PATH" \
+            -derivedDataPath /tmp/DerivedData \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
+            build \
             2>&1 | tee /tmp/xcodebuild.log
-          echo "Archive created: $(ls -lah $ARCHIVE_PATH)"
+          echo "=== Build directory ==="
+          find /tmp/DerivedData/Build/Products -maxdepth 3 -name "*.app" -type d 2>/dev/null || true
 
       - name: Package unsigned IPA
-        env:
-          ARCHIVE_PATH: /tmp/WorldMatesMessenger.xcarchive
-          IPA_PATH: /tmp/WorldMatesMessenger.ipa
         run: |
           set -eo pipefail
-
-          echo "=== Archive structure ==="
-          find "$ARCHIVE_PATH" -maxdepth 4 | head -40
-
-          # Ищем .app по всей структуре архива (не только в Products/Applications)
-          APP=$(find "$ARCHIVE_PATH" -name "*.app" -type d | head -1)
+          APP=$(find /tmp/DerivedData/Build/Products -name "*.app" -type d | grep -v simulator | head -1)
           if [ -z "$APP" ]; then
-            echo "ERROR: no .app found in archive"
+            echo "ERROR: .app not found. Full DerivedData contents:"
+            find /tmp/DerivedData/Build -maxdepth 5 2>/dev/null || true
             exit 1
           fi
-          echo "App bundle: $APP"
-
+          echo "App: $APP"
           rm -rf /tmp/ipa_payload
           mkdir -p /tmp/ipa_payload/Payload
           cp -r "$APP" /tmp/ipa_payload/Payload/
-
           cd /tmp/ipa_payload
-          zip -qr "$IPA_PATH" Payload
-          echo "IPA size: $(du -sh $IPA_PATH | cut -f1)"
+          zip -qr /tmp/WorldMatesMessenger.ipa Payload
+          echo "IPA: $(du -sh /tmp/WorldMatesMessenger.ipa | cut -f1)"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -102,6 +96,6 @@ jobs:
           path: /tmp/WorldMatesMessenger.ipa
           retention-days: 14
 
-      - name: Show xcodebuild errors on failure
+      - name: Show errors on failure
         if: failure()
-        run: grep -E "error:|BUILD FAILED" /tmp/xcodebuild.log 2>/dev/null | tail -40 || true
+        run: grep -E "error:|BUILD FAILED" /tmp/xcodebuild.log 2>/dev/null | tail -50 || true
