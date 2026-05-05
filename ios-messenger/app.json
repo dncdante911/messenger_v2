@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0D1B3E"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -37,20 +37,18 @@
         ]
       },
       "entitlements": {
-        "aps-environment": "production",
+        "aps-environment": "development",
         "com.apple.developer.associated-domains": [
           "applinks:worldmates.com"
         ]
-      },
-      "googleServicesFile": "./GoogleService-Info.plist"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#4ECDC4"
       },
       "package": "com.worldmates.messenger",
-      "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
@@ -76,12 +74,11 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#4F46E5",
+          "color": "#1565C0",
           "sounds": [
             "./assets/sounds/message.wav",
             "./assets/sounds/call.wav"
-          ],
-          "mode": "production"
+          ]
         }
       ],
       [
@@ -92,19 +89,6 @@
           "locationWhenInUsePermission": "WorldMates Messenger uses your location to share it with contacts and find people nearby.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
-        }
-      ],
-      [
-        "react-native-maps",
-        {
-          "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
-        }
-      ],
-      [
-        "@react-native-firebase/app",
-        {
-          "android_task_executor_maximum_pool_size": 10,
-          "android_task_executor_keep_alive_seconds": 3
         }
       ],
       [
@@ -130,10 +114,7 @@
         "expo-sqlite",
         {
           "enableFTS": true,
-          "useSQLCipher": false,
-          "android": {
-            "enableFTS": true
-          }
+          "useSQLCipher": false
         }
       ],
       "expo-secure-store",
