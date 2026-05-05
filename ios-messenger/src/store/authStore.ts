@@ -1,3 +1,16 @@
+// ============================================================
+// WorldMates Messenger — Auth Store
+//
+// Handles the full login / register / verify / forgot-password
+// lifecycle using the Node.js auth API.
+//
+// States:
+//   idle          — not authenticated, no pending action
+//   authenticated — logged in, user + token available
+//   verifying     — server returned success_type="verification"
+//                   (VerificationRequired — must enter code)
+// ============================================================
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { authApi } from '../api/authApi';
@@ -5,171 +18,284 @@ import { storageService } from '../services/storageService';
 import { socketService } from '../services/socketService';
 import { useThemeStore } from '../theme';
 import { useI18nStore } from '../i18n';
-import type { User, RegisterData } from '../api/types';
+import type { User } from '../api/types';
+
+// ─────────────────────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────────────────────
+
+export interface VerificationContext {
+  userId: string;
+  verificationType: string;
+  contactInfo: string;
+  /** username used at registration — needed to resend code */
+  username: string;
+}
 
 interface AuthState {
   user: User | null;
-  token: string | null;
+  accessToken: string | null;
   isLoggedIn: boolean;
   isLoading: boolean;
   error: string | null;
 
-  login: (email: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  /** Set when server requires verification before granting a session */
+  verificationRequired: boolean;
+  verificationContext: VerificationContext | null;
+
+  // ── Actions ──────────────────────────────────────────────
+  login: (usernameOrEmail: string, password: string) => Promise<void>;
+  register: (
+    username: string,
+    email: string,
+    password: string,
+    gender?: string,
+    inviteCode?: string,
+  ) => Promise<void>;
+  verifyCode: (code: string) => Promise<void>;
+  resendVerificationCode: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   clearError: () => void;
   setUser: (user: User) => void;
+  cancelVerification: () => void;
 }
+
+// ─────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────
+
+async function persistAndConnect(
+  user: User,
+  accessToken: string,
+  refreshToken: string,
+  expiresAtMs: number,
+): Promise<void> {
+  await storageService.saveFullSession(accessToken, refreshToken, expiresAtMs, user.id, user);
+  socketService.connect(accessToken);
+  // Trigger Signal key registration in background — fire and forget
+  schedulSignalRegistration();
+}
+
+function schedulSignalRegistration(): void {
+  // Import lazily so this file doesn't pull in heavy crypto at startup
+  import('../crypto/signal').then(({ signalEncryptionService }) => {
+    signalEncryptionService.ensureRegistered().catch(() => {
+      // Non-fatal — will retry on next message send
+    });
+  }).catch(() => {});
+}
+
+// ─────────────────────────────────────────────────────────────
+// STORE
+// ─────────────────────────────────────────────────────────────
 
 export const useAuthStore = create<AuthState>()(
   immer((set, get) => ({
     user: null,
-    token: null,
+    accessToken: null,
     isLoggedIn: false,
     isLoading: false,
     error: null,
+    verificationRequired: false,
+    verificationContext: null,
 
-    login: async (email: string, password: string) => {
-      set((state) => {
-        state.isLoading = true;
-        state.error = null;
-      });
+    // ── Login ───────────────────────────────────────────────
+    login: async (usernameOrEmail, password) => {
+      set((s) => { s.isLoading = true; s.error = null; });
       try {
-        const response = await authApi.login(email, password);
-        await storageService.saveToken(response.token);
-        await storageService.saveUser(response.user);
-        socketService.connect(response.token);
-        set((state) => {
-          state.user = response.user;
-          state.token = response.token;
-          state.isLoggedIn = true;
-          state.isLoading = false;
+        const result = await authApi.login(usernameOrEmail, password);
+        await persistAndConnect(result.user, result.accessToken, result.refreshToken, result.expiresAtMs);
+        set((s) => {
+          s.user = result.user;
+          s.accessToken = result.accessToken;
+          s.isLoggedIn = true;
+          s.isLoading = false;
+          s.verificationRequired = false;
+          s.verificationContext = null;
         });
-      } catch (err: any) {
-        const message =
-          err?.response?.data?.message || err?.message || 'Login failed. Please try again.';
-        set((state) => {
-          state.error = message;
-          state.isLoading = false;
-        });
+      } catch (err: unknown) {
+        const message = extractMessage(err, 'Login failed. Please try again.');
+        set((s) => { s.error = message; s.isLoading = false; });
         throw err;
       }
     },
 
-    register: async (data: RegisterData) => {
-      set((state) => {
-        state.isLoading = true;
-        state.error = null;
-      });
+    // ── Register ────────────────────────────────────────────
+    register: async (username, email, password, gender = '', inviteCode = '') => {
+      set((s) => { s.isLoading = true; s.error = null; });
       try {
-        const response = await authApi.register(data);
-        await storageService.saveToken(response.token);
-        await storageService.saveUser(response.user);
-        socketService.connect(response.token);
-        set((state) => {
-          state.user = response.user;
-          state.token = response.token;
-          state.isLoggedIn = true;
-          state.isLoading = false;
-        });
-      } catch (err: any) {
-        const message =
-          err?.response?.data?.message || err?.message || 'Registration failed. Please try again.';
-        set((state) => {
-          state.error = message;
-          state.isLoading = false;
-        });
-        throw err;
-      }
-    },
+        const result = await authApi.register(username, email, password, gender, inviteCode);
 
-    logout: async () => {
-      set((state) => {
-        state.isLoading = true;
-      });
-      try {
-        const { token } = get();
-        if (token) {
-          try {
-            await authApi.logout(token);
-          } catch {
-            // Ignore logout API errors — proceed with local cleanup
-          }
+        if (result.type === 'verification') {
+          set((s) => {
+            s.isLoading = false;
+            s.verificationRequired = true;
+            s.verificationContext = {
+              userId: result.userId,
+              verificationType: result.verificationType,
+              contactInfo: result.contactInfo,
+              username,
+            };
+          });
+          return;
         }
-        socketService.disconnect();
-        await storageService.clearAuth();
-        set((state) => {
-          state.user = null;
-          state.token = null;
-          state.isLoggedIn = false;
-          state.isLoading = false;
-          state.error = null;
+
+        await persistAndConnect(result.user, result.accessToken, result.refreshToken, result.expiresAtMs);
+        set((s) => {
+          s.user = result.user;
+          s.accessToken = result.accessToken;
+          s.isLoggedIn = true;
+          s.isLoading = false;
+          s.verificationRequired = false;
+          s.verificationContext = null;
         });
-      } catch (err: any) {
-        socketService.disconnect();
-        await storageService.clearAuth();
-        set((state) => {
-          state.user = null;
-          state.token = null;
-          state.isLoggedIn = false;
-          state.isLoading = false;
-        });
+      } catch (err: unknown) {
+        const message = extractMessage(err, 'Registration failed. Please try again.');
+        set((s) => { s.error = message; s.isLoading = false; });
+        throw err;
       }
     },
 
-    loadStoredAuth: async () => {
-      set((state) => {
-        state.isLoading = true;
+    // ── Verify code (after registration / phone verification) ─
+    verifyCode: async (code) => {
+      const ctx = get().verificationContext;
+      if (!ctx) throw new Error('No verification context');
+
+      set((s) => { s.isLoading = true; s.error = null; });
+      try {
+        const result = await authApi.verifyCode(ctx.verificationType, ctx.contactInfo, code);
+        await persistAndConnect(result.user, result.accessToken, result.refreshToken, result.expiresAtMs);
+        set((s) => {
+          s.user = result.user;
+          s.accessToken = result.accessToken;
+          s.isLoggedIn = true;
+          s.isLoading = false;
+          s.verificationRequired = false;
+          s.verificationContext = null;
+        });
+      } catch (err: unknown) {
+        const message = extractMessage(err, 'Verification failed. Please check the code.');
+        set((s) => { s.error = message; s.isLoading = false; });
+        throw err;
+      }
+    },
+
+    // ── Resend verification code ─────────────────────────────
+    resendVerificationCode: async () => {
+      const ctx = get().verificationContext;
+      if (!ctx) return;
+      set((s) => { s.isLoading = true; s.error = null; });
+      try {
+        await authApi.sendVerificationCode(ctx.verificationType, ctx.contactInfo, ctx.username);
+        set((s) => { s.isLoading = false; });
+      } catch (err: unknown) {
+        const message = extractMessage(err, 'Failed to resend code.');
+        set((s) => { s.error = message; s.isLoading = false; });
+        throw err;
+      }
+    },
+
+    // ── Request password reset ───────────────────────────────
+    requestPasswordReset: async (email) => {
+      set((s) => { s.isLoading = true; s.error = null; });
+      try {
+        await authApi.requestPasswordReset(email);
+        set((s) => { s.isLoading = false; });
+      } catch (err: unknown) {
+        const message = extractMessage(err, 'Failed to send reset code.');
+        set((s) => { s.error = message; s.isLoading = false; });
+        throw err;
+      }
+    },
+
+    // ── Reset password ───────────────────────────────────────
+    resetPassword: async (email, code, newPassword) => {
+      set((s) => { s.isLoading = true; s.error = null; });
+      try {
+        await authApi.resetPassword(email, code, newPassword);
+        set((s) => { s.isLoading = false; });
+      } catch (err: unknown) {
+        const message = extractMessage(err, 'Failed to reset password.');
+        set((s) => { s.error = message; s.isLoading = false; });
+        throw err;
+      }
+    },
+
+    // ── Logout ───────────────────────────────────────────────
+    logout: async () => {
+      set((s) => { s.isLoading = true; });
+      socketService.disconnect();
+      await storageService.clearAll();
+      set((s) => {
+        s.user = null;
+        s.accessToken = null;
+        s.isLoggedIn = false;
+        s.isLoading = false;
+        s.error = null;
+        s.verificationRequired = false;
+        s.verificationContext = null;
       });
+    },
+
+    // ── Restore session on app launch ────────────────────────
+    loadStoredAuth: async () => {
+      set((s) => { s.isLoading = true; });
       try {
         const token = await storageService.getToken();
-        if (!token) {
-          set((state) => {
-            state.isLoading = false;
-          });
-          return;
-        }
         const user = await storageService.getUser();
-        if (!user) {
-          await storageService.clearAuth();
-          set((state) => {
-            state.isLoading = false;
-          });
+
+        if (!token || !user) {
+          set((s) => { s.isLoading = false; });
           return;
         }
-        // Verify token is still valid
-        const verifiedUser = await authApi.verifyToken(token);
+
         await useThemeStore.getState()._hydrate();
         await useI18nStore.getState()._hydrate();
         socketService.connect(token);
-        set((state) => {
-          state.user = verifiedUser;
-          state.token = token;
-          state.isLoggedIn = true;
-          state.isLoading = false;
+        schedulSignalRegistration();
+
+        set((s) => {
+          s.user = user;
+          s.accessToken = token;
+          s.isLoggedIn = true;
+          s.isLoading = false;
         });
       } catch {
-        await storageService.clearAuth();
-        set((state) => {
-          state.user = null;
-          state.token = null;
-          state.isLoggedIn = false;
-          state.isLoading = false;
+        await storageService.clearAll();
+        set((s) => {
+          s.user = null;
+          s.accessToken = null;
+          s.isLoggedIn = false;
+          s.isLoading = false;
         });
       }
     },
 
-    clearError: () => {
-      set((state) => {
-        state.error = null;
-      });
-    },
-
-    setUser: (user: User) => {
-      set((state) => {
-        state.user = user;
-      });
-    },
+    clearError: () => set((s) => { s.error = null; }),
+    setUser: (user) => set((s) => { s.user = user; }),
+    cancelVerification: () =>
+      set((s) => {
+        s.verificationRequired = false;
+        s.verificationContext = null;
+        s.error = null;
+      }),
   })),
 );
+
+// ─────────────────────────────────────────────────────────────
+// UTILITY
+// ─────────────────────────────────────────────────────────────
+
+function extractMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message || fallback;
+  if (typeof err === 'object' && err !== null) {
+    const e = err as Record<string, unknown>;
+    const nested = (e['response'] as Record<string, unknown> | undefined);
+    const data = nested?.['data'] as Record<string, unknown> | undefined;
+    return String(data?.['message'] ?? data?.['error'] ?? fallback);
+  }
+  return fallback;
+}

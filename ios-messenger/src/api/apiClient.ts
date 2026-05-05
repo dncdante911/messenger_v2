@@ -5,10 +5,19 @@
 //   phpApi   → https://worldmates.club/api/v2/ (WoWonder PHP)
 //   nodeApi  → https://worldmates.club:449/     (Node.js REST)
 //
+// nodeApi specifics (mirrors Android TokenRefreshInterceptor.kt):
+//   • Header:  access-token: <token>   (NOT Authorization: Bearer)
+//   • Proactive refresh: if token expires within 60 s, refresh before request
+//   • Reactive refresh:  on HTTP 401 or body "error_id":"401", refresh & retry
+//   • tryRefresh() is serialised with a mutex (double-check pattern)
+//   • Auth/refresh paths skip the refresh interceptor entirely
+//
+// phpApi specifics:
+//   • Header:  Authorization: Bearer <token>
+//   • 401 → emit auth:failure (no refresh, WoWonder PHP handles differently)
+//
 // Both share:
-//   • Request interceptor: attach Bearer token from Keychain
-//   • Response interceptor: 401 → clear token & emit auth-fail
-//   • Retry logic for 5xx errors (max 3 attempts, exponential backoff)
+//   • 5xx retry with exponential back-off (max 3)
 // ============================================================
 
 import axios, {
@@ -29,7 +38,6 @@ import type { ApiResponse, NodeResponse } from './types';
 
 // ─────────────────────────────────────────────────────────────
 // AUTH FAILURE EVENT BUS
-// Components can subscribe to 'auth:failure' to redirect to Login.
 // ─────────────────────────────────────────────────────────────
 
 export const authEventBus = new EventEmitter();
@@ -40,11 +48,11 @@ export const AUTH_FAILURE_EVENT = 'auth:failure';
 // ─────────────────────────────────────────────────────────────
 
 const MAX_RETRIES = 3;
-const RETRY_BASE_DELAY_MS = 500; // doubled each attempt: 500, 1000, 2000 ms
+const RETRY_BASE_DELAY_MS = 500;
 
-/** Augment config to carry retry metadata */
 interface RetryConfig extends InternalAxiosRequestConfig {
   _retryCount?: number;
+  _skipRefresh?: boolean;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -52,15 +60,155 @@ function sleep(ms: number): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SHARED INTERCEPTORS
+// NODE.JS TOKEN REFRESH — SKIP PATHS
+// Matches Android TokenRefreshInterceptor SKIP_PATHS exactly.
 // ─────────────────────────────────────────────────────────────
 
+const REFRESH_SKIP_PATHS = new Set([
+  'api/node/auth/login',
+  'api/node/auth/refresh',
+  'api/node/auth/register',
+  'api/node/auth/quick-register',
+  'api/node/auth/quick-verify',
+  'api/node/auth/verify-code',
+  'api/node/auth/send-code',
+  'api/node/auth/request-password-reset',
+  'api/node/auth/reset-password',
+]);
+
+function isSkipPath(url: string | undefined): boolean {
+  if (!url) return false;
+  return REFRESH_SKIP_PATHS.has(url.replace(/^\//, '').split('?')[0]);
+}
+
+// ─────────────────────────────────────────────────────────────
+// TOKEN REFRESH MUTEX
+// Serialises concurrent refresh calls (double-check pattern).
+// ─────────────────────────────────────────────────────────────
+
+let _refreshPromise: Promise<string | null> | null = null;
+
 /**
- * Request interceptor — attach "Authorization: Bearer <token>" header.
- * Token is read from Keychain on every request so rotations are picked up
- * automatically without restarting the app.
+ * Attempt a token refresh.  Concurrent callers all await the same promise.
+ * Returns the new access token on success, null on failure.
+ * On failure emits AUTH_FAILURE_EVENT and clears stored credentials.
  */
-async function requestInterceptor(
+async function tryRefresh(): Promise<string | null> {
+  if (_refreshPromise) return _refreshPromise;
+
+  _refreshPromise = (async () => {
+    try {
+      const refreshToken = await storageService.getRefreshToken();
+      if (!refreshToken) throw new Error('No refresh token');
+
+      // Import lazily to avoid circular dependency (authApi imports nodeApi)
+      const { refreshTokens } = await import('./authApi');
+      const result = await refreshTokens(refreshToken);
+      return result.accessToken;
+    } catch {
+      await storageService.clearAll();
+      authEventBus.emit(AUTH_FAILURE_EVENT);
+      return null;
+    } finally {
+      _refreshPromise = null;
+    }
+  })();
+
+  return _refreshPromise;
+}
+
+// ─────────────────────────────────────────────────────────────
+// NODE.JS REQUEST INTERCEPTOR
+// 1. Skip auth/refresh paths.
+// 2. Proactive refresh when token expires within 60 s.
+// 3. Attach  access-token: <token>  header.
+// ─────────────────────────────────────────────────────────────
+
+async function nodeRequestInterceptor(
+  config: InternalAxiosRequestConfig,
+): Promise<InternalAxiosRequestConfig> {
+  const rc = config as RetryConfig;
+
+  if (!isSkipPath(config.url)) {
+    const expiringSoon = await storageService.isTokenExpiringSoon();
+    if (expiringSoon) {
+      const newToken = await tryRefresh();
+      if (newToken) {
+        config.headers.set('access-token', newToken);
+        return config;
+      }
+      // tryRefresh already emitted AUTH_FAILURE_EVENT
+      return config;
+    }
+  }
+
+  const token = await storageService.getToken();
+  if (token) {
+    config.headers.set('access-token', token);
+  }
+
+  return config;
+}
+
+// ─────────────────────────────────────────────────────────────
+// NODE.JS RESPONSE INTERCEPTOR
+// Reactive refresh on HTTP 401 or body error_id "401".
+// ─────────────────────────────────────────────────────────────
+
+function buildNodeResponseInterceptor(instance: AxiosInstance) {
+  return {
+    onFulfilled: async (response: AxiosResponse) => {
+      // Body-level 401 check (server returns 200 with error_id:"401")
+      const body = response.data as Record<string, unknown> | undefined;
+      if (body && (body['error_id'] === '401' || body['error_id'] === 401)) {
+        const config = response.config as RetryConfig;
+        if (!config._skipRefresh && !isSkipPath(config.url)) {
+          config._skipRefresh = true;
+          const newToken = await tryRefresh();
+          if (newToken) {
+            config.headers.set('access-token', newToken);
+            return instance(config);
+          }
+        }
+      }
+      return response;
+    },
+    onRejected: async (error: unknown) => {
+      if (!axios.isAxiosError(error)) return Promise.reject(error);
+
+      const status = error.response?.status;
+      const config = error.config as RetryConfig | undefined;
+
+      // ── 401: reactive refresh ───────────────────────────────
+      if (status === 401 && config && !config._skipRefresh && !isSkipPath(config.url)) {
+        config._skipRefresh = true;
+        const newToken = await tryRefresh();
+        if (newToken) {
+          config.headers.set('access-token', newToken);
+          return instance(config);
+        }
+        return Promise.reject(error);
+      }
+
+      // ── 5xx: retry with back-off ────────────────────────────
+      if (status !== undefined && status >= 500 && config) {
+        config._retryCount = (config._retryCount ?? 0) + 1;
+        if (config._retryCount <= MAX_RETRIES) {
+          await sleep(RETRY_BASE_DELAY_MS * 2 ** (config._retryCount - 1));
+          return instance(config);
+        }
+      }
+
+      return Promise.reject(error);
+    },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// PHP REQUEST INTERCEPTOR  (Authorization: Bearer)
+// ─────────────────────────────────────────────────────────────
+
+async function phpRequestInterceptor(
   config: InternalAxiosRequestConfig,
 ): Promise<InternalAxiosRequestConfig> {
   const token = await storageService.getToken();
@@ -70,12 +218,11 @@ async function requestInterceptor(
   return config;
 }
 
-/**
- * Response interceptor factory.
- * - On 401: clear token and emit AUTH_FAILURE_EVENT so the app can redirect.
- * - On 5xx: retry up to MAX_RETRIES times with exponential back-off.
- */
-function buildResponseInterceptor(instance: AxiosInstance) {
+// ─────────────────────────────────────────────────────────────
+// PHP RESPONSE INTERCEPTOR
+// ─────────────────────────────────────────────────────────────
+
+function buildPhpResponseInterceptor(instance: AxiosInstance) {
   return {
     onFulfilled: (response: AxiosResponse) => response,
     onRejected: async (error: unknown) => {
@@ -84,7 +231,6 @@ function buildResponseInterceptor(instance: AxiosInstance) {
       const status = error.response?.status;
       const config = error.config as RetryConfig | undefined;
 
-      // ── 401: unauthorised ──────────────────────────────────
       if (status === 401) {
         await storageService.clearToken();
         await storageService.clearUserId();
@@ -92,12 +238,10 @@ function buildResponseInterceptor(instance: AxiosInstance) {
         return Promise.reject(error);
       }
 
-      // ── 5xx: server error — retry with back-off ────────────
       if (status !== undefined && status >= 500 && config) {
         config._retryCount = (config._retryCount ?? 0) + 1;
         if (config._retryCount <= MAX_RETRIES) {
-          const delay = RETRY_BASE_DELAY_MS * 2 ** (config._retryCount - 1);
-          await sleep(delay);
+          await sleep(RETRY_BASE_DELAY_MS * 2 ** (config._retryCount - 1));
           return instance(config);
         }
       }
@@ -111,39 +255,42 @@ function buildResponseInterceptor(instance: AxiosInstance) {
 // CREATE INSTANCES
 // ─────────────────────────────────────────────────────────────
 
-function createInstance(baseURL: string): AxiosInstance {
-  const timeoutMs = CONNECT_TIMEOUT_SECONDS * 1000 + READ_TIMEOUT_SECONDS * 1000;
+const TIMEOUT_MS = (CONNECT_TIMEOUT_SECONDS + READ_TIMEOUT_SECONDS) * 1000;
+
+function createNodeInstance(): AxiosInstance {
   const instance = axios.create({
-    baseURL,
-    timeout: timeoutMs,
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
+    baseURL: NODE_BASE_URL,
+    timeout: TIMEOUT_MS,
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
   });
-
-  instance.interceptors.request.use(requestInterceptor, (err) => Promise.reject(err));
-
-  const { onFulfilled, onRejected } = buildResponseInterceptor(instance);
+  instance.interceptors.request.use(nodeRequestInterceptor, (err) => Promise.reject(err));
+  const { onFulfilled, onRejected } = buildNodeResponseInterceptor(instance);
   instance.interceptors.response.use(onFulfilled, onRejected);
+  return instance;
+}
 
+function createPhpInstance(): AxiosInstance {
+  const instance = axios.create({
+    baseURL: BASE_URL,
+    timeout: TIMEOUT_MS,
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+  });
+  instance.interceptors.request.use(phpRequestInterceptor, (err) => Promise.reject(err));
+  const { onFulfilled, onRejected } = buildPhpResponseInterceptor(instance);
+  instance.interceptors.response.use(onFulfilled, onRejected);
   return instance;
 }
 
 /** WoWonder PHP REST instance */
-export const phpApi = createInstance(BASE_URL);
+export const phpApi = createPhpInstance();
 
-/** Node.js REST instance */
-export const nodeApi = createInstance(NODE_BASE_URL);
+/** Node.js REST instance (access-token header + auto token refresh) */
+export const nodeApi = createNodeInstance();
 
 // ─────────────────────────────────────────────────────────────
 // TYPED HELPER FUNCTIONS — Node.js API
 // ─────────────────────────────────────────────────────────────
 
-/**
- * GET request against the Node.js API.
- * @example const data = await nodeGet<Chat[]>('api/node/chat/chats');
- */
 export async function nodeGet<T>(
   url: string,
   config?: AxiosRequestConfig,
@@ -152,9 +299,6 @@ export async function nodeGet<T>(
   return res.data;
 }
 
-/**
- * POST request against the Node.js API.
- */
 export async function nodePost<T>(
   url: string,
   data?: unknown,
@@ -164,9 +308,6 @@ export async function nodePost<T>(
   return res.data;
 }
 
-/**
- * PUT request against the Node.js API.
- */
 export async function nodePut<T>(
   url: string,
   data?: unknown,
@@ -176,9 +317,6 @@ export async function nodePut<T>(
   return res.data;
 }
 
-/**
- * DELETE request against the Node.js API.
- */
 export async function nodeDelete<T>(
   url: string,
   config?: AxiosRequestConfig,
@@ -191,10 +329,6 @@ export async function nodeDelete<T>(
 // TYPED HELPER FUNCTIONS — PHP API
 // ─────────────────────────────────────────────────────────────
 
-/**
- * GET request against the WoWonder PHP API.
- * @example const data = await phpGet<User>('?type=get-user-data&user_id=123');
- */
 export async function phpGet<T>(
   url: string,
   config?: AxiosRequestConfig,
@@ -203,9 +337,6 @@ export async function phpGet<T>(
   return res.data;
 }
 
-/**
- * POST request against the WoWonder PHP API.
- */
 export async function phpPost<T>(
   url: string,
   data?: unknown,
@@ -215,9 +346,6 @@ export async function phpPost<T>(
   return res.data;
 }
 
-/**
- * PUT request against the WoWonder PHP API.
- */
 export async function phpPut<T>(
   url: string,
   data?: unknown,
@@ -227,9 +355,6 @@ export async function phpPut<T>(
   return res.data;
 }
 
-/**
- * DELETE request against the WoWonder PHP API.
- */
 export async function phpDelete<T>(
   url: string,
   config?: AxiosRequestConfig,
@@ -239,22 +364,15 @@ export async function phpDelete<T>(
 }
 
 // ─────────────────────────────────────────────────────────────
-// UTILITY: normalise api_status
+// UTILITY
 // ─────────────────────────────────────────────────────────────
 
-/**
- * Normalise api_status to a number.
- * WoWonder sometimes returns the status as a string.
- */
 export function normaliseApiStatus(raw: number | string | undefined): number {
   if (typeof raw === 'number') return raw;
   if (typeof raw === 'string') return parseInt(raw, 10) || 0;
   return 0;
 }
 
-/**
- * Returns true when the WoWonder PHP response indicates success.
- */
 export function isPhpSuccess(raw: number | string | undefined): boolean {
   return normaliseApiStatus(raw) === 200;
 }

@@ -1,75 +1,57 @@
 // ============================================================
-// WorldMates Messenger — Auth API
+// WorldMates Messenger — Auth API (Node.js)
 //
-// Thin, typed functions that wrap the WoWonder PHP auth endpoints.
-// All functions return clean TypeScript objects; raw API shapes
-// are mapped internally.
+// Full port of Android NodeAuthRepository.kt.
+// All requests use application/x-www-form-urlencoded (Retrofit
+// @FormUrlEncoded @Field on Android).
 //
-// Endpoints used:
-//   POST BASE_URL + "?type=auth"
-//   POST BASE_URL + "?type=user_register"
-//   POST BASE_URL + "?type=send_reset_password" (forgot password)
-//   POST BASE_URL + "?type=verify_code"
-//   POST BASE_URL + "?type=resend_verify_code"
-//   POST BASE_URL + "?type=logout" (or token clear only)
+// Endpoints:
+//   POST api/node/auth/login
+//   POST api/node/auth/register
+//   POST api/node/auth/send-code
+//   POST api/node/auth/verify-code
+//   POST api/node/auth/request-password-reset
+//   POST api/node/auth/reset-password
+//   POST api/node/auth/refresh
 // ============================================================
 
-import { phpApi, isPhpSuccess, normaliseApiStatus } from './apiClient';
+import { nodeApi } from './apiClient';
 import { storageService } from '../services/storageService';
-import { socketService } from '../services/socketService';
-import type { AuthUser, User, RegisterData } from './types';
+import type {
+  User,
+  NodeLoginResponseData,
+  NodeRegisterResponseData,
+  NodeVerifyCodeResponseData,
+  NodeSendCodeResponseData,
+  NodePasswordResetRequestData,
+  NodePasswordResetData,
+  NodeTokenRefreshData,
+  NodeAuthUserRaw,
+} from './types';
 
 // ─────────────────────────────────────────────────────────────
-// INTERNAL TYPES (raw WoWonder PHP API shapes)
+// HELPERS
 // ─────────────────────────────────────────────────────────────
 
-interface RawAuthResponse {
-  api_status: number | string;
-  access_token?: string;
-  user_id?: number | string;
-  username?: string;
-  avatar?: string;
-  cover?: string;
-  first_name?: string;
-  last_name?: string;
-  email?: string;
-  phone_number?: string;
-  about?: string;
-  is_pro?: number | string;
-  verified?: number | string;
-  verification_level?: number | string;
-  followers_count?: string | number;
-  following_count?: string | number;
-  status_emoji?: string;
-  status_text?: string;
-  is_founder?: number;
-  error_code?: number | string;
-  error_message?: string;
-  errors?: { error_id?: number; error_text?: string };
-  success_type?: string;
-  message?: string;
+/** Build URLSearchParams body (form-urlencoded) */
+function form(fields: Record<string, string | number | undefined>): URLSearchParams {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(fields)) {
+    if (v !== undefined) p.append(k, String(v));
+  }
+  return p;
 }
 
-// ─────────────────────────────────────────────────────────────
-// MAPPING HELPER
-// ─────────────────────────────────────────────────────────────
+const FORM_HEADERS = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } };
 
-/**
- * Map the raw WoWonder PHP auth response to our clean AuthUser type.
- * Throws if the token or user_id is missing.
- */
-function mapToAuthUser(raw: RawAuthResponse): AuthUser {
-  if (!raw.access_token || raw.user_id == null) {
-    throw new Error('Invalid auth response: missing token or user_id');
-  }
-
+/** Map raw server user object to clean User type */
+function mapUser(raw: NodeAuthUserRaw): User {
   const userId = String(raw.user_id);
   const firstName = raw.first_name ?? '';
   const lastName = raw.last_name ?? '';
-  const name =
-    [firstName, lastName].filter(Boolean).join(' ').trim() || raw.username || userId;
+  const name = [firstName, lastName].filter(Boolean).join(' ').trim() || raw.username || userId;
 
-  const user: User = {
+  return {
     id: userId,
     username: raw.username ?? '',
     name,
@@ -78,7 +60,6 @@ function mapToAuthUser(raw: RawAuthResponse): AuthUser {
     avatar: raw.avatar ?? '',
     cover: raw.cover,
     email: raw.email,
-    phone: raw.phone_number,
     about: raw.about,
     isPro: Number(raw.is_pro ?? 0) === 1,
     verificationLevel: Number(raw.verification_level ?? 0),
@@ -86,186 +67,246 @@ function mapToAuthUser(raw: RawAuthResponse): AuthUser {
     isOnline: true,
     followersCount: Number(raw.followers_count ?? 0),
     followingCount: Number(raw.following_count ?? 0),
-    customStatus:
-      raw.status_emoji
-        ? { emoji: raw.status_emoji, text: raw.status_text ?? '' }
-        : undefined,
     isFounder: Number(raw.is_founder ?? 0) === 1,
   };
-
-  return { ...user, token: raw.access_token };
 }
 
 /**
- * Persist token and userId after a successful auth response.
+ * Compute absolute expiry timestamp (ms) from server response.
+ * Server may send `expires_at` (Unix s) or `expires_in` (seconds from now).
+ * Falls back to 24 h.
  */
-async function persistSession(authUser: AuthUser): Promise<void> {
-  await storageService.setToken(authUser.token);
-  await storageService.setUserId(authUser.id);
-  await storageService.saveUser(authUser);
+function computeExpiresAtMs(raw: { expires_at?: number; expires_in?: number }): number {
+  if (raw.expires_at) return raw.expires_at * 1000;
+  if (raw.expires_in) return Date.now() + raw.expires_in * 1000;
+  return Date.now() + 86_400_000; // 24 h fallback
 }
 
 // ─────────────────────────────────────────────────────────────
-// PUBLIC API FUNCTIONS
+// RESULT TYPES (what the store consumes)
+// ─────────────────────────────────────────────────────────────
+
+export interface LoginResult {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+  expiresAtMs: number;
+}
+
+export type RegisterResult =
+  | { type: 'success'; user: User; accessToken: string; refreshToken: string; expiresAtMs: number }
+  | { type: 'verification'; userId: string; verificationType: string; contactInfo: string };
+
+export interface VerifyResult {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+  expiresAtMs: number;
+}
+
+export interface TokenRefreshResult {
+  accessToken: string;
+  refreshToken: string;
+  expiresAtMs: number;
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUTH FUNCTIONS
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Login with email/username and password.
- *
- * @throws Error with a human-readable message on failure.
+ * Login with username/email and password.
+ * Matches Android: POST api/node/auth/login (FormUrlEncoded)
+ * Fields: username, password, device_type
  */
-export async function login(email: string, password: string): Promise<AuthUser> {
-  const res = await phpApi.post<RawAuthResponse>('', null, {
-    params: {
-      type: 'auth',
-      username: email,
-      password,
-      device_type: 'ios',
-    },
-  });
+export async function login(usernameOrEmail: string, password: string): Promise<LoginResult> {
+  const res = await nodeApi.post<{ data?: NodeLoginResponseData; error?: string; message?: string; api_status?: number }>(
+    'api/node/auth/login',
+    form({ username: usernameOrEmail, password, device_type: 'ios' }),
+    FORM_HEADERS,
+  );
 
-  const raw = res.data;
-  const status = normaliseApiStatus(raw.api_status);
+  const body = res.data;
 
-  if (!isPhpSuccess(status)) {
-    const msg =
-      raw.error_message ??
-      raw.errors?.error_text ??
-      raw.message ??
-      `Login failed (status ${status})`;
-    throw new Error(msg);
+  if (!body.data?.access_token) {
+    throw new Error(body.error ?? body.message ?? 'Login failed');
   }
 
-  const authUser = mapToAuthUser(raw);
-  await persistSession(authUser);
-  return authUser;
+  const d = body.data;
+  const expiresAtMs = computeExpiresAtMs(d);
+
+  return {
+    user: mapUser(d.user),
+    accessToken: d.access_token,
+    refreshToken: d.refresh_token,
+    expiresAtMs,
+  };
 }
 
 /**
  * Register a new account.
+ * Matches Android: POST api/node/auth/register (FormUrlEncoded)
+ * Fields: username, email, password, confirm_password, gender, device_type, invite_code
  *
- * @throws Error with a human-readable message on failure.
+ * Returns either a full session (immediate login) or a
+ * VerificationRequired marker when the server mandates email/phone confirm.
  */
-export async function register(data: RegisterData): Promise<AuthUser> {
-  const res = await phpApi.post<RawAuthResponse>('', null, {
-    params: {
-      type: 'user_register',
-      username: data.username,
-      email: data.email,
-      password: data.password,
-      first_name: data.firstName,
-      last_name: data.lastName,
-      gender: data.gender ?? '',
-      birthday: data.birthday ?? '',
-      device_type: 'ios',
-    },
-  });
+export async function register(
+  username: string,
+  email: string,
+  password: string,
+  gender: string = '',
+  inviteCode: string = '',
+): Promise<RegisterResult> {
+  const res = await nodeApi.post<{ data?: NodeRegisterResponseData; error?: string; message?: string; api_status?: number }>(
+    'api/node/auth/register',
+    form({ username, email, password, confirm_password: password, gender, device_type: 'ios', invite_code: inviteCode }),
+    FORM_HEADERS,
+  );
 
-  const raw = res.data;
-  const status = normaliseApiStatus(raw.api_status);
+  const body = res.data;
 
-  if (!isPhpSuccess(status)) {
-    const msg =
-      raw.error_message ??
-      raw.errors?.error_text ??
-      raw.message ??
-      `Registration failed (status ${status})`;
-    throw new Error(msg);
+  if (!body.data) {
+    throw new Error(body.error ?? body.message ?? 'Registration failed');
   }
 
-  const authUser = mapToAuthUser(raw);
-  await persistSession(authUser);
-  return authUser;
+  const d = body.data;
+
+  // Server may require verification before granting a session
+  if (d.success_type === 'verification' || !d.access_token) {
+    return {
+      type: 'verification',
+      userId: String(d.user_id ?? ''),
+      verificationType: d.verification_type ?? 'email',
+      contactInfo: d.contact_info ?? email,
+    };
+  }
+
+  const expiresAtMs = computeExpiresAtMs(d);
+  return {
+    type: 'success',
+    user: mapUser(d.user!),
+    accessToken: d.access_token,
+    refreshToken: d.refresh_token!,
+    expiresAtMs,
+  };
 }
 
 /**
- * Send a password-reset email.
- *
- * @throws Error if the server rejects the request.
+ * Send a verification code to the user's email or phone.
+ * Matches Android: POST api/node/auth/send-code
+ * Fields: verification_type, contact_info, username
  */
-export async function forgotPassword(email: string): Promise<void> {
-  const res = await phpApi.post<RawAuthResponse>('', null, {
-    params: {
-      type: 'send_reset_password',
-      email,
-    },
-  });
+export async function sendVerificationCode(
+  verificationType: string,
+  contactInfo: string,
+  username: string,
+): Promise<void> {
+  const res = await nodeApi.post<{ data?: NodeSendCodeResponseData; error?: string; message?: string }>(
+    'api/node/auth/send-code',
+    form({ verification_type: verificationType, contact_info: contactInfo, username }),
+    FORM_HEADERS,
+  );
 
-  const raw = res.data;
-  const status = normaliseApiStatus(raw.api_status);
-
-  if (!isPhpSuccess(status)) {
-    const msg = raw.error_message ?? raw.message ?? `Request failed (status ${status})`;
-    throw new Error(msg);
-  }
+  const body = res.data;
+  if (body.error) throw new Error(body.error);
 }
 
 /**
- * Verify a numeric code sent to the user's email/phone.
- * Used both for account confirmation and password reset flows.
- *
- * @param userId  Numeric string user ID returned at registration
- * @param code    6-digit (or similar) verification code
- * @throws Error on invalid code or expired token.
+ * Verify the code sent to the user's email or phone.
+ * Matches Android: POST api/node/auth/verify-code
+ * Fields: verification_type, contact_info, code
  */
-export async function verifyCode(userId: string, code: string): Promise<void> {
-  const res = await phpApi.post<RawAuthResponse>('', null, {
-    params: {
-      type: 'verify_code',
-      user_id: userId,
-      code,
-    },
-  });
+export async function verifyCode(
+  verificationType: string,
+  contactInfo: string,
+  code: string,
+): Promise<VerifyResult> {
+  const res = await nodeApi.post<{ data?: NodeVerifyCodeResponseData; error?: string; message?: string }>(
+    'api/node/auth/verify-code',
+    form({ verification_type: verificationType, contact_info: contactInfo, code }),
+    FORM_HEADERS,
+  );
 
-  const raw = res.data;
-  const status = normaliseApiStatus(raw.api_status);
+  const body = res.data;
 
-  if (!isPhpSuccess(status)) {
-    const msg = raw.error_message ?? raw.message ?? `Verification failed (status ${status})`;
-    throw new Error(msg);
+  if (!body.data?.access_token || !body.data?.user) {
+    throw new Error(body.error ?? body.message ?? 'Verification failed');
   }
+
+  const d = body.data;
+  const expiresAtMs = computeExpiresAtMs(d);
+  return {
+    user: mapUser(d.user),
+    accessToken: d.access_token,
+    refreshToken: d.refresh_token!,
+    expiresAtMs,
+  };
 }
 
 /**
- * Resend the verification code to the user's email/phone.
- *
- * @param userId  Numeric string user ID
- * @throws Error if the server cannot resend.
+ * Request a password-reset code by email.
+ * Matches Android: POST api/node/auth/request-password-reset
+ * Fields: email
  */
-export async function resendCode(userId: string): Promise<void> {
-  const res = await phpApi.post<RawAuthResponse>('', null, {
-    params: {
-      type: 'resend_verify_code',
-      user_id: userId,
-    },
-  });
+export async function requestPasswordReset(email: string): Promise<void> {
+  const res = await nodeApi.post<{ data?: NodePasswordResetRequestData; error?: string; message?: string }>(
+    'api/node/auth/request-password-reset',
+    form({ email }),
+    FORM_HEADERS,
+  );
 
-  const raw = res.data;
-  const status = normaliseApiStatus(raw.api_status);
-
-  if (!isPhpSuccess(status)) {
-    const msg = raw.error_message ?? raw.message ?? `Resend failed (status ${status})`;
-    throw new Error(msg);
-  }
+  const body = res.data;
+  if (body.error) throw new Error(body.error);
 }
 
 /**
- * Logout the current user.
- *
- * Disconnects the socket, clears the Keychain token and all local caches.
- * The server-side logout endpoint is called best-effort; local cleanup
- * always runs even if the network call fails.
+ * Reset password using the code from email.
+ * Matches Android: POST api/node/auth/reset-password
+ * Fields: email, code, new_password
  */
-export async function logout(): Promise<void> {
-  // Disconnect socket first so no more events fire.
-  socketService.disconnect();
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+  const res = await nodeApi.post<{ data?: NodePasswordResetData; error?: string; message?: string }>(
+    'api/node/auth/reset-password',
+    form({ email, code, new_password: newPassword }),
+    FORM_HEADERS,
+  );
 
-  // Best-effort server-side invalidation.
-  try {
-    await phpApi.post('', null, { params: { type: 'logout' } });
-  } catch {
-    // Ignore — we always clear local state.
+  const body = res.data;
+  if (body.error) throw new Error(body.error);
+}
+
+/**
+ * Refresh the access token.
+ * Called by apiClient.ts tryRefresh() — do NOT call directly from UI.
+ * Matches Android: POST api/node/auth/refresh
+ * Fields: refresh_token
+ *
+ * On success, saves new tokens to SecureStore automatically.
+ */
+export async function refreshTokens(refreshToken: string): Promise<TokenRefreshResult> {
+  const res = await nodeApi.post<{ data?: NodeTokenRefreshData; error?: string; message?: string }>(
+    'api/node/auth/refresh',
+    form({ refresh_token: refreshToken }),
+    FORM_HEADERS,
+  );
+
+  const body = res.data;
+
+  if (!body.data?.access_token) {
+    throw new Error(body.error ?? body.message ?? 'Token refresh failed');
   }
 
-  await storageService.clearAll();
+  const d = body.data;
+  const expiresAtMs = computeExpiresAtMs(d);
+
+  await Promise.all([
+    storageService.setToken(d.access_token),
+    storageService.setRefreshToken(d.refresh_token),
+    storageService.setTokenExpiresAt(expiresAtMs),
+  ]);
+
+  return { accessToken: d.access_token, refreshToken: d.refresh_token, expiresAtMs };
 }
+
+export const authApi = { login, register, sendVerificationCode, verifyCode, requestPasswordReset, resetPassword, refreshTokens };
