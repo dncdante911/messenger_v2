@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { storageService } from '../../services/storageService';
-import { useTranslation } from '../../i18n';
+import { useTranslation, useI18nStore, type Language } from '../../i18n';
 import { useTheme } from '../../theme';
 
 type LanguageNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'LanguageSelection'>;
@@ -47,7 +47,11 @@ export function LanguageSelectionScreen() {
     if (isSaving) return;
     setIsSaving(true);
     try {
-      await storageService.setLanguage(selectedCode);
+      // Update i18n store immediately (updates UI) and persist to storage
+      const supportedLang = (['uk', 'ru', 'en'] as Language[]).includes(selectedCode as Language)
+        ? (selectedCode as Language)
+        : 'en';
+      await useI18nStore.getState().setLanguage(supportedLang);
       await storageService.setFirstLaunchDone();
       navigation.replace('Login');
     } catch {

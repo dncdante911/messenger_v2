@@ -8,6 +8,7 @@ import en from './en';
 export type Language = 'uk' | 'ru' | 'en';
 
 const translations = { uk, ru, en } as const;
+const LANGUAGE_KEY = 'wm_language';
 
 interface I18nState {
   language: Language;
@@ -16,13 +17,13 @@ interface I18nState {
 }
 
 export const useI18nStore = create<I18nState>((set) => ({
-  language: 'uk',
+  language: 'ru',
   setLanguage: async (lang: Language) => {
-    await AsyncStorage.setItem('app_language', lang);
+    await AsyncStorage.setItem(LANGUAGE_KEY, lang);
     set({ language: lang });
   },
   _hydrate: async () => {
-    const stored = await AsyncStorage.getItem('app_language');
+    const stored = await AsyncStorage.getItem(LANGUAGE_KEY);
     if (stored && (stored === 'uk' || stored === 'ru' || stored === 'en')) {
       set({ language: stored });
     }

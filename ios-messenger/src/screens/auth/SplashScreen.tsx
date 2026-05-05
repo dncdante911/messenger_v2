@@ -11,8 +11,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../navigation/types';
 import { storageService } from '../../services/storageService';
-import { useTranslation } from '../../i18n';
-import { useTheme } from '../../theme';
+import { useTranslation, useI18nStore } from '../../i18n';
+import { useTheme, useThemeStore } from '../../theme';
 
 type SplashNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Splash'>;
 
@@ -50,6 +50,11 @@ export function SplashScreen() {
     }).start();
 
     const timer = setTimeout(async () => {
+      // Hydrate language and theme before any screen renders
+      await Promise.all([
+        useI18nStore.getState()._hydrate(),
+        useThemeStore.getState()._hydrate(),
+      ]);
       const isFirst = await storageService.isFirstLaunch();
       if (isFirst) {
         navigation.replace('LanguageSelection');
