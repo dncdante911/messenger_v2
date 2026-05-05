@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function AppNavigator() {
+export default function AppNavigator() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
   const isLoading = useAuthStore((state) => state.isLoading);
   const loadStoredAuth = useAuthStore((state) => state.loadStoredAuth);
