@@ -82,16 +82,6 @@
         }
       ],
       [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "WorldMates Messenger uses your location to share it with contacts and find people nearby.",
-          "locationAlwaysPermission": "WorldMates Messenger uses your location in the background to update your presence.",
-          "locationWhenInUsePermission": "WorldMates Messenger uses your location to share it with contacts and find people nearby.",
-          "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true
-        }
-      ],
-      [
         "expo-camera",
         {
           "cameraPermission": "WorldMates Messenger uses your camera for video calls and sending photos in chats."
