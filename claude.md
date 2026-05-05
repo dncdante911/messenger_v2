@@ -150,3 +150,73 @@ Signal Double Ratchet — это криптографический проток
 - `MAX_SKIP` в DoubleRatchetManager — осторожно, но допустимо
 - UI-отображение зашифрованного fallback-текста — безопасно
 
+
+---
+
+## 9. iOS-порт (ios-messenger/) — React Native + Expo
+
+### Путь: `ios-messenger/`
+
+Полный порт Android-мессенджера на React Native (Expo bare workflow, TypeScript).  
+Роадмап: `ios-messenger/IOS_PORTING_ROADMAP.md`
+
+### Стек
+| Слой | Технология |
+|---|---|
+| UI framework | React Native 0.76.5 + Expo SDK 52 |
+| Язык | TypeScript strict |
+| State | Zustand 5 + immer |
+| HTTP | Axios — два инстанса: `phpApi` и `nodeApi` |
+| Сокеты | Socket.IO client v4 |
+| Хранилище ключей | expo-secure-store (iOS Keychain) |
+| Навигация | React Navigation v7 (Stack + Bottom Tabs) |
+| Крипто | @noble/curves + @noble/hashes + @noble/ciphers (Hermes-compatible) |
+| Локализация | 3 языка: uk / ru / en через Zustand i18n store |
+
+### Критические особенности API
+
+**nodeApi (`https://worldmates.club:449/`)**
+- Header: `access-token: <token>` — НЕ `Authorization: Bearer`
+- Проактивный refresh за 60 секунд до истечения (как Android `TokenRefreshInterceptor.kt`)
+- Реактивный refresh на HTTP 401 или `error_id:"401"` в теле ответа
+- SKIP_PATHS (не рефрешить на auth-эндпоинтах): `api/node/auth/login`, `api/node/auth/refresh`, `api/node/auth/register`, и др.
+- Auth эндпоинты: `application/x-www-form-urlencoded` (зеркало Android `@FormUrlEncoded`)
+
+**phpApi (`https://worldmates.club/api/v2/`)**
+- Header: `Authorization: Bearer <token>`
+- 401 → emit `auth:failure`, без refresh
+
+### Signal Protocol (iOS)
+
+Реализация в `ios-messenger/src/crypto/signal/`:
+
+| Файл | Назначение |
+|---|---|
+| `signalTypes.ts` | Все типы: X25519KeyPair, SessionState, DRHeader, StoredOPK, константы |
+| `doubleRatchetManager.ts` | X3DH (Alice+Bob) + Double Ratchet encrypt/decrypt |
+| `signalKeyStore.ts` | Хранилище ключей (expo-secure-store = Android EncryptedSharedPreferences) |
+| `signalEncryptionService.ts` | Высокоуровневый сервис: ensureRegistered, encryptForSend, decryptIncoming |
+| `index.ts` | Barrel re-exports |
+
+**Константы (точно как в Android):**
+- `MAX_SKIP = 500`
+- `OPK_BATCH_SIZE = 100`, `OPK_REPLENISH_THRESHOLD = 20`
+- `CIPHER_VERSION_SIGNAL = 3`
+- HKDF info: `"WorldMates_X3DH"`, `"WorldMates_DR_RK"`, `"WorldMates_DR_MSG"`
+- ckRatchet: `MK = HMAC(CK, 0x01)`, `nextCK = HMAC(CK, 0x02)`
+- Session key: `"session_<userId>"` в Keychain
+- `saveSession()` всегда `await` — зеркало Android `commit()` (не `apply()`)
+- Per-sender `SimpleMutex` сериализует `loadSession → encrypt/decrypt → saveSession`
+
+**⛔ ПРАВИЛА ДЛЯ iOS SIGNAL (аналогично Android-зоне выше):**
+1. НЕ менять порядок: `loadSession → encrypt → saveSession` под мьютексом
+2. НЕ делать `saveSession` без await
+3. НЕ убирать per-sender lock в `signalEncryptionService.ts`
+4. НЕ менять HKDF info-строки — они жёстко зашиты в протокол
+
+### Правила разработки iOS
+
+1. **Локализация**: все строки в `src/i18n/uk.ts` + `ru.ts` + `en.ts`. Добавляй ключ во все 3 файла сразу.
+2. **Цвета**: только через `useTheme()`. Никаких hex-кодов в компонентах (кроме `colors.ts` и дизайн-констант).
+3. **Импорты screen**: проверяй `export default` vs `export function` перед импортом.
+4. **Комментарии**: не писать. Только если WHY неочевиден.

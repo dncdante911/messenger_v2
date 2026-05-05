@@ -355,7 +355,7 @@ text | image | video | audio | voice | file | call | location | system
 | ZXing QR | `expo-barcode-scanner` или `expo-camera` | |
 | FCM | `@react-native-firebase/messaging` | |
 | ML Kit (selfie) | `react-native-vision-camera` + plugin | |
-| BouncyCastle (Signal) | `@privacyresearch/libsignal-protocol-typescript` | |
+| BouncyCastle (Signal) | `@noble/curves` + `@noble/hashes` + `@noble/ciphers` (pure-JS, Hermes-compatible) | ✅ |
 | Dropbox SDK | Dropbox REST API (как в MEGA) | |
 | Google Drive SDK | `expo-auth-session` + Drive REST API | |
 
@@ -400,30 +400,32 @@ react-native-vision-camera (видеозапись сообщений)
 
 ## Часть 3. Roadmap переноса (по фазам)
 
-### Фаза 0 — Проект и инфраструктура (СЕЙЧАС ДЕЛАЕТСЯ)
+### Фаза 0 — Проект и инфраструктура ✅ ЗАВЕРШЕНО
 
 | # | Задача | Статус |
 |---|--------|--------|
 | 0.1 | Инициализация React Native + Expo bare + TypeScript | ✅ |
 | 0.2 | Константы API (`src/constants/api.ts`) | ✅ |
-| 0.3 | HTTP клиент Axios (`src/api/apiClient.ts`) | ✅ |
+| 0.3 | HTTP клиент Axios (`src/api/apiClient.ts`) — `access-token` header, proactive+reactive refresh | ✅ |
 | 0.4 | Socket.IO сервис (`src/services/socketService.ts`) | ✅ |
-| 0.5 | Secure storage сервис (`src/services/storageService.ts`) | ✅ |
-| 0.6 | Zustand auth store (`src/store/authStore.ts`) | ✅ |
+| 0.5 | Secure storage сервис — токены + `tokenExpiresAt` + `saveFullSession()` | ✅ |
+| 0.6 | Zustand auth store — Node.js auth + VerificationRequired state | ✅ |
 | 0.7 | Root Navigator + Auth Navigator | ✅ |
+| 0.8 | Node.js API: `authApi.ts` — login/register/verify-code/send-code/reset-password/refresh | ✅ |
+| 0.9 | Signal Protocol — `src/crypto/signal/` (X3DH + Double Ratchet + KeyStore + Service) | ✅ |
 
-### Фаза 1 — Авторизация (СЕЙЧАС ДЕЛАЕТСЯ)
+### Фаза 1 — Авторизация ✅ ЗАВЕРШЕНО (UI) / ✅ API ПОДКЛЮЧЁН
 
-| # | Задача | Приоритет |
-|---|--------|-----------|
-| 1.1 | SplashScreen (анимация) | P0 |
-| 1.2 | LanguageSelectionScreen | P0 |
-| 1.3 | LoginScreen | P0 |
-| 1.4 | RegisterScreen | P0 |
-| 1.5 | ForgotPasswordScreen | P0 |
-| 1.6 | VerificationScreen (email/SMS код) | P0 |
+| # | Задача | Статус |
+|---|--------|--------|
+| 1.1 | SplashScreen (анимация) | ✅ |
+| 1.2 | LanguageSelectionScreen | ✅ |
+| 1.3 | LoginScreen | ✅ |
+| 1.4 | RegisterScreen | ✅ |
+| 1.5 | ForgotPasswordScreen | ✅ |
+| 1.6 | VerificationScreen (email/SMS код) | ✅ |
 
-### Фаза 2 — Главный экран и список чатов
+### Фаза 2 — Главный экран и список чатов ✅ ЗАВЕРШЕНО
 
 | # | Задача |
 |---|--------|
@@ -435,7 +437,7 @@ react-native-vision-camera (видеозапись сообщений)
 | 2.6 | Архив / скрытые чаты |
 | 2.7 | Иконки историй над списком чатов |
 
-### Фаза 3 — Экран сообщений (приватный чат)
+### Фаза 3 — Дополнительные экраны ✅ ЗАВЕРШЕНО (Calls, Stories, Groups, ChannelDetails)
 
 | # | Задача |
 |---|--------|
@@ -526,7 +528,7 @@ react-native-vision-camera (видеозапись сообщений)
 | 9.6 | ScheduledMessagesScreen |
 | 9.7 | CallHistoryScreen |
 | 9.8 | QR Scanner / Generator |
-| 9.9 | Секретные чаты (Signal Protocol) |
+| 9.9 | Секретные чаты (Signal Protocol — X3DH + Double Ratchet) | ✅ |
 | 9.10 | Instant View |
 
 ### Фаза 10 — P2 фичи
