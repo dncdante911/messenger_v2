@@ -1,7 +1,7 @@
 {
   "name": "worldmates-ios-messenger",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "expo": "~52.0.0",
-    "expo-router": "~4.0.0",
+    "expo-font": "~13.0.0",
+    "expo-splash-screen": "~0.29.0",
     "expo-linking": "~7.0.5",
     "expo-constants": "~17.0.8",
     "expo-linear-gradient": "~14.0.0",
@@ -42,8 +43,6 @@
     "expo-sqlite": "~15.0.0",
     "expo-task-manager": "~12.0.0",
     "expo-background-fetch": "~13.0.0",
-    "lottie-react-native": "7.1.0",
-    "react-native-vector-icons": "^10.2.0",
     "@expo/vector-icons": "^14.0.0",
     "date-fns": "^3.6.0",
     "@noble/curves": "^1.6.0",

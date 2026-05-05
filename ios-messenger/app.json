@@ -69,7 +69,6 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router",
       [
         "expo-notifications",
         {
@@ -111,9 +110,6 @@
       "expo-av",
       "expo-document-picker"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "scheme": "worldmates",
     "extra": {}
   }
