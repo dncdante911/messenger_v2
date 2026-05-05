@@ -19,15 +19,33 @@ import { nodeApi } from './apiClient';
 import { storageService } from '../services/storageService';
 import type {
   User,
-  NodeLoginResponseData,
-  NodeRegisterResponseData,
-  NodeVerifyCodeResponseData,
   NodeSendCodeResponseData,
   NodePasswordResetRequestData,
   NodePasswordResetData,
   NodeTokenRefreshData,
-  NodeAuthUserRaw,
 } from './types';
+
+// Actual flat response the server returns for auth endpoints
+// (mirrors Android NodeLoginResponse and Windows normaliseAuth)
+interface NodeAuthFlat {
+  api_status?: number | string;
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number;
+  expires_in?: number;
+  user_id?: number | string;
+  username?: string;
+  avatar?: string;
+  // Registration verification flow
+  success_type?: string;
+  verification_type?: string;
+  contact_info?: string;
+  // Error fields
+  error_message?: string;
+  message?: string;
+  error?: string;
+  messages?: string;
+}
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
@@ -44,31 +62,27 @@ function form(fields: Record<string, string | number | undefined>): URLSearchPar
 
 const FORM_HEADERS = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } };
 
-/** Map raw server user object to clean User type */
-function mapUser(raw: NodeAuthUserRaw): User {
-  const userId = String(raw.user_id);
-  const firstName = raw.first_name ?? '';
-  const lastName = raw.last_name ?? '';
-  const name = [firstName, lastName].filter(Boolean).join(' ').trim() || raw.username || userId;
-
+/** Build minimal User from flat auth response fields */
+function mapAuthUser(flat: NodeAuthFlat): User {
+  const userId = String(flat.user_id ?? '');
+  const username = flat.username ?? '';
   return {
     id: userId,
-    username: raw.username ?? '',
-    name,
-    firstName: firstName || undefined,
-    lastName: lastName || undefined,
-    avatar: raw.avatar ?? '',
-    cover: raw.cover,
-    email: raw.email,
-    about: raw.about,
-    isPro: Number(raw.is_pro ?? 0) === 1,
-    verificationLevel: Number(raw.verification_level ?? 0),
-    isVerified: Number(raw.verified ?? 0) > 0,
+    username,
+    name: username || userId,
+    avatar: flat.avatar ?? '',
+    isPro: false,
+    verificationLevel: 0,
+    isVerified: false,
     isOnline: true,
-    followersCount: Number(raw.followers_count ?? 0),
-    followingCount: Number(raw.following_count ?? 0),
-    isFounder: Number(raw.is_founder ?? 0) === 1,
+    followersCount: 0,
+    followingCount: 0,
   };
+}
+
+/** Extract error message from flat auth response */
+function authError(flat: NodeAuthFlat, fallback: string): string {
+  return flat.error_message ?? flat.message ?? flat.error ?? flat.messages ?? fallback;
 }
 
 /**
@@ -117,39 +131,34 @@ export interface TokenRefreshResult {
 /**
  * Login with username/email and password.
  * Matches Android: POST api/node/auth/login (FormUrlEncoded)
- * Fields: username, password, device_type
+ * Server returns FLAT response: { api_status, access_token, user_id, username, avatar, ... }
  */
 export async function login(usernameOrEmail: string, password: string): Promise<LoginResult> {
-  const res = await nodeApi.post<{ data?: NodeLoginResponseData; error?: string; message?: string; api_status?: number }>(
+  const res = await nodeApi.post<NodeAuthFlat>(
     'api/node/auth/login',
-    form({ username: usernameOrEmail, password, device_type: 'ios' }),
+    form({ username: usernameOrEmail, password, device_type: 'phone' }),
     FORM_HEADERS,
   );
 
   const body = res.data;
+  const status = Number(body.api_status ?? 0);
 
-  if (!body.data?.access_token) {
-    throw new Error(body.error ?? body.message ?? 'Login failed');
+  if (!body.access_token || (status !== 0 && status !== 200)) {
+    throw new Error(authError(body, 'Login failed'));
   }
 
-  const d = body.data;
-  const expiresAtMs = computeExpiresAtMs(d);
-
   return {
-    user: mapUser(d.user),
-    accessToken: d.access_token,
-    refreshToken: d.refresh_token,
-    expiresAtMs,
+    user: mapAuthUser(body),
+    accessToken: body.access_token,
+    refreshToken: body.refresh_token ?? '',
+    expiresAtMs: computeExpiresAtMs(body),
   };
 }
 
 /**
  * Register a new account.
  * Matches Android: POST api/node/auth/register (FormUrlEncoded)
- * Fields: username, email, password, confirm_password, gender, device_type, invite_code
- *
- * Returns either a full session (immediate login) or a
- * VerificationRequired marker when the server mandates email/phone confirm.
+ * Server returns same flat structure as login.
  */
 export async function register(
   username: string,
@@ -158,37 +167,33 @@ export async function register(
   gender: string = '',
   inviteCode: string = '',
 ): Promise<RegisterResult> {
-  const res = await nodeApi.post<{ data?: NodeRegisterResponseData; error?: string; message?: string; api_status?: number }>(
+  const res = await nodeApi.post<NodeAuthFlat>(
     'api/node/auth/register',
-    form({ username, email, password, confirm_password: password, gender, device_type: 'ios', invite_code: inviteCode }),
+    form({ username, email, password, confirm_password: password, gender, device_type: 'phone', invite_code: inviteCode }),
     FORM_HEADERS,
   );
 
   const body = res.data;
 
-  if (!body.data) {
-    throw new Error(body.error ?? body.message ?? 'Registration failed');
-  }
-
-  const d = body.data;
-
   // Server may require verification before granting a session
-  if (d.success_type === 'verification' || !d.access_token) {
-    return {
-      type: 'verification',
-      userId: String(d.user_id ?? ''),
-      verificationType: d.verification_type ?? 'email',
-      contactInfo: d.contact_info ?? email,
-    };
+  if (body.success_type === 'verification' || !body.access_token) {
+    if (body.user_id || body.success_type === 'verification') {
+      return {
+        type: 'verification',
+        userId: String(body.user_id ?? ''),
+        verificationType: body.verification_type ?? 'email',
+        contactInfo: body.contact_info ?? email,
+      };
+    }
+    throw new Error(authError(body, 'Registration failed'));
   }
 
-  const expiresAtMs = computeExpiresAtMs(d);
   return {
     type: 'success',
-    user: mapUser(d.user!),
-    accessToken: d.access_token,
-    refreshToken: d.refresh_token!,
-    expiresAtMs,
+    user: mapAuthUser(body),
+    accessToken: body.access_token,
+    refreshToken: body.refresh_token ?? '',
+    expiresAtMs: computeExpiresAtMs(body),
   };
 }
 
@@ -215,14 +220,14 @@ export async function sendVerificationCode(
 /**
  * Verify the code sent to the user's email or phone.
  * Matches Android: POST api/node/auth/verify-code
- * Fields: verification_type, contact_info, code
+ * Server returns same flat structure as login.
  */
 export async function verifyCode(
   verificationType: string,
   contactInfo: string,
   code: string,
 ): Promise<VerifyResult> {
-  const res = await nodeApi.post<{ data?: NodeVerifyCodeResponseData; error?: string; message?: string }>(
+  const res = await nodeApi.post<NodeAuthFlat>(
     'api/node/auth/verify-code',
     form({ verification_type: verificationType, contact_info: contactInfo, code }),
     FORM_HEADERS,
@@ -230,17 +235,15 @@ export async function verifyCode(
 
   const body = res.data;
 
-  if (!body.data?.access_token || !body.data?.user) {
-    throw new Error(body.error ?? body.message ?? 'Verification failed');
+  if (!body.access_token) {
+    throw new Error(authError(body, 'Verification failed'));
   }
 
-  const d = body.data;
-  const expiresAtMs = computeExpiresAtMs(d);
   return {
-    user: mapUser(d.user),
-    accessToken: d.access_token,
-    refreshToken: d.refresh_token!,
-    expiresAtMs,
+    user: mapAuthUser(body),
+    accessToken: body.access_token,
+    refreshToken: body.refresh_token ?? '',
+    expiresAtMs: computeExpiresAtMs(body),
   };
 }
 
@@ -285,7 +288,7 @@ export async function resetPassword(email: string, code: string, newPassword: st
  * On success, saves new tokens to SecureStore automatically.
  */
 export async function refreshTokens(refreshToken: string): Promise<TokenRefreshResult> {
-  const res = await nodeApi.post<{ data?: NodeTokenRefreshData; error?: string; message?: string }>(
+  const res = await nodeApi.post<NodeAuthFlat>(
     'api/node/auth/refresh',
     form({ refresh_token: refreshToken }),
     FORM_HEADERS,
@@ -293,20 +296,19 @@ export async function refreshTokens(refreshToken: string): Promise<TokenRefreshR
 
   const body = res.data;
 
-  if (!body.data?.access_token) {
-    throw new Error(body.error ?? body.message ?? 'Token refresh failed');
+  if (!body.access_token) {
+    throw new Error(authError(body, 'Token refresh failed'));
   }
 
-  const d = body.data;
-  const expiresAtMs = computeExpiresAtMs(d);
+  const expiresAtMs = computeExpiresAtMs(body);
 
   await Promise.all([
-    storageService.setToken(d.access_token),
-    storageService.setRefreshToken(d.refresh_token),
+    storageService.setToken(body.access_token),
+    storageService.setRefreshToken(body.refresh_token ?? refreshToken),
     storageService.setTokenExpiresAt(expiresAtMs),
   ]);
 
-  return { accessToken: d.access_token, refreshToken: d.refresh_token, expiresAtMs };
+  return { accessToken: body.access_token, refreshToken: body.refresh_token ?? refreshToken, expiresAtMs };
 }
 
 export const authApi = { login, register, sendVerificationCode, verifyCode, requestPasswordReset, resetPassword, refreshTokens };
