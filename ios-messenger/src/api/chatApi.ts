@@ -82,6 +82,24 @@ export async function sendMessage(
 }
 
 /**
+ * Send a text message to a group chat.
+ * POST api/node/group/messages/send
+ */
+export async function sendGroupMessage(
+  groupId: string,
+  text: string,
+  replyToId?: string,
+): Promise<Message> {
+  const res = await nodePost<Message>('api/node/group/messages/send', {
+    groupId,
+    text,
+    ...(replyToId ? { replyToId } : {}),
+  });
+  if (!res.data) throw new Error(res.error ?? res.message ?? 'Failed to send group message');
+  return res.data;
+}
+
+/**
  * Send a media message (image, video, audio, file).
  * POST api/node/chat/send-media   (multipart/form-data)
  */

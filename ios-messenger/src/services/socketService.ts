@@ -138,6 +138,11 @@ class SocketService {
     return () => this.emitter.off(event, callback);
   }
 
+  /** Subscribe to socket reconnect/connect events (fired on every successful connect). */
+  onConnect(callback: () => void): () => void {
+    return this.on('socket:connected', callback as (...args: unknown[]) => void);
+  }
+
   /**
    * Unsubscribe a specific handler from an event.
    */
