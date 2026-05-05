@@ -34,14 +34,16 @@ jobs:
         run: gem install cocoapods --no-document
 
       # ── 5. npm install ───────────────────────────────────────────────
+      #       Используем npm install (не ci) так как package-lock.json
+      #       может не быть в репо — install создаёт его с нуля
       - name: Install JS dependencies
         working-directory: ios-messenger
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       # ── 6. expo prebuild — генерирует папку ios/ с Xcode-проектом ────
       - name: Expo prebuild (generate Xcode project)
         working-directory: ios-messenger
-        run: npx expo prebuild --platform ios --clean
+        run: npx expo prebuild --platform ios --clean --no-install
 
       # ── 7. pod install ───────────────────────────────────────────────
       - name: CocoaPods install
