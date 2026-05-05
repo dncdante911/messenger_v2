@@ -125,10 +125,6 @@
       "typedRoutes": true
     },
     "scheme": "worldmates",
-    "extra": {
-      "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID_HERE"
-      }
-    }
+    "extra": {}
   }
 }
