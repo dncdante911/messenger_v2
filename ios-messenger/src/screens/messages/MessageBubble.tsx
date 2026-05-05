@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Image,
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { Feather } from '@expo/vector-icons';
 import type { Message } from '../../api/types';
 import { MESSAGE_TYPES } from '../../constants/api';
@@ -22,10 +23,19 @@ interface MessageBubbleProps {
   nextMessage?: Message;
   onLongPress: (msg: Message) => void;
   onReply: (msg: Message) => void;
+  onEdit?: (msg: Message) => void;
+  onDelete?: (msg: Message) => void;
 }
 
 function formatTime(ts: string | number): string {
-  const date = typeof ts === 'number' ? new Date(ts * 1000) : new Date(ts);
+  let ms: number;
+  if (typeof ts === 'number') {
+    // > 1e12 → already milliseconds; otherwise treat as Unix seconds
+    ms = ts > 1e12 ? ts : ts * 1000;
+  } else {
+    ms = new Date(ts).getTime();
+  }
+  const date = new Date(ms);
   if (isNaN(date.getTime())) return '';
   const h = date.getHours().toString().padStart(2, '0');
   const m = date.getMinutes().toString().padStart(2, '0');
@@ -264,6 +274,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   nextMessage: _nextMessage,
   onLongPress,
   onReply,
+  onEdit,
+  onDelete,
 }) => {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -272,17 +284,28 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     onLongPress(message);
     const buttons: Array<{ text: string; onPress?: () => void; style?: 'destructive' | 'cancel' }> = [
       { text: t('reply'), onPress: () => onReply(message) },
-      { text: t('copy'), onPress: () => Alert.alert(t('copied'), '') },
+      {
+        text: t('copy'),
+        onPress: () => {
+          if (message.text) {
+            Clipboard.setString(message.text);
+          }
+        },
+      },
       { text: t('react'), onPress: () => Alert.alert('', t('coming_soon')) },
       { text: t('forward'), onPress: () => Alert.alert('', t('coming_soon')) },
     ];
     if (isOwn) {
-      buttons.push({ text: t('edit'), onPress: () => Alert.alert('', t('coming_soon')) });
-      buttons.push({ text: t('delete'), style: 'destructive', onPress: () => Alert.alert('', t('coming_soon')) });
+      if (onEdit) {
+        buttons.push({ text: t('edit'), onPress: () => onEdit(message) });
+      }
+      if (onDelete) {
+        buttons.push({ text: t('delete'), style: 'destructive', onPress: () => onDelete(message) });
+      }
     }
     buttons.push({ text: t('cancel'), style: 'cancel' });
     Alert.alert(t('message'), undefined, buttons);
-  }, [message, isOwn, onLongPress, onReply, t]);
+  }, [message, isOwn, onLongPress, onReply, onEdit, onDelete, t]);
 
   if (message.type === MESSAGE_TYPES.SYSTEM || message.isDeleted) {
     return <SystemContent message={message} theme={theme} />;

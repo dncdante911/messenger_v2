@@ -366,6 +366,9 @@ const en = {
   views: 'views',
   share: 'Share',
   language: 'Language',
+  delete_message_confirm: 'Delete this message?',
+  error_delete_message: 'Could not delete message.',
+  error_edit_message: 'Could not edit message.',
 } as const;
 
 export default en;

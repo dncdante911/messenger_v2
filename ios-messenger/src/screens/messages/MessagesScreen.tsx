@@ -35,6 +35,7 @@ import {
   SOCKET_EVENT_MESSAGE_SEEN,
 } from '../../constants/api';
 import * as chatApi from '../../api/chatApi';
+import { normaliseMessage } from '../../api/chatApi';
 import type { Message } from '../../api/types';
 import { Avatar } from '../../components/common/Avatar';
 import MessageBubble from './MessageBubble';
@@ -150,12 +151,15 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
   useEffect(() => {
     if (!userId) return;
 
-    // Incoming private message
+    // Incoming private message — normalise snake_case server payload
     const handlePrivateMessage = (data: unknown) => {
       if (!isMounted.current) return;
-      const msg = data as Message;
-      if (msg?.fromId !== userId) return;
-      setMessages((prev) => [msg, ...prev]);
+      const msg = normaliseMessage(data as Record<string, unknown>);
+      if (msg.fromId !== userId && msg.toId !== userId) return;
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [msg, ...prev];
+      });
       chatApi.markSeen(userId).catch(() => null);
     };
 
@@ -245,7 +249,7 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
         isSeen: false,
         isPinned: false,
         isLocalPending: true,
-        createdAt: Math.floor(Date.now() / 1000),
+        createdAt: Date.now(),
         ...(replyTo != null
           ? {
               replyToId: replyTo.id,
@@ -333,6 +337,59 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
     setReplyTo(null);
   }, []);
 
+  const handleDelete = useCallback(
+    async (msg: Message) => {
+      Alert.alert(
+        t('delete_message'),
+        t('delete_message_confirm'),
+        [
+          { text: t('cancel'), style: 'cancel' },
+          {
+            text: t('delete'),
+            style: 'destructive',
+            onPress: async () => {
+              setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+              try {
+                await chatApi.deleteMessage(msg.id);
+              } catch {
+                setMessages((prev) => [msg, ...prev]);
+                Alert.alert(t('error'), t('error_delete_message'));
+              }
+            },
+          },
+        ],
+      );
+    },
+    [t],
+  );
+
+  const handleEdit = useCallback(
+    (msg: Message) => {
+      Alert.prompt(
+        t('edit_message'),
+        undefined,
+        async (newText: string) => {
+          if (!newText || newText.trim() === msg.text) return;
+          const trimmed = newText.trim();
+          setMessages((prev) =>
+            prev.map((m) => (m.id === msg.id ? { ...m, text: trimmed, isEdited: true } : m)),
+          );
+          try {
+            await chatApi.editMessage(msg.id, trimmed);
+          } catch {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === msg.id ? { ...m, text: msg.text, isEdited: msg.isEdited } : m)),
+            );
+            Alert.alert(t('error'), t('error_edit_message'));
+          }
+        },
+        'plain-text',
+        msg.text,
+      );
+    },
+    [t],
+  );
+
   // ─────────────────────────────────────────────────────────
   // RENDER HELPERS
   // ─────────────────────────────────────────────────────────
@@ -346,9 +403,11 @@ const MessagesScreen: React.FC<Props> = ({ navigation, route }) => {
         nextMessage={messages[index - 1]}
         onLongPress={handleLongPress}
         onReply={handleReply}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
     ),
-    [currentUserId, messages, handleLongPress, handleReply],
+    [currentUserId, messages, handleLongPress, handleReply, handleEdit, handleDelete],
   );
 
   const keyExtractor = useCallback((item: Message) => item.id, []);
