@@ -405,6 +405,26 @@ const translations: Record<Lang, Record<string, string>> = {
     'call.groupCall':      'Групповой звонок',
     'call.groupIncoming':  'Входящий групповой звонок',
     'call.speaker':        '🔊 Динамик',
+    'call.shareScreen':    'Демонстрация экрана',
+    'call.stopShare':      'Остановить демонстрацию',
+
+    // Video player
+    'vp.play':       'Воспроизвести',
+    'vp.pause':      'Пауза',
+    'vp.mute':       'Звук',
+    'vp.speed':      'Скорость',
+    'vp.pip':        'Картинка в картинке',
+    'vp.fullscreen': 'Полный экран',
+
+    // Media gallery
+    'gallery.title':        'Медиагалерея',
+    'gallery.filter_all':   'Все',
+    'gallery.filter_photo': 'Фото',
+    'gallery.filter_video': 'Видео',
+    'gallery.loading':      'Загрузка…',
+    'gallery.empty':        'Медиафайлов нет',
+    'gallery.download':     'Скачать',
+    'gallery.close':        'Закрыть',
 
     // PIN lock
     'pin.lock':      'Приложение заблокировано',
@@ -806,6 +826,26 @@ const translations: Record<Lang, Record<string, string>> = {
     'call.groupCall':      'Груповий дзвінок',
     'call.groupIncoming':  'Вхідний груповий дзвінок',
     'call.speaker':        '🔊 Динамік',
+    'call.shareScreen':    'Демонстрація екрану',
+    'call.stopShare':      'Зупинити демонстрацію',
+
+    // Video player
+    'vp.play':       'Відтворити',
+    'vp.pause':      'Пауза',
+    'vp.mute':       'Звук',
+    'vp.speed':      'Швидкість',
+    'vp.pip':        'Картинка в картинці',
+    'vp.fullscreen': 'Повний екран',
+
+    // Media gallery
+    'gallery.title':        'Медіагалерея',
+    'gallery.filter_all':   'Всі',
+    'gallery.filter_photo': 'Фото',
+    'gallery.filter_video': 'Відео',
+    'gallery.loading':      'Завантаження…',
+    'gallery.empty':        'Медіафайлів немає',
+    'gallery.download':     'Завантажити',
+    'gallery.close':        'Закрити',
 
     // PIN lock
     'pin.lock':      'Застосунок заблоковано',
@@ -1206,6 +1246,26 @@ const translations: Record<Lang, Record<string, string>> = {
     'call.groupCall':      'Group call',
     'call.groupIncoming':  'Incoming group call',
     'call.speaker':        '🔊 Speaker',
+    'call.shareScreen':    'Share screen',
+    'call.stopShare':      'Stop sharing',
+
+    // Video player
+    'vp.play':       'Play',
+    'vp.pause':      'Pause',
+    'vp.mute':       'Volume',
+    'vp.speed':      'Playback speed',
+    'vp.pip':        'Picture in picture',
+    'vp.fullscreen': 'Fullscreen',
+
+    // Media gallery
+    'gallery.title':        'Media gallery',
+    'gallery.filter_all':   'All',
+    'gallery.filter_photo': 'Photos',
+    'gallery.filter_video': 'Videos',
+    'gallery.loading':      'Loading…',
+    'gallery.empty':        'No media yet',
+    'gallery.download':     'Download',
+    'gallery.close':        'Close',
 
     // PIN lock
     'pin.lock':      'App is locked',
