@@ -354,6 +354,8 @@ const ru = {
   group_public: 'Публичная',
   group_private: 'Приватная',
   search_groups: 'Поиск по группам',
+  search_users: 'Поиск по имени или нику',
+  no_users_found: 'Пользователи не найдены',
 
   // Channel details screen
   channel_info: 'О канале',

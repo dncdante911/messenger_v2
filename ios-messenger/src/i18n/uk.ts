@@ -354,6 +354,8 @@ const uk = {
   group_public: 'Публічна',
   group_private: 'Приватна',
   search_groups: 'Пошук у групах',
+  search_users: 'Пошук за іменем або ніком',
+  no_users_found: 'Користувачів не знайдено',
 
   // Channel details screen
   channel_info: 'Про канал',

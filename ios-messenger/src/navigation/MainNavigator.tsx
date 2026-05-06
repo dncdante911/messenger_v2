@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatsScreen } from '../screens/chats/ChatsScreen';
 import { CallsScreen } from '../screens/calls/CallsScreen';
 import { StoriesScreen } from '../screens/stories/StoriesScreen';
-import { MessagesScreen } from '../screens/messages/MessagesScreen';
+import MessagesScreen from '../screens/messages/MessagesScreen';
 import { GroupsScreen } from '../screens/groups/GroupsScreen';
 import { ChannelDetailsScreen } from '../screens/channels/ChannelDetailsScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
