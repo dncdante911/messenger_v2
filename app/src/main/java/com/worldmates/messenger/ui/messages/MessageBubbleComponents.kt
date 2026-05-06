@@ -82,6 +82,8 @@ fun MessageBubbleComposable(
     isSelected: Boolean = false,
     onToggleSelection: (Long) -> Unit = {},
     onDoubleTap: (Long) -> Unit = {},
+    // ✨ Підсвічування при навігації до цитованого
+    isHighlighted: Boolean = false,
     // 👤 Параметри для відображення імені відправника (групові та приватні чати)
     isGroup: Boolean = false,
     recipientName: String = "",
@@ -175,11 +177,29 @@ fun MessageBubbleComposable(
         label = "selectionBg"
     )
 
+    // ✨ Telegram-style flash: миттєво з'являється жовтим, повільно зникає
+    val highlightAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(isHighlighted) {
+        if (isHighlighted) {
+            highlightAlpha.snapTo(0.38f)       // мгновенно появляется
+            highlightAlpha.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing)
+            )
+        } else {
+            highlightAlpha.snapTo(0f)
+        }
+    }
+    val combinedBgColor = when {
+        highlightAlpha.value > 0f -> Color(0xFFFFD700).copy(alpha = highlightAlpha.value)
+        else                      -> selectionBgColor
+    }
+
     // 💬 Обгортка з іконкою Reply для свайпу
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(selectionBgColor)
+            .background(combinedBgColor)
             .padding(vertical = 3.dp)
     ) {
         // Іконка Reply (показується при свайпі)
@@ -913,6 +933,22 @@ fun MessageBubbleComposable(
                     onDismiss = { showReactionPicker = false }
                 )
             }
+        }
+
+        // ✅ Selection overlay — covers entire row so ANY tap toggles selection.
+        // This is the fix for media messages where the clickable area is smaller
+        // than the full row width (image/video/sticker don't fill to edges).
+        if (isSelectionMode) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    ) {
+                        onToggleSelection(message.id)
+                    }
+            )
         }
     }  // Закриття Box зі свайпом
 
