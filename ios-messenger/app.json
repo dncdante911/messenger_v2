@@ -108,8 +108,7 @@
       ],
       "expo-secure-store",
       "expo-av",
-      "expo-document-picker",
-      "expo-clipboard"
+      "expo-document-picker"
     ],
     "scheme": "worldmates",
     "extra": {}
