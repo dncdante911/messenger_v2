@@ -21,6 +21,7 @@ import { format, isToday, isYesterday, isThisWeek } from 'date-fns';
 import { Avatar } from '../../components/common/Avatar';
 import { Badge } from '../../components/common/Badge';
 import { useChatStore } from '../../store/chatStore';
+import { usePresenceStore } from '../../services/presenceService';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
 import type { Chat, Message } from '../../api/types';
@@ -158,7 +159,7 @@ export function ChatsScreen() {
 
   const chats = useChatStore((s) => s.chats);
   const isLoadingChats = useChatStore((s) => s.isLoadingChats);
-  const onlineUsers = useChatStore((s) => s.onlineUsers);
+  const onlineUsers = usePresenceStore((s) => s.onlineUsers);
   const loadChats = useChatStore((s) => s.loadChats);
   const archiveChat = useChatStore((s) => s.archiveChat);
   const muteChat = useChatStore((s) => s.muteChat);
