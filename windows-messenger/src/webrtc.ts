@@ -17,3 +17,20 @@ export async function createLocalAudioStream() {
 export async function createLocalVideoStream() {
   return navigator.mediaDevices.getUserMedia({ audio: true, video: true });
 }
+
+export async function createScreenShareStream(): Promise<MediaStream> {
+  // getDisplayMedia captures the screen / window / tab
+  const stream = await (navigator.mediaDevices as MediaDevices & {
+    getDisplayMedia(constraints?: MediaStreamConstraints): Promise<MediaStream>;
+  }).getDisplayMedia({ video: true, audio: true });
+  return stream;
+}
+
+/** Swap the video track in a peer connection for screen share (or back to camera). */
+export function replaceVideoTrack(
+  pc: RTCPeerConnection,
+  newTrack: MediaStreamTrack,
+): void {
+  const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+  if (sender) sender.replaceTrack(newTrack);
+}

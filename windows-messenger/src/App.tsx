@@ -36,6 +36,8 @@ import {
 import type { ChannelPost, ChannelPoll, ChannelComment, PollOption, StickerPack, GifItem, BotItem, StoryComment } from './types';
 import ChannelAdminPanel from './ChannelAdminPanel';
 import GroupAdminPanel from './GroupAdminPanel';
+import VideoPlayer from './VideoPlayer';
+import MediaGallery, { type MediaItem } from './MediaGallery';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
@@ -45,7 +47,8 @@ import {
   emitGroupCallJoin, emitGroupCallEnd,
   emitTyping,
 } from './socket';
-import { createLocalVideoStream, createLocalAudioStream, createPeerConnection } from './webrtc';
+import { createLocalVideoStream, createLocalAudioStream, createPeerConnection, createScreenShareStream, replaceVideoTrack } from './webrtc';
+import { getChatMedia, getGroupMedia, getChannelMedia } from './api';
 import type {
   ActiveSection, CallHistoryItem, CallState, ChatItem, ChannelItem, GroupItem,
   GroupCallPeer, MessageItem, PrivacySettings, ReplyTarget, Session, StoryItem
@@ -436,7 +439,7 @@ const Bubble = React.memo(function Bubble({
                 : mediaIsImage
                   ? <img src={cachedMediaUrl || mediaUrl} alt="media" className="media-img" loading="lazy" onClick={() => onOpenMedia(mediaUrl)} />
                   : isVideo
-                    ? <video src={mediaUrl} controls className="media-video" />
+                    ? <VideoPlayer src={mediaUrl} className="media-video-player" />
                     : isVoice
                       ? <VoicePlayer src={mediaUrl} filename={msg.media_filename} />
                       : <a href={mediaUrl} target="_blank" rel="noreferrer" className="media-file">
@@ -656,6 +659,8 @@ export default function App() {
   const [callState, setCallState]   = useState<CallState>({ phase: 'idle' });
   const [callMuted,  setCallMuted]  = useState(false);
   const [callCamOff, setCallCamOff] = useState(false);
+  const [screenSharing, setScreenSharing] = useState(false);
+  const screenStreamRef = useRef<MediaStream | null>(null);
   const peerRef         = useRef<RTCPeerConnection | null>(null);
   const localStreamRef  = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
@@ -667,6 +672,12 @@ export default function App() {
   // Group call peers (mesh WebRTC — one PC per participant)
   const groupPeersRef   = useRef<Map<number, GroupCallPeer>>(new Map());
   const [groupPeers,  setGroupPeers]  = useState<GroupCallPeer[]>([]);
+
+  // ── Media gallery ─────────────────────────────────────────────────────────
+  const [showGallery,    setShowGallery]    = useState(false);
+  const [galleryItems,   setGalleryItems]   = useState<MediaItem[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryTitle,   setGalleryTitle]   = useState('');
 
   // ── PIN lock ──────────────────────────────────────────────────────────────
   const [pinLocked,   setPinLocked]   = useState(false);
@@ -2607,6 +2618,55 @@ export default function App() {
     setCallCamOff(next);
   }
 
+  async function handleScreenShare() {
+    const pc = peerRef.current;
+    if (!pc) return;
+    if (screenSharing) {
+      // Stop screen share, restore camera
+      screenStreamRef.current?.getTracks().forEach(t => t.stop());
+      screenStreamRef.current = null;
+      const camTrack = localStreamRef.current?.getVideoTracks()[0];
+      if (camTrack) replaceVideoTrack(pc, camTrack);
+      if (localVideoRef.current && localStreamRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+      }
+      setScreenSharing(false);
+    } else {
+      try {
+        const screenStream = await createScreenShareStream();
+        screenStreamRef.current = screenStream;
+        const screenTrack = screenStream.getVideoTracks()[0];
+        replaceVideoTrack(pc, screenTrack);
+        if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
+        // Auto-stop when user clicks browser's "Stop sharing" button
+        screenTrack.onended = () => handleScreenShare();
+        setScreenSharing(true);
+      } catch { /* user cancelled */ }
+    }
+  }
+
+  async function openGallery(ctx: 'chat' | 'group' | 'channel') {
+    setShowGallery(true);
+    setGalleryLoading(true);
+    setGalleryItems([]);
+    try {
+      if (ctx === 'chat' && selectedChat) {
+        setGalleryTitle(selectedChat.name || '');
+        const items = await getChatMedia(session!.token, selectedChat.user_id);
+        setGalleryItems(items);
+      } else if (ctx === 'group' && selectedGroup) {
+        setGalleryTitle(selectedGroup.group_name);
+        const items = await getGroupMedia(session!.token, selectedGroup.id);
+        setGalleryItems(items);
+      } else if (ctx === 'channel' && selectedChannel) {
+        setGalleryTitle(selectedChannel.name);
+        const items = await getChannelMedia(session!.token, selectedChannel.id);
+        setGalleryItems(items);
+      }
+    } catch { /* ignore */ }
+    setGalleryLoading(false);
+  }
+
   // ─── Group calls ───────────────────────────────────────────────────────────
 
   async function acceptGroupCall() {
@@ -3049,7 +3109,17 @@ export default function App() {
                     {callCamOff ? '📷' : '📹'}
                   </button>
                 )}
-                <button className="call-ctrl-btn end-btn" onClick={endActiveCall}>📵</button>
+                <button
+                  className={`call-ctrl-btn ${screenSharing ? 'active screen-share-active' : ''}`}
+                  onClick={handleScreenShare}
+                  title={screenSharing ? t('call.stopShare') : t('call.shareScreen')}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>
+                    {screenSharing && <line x1="2" y1="3" x2="22" y2="17" stroke="#34d399" strokeWidth="2"/>}
+                  </svg>
+                </button>
+                <button className="call-ctrl-btn end-btn" onClick={endActiveCall} title={t('call.end')}>📵</button>
               </div>
             </>
           )}
@@ -4633,6 +4703,12 @@ export default function App() {
                 </button>
               </div>
               <div className="chat-header-actions">
+                <button className="icon-btn" title={t('gallery.title')} onClick={() => openGallery('group')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                </button>
                 <button className={`icon-btn ${showGroupInfo ? 'active' : ''}`}
                   title={t('channel.info')} onClick={() => setShowGroupInfo(v => !v)}>ℹ️</button>
                 {selectedGroup.is_admin && (
@@ -4687,7 +4763,7 @@ export default function App() {
                             {msg.media_type === 'image' || (!msg.media_type && /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.media))
                               ? <img src={absMediaUrl(msg.media)} alt="media" className="media-img" loading="lazy" onClick={() => setLightboxSrc(absMediaUrl(msg.media!))} />
                               : msg.media_type === 'video'
-                                ? <video src={msg.media} controls className="media-video" />
+                                ? <VideoPlayer src={msg.media} className="media-video-player" />
                                 : <a href={msg.media} target="_blank" rel="noreferrer" className="media-file">📎 {msg.media_filename ?? t('misc.downloadFile')}</a>
                             }
                           </div>
@@ -4806,6 +4882,12 @@ export default function App() {
               </div>
               <div className="chat-header-actions">
                 {/* Search always visible */}
+                <button className="icon-btn" title={t('gallery.title')} onClick={() => openGallery('channel')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                </button>
                 <button className="icon-btn" title={t('chat.search')} onClick={() => {}}>🔍</button>
                 {/* Info toggle */}
                 <button className={`icon-btn ${showChannelInfo ? 'active' : ''}`}
@@ -5084,6 +5166,12 @@ export default function App() {
                 </div>
               </div>
               <div className="chat-header-actions">
+                <button className="icon-btn" title={t('gallery.title')} onClick={() => openGallery('chat')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                </button>
                 <button className="icon-btn" title={t('chat.search')} onClick={openChatSearch}>
                   🔍
                 </button>
@@ -5497,6 +5585,16 @@ export default function App() {
             const r = await loadGroups(session.token);
             setGroups(r.data ?? []);
           }}
+        />
+      )}
+
+      {/* ── Media gallery overlay ─────────────────────────────────────────── */}
+      {showGallery && (
+        <MediaGallery
+          items={galleryItems}
+          loading={galleryLoading}
+          title={galleryTitle}
+          onClose={() => setShowGallery(false)}
         />
       )}
     </div>

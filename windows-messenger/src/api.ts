@@ -1805,3 +1805,117 @@ export async function loadGroupAdminLogs(token: string, groupId: number, page = 
     };
   } catch { return { logs: [], total: 0 }; }
 }
+
+// ─── Media gallery ────────────────────────────────────────────────────────────
+
+export type MediaGalleryItem = {
+  url:     string;
+  type:    'image' | 'video' | 'gif';
+  thumb?:  string;
+  caption?: string;
+  date?:   string;
+  sender?: string;
+};
+
+/** Load all media messages from a 1-on-1 chat (up to 3 pages × 40). */
+export async function getChatMedia(token: string, recipientId: number): Promise<MediaGalleryItem[]> {
+  const MEDIA_TYPES = new Set(['image', 'video', 'gif', 'photo']);
+  const MEDIA_EXTS  = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i;
+  const items: MediaGalleryItem[] = [];
+
+  let beforeId = 0;
+  for (let page = 0; page < 4; page++) {
+    const resp = await nodePost<Record<string, unknown>>(
+      page === 0 ? '/api/node/chat/get' : '/api/node/chat/loadmore',
+      token,
+      { recipient_id: recipientId, limit: 40, before_message_id: beforeId }
+    );
+    const msgs = normaliseMessages(resp).messages ?? [];
+    if (!msgs.length) break;
+    for (const m of msgs) {
+      if (!m.media) continue;
+      const mt = (m.media_type ?? '').toLowerCase();
+      const isMedia = MEDIA_TYPES.has(mt) || MEDIA_EXTS.test(m.media);
+      if (!isMedia) continue;
+      const type: MediaGalleryItem['type'] = mt === 'video' || /\.(mp4|webm|mov|mkv)$/i.test(m.media)
+        ? 'video' : mt === 'gif' ? 'gif' : 'image';
+      items.push({
+        url:     resolveUrl(m.media),
+        type,
+        caption: m.text || undefined,
+        date:    m.time ? String(m.time) : undefined,
+      });
+    }
+    beforeId = msgs[msgs.length - 1].id ?? 0;
+  }
+  return items;
+}
+
+/** Load all media messages from a group. */
+export async function getGroupMedia(token: string, groupId: number): Promise<MediaGalleryItem[]> {
+  const MEDIA_TYPES = new Set(['image', 'video', 'gif', 'photo']);
+  const MEDIA_EXTS  = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i;
+  const items: MediaGalleryItem[] = [];
+
+  let beforeId = 0;
+  for (let page = 0; page < 4; page++) {
+    const resp = await nodePost<Record<string, unknown>>(
+      page === 0 ? '/api/node/group/messages/get' : '/api/node/group/messages/loadmore',
+      token,
+      { group_id: groupId, limit: 40, before_message_id: beforeId }
+    );
+    const msgs = normaliseMessages(resp).messages ?? [];
+    if (!msgs.length) break;
+    for (const m of msgs) {
+      if (!m.media) continue;
+      const mt = (m.media_type ?? '').toLowerCase();
+      const isMedia = MEDIA_TYPES.has(mt) || MEDIA_EXTS.test(m.media);
+      if (!isMedia) continue;
+      const type: MediaGalleryItem['type'] = mt === 'video' || /\.(mp4|webm|mov|mkv)$/i.test(m.media)
+        ? 'video' : mt === 'gif' ? 'gif' : 'image';
+      items.push({
+        url:     resolveUrl(m.media),
+        type,
+        caption: m.text || undefined,
+        date:    m.time ? String(m.time) : undefined,
+      });
+    }
+    beforeId = msgs[msgs.length - 1].id ?? 0;
+  }
+  return items;
+}
+
+/** Load all media posts from a channel. */
+export async function getChannelMedia(token: string, channelId: number): Promise<MediaGalleryItem[]> {
+  const MEDIA_EXTS = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i;
+  const items: MediaGalleryItem[] = [];
+
+  let offset = 0;
+  for (let page = 0; page < 4; page++) {
+    const resp = await nodePost<Record<string, unknown>>('/api/node/channel/posts', token, {
+      channel_id: channelId, limit: 40, offset
+    });
+    const raw = (resp.posts ?? resp.data ?? []) as Record<string, unknown>[];
+    if (!raw.length) break;
+    for (const p of raw) {
+      const mediaUrl = String(p.media ?? p.image_src ?? p.video_src ?? '');
+      if (!mediaUrl || !MEDIA_EXTS.test(mediaUrl)) continue;
+      const isVideo = /\.(mp4|webm|mov|mkv)$/i.test(mediaUrl);
+      items.push({
+        url:     resolveUrl(mediaUrl),
+        type:    isVideo ? 'video' : 'image',
+        caption: p.text ? String(p.text).slice(0, 80) : undefined,
+        date:    p.created_at ? String(p.created_at) : undefined,
+      });
+    }
+    offset += raw.length;
+    if (raw.length < 40) break;
+  }
+  return items;
+}
+
+function resolveUrl(path: string): string {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  return `${(window as Window & { __API_BASE__?: string }).__API_BASE__ ?? ''}/uploads/${path.replace(/^\/?(uploads\/)?/, '')}`;
+}
