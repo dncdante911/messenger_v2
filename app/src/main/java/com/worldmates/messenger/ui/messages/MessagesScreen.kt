@@ -270,6 +270,9 @@ fun MessagesScreen(
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedMessages by remember { mutableStateOf(setOf<Long>()) }
 
+    // ✨ Підсвічування повідомлення при навігації по цитаті
+    var highlightedMessageId by remember { mutableStateOf<Long?>(null) }
+
     // 📤 Пересилання повідомлень
     var showForwardDialog by remember { mutableStateOf(false) }
     var messageToForward by remember { mutableStateOf<Message?>(null) }
@@ -1462,6 +1465,7 @@ fun MessagesScreen(
                             // 🔥 Нові параметри для режиму вибору
                             isSelectionMode = isSelectionMode,
                             isSelected = selectedMessages.contains(message.id),
+                            isHighlighted = highlightedMessageId == message.id,
                             onToggleSelection = { messageId ->
                                 selectedMessages = if (selectedMessages.contains(messageId)) {
                                     selectedMessages - messageId
@@ -1509,7 +1513,13 @@ fun MessagesScreen(
                             viewModel = viewModel,
                             onReplyClick = { replyId ->
                                 val idx = reversedMessages.indexOfFirst { it.id == replyId }
-                                if (idx >= 0) scope.launch { listState.animateScrollToItem(idx) }
+                                if (idx >= 0) scope.launch {
+                                    listState.animateScrollToItem(idx)
+                                    // Flash-highlight the target message (Telegram-style)
+                                    highlightedMessageId = replyId
+                                    kotlinx.coroutines.delay(1400)
+                                    highlightedMessageId = null
+                                }
                             },
                             onBotButtonClick = { botId, msgId, button ->
                                 when (button.type) {
