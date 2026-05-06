@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Image,
 } from 'react-native';
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import { Feather } from '@expo/vector-icons';
 import type { Message } from '../../api/types';
 import { MESSAGE_TYPES } from '../../constants/api';
@@ -288,7 +288,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         text: t('copy'),
         onPress: () => {
           if (message.text) {
-            Clipboard.setString(message.text);
+            Clipboard.setStringAsync(message.text).catch(() => null);
           }
         },
       },
