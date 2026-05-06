@@ -7,10 +7,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,6 +49,7 @@ import com.worldmates.messenger.ui.messages.selection.MediaActionMenu
 import com.worldmates.messenger.ui.preferences.rememberBubbleStyle
 import com.worldmates.messenger.utils.VoicePlayer
 import com.worldmates.messenger.utils.VoiceTranscriptCache
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import com.worldmates.messenger.R
@@ -196,20 +200,50 @@ fun MessageBubbleComposable(
                 .fillMaxWidth()
                 .offset { IntOffset(offsetX.roundToInt(), 0) }
                 .pointerInput(message.id) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = {
-                            if (offsetX > maxSwipeDistance / 2) {
-                                // Свайп достатньо далеко - викликаємо reply
-                                onReply(message)
+                    // Custom swipe detector that doesn't compete with child long-press:
+                    // - awaitFirstDown(requireUnconsumed = false) lets child keep the pointer
+                    // - only activates when horizontal delta clearly exceeds vertical (2×)
+                    // - requires minimum horizontal distance before locking into swipe mode
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var totalX = 0f
+                        var totalY = 0f
+                        var isSwipeActive = false
+                        val pointer = down.id
+
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == pointer }
+                                ?: event.changes.firstOrNull()
+                                ?: break
+
+                            val dx = change.position.x - change.previousPosition.x
+                            val dy = change.position.y - change.previousPosition.y
+                            totalX += dx
+                            totalY += dy
+
+                            if (!isSwipeActive) {
+                                val absX = abs(totalX)
+                                val absY = abs(totalY)
+                                // Only start swipe if: horizontal movement > 20px
+                                // AND horizontal is at least 2× more than vertical (clear intent)
+                                // AND direction is right-to-left (positive x)
+                                if (absX > 20f && absX > absY * 2f && totalX > 0f) {
+                                    isSwipeActive = true
+                                }
                             }
-                            // Повертаємо на місце
-                            offsetX = 0f
-                        },
-                        onHorizontalDrag = { _, dragAmount ->
-                            // Свайп тільки праворуч для reply
-                            offsetX = (offsetX + dragAmount).coerceIn(0f, maxSwipeDistance)
+
+                            if (isSwipeActive) {
+                                change.consume()
+                                offsetX = totalX.coerceIn(0f, maxSwipeDistance)
+                            }
+                        } while (event.changes.any { it.pressed })
+
+                        if (isSwipeActive && offsetX > maxSwipeDistance / 2) {
+                            onReply(message)
                         }
-                    )
+                        offsetX = 0f
+                    }
                 },
             horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start
         ) {
@@ -835,18 +869,7 @@ fun MessageBubbleComposable(
                                     }
                                 }
                             }
-                            // 🕐 Час прочитання — показуємо лише для власних прочитаних повідомлень
-                            if (isOwn && message.isRead == true) {
-                                message.readAt?.let { readAt ->
-                                    Text(
-                                        text = stringResource(R.string.read_at_fmt, formatTime(readAt)),
-                                        color = textColor.copy(alpha = 0.35f),
-                                        fontSize = 10.sp,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
                             }
-                        }
                     }
                     }  // end else (StyledBubble path)
 
@@ -1660,72 +1683,171 @@ fun ReplyIndicator(
     onCancelReply: () -> Unit,
     recipientName: String = ""
 ) {
-    if (replyToMessage != null) {
+    // Keep last non-null message so the exit animation renders the last content, not empty
+    var cachedMsg by remember { mutableStateOf(replyToMessage) }
+    if (replyToMessage != null) cachedMsg = replyToMessage
+
+    androidx.compose.animation.AnimatedVisibility(
+        visible = replyToMessage != null,
+        enter = slideInVertically(animationSpec = tween(200)) { it } + fadeIn(animationSpec = tween(200)),
+        exit = slideOutVertically(animationSpec = tween(150)) { it } + fadeOut(animationSpec = tween(150))
+    ) {
+        val msg = cachedMsg ?: return@AnimatedVisibility
         val colorScheme = MaterialTheme.colorScheme
         val senderName = when {
-            replyToMessage.fromId == UserSession.userId -> stringResource(R.string.you_label)
-            !replyToMessage.senderName.isNullOrBlank()  -> replyToMessage.senderName.orEmpty()
-            recipientName.isNotBlank()                  -> recipientName
-            else                                        -> stringResource(R.string.user_label)
+            msg.fromId == UserSession.userId    -> stringResource(R.string.you_label)
+            !msg.senderName.isNullOrBlank()     -> msg.senderName.orEmpty()
+            recipientName.isNotBlank()          -> recipientName
+            else                               -> stringResource(R.string.user_label)
+        }
+        val mediaType = when {
+            msg.type == "voice"                                                       -> "voice"
+            msg.type == "audio"                                                       -> "audio"
+            msg.type == "video"                                                       -> "video"
+            msg.type == "image" || msg.type == "photo"                                -> "image"
+            msg.type == "sticker"                                                     -> "sticker"
+            !msg.stickers.isNullOrEmpty() && msg.stickers!!.startsWith("http")       -> "sticker"
+            !msg.mediaUrl.isNullOrBlank()                                             -> "media"
+            else                                                                      -> null
         }
         val previewText = when {
-            !replyToMessage.decryptedText.isNullOrBlank() -> replyToMessage.decryptedText.orEmpty()
-            replyToMessage.type == "voice"   -> stringResource(R.string.reply_type_voice)
-            replyToMessage.type == "audio"   -> stringResource(R.string.reply_type_audio)
-            replyToMessage.type == "video"   -> stringResource(R.string.reply_type_video)
-            replyToMessage.type == "image"   -> stringResource(R.string.reply_type_photo)
-            replyToMessage.type == "sticker" -> stringResource(R.string.reply_type_sticker)
-            // GIF/sticker sent via stickers field (type may be "left_gif", "right_gif", or empty)
-            !replyToMessage.stickers.isNullOrEmpty() && replyToMessage.stickers!!.startsWith("http") ->
-                stringResource(R.string.reply_type_sticker)
-            !replyToMessage.mediaUrl.isNullOrBlank() -> stringResource(R.string.reply_type_media)
-            else -> stringResource(R.string.reply_type_message)
+            !msg.decryptedText.isNullOrBlank() -> msg.decryptedText.orEmpty()
+            mediaType == "voice"   -> stringResource(R.string.reply_type_voice)
+            mediaType == "audio"   -> stringResource(R.string.reply_type_audio)
+            mediaType == "video"   -> stringResource(R.string.reply_type_video)
+            mediaType == "image"   -> stringResource(R.string.reply_type_photo)
+            mediaType == "sticker" -> stringResource(R.string.reply_type_sticker)
+            mediaType == "media"   -> stringResource(R.string.reply_type_media)
+            else                   -> stringResource(R.string.reply_type_message)
+        }
+        val mediaIcon: androidx.compose.ui.graphics.vector.ImageVector? = when (mediaType) {
+            "voice"   -> Icons.Default.Mic
+            "audio"   -> Icons.Default.MusicNote
+            "video"   -> Icons.Default.Videocam
+            "image"   -> Icons.Default.Image
+            "sticker" -> Icons.Default.EmojiEmotions
+            else      -> null
+        }
+        val mediaImageUrl = when {
+            mediaType == "image" -> msg.decryptedMediaUrl ?: msg.mediaUrl
+            else                 -> null
         }
 
-        Row(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 3.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(colorScheme.surfaceVariant),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = colorScheme.surfaceContainerHigh,
+            tonalElevation = 2.dp
         ) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .width(3.dp)
-                    .height(32.dp)
-                    .background(
-                        colorScheme.primary,
-                        RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
-                    )
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f).padding(vertical = 4.dp)) {
-                Text(
-                    text = senderName,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colorScheme.primary,
-                    maxLines = 1
-                )
-                Text(
-                    text = previewText,
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-            }
-            IconButton(
-                onClick = onCancelReply,
-                modifier = Modifier.size(32.dp)
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = stringResource(R.string.cancel_reply_desc),
-                    tint = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size(16.dp)
+                // Left accent bar
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .fillMaxHeight()
+                        .background(
+                            colorScheme.primary,
+                            RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                        )
                 )
+
+                // Reply icon or media thumbnail
+                Box(
+                    modifier = Modifier
+                        .padding(start = 10.dp, top = 8.dp, bottom = 8.dp)
+                        .size(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (mediaImageUrl != null) {
+                        AsyncImage(
+                            model = mediaImageUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(6.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else if (mediaIcon != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .background(
+                                    colorScheme.primary.copy(alpha = 0.12f),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = mediaIcon,
+                                contentDescription = null,
+                                tint = colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .background(
+                                    colorScheme.primary.copy(alpha = 0.12f),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Reply,
+                                contentDescription = null,
+                                tint = colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 8.dp, end = 4.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = senderName,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(1.dp))
+                    Text(
+                        text = previewText,
+                        fontSize = 12.sp,
+                        color = colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                IconButton(
+                    onClick = onCancelReply,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(R.string.cancel_reply_desc),
+                        tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

@@ -616,6 +616,7 @@ fun MessagesScreen(
             val file = fileManager.copyUriToCache(it)
             if (file != null) {
                 viewModel.uploadAndSendMedia(file, "file")
+                replyToMessage = null
             } else {
                 Log.e("MessagesScreen", "Не вдалося скопіювати файл")
             }
@@ -1577,6 +1578,7 @@ fun MessagesScreen(
                             showImagePreviewDialog = false
                             pendingImageFile?.let { viewModel.uploadAndSendMedia(it, "image") }
                             pendingImageFile = null
+                            replyToMessage = null
                         }) {
                             Text(stringResource(R.string.send_original))
                         }
@@ -2029,6 +2031,7 @@ fun MessagesScreen(
                             if (stopped && voiceRecorder.recordingState.value is VoiceRecorder.RecordingState.Completed) {
                                 val filePath = (voiceRecorder.recordingState.value as VoiceRecorder.RecordingState.Completed).filePath
                                 viewModel.uploadAndSendMedia(java.io.File(filePath), "voice")
+                                replyToMessage = null
                             }
                         }
                     },
@@ -2172,6 +2175,7 @@ fun MessagesScreen(
                                 quality    = quality,
                                 sendAsFile = sendAsFile,
                             )
+                            replyToMessage = null
                         }
                     },
                     onDismiss = {
@@ -2203,11 +2207,13 @@ fun MessagesScreen(
                     pendingAudioFile?.let { viewModel.uploadAndSendMedia(it, "audio") }
                     showAudioQualityDialog = false
                     pendingAudioFile = null
+                    replyToMessage = null
                 },
                 onSendCompressedAudio = {
                     pendingAudioFile?.let { viewModel.uploadAndSendMedia(it, "voice") }
                     showAudioQualityDialog = false
                     pendingAudioFile = null
+                    replyToMessage = null
                 },
                 onAudioDismiss = { showAudioQualityDialog = false; pendingAudioFile = null },
                 showForwardDialog = showForwardDialog,
