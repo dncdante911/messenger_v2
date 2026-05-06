@@ -1817,11 +1817,12 @@ export type MediaGalleryItem = {
   sender?: string;
 };
 
-/** Load all media messages from a 1-on-1 chat (up to 3 pages × 40). */
+/** Load all media messages from a 1-on-1 chat (up to 4 pages × 40). */
 export async function getChatMedia(token: string, recipientId: number): Promise<MediaGalleryItem[]> {
   const MEDIA_TYPES = new Set(['image', 'video', 'gif', 'photo']);
   const MEDIA_EXTS  = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i;
   const items: MediaGalleryItem[] = [];
+  const seen = new Set<string>();
 
   let beforeId = 0;
   for (let page = 0; page < 4; page++) {
@@ -1832,21 +1833,21 @@ export async function getChatMedia(token: string, recipientId: number): Promise<
     );
     const msgs = normaliseMessages(resp).messages ?? [];
     if (!msgs.length) break;
+    const lastId = msgs[msgs.length - 1].id;
+    if (page > 0 && lastId === beforeId) break; // no progress — server sent same page
     for (const m of msgs) {
       if (!m.media) continue;
+      const url = resolveUrl(m.media);
+      if (seen.has(url)) continue;
       const mt = (m.media_type ?? '').toLowerCase();
-      const isMedia = MEDIA_TYPES.has(mt) || MEDIA_EXTS.test(m.media);
-      if (!isMedia) continue;
+      if (!MEDIA_TYPES.has(mt) && !MEDIA_EXTS.test(m.media)) continue;
+      seen.add(url);
       const type: MediaGalleryItem['type'] = mt === 'video' || /\.(mp4|webm|mov|mkv)$/i.test(m.media)
         ? 'video' : mt === 'gif' ? 'gif' : 'image';
-      items.push({
-        url:     resolveUrl(m.media),
-        type,
-        caption: m.text || undefined,
-        date:    m.time ? String(m.time) : undefined,
-      });
+      items.push({ url, type, caption: m.text || undefined, date: m.time ? String(m.time) : undefined });
     }
-    beforeId = msgs[msgs.length - 1].id ?? 0;
+    beforeId = lastId;
+    if (msgs.length < 40) break;
   }
   return items;
 }
@@ -1856,6 +1857,7 @@ export async function getGroupMedia(token: string, groupId: number): Promise<Med
   const MEDIA_TYPES = new Set(['image', 'video', 'gif', 'photo']);
   const MEDIA_EXTS  = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i;
   const items: MediaGalleryItem[] = [];
+  const seen = new Set<string>();
 
   let beforeId = 0;
   for (let page = 0; page < 4; page++) {
@@ -1866,21 +1868,21 @@ export async function getGroupMedia(token: string, groupId: number): Promise<Med
     );
     const msgs = normaliseMessages(resp).messages ?? [];
     if (!msgs.length) break;
+    const lastId = msgs[msgs.length - 1].id;
+    if (page > 0 && lastId === beforeId) break;
     for (const m of msgs) {
       if (!m.media) continue;
+      const url = resolveUrl(m.media);
+      if (seen.has(url)) continue;
       const mt = (m.media_type ?? '').toLowerCase();
-      const isMedia = MEDIA_TYPES.has(mt) || MEDIA_EXTS.test(m.media);
-      if (!isMedia) continue;
+      if (!MEDIA_TYPES.has(mt) && !MEDIA_EXTS.test(m.media)) continue;
+      seen.add(url);
       const type: MediaGalleryItem['type'] = mt === 'video' || /\.(mp4|webm|mov|mkv)$/i.test(m.media)
         ? 'video' : mt === 'gif' ? 'gif' : 'image';
-      items.push({
-        url:     resolveUrl(m.media),
-        type,
-        caption: m.text || undefined,
-        date:    m.time ? String(m.time) : undefined,
-      });
+      items.push({ url, type, caption: m.text || undefined, date: m.time ? String(m.time) : undefined });
     }
-    beforeId = msgs[msgs.length - 1].id ?? 0;
+    beforeId = lastId;
+    if (msgs.length < 40) break;
   }
   return items;
 }

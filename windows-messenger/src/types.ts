@@ -379,7 +379,7 @@ export type Session = {
 
 // ─── UI state ─────────────────────────────────────────────────────────────────
 
-export type ActiveSection = 'chats' | 'groups' | 'channels' | 'stories' | 'calls' | 'settings' | 'archived';
+export type ActiveSection = 'chats' | 'groups' | 'channels' | 'stories' | 'calls' | 'settings' | 'archived' | 'bots';
 
 export type ReplyTarget = {
   id:      number;
