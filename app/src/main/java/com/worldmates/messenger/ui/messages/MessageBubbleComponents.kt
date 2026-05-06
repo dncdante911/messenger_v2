@@ -1816,7 +1816,7 @@ fun ReplyIndicator(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(vertical = 8.dp, end = 4.dp),
+                        .padding(top = 8.dp, bottom = 8.dp, end = 4.dp),
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
