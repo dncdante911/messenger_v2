@@ -38,6 +38,7 @@ import ChannelAdminPanel from './ChannelAdminPanel';
 import GroupAdminPanel from './GroupAdminPanel';
 import VideoPlayer from './VideoPlayer';
 import MediaGallery, { type MediaItem } from './MediaGallery';
+import BotStore from './BotStore';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
@@ -3005,6 +3006,7 @@ export default function App() {
     { key: 'channels', icon: '📢', label: t('nav.channels') },
     { key: 'stories',  icon: '⭕', label: t('nav.stories')  },
     { key: 'calls',    icon: '📞', label: t('nav.calls')    },
+    { key: 'bots',     icon: '🤖', label: t('nav.bots')     },
   ];
 
   return (
@@ -3278,7 +3280,8 @@ export default function App() {
              section === 'groups'   ? t('sidebar.groups')   :
              section === 'channels' ? t('sidebar.channels') :
              section === 'stories'  ? t('sidebar.stories')  :
-             section === 'calls'    ? t('sidebar.calls')    : t('sidebar.settings')}
+             section === 'calls'    ? t('sidebar.calls')    :
+             section === 'bots'     ? t('nav.bots')         : t('sidebar.settings')}
           </h2>
           <button className="hamburger-btn" title="Поиск" style={{ fontSize: 17 }}
             onClick={() => { setShowGlobalSearch(true); setGlobalSearchQ(''); }}>🔍</button>
@@ -3779,6 +3782,18 @@ export default function App() {
         )}
 
         {/* ── Settings: content moved to <main> ──────────────────────── */}
+        {/* ── Bot store sidebar stub (full view is main content) ── */}
+        {section === 'bots' && (
+          <div className="list-scroll">
+            <div className="bs-sidebar-hint">
+              <div style={{ fontSize: 40, marginBottom: 8 }}>🤖</div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center' }}>
+                {t('bot.sidebarHint')}
+              </div>
+            </div>
+          </div>
+        )}
+
         {section === 'settings' && (
           <div className="list-scroll settings-panel" style={{display:'none'}}>
             {/* ── Profile header ──────────────────────────────────────── */}
@@ -4138,6 +4153,17 @@ export default function App() {
 
       {/* ── Main chat view ────────────────────────────────────────────────── */}
       <main className="chat-main">
+
+        {/* ── Bot store ─────────────────────────────────────────────────────── */}
+        {section === 'bots' && !showSaved && (
+          <BotStore
+            session={session}
+            onOpenChat={(userId, name, avatar) => {
+              setSection('chats');
+              setSelectedChat({ user_id: userId, name, avatar });
+            }}
+          />
+        )}
 
         {/* ── Saved messages panel ─────────────────────────────────────────── */}
         {showSaved && (
