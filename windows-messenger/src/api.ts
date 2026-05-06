@@ -1809,13 +1809,31 @@ export async function loadGroupAdminLogs(token: string, groupId: number, page = 
 // ─── Media gallery ────────────────────────────────────────────────────────────
 
 export type MediaGalleryItem = {
-  url:     string;
-  type:    'image' | 'video' | 'gif';
-  thumb?:  string;
+  url:      string;
+  type:     'image' | 'video' | 'gif' | 'music' | 'voice';
+  thumb?:   string;
   caption?: string;
-  date?:   string;
-  sender?: string;
+  date?:    string;
+  sender?:  string;
+  filename?: string;
 };
+
+function classifyMedia(mt: string, mediaPath: string, filename?: string): MediaGalleryItem['type'] | null {
+  const fn = (filename ?? mediaPath).toLowerCase();
+  // Voice: explicit type, or VOICE_ filename prefix, or known voice exts
+  const isVoiceExt = /\.(ogg|opus|webm|m4a)$/i.test(fn);
+  const isVoicePrefix = /\/VOICE_/i.test(fn) || /^VOICE_/i.test(fn.split('/').pop() ?? '');
+  if (mt === 'voice' || isVoicePrefix || (mt === 'audio' && isVoiceExt)) return 'voice';
+  // Music: mp3/wav/flac/aac or generic audio type without voice signals
+  if (/\.(mp3|wav|flac|aac|m4a)$/i.test(fn) || mt === 'audio') return 'music';
+  // Video
+  if (mt === 'video' || /\.(mp4|webm|mov|mkv|m4v|avi)$/i.test(fn)) return 'video';
+  // GIF
+  if (mt === 'gif' || /\.gif$/i.test(fn)) return 'gif';
+  // Image
+  if (['image', 'photo'].includes(mt) || /\.(jpg|jpeg|png|webp)$/i.test(fn)) return 'image';
+  return null;
+}
 
 /** Load all media messages from a 1-on-1 chat (up to 4 pages × 40). */
 export async function getChatMedia(token: string, recipientId: number): Promise<MediaGalleryItem[]> {
@@ -1840,11 +1858,10 @@ export async function getChatMedia(token: string, recipientId: number): Promise<
       const url = resolveUrl(m.media);
       if (seen.has(url)) continue;
       const mt = (m.media_type ?? '').toLowerCase();
-      if (!MEDIA_TYPES.has(mt) && !MEDIA_EXTS.test(m.media)) continue;
+      const type = classifyMedia(mt, m.media, m.media_filename);
+      if (!type) continue;
       seen.add(url);
-      const type: MediaGalleryItem['type'] = mt === 'video' || /\.(mp4|webm|mov|mkv)$/i.test(m.media)
-        ? 'video' : mt === 'gif' ? 'gif' : 'image';
-      items.push({ url, type, caption: m.text || undefined, date: m.time ? String(m.time) : undefined });
+      items.push({ url, type, filename: m.media_filename, caption: m.text || undefined, date: m.time ? String(m.time) : undefined });
     }
     beforeId = lastId;
     if (msgs.length < 40) break;
@@ -1854,8 +1871,6 @@ export async function getChatMedia(token: string, recipientId: number): Promise<
 
 /** Load all media messages from a group. */
 export async function getGroupMedia(token: string, groupId: number): Promise<MediaGalleryItem[]> {
-  const MEDIA_TYPES = new Set(['image', 'video', 'gif', 'photo']);
-  const MEDIA_EXTS  = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i;
   const items: MediaGalleryItem[] = [];
   const seen = new Set<string>();
 
@@ -1875,11 +1890,10 @@ export async function getGroupMedia(token: string, groupId: number): Promise<Med
       const url = resolveUrl(m.media);
       if (seen.has(url)) continue;
       const mt = (m.media_type ?? '').toLowerCase();
-      if (!MEDIA_TYPES.has(mt) && !MEDIA_EXTS.test(m.media)) continue;
+      const type = classifyMedia(mt, m.media, m.media_filename);
+      if (!type) continue;
       seen.add(url);
-      const type: MediaGalleryItem['type'] = mt === 'video' || /\.(mp4|webm|mov|mkv)$/i.test(m.media)
-        ? 'video' : mt === 'gif' ? 'gif' : 'image';
-      items.push({ url, type, caption: m.text || undefined, date: m.time ? String(m.time) : undefined });
+      items.push({ url, type, filename: m.media_filename, caption: m.text || undefined, date: m.time ? String(m.time) : undefined });
     }
     beforeId = lastId;
     if (msgs.length < 40) break;
@@ -1889,7 +1903,7 @@ export async function getGroupMedia(token: string, groupId: number): Promise<Med
 
 /** Load all media posts from a channel. */
 export async function getChannelMedia(token: string, channelId: number): Promise<MediaGalleryItem[]> {
-  const MEDIA_EXTS = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv)$/i;
+  const MEDIA_EXTS = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mkv|mp3|wav|flac|aac|ogg|opus)$/i;
   const items: MediaGalleryItem[] = [];
 
   let offset = 0;

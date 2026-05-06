@@ -39,6 +39,7 @@ import GroupAdminPanel from './GroupAdminPanel';
 import VideoPlayer from './VideoPlayer';
 import MediaGallery, { type MediaItem } from './MediaGallery';
 import BotStore from './BotStore';
+import ForwardModal from './ForwardModal';
 import { SignalService, CIPHER_VERSION_SIGNAL } from './signalService';
 import { signalSelfTest } from './signal';
 import {
@@ -363,7 +364,7 @@ function TypingDots() {
 }
 
 const Bubble = React.memo(function Bubble({
-  msg, isOwn, onReply, onEdit, onDelete, onReact, onOpenMedia, onSave, isSaved, userId
+  msg, isOwn, onReply, onEdit, onDelete, onReact, onOpenMedia, onSave, isSaved, userId, onForward
 }: {
   msg: MessageItem; isOwn: boolean; userId: number; isSaved: boolean;
   onReply: (m: MessageItem) => void;
@@ -372,6 +373,7 @@ const Bubble = React.memo(function Bubble({
   onReact: (m: MessageItem, emoji: string) => void;
   onOpenMedia: (src: string) => void;
   onSave: (m: MessageItem) => void;
+  onForward: (m: MessageItem) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -404,6 +406,7 @@ const Bubble = React.memo(function Bubble({
       {showActions && (
         <div className={`bubble-actions ${isOwn ? 'actions-left' : 'actions-right'}`}>
           <button className="action-btn" title={t('bubble.reply')} onClick={() => onReply(msg)}>↩</button>
+          <button className="action-btn" title={t('forward.title')} onClick={() => onForward(msg)}>↪</button>
           <button className="action-btn" title={t('bubble.react')} onClick={() => setShowEmojiPicker(v => !v)}>😀</button>
           <button className="action-btn" title={isSaved ? 'Убрать из сохранённых' : 'Сохранить'} onClick={() => onSave(msg)} style={{ color: isSaved ? 'var(--accent)' : undefined }}>{isSaved ? '🔖' : '🏷️'}</button>
           {isOwn && <button className="action-btn" title={t('bubble.edit')} onClick={() => onEdit(msg)}>✎</button>}
@@ -679,6 +682,19 @@ export default function App() {
   const [galleryItems,   setGalleryItems]   = useState<MediaItem[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [galleryTitle,   setGalleryTitle]   = useState('');
+
+  // ── Batch 8 ───────────────────────────────────────────────────────────────
+  // Forward messages
+  const [forwardMsg,     setForwardMsg]     = useState<MessageItem | null>(null);
+  // Chat folder filter (within chats/groups view)
+  const [chatFolder,     setChatFolder]     = useState<'all' | 'unread' | 'personal'>('all');
+  // Chat wallpaper (per selected chat, key = user_id or 'g'+group_id)
+  const [chatWallpapers, setChatWallpapers] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem('wm_wallpapers') ?? '{}'); } catch { return {}; }
+  });
+  const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
+  // Network/reconnect banner
+  const [isOnline,       setIsOnline]       = useState(navigator.onLine);
 
   // ── PIN lock ──────────────────────────────────────────────────────────────
   const [pinLocked,   setPinLocked]   = useState(false);
@@ -2668,6 +2684,38 @@ export default function App() {
     setGalleryLoading(false);
   }
 
+  // ─── Batch 8 handlers ──────────────────────────────────────────────────────
+
+  // Online / offline banner
+  useEffect(() => {
+    const up   = () => setIsOnline(true);
+    const down = () => setIsOnline(false);
+    window.addEventListener('online',  up);
+    window.addEventListener('offline', down);
+    return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
+  }, []);
+
+  // Forward message to chat or group (text only; media re-upload not supported)
+  async function handleForward(type: 'chat' | 'group', id: number) {
+    if (!session || !forwardMsg) return;
+    const text = forwardMsg.text ?? (forwardMsg.media ? `📎 ${forwardMsg.media_filename ?? forwardMsg.media}` : '');
+    if (!text) return;
+    try {
+      if (type === 'chat') await sendMessage(session.token, id, text);
+      else                 await sendGroupMessage(session.token, id, text);
+    } catch { /* best-effort */ }
+  }
+
+  // Save wallpaper for current chat context
+  function saveWallpaper(key: string, value: string) {
+    setChatWallpapers(prev => {
+      const next = { ...prev, [key]: value };
+      try { localStorage.setItem('wm_wallpapers', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    setShowWallpaperPicker(false);
+  }
+
   // ─── Group calls ───────────────────────────────────────────────────────────
 
   async function acceptGroupCall() {
@@ -2739,9 +2787,12 @@ export default function App() {
 
   // ─── Filtered lists ───────────────────────────────────────────────────────
 
-  const filteredChats = chats.filter(c =>
-    !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChats = chats.filter(c => {
+    if (searchQuery && !c.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (chatFolder === 'unread')   return (c.unread_count ?? 0) > 0;
+    if (chatFolder === 'personal') return !(c as ChatItem & { is_group?: boolean }).is_group;
+    return true;
+  });
 
   // Groups/channels: show server search results when available, else client-side filter
   const filteredGroups = (groupSearchResults ?? groups).filter(g =>
@@ -3424,6 +3475,26 @@ export default function App() {
         )}
 
         {/* ── Chats list ─────────────────────────────────────────────────── */}
+        {/* ── Chat folder tabs ───────────────────────────────────────────── */}
+        {section === 'chats' && !showGlobalSearch && (
+          <div className="folder-tabs">
+            {(['all', 'unread', 'personal'] as const).map(f => (
+              <button
+                key={f}
+                className={`folder-tab ${chatFolder === f ? 'folder-tab--on' : ''}`}
+                onClick={() => setChatFolder(f)}
+              >
+                {t(`folder.${f}`)}
+                {f === 'unread' && chats.filter(c => (c.unread_count ?? 0) > 0).length > 0 && (
+                  <span className="folder-tab-badge">
+                    {chats.filter(c => (c.unread_count ?? 0) > 0).length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
         {section === 'chats' && (
           <div className="list-scroll">
             {filteredChats.length === 0 && (
@@ -5191,13 +5262,48 @@ export default function App() {
                   </span>
                 </div>
               </div>
-              <div className="chat-header-actions">
+              <div className="chat-header-actions" style={{ position: 'relative' }}>
                 <button className="icon-btn" title={t('gallery.title')} onClick={() => openGallery('chat')}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
                     <polyline points="21 15 16 10 5 21"/>
                   </svg>
                 </button>
+                {/* Wallpaper picker */}
+                <button className="icon-btn" title={t('wallpaper.title')} onClick={() => setShowWallpaperPicker(v => !v)}>🎨</button>
+                {showWallpaperPicker && (
+                  <div className="wp-picker" onClick={e => e.stopPropagation()}>
+                    <div className="wp-picker-title">{t('wallpaper.title')}</div>
+                    <div className="wp-presets">
+                      {[
+                        { id: '', label: '✕', style: '' },
+                        { id: 'ocean',   label: '',  style: 'linear-gradient(135deg,#0a0e1a 0%,#0d2137 100%)' },
+                        { id: 'cosmos',  label: '',  style: 'linear-gradient(135deg,#0d0011 0%,#1a0533 50%,#0a1128 100%)' },
+                        { id: 'forest',  label: '',  style: 'linear-gradient(135deg,#041108 0%,#0a2a16 100%)' },
+                        { id: 'sunset',  label: '',  style: 'linear-gradient(135deg,#1a0a2e 0%,#3d1040 50%,#6b1a24 100%)' },
+                        { id: 'sand',    label: '',  style: 'linear-gradient(135deg,#1a1408 0%,#2e2510 100%)' },
+                        { id: 'rose',    label: '',  style: 'linear-gradient(135deg,#1a0810 0%,#2e1020 100%)' },
+                        { id: 'ice',     label: '',  style: 'linear-gradient(135deg,#081828 0%,#102a3a 100%)' },
+                        { id: 'dots',    label: '',  style: 'radial-gradient(circle, rgba(77,157,224,.08) 1px, transparent 1px) 0 0/24px 24px' },
+                        { id: 'lines',   label: '',  style: 'repeating-linear-gradient(45deg,rgba(77,157,224,.04) 0,rgba(77,157,224,.04) 1px,transparent 0,transparent 50%) 0 0/24px 24px' },
+                      ].map(wp => {
+                        const wpKey = `chat_${selectedChat.user_id}`;
+                        const active = (chatWallpapers[wpKey] ?? '') === wp.id;
+                        return (
+                          <button
+                            key={wp.id}
+                            className={`wp-swatch ${active ? 'wp-swatch--on' : ''}`}
+                            style={{ background: wp.style || 'rgba(255,255,255,.05)' }}
+                            onClick={() => saveWallpaper(wpKey, wp.id)}
+                            title={wp.id || t('wallpaper.none')}
+                          >
+                            {!wp.style && (wp.label || '✕')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <button className="icon-btn" title={t('chat.search')} onClick={openChatSearch}>
                   🔍
                 </button>
@@ -5266,7 +5372,25 @@ export default function App() {
             )}
 
             {/* ── Messages ─────────────────────────────────────────────── */}
-            <div className="messages-scroll" ref={messagesScrollRef}>
+            <div
+              className="messages-scroll"
+              ref={messagesScrollRef}
+              style={(() => {
+                const wp = chatWallpapers[`chat_${selectedChat.user_id}`];
+                const PRESETS: Record<string, string> = {
+                  ocean:  'linear-gradient(135deg,#0a0e1a 0%,#0d2137 100%)',
+                  cosmos: 'linear-gradient(135deg,#0d0011 0%,#1a0533 50%,#0a1128 100%)',
+                  forest: 'linear-gradient(135deg,#041108 0%,#0a2a16 100%)',
+                  sunset: 'linear-gradient(135deg,#1a0a2e 0%,#3d1040 50%,#6b1a24 100%)',
+                  sand:   'linear-gradient(135deg,#1a1408 0%,#2e2510 100%)',
+                  rose:   'linear-gradient(135deg,#1a0810 0%,#2e1020 100%)',
+                  ice:    'linear-gradient(135deg,#081828 0%,#102a3a 100%)',
+                  dots:   'radial-gradient(circle, rgba(77,157,224,.08) 1px, transparent 1px) 0 0/24px 24px',
+                  lines:  'repeating-linear-gradient(45deg,rgba(77,157,224,.04) 0,rgba(77,157,224,.04) 1px,transparent 0,transparent 50%) 0 0/24px 24px',
+                };
+                return wp && PRESETS[wp] ? { background: PRESETS[wp] } : {};
+              })()}
+            >
               {hasMore && (
                 <button className="load-more" onClick={handleLoadMore}>{t('chat.loadEarlier')}</button>
               )}
@@ -5331,6 +5455,7 @@ export default function App() {
                       onReact={handleReact}
                       onOpenMedia={setLightboxSrc}
                       onSave={m => handleSaveMessage(m, selectedChat.name, isOwn ? (session.username ?? '') : selectedChat.name)}
+                      onForward={m => setForwardMsg(m)}
                     />
                   </div>
                 );
@@ -5622,6 +5747,25 @@ export default function App() {
           title={galleryTitle}
           onClose={() => setShowGallery(false)}
         />
+      )}
+
+      {/* ── Forward message modal ─────────────────────────────────────────── */}
+      {forwardMsg && session && (
+        <ForwardModal
+          msg={forwardMsg}
+          chats={chats}
+          groups={groups}
+          onSend={(type, id) => handleForward(type, id)}
+          onClose={() => setForwardMsg(null)}
+        />
+      )}
+
+      {/* ── Offline / reconnect banner ────────────────────────────────────── */}
+      {!isOnline && (
+        <div className="reconnect-banner">
+          <div className="reconnect-banner__dot" />
+          {t('network.offline')}
+        </div>
       )}
     </div>
   );
