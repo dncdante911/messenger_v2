@@ -35,6 +35,7 @@ import {
   NODE_SAVED_SAVE,
   NODE_SAVED_LIST,
   NODE_USER_STATUS,
+  NODE_SEARCH_USERS,
   CHATS_PAGE_SIZE,
   MESSAGES_PAGE_SIZE,
   MESSAGE_TYPES,
@@ -67,19 +68,17 @@ function bool(v: unknown): boolean {
 /** Derive display text from a raw message object */
 function extractText(raw: Record<string, unknown>): string {
   const cv = num(raw.cipher_version);
+  // Signal E2EE (cipher_version=3) — hide ciphertext, decrypt async in chatStore
   if (cv === CIPHER_VERSION_SIGNAL) return '';
-  const t = str(raw.decrypted_text ?? raw.or_text ?? raw.text ?? '');
-  if (t.length > 30 && !/\s/.test(t) && /^[A-Za-z0-9+/=]+$/.test(t)) return '';
-  return t;
+  // Prefer server-decrypted text, then or_text (AES plaintext field), then raw text
+  return str(raw.decrypted_text ?? raw.or_text ?? raw.text ?? '');
 }
 
 /** Extract last-message preview from a chat list item */
 function lastMsgPreview(raw: unknown): string {
   if (!raw) return '';
   if (typeof raw === 'object') return extractText(raw as Record<string, unknown>);
-  const s = str(raw);
-  if (s.length > 30 && !/\s/.test(s) && /^[A-Za-z0-9+/=]+$/.test(s)) return '';
-  return s;
+  return str(raw);
 }
 
 /** Derive iOS MessageType from server type / media_type fields */
@@ -450,4 +449,36 @@ export async function getUserStatus(
     isOnline: bool(d.is_online ?? d.online),
     lastSeen: str(d.last_seen ?? d.lastseen ?? ''),
   };
+}
+
+export interface UserSearchResult {
+  id: string;
+  username: string;
+  name: string;
+  avatar?: string;
+  isOnline?: boolean;
+}
+
+export async function searchUsers(query: string): Promise<UserSearchResult[]> {
+  const res = await nodeApi.post<Record<string, unknown>>(NODE_SEARCH_USERS, {
+    query,
+    limit: 30,
+  });
+  const raw = res.data;
+  const list = (raw?.users ?? raw?.data ?? raw?.results ?? []) as Record<string, unknown>[];
+  if (!Array.isArray(list)) return [];
+  return list.map((u) => {
+    const firstName = str(u.first_name ?? '');
+    const lastName = str(u.last_name ?? '');
+    const fullName = str(
+      (u.name ?? u.full_name ?? [firstName, lastName].filter(Boolean).join(' ').trim()) || u.username || '',
+    );
+    return {
+      id: str(u.user_id ?? u.id ?? ''),
+      username: str(u.username ?? ''),
+      name: fullName || str(u.username ?? ''),
+      avatar: u.avatar ? str(u.avatar) : undefined,
+      isOnline: bool(u.is_online ?? u.online),
+    };
+  }).filter((u) => u.id);
 }

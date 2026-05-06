@@ -354,6 +354,8 @@ const en = {
   group_public: 'Public',
   group_private: 'Private',
   search_groups: 'Search groups',
+  search_users: 'Search by name or username',
+  no_users_found: 'No users found',
 
   // Channel details screen
   channel_info: 'About Channel',

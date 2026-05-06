@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import { Avatar } from '../../components/common/Avatar';
 import { Badge } from '../../components/common/Badge';
 import { useChatStore } from '../../store/chatStore';
 import { usePresenceStore } from '../../services/presenceService';
+import { NewChatModal } from './NewChatModal';
+import type { UserSearchResult } from '../../api/chatApi';
 import { useTheme } from '../../theme';
 import { useTranslation } from '../../i18n';
 import type { Chat, Message } from '../../api/types';
@@ -157,6 +159,8 @@ export function ChatsScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
 
+  const [showNewChat, setShowNewChat] = useState(false);
+
   const chats = useChatStore((s) => s.chats);
   const isLoadingChats = useChatStore((s) => s.isLoadingChats);
   const onlineUsers = usePresenceStore((s) => s.onlineUsers);
@@ -177,7 +181,20 @@ export function ChatsScreen() {
         chatType: chat.type,
         chatName: chat.name,
         chatAvatar: chat.avatar,
-        userId: chat.userId,
+        userId: chat.userId ?? chat.id,
+      });
+    },
+    [navigation],
+  );
+
+  const openUserChat = useCallback(
+    (user: UserSearchResult) => {
+      navigation.navigate('Messages', {
+        chatId: user.id,
+        chatType: 'user',
+        chatName: user.name,
+        chatAvatar: user.avatar,
+        userId: user.id,
       });
     },
     [navigation],
@@ -310,11 +327,17 @@ export function ChatsScreen() {
 
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
-        onPress={() => Alert.alert(t('new_chat'), t('coming_soon'))}
+        onPress={() => setShowNewChat(true)}
         activeOpacity={0.85}
       >
         <Feather name="edit-2" size={22} color="#FFFFFF" />
       </TouchableOpacity>
+
+      <NewChatModal
+        visible={showNewChat}
+        onClose={() => setShowNewChat(false)}
+        onSelectUser={openUserChat}
+      />
     </SafeAreaView>
   );
 }
