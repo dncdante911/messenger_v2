@@ -162,8 +162,8 @@ function normaliseChat(raw: Record<string, unknown>): Chat {
   const firstName = str(raw.first_name ?? '');
   const lastName = str(raw.last_name ?? '');
   const name = str(
-    raw.name ?? raw.full_name ?? raw.username ??
-      ([firstName, lastName].filter(Boolean).join(' ').trim()) ||
+    (raw.name ?? raw.full_name ?? raw.username ??
+      [firstName, lastName].filter(Boolean).join(' ').trim()) ||
       'User',
   );
 
